@@ -68,10 +68,10 @@ struct Buffer {
 
         bytes.length
         /// @resolution.name source=bytes target=Buffer.write.bytes
-        /// @resolution.member source=bytes.length receiver=readonly uint8[] type=isize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=isize)"
+        /// @resolution.member source=bytes.length receiver=readonly uint8[] type=isize kind=call target="collections.array.length(parameters=(), arguments=(), return=isize)"
         /// @resolution.place source=bytes placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=bytes root=Buffer.write.bytes
-        /// @generic.instantiation id=collections.array.length#2<uint8> template=collections.array.length#2 arguments=(uint8)
+        /// @generic.instantiation id=collections.array.length<uint8> template=collections.array.length arguments=(uint8)
 
     }
 }

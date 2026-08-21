@@ -13,13 +13,13 @@ const value = { a: 1, b: "two" };
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const value: { a: float64; b: string } = { a: 1, b: "two" };
+const value: { a: int64; b: string } = { a: 1, b: "two" };
 
 === dir ===
 const value = { a: 1, b: "two" };
-/// @type.symbol symbol=value source=value type={ a: float64; b: string }
+/// @type.symbol symbol=value source=value type={ a: int64; b: string }
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source={ a: 1, b: "two" } type={ a: float64; b: string }
+/// @type.node source={ a: 1, b: "two" } type={ a: int64; b: string }
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 "#,
@@ -43,7 +43,7 @@ const person = { name, age };
 === annotated ===
 const name: "Ada" = "Ada";
 const age: 42 = 42;
-const person: { name: string; age: float64 } = { name, age };
+const person: { name: string; age: int64 } = { name, age };
 
 === dir ===
 const name = "Ada";
@@ -57,9 +57,9 @@ const age = 42;
 /// @type.node source=42 type=42
 
 const person = { name, age };
-/// @type.symbol symbol=person source=person type={ name: string; age: float64 }
+/// @type.symbol symbol=person source=person type={ name: string; age: int64 }
 /// @resolution.pattern source=person kind=binding target=person
-/// @type.node source={ name, age } type={ name: string; age: float64 }
+/// @type.node source={ name, age } type={ name: string; age: int64 }
 /// @type.node source=name type="Ada"
 /// @resolution.name source=name target=name
 /// @resolution.place source=name placement="local" lifetime="static" access="exclusive"
@@ -296,22 +296,22 @@ const value = { ...base, c: true };
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const base: { a: float64; b: string } = { a: 1, b: "two" };
-const value: { a: float64; b: string; c: boolean } = { ...base, c: true };
+const base: { a: int64; b: string } = { a: 1, b: "two" };
+const value: { a: int64; b: string; c: boolean } = { ...base, c: true };
 
 === dir ===
 const base = { a: 1, b: "two" };
-/// @type.symbol symbol=base source=base type={ a: float64; b: string }
+/// @type.symbol symbol=base source=base type={ a: int64; b: string }
 /// @resolution.pattern source=base kind=binding target=base
-/// @type.node source={ a: 1, b: "two" } type={ a: float64; b: string }
+/// @type.node source={ a: 1, b: "two" } type={ a: int64; b: string }
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 
 const value = { ...base, c: true };
-/// @type.symbol symbol=value source=value type={ a: float64; b: string; c: boolean }
+/// @type.symbol symbol=value source=value type={ a: int64; b: string; c: boolean }
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source={ ...base, c: true } type={ a: float64; b: string; c: boolean }
-/// @type.node source=base type={ a: float64; b: string }
+/// @type.node source={ ...base, c: true } type={ a: int64; b: string; c: boolean }
+/// @type.node source=base type={ a: int64; b: string }
 /// @resolution.name source=base target=base
 /// @resolution.access source=base root=base
 /// @type.node source=true type=true
@@ -333,22 +333,22 @@ const value = { ...base, b: "two" };
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const base: { a: float64; b: float64 } = { a: 1, b: 2 };
-const value: { a: float64; b: string } = { ...base, b: "two" };
+const base: { a: int64; b: int64 } = { a: 1, b: 2 };
+const value: { a: int64; b: string } = { ...base, b: "two" };
 
 === dir ===
 const base = { a: 1, b: 2 };
-/// @type.symbol symbol=base source=base type={ a: float64; b: float64 }
+/// @type.symbol symbol=base source=base type={ a: int64; b: int64 }
 /// @resolution.pattern source=base kind=binding target=base
-/// @type.node source={ a: 1, b: 2 } type={ a: float64; b: float64 }
+/// @type.node source={ a: 1, b: 2 } type={ a: int64; b: int64 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
 const value = { ...base, b: "two" };
-/// @type.symbol symbol=value source=value type={ a: float64; b: string }
+/// @type.symbol symbol=value source=value type={ a: int64; b: string }
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source={ ...base, b: "two" } type={ a: float64; b: string }
-/// @type.node source=base type={ a: float64; b: float64 }
+/// @type.node source={ ...base, b: "two" } type={ a: int64; b: string }
+/// @type.node source=base type={ a: int64; b: int64 }
 /// @resolution.name source=base target=base
 /// @resolution.access source=base root=base
 /// @type.node source="\"two\"" type="two"

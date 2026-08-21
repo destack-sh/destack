@@ -231,6 +231,12 @@ impl CheckState<'_> {
         None
     }
 
+    /// Return whether one generic parameter is a memory parameter.
+    pub(in crate::sema) fn is_memory_parameter(&self, id: GenericParameterId) -> bool {
+        self.generic_parameter(id)
+            .is_some_and(|parameter| parameter.memory_parameter().is_some())
+    }
+
     /// Return whether one generic parameter is a lifetime.
     pub(in crate::sema) fn is_lifetime_parameter(&self, id: GenericParameterId) -> bool {
         self.generic_parameter(id).is_some_and(|parameter| {
@@ -432,6 +438,14 @@ impl CheckState<'_> {
         self.generic_parameter_type(parameter)
     }
 
+    /// Return the uri naming one module in internal errors.
+    fn module_uri(&self, module_id: ModuleId) -> String {
+        self.compiler
+            .module(self.context.revision(), module_id)
+            .map(|module| module.uri.to_string())
+            .unwrap_or_else(|_| format!("{module_id:?}"))
+    }
+
     /// Open the generic template at one source node.
     pub(in crate::sema) fn open_generic_template(
         &mut self,
@@ -441,15 +455,15 @@ impl CheckState<'_> {
             return Ok(template);
         }
 
-        // bind the template to its declaration scope
+        // bind the template to the scope its source introduces
         let module_id = source.module_id;
         let bindings = self.module(module_id).binding_table();
-        let scope = bindings
-            .scope_for_node(source)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("generic template source {source:?} has no lexical scope"),
-            })?
-            .id;
+        let Some(scope) = bindings.introduced_scope(source) else {
+            let uri = self.module_uri(module_id);
+            return Err(CompilerError::Internal {
+                message: format!("generic template source {source:?} introduces no scope in {uri}"),
+            });
+        };
         let symbol = bindings
             .get_scope_by_id(scope)
             .owner
@@ -467,15 +481,15 @@ impl CheckState<'_> {
             .module_maybe(module_id)
             .and_then(|module| module.generics_tail.template_by_scope(scope));
         if let Some(previous) = previous {
+            let uri = self.module_uri(module_id);
             return Err(CompilerError::Internal {
                 message: format!(
-                    "generic template {source:?} and {previous:?} govern scope {scope:?}"
+                    "generic template {source:?} and {previous:?} govern scope {scope:?} in {uri}"
                 ),
             });
         }
 
-        // allocate the template in its owning module, dropping the caches
-        //  derived from the template graph it extends
+        // allocate the template in its owning module, dropping the caches it invalidates
         self.assuming_scopes.clear();
         self.argument_ranks.clear();
         let module = self
@@ -1038,7 +1052,7 @@ impl CheckState<'_> {
         self.applied_substitution(template, &arguments)
     }
 
-    /// Return whether one written argument spells a lifetime.
+    /// Return whether one written argument names a lifetime.
     pub(in crate::sema) fn written_argument_is_lifetime(
         &self,
         ty: dir::GlobalTypeId,
@@ -1062,7 +1076,7 @@ impl CheckState<'_> {
         // memory literals appear as strings in written type arguments
         let is_reserved_lifetime = matches!(
             self.ty(ty)?,
-            dir::Type::Literal(dir::ScalarLiteral::String(name))
+            dir::Type::Literal(dir::Literal::String(name))
                 if matches!(self.strings().get(name), "static" | "frame")
         );
 
@@ -1169,32 +1183,51 @@ impl CheckState<'_> {
 
         // find the nearest ancestor governed by another template
         for current in bindings.scope_ancestors(template.scope) {
-            let parent = if self.is_own_module(template_id.module_id) {
-                self.module_maybe(template_id.module_id)
-                    .and_then(|module| {
-                        // read the working template before the declared-stage one
-                        module
-                            .generics_tail
-                            .template_by_scope(current.id)
-                            .or_else(|| {
-                                module.declared.as_ref().and_then(|declared| {
-                                    declared.generics.template_by_scope(current.id)
-                                })
-                            })
-                    })
-                    .map(|id| id.into_global(template_id.module_id))
-            } else {
-                self.external_module(template_id.module_id)
-                    .generics
-                    .template_by_scope(current.id)
-                    .map(|id| id.into_global(template_id.module_id))
-            };
-            if parent.is_some() {
-                return Ok(parent);
+            if let Some(parent) = self.scope_template(template_id.module_id, current.id) {
+                return Ok(Some(parent));
             }
         }
 
         Ok(None)
+    }
+
+    /// Return the template in effect at one node of a loaded module.
+    pub(in crate::sema) fn template_at_node(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> Option<GenericTemplateId> {
+        let module = node.module_id;
+        if !self.is_loaded_module(module) {
+            return None;
+        }
+        let bindings = self.binding_table(module);
+        let scope = bindings.scope_for_node(node)?.id;
+
+        std::iter::once(scope)
+            .chain(bindings.scope_ancestors(scope).map(|scope| scope.id))
+            .find_map(|scope| self.scope_template(module, scope))
+    }
+
+    /// Return the template governing one scope of a loaded module.
+    fn scope_template(
+        &self,
+        module: ModuleId,
+        scope: dir::LocalScopeId,
+    ) -> Option<GenericTemplateId> {
+        let local = match self.module_maybe(module) {
+            Some(state) => state.generics_tail.template_by_scope(scope).or_else(|| {
+                state
+                    .declared
+                    .as_ref()
+                    .and_then(|declared| declared.generics.template_by_scope(scope))
+            }),
+            None => self
+                .external_modules
+                .get(&module)
+                .and_then(|external| external.generics.template_by_scope(scope)),
+        };
+
+        local.map(|id| id.into_global(module))
     }
 
     /// Settle applied generic argument bindings for checked DIR.
@@ -1213,8 +1246,7 @@ impl CheckState<'_> {
             bindings.push(dir::GenericArgumentBinding::new(parameter, argument));
         }
 
-        // record in written order: outer templates first, declaration order
-        //  within each, independent of the derivation's binding sequence
+        // record in written order
         let mut keyed = Vec::with_capacity(bindings.len());
         for binding in bindings {
             let rank = self.written_argument_rank(binding.parameter)?;
@@ -1225,8 +1257,7 @@ impl CheckState<'_> {
         Ok(keyed.into_iter().map(|(_, binding)| binding).collect())
     }
 
-    /// Return one parameter's written-syntax rank: its template's lexical
-    /// depth, the template itself, and its declared position within it.
+    /// Return one parameter's written-syntax rank.
     fn written_argument_rank(
         &mut self,
         parameter: GenericParameterId,
@@ -1268,6 +1299,7 @@ impl CheckState<'_> {
             depth += 1;
             current = parent;
         }
+
         Ok((depth, Some(template), position))
     }
 }

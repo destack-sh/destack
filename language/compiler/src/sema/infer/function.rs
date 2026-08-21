@@ -1,13 +1,16 @@
+use destack_core::FxIndexSet;
+use destack_dir as dir;
+use destack_source::ModuleId;
+use smallvec::SmallVec;
+
 use crate::sema::{
-    BodyState, CheckFailure, CheckOutcome, Expectation, FlowSite, InferMode, Relation, ValueCheck,
+    BodyState, CauseId, CheckFailure, CheckOutcome, Expectation, FlowSite, InferMode, Origin,
+    Relation, ValueCheck,
 };
 use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
     /// Check one function value's body in its receiving context.
-    ///
-    /// The declared callable is constrained against the expected type, which fills in
-    /// the parameter and return types the body then checks against.
     pub(in crate::sema) fn check_function_value(
         &mut self,
         site: FlowSite,
@@ -24,9 +27,7 @@ impl BodyState<'_, '_> {
 
         // read the declared callable and the context the body checks under
         let callable = self.check.symbol_type(body.symbol)?;
-        let output_mode = expectation
-            .map_or(mode, |expectation| expectation.mode)
-            .descend(false);
+        let output_mode = expectation.map_or(mode, |expectation| expectation.mode);
         let target = expectation.map_or(callable, |expectation| expectation.target);
 
         // constrain the declared callable against its expected type
@@ -35,16 +36,21 @@ impl BodyState<'_, '_> {
             let origin = site.origin();
             let rejection = ValueCheck {
                 source: callable,
+                stored: callable,
                 outcome: CheckOutcome::Fails(CheckFailure::Relation),
                 target,
             };
 
-            // require the expectation to name a constructible value
-            let Some(construction) = self.construction_value(origin, expectation.target)? else {
+            // require the contextual callable type to name a construction
+            let contextual = self.contextual_callable(origin, expectation.target)?;
+            let Some(construction) = self.construction_value(origin, contextual)? else {
                 self.check.commit_node_type(node, callable)?;
 
                 return Ok(rejection);
             };
+
+            // take the contextual parameter and return types as the callable's own holes
+            self.adopt_contextual_signature(origin, expectation.cause, callable, construction)?;
 
             // require the declared callable to be assignable to that value
             if !self
@@ -82,8 +88,137 @@ impl BodyState<'_, '_> {
 
         Ok(ValueCheck {
             source: carrier,
+            stored: carrier,
             outcome,
             target,
+        })
+    }
+
+    /// Equate the callable's open parameter slots and return hole with the contextual signature.
+    fn adopt_contextual_signature(
+        &mut self,
+        origin: Origin,
+        cause: CauseId,
+        callable: dir::GlobalTypeId,
+        construction: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        // read both signatures, keeping the callable's own parameter slots
+        let (Some((source_module, source)), Some((target_module, target))) = (
+            self.callable_signature(callable)?,
+            self.callable_signature(construction)?,
+        ) else {
+            return Ok(());
+        };
+        let source_parameters = self
+            .check
+            .signature_parameters(source_module, source.parameters)?
+            .to_vec();
+
+        // settle an open rest pack, spreading its tuple over the slots
+        let mut packs = Vec::new();
+        for parameter in self
+            .check
+            .signature_parameters(target_module, target.parameters)?
+        {
+            if parameter.is_rest
+                && let Some(root) = self.check.root_variable(parameter.ty)?
+            {
+                packs.push(root);
+            }
+        }
+        if !packs.is_empty() {
+            self.check.resolve_variables(&packs)?;
+        }
+
+        // an unannotated positional slot takes its contextual slot type
+        let target_slots = self
+            .check
+            .parameter_slots(target_module, target.parameters)?;
+        for (index, slot) in source_parameters.iter().enumerate() {
+            if slot.is_rest || self.check.root_variable(slot.ty)?.is_none() {
+                continue;
+            }
+            let contextual = match target_slots.get(index) {
+                Some(target) if target.is_rest => self.check.rest_element_type(target.ty)?,
+                Some(target) => target.ty,
+                None => match target_slots.last() {
+                    Some(target) if target.is_rest => self.check.rest_element_type(target.ty)?,
+                    _ => continue,
+                },
+            };
+            self.check
+                .constrain_type(origin, cause, Relation::Equal, contextual, slot.ty)?;
+        }
+
+        // an inferred return is the contextual return
+        if let (Some(hole), Some(contextual)) = (source.return_type, target.return_type)
+            && self.check.root_variable(hole)?.is_some()
+        {
+            self.check
+                .constrain_type(origin, cause, Relation::Equal, contextual, hole)?;
+        }
+
+        Ok(())
+    }
+
+    /// Return the signature one callable type carries, with the module owning its rows.
+    fn callable_signature(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<(ModuleId, dir::FunctionSignatureType)>> {
+        let ty = self.shallow_resolve(ty)?;
+        let signature = match self.ty(ty)? {
+            dir::Type::Function(function) => function.signature,
+            dir::Type::FunctionSignature(_) => ty,
+            _ => return Ok(None),
+        };
+        let head = self.check.signature_head(signature)?;
+
+        Ok(head.map(|head| (signature.module_id, head)))
+    }
+
+    /// Return the type a callable takes its contextual signature from.
+    ///
+    /// A union expectation contributes its sole callable arm.
+    fn contextual_callable(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // take a plain expectation as it is
+        let head = self.check.structurally_normalize(origin, target)?;
+        if !matches!(self.check.ty(head)?, dir::Type::Union(_)) {
+            return Ok(target);
+        }
+
+        // flatten nested union members through their aliases, visiting each member once
+        let mut pending = vec![head];
+        let mut visited = FxIndexSet::default();
+        let mut callables = SmallVec::<[dir::GlobalTypeId; 2]>::new();
+        while let Some(member) = pending.pop() {
+            let member = self.check.structurally_normalize(origin, member)?;
+            if !visited.insert(member) {
+                continue;
+            }
+
+            // queue the members of a nested union
+            if let dir::Type::Union(union) = self.check.ty(member)? {
+                pending.extend(
+                    self.check
+                        .type_ids(member.module_id, union.elements)?
+                        .iter()
+                        .copied(),
+                );
+            }
+            // keep the members carrying a signature
+            else if self.callable_signature_type(origin, member)?.is_some() {
+                callables.push(member);
+            }
+        }
+
+        Ok(match callables.as_slice() {
+            [callable] => *callable,
+            _ => target,
         })
     }
 }

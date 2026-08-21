@@ -231,11 +231,11 @@ const length = values.length;
 /// @type.node source=values type=int32[]
 /// @type.node source=values.length type=isize
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.length receiver=int32[] type=isize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=isize)"
+/// @resolution.member source=values.length receiver=int32[] type=isize kind=call target="collections.array.length(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instantiation id=collections.array.length#2<int32> template=collections.array.length#2 arguments=(int32)
-/// @generic.instance id=collections.array.length#2<int32> template=collections.array.length#2 arguments=(int32)
+/// @generic.instantiation id=collections.array.length<int32> template=collections.array.length arguments=(int32)
+/// @generic.instance id=collections.array.length<int32> template=collections.array.length arguments=(int32)
 "#,
     );
 }
@@ -277,12 +277,12 @@ const length = values.length;
 /// @type.node source=values type=int32[]
 /// @type.node source=values.length type=isize
 /// @resolution.name source=values target=values.values
-/// @resolution.member source=values.length receiver=int32[] type=isize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=isize)"
+/// @resolution.member source=values.length receiver=int32[] type=isize kind=call target="collections.array.length(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values.values
-/// @generic.instantiation id=collections.array.length#2<int32> template=collections.array.length#2 arguments=(int32)
+/// @generic.instantiation id=collections.array.length<int32> template=collections.array.length arguments=(int32)
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=collections.array.length#2<int32> template=collections.array.length#2 arguments=(int32)
+/// @generic.instance id=collections.array.length<int32> template=collections.array.length arguments=(int32)
 /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
 "#,

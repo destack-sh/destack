@@ -14,7 +14,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
         let decision = match (self.ty(source)?, self.ty(target)?) {
-            // error types poison silently instead of cascading
+            // error types poison silently
             (dir::Type::Error, _) | (_, dir::Type::Error) => Verdict::Holds,
             // compare lifetime pairs equal, MIR Verify enforces outlives
             (_, _)
@@ -45,15 +45,13 @@ impl CheckState<'_> {
                 Verdict::decided(source == target)
             }
             // nullish literals equal their canonical unit types
-            (dir::Type::Null, dir::Type::Literal(dir::ScalarLiteral::Null))
-            | (dir::Type::Literal(dir::ScalarLiteral::Null), dir::Type::Null)
-            | (dir::Type::Undefined, dir::Type::Literal(dir::ScalarLiteral::Undefined))
-            | (dir::Type::Literal(dir::ScalarLiteral::Undefined), dir::Type::Undefined) => {
-                Verdict::Holds
-            }
+            (dir::Type::Null, dir::Type::Literal(dir::Literal::Null))
+            | (dir::Type::Literal(dir::Literal::Null), dir::Type::Null)
+            | (dir::Type::Undefined, dir::Type::Literal(dir::Literal::Undefined))
+            | (dir::Type::Literal(dir::Literal::Undefined), dir::Type::Undefined) => Verdict::Holds,
             // memory singleton values compare against their authored string text
-            (dir::Type::Memory(memory), dir::Type::Literal(dir::ScalarLiteral::String(text)))
-            | (dir::Type::Literal(dir::ScalarLiteral::String(text)), dir::Type::Memory(memory)) => {
+            (dir::Type::Memory(memory), dir::Type::Literal(dir::Literal::String(text)))
+            | (dir::Type::Literal(dir::Literal::String(text)), dir::Type::Memory(memory)) => {
                 Verdict::decided(text == dir::StringId::for_text(memory.text()))
             }
             (dir::Type::Memory(source), dir::Type::Memory(target)) => {

@@ -52,7 +52,7 @@ impl CheckState<'_> {
         let root_uses = if path.keys().is_empty() {
             uses
         } else {
-            uses.without(dir::BindingUse::WRITTEN)
+            uses.without(dir::BindingUse::WRITE)
         };
         let flows = &mut self.module_mut(node.module_id).flows;
 
@@ -74,15 +74,27 @@ impl CheckState<'_> {
         receiver: dir::GlobalNodeIdAny,
         key: dir::StaticKey,
     ) -> CompilerResult<()> {
-        let Some(receiver) = self
+        // project from the receiver's own access, or root a static member at its declaration
+        let mut path = match self
             .module(receiver.module_id)
             .decisions
             .access_resolution(receiver)
-        else {
-            return Ok(());
-        };
-        let mut path = receiver.path().clone();
+        {
+            Some(access) => access.path().clone(),
+            None => {
+                let Some(symbol) = self
+                    .name_decision(receiver)
+                    .and_then(dir::NameResolution::single_symbol)
+                else {
+                    return Ok(());
+                };
+                if !self.symbol_kind(symbol)?.is_nominal() {
+                    return Ok(());
+                }
 
+                dir::AccessPath::symbol(symbol)
+            }
+        };
         path.push(key);
 
         self.commit_access(node, path)

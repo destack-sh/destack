@@ -3,9 +3,9 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BoundSide, Cause, CauseId, CauseKind, CheckEvent, CheckState, InferenceScope, Origin, Relation,
-    RelationCheck, TypeBound, VariableBounds, VariableRole, VariableState, Verdict, Wake, Widening,
-    WorkState,
+    BoundSide, CauseId, CheckEvent, CheckState, GenericParameterId, InferenceScope, Origin,
+    Relation, RelationCheck, TypeBound, VariableBounds, VariableKind, VariableRole, VariableState,
+    Verdict, Wake, WorkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -14,11 +14,7 @@ use crate::{CompilerError, CompilerResult};
 pub(in crate::sema) enum FallbackStage {
     /// Complete variables resolvable from their bounds alone.
     Bounded,
-    /// Complete the remaining variables, widening literals.
-    Widened,
-    /// Fix variables a contextual closure is about to read, widening literals.
-    Fixed,
-    /// Complete every variable from its bounds as they stand.
+    /// Complete every variable from its bounds, then from its kind's fallback.
     Final,
 }
 
@@ -27,13 +23,55 @@ impl CheckState<'_> {
     pub(in crate::sema) fn allocate_variable(
         &mut self,
         origin: Origin,
-        widening: Widening,
         role: VariableRole,
     ) -> dir::TypeVariableId {
-        let variable = self.infer.allocate_variable(origin, widening, role);
-        self.record_event(CheckEvent::VariableAllocated { variable, widening });
+        self.allocate_variable_of(origin, VariableKind::Type, role)
+    }
+
+    /// Allocate one inference variable of the given kind.
+    pub(in crate::sema) fn allocate_variable_of(
+        &mut self,
+        origin: Origin,
+        kind: VariableKind,
+        role: VariableRole,
+    ) -> dir::TypeVariableId {
+        let variable = self.infer.allocate_variable(origin, kind, role);
+        self.record_event(CheckEvent::VariableAllocated { variable, kind });
 
         variable
+    }
+
+    /// Narrow one open variable's component to a numeric kind.
+    pub(in crate::sema) fn join_variable_kind(
+        &mut self,
+        variable: dir::TypeVariableId,
+        kind: VariableKind,
+    ) -> CompilerResult<()> {
+        let root = self.infer.alias_root(variable)?;
+        let joined = self.infer.variable(root)?.kind.join(kind);
+        self.infer.variable_mut(root)?.kind = joined;
+
+        Ok(())
+    }
+
+    /// Return the kind of one variable's alias root.
+    pub(in crate::sema) fn root_kind(
+        &self,
+        variable: dir::TypeVariableId,
+    ) -> CompilerResult<VariableKind> {
+        Ok(self.infer.variable(self.infer.alias_root(variable)?)?.kind)
+    }
+
+    /// Return the alias root of one open numeric variable type, `None` for every other type.
+    pub(in crate::sema) fn numeric_root(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::TypeVariableId>> {
+        let Some(root) = self.root_variable(ty)? else {
+            return Ok(None);
+        };
+
+        Ok((self.root_kind(root)? != VariableKind::Type).then_some(root))
     }
 
     /// Record the declared default completing one variable when inference stays dry.
@@ -84,22 +122,73 @@ impl CheckState<'_> {
         Ok(kind)
     }
 
-    /// Return whether one open variable already carries a closed contextual expectation.
-    pub(in crate::sema) fn has_contextual_expectation(
+    /// Resolve the given variables in place through every fallback stage.
+    pub(in crate::sema) fn resolve_variables(
         &mut self,
-        variable: dir::TypeVariableId,
-    ) -> CompilerResult<bool> {
-        let variable = self.infer.alias_root(variable)?;
-        let bounds = self
+        variables: &[dir::TypeVariableId],
+    ) -> CompilerResult<()> {
+        let roots = self.variable_roots(variables)?;
+
+        // alternate bound resolution and declared defaults until nothing applies
+        loop {
+            // resolve from bounds to a fixpoint, unblocking each dependent solution
+            while self.resolve_scope_roots(&roots, FallbackStage::Bounded)? {}
+
+            if !self.apply_defaults(&roots)? {
+                break;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Commit the widened union of one variable's literal lower bounds, so a contextual slot
+    /// read before its call settles reads a widened type.
+    pub(in crate::sema) fn fix_literal_candidates(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let Some(root) = self.root_variable(ty)? else {
+            return Ok(());
+        };
+
+        // a const or scalar-bounded parameter keeps its literals
+        if let VariableRole::Instantiation { parameter } = self.infer.variable_role(root)? {
+            let origin = self.infer.origin(self.infer.variable(root)?.origin);
+            if self.parameter_keeps_literals(origin, parameter)? {
+                return Ok(());
+            }
+        }
+        let lower = self
             .infer
             .variables
-            .side_bounds(variable, BoundSide::Upper)?
+            .side_bounds(root, BoundSide::Lower)?
             .collect::<SmallVec<[TypeBound; 2]>>();
+        if lower.is_empty() {
+            return Ok(());
+        }
+        let mut widened = SmallVec::<[dir::GlobalTypeId; 2]>::new();
+        for bound in lower {
+            let ty = self.shallow_resolve(bound.ty)?;
+            if !matches!(self.ty(ty)?, dir::Type::Literal(_)) {
+                return Ok(());
+            }
+            widened.push(self.widen_type(ty)?);
+        }
+        let solution = self.normalized_union_type(widened)?;
 
-        // accept the first directed expectation whose type has already closed
-        for bound in bounds {
-            if matches!(bound.relation, Relation::Assignable | Relation::Widens)
-                && self.type_variables(bound.ty)?.is_empty()
+        self.commit_solution(root, solution)
+    }
+
+    /// Apply one declared default to the first open root that carries one.
+    pub(in crate::sema) fn apply_defaults(
+        &mut self,
+        roots: &[dir::TypeVariableId],
+    ) -> CompilerResult<bool> {
+        for root in roots {
+            if self.infer.variable(*root)?.state.is_open()
+                && let Some(default) = self.variable_default(*root)?
+                && self.resolve_variable(*root, &[default], FallbackStage::Bounded)?
             {
                 return Ok(true);
             }
@@ -108,35 +197,14 @@ impl CheckState<'_> {
         Ok(false)
     }
 
-    /// Resolve the given variables in place through every fallback stage.
-    pub(in crate::sema) fn resolve_variables(
+    /// Apply one declared default to one of a scope's open variables.
+    pub(in crate::sema) fn apply_scope_default(
         &mut self,
-        variables: &[dir::TypeVariableId],
-    ) -> CompilerResult<()> {
-        let roots = self.variable_roots(variables)?;
+        scope: InferenceScope,
+    ) -> CompilerResult<bool> {
+        let roots = self.open_scope_variables(scope)?;
 
-        // alternate bound resolution and defaults until nothing applies
-        loop {
-            // resolve from bounds to a fixpoint, unblocking each dependent solution
-            while self.resolve_scope_roots(&roots, FallbackStage::Bounded)? {}
-
-            if !self.default_variables(&roots)? {
-                break;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Fix variables a contextual closure reads, from their bounds without defaults.
-    pub(in crate::sema) fn fix_scope_variables(
-        &mut self,
-        variables: &[dir::TypeVariableId],
-    ) -> CompilerResult<()> {
-        let roots = self.variable_roots(variables)?;
-        while self.resolve_scope_roots(&roots, FallbackStage::Fixed)? {}
-
-        Ok(())
+        self.apply_defaults(&roots)
     }
 
     /// Collect the distinct component roots of one variable list.
@@ -153,44 +221,6 @@ impl CheckState<'_> {
         }
 
         Ok(roots)
-    }
-
-    /// Apply one default to one of a scope's open variables.
-    pub(in crate::sema) fn default_scope(&mut self, scope: InferenceScope) -> CompilerResult<bool> {
-        let roots = self.open_scope_variables(scope)?;
-
-        self.default_variables(&roots)
-    }
-
-    /// Apply one fallback across the given roots, defaults before widening.
-    pub(in crate::sema) fn default_variables(
-        &mut self,
-        roots: &[dir::TypeVariableId],
-    ) -> CompilerResult<bool> {
-        // apply one declared default at a time, so bounds re-resolve between them
-        for root in roots {
-            if self.infer.variable(*root)?.state.is_open()
-                && let Some(default) = self.variable_default(*root)?
-                && self.resolve_variable(*root, &[default], FallbackStage::Bounded)?
-            {
-                return Ok(true);
-            }
-        }
-
-        // widen one literal-bounded variable once the defaults run dry
-        for root in roots {
-            if self.infer.variable(*root)?.state.is_open() {
-                let defaults = match self.variable_default(*root)? {
-                    Some(default) => SmallVec::<[dir::GlobalTypeId; 1]>::from_slice(&[default]),
-                    None => SmallVec::new(),
-                };
-                if self.resolve_variable(*root, &defaults, FallbackStage::Widened)? {
-                    return Ok(true);
-                }
-            }
-        }
-
-        Ok(false)
     }
 
     /// Resolve every variable this scope allocated, in allocation order.
@@ -282,6 +312,26 @@ impl CheckState<'_> {
         Ok(Some(default))
     }
 
+    /// Return whether one generic parameter keeps literal candidates: a const parameter, or one
+    /// bounded by a scalar family.
+    pub(in crate::sema) fn parameter_keeps_literals(
+        &mut self,
+        origin: Origin,
+        parameter: GenericParameterId,
+    ) -> CompilerResult<bool> {
+        if self.require_generic_parameter(parameter)?.is_const {
+            return Ok(true);
+        }
+        for bound in self.declared_parameter_bounds(parameter)? {
+            let bound = self.normalize(origin, bound)?;
+            if self.scalar_families(origin, bound)?.is_some() {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
     /// Resolve one open variable from its bounds and declared defaults.
     pub(in crate::sema) fn resolve_variable(
         &mut self,
@@ -290,9 +340,7 @@ impl CheckState<'_> {
         stage: FallbackStage,
     ) -> CompilerResult<bool> {
         // wait for a live producer that may still grow this variable's bounds
-        if !matches!(stage, FallbackStage::Final | FallbackStage::Fixed)
-            && self.variable_may_grow(variable)?
-        {
+        if stage != FallbackStage::Final && self.variable_may_grow(variable)? {
             return Ok(false);
         }
 
@@ -303,16 +351,26 @@ impl CheckState<'_> {
             .side_bounds(variable, BoundSide::Lower)?
             .collect::<SmallVec<[TypeBound; 2]>>();
         let mut closed_lower = SmallVec::<[TypeBound; 4]>::new();
+        let mut numeric_lower = SmallVec::<[TypeBound; 2]>::new();
         let mut has_recursive_bound = false;
         for bound in &lower {
+            // a bound aliased onto this variable itself carries no information
+            if self.root_variable(bound.ty)? == Some(variable) {
+                continue;
+            }
             if self.type_contains_variable(bound.ty, variable)? {
                 has_recursive_bound = true;
+                continue;
+            }
+            // a numeric variable follows another variable's solution
+            if self.numeric_root(bound.ty)?.is_some() {
+                numeric_lower.push(*bound);
                 continue;
             }
             closed_lower.push(*bound);
         }
 
-        // split the upper bounds, keeping the equation and contextual expectations
+        // split the upper bounds, keeping the equation and the directed expectations
         let upper = self
             .infer
             .variables
@@ -322,6 +380,9 @@ impl CheckState<'_> {
         let mut contextual_types = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         let mut equation = None;
         for bound in &upper {
+            if self.root_variable(bound.ty)? == Some(variable) {
+                continue;
+            }
             if self.type_contains_variable(bound.ty, variable)? {
                 has_recursive_bound = true;
                 continue;
@@ -330,66 +391,56 @@ impl CheckState<'_> {
             if bound.relation == Relation::Equal {
                 equation = Some(bound.ty);
             }
-            if matches!(bound.relation, Relation::Assignable | Relation::Widens) {
+            if matches!(
+                bound.relation,
+                Relation::Assignable | Relation::Widens | Relation::Subtype
+            ) {
                 contextual_types.push(bound.ty);
             }
         }
 
-        // apply this variable's literal policy to its closed lower bounds
+        // admit the lower candidates, a numeric variable taking its family from typed bounds
+        let state = *self.infer.variable(variable)?;
+        let origin = self.infer.origin(state.origin);
         let has_equation = closed_lower
             .iter()
             .any(|bound| bound.relation == Relation::Equal);
-        let candidates = closed_lower
-            .iter()
-            .map(|bound| bound.ty)
-            .collect::<SmallVec<[_; 2]>>();
-        let state = *self.infer.variable(variable)?;
-        let origin = self.infer.origin(state.origin);
-        let widens = !has_equation
-            && match state.widening {
-                // fixing widens the literals a contextual closure is about to read
-                Widening::Never => false,
-                Widening::Aggregate => stage == FallbackStage::Fixed,
-                Widening::Multiple => {
-                    stage == FallbackStage::Fixed || self.has_distinct_types(origin, &candidates)?
-                }
-                Widening::Always => true,
-                Widening::Const => self.has_only_literal_types(&candidates)?,
-            };
-
-        // defer literal widening to its own fallback stage
-        if widens && !matches!(stage, FallbackStage::Widened | FallbackStage::Fixed) {
-            for bound in &closed_lower {
-                if matches!(bound.relation, Relation::Assignable | Relation::Castable)
-                    && self.widen_bound_type(state.widening, bound.ty)? != bound.ty
-                {
-                    return Ok(false);
-                }
-            }
-        }
-
-        // admit the lower candidate types, widened as the policy allows
         let mut lower_types = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for bound in &closed_lower {
             if has_equation && bound.relation != Relation::Equal {
                 continue;
             }
-            let ty =
-                if widens && matches!(bound.relation, Relation::Assignable | Relation::Castable) {
-                    // a typed sibling candidate absorbs a literal without widening it
-                    match self.candidate_absorbs_literal(origin, &candidates, bound.ty)? {
-                        true => bound.ty,
-                        false => self.widen_bound_type(state.widening, bound.ty)?,
-                    }
-                } else {
-                    bound.ty
-                };
-            lower_types.push(ty);
+            if !self.admits_candidate(origin, state.kind, bound.ty)? {
+                continue;
+            }
+            lower_types.push(bound.ty);
+        }
+        let mut typed = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        for contextual in contextual_types {
+            if self.admits_candidate(origin, state.kind, contextual)? {
+                typed.push(contextual);
+            }
+        }
+        contextual_types = typed;
+
+        // a variable bounded below by numeric variables alone is that numeric variable
+        if lower_types.is_empty()
+            && contextual_types.is_empty()
+            && equation.is_none()
+            && let Some(bound) = numeric_lower.first()
+            && let Some(numeric) = self.root_variable(bound.ty)?
+        {
+            self.alias_variable(variable, numeric)?;
+
+            return Ok(true);
         }
 
         // form the preferred lower and contextual solutions once
-        let is_unconstrained_recursion =
-            has_recursive_bound && lower_types.is_empty() && contextual_types.is_empty();
+        let is_unconstrained_recursion = has_recursive_bound
+            && state.kind == VariableKind::Type
+            && lower_types.is_empty()
+            && contextual_types.is_empty()
+            && numeric_lower.is_empty();
         let lower_solution = match lower_types.is_empty() {
             true => None,
             false => Some(self.best_common(variable, &lower_types)?),
@@ -406,23 +457,6 @@ impl CheckState<'_> {
         } else if is_unconstrained_recursion {
             None
         } else if let Some(lower_solution) = lower_solution {
-            // prefer a bounds-satisfying contextual over widening literal candidates
-            if widens
-                && let Some(contextual) = contextual
-                && self.solution_satisfies_bounds(
-                    origin,
-                    contextual,
-                    &closed_lower,
-                    &closed_upper,
-                )? == Verdict::Holds
-            {
-                let solution = self.shallow_resolve(contextual)?;
-                let solution = self.reduce_redundant_forms(origin, solution)?;
-                self.commit_solution(variable, solution)?;
-
-                return Ok(true);
-            }
-
             let verdict = self.solution_satisfies_bounds(
                 origin,
                 lower_solution,
@@ -433,10 +467,11 @@ impl CheckState<'_> {
             match verdict {
                 // take the lower solution its bounds admit
                 Verdict::Holds => Some(lower_solution),
-                // adopt a closed candidate at the final settle
+                // adopt a candidate closed at the final settle, or open only in numeric variables
                 Verdict::Ambiguous
-                    if stage == FallbackStage::Final
-                        && !self.type_flags(lower_solution)?.has_variable() =>
+                    if (stage == FallbackStage::Final
+                        && !self.type_flags(lower_solution)?.has_variable())
+                        || self.is_open_only_numerically(lower_solution)? =>
                 {
                     Some(lower_solution)
                 }
@@ -473,6 +508,12 @@ impl CheckState<'_> {
             Some(*default)
         } else if !defaults.is_empty() {
             Some(self.best_common(variable, defaults)?)
+        }
+        // a numeric variable nothing decided falls back to its kind's default at the end
+        else if stage == FallbackStage::Final
+            && let Some(fallback) = state.kind.fallback()
+        {
+            Some(self.intern_type(fallback)?)
         } else {
             None
         };
@@ -503,6 +544,48 @@ impl CheckState<'_> {
         self.commit_solution(variable, solution)?;
 
         Ok(true)
+    }
+
+    /// Return whether one type resolves to a scalar literal.
+    fn is_open_only_numerically(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let variables = self.type_variables(ty)?;
+        if variables.is_empty() {
+            return Ok(false);
+        }
+        for variable in variables {
+            if self.root_kind(variable)? == VariableKind::Type {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
+    /// Return whether one bound may solve a variable of the given kind.
+    ///
+    /// A numeric variable takes the typed members of its family, an integer one adapting to
+    /// floats as well.
+    fn admits_candidate(
+        &mut self,
+        origin: Origin,
+        kind: VariableKind,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let domains: &[dir::ScalarDomain] = match kind {
+            VariableKind::Type => return Ok(true),
+            VariableKind::Integer => &[dir::ScalarDomain::Integer, dir::ScalarDomain::Float],
+            VariableKind::Float => &[dir::ScalarDomain::Float],
+        };
+        let ty = self.shallow_resolve(ty)?;
+        if matches!(self.ty(ty)?, dir::Type::Literal(_)) {
+            return Ok(false);
+        }
+
+        Ok(self.scalar_families(origin, ty)?.is_some_and(|families| {
+            domains
+                .iter()
+                .any(|domain| families.contains(dir::ScalarFamily::Domain(*domain)))
+        }))
     }
 
     /// Return whether a live check may still push a new bound onto one variable.
@@ -553,84 +636,6 @@ impl CheckState<'_> {
         }
 
         Ok(verdict)
-    }
-
-    /// Widen one literal lower bound under a variable's widening policy.
-    fn widen_bound_type(
-        &mut self,
-        widening: Widening,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        match widening {
-            Widening::Const => self.widen_const_type(ty),
-            Widening::Never | Widening::Aggregate | Widening::Multiple | Widening::Always => {
-                self.widen_type(ty)
-            }
-        }
-    }
-
-    /// Return whether a sibling typed candidate admits one literal candidate.
-    fn candidate_absorbs_literal(
-        &mut self,
-        origin: Origin,
-        candidates: &[dir::GlobalTypeId],
-        literal: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let resolved = self.shallow_resolve(literal)?;
-        if !matches!(self.ty(resolved)?, dir::Type::Literal(_)) {
-            return Ok(false);
-        }
-
-        for candidate in candidates {
-            let candidate = self.shallow_resolve(*candidate)?;
-            if candidate == resolved || matches!(self.ty(candidate)?, dir::Type::Literal(_)) {
-                continue;
-            }
-            if self
-                .evaluate_relation(origin, Relation::Assignable, resolved, candidate)?
-                .holds()
-            {
-                return Ok(true);
-            }
-        }
-
-        Ok(false)
-    }
-
-    /// Return whether every candidate is an exact literal type.
-    fn has_only_literal_types(&mut self, types: &[dir::GlobalTypeId]) -> CompilerResult<bool> {
-        for ty in types {
-            let ty = self.shallow_resolve(*ty)?;
-            if !matches!(self.ty(ty)?, dir::Type::Literal(_)) {
-                return Ok(false);
-            }
-        }
-
-        Ok(!types.is_empty())
-    }
-
-    /// Return whether a closed type list contains unequal types.
-    fn has_distinct_types(
-        &mut self,
-        origin: Origin,
-        types: &[dir::GlobalTypeId],
-    ) -> CompilerResult<bool> {
-        let Some(first) = types.first() else {
-            return Ok(false);
-        };
-
-        let first = self.shallow_resolve(*first)?;
-
-        // compare each remaining candidate with the first
-        for ty in &types[1..] {
-            let ty = self.shallow_resolve(*ty)?;
-            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-            if !self.relate_equal(origin, cause, first, ty)?.holds() {
-                return Ok(true);
-            }
-        }
-
-        Ok(false)
     }
 
     /// Collect the unsolved variables one type transitively references.
@@ -754,7 +759,13 @@ impl CheckState<'_> {
             .collect::<SmallVec<[TypeBound; 2]>>();
         let default = self.infer.variables.variable_default(aliased);
 
-        // forward the aliased variable onto the root
+        // forward the aliased variable onto the root, the component taking the narrower kind
+        let kind = self
+            .infer
+            .variable(root)?
+            .kind
+            .join(self.infer.variable(aliased)?.kind);
+        self.infer.variable_mut(root)?.kind = kind;
         self.infer.variable_mut(aliased)?.state = VariableState::Alias(root);
         self.fulfill.wake(Wake::Variable(aliased));
         self.fulfill.forward_producers(aliased, &[root]);
@@ -821,6 +832,7 @@ impl CheckState<'_> {
                 .side_bounds(variable, BoundSide::Upper)?
                 .collect(),
         };
+
         // require the completed state to carry its own type
         let ty = state.ty().ok_or_else(|| CompilerError::Internal {
             message: format!("cannot commit open check variable {variable:?}"),
@@ -933,6 +945,24 @@ impl CheckState<'_> {
             self.discharge_bound(side, &late, solution)?;
 
             return Ok(());
+        }
+
+        // numeric variables bounding one variable from below join into one family variable
+        if side == BoundSide::Lower
+            && let Some(root) = self.numeric_root(bound)?
+        {
+            let lower = self
+                .infer
+                .variables
+                .side_bounds(self.infer.alias_root(variable)?, BoundSide::Lower)?
+                .collect::<SmallVec<[TypeBound; 2]>>();
+            for known in lower {
+                if let Some(other) = self.numeric_root(known.ty)?
+                    && other != root
+                {
+                    self.alias_variable(root, other)?;
+                }
+            }
         }
 
         // collect each distinct bound once

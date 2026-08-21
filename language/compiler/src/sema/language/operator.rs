@@ -159,6 +159,10 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // expose aliased operands before comparing their shapes
+        let left = self.normalize(origin, left)?;
+        let right = self.normalize(origin, right)?;
+
         // compare transparent newtypes through their backing representations
         if let Some(instance) = self.decompose_newtype(origin, left)? {
             return self.supports_builtin_strict_equality(origin, instance.backing, right);

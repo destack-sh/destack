@@ -1,11 +1,12 @@
-use crate::sema::{
-    BodyState, CheckState, GenericParameterId, GenericTemplateId, Origin, TypeSubstitution,
-    VariableRole, Widening,
-};
-use crate::{CompilerError, CompilerResult};
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
+
+use crate::sema::{
+    BodyState, CheckState, GenericParameterId, GenericTemplateId, Origin, TypeSubstitution,
+    VariableRole,
+};
+use crate::{CompilerError, CompilerResult};
 
 /// Literal inference selected for one generic application.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -73,7 +74,7 @@ impl CheckState<'_> {
         parameters: &[GenericParameterId],
         written: &[dir::GlobalTypeId],
         mut substitution: TypeSubstitution,
-        inference: TypeArgumentInference<'_>,
+        _inference: TypeArgumentInference<'_>,
     ) -> CompilerResult<Option<TypeSubstitution>> {
         self.counters.instantiations += 1;
         let writable = parameters
@@ -115,10 +116,10 @@ impl CheckState<'_> {
             }
 
             // open one inference variable for the omitted parameter
-            let widening = self.type_argument_widening(origin, parameter, binding, inference)?;
             let variable =
-                self.allocate_variable(origin, widening, VariableRole::Instantiation { parameter });
-            // settled throwaway variables never claim the site's typing position
+                self.allocate_variable(origin, VariableRole::Instantiation { parameter });
+
+            // record the instantiation while the site claims its typing position
             if !self.is_settling {
                 self.infer
                     .record_instantiation(origin_id, parameter, variable);
@@ -135,57 +136,6 @@ impl CheckState<'_> {
         }
 
         Ok(Some(substitution))
-    }
-
-    /// Return the literal widening policy for one inferred type argument.
-    pub(in crate::sema) fn type_argument_widening(
-        &mut self,
-        origin: Origin,
-        parameter: GenericParameterId,
-        binding: dir::GenericParameterBinding,
-        inference: TypeArgumentInference<'_>,
-    ) -> CompilerResult<Widening> {
-        let TypeArgumentInference::Callable {
-            parameters,
-            return_type,
-        } = inference
-        else {
-            return Ok(Widening::Never);
-        };
-        let mut preserves_literals = binding.is_const;
-        for bound in self.declared_parameter_bounds(parameter)? {
-            // reduce key operations to their literal families before classifying
-            let bound = self.normalize(origin, bound)?;
-            if self.scalar_families(origin, bound)?.is_some() {
-                preserves_literals = true;
-
-                break;
-            }
-        }
-        if preserves_literals {
-            return Ok(Widening::Never);
-        }
-
-        // preserve one direct input candidate only when callers observe it directly
-        let mut is_direct_input = false;
-        for parameter in parameters {
-            if self.exposes_type(parameter.ty, binding.ty)? {
-                is_direct_input = true;
-
-                break;
-            }
-        }
-        let is_direct_output = match return_type {
-            Some(return_type) => self.exposes_type(return_type, binding.ty)?,
-            None => false,
-        };
-        let widening = match (is_direct_input, is_direct_output) {
-            (false, _) => Widening::Aggregate,
-            (true, true) => Widening::Multiple,
-            (true, false) => Widening::Always,
-        };
-
-        Ok(widening)
     }
 
     /// Return whether a type exposes another type through transparent alternatives.

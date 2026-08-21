@@ -22,12 +22,12 @@ enum StaticRangeBound {
     /// The bound is omitted.
     Open,
     /// The bound is a scalar literal.
-    Literal(dir::ScalarLiteral),
+    Literal(dir::Literal),
 }
 
 impl StaticRangeBound {
     /// Return the literal value of this bound.
-    fn literal(self) -> Option<dir::ScalarLiteral> {
+    fn literal(self) -> Option<dir::Literal> {
         match self {
             Self::Open => None,
             Self::Literal(literal) => Some(literal),
@@ -222,7 +222,7 @@ impl CheckState<'_> {
     fn decide_patterns_cover_variant_case(
         &mut self,
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
-        discriminant: dir::ScalarLiteral,
+        discriminant: dir::Literal,
     ) -> CompilerResult<bool> {
         for pattern in patterns {
             if self.decide_pattern_covers_variant_case(*pattern, discriminant)? {
@@ -237,7 +237,7 @@ impl CheckState<'_> {
     fn decide_pattern_covers_variant_case(
         &mut self,
         pattern: dir::GlobalNodeId<dir::Pattern>,
-        discriminant: dir::ScalarLiteral,
+        discriminant: dir::Literal,
     ) -> CompilerResult<bool> {
         let resolution = match self.decision(pattern.into_any()).cloned() {
             Some(dir::Decision::Pattern(resolution)) => resolution,
@@ -729,7 +729,7 @@ impl CheckState<'_> {
 
                 Some(IntervalCoverage::Intervals(intervals))
             }
-            // destructuring patterns do not describe scalar interval coverage
+            // destructuring patterns describe field coverage
             dir::Pattern::Tuple { .. }
             | dir::Pattern::Sequence { .. }
             | dir::Pattern::Object { .. }
@@ -806,7 +806,7 @@ impl CheckState<'_> {
     fn type_scalar_literal(
         &self,
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::ScalarLiteral>> {
+    ) -> CompilerResult<Option<dir::Literal>> {
         let literal = self.ty(value)?.singleton_literal();
 
         Ok(literal)

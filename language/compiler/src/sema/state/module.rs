@@ -14,7 +14,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     Capture, Cause, CauseKind, CheckError, CheckState, CheckWarning, FlowPoint, FlowPointId,
-    FlowSite, Origin, Relation, RelationCheck, StaticPresence, VariableRole, Wake, Widening,
+    FlowSite, Origin, Relation, RelationCheck, StaticPresence, VariableRole, Wake,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -503,15 +503,12 @@ impl CheckModuleState {
         shadowed.chain(self.definitions_tail.iter_definitions())
     }
 
-    /// Return the extension symbols targeting one symbol across the segments.
-    pub(in crate::sema) fn target_extensions(
-        &self,
-        target: dir::GlobalSymbolId,
-    ) -> Vec<dir::GlobalSymbolId> {
-        // collect this pass's symbols, then the base symbols it has not seen
-        let mut symbols: Vec<_> = self.definitions_tail.target_extensions(target).to_vec();
+    /// Return the extension symbols targeting one head across the segments.
+    pub(in crate::sema) fn root_extensions(&self, root: dir::TypeRoot) -> Vec<dir::GlobalSymbolId> {
+        // collect this pass's symbols, then the base symbols beneath them
+        let mut symbols: Vec<_> = self.definitions_tail.root_extensions(root).to_vec();
         for base in self.definitions.iter() {
-            for symbol in base.target_extensions(target) {
+            for symbol in base.root_extensions(root) {
                 if !symbols.contains(symbol) {
                     symbols.push(*symbol);
                 }
@@ -523,7 +520,7 @@ impl CheckModuleState {
 
     /// Return the blanket extension symbols across the segments.
     pub(in crate::sema) fn blanket_extensions(&self) -> Vec<dir::GlobalSymbolId> {
-        // collect this pass's symbols, then the base symbols it has not seen
+        // collect this pass's symbols, then the base symbols beneath them
         let mut symbols: Vec<_> = self.definitions_tail.blanket_extensions().to_vec();
         for base in self.definitions.iter() {
             for symbol in base.blanket_extensions() {
@@ -1133,11 +1130,8 @@ impl CheckState<'_> {
             return *variable;
         }
 
-        let variable = self.allocate_variable(
-            Origin::Symbol(symbol),
-            Widening::Never,
-            VariableRole::Symbol { symbol },
-        );
+        let variable =
+            self.allocate_variable(Origin::Symbol(symbol), VariableRole::Symbol { symbol });
         self.infer.symbol_variables.insert(symbol, variable);
 
         variable
@@ -1254,9 +1248,7 @@ impl CheckState<'_> {
     fn static_term_type(&mut self, term: &dir::StaticTerm) -> Option<dir::GlobalTypeId> {
         match term {
             dir::StaticTerm::Type { ty } => Some(*ty),
-            dir::StaticTerm::ScalarLiteral { value } => {
-                self.intern_type(dir::Type::Literal(*value)).ok()
-            }
+            dir::StaticTerm::Literal { value } => self.intern_type(dir::Type::Literal(*value)).ok(),
             _ => None,
         }
     }
@@ -1402,7 +1394,7 @@ impl CheckState<'_> {
             if let Some(template) = self.symbol_template(symbol)? {
                 for parameter in self.generic_template_parameters(template)? {
                     let form = self.parameter_variance_form(parameter)?;
-                    let _ = self.parameter_variance(parameter, form)?;
+                    self.parameter_variance(parameter, form)?;
                 }
             }
 

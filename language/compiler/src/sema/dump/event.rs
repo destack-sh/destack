@@ -1,6 +1,6 @@
 use destack_artifact::{ArtifactEvent, ArtifactEventLog};
 
-use crate::sema::{CheckEvent, DumpContext};
+use crate::sema::{CheckEvent, DumpContext, VariableKind};
 
 impl CheckEvent {
     /// Render this event into an artifact event log.
@@ -23,14 +23,19 @@ impl CheckEvent {
                     .debug()
                     .text("verdict", verdict)
             }
-            Self::VariableAllocated { variable, widening } => {
-                ArtifactEvent::new("variable.allocated")
-                    .debug()
-                    .text("variable", context.variable_label(*variable))
-                    .text("origin", context.variable_origin_label(*variable))
-                    .text("at", context.variable_source_label(*variable))
-                    .text("widening", context.widening_label(*widening))
-            }
+            Self::VariableAllocated { variable, kind } => ArtifactEvent::new("variable.allocated")
+                .debug()
+                .text("variable", context.variable_label(*variable))
+                .text("origin", context.variable_origin_label(*variable))
+                .text("at", context.variable_source_label(*variable))
+                .text(
+                    "kind",
+                    match kind {
+                        VariableKind::Type => "type",
+                        VariableKind::Integer => "integer",
+                        VariableKind::Float => "float",
+                    },
+                ),
             Self::LowerBoundPushed { variable, bound } => ArtifactEvent::new("variable.lower")
                 .debug()
                 .text("variable", context.variable_label(*variable))

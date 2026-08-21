@@ -5,8 +5,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    CandidateOutcome, CandidateVerdict, CauseId, CheckFailure, CheckOutcome, CheckState, Origin,
-    Relation, RelationCheck, Verdict,
+    CandidateOutcome, CauseId, CheckFailure, CheckOutcome, CheckState, Origin, Relation,
+    RelationCheck, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -89,6 +89,7 @@ impl CheckState<'_> {
                     self.ty(source)?,
                     dir::Type::Application(_) | dir::Type::Reference(_)
                 );
+
                 // blame the first missing key
                 if let Some(key) = self.first_missing_struct_field(source, target)? {
                     CheckOutcome::Fails(CheckFailure::MissingRequiredProperty { key })
@@ -153,7 +154,11 @@ impl CheckState<'_> {
             }
             // unify one open side with a closed type, or record the equation as a bound
             (Some(variable), None, Relation::Equal) => {
-                if self.type_variables(target)?.is_empty() {
+                let variables = self.type_variables(target)?;
+                if self.variable_occurs(variable, &variables)? {
+                    return Ok(Verdict::Fails);
+                }
+                if variables.is_empty() {
                     self.commit_solution(variable, target)?;
                 } else {
                     self.push_upper_bound(variable, origin, cause, target, Relation::Equal)?;
@@ -163,7 +168,11 @@ impl CheckState<'_> {
             }
             // unify one open target the same way
             (None, Some(variable), Relation::Equal) => {
-                if self.type_variables(source)?.is_empty() {
+                let variables = self.type_variables(source)?;
+                if self.variable_occurs(variable, &variables)? {
+                    return Ok(Verdict::Fails);
+                }
+                if variables.is_empty() {
                     self.commit_solution(variable, source)?;
                 } else {
                     self.push_lower_bound(variable, origin, cause, source, Relation::Equal)?;
@@ -218,6 +227,22 @@ impl CheckState<'_> {
         }
     }
 
+    /// Return whether one open variable occurs among one type's variables.
+    fn variable_occurs(
+        &self,
+        variable: dir::TypeVariableId,
+        variables: &[dir::TypeVariableId],
+    ) -> CompilerResult<bool> {
+        let root = self.infer.alias_root(variable)?;
+        for candidate in variables {
+            if self.infer.alias_root(*candidate)? == root {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
     /// Retry one stuck relation over reduced heads once the written ones fail to relate.
     fn constrain_stuck(
         &mut self,
@@ -265,11 +290,11 @@ impl CheckState<'_> {
                 }
             })?;
             match verdict {
-                CandidateVerdict::Viable => viables.push(candidate),
-                CandidateVerdict::Indeterminate if indeterminate.replace(candidate).is_some() => {
+                Verdict::Holds => viables.push(candidate),
+                Verdict::Ambiguous if indeterminate.replace(candidate).is_some() => {
                     is_indeterminate_ambiguous = true;
                 }
-                CandidateVerdict::Indeterminate | CandidateVerdict::Rejected => {}
+                Verdict::Ambiguous | Verdict::Fails => {}
             }
         }
 

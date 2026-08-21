@@ -4,9 +4,9 @@ use std::{iter, slice};
 use destack_dir as dir;
 
 use crate::sema::{
-    Answer, BodyState, Callee, Canonical, Cause, CauseKind, Check, CheckOutcome, EqualityCheck,
-    Expectation, FailedCheck, FlowSite, InferMode, Obligation, OperatorExpressionResult, Origin,
-    PlaceUse, ProtocolCall, Question, Relation, RelationCheck, Selected, ValueUse, Verdict,
+    Answer, BodyState, Callee, Canonical, Cause, CauseKind, Check, EqualityCheck, Expectation,
+    FlowSite, InferMode, Obligation, OperatorExpressionResult, Origin, PlaceUse, ProtocolCall,
+    Question, Relation, RelationCheck, Selected, ValueUse, VariableKind, Verdict,
     WritableTargetObligation, binary_operator_protocols, unary_operator_protocols,
 };
 use crate::{CompilerError, CompilerResult};
@@ -25,6 +25,7 @@ pub(in crate::sema) enum OperatorOperands<'a> {
     Place,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl BodyState<'_, '_> {
     /// Select one binary operation from known operand types.
     pub(in crate::sema) fn select_binary_operation(
@@ -52,16 +53,13 @@ impl BodyState<'_, '_> {
             return Ok(());
         }
 
-        // open operands defer selection to their settle point with a hole
-        if (self.type_flags(left)? | self.type_flags(right)?).has_variable() {
-            let Some(stalled_on) = self.open_type_variables([left, right])?.first().copied() else {
-                return Err(CompilerError::Internal {
-                    message: "an operator selection deferred without an open operand".to_string(),
-                });
-            };
-            self.defer_selection(site, stalled_on)?;
+        // an operand open in a type variable defers selection to its settle point
+        for variable in self.open_type_variables([left, right])? {
+            if self.root_kind(variable)? == VariableKind::Type {
+                self.defer_selection(site, variable)?;
 
-            return Ok(());
+                return Ok(());
+            }
         }
 
         // ask the canonical operator question once per equal operand pair
@@ -179,7 +177,7 @@ impl BodyState<'_, '_> {
                 // select the exact accepted type of each compared value
                 let sources = [(left_source, left_value), (right_source, right_value)];
                 let operands = self.select_strict_equality_operands(origin, &sources)?;
-                let [left_operand, right_operand]: [dir::BuiltinOperand; 2] =
+                let [left_operand, right]: [dir::BuiltinOperand; 2] =
                     operands.try_into().map_err(|_| CompilerError::Internal {
                         message: "binary strict equality did not select two operands".to_string(),
                     })?;
@@ -190,7 +188,7 @@ impl BodyState<'_, '_> {
                     node,
                     operator,
                     left_operand,
-                    right_operand,
+                    right,
                     result,
                     writeback,
                 );
@@ -198,6 +196,21 @@ impl BodyState<'_, '_> {
             // nullish and same-kind scalar equality produce booleans
             dir::BinaryOperator::Equal | dir::BinaryOperator::NotEqual
                 if is_nullish_or_never || (is_comparable && !is_numeric) =>
+            {
+                let result = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
+
+                Some((result, left_value, right_value))
+            }
+            // same-kind ordered scalar comparisons produce booleans
+            dir::BinaryOperator::LessThan
+            | dir::BinaryOperator::LessThanOrEqual
+            | dir::BinaryOperator::GreaterThan
+            | dir::BinaryOperator::GreaterThanOrEqual
+                if is_comparable
+                    && !is_numeric
+                    && left_families
+                        .as_ref()
+                        .is_some_and(dir::ScalarFamilySet::is_ordered) =>
             {
                 let result = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
 
@@ -264,10 +277,13 @@ impl BodyState<'_, '_> {
         // dispatch through the operator protocol interfaces
         let left_site = self.visit_site(left_source)?;
         let left_value = self.expression_value(left_site, left)?;
+
+        // an owned operand selects the protocol of its family-default form
+        let protocol_operand = self.check.family_default_of_owned(right)?.unwrap_or(right);
         let protocols = binary_operator_protocols(operator);
-        for protocol in protocols {
+        for protocol in protocols.iter() {
             let key = protocol.method.key(self.strings());
-            let protocol_type = self.operator_protocol(origin, &protocol, &[right])?;
+            let protocol_type = self.operator_protocol(origin, protocol, &[protocol_operand])?;
             let argument_sources = [dir::ArgumentSource::Provided(right_source)];
 
             let Some(call) = self.select_protocol_call(
@@ -305,8 +321,8 @@ impl BodyState<'_, '_> {
             dir::BinaryOperator::Equal | dir::BinaryOperator::NotEqual
         ) {
             let left_operand = self.strip_form(origin, left)?;
-            let right_operand = self.strip_form(origin, right)?;
-            let target = self.language_type(dir::LanguageItem::PartialEqual, &[right_operand])?;
+            let right = self.strip_form(origin, right)?;
+            let target = self.language_type(dir::LanguageItem::PartialEqual, &[right])?;
             if self.evaluate_relation(origin, Relation::Satisfies, left_operand, target)?
                 != Verdict::Fails
             {
@@ -317,7 +333,7 @@ impl BodyState<'_, '_> {
                     checks_before,
                     Selected::Builtin {
                         result,
-                        operands: [left_operand, right_operand],
+                        operands: [left_operand, right],
                     },
                 )?;
 
@@ -327,7 +343,7 @@ impl BodyState<'_, '_> {
                     operator,
                     (left_source, left),
                     (right_source, right),
-                    [left_operand, right_operand],
+                    [left_operand, right],
                     result,
                     writeback,
                 );
@@ -360,7 +376,6 @@ impl BodyState<'_, '_> {
     }
 
     /// Check and lower both operands as builtin values, committing the result.
-    #[allow(clippy::too_many_arguments)]
     fn commit_builtin_operands(
         &mut self,
         origin: Origin,
@@ -390,7 +405,7 @@ impl BodyState<'_, '_> {
         call: ProtocolCall,
         writeback: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<()> {
-        let result = self.operator_expression_type(expression_result, call.return_type)?;
+        let result = self.operator_expression_type(origin, expression_result, call.return_type)?;
 
         let resolution = match call.resolution {
             dir::OperationResolution::One(call) => {
@@ -405,7 +420,8 @@ impl BodyState<'_, '_> {
             dir::OperationResolution::Union { arms, .. } => {
                 let mut applications = Vec::with_capacity(arms.len());
                 for call in arms {
-                    let ty = self.operator_expression_type(expression_result, call.return_type)?;
+                    let ty =
+                        self.operator_expression_type(origin, expression_result, call.return_type)?;
                     applications.push(dir::OperatorApplication::Binary {
                         operator,
                         target: dir::OperatorTarget::Call(Box::new(call)),
@@ -568,7 +584,7 @@ impl BodyState<'_, '_> {
                 let resolution = place.clone().resolution();
                 self.commit_node_type(source, operand)?;
                 self.commit_decision(source, dir::Decision::Assignment(Box::new(resolution)))?;
-                self.record_access_use(source, dir::BindingUse::WRITTEN);
+                self.record_access_use(source, dir::BindingUse::WRITE);
 
                 // require the place to accept a write at its scope
                 let scope = self.origin_scope(origin)?;
@@ -674,8 +690,11 @@ impl BodyState<'_, '_> {
             else {
                 continue;
             };
-            let result =
-                self.operator_expression_type(protocol.expression_result, call.return_type)?;
+            let result = self.operator_expression_type(
+                origin,
+                protocol.expression_result,
+                call.return_type,
+            )?;
 
             let resolution = match call.resolution {
                 dir::OperationResolution::One(call) => {
@@ -691,6 +710,7 @@ impl BodyState<'_, '_> {
                     let mut applications = Vec::with_capacity(arms.len());
                     for call in arms {
                         let ty = self.operator_expression_type(
+                            origin,
                             protocol.expression_result,
                             call.return_type,
                         )?;
@@ -810,7 +830,7 @@ impl BodyState<'_, '_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Option<(dir::GlobalTypeId, [dir::GlobalTypeId; 2])>> {
-        // read through views, since builtin scalars operate on the pointee
+        // read through views to the pointee builtin scalars operate on
         let left = self.strip_form(origin, left)?;
         let right = self.strip_form(origin, right)?;
 
@@ -862,7 +882,7 @@ impl BodyState<'_, '_> {
             {
                 let result = match self.ty(left)? {
                     // bigint literals shift in the bigint domain
-                    dir::Type::Literal(dir::ScalarLiteral::Bigint(_)) => {
+                    dir::Type::Literal(dir::Literal::Bigint(_)) => {
                         self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Bigint))?
                     }
                     // every other literal shifts in the default integer domain
@@ -878,8 +898,7 @@ impl BodyState<'_, '_> {
                     width,
                     ..
                 })) = self.ty(result)?
-                    && let dir::Type::Literal(dir::ScalarLiteral::Integer(amount)) =
-                        self.ty(right)?
+                    && let dir::Type::Literal(dir::Literal::Integer(amount)) = self.ty(right)?
                     && (amount < 0 || amount >= i64::from(width))
                 {
                     self.report_shift_out_of_range(origin, amount, result)?;
@@ -967,7 +986,7 @@ impl BodyState<'_, '_> {
             relation: Relation::Assignable,
             cause,
             use_: ValueUse::Operand,
-            mode: InferMode::Exact,
+            mode: InferMode::Regular,
         };
         self.check_value(operand_site, source_type, expectation)?;
 
@@ -1022,10 +1041,10 @@ impl BodyState<'_, '_> {
         &mut self,
         operand: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let dir::Type::Literal(dir::ScalarLiteral::Integer(value)) = self.ty(operand)? else {
+        let dir::Type::Literal(dir::Literal::Integer(value)) = self.ty(operand)? else {
             return Ok(operand);
         };
-        let literal = dir::Type::Literal(dir::ScalarLiteral::Float(value as f64));
+        let literal = dir::Type::Literal(dir::Literal::Float(value as f64));
 
         self.intern_type(literal)
     }
@@ -1045,6 +1064,21 @@ impl BodyState<'_, '_> {
         self.intern_type(base)
     }
 
+    /// Return the open integer binding variable one operand names, if any.
+    pub(in crate::sema) fn integer_variable(
+        &mut self,
+        operand: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::TypeVariableId>> {
+        let operand = self.shallow_resolve(operand)?;
+        Ok(match self.ty(operand)? {
+            dir::Type::Variable(variable) => {
+                let root = self.infer.alias_root(variable)?;
+                (self.infer.variable(root)?.kind == VariableKind::Integer).then_some(root)
+            }
+            _ => None,
+        })
+    }
+
     /// Join two builtin numeric operands into one common operand type.
     fn builtin_numeric_join(
         &mut self,
@@ -1055,6 +1089,32 @@ impl BodyState<'_, '_> {
         // interval operands widen to their base scalar under arithmetic
         let left = self.operand_as_base_scalar(left)?;
         let right = self.operand_as_base_scalar(right)?;
+
+        // an open integer variable takes the other operand's width, literals leave it open
+        let left_variable = self.integer_variable(left)?;
+        let right_variable = self.integer_variable(right)?;
+        if left_variable.is_some() || right_variable.is_some() {
+            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+            let joined = match (left_variable, right_variable) {
+                (Some(_), Some(_)) => {
+                    self.constrain_type(origin, cause, Relation::Equal, left, right)?;
+                    left
+                }
+                (Some(_), None) if matches!(self.ty(right)?, dir::Type::Literal(_)) => left,
+                (Some(_), None) => {
+                    self.constrain_type(origin, cause, Relation::Equal, left, right)?;
+                    right
+                }
+                (None, Some(_)) if matches!(self.ty(left)?, dir::Type::Literal(_)) => right,
+                (None, Some(_)) => {
+                    self.constrain_type(origin, cause, Relation::Equal, right, left)?;
+                    left
+                }
+                (None, None) => unreachable!("an integer variable operand was classified"),
+            };
+
+            return Ok(Some(joined));
+        }
 
         // literals adapt into the other operand's type
         let left_literal = match self.ty(left)? {
@@ -1111,27 +1171,33 @@ impl BodyState<'_, '_> {
     /// Return the expression result for one selected operator method.
     pub(in crate::sema) fn operator_expression_type(
         &mut self,
+        origin: Origin,
         expression_result: OperatorExpressionResult,
         return_type: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // produce the protocol's declared result
         let result = match expression_result {
             OperatorExpressionResult::MethodReturn => return_type,
-            // project the place behind the returned borrow
-            OperatorExpressionResult::Pointee => match self.ty(return_type)? {
-                dir::Type::Form(form)
-                    if matches!(form.form, dir::Form::Borrowed(_) | dir::Form::Raw) =>
-                {
-                    form.value
-                }
-                _ => {
-                    let actual = self.format_type(return_type);
+            // project the place behind the returned borrow, reducing a projected result first
+            OperatorExpressionResult::Pointee => {
+                let reduced = self.normalize(origin, return_type)?;
+                match self.ty(reduced)? {
+                    dir::Type::Form(form)
+                        if matches!(form.form, dir::Form::Borrowed(_) | dir::Form::Raw) =>
+                    {
+                        form.value
+                    }
+                    _ => {
+                        let actual = self.format_type(return_type);
 
-                    return Err(CompilerError::Internal {
-                        message: format!("dereference operator returned non-pointer type {actual}"),
-                    });
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "dereference operator returned non-pointer type {actual}"
+                            ),
+                        });
+                    }
                 }
-            },
+            }
             OperatorExpressionResult::Boolean => {
                 self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?
             }
@@ -1169,7 +1235,7 @@ impl BodyState<'_, '_> {
             ty: result,
         };
         let resolution = dir::OperationResolution::One(application);
-        self.check_operator_writeback(origin, result, writeback)?;
+        self.check_operator_writeback(node, origin, result, writeback)?;
         self.commit_decision(node, dir::Decision::Operator(resolution))?;
         self.commit_node_type(node, result)?;
 
@@ -1271,7 +1337,7 @@ impl BodyState<'_, '_> {
         result: dir::GlobalTypeId,
         writeback: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<()> {
-        self.check_operator_writeback(origin, result, writeback)?;
+        self.check_operator_writeback(node, origin, result, writeback)?;
         self.commit_decision(node, dir::Decision::Operator(resolution))?;
         self.commit_node_type(node, result)?;
 
@@ -1281,6 +1347,7 @@ impl BodyState<'_, '_> {
     /// Check one compound assignment result against the assigned place.
     fn check_operator_writeback(
         &mut self,
+        node: dir::GlobalNodeIdAny,
         origin: Origin,
         source: dir::GlobalTypeId,
         writeback: Option<dir::GlobalTypeId>,
@@ -1289,24 +1356,17 @@ impl BodyState<'_, '_> {
             return Ok(());
         };
 
-        // require the produced value to store into the written place
-        let relation = Relation::Assignable;
+        // store the produced value back into the written place
+        let site = self.visit_site(node)?;
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-        let holds = self.constrain_type(origin, cause, relation, source, writeback)?;
-        let outcome = self.complete_constraint_check(origin, relation, source, writeback, holds)?;
-
-        // record the failure against the store site
-        if let CheckOutcome::Fails(failure) = outcome {
-            self.check.record_failure(FailedCheck {
-                cause,
-                relation,
-                use_: Some(ValueUse::Store),
-                source,
-                target: writeback,
-                failure,
-                is_provisional: false,
-            })?;
-        }
+        let expectation = Expectation {
+            target: writeback,
+            relation: Relation::Assignable,
+            cause,
+            use_: ValueUse::Store,
+            mode: InferMode::Regular,
+        };
+        self.check_value(site, source, expectation)?;
 
         Ok(())
     }

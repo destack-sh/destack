@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     CauseKind, FlowBranch, FunctionBody, GeneratorTargets, GenericTemplateId,
-    InducedParameterOwner, Origin, ReceiverBinding, Relation, VariableRole, WalkState, Widening,
+    InducedParameterOwner, Origin, ReceiverBinding, Relation, VariableRole, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -85,8 +85,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return Ok((None, None));
         };
 
-        // the receiver's lifetime wins over value parameter lifetimes,
-        //  de-duplicating aliases introduced by reused annotations
+        // collect the input lifetimes, the receiver's winning over the value parameters'
         let mut seen = FxIndexSet::default();
         let mut input_lifetimes = Vec::new();
         if let Some(this_parameter) = this_parameter {
@@ -135,8 +134,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return Ok((Some(return_type), synthesized_this));
         }
 
-        // pick the result lifetime: the unique input, the union of
-        //  several inputs, or static storage without borrowed inputs
+        // pick the result lifetime: the unique input, the union of several, or static storage
         let input_variable = match input_lifetimes.as_slice() {
             [(variable, _)] => *variable,
             _ => None,
@@ -496,8 +494,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
             // infer unannotated async functions as promises
             if signature.return_type.is_none() {
-                let completed =
-                    self.open_type_hole(source, Widening::Never, VariableRole::Return)?;
+                let completed = self.open_type_hole(source, VariableRole::Return)?;
                 let promised =
                     self.language_type_reference(dir::LanguageItem::Promise, &[completed])?;
                 let Some(variable) = self.check.root_variable(result)? else {
@@ -532,9 +529,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // open the generator yielded, completed, and resumed types
         if signature.is_generator {
-            let yielded = self.open_type_hole(source, Widening::Never, VariableRole::Regular)?;
-            let completed = self.open_type_hole(source, Widening::Never, VariableRole::Return)?;
-            let resumed = self.open_type_hole(source, Widening::Never, VariableRole::Regular)?;
+            let yielded = self.open_type_hole(source, VariableRole::Regular)?;
+            let completed = self.open_type_hole(source, VariableRole::Return)?;
+            let resumed = self.open_type_hole(source, VariableRole::Regular)?;
             let item = match signature.asynchrony {
                 // function* f() {}
                 dir::Asynchrony::Sync => dir::LanguageItem::Generator,
@@ -632,6 +629,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             parameter,
             dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. }
         );
+
         // defaulted parameters may be omitted at the call site
         let is_optional = parameter.is_optional() || parameter.default_value().is_some();
 
@@ -699,7 +697,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 ty
             }
         } else {
-            self.open_type_hole(id.into_any(), Widening::Never, VariableRole::Parameter)?
+            self.open_type_hole(id.into_any(), VariableRole::Parameter)?
         };
         self.commit_node_type(id, ty)?;
 
@@ -717,11 +715,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
 
         // bind named parameters through the same path as their node type
-        if let Some(symbol) = self
-            .check
-            .module(self.module)
-            .declaration_symbol(id.into_any())
-        {
+        if let Some(symbol) = self.declared_symbol(id.into_any()) {
             self.bind_symbol_type(symbol, binding)?;
         }
 

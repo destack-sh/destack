@@ -217,7 +217,7 @@ newtype mark = ({ reason: string },);
 /// @definition.newtype symbol=mark source="newtype mark = ({ reason: string },)" backing=({ reason: string },) constructors=[({ reason: string }) => mark]
 
 @mark({ reason: "direct reason", ...{ reason: "spread reason" } })
-/// @decorator.node source="@mark({ reason: \"direct reason\", ...{ reason: \"spread reason\" } })" owner="const value = 1" expression=mark target=mark type=mark kind=newtype parameters=({ reason: string }) arguments=(provided({ reason: "direct reason", ...{ reason: "spread reason" } }) as { reason: string }) newtype=mark backing=({ reason: string },) value="mark({ reason: \"direct reason\"; reason: \"spread reason\" })"
+/// @decorator.node source="@mark({ reason: \"direct reason\", ...{ reason: \"spread reason\" } })" owner="const value = 1" expression=mark target=mark type=mark kind=newtype parameters=({ reason: string }) arguments=(provided({ reason: "direct reason", ...{ reason: "spread reason" } }) as { reason: string }) newtype=mark backing=({ reason: string },) value="mark({ reason: \"spread reason\" })"
 /// @type.node source=mark type=mark
 /// @resolution.name source=mark target=mark
 /// @type.node source={ reason: "direct reason", ...{ reason: "spread reason" } } type={ reason: string }
@@ -269,7 +269,7 @@ declare function consume(value: int32): void;
 function run(): void {
     consume(@mark("call") 1);
     const sink: Sink = new Sink(@mark("construct") 2);
-    const array: float64[] = [@mark("array") 3,];
+    const array: int64[] = [@mark("array") 3,];
 }
 
 === dir ===
@@ -319,15 +319,15 @@ function run(): void {
     /// @type.node source=2 type=2
 
     const array = [@mark("array") 3];
-    /// @type.symbol symbol=run.array source=array type=float64[]
+    /// @type.symbol symbol=run.array source=array type=int64[]
     /// @resolution.pattern source=array kind=binding target=run.array
-    /// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
-    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<float64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<float64>)
-    /// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
-    /// @type.node source=[@mark("array") 3] type=float64[]
-    /// @resolution.call source=[@mark("array") 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(3) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
-    /// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
-    /// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+    /// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
+    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
+    /// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
+    /// @type.node source=[@mark("array") 3] type=int64[]
+    /// @resolution.call source=[@mark("array") 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(3) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
+    /// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
+    /// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
     /// @decorator.node source="@mark(\"array\")" owner="@mark(\"array\") 3" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("array") as string) newtype=mark backing=(string,) value="mark(\"array\")"
     /// @type.node source=mark type=mark
     /// @resolution.name source=mark target=mark
@@ -360,7 +360,7 @@ function run(): void {
 newtype mark = (string,);
 
 function run(): void {
-    const pair: (float64, float64) = (
+    const pair: (int64, int64) = (
         @mark("tuple") 4,
         5,
     );
@@ -376,9 +376,9 @@ function run(): void {
 /// @type.symbol symbol=run type=() => void
 
     const pair = (@mark("tuple") 4, 5);
-    /// @type.symbol symbol=run.pair source=pair type=(float64, float64)
+    /// @type.symbol symbol=run.pair source=pair type=(int64, int64)
     /// @resolution.pattern source=pair kind=binding target=run.pair
-    /// @type.node source=(@mark("tuple") 4, 5) type=(float64, float64)
+    /// @type.node source=(@mark("tuple") 4, 5) type=(int64, int64)
     /// @decorator.node source="@mark(\"tuple\")" owner="@mark(\"tuple\") 4" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("tuple") as string) newtype=mark backing=(string,) value="mark(\"tuple\")"
     /// @type.node source=mark type=mark
     /// @resolution.name source=mark target=mark
@@ -417,7 +417,7 @@ function run(): void {
         r#"
 === annotated ===
 function run(): void {
-    const pair: (float64,) = (
+    const pair: (int64,) = (
         1,
         @if(false) 2,
     );
@@ -428,9 +428,9 @@ function run(): void {
 /// @type.symbol symbol=run type=() => void
 
     const pair = (1, @if(false) 2);
-    /// @type.symbol symbol=run.pair source=pair type=(float64,)
+    /// @type.symbol symbol=run.pair source=pair type=(int64,)
     /// @resolution.pattern source=pair kind=binding target=run.pair
-    /// @type.node source=(1, @if(false) 2) type=(float64,)
+    /// @type.node source=(1, @if(false) 2) type=(int64,)
     /// @type.node source=1 type=1
 
 }

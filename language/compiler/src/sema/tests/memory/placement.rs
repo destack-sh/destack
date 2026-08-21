@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_placement_commutes_with_readonly_ownership_and_borrowing() {
+fn test_accept_placement_modifiers_in_either_written_order() {
     let session = TestSession::single(
         r#"
 class User {}

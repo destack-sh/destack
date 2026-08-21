@@ -421,7 +421,7 @@ pub struct AutoSegment {
     /// Auto-derived implementations in emission order.
     implementations: Vec<AutoDerivedImplementation>,
     /// The satisfied marker interfaces per conforming type, under the template whose bounds
-    /// a parameter-bearing type assumes.
+    /// a type open in parameters assumes.
     conformances: IndexMap<(GlobalTypeId, Option<GlobalGenericTemplateId>), Vec<AutoInterface>>,
     /// The selected implementation per concrete declared owner and interface root.
     selected: IndexMap<(GlobalSymbolId, GlobalSymbolId), Option<GlobalSymbolId>>,

@@ -109,7 +109,7 @@ impl CheckState<'_> {
             }
 
             // complete remaining roots from declared defaults and widening
-            if settle != Settle::Bounded && self.default_scope(scope)? {
+            if settle != Settle::Bounded && self.apply_scope_default(scope)? {
                 self.fulfill.wake(Wake::Stage);
                 continue;
             }
@@ -125,6 +125,13 @@ impl CheckState<'_> {
         // resolve only the variables a nested close allocated, leaving defaults to the outermost
         if self.infer.scope_depth > 1 {
             self.fulfill_scope(mark.scope, Settle::Bounded)?;
+
+            // a declaration root closes what it opened, nothing later refines it
+            if self.pass == Pass::Declare {
+                while self.resolve_scope(mark.scope, FallbackStage::Final)? {
+                    self.fulfill_scope(mark.scope, Settle::Bounded)?;
+                }
+            }
             self.infer.scope_depth -= 1;
 
             return Ok(());

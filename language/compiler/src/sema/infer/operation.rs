@@ -5,7 +5,7 @@ use super::InferMode;
 use crate::CompilerResult;
 use crate::sema::{
     BodyState, Cause, CauseKind, ConditionBranch, Expectation, FlowSite, Obligation, PlaceUse,
-    RangeElementObligation, Relation, RelationCheck, ValueUse, VariableRole, Widening,
+    RangeElementObligation, Relation, RelationCheck, Value, ValueUse, VariableRole,
 };
 
 impl BodyState<'_, '_> {
@@ -78,7 +78,7 @@ impl BodyState<'_, '_> {
             Relation::Satisfies,
             cause,
             ValueUse::Satisfies,
-            InferMode::Mutable,
+            InferMode::Regular,
         )?;
         let value_type = check.source;
         self.commit_node_type(node.into_any(), value_type)?;
@@ -119,7 +119,7 @@ impl BodyState<'_, '_> {
             relation: Relation::Castable,
             cause,
             use_: ValueUse::Store,
-            mode: InferMode::Widen,
+            mode: InferMode::Regular,
         };
         let check = self.check_node(value_site, expectation)?;
         let value_type = check.source;
@@ -152,14 +152,16 @@ impl BodyState<'_, '_> {
         let module = node.module_id;
 
         // infer every written bound
-        let mut bounds = SmallVec::<[dir::GlobalTypeId; 2]>::new();
-        if let Some(start) = start {
-            let start_site = self.visit_site(start.into_global_any(module))?;
-            bounds.push(self.infer_node_type(start_site, PlaceUse::Read)?);
-        }
-        if let Some(end) = end {
-            let end_site = self.visit_site(end.into_global_any(module))?;
-            bounds.push(self.infer_node_type(end_site, PlaceUse::Read)?);
+        let mut bounds = SmallVec::<[Value; 2]>::new();
+        for bound in [start, end].into_iter().flatten() {
+            let bound_site = self.visit_site(bound.into_global_any(module))?;
+            let ty = self.infer_node_type(bound_site, PlaceUse::Read)?;
+            bounds.push(Value {
+                ty,
+                node: Some(bound_site.node),
+                place: None,
+                is_fresh: self.check.fresh_nodes.contains_key(&bound_site.node),
+            });
         }
 
         // constrain every written bound into one element hole
@@ -167,15 +169,15 @@ impl BodyState<'_, '_> {
             [] => None,
             bounds => {
                 let origin = site.origin();
-                let variable =
-                    self.allocate_variable(origin, Widening::Const, VariableRole::Regular);
+                let variable = self.allocate_variable(origin, VariableRole::Regular);
                 let element = self.variable_type(variable)?;
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 for bound in bounds {
+                    let bound = self.fresh_variable(origin, *bound)?;
                     self.push_relation(RelationCheck::new(
                         origin,
                         Relation::Assignable,
-                        *bound,
+                        bound,
                         element,
                         cause,
                     ))?;
@@ -242,7 +244,15 @@ impl BodyState<'_, '_> {
         let residual = self.intern_operation(dir::TypeOperation::TryResidual { value })?;
 
         // collect the residual directly at a local try target
-        if self.check.collect_try_residual(residual) {
+        if let Some(target) = self.check.collect_try_residual(residual) {
+            self.commit_decision(
+                node,
+                dir::Decision::Residual(dir::ResidualDecision {
+                    target: dir::ResidualTarget::Try(target),
+                    residual,
+                }),
+            )?;
+
             return Ok(());
         }
 
@@ -264,6 +274,13 @@ impl BodyState<'_, '_> {
                 target,
                 cause,
             ))?;
+            self.commit_decision(
+                node,
+                dir::Decision::Residual(dir::ResidualDecision {
+                    target: dir::ResidualTarget::Callable,
+                    residual,
+                }),
+            )?;
         }
         // try propagation needs an enclosing function
         else {

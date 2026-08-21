@@ -18,6 +18,7 @@ impl CheckState<'_> {
             })
         })?;
         self.report_constant_conditions()?;
+        self.report_member_conflicts()?;
         self.bind_underivable_exports()?;
 
         Ok(())
@@ -37,7 +38,11 @@ impl CheckState<'_> {
         self.write_back()?;
 
         let recorder = self.recorder;
-        ArtifactAttemptRecorder::breakdown_maybe(recorder, "write", || self.write_module(module))?;
+        ArtifactAttemptRecorder::breakdown_maybe(recorder, "write", || {
+            self.record_committed_conformances(module)?;
+
+            self.write_module(module)
+        })?;
         let diagnostics = self.collect_diagnostics()?;
 
         // keep only resolutions the declared stage already carries

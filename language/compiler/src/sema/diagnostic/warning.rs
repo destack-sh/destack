@@ -30,12 +30,12 @@ impl CheckState<'_> {
         for condition in conditions {
             let global = condition.into_global_any(module);
 
-            // statically absent conditions never check and carry no type
+            // skip statically absent conditions
             let Some(ty) = self.committed_node_type(global) else {
                 continue;
             };
             let ty = self.shallow_resolve(ty)?;
-            let dir::Type::Literal(dir::ScalarLiteral::Boolean(value)) = self.ty(ty)? else {
+            let dir::Type::Literal(dir::Literal::Boolean(value)) = self.ty(ty)? else {
                 continue;
             };
 

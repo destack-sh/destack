@@ -63,9 +63,6 @@ impl CheckState<'_> {
     }
 
     /// Filter one source's physical arms through a tested member value.
-    ///
-    /// The surviving arms rejoin beneath any nominal carrier, or the variable
-    /// blocking an undecided member test comes back.
     pub(in crate::sema) fn narrow_arms(
         &mut self,
         origin: Origin,
@@ -77,18 +74,21 @@ impl CheckState<'_> {
         let source = self.normalize(origin, source)?;
 
         // enumerate the cases an enum owner names
+        let mut carrier = None;
         let arms = if let Some(variants) = self.variant_types(source)? {
             variants
         }
         // enumerate the physical arms every other source carries
         else {
-            let (carrier, _) = self.body().project_newtype_receiver(origin, source)?;
-            let Some(arms) = self.union_arms(origin, carrier)? else {
+            let (payload, steps) = self.body().project_newtype_receiver(origin, source)?;
+            let Some(arms) = self.union_arms(origin, payload)? else {
                 return Ok(Ok(None));
             };
+            carrier = (!steps.is_empty()).then_some(source);
 
             arms.into_vec()
         };
+        let arm_count = arms.len();
 
         // keep original arms whose tested member remains inhabited
         let mut kept = Vec::with_capacity(arms.len());
@@ -104,10 +104,22 @@ impl CheckState<'_> {
         }
 
         // join the surviving arms back into one type
-        let narrowed = match kept.as_slice() {
-            [] => self.intern_type(dir::Type::Never)?,
-            [single] => *single,
-            _ => self.normalized_union_type(kept)?,
+        let narrowed = match (kept.as_slice(), carrier) {
+            ([], _) => self.intern_type(dir::Type::Never)?,
+            (_, Some(carrier)) if kept.len() == arm_count => carrier,
+            // the carrier's memory form wraps the intersection of its payload with the arms
+            (_, Some(carrier)) => {
+                let mut bases = Vec::with_capacity(kept.len());
+                for arm in kept {
+                    bases.push(self.form_chain(origin, arm)?.base());
+                }
+                let arms = self.normalized_union_type(bases)?;
+                let base = self.form_chain(origin, carrier)?.base();
+                let narrowed = self.normalized_intersection_type([base, arms])?;
+                self.replace_form_value(origin, carrier, narrowed)?
+            }
+            ([single], None) => *single,
+            (_, None) => self.normalized_union_type(kept)?,
         };
 
         Ok(Ok(Some(narrowed)))

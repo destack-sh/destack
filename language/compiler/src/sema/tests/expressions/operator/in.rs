@@ -16,16 +16,16 @@ hasX satisfies boolean;
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const point: { x: float64; y: float64 } = { x: 1, y: 2 };
+const point: { x: int64; y: int64 } = { x: 1, y: 2 };
 
 const hasX: boolean = "x" in point;
 hasX satisfies boolean;
 
 === dir ===
 const point = { x: 1, y: 2 };
-/// @type.symbol symbol=point source=point type={ x: float64; y: float64 }
+/// @type.symbol symbol=point source=point type={ x: int64; y: int64 }
 /// @resolution.pattern source=point kind=binding target=point
-/// @type.node source={ x: 1, y: 2 } type={ x: float64; y: float64 }
+/// @type.node source={ x: 1, y: 2 } type={ x: int64; y: int64 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
@@ -34,8 +34,8 @@ const hasX = "x" in point;
 /// @resolution.pattern source=hasX kind=binding target=hasX
 /// @type.node source="\"x\" in point" type=boolean
 /// @type.node source="\"x\"" type="x"
-/// @resolution.guard source="\"x\" in point" kind=in key_type="x" receiver={ x: float64; y: float64 } predicate="membership({ x: float64; y: float64 }, x)" narrowed={ x: float64; y: float64 }
-/// @type.node source=point type={ x: float64; y: float64 }
+/// @resolution.guard source="\"x\" in point" kind=in key_type="x" receiver={ x: int64; y: int64 } predicate="membership({ x: int64; y: int64 }, x)" narrowed={ x: int64; y: int64 }
+/// @type.node source=point type={ x: int64; y: int64 }
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
@@ -66,16 +66,16 @@ hasName satisfies boolean;
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const point: { x: float64; y: float64 } = { x: 1, y: 2 };
+const point: { x: int64; y: int64 } = { x: 1, y: 2 };
 
 const hasName: boolean = "name" in point;
 hasName satisfies boolean;
 
 === dir ===
 const point = { x: 1, y: 2 };
-/// @type.symbol symbol=point source=point type={ x: float64; y: float64 }
+/// @type.symbol symbol=point source=point type={ x: int64; y: int64 }
 /// @resolution.pattern source=point kind=binding target=point
-/// @type.node source={ x: 1, y: 2 } type={ x: float64; y: float64 }
+/// @type.node source={ x: 1, y: 2 } type={ x: int64; y: int64 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
@@ -84,8 +84,8 @@ const hasName = "name" in point;
 /// @resolution.pattern source=hasName kind=binding target=hasName
 /// @type.node source="\"name\" in point" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.guard source="\"name\" in point" kind=in key_type="name" receiver={ x: float64; y: float64 } predicate="membership({ x: float64; y: float64 }, name)" narrowed=never
-/// @type.node source=point type={ x: float64; y: float64 }
+/// @resolution.guard source="\"name\" in point" kind=in key_type="name" receiver={ x: int64; y: int64 } predicate="membership({ x: int64; y: int64 }, name)" narrowed=never
+/// @type.node source=point type={ x: int64; y: int64 }
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
@@ -416,28 +416,28 @@ true in point;
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const point: { x: float64 } = { x: 1 };
+const point: { x: int64 } = { x: 1 };
 
 true in point;
 
 === dir ===
 const point = { x: 1 };
-/// @type.symbol symbol=point source=point type={ x: float64 }
+/// @type.symbol symbol=point source=point type={ x: int64 }
 /// @resolution.pattern source=point kind=binding target=point
-/// @type.node source={ x: 1 } type={ x: float64 }
+/// @type.node source={ x: 1 } type={ x: int64 }
 /// @type.node source=1 type=1
 
 true in point;
 /// @type.node source="true in point" type=boolean
 /// @type.node source=true type=true
-/// @resolution.guard source="true in point" kind=in key_type=true receiver={ x: float64 } predicate="membership({ x: float64 }, true)"
-/// @type.node source=point type={ x: float64 }
+/// @resolution.guard source="true in point" kind=in key_type=true receiver={ x: int64 } predicate="membership({ x: int64 }, true)"
+/// @type.node source=point type={ x: int64 }
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
 "#,
         r#"
-/// @diagnostic.error id=no-matching-operator message="operator 'in' is not defined for 'true' and '{ x: float64 }'"
+/// @diagnostic.error id=no-matching-operator message="operator 'in' is not defined for 'true' and '{ x: int64 }'"
 /// @diagnostic.label line=4 column=6 span="in" line_source="true in point;"
 "#,
     );

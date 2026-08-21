@@ -82,15 +82,17 @@ impl BodyState<'_, '_> {
                 catch,
                 finally,
             } => self.infer_try_expression(site, body, catch, finally),
-            dir::Expression::ScalarLiteral(value) => {
-                let ty = self.scalar_literal_type(node, value)?;
+            dir::Expression::Literal(value) => {
+                let ty = self.literal_type(value)?;
                 self.commit_node_type(node.into_any(), ty)?;
+                self.check.fresh_nodes.insert(node.into_any(), None);
 
                 Ok(())
             }
             dir::Expression::TemplateExpression { value } => {
                 let ty = self.template_expression_type(site, value)?;
                 self.commit_node_type(node.into_any(), ty)?;
+                self.check.fresh_nodes.insert(node.into_any(), None);
 
                 Ok(())
             }
@@ -202,6 +204,7 @@ impl BodyState<'_, '_> {
                     use_: ValueUse::Store,
                     mode,
                 };
+
                 // complete the confirmed construction check at its authored value
                 match check.outcome {
                     CheckOutcome::Holds => {
@@ -325,7 +328,7 @@ impl BodyState<'_, '_> {
                 self.select_tagged_template(site, tag)
             }
             dir::Expression::TreeExpression { .. } => {
-                let _ = self.check_tree_expression(site, None)?;
+                self.check_tree_expression(site, None)?;
 
                 Ok(())
             }
@@ -465,6 +468,13 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         resolution: &dir::NameResolution,
     ) -> CompilerResult<()> {
+        // read of a const bound to a fresh literal stays fresh
+        if let [symbol] = resolution.symbols()
+            && self.check.fresh_bindings.contains(symbol)
+        {
+            self.check.fresh_nodes.insert(site.node, None);
+        }
+
         // reject a plural declaration group referenced without a selecting call
         let [symbol] = resolution.symbols() else {
             let symbol = resolution.symbols()[0];
@@ -478,6 +488,7 @@ impl BodyState<'_, '_> {
         // report foreign value reads while declaring
         if self.is_declaration() && !self.is_own_module(symbol.module_id) {
             self.report_export_type_not_derivable(site.node.module_id, site.node.local_id);
+
             // record the runtime access path while checking
             if self
                 .symbol_kind_maybe(*symbol)?
@@ -575,7 +586,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<()> {
         let module = site.node.module_id;
         let child_site = self.visit_site(child.into_global_any(module))?;
-        let ty = self.infer_node(child_site, PlaceUse::Read, InferMode::Exact)?;
+        let ty = self.infer_node(child_site, PlaceUse::Read, InferMode::Regular)?;
 
         // commit the raw child type; the parent read narrows it
         self.commit_node_type(site.node, ty)?;

@@ -408,8 +408,8 @@ declare const input: Promise<int32>;
 declare const next: Promise<string>;
 declare const usePromise: boolean;
 const result: Promise<string | Promise<string>> = input.then<int32, string | Promise<string>>(
-    (): Promise<string> | string => {
-        usePromise ? (next as Promise<string> | string) : ("done" as Promise<string> | string)
+    (): string | Promise<string> => {
+        usePromise ? (next as string | Promise<string>) : ("done" as string | Promise<string>)
     },
 );
 
@@ -493,11 +493,11 @@ const result: Promise<string | Promise<string>> = input.then(() => {
 /// @generic.instance id=async.promise.Promise.observe<int32> template=async.promise.Promise.observe arguments=(int32)
 /// @generic.instance id=async.promise.Promise.queueWaiter<int32> template=async.promise.Promise.queueWaiter arguments=(int32)
 /// @generic.instance id=async.promise.PromiseReaction.symbol167<int32> template=async.promise.PromiseReaction.symbol167 arguments=(int32)
-/// @type.symbol symbol=symbol5 type=Function<(), async.promise.Promise<string> | string>
-/// @type.node type=Function<(), async.promise.Promise<string> | string>
+/// @type.symbol symbol=symbol5 type=Function<(), string | async.promise.Promise<string>>
+/// @type.node type=Function<(), string | async.promise.Promise<string>>
 
     usePromise ? next : "done"
-    /// @type.node source="usePromise ? next : \"done\"" type=async.promise.Promise<string> | string
+    /// @type.node source="usePromise ? next : \"done\"" type=string | async.promise.Promise<string>
     /// @type.node source=usePromise type=boolean
     /// @resolution.name source=usePromise target=usePromise
     /// @resolution.place source=usePromise placement="local" lifetime="static" access="readonly"
@@ -603,7 +603,7 @@ function identity<T>(value: T): T {
     return value;
 }
 
-const number: 1 = identity<1>(1);
+const number: int64 = identity<int64>(1);
 const text: "x" = identity<"x">("x");
 
 === dir ===
@@ -624,14 +624,14 @@ function identity<T>(value: T): T {
 }
 
 const number = identity(1);
-/// @type.symbol symbol=number source=number type=1
+/// @type.symbol symbol=number source=number type=int64
 /// @resolution.pattern source=number kind=binding target=number
-/// @type.node source=identity type=(1) => 1
-/// @type.node source=identity(1) type=1
+/// @type.node source=identity type=(int64) => int64
+/// @type.node source=identity(1) type=int64
 /// @resolution.name source=identity target=identity
-/// @resolution.call source=identity(1) parameters=(1) arguments=(provided(1) as 1) return=1 kind=symbol target=identity instance=identity<1>
-/// @generic.instantiation id=identity<1> template=identity arguments=(1)
-/// @generic.instance id=identity<1> template=identity arguments=(1)
+/// @resolution.call source=identity(1) parameters=(int64) arguments=(provided(1) as int64) return=int64 kind=symbol target=identity instance=identity<int64>
+/// @generic.instantiation id=identity<int64> template=identity arguments=(int64)
+/// @generic.instance id=identity<int64> template=identity arguments=(int64)
 /// @type.node source=1 type=1
 
 const text = identity("x");
@@ -668,7 +668,7 @@ function identity<T>(value: T): T {
     return value;
 }
 
-const values: float64[] = identity<float64[]>([1, 2]);
+const values: int64[] = identity<int64[]>([1, 2]);
 
 === dir ===
 function identity<T>(value: T): T {
@@ -688,21 +688,21 @@ function identity<T>(value: T): T {
 }
 
 const values = identity([1, 2]);
-/// @type.symbol symbol=values source=values type=float64[]
+/// @type.symbol symbol=values source=values type=int64[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<float64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
-/// @type.node source="identity([1, 2])" type=float64[]
-/// @type.node source=identity type=(float64[]) => float64[]
+/// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
+/// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
+/// @type.node source="identity([1, 2])" type=int64[]
+/// @type.node source=identity type=(int64[]) => int64[]
 /// @resolution.name source=identity target=identity
-/// @resolution.call source="identity([1, 2])" parameters=(float64[]) arguments=(provided([1, 2]) as float64[]) return=float64[] kind=symbol target=identity instance=identity<float64[]>
-/// @generic.instantiation id=identity<float64[]> template=identity arguments=(float64[])
-/// @generic.instance id=identity<float64[]> template=identity arguments=(float64[])
-/// @type.node source=[1, 2] type=float64[]
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
-/// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+/// @resolution.call source="identity([1, 2])" parameters=(int64[]) arguments=(provided([1, 2]) as int64[]) return=int64[] kind=symbol target=identity instance=identity<int64[]>
+/// @generic.instantiation id=identity<int64[]> template=identity arguments=(int64[])
+/// @generic.instance id=identity<int64[]> template=identity arguments=(int64[])
+/// @type.node source=[1, 2] type=int64[]
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
+/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
+/// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 "#,
@@ -730,7 +730,7 @@ function first<T>(values: T[]): T {
     return values[0];
 }
 
-const value: float64 = first<float64>([1, 2]);
+const value: int64 = first<int64>([1, 2]);
 
 === dir ===
 function first<T>(values: T[]): T {
@@ -756,24 +756,24 @@ function first<T>(values: T[]): T {
 }
 
 const value = first([1, 2]);
-/// @type.symbol symbol=value source=value type=float64
+/// @type.symbol symbol=value source=value type=int64
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source="first([1, 2])" type=float64
-/// @type.node source=first type=(float64[]) => float64
+/// @type.node source="first([1, 2])" type=int64
+/// @type.node source=first type=(int64[]) => int64
 /// @resolution.name source=first target=first
-/// @resolution.call source="first([1, 2])" parameters=(float64[]) arguments=(provided([1, 2]) as float64[]) return=float64 kind=symbol target=first instance=first<float64>
-/// @generic.instantiation id=first<float64> template=first arguments=(float64)
-/// @generic.instance id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame float64, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame float64, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame float64[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame float64[], "exclusive")
-/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<float64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=first<float64> template=first arguments=(float64)
-/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
-/// @type.node source=[1, 2] type=float64[]
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
-/// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+/// @resolution.call source="first([1, 2])" parameters=(int64[]) arguments=(provided([1, 2]) as int64[]) return=int64 kind=symbol target=first instance=first<int64>
+/// @generic.instantiation id=first<int64> template=first arguments=(int64)
+/// @generic.instance id="collections.array.index#1<int64, \"exclusive\">" template=collections.array.index#1 arguments=(int64, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame int64, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int64, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame int64[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int64[], "exclusive")
+/// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
+/// @generic.instance id=first<int64> template=first arguments=(int64)
+/// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
+/// @type.node source=[1, 2] type=int64[]
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
+/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
+/// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 "#,
@@ -1111,8 +1111,8 @@ const overridden = pair(1, "x");
 === annotated ===
 declare function pair<T, U = T>(left: T, right?: U): (T, U);
 
-const defaulted: (float64, float64) = pair<float64, float64>(1);
-const overridden: (float64, string) = pair<float64, string>(1, "x" as string | undefined);
+const defaulted: (int64, int64) = pair<int64, int64>(1);
+const overridden: (int64, string) = pair<int64, string>(1, "x" as string | undefined);
 
 === dir ===
 declare function pair<T, U = T>(left: T, right?: U): (T, U);
@@ -1129,25 +1129,25 @@ declare function pair<T, U = T>(left: T, right?: U): (T, U);
 /// @resolution.name source=U target=pair.U
 
 const defaulted = pair(1);
-/// @type.symbol symbol=defaulted source=defaulted type=(float64, float64)
+/// @type.symbol symbol=defaulted source=defaulted type=(int64, int64)
 /// @resolution.pattern source=defaulted kind=binding target=defaulted
-/// @type.node source=pair type=(float64, float64 | undefined?) => (float64, float64)
-/// @type.node source=pair(1) type=(float64, float64)
+/// @type.node source=pair type=(int64, int64 | undefined?) => (int64, int64)
+/// @type.node source=pair(1) type=(int64, int64)
 /// @resolution.name source=pair target=pair
-/// @resolution.call source=pair(1) parameters=(float64, float64 | undefined) arguments=(provided(1) as float64, omitted as float64 | undefined) return=(float64, float64) kind=symbol target=pair instance="pair<float64, float64>"
-/// @generic.instantiation id="pair<float64, float64>" template=pair arguments=(float64, float64)
-/// @generic.instance id="pair<float64, float64>" template=pair arguments=(float64, float64)
+/// @resolution.call source=pair(1) parameters=(int64, int64 | undefined) arguments=(provided(1) as int64, omitted as int64 | undefined) return=(int64, int64) kind=symbol target=pair instance="pair<int64, int64>"
+/// @generic.instantiation id="pair<int64, int64>" template=pair arguments=(int64, int64)
+/// @generic.instance id="pair<int64, int64>" template=pair arguments=(int64, int64)
 /// @type.node source=1 type=1
 
 const overridden = pair(1, "x");
-/// @type.symbol symbol=overridden source=overridden type=(float64, string)
+/// @type.symbol symbol=overridden source=overridden type=(int64, string)
 /// @resolution.pattern source=overridden kind=binding target=overridden
-/// @type.node source="pair(1, \"x\")" type=(float64, string)
-/// @type.node source=pair type=(float64, string | undefined?) => (float64, string)
+/// @type.node source="pair(1, \"x\")" type=(int64, string)
+/// @type.node source=pair type=(int64, string | undefined?) => (int64, string)
 /// @resolution.name source=pair target=pair
-/// @resolution.call source="pair(1, \"x\")" parameters=(float64, string | undefined) arguments=(provided(1) as float64, provided("x") as string | undefined) return=(float64, string) kind=symbol target=pair instance="pair<float64, string>"
-/// @generic.instantiation id="pair<float64, string>" template=pair arguments=(float64, string)
-/// @generic.instance id="pair<float64, string>" template=pair arguments=(float64, string)
+/// @resolution.call source="pair(1, \"x\")" parameters=(int64, string | undefined) arguments=(provided(1) as int64, provided("x") as string | undefined) return=(int64, string) kind=symbol target=pair instance="pair<int64, string>"
+/// @generic.instantiation id="pair<int64, string>" template=pair arguments=(int64, string)
+/// @generic.instance id="pair<int64, string>" template=pair arguments=(int64, string)
 /// @type.node source=1 type=1
 /// @type.node source="\"x\"" type="x"
 "#,
@@ -1388,9 +1388,9 @@ const kept = values
 === annotated ===
 declare const values: ^int32[];
 
-const kept: ^int32[] = values.map<int32, int32>((value: int32): int32 => value).filter<int32>(
+const kept: int32[] = values.map<int32, int32>((value: int32): int32 => value).filter<int32>(
     (value: &'a readonly int32): boolean => value !== undefined,
-);
+) as int32[];
 
 === dir ===
 declare const values: ^int32[];
@@ -1398,20 +1398,18 @@ declare const values: ^int32[];
 /// @resolution.pattern source=values kind=binding target=values
 
 const kept = values
-/// @type.symbol symbol=kept source=kept type=Owned<int32[]>
+/// @type.symbol symbol=kept source=kept type=int32[]
 /// @resolution.pattern source=kept kind=binding target=kept
 /// @resolution.name source=values target=values
-/// @resolution.member receiver=Owned<int32[]> type=(this: Owned<int32[]>, Function<(&type_expression.'a readonly int32, isize), boolean>) => Owned<int32[]> & (this: Owned<int32[]>, Function<(int32, isize), boolean>) => Owned<int32[]> kind=overload-set targets=[collections.array.filter#1, collections.array.filter#2]
-/// @resolution.member receiver=Owned<int32[]> type=<collections.array.map.U#1>(this: Owned<int32[]>, Function<(int32, isize), collections.array.map.U#1>) => Owned<collections.array.map.U#1[]> & <collections.array.map.U#2>(this: Owned<int32[]>, Function<(int32, isize), collections.array.map.U#2>) => Owned<collections.array.map.U#2[]> kind=overload-set targets=[collections.array.map#1, collections.array.map#2]
+/// @resolution.member receiver=Owned<int32[]> type=(this: Owned<int32[]>, Function<(&type_expression.'a readonly int32, isize), boolean>) => Owned<int32[]> kind=symbol target_receiver=Owned<int32[]> target=collections.array.filter#1
+/// @resolution.member receiver=Owned<int32[]> type=<collections.array.map.U#1>(this: Owned<int32[]>, Function<(int32, isize), collections.array.map.U#1>) => Owned<collections.array.map.U#1[]> kind=symbol target_receiver=Owned<int32[]> target=collections.array.map#1
 /// @resolution.call parameters=(Function<(&type_expression.'a readonly int32, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32, isize), boolean>) return=Owned<int32[]> kind=symbol target=collections.array.filter#1 receiver=Owned<int32[]> instance=Owned<collections.array.T#2[]>.<extension#2>.filter#1
 /// @resolution.call parameters=(Function<(int32, isize), int32>) arguments=(provided((value) => value) as Function<(int32, isize), int32>) return=Owned<int32[]> kind=symbol target=collections.array.map#1 receiver=Owned<int32[]> instance=Owned<collections.array.T#2[]>.<extension#2>.map#1<int32>
 /// @resolution.place source=values placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id="collections.array.map#1<int32, int32>" template=collections.array.map#1 arguments=(int32, int32)
 /// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
-/// @generic.instantiation id=collections.array.filter#2<int32> template=collections.array.filter#2 arguments=(int32)
 /// @generic.instantiation id=collections.array.map#1<int32> template=collections.array.map#1 arguments=(int32)
-/// @generic.instantiation id=collections.array.map#2<int32> template=collections.array.map#2 arguments=(int32)
 
     .map((value) => value)
     /// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32,), int32>
@@ -1425,7 +1423,7 @@ const kept = values
     /// @type.symbol symbol=symbol4.value source=value type=&type_expression.'a readonly int32
     /// @resolution.name source=value target=symbol4.value
     /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 families=(integer), undefined as undefined families=(undefined)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime=type_expression.'a access="readonly"
     /// @resolution.access source=value root=symbol4.value
 "#,
         r#"
@@ -1464,6 +1462,65 @@ import { Arithmetic, Integer } from "destack:math";
 function bump<T: Integer>(value: T): T | undefined {
     return value.checkedAdd(1);
 }
+"#,
+        r#"
+"#,
+    );
+}
+
+#[test]
+fn test_adopt_the_declared_result_for_numeric_literal_arguments() {
+    let session = TestSession::single(
+        r#"
+function pick<T>(a: T, b: T, flag: boolean): T {
+    return flag ? a : b;
+}
+
+function halves(flag: boolean): float64 {
+    return pick(1, 2, flag);
+}
+
+function fractions(flag: boolean): float32 {
+    return pick(1.5, 2.5, flag);
+}
+
+const widened = pick(1.5, 2.5, true);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::none(),
+        r#"
+=== annotated ===
+function pick<T>(a: T, b: T, flag: boolean): T {
+    return flag ? a : b;
+}
+
+function halves(flag: boolean): float64 {
+    return pick<float64>(1, 2, flag);
+}
+
+function fractions(flag: boolean): float32 {
+    return pick<float32>(1.5, 2.5, flag);
+}
+
+const widened: float64 = pick<float64>(1.5, 2.5, true);
+
+=== dir ===
+function pick<T>(a: T, b: T, flag: boolean): T {
+    return flag ? a : b;
+}
+
+function halves(flag: boolean): float64 {
+    return pick(1, 2, flag);
+}
+
+function fractions(flag: boolean): float32 {
+    return pick(1.5, 2.5, flag);
+}
+
+const widened = pick(1.5, 2.5, true);
 "#,
         r#"
 "#,
@@ -1529,12 +1586,12 @@ const defined = values.map((value) => value).filter((value) => value !== undefin
 === annotated ===
 declare const values: (int32 | undefined)[];
 
-const defined: ^(int32 | undefined)[] = values.map<int32 | undefined, int32 | undefined>(
+const defined: (int32 | undefined)[] = values.map<int32 | undefined, int32 | undefined>(
     (value: int32 | undefined): int32 | undefined => value,
 ).filter<int32 | undefined>(
     (value: &'a readonly (int32 | undefined)): boolean =>
         value !== (undefined as int32 | undefined),
-);
+) as (int32 | undefined)[];
 
 === dir ===
 declare const values: (int32 | undefined)[];
@@ -1542,17 +1599,16 @@ declare const values: (int32 | undefined)[];
 /// @resolution.pattern source=values kind=binding target=values
 
 const defined = values.map((value) => value).filter((value) => value !== undefined);
-/// @type.symbol symbol=defined source=defined type=Owned<int32 | undefined[]>
+/// @type.symbol symbol=defined source=defined type=int32 | undefined[]
 /// @resolution.pattern source=defined kind=binding target=defined
 /// @resolution.name source=values target=values
-/// @resolution.member source="values.map((value) => value).filter" receiver=Owned<int32 | undefined[]> type=(this: Owned<int32 | undefined[]>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> & (this: Owned<int32 | undefined[]>, Function<(int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> kind=overload-set targets=[collections.array.filter#1, collections.array.filter#2]
+/// @resolution.member source="values.map((value) => value).filter" receiver=Owned<int32 | undefined[]> type=(this: Owned<int32 | undefined[]>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> kind=symbol target_receiver=Owned<int32 | undefined[]> target=collections.array.filter#1
 /// @resolution.member source=values.map receiver=int32 | undefined[] type=<collections.array.map.U#2>(this: int32 | undefined[], Function<(int32 | undefined, isize), collections.array.map.U#2>) => Owned<collections.array.map.U#2[]> kind=symbol target_receiver=int32 | undefined[] target=collections.array.map#2
 /// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=Owned<int32 | undefined[]> kind=symbol target=collections.array.map#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined>"
 /// @resolution.call source="values.map((value) => value).filter((value) => value !== undefined)" parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=Owned<int32 | undefined[]> kind=symbol target=collections.array.filter#1 receiver=Owned<int32 | undefined[]> instance=Owned<collections.array.T#2[]>.<extension#2>.filter#1
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
-/// @generic.instantiation id="collections.array.filter#2<int32 | undefined>" template=collections.array.filter#2 arguments=(int32 | undefined)
 /// @generic.instantiation id="collections.array.map#2<int32 | undefined, int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined, int32 | undefined)
 /// @generic.instantiation id="collections.array.map#2<int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined)
 /// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined>
@@ -1564,10 +1620,11 @@ const defined = values.map((value) => value).filter((value) => value !== undefin
 /// @type.symbol symbol=symbol4.value source=value type=&type_expression.'a readonly int32 | undefined
 /// @resolution.name source=value target=symbol4.value
 /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
-/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime=type_expression.'a access="readonly"
 /// @resolution.access source=value root=symbol4.value
 "#,
         r#"
+
 "#,
     );
 }
@@ -2044,7 +2101,7 @@ requireCopy(value);
 
 /// Flatten a union-element array through the library flat.
 #[test]
-fn test_library_flat_reduces_a_union_element_array() {
+fn test_flatten_a_union_element_array_by_one_level() {
     let session = TestSession::single(
         r#"
 function flatten(values: (int32 | int32[])[]): int32[] {
@@ -2264,9 +2321,9 @@ const positive = values.filter((value) => value > 0);
 === annotated ===
 declare const values: ^int32[];
 
-const positive: ^int32[] = values.filter<int32>(
+const positive: int32[] = values.filter<int32>(
     (value: &'a readonly int32): boolean => (value as int32) > 0,
-);
+) as int32[];
 
 === dir ===
 declare const values: ^int32[];
@@ -2274,23 +2331,23 @@ declare const values: ^int32[];
 /// @resolution.pattern source=values kind=binding target=values
 
 const positive = values.filter((value) => value > 0);
-/// @type.symbol symbol=positive source=positive type=Owned<int32[]>
+/// @type.symbol symbol=positive source=positive type=int32[]
 /// @resolution.pattern source=positive kind=binding target=positive
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.filter receiver=Owned<int32[]> type=(this: Owned<int32[]>, Function<(&type_expression.'a readonly int32, isize), boolean>) => Owned<int32[]> & (this: Owned<int32[]>, Function<(int32, isize), boolean>) => Owned<int32[]> kind=overload-set targets=[collections.array.filter#1, collections.array.filter#2]
+/// @resolution.member source=values.filter receiver=Owned<int32[]> type=(this: Owned<int32[]>, Function<(&type_expression.'a readonly int32, isize), boolean>) => Owned<int32[]> kind=symbol target_receiver=Owned<int32[]> target=collections.array.filter#1
 /// @resolution.call source="values.filter((value) => value > 0)" parameters=(Function<(&type_expression.'a readonly int32, isize), boolean>) arguments=(provided((value) => value > 0) as Function<(&type_expression.'a readonly int32, isize), boolean>) return=Owned<int32[]> kind=symbol target=collections.array.filter#1 receiver=Owned<int32[]> instance=Owned<collections.array.T#2[]>.<extension#2>.filter#1
 /// @resolution.place source=values placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
-/// @generic.instantiation id=collections.array.filter#2<int32> template=collections.array.filter#2 arguments=(int32)
 /// @type.symbol symbol=symbol2 source="(value) => value > 0" type=Function<(&type_expression.'a readonly int32,), boolean>
 /// @type.symbol symbol=symbol2.value source=value type=&type_expression.'a readonly int32
 /// @resolution.name source=value target=symbol2.value
 /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
-/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime=type_expression.'a access="readonly"
 /// @resolution.access source=value root=symbol2.value
 "#,
         r#"
+
 "#,
     );
 }
@@ -2687,7 +2744,8 @@ extension<T, E> of AsyncResult<T, E> {
     andThenSync<U, F>(f: (arg0: T) => Result<U, F>): AsyncResult<U, E | F> {
         AsyncResult(
             this.then<Result<T, E>, Result<U, E | F>>(
-                (result: Result<T, E>): Result<U, E | F> => result.andThen<T, E, U, F>(f),
+                (result: Result<T, E>): Result<U, E | F> | Promise<Result<U, E | F>> =>
+                    result.andThen<T, E, U, F>(f) as Result<U, E | F> | Promise<Result<U, E | F>>,
             ),
         )
     }
@@ -2865,8 +2923,8 @@ extension<T, E> of AsyncResult<T, E> {
         /// @generic.instantiation id="AsyncResult<T#7, E#6>" template=AsyncResult arguments=(T#7, E#6) owner=andThenSync
         /// @generic.instantiation id="Promise.then<Result<T#7, E#6>, Result<U#3, E#6 | F#2>>" template=Promise.then arguments=(Result<T#7, E#6>, Result<U#3, E#6 | F#2>) owner=andThenSync
         /// @generic.instantiation id="Promise.then<Result<T#7, E#6>>" template=Promise.then arguments=(Result<T#7, E#6>) owner=andThenSync
-        /// @type.symbol symbol=andThenSync.symbol47 source=(result) => result.andThen(f) type=Function<(Result<T#7, E#6>,), Result<U#3, E#6 | F#2>>
-        /// @type.node source=(result) => result.andThen(f) type=Function<(Result<T#7, E#6>,), Result<U#3, E#6 | F#2>>
+        /// @type.symbol symbol=andThenSync.symbol47 source=(result) => result.andThen(f) type=Function<(Result<T#7, E#6>,), Result<U#3, E#6 | F#2> | Promise<Result<U#3, E#6 | F#2>>>
+        /// @type.node source=(result) => result.andThen(f) type=Function<(Result<T#7, E#6>,), Result<U#3, E#6 | F#2> | Promise<Result<U#3, E#6 | F#2>>>
         /// @type.symbol symbol=andThenSync.symbol47.result source=result type=Result<T#7, E#6>
         /// @type.node source=result type=Result<T#7, E#6>
         /// @type.node source=result.andThen type=<U#2, F#1>(this: Result<T#7, E#6>, Function<(T#7,), Result<U#2, F#1>>) => Result<U#2, E#6 | F#1>
@@ -2888,9 +2946,9 @@ extension<T, E> of AsyncResult<T, E> {
 "#);
 }
 
-/// Commit operator decisions inside every callback of a chained generic call.
+/// Infer the parameters of both callbacks in a chained map and filter call.
 #[test]
-fn test_chained_callback_operators_commit_decisions() {
+fn test_infer_a_map_and_filter_chain_with_arithmetic_callbacks() {
     let session = TestSession::single(
         r#"
 function positive(values: int32[]): int32[] {
@@ -2917,12 +2975,12 @@ function positive(values: int32[]): int32[] {
 
     return values.map((value) => value + 1).filter((value) => value > 0);
     /// @type.node source="values.map((value) => value + 1)" type=Owned<int32[]>
-    /// @type.node source="values.map((value) => value + 1).filter" type=(this: Owned<int32[]>, Function<(&type_expression.'a readonly int32, isize), boolean>) => Owned<int32[]> & (this: Owned<int32[]>, Function<(int32, isize), boolean>) => Owned<int32[]>
+    /// @type.node source="values.map((value) => value + 1).filter" type=(this: Owned<int32[]>, Function<(&type_expression.'a readonly int32, isize), boolean>) => Owned<int32[]>
     /// @type.node source="values.map((value) => value + 1).filter((value) => value > 0)" type=Owned<int32[]>
     /// @type.node source=values type=int32[]
     /// @type.node source=values.map type=<collections.array.map.U#2>(this: int32[], Function<(int32, isize), collections.array.map.U#2>) => Owned<collections.array.map.U#2[]>
     /// @resolution.name source=values target=positive.values
-    /// @resolution.member source="values.map((value) => value + 1).filter" receiver=Owned<int32[]> type=(this: Owned<int32[]>, Function<(&type_expression.'a readonly int32, isize), boolean>) => Owned<int32[]> & (this: Owned<int32[]>, Function<(int32, isize), boolean>) => Owned<int32[]> kind=overload-set targets=[collections.array.filter#1, collections.array.filter#2]
+    /// @resolution.member source="values.map((value) => value + 1).filter" receiver=Owned<int32[]> type=(this: Owned<int32[]>, Function<(&type_expression.'a readonly int32, isize), boolean>) => Owned<int32[]> kind=symbol target_receiver=Owned<int32[]> target=collections.array.filter#1
     /// @resolution.member source=values.map receiver=int32[] type=<collections.array.map.U#2>(this: int32[], Function<(int32, isize), collections.array.map.U#2>) => Owned<collections.array.map.U#2[]> kind=symbol target_receiver=int32[] target=collections.array.map#2
     /// @resolution.call source="values.map((value) => value + 1)" parameters=(Function<(int32, isize), int32>) arguments=(provided((value) => value + 1) as Function<(int32, isize), int32>) return=Owned<int32[]> kind=symbol target=collections.array.map#2 receiver=int32[] instance=Array<int32>.<extension#3>.map#2<int32>
     /// @resolution.call source="values.map((value) => value + 1).filter((value) => value > 0)" parameters=(Function<(&type_expression.'a readonly int32, isize), boolean>) arguments=(provided((value) => value > 0) as Function<(&type_expression.'a readonly int32, isize), boolean>) return=Owned<int32[]> kind=symbol target=collections.array.filter#1 receiver=Owned<int32[]> instance=Owned<collections.array.T#2[]>.<extension#2>.filter#1
@@ -2930,11 +2988,9 @@ function positive(values: int32[]): int32[] {
     /// @resolution.access source=values root=positive.values
     /// @generic.instantiation id="collections.array.map#2<int32, int32>" template=collections.array.map#2 arguments=(int32, int32)
     /// @generic.instantiation id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
-    /// @generic.instantiation id=collections.array.filter#2<int32> template=collections.array.filter#2 arguments=(int32)
     /// @generic.instantiation id=collections.array.map#2<int32> template=collections.array.map#2 arguments=(int32)
     /// @generic.instance id="collections.array.map#2<int32, int32>" template=collections.array.map#2 arguments=(int32, int32)
     /// @generic.instance id=collections.array.filter#1<int32> template=collections.array.filter#1 arguments=(int32)
-    /// @generic.instance id=collections.array.filter#2<int32> template=collections.array.filter#2 arguments=(int32)
     /// @type.symbol symbol=positive.symbol3 source="(value) => value + 1" type=Function<(int32,), int32>
     /// @type.node source="(value) => value + 1" type=Function<(int32,), int32>
     /// @type.symbol symbol=positive.symbol3.value source=value type=int32
@@ -2952,7 +3008,7 @@ function positive(values: int32[]): int32[] {
     /// @type.node source=value type=&type_expression.'a readonly int32
     /// @resolution.name source=value target=positive.symbol5.value
     /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime=type_expression.'a access="readonly"
     /// @resolution.access source=value root=positive.symbol5.value
     /// @type.node source=0 type=0
 
@@ -2960,9 +3016,9 @@ function positive(values: int32[]): int32[] {
 "#);
 }
 
-/// Commit the inequality decision inside the second callback of a chain.
+/// Infer the filter callback that compares its parameter against undefined.
 #[test]
-fn test_chained_callback_inequality_commits_its_decision() {
+fn test_infer_a_map_and_filter_chain_with_a_nullish_comparison() {
     let session = TestSession::single(
         r#"
 function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
@@ -2992,23 +3048,21 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 
     return values.map((value) => value).filter((value) => value !== undefined);
     /// @type.node source="values.map((value) => value)" type=Owned<int32 | undefined[]>
-    /// @type.node source="values.map((value) => value).filter" type=(this: Owned<int32 | undefined[]>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> & (this: Owned<int32 | undefined[]>, Function<(int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]>
+    /// @type.node source="values.map((value) => value).filter" type=(this: Owned<int32 | undefined[]>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]>
     /// @type.node source="values.map((value) => value).filter((value) => value !== undefined)" type=Owned<int32 | undefined[]>
     /// @type.node source=values type=int32 | undefined[]
     /// @type.node source=values.map type=<collections.array.map.U#2>(this: int32 | undefined[], Function<(int32 | undefined, isize), collections.array.map.U#2>) => Owned<collections.array.map.U#2[]>
     /// @resolution.name source=values target=defined.values
-    /// @resolution.member source="values.map((value) => value).filter" receiver=Owned<int32 | undefined[]> type=(this: Owned<int32 | undefined[]>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> & (this: Owned<int32 | undefined[]>, Function<(int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> kind=overload-set targets=[collections.array.filter#1, collections.array.filter#2]
+    /// @resolution.member source="values.map((value) => value).filter" receiver=Owned<int32 | undefined[]> type=(this: Owned<int32 | undefined[]>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> kind=symbol target_receiver=Owned<int32 | undefined[]> target=collections.array.filter#1
     /// @resolution.member source=values.map receiver=int32 | undefined[] type=<collections.array.map.U#2>(this: int32 | undefined[], Function<(int32 | undefined, isize), collections.array.map.U#2>) => Owned<collections.array.map.U#2[]> kind=symbol target_receiver=int32 | undefined[] target=collections.array.map#2
     /// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=Owned<int32 | undefined[]> kind=symbol target=collections.array.map#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined>"
     /// @resolution.call source="values.map((value) => value).filter((value) => value !== undefined)" parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=Owned<int32 | undefined[]> kind=symbol target=collections.array.filter#1 receiver=Owned<int32 | undefined[]> instance=Owned<collections.array.T#2[]>.<extension#2>.filter#1
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=defined.values
     /// @generic.instantiation id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
-    /// @generic.instantiation id="collections.array.filter#2<int32 | undefined>" template=collections.array.filter#2 arguments=(int32 | undefined)
     /// @generic.instantiation id="collections.array.map#2<int32 | undefined, int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined, int32 | undefined)
     /// @generic.instantiation id="collections.array.map#2<int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined)
     /// @generic.instance id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
-    /// @generic.instance id="collections.array.filter#2<int32 | undefined>" template=collections.array.filter#2 arguments=(int32 | undefined)
     /// @generic.instance id="collections.array.map#2<int32 | undefined, int32 | undefined>" template=collections.array.map#2 arguments=(int32 | undefined, int32 | undefined)
     /// @type.symbol symbol=defined.symbol3 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined>
     /// @type.node source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined>
@@ -3024,7 +3078,7 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     /// @type.node source=value type=&type_expression.'a readonly int32 | undefined
     /// @resolution.name source=value target=defined.symbol5.value
     /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime=type_expression.'a access="readonly"
     /// @resolution.access source=value root=defined.symbol5.value
     /// @type.node source=undefined type=undefined
 
@@ -3033,7 +3087,7 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 }
 
 #[test]
-fn test_closure_forced_inference_widens_the_literal_initial() {
+fn test_widen_the_literal_initial_value_in_a_reduce_call() {
     let session = TestSession::single(
         r#"
 function containsPositive(values: int32[]): boolean {
@@ -3100,7 +3154,7 @@ function containsPositive(values: int32[]): boolean {
 }
 
 #[test]
-fn test_fill_defaulted_interface_parameters_at_partial_written_rows() {
+fn test_fill_a_defaulted_interface_argument_at_a_partial_annotation() {
     let session = TestSession::single(
         r#"
 newtype interface It<T, R = void> {
@@ -3198,4 +3252,139 @@ function length(values: It<int32>): isize {
 
 }
 "#);
+}
+
+#[test]
+fn test_reject_a_cyclic_type_argument() {
+    let session = TestSession::single(
+        r#"
+declare function fix<T>(step: (value: T) => T): T;
+
+const result = fix((value) => [value]);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function fix<T>(step: (arg0: T) => T): T;
+
+const result = fix((value) => [value]);
+
+=== dir ===
+declare function fix<T>(step: (value: T) => T): T;
+/// @generic.template symbol=fix parameters=(T)
+/// @type.symbol symbol=fix source="declare function fix<T>(step: (value: T) => T): T" type=<T>(Function<(T,), T>) => T
+/// @type.symbol symbol=fix.T source=T type=T
+/// @type.symbol symbol=fix.step source="step: (value: T) => T" type=Function<(T,), T>
+/// @type.symbol symbol=fix.value source="value: T" type=T
+/// @resolution.name source=T target=fix.T
+/// @resolution.name source=T target=fix.T
+/// @resolution.name source=T target=fix.T
+
+const result = fix((value) => [value]);
+/// @type.symbol symbol=result source=result type=<error>[]
+/// @resolution.pattern source=result kind=binding target=result
+/// @resolution.name source=fix target=fix
+/// @resolution.call source="fix((value) => [value])" parameters=(Function<(<error>[],), <error>[]>) arguments=(provided((value) => [value]) as Function<(<error>[],), <error>[]>) return=<error>[] kind=symbol target=fix instance=fix<<error>[]>
+/// @generic.instantiation id=fix<<error>[]> template=fix arguments=(<error>[])
+/// @type.symbol symbol=symbol5 source="(value) => [value]" type=Function<(<error>[],), <error>[]>
+/// @type.symbol symbol=symbol5.value source=value type=<error>[]
+/// @resolution.call source=[value] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(value) as <error>) return=<error>[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<<error>>
+/// @generic.instantiation id=collections.array.arrayFromSlice<<error>> template=collections.array.arrayFromSlice arguments=(<error>)
+/// @resolution.name source=value target=symbol5.value
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=value root=symbol5.value
+"#,
+        r#"
+/// @diagnostic.error id=circular-type message="type is circular"
+/// @diagnostic.label line=4 column=31 span="[value]" line_source="const result = fix((value) => [value]);"
+"#,
+    );
+}
+
+/// Infer a type argument through an intersection argument without a return expectation.
+#[test]
+fn test_infer_a_type_argument_through_an_intersection_argument() {
+    let session = TestSession::single(
+        r#"
+interface Safe {}
+
+declare function run<T>(body: Function<(), T, "once"> & Safe): T;
+
+struct Runner<R> {
+    body: Function<(), R, "once"> & Safe;
+
+    go(this): void {
+        const result = run(this.body);
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+interface Safe {}
+
+declare function run<T>(body: Function<(), T, "once"> & Safe): T;
+
+struct Runner<in out R> {
+    body: Function<(), R, "once"> & Safe;
+
+    go(this): void {
+        const result: R = run<R>(this.body);
+    }
+}
+
+=== dir ===
+interface Safe {}
+/// @type.symbol symbol=Safe source="interface Safe {}" type=Safe
+/// @definition.interface symbol=Safe source="interface Safe {}"
+
+declare function run<T>(body: Function<(), T, "once"> & Safe): T;
+/// @generic.template symbol=run parameters=(T)
+/// @type.symbol symbol=run source="declare function run<T>(body: Function<(), T, \"once\"> & Safe): T" type=<T>(Function<(), T, "once"> & Safe) => T
+/// @type.symbol symbol=run.T source=T type=T
+/// @type.symbol symbol=run.body source="body: Function<(), T, \"once\"> & Safe" type=Function<(), T, "once"> & Safe
+/// @resolution.name source=Function target=types.function.Function
+/// @resolution.name source=T target=run.T
+/// @resolution.name source=Safe target=Safe
+/// @resolution.name source=T target=run.T
+
+struct Runner<R> {
+/// @generic.template symbol=Runner parameters=(in out R)
+/// @type.symbol symbol=Runner type=Runner
+/// @definition.struct symbol=Runner template=(in out R)
+/// @definition.field symbol=Runner.body source="body: Function<(), R, \"once\"> & Safe" key=body type=Function<(), R, "once"> & Safe
+/// @definition.method symbol=Runner.go slot=go type=(this: this) => void
+/// @type.symbol symbol=Runner.R source=R type=R
+
+    body: Function<(), R, "once"> & Safe;
+    /// @type.symbol symbol=Runner.body source="body: Function<(), R, \"once\"> & Safe" type=Function<(), R, "once"> & Safe
+    /// @resolution.name source=Function target=types.function.Function
+    /// @resolution.name source=R target=Runner.R
+    /// @resolution.name source=Safe target=Safe
+
+    go(this): void {
+    /// @type.symbol symbol=Runner.go type=(this: this) => void
+    /// @type.symbol symbol=Runner.go.this source=this type=this
+
+        const result = run(this.body);
+        /// @type.symbol symbol=Runner.go.result source=result type=R
+        /// @resolution.pattern source=result kind=binding target=Runner.go.result
+        /// @resolution.name source=run target=run
+        /// @resolution.call source=run(this.body) parameters=(Function<(), R, "once"> & Safe) arguments=(provided(this.body) as Function<(), R, "once"> & Safe) return=R kind=symbol target=run instance=run<R>
+        /// @generic.instantiation id=run<R> template=run arguments=(R) owner=Runner.go
+        /// @resolution.member source=this.body receiver=Runner<R> type=Function<(), R, "once"> & Safe kind=field target_receiver=Runner<R> key=body target=Runner.body target_type=Function<(), R, "once"> & Safe
+        /// @resolution.receiver source=this kind=this declaration=Runner type=Runner<R>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.body placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.body root=this keys=[body]
+
+    }
+}
+"#, r#""#);
 }

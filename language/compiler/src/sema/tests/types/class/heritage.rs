@@ -34,6 +34,53 @@ class Document extends Base {}
 }
 
 #[test]
+fn test_infer_field_defaults_of_a_derived_class() {
+    let session = TestSession::single(
+        r#"
+class Base {
+    value: int32 = 0;
+}
+
+class Derived extends Base {
+    static DEFAULT = 1;
+
+    scale = 1.5;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::none(),
+        r#"
+=== annotated ===
+class Base {
+    value: int32 = 0;
+}
+
+class Derived extends Base {
+    static DEFAULT: int64 = 1;
+
+    scale: float64 = 1.5;
+}
+
+=== dir ===
+class Base {
+    value: int32 = 0;
+}
+
+class Derived extends Base {
+    static DEFAULT = 1;
+
+    scale = 1.5;
+}
+"#,
+        r#"
+"#,
+    );
+}
+
+#[test]
 fn test_class_extends_clause_requires_class_base() {
     let session = TestSession::single(
         r#"

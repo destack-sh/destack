@@ -100,7 +100,7 @@ impl CheckState<'_> {
         let auto_interface = self
             .language_item(target_instance.symbol)?
             .and_then(dir::AutoInterface::from_language_item)
-            .filter(|interface| interface.is_intrinsic());
+            .filter(|interface| interface.has_builtin_implementation());
 
         // find the target interface in the source heritage closure
         let application = if let dir::Type::Application(source_instance) = self.ty(source)? {

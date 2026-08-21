@@ -74,3 +74,40 @@ value satisfies ();
 "#,
     );
 }
+
+#[test]
+fn test_decode_string_escapes_into_literal_types() {
+    let session = TestSession::single(
+        r#"
+const letter: "A" = "\u0041";
+const tab: "a\tb" = "a\tb";
+const slash: "\\w+" = "\\w+";
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const letter: "A" = "A";
+const tab: "a\tb" = "a\tb";
+const slash: "\w+" = "\w+";
+
+=== dir ===
+const letter: "A" = "\u0041";
+/// @type.symbol symbol=letter source=letter type="A"
+/// @resolution.pattern source=letter kind=binding target=letter
+
+const tab: "a\tb" = "a\tb";
+/// @type.symbol symbol=tab source=tab type="a\tb"
+/// @resolution.pattern source=tab kind=binding target=tab
+
+const slash: "\\w+" = "\\w+";
+/// @type.symbol symbol=slash source=slash type="\\w+"
+/// @resolution.pattern source=slash kind=binding target=slash
+"#,
+        r#"
+"#,
+    );
+}

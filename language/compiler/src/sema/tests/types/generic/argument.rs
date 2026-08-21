@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_value_generic_argument_still_works_when_parameter_is_static() {
+fn test_substitute_a_const_argument_into_a_fixed_array_alias() {
     let session = TestSession::single(
         r#"
 type Slots<const N: usize> = [uint8; N];
@@ -128,7 +128,7 @@ const result = Result<int32, string>.ok(42);
 }
 
 #[test]
-fn test_parameter_position_transparent_constraint_induces_generic() {
+fn test_call_a_method_through_a_structural_alias_parameter() {
     let session = TestSession::single(
         r#"
 type Printable = { print(): string };
@@ -256,6 +256,171 @@ function makeCircle(): Shape {
     /// @resolution.name source=Circle target=Circle
 
 }
+"#,
+    );
+}
+
+#[test]
+fn test_infer_a_bounded_parameter_from_literal_elements() {
+    let session = TestSession::single(
+        r#"
+declare function first<T: unknown[]>(items: T[]): T;
+declare function box<T: unknown>(value: T): T;
+
+const row = first([[1, 2]]);
+const boxed = box(1);
+const mixed = first([["a", 1]]);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function first<T: unknown[]>(items: T[]): T;
+declare function box<T: unknown>(value: T): T;
+
+const row: unknown[] = first<unknown[]>([[1 as unknown, 2 as unknown]]);
+const boxed: int64 = box<int64>(1);
+const mixed: unknown[] = first<unknown[]>([["a" as unknown, 1 as unknown]]);
+
+=== dir ===
+declare function first<T: unknown[]>(items: T[]): T;
+/// @generic.template symbol=first parameters=(T#1: unknown[])
+/// @type.symbol symbol=first source="declare function first<T: unknown[]>(items: T[]): T" type=<T#1: unknown[]>(T#1[]) => T#1
+/// @type.symbol symbol=first.T source="T: unknown[]" type=T#1
+/// @type.symbol symbol=first.items source="items: T[]" type=T#1[]
+/// @resolution.name source=T target=first.T
+/// @resolution.name source=T target=first.T
+
+declare function box<T: unknown>(value: T): T;
+/// @generic.template symbol=box parameters=(T#2: unknown)
+/// @type.symbol symbol=box source="declare function box<T: unknown>(value: T): T" type=<T#2: unknown>(T#2) => T#2
+/// @type.symbol symbol=box.T source="T: unknown" type=T#2
+/// @type.symbol symbol=box.value source="value: T" type=T#2
+/// @resolution.name source=T target=box.T
+/// @resolution.name source=T target=box.T
+
+const row = first([[1, 2]]);
+/// @type.symbol symbol=row source=row type=unknown[]
+/// @resolution.pattern source=row kind=binding target=row
+/// @resolution.name source=first target=first
+/// @resolution.call source="first([[1, 2]])" parameters=(unknown[][]) arguments=(provided([[1, 2]]) as unknown[][]) return=unknown[] kind=symbol target=first instance=first<unknown[]>
+/// @generic.instantiation id=first<unknown[]> template=first arguments=(unknown[])
+/// @resolution.call source=[[1, 2]] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest([1, 2]) as unknown[]) return=unknown[][] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<unknown[]>
+/// @generic.instantiation id=collections.array.arrayFromSlice<unknown[]> template=collections.array.arrayFromSlice arguments=(unknown[])
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as unknown) return=unknown[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<unknown>
+/// @generic.instantiation id=collections.array.arrayFromSlice<unknown> template=collections.array.arrayFromSlice arguments=(unknown)
+
+const boxed = box(1);
+/// @type.symbol symbol=boxed source=boxed type=int64
+/// @resolution.pattern source=boxed kind=binding target=boxed
+/// @resolution.name source=box target=box
+/// @resolution.call source=box(1) parameters=(int64) arguments=(provided(1) as int64) return=int64 kind=symbol target=box instance=box<int64>
+/// @generic.instantiation id=box<int64> template=box arguments=(int64)
+
+const mixed = first([["a", 1]]);
+/// @type.symbol symbol=mixed source=mixed type=unknown[]
+/// @resolution.pattern source=mixed kind=binding target=mixed
+/// @resolution.name source=first target=first
+/// @resolution.call source="first([[\"a\", 1]])" parameters=(unknown[][]) arguments=(provided([["a", 1]]) as unknown[][]) return=unknown[] kind=symbol target=first instance=first<unknown[]>
+/// @resolution.call source=[["a", 1]] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(["a", 1]) as unknown[]) return=unknown[][] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<unknown[]>
+/// @resolution.call source=["a", 1] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest("a", 1) as unknown) return=unknown[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<unknown>
+"#,
+        r#"
+"#,
+    );
+}
+
+#[test]
+fn test_flow_an_expectation_into_literal_elements_through_a_generic_call() {
+    let session = TestSession::single(
+        r#"
+declare function id<T>(value: T): T;
+declare function first<T>(values?: T[]): T;
+
+const one: (int32,) = id((1,));
+const items: int32[] = id([1, 2]);
+const plain = id((1,));
+const optional = first([1, 2]);
+const expected: int32 = first([1, 2]);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function id<T>(value: T): T;
+declare function first<T>(values?: T[]): T;
+
+const one: (int32,) = id<(int32,)>((1,));
+const items: int32[] = id<int32[]>([1, 2]);
+const plain: (int64,) = id<(int64,)>((1,));
+const optional: int64 = first<int64>([1, 2] as int64[] | undefined);
+const expected: int32 = first<int32>([1, 2] as int32[] | undefined);
+
+=== dir ===
+declare function id<T>(value: T): T;
+/// @generic.template symbol=id parameters=(T#1)
+/// @type.symbol symbol=id source="declare function id<T>(value: T): T" type=<T#1>(T#1) => T#1
+/// @type.symbol symbol=id.T source=T type=T#1
+/// @type.symbol symbol=id.value source="value: T" type=T#1
+/// @resolution.name source=T target=id.T
+/// @resolution.name source=T target=id.T
+
+declare function first<T>(values?: T[]): T;
+/// @generic.template symbol=first parameters=(T#2)
+/// @type.symbol symbol=first source="declare function first<T>(values?: T[]): T" type=<T#2>(T#2[] | undefined?) => T#2
+/// @type.symbol symbol=first.T source=T type=T#2
+/// @type.symbol symbol=first.values source="values?: T[]" type=T#2[] | undefined
+/// @resolution.name source=T target=first.T
+/// @resolution.name source=T target=first.T
+
+const one: (int32,) = id((1,));
+/// @type.symbol symbol=one source=one type=(int32,)
+/// @resolution.pattern source=one kind=binding target=one
+/// @resolution.name source=id target=id
+/// @resolution.call source=id((1,)) parameters=((int32,)) arguments=(provided((1,)) as (int32,)) return=(int32,) kind=symbol target=id instance=id<(int32,)>
+/// @generic.instantiation id=id<(int32,)> template=id arguments=((int32,))
+
+const items: int32[] = id([1, 2]);
+/// @type.symbol symbol=items source=items type=int32[]
+/// @resolution.pattern source=items kind=binding target=items
+/// @resolution.name source=id target=id
+/// @resolution.call source="id([1, 2])" parameters=(int32[]) arguments=(provided([1, 2]) as int32[]) return=int32[] kind=symbol target=id instance=id<int32[]>
+/// @generic.instantiation id=id<int32[]> template=id arguments=(int32[])
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
+/// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
+
+const plain = id((1,));
+/// @type.symbol symbol=plain source=plain type=(int64,)
+/// @resolution.pattern source=plain kind=binding target=plain
+/// @resolution.name source=id target=id
+/// @resolution.call source=id((1,)) parameters=((int64,)) arguments=(provided((1,)) as (int64,)) return=(int64,) kind=symbol target=id instance=id<(int64,)>
+/// @generic.instantiation id=id<(int64,)> template=id arguments=((int64,))
+
+const optional = first([1, 2]);
+/// @type.symbol symbol=optional source=optional type=int64
+/// @resolution.pattern source=optional kind=binding target=optional
+/// @resolution.name source=first target=first
+/// @resolution.call source="first([1, 2])" parameters=(int64[] | undefined) arguments=(provided([1, 2]) as int64[] | undefined) return=int64 kind=symbol target=first instance=first<int64>
+/// @generic.instantiation id=first<int64> template=first arguments=(int64)
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
+/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
+
+const expected: int32 = first([1, 2]);
+/// @type.symbol symbol=expected source=expected type=int32
+/// @resolution.pattern source=expected kind=binding target=expected
+/// @resolution.name source=first target=first
+/// @resolution.call source="first([1, 2])" parameters=(int32[] | undefined) arguments=(provided([1, 2]) as int32[] | undefined) return=int32 kind=symbol target=first instance=first<int32>
+/// @generic.instantiation id=first<int32> template=first arguments=(int32)
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
+"#,
+        r#"
+
 "#,
     );
 }

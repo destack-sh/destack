@@ -118,7 +118,7 @@ let { value } = 1;
 /// @type.node source=1 type=1
 "#,
         r#"
-/// @diagnostic.error id=pattern-source-not-object-shaped message="type '1' cannot be destructured as an object pattern"
+/// @diagnostic.error id=pattern-source-not-object-shaped message="type '{integer}' cannot be destructured as an object pattern"
 /// @diagnostic.label line=2 column=5 span="{ value }" line_source="let { value } = 1;"
 "#,
     );
@@ -175,6 +175,7 @@ declare const state: State;
 const result = match (state) {
 /// @type.symbol symbol=result source=result type=int32
 /// @resolution.pattern source=result kind=binding target=result
+/// @resolution.coverage exhaustive=true disjoint=false
 /// @resolution.name source=state target=state
 /// @resolution.place source=state placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=state root=state
@@ -289,6 +290,7 @@ const result = match (state) {
 /// @type.symbol symbol=result source=result type=int32
 /// @resolution.pattern source=result kind=binding target=result
 /// @type.node type=int32
+/// @resolution.coverage exhaustive=true disjoint=false
 /// @type.node source=state type=Pending | Ready
 /// @resolution.name source=state target=state
 /// @resolution.place source=state placement="local" lifetime="static" access="readonly"
@@ -409,6 +411,7 @@ const result = match (frame) {
 /// @type.symbol symbol=result source=result type=int32
 /// @resolution.pattern source=result kind=binding target=result
 /// @type.node type=int32
+/// @resolution.coverage exhaustive=true disjoint=false
 /// @type.node source=frame type=Header | Trailer
 /// @resolution.name source=frame target=frame
 /// @resolution.place source=frame placement="local" lifetime="static" access="readonly"
@@ -573,6 +576,7 @@ const result = match (envelope) {
 /// @type.symbol symbol=result source=result type=int32
 /// @resolution.pattern source=result kind=binding target=result
 /// @type.node type=int32
+/// @resolution.coverage exhaustive=true disjoint=false
 /// @type.node source=envelope type=Envelope
 /// @resolution.name source=envelope target=envelope
 /// @resolution.place source=envelope placement="local" lifetime="static" access="readonly"
@@ -692,6 +696,7 @@ const result = match (state) {
 /// @type.symbol symbol=result source=result type=int32
 /// @resolution.pattern source=result kind=binding target=result
 /// @type.node type=int32
+/// @resolution.coverage exhaustive=true disjoint=false
 /// @type.node source=state type=&'static readonly State
 /// @resolution.name source=state target=state
 /// @resolution.place source=state placement="local" lifetime="static" access="readonly"

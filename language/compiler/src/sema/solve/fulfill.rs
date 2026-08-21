@@ -363,24 +363,29 @@ impl CheckState<'_> {
         conversion: ConversionCheck,
         settle: Settle,
     ) -> CompilerResult<bool> {
-        let mut source = conversion.source;
-
         // read the pending conversion's expectation and site
         let mut expectation = conversion.expectation;
         let site = conversion.site;
+        let mut source = self.body().literal_candidate(
+            site.origin(),
+            conversion.source,
+            expectation.target,
+            expectation.use_,
+        )?;
 
         // close the operands hard at the final settle, deciding the conversion
         let blockers = self.open_type_variables([source.ty, expectation.target])?;
         self.settle_blockers(settle, &blockers)?;
 
-        // roll an ambiguous relation back and wait for its operands to close
+        // roll an ambiguous conversion back and wait for its operands to close
         let mark = self.infer.mark(&self.fulfill);
-        let mut verdict = self.constrain_type(
-            site.origin(),
+        let mut verdict = self.body().constrain_conversion(
+            site,
             expectation.cause,
             expectation.relation,
-            source.ty,
+            source,
             expectation.target,
+            expectation.use_,
         )?;
         let was_ambiguous = verdict == Verdict::Ambiguous;
 

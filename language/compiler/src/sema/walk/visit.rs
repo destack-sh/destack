@@ -69,9 +69,7 @@ impl CheckState<'_> {
         let expanded = input.expanded.clone();
         let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
 
-        // walk and type each root in source order: module flow is
-        //  authored order, and forward references read through symbol
-        //  holes that fulfillment resolves once their roots type
+        // walk and type each root in source order
         let mut walk = WalkState::new(module, tree, self);
         for root in &expanded.roots {
             walk.with_scope(|walk| {
@@ -98,7 +96,7 @@ impl CheckState<'_> {
             if let Some(function) = function {
                 next_body += 1;
                 walk.check
-                    .with_scope(|check| function.check(check, InferMode::Exact, None))?;
+                    .with_scope(|check| function.check(check, InferMode::Regular, None))?;
                 walk.flush_flows()?;
 
                 continue;
@@ -126,6 +124,7 @@ impl CheckState<'_> {
 
     /// Judge written types: application bounds, predicates, and wellformed entries.
     fn judge_written_types(&mut self, module: ModuleId) -> CompilerResult<()> {
+        // collect the declared and committed type entries of this module
         let mut written = Vec::new();
         let mut symbols = Vec::new();
         if let Some(declared) = &self.module(module).declared {
@@ -144,14 +143,14 @@ impl CheckState<'_> {
             }
         }
 
+        // judge each written type entry once
         let mut judged = FxIndexSet::default();
         for (source, ty) in written {
             if source.try_into_typed::<dir::TypeExpression>().is_err() {
                 continue;
             }
 
-            // judge application entries for argument bounds and predicates
-            //  here, the one judgment site for built applications
+            // judge the argument bounds and predicates of a built application
             let mut head = ty;
             while let dir::Type::Refined(refined) = self.ty(head)? {
                 head = self.type_refined(head.module_id, refined)?.base;
@@ -159,10 +158,11 @@ impl CheckState<'_> {
             if let dir::Type::Application(instance) = self.ty(head)?
                 && judged.insert(head)
             {
-                let scope = self.enclosing_declared_template(source)?;
+                let scope = self.template_at_node(source);
                 self.collect_application_bounds(source, head, instance, scope)?;
             }
 
+            // oblige index operations and placed forms to be well-formed
             let checked = matches!(self.operation_head(ty)?, Some(dir::TypeOperation::Index(_)))
                 || matches!(
                     self.ty(ty)?,
@@ -184,8 +184,7 @@ impl CheckState<'_> {
         // declared symbol entries carry alias and annotation values
         for (symbol, ty) in symbols {
             if let dir::Type::Application(instance) = self.ty(ty)? {
-                // commit written symbol values so bound failures close them,
-                //  canonicalized symbols keep their canonical entries
+                // commit written symbol values so bound failures close them
                 let existing = self.symbol_type_maybe(symbol);
                 if existing.is_none() || existing == Some(ty) {
                     self.commit_declaration_type(symbol, ty)?;
@@ -199,41 +198,6 @@ impl CheckState<'_> {
         }
 
         Ok(())
-    }
-
-    /// Return the template of the declaration enclosing one node.
-    pub(in crate::sema) fn enclosing_declared_template(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Option<GenericTemplateId>> {
-        let module = source.module_id;
-        let Some(state) = self.module_maybe(module) else {
-            return Ok(None);
-        };
-        let ancestors = state
-            .parsed
-            .tree
-            .parents()
-            .walk_parents_by_id(source.local_id.id);
-        for ancestor in ancestors {
-            let node = dir::LocalNodeId::<dir::Declaration>::new(ancestor).into_any();
-            let Some(symbol) = self.module(module).declaration_symbol(node) else {
-                continue;
-            };
-            // read loaded templates and signature heads only, demanding a
-            //  definition would re-report its declaration diagnostics
-            if let Some(template) = self.loaded_symbol_template(symbol) {
-                return Ok(Some(template));
-            }
-            if let Some(ty) = self.symbol_type_maybe(symbol)
-                && let Some(head) = self.signature_head(ty)?
-                && let Some(template) = head.template
-            {
-                return Ok(Some(template));
-            }
-        }
-
-        Ok(None)
     }
 
     /// Collect bound and predicate constraints for one application entry.
@@ -306,8 +270,7 @@ impl CheckState<'_> {
             ))?;
         }
 
-        // collect declared where predicates with substituted sides,
-        //  leaving predicates over this to conformance sites
+        // collect the declared where predicates with substituted sides
         for predicate in self.template_predicates(Some(template)) {
             if self.type_flags(predicate.left)?.has_this() {
                 continue;
@@ -374,6 +337,7 @@ impl CheckState<'_> {
                     .local_id
             }
         };
+
         // read the generic argument list off the referenced type expression
         let (dir::TypeExpression::Reference {
             generic_arguments, ..
@@ -404,8 +368,7 @@ impl CheckState<'_> {
         let expanded = input.expanded.clone();
         let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
 
-        // walk module roots in source order; forward references read
-        //  through symbol holes fulfillment resolves later
+        // walk module roots in source order
         let mut walk = WalkState::new(module, tree, self);
         for root in &expanded.roots {
             walk.with_scope(|walk| {
@@ -419,8 +382,8 @@ impl CheckState<'_> {
                     }
                     dir::Expression::Let { .. } => {
                         walk.enter_node(*root)?;
-                        // drop the whole root on a static gate, checking the
-                        //  let expression's ordinary decorators as values
+
+                        // drop the whole root on a static gate
                         if !walk.decide_static_presence((*root).into_any())? {
                             return Ok(());
                         }

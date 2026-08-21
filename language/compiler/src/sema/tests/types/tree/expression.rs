@@ -256,7 +256,7 @@ function render(title: string): Panel {
             hello<span />
             {title}
         </div>
-    ) as (string, Panel, string);
+    );
     return page;
 }
 
@@ -347,7 +347,7 @@ function render(title: string): Panel {
     /// @type.symbol symbol=render.page source=page type=Panel
     /// @resolution.pattern source=page kind=binding target=render.page
     /// @resolution.name source=Panel target=Panel
-    /// @resolution.tree source=<div>hello<span/>{title}</div> builder=Panel form=element tag=div call=element children=("hello", Panel, string) type=Panel
+    /// @resolution.tree source=<div>hello<span/>{title}</div> builder=Panel form=element tag=div call=element children=(string, Panel, string) type=Panel
     /// @generic.instantiation id="element<\"div\", (string, Panel, string)>" template=element arguments=("div", (string, Panel, string))
     /// @generic.instance id="element<\"div\", (string, Panel, string)>" template=element arguments=("div", (string, Panel, string))
     /// @resolution.tree source=<span/> builder=Panel form=element tag=span call=element children=() type=Panel

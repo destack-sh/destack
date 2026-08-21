@@ -21,7 +21,7 @@ function pick<T>(value: T): T {
     return value;
 }
 
-const chosen: 1.5 = pick<1.5>(1.5);
+const chosen: float64 = pick<float64>(1.5);
 
 === dir ===
 function pick<T>(value: T): T {
@@ -40,12 +40,12 @@ function pick<T>(value: T): T {
 }
 
 const chosen = pick(1.5);
-/// @type.symbol symbol=chosen source=chosen type=1.5
+/// @type.symbol symbol=chosen source=chosen type=float64
 /// @resolution.pattern source=chosen kind=binding target=chosen
 /// @resolution.name source=pick target=pick
-/// @resolution.call source=pick(1.5) parameters=(1.5) arguments=(provided(1.5) as 1.5) return=1.5 kind=symbol target=pick instance=pick<1.5>
-/// @generic.instantiation id=pick<1.5> template=pick arguments=(1.5)
-/// @generic.instance id=pick<1.5> template=pick arguments=(1.5)
+/// @resolution.call source=pick(1.5) parameters=(float64) arguments=(provided(1.5) as float64) return=float64 kind=symbol target=pick instance=pick<float64>
+/// @generic.instantiation id=pick<float64> template=pick arguments=(float64)
+/// @generic.instance id=pick<float64> template=pick arguments=(float64)
 "#,
     );
 }
@@ -73,8 +73,8 @@ function pick<T>(value: T): T {
     return value;
 }
 
-const first: 1 = pick<1>(1);
-const second: 2 = pick<2>(2);
+const first: int64 = pick<int64>(1);
+const second: int64 = pick<int64>(2);
 const other: "text" = pick<"text">("text");
 
 === dir ===
@@ -94,20 +94,18 @@ function pick<T>(value: T): T {
 }
 
 const first = pick(1);
-/// @type.symbol symbol=first source=first type=1
+/// @type.symbol symbol=first source=first type=int64
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=pick target=pick
-/// @resolution.call source=pick(1) parameters=(1) arguments=(provided(1) as 1) return=1 kind=symbol target=pick instance=pick<1>
-/// @generic.instantiation id=pick<1> template=pick arguments=(1)
-/// @generic.instance id=pick<1> template=pick arguments=(1)
+/// @resolution.call source=pick(1) parameters=(int64) arguments=(provided(1) as int64) return=int64 kind=symbol target=pick instance=pick<int64>
+/// @generic.instantiation id=pick<int64> template=pick arguments=(int64)
+/// @generic.instance id=pick<int64> template=pick arguments=(int64)
 
 const second = pick(2);
-/// @type.symbol symbol=second source=second type=2
+/// @type.symbol symbol=second source=second type=int64
 /// @resolution.pattern source=second kind=binding target=second
 /// @resolution.name source=pick target=pick
-/// @resolution.call source=pick(2) parameters=(2) arguments=(provided(2) as 2) return=2 kind=symbol target=pick instance=pick<2>
-/// @generic.instantiation id=pick<2> template=pick arguments=(2)
-/// @generic.instance id=pick<2> template=pick arguments=(2)
+/// @resolution.call source=pick(2) parameters=(int64) arguments=(provided(2) as int64) return=int64 kind=symbol target=pick instance=pick<int64>
 
 const other = pick("text");
 /// @type.symbol symbol=other source=other type="text"

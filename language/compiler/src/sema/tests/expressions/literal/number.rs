@@ -37,11 +37,11 @@ let value = 42;
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
-let value: float64 = 42;
+let value: int64 = 42;
 
 === dir ===
 let value = 42;
-/// @type.symbol symbol=value source=value type=float64
+/// @type.symbol symbol=value source=value type=int64
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42 type=42
 "#,

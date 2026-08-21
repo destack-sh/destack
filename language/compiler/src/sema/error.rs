@@ -1,7 +1,8 @@
-use crate::DiagnosticAnchor;
 use destack_artifact::{DiagnosticError, DiagnosticFormat, DiagnosticFormatter};
 use destack_artifact_macros::Diagnostic;
 use destack_source::ModuleId;
+
+use crate::DiagnosticAnchor;
 
 /// The signature an object type declares beside its named properties.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2608,8 +2609,7 @@ pub enum CheckError {
         ty: String,
     },
 
-    /// Blanket implementation over a bare parameter is declared outside
-    /// the interface's package.
+    /// Blanket implementation over a bare parameter declared outside the interface's package.
     ///
     /// ```ds
     /// newtype interface Equal {}
@@ -2628,6 +2628,24 @@ pub enum CheckError {
         module: ModuleId,
         /// The implemented interface.
         interface: String,
+    },
+
+    /// Extension target names no declaration to root at.
+    ///
+    /// ```ds
+    /// extension of Circle | Square {}
+    /// ```
+    #[diagnostic(
+        id = "invalid-extension-target",
+        message = "extension target '{ty}' has no root declaration"
+    )]
+    InvalidExtensionTarget {
+        /// Report the extension target.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The written target type.
+        ty: String,
     },
 
     /// Blanket extension member implements no declared interface member.
@@ -2784,7 +2802,24 @@ pub enum CheckError {
         name: String,
     },
 
-    /// One lifetime bound spelled as a union of lifetimes.
+    /// Where clause bounds no parameter of its declaration.
+    ///
+    /// ```ds
+    /// struct User {}
+    /// extension of User where int32: Show {}
+    /// ```
+    #[diagnostic(
+        id = "where-clause-without-parameter",
+        message = "where clause bounds no parameter of the declaration"
+    )]
+    WhereClauseWithoutParameter {
+        /// Report the where clause.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// One lifetime bound written as a union of lifetimes.
     ///
     /// ```ds
     /// function hold<'a, 'b>(value: &'a int32) where 'a: 'a | 'b {}
@@ -2798,6 +2833,31 @@ pub enum CheckError {
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+    },
+
+    /// Extension member redeclares a member its root declaration already has.
+    ///
+    /// ```ds
+    /// class Bell {
+    ///     ring(): string { return "inherent"; }
+    /// }
+    /// extension of Bell {
+    ///     ring(): string { return "extension"; }
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "inherent-member-redeclared",
+        message = "member '{member}' is already declared by '{target}'"
+    )]
+    InherentMemberRedeclared {
+        /// Report the redeclaring member.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The member key.
+        member: String,
+        /// The root declaration.
+        target: String,
     },
 
     /// Declaration repeats a member in the same owner.

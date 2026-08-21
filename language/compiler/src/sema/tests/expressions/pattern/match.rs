@@ -50,6 +50,7 @@ function read(value: Cancelled | int32): int32 {
 /// @resolution.name source=Cancelled target=Cancelled
 
     match (value) {
+    /// @resolution.coverage exhaustive=true disjoint=false
     /// @resolution.name source=value target=read.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=read.value
@@ -121,6 +122,7 @@ function read(value: Cancelled | int32): int32 {
 /// @resolution.name source=Cancelled target=library.Cancelled
 
     match (value) {
+    /// @resolution.coverage exhaustive=true disjoint=false
     /// @resolution.name source=value target=read.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=read.value
@@ -174,6 +176,7 @@ function read(value: int32): int32 {
 /// @type.symbol symbol=read.value source="value: int32" type=int32
 
     match (value) {
+    /// @resolution.coverage exhaustive=true disjoint=false
     /// @resolution.name source=value target=read.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=read.value
@@ -233,6 +236,7 @@ function read(value: int32): int32 {
 /// @type.symbol symbol=read.value source="value: int32" type=int32
 
     match (value) {
+    /// @resolution.coverage exhaustive=true disjoint=false
     /// @resolution.name source=value target=read.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=read.value
@@ -254,7 +258,7 @@ function read(value: int32): int32 {
 }
 
 #[test]
-fn test_switch_numeric_literal_checks() {
+fn test_compare_a_numeric_switch_case_with_strict_equality() {
     let session = TestSession::single(
         r#"
 switch (1) {
@@ -278,7 +282,7 @@ switch (1) {
 /// @type.node source=1 type=1
 
     case 1: debugger;
-    /// @resolution.operator source="case 1: debugger;" type=boolean operator="===" kind=builtin operands=[1 as float64 families=(float), 1 as float64 families=(float)]
+    /// @resolution.operator source="case 1: debugger;" type=boolean operator="===" kind=builtin operands=[1 as int64 families=(integer), 1 as int64 families=(integer)]
     /// @type.node source=1 type=1
     /// @type.node source=debugger type=void
 
@@ -288,7 +292,7 @@ switch (1) {
 }
 
 #[test]
-fn test_switch_string_literal_checks() {
+fn test_compare_a_string_switch_case_with_strict_equality() {
     let session = TestSession::single(
         r#"
 switch ("ready") {
@@ -322,7 +326,7 @@ switch ("ready") {
 }
 
 #[test]
-fn test_switch_bigint_literal_checks() {
+fn test_compare_a_bigint_switch_case_with_strict_equality() {
     let session = TestSession::single(
         r#"
 switch (1n) {
@@ -512,6 +516,7 @@ const value = match (true) {
 /// @type.symbol symbol=value source=value type=1
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node type=1
+/// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=true type=true
 
     @if(false)
@@ -814,6 +819,7 @@ const label = match (value) {
 /// @type.symbol symbol=label source=label type="yes" | "no"
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="yes" | "no"
+/// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=value type=boolean
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="readonly"
@@ -873,6 +879,7 @@ const result = match (value) {};
 /// @type.symbol symbol=result source=result type=never
 /// @resolution.pattern source=result kind=binding target=result
 /// @type.node source="match (value) {}" type=never
+/// @resolution.coverage source="match (value) {}" exhaustive=true disjoint=true
 /// @type.node source=value type=never
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="readonly"
@@ -926,6 +933,7 @@ const label = match (status) {
 /// @type.symbol symbol=label source=label type="go" | "stop"
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="go" | "stop"
+/// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
 /// @resolution.place source=status placement="local" lifetime="static" access="readonly"
@@ -985,6 +993,7 @@ const label = match (status) {
 /// @type.symbol symbol=label source=label type="go"
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="go"
+/// @resolution.coverage exhaustive=false disjoint=true
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
 /// @resolution.place source=status placement="local" lifetime="static" access="readonly"
@@ -1039,6 +1048,7 @@ const label = match (status) {
 /// @type.symbol symbol=label source=label type="go" | "stop"
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="go" | "stop"
+/// @resolution.coverage exhaustive=false disjoint=false
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
 /// @resolution.place source=status placement="local" lifetime="static" access="readonly"
@@ -1105,6 +1115,7 @@ const result = match (point) {
 /// @type.symbol symbol=result source=result type=int32
 /// @resolution.pattern source=result kind=binding target=result
 /// @type.node type=int32
+/// @resolution.coverage exhaustive=true disjoint=false
 /// @type.node source=point type={ x: int32; y: int32 }
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
@@ -1190,6 +1201,7 @@ const output = match (input) {
 /// @type.symbol symbol=output source=output type=string
 /// @resolution.pattern source=output kind=binding target=output
 /// @type.node type=string
+/// @resolution.coverage exhaustive=true disjoint=false
 /// @type.node source=input type=(string, boolean) | null
 /// @resolution.name source=input target=input
 /// @resolution.place source=input placement="local" lifetime="static" access="readonly"
@@ -1285,6 +1297,7 @@ declare const config: { enabled: boolean; retries: int32 };
 /// @resolution.pattern source=config kind=binding target=config
 
 match (config) {
+/// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=config type={ enabled: boolean; retries: int32 }
 /// @resolution.name source=config target=config
 /// @resolution.place source=config placement="local" lifetime="static" access="exclusive"
@@ -1360,6 +1373,7 @@ declare const packet: { point: { x: int32; y: int32 }; labels: [string; 2] };
 /// @resolution.pattern source=packet kind=binding target=packet
 
 match (packet) {
+/// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=packet type={ point: { x: int32; y: int32 }; labels: FixedArray<string, 2> }
 /// @resolution.name source=packet target=packet
 /// @resolution.place source=packet placement="local" lifetime="static" access="exclusive"
@@ -1497,6 +1511,7 @@ declare const user: User;
 
 match (user) {
 /// @type.node type=string
+/// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
@@ -1555,6 +1570,7 @@ declare const values: int32[];
 /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
 
 match (values) {
+/// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=values type=int32[]
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
@@ -1623,6 +1639,7 @@ declare const value: { left: int32 } | { right: int32 };
 
 match (value) {
 /// @type.node type=int32
+/// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=value type={ left: int32 } | { right: int32 }
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="readonly"
@@ -1680,6 +1697,7 @@ const label = match (status) {
 /// @type.symbol symbol=label source=label type="go" | "error"
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="go" | "error"
+/// @resolution.coverage exhaustive=true disjoint=false
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
 /// @resolution.place source=status placement="local" lifetime="static" access="readonly"
@@ -1742,6 +1760,7 @@ function isSmall(count: Count): boolean {
 /// @resolution.name source=Count target=Count
 
     return match (count) {
+    /// @resolution.coverage exhaustive=true disjoint=false
     /// @resolution.name source=count target=isSmall.count
     /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=count root=isSmall.count
@@ -1802,6 +1821,7 @@ function isSmall(count: Count): boolean {
 /// @resolution.name source=Count target=Count
 
     return match (count) {
+    /// @resolution.coverage exhaustive=false disjoint=true
     /// @resolution.name source=count target=isSmall.count
     /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=count root=isSmall.count

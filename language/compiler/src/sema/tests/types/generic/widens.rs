@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_argument_upcast_widens_owned_copies() {
+fn test_widen_a_subclass_type_argument_to_its_base_class() {
     let session = TestSession::single(
         r#"
 class Shape {}
@@ -76,7 +76,7 @@ const shapes: Holder<Shape> = circles;
 }
 
 #[test]
-fn test_argument_union_injection_is_rejected() {
+fn test_reject_widening_a_type_argument_into_a_union() {
     let session = TestSession::single(
         r#"
 class Shape {}
@@ -164,7 +164,7 @@ const either: Holder<Circle | Square> = circles;
 }
 
 #[test]
-fn test_argument_literal_widening_is_rejected() {
+fn test_reject_widening_a_literal_type_argument() {
     let session = TestSession::single(
         r#"
 struct Holder<T> {
@@ -225,7 +225,7 @@ const wide: Holder<int32> = one;
 }
 
 #[test]
-fn test_argument_erasure_is_rejected() {
+fn test_reject_erasing_a_type_argument_to_unknown() {
     let session = TestSession::single(
         r#"
 class Circle {}
@@ -295,7 +295,7 @@ const opaque: Holder<unknown> = circles;
 }
 
 #[test]
-fn test_argument_dynamic_erection_is_rejected() {
+fn test_reject_boxing_a_type_argument_into_a_dynamic() {
     let session = TestSession::single(
         r#"
 interface Draw {}
@@ -376,7 +376,7 @@ const dynamic: Holder<Dynamic<Draw>> = circles;
 }
 
 #[test]
-fn test_argument_function_interiors_widen_identity_edges() {
+fn test_widen_a_function_result_inside_a_type_argument() {
     let session = TestSession::single(
         r#"
 class Shape {}
@@ -451,7 +451,7 @@ const widened: Holder<() => Shape> = makers;
 }
 
 #[test]
-fn test_argument_function_interior_conversion_is_rejected() {
+fn test_reject_a_union_function_result_inside_a_type_argument() {
     let session = TestSession::single(
         r#"
 class Shape {}
@@ -768,7 +768,7 @@ const widened: ^Box<Shape> = boxed;
 }
 
 #[test]
-fn test_owned_handle_pins_carried_methods() {
+fn test_reject_widening_an_owned_class_with_an_invariant_method() {
     let session = TestSession::single(
         r#"
 class Shape {}
@@ -1217,7 +1217,7 @@ const view: readonly Bag<Shape> = circles;
 }
 
 #[test]
-fn test_intrinsic_storage_assertion_widens_identity_edges() {
+fn test_widen_an_intrinsic_newtype_argument_to_a_base_class() {
     let session = TestSession::single(
         r#"
 class Shape {}
@@ -1281,7 +1281,7 @@ const widened: Handle<Shape> = handle;
 }
 
 #[test]
-fn test_intrinsic_storage_assertion_rejects_conversion_edges() {
+fn test_reject_a_union_argument_on_an_intrinsic_newtype() {
     let session = TestSession::single(
         r#"
 class Shape {}
@@ -1358,7 +1358,7 @@ const either: Handle<Circle | Square> = handle;
 }
 
 #[test]
-fn test_intrinsic_storage_assertion_pins_aliased_payloads() {
+fn test_reject_widening_an_intrinsic_newtype_behind_a_handle() {
     let session = TestSession::single(
         r#"
 class Shape {}
@@ -1427,7 +1427,7 @@ const widened: Managed<Handle<Shape>> = handle;
 }
 
 #[test]
-fn test_readonly_borrow_payload_widens_identity_edges_only() {
+fn test_widen_a_readonly_borrow_to_a_base_class_but_not_to_a_union() {
     let session = TestSession::single(
         r#"
 class Shape {}

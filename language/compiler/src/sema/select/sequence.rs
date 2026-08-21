@@ -292,6 +292,7 @@ impl BodyState<'_, '_> {
                 ty: receiver,
                 node: None,
                 place: None,
+                is_fresh: false,
             },
             receiver,
             dir::ArgumentSource::Static(index),
@@ -325,6 +326,7 @@ impl BodyState<'_, '_> {
                 ty: receiver,
                 node: None,
                 place: None,
+                is_fresh: false,
             },
             receiver,
             dir::MemberSpace::Instance,
@@ -365,9 +367,7 @@ impl BodyState<'_, '_> {
         _node: dir::GlobalNodeIdAny,
         value: usize,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.intern_type(dir::Type::Literal(dir::ScalarLiteral::Integer(
-            value as i64,
-        )))
+        self.intern_type(dir::Type::Literal(dir::Literal::Integer(value as i64)))
     }
 
     /// Return one interned static name key.

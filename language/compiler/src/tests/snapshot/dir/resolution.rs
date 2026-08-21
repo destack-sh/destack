@@ -48,6 +48,12 @@ impl SnapshotTable for dir::DecisionTable<'_> {
                 dir::Decision::Transfer(target) => {
                     add_transfer_decision_row(builder, node_id, *target);
                 }
+                dir::Decision::Residual(resolution) => {
+                    add_residual_decision_row(builder, node_id, *resolution);
+                }
+                dir::Decision::Coverage(resolution) => {
+                    add_coverage_decision_row(builder, node_id, resolution);
+                }
                 dir::Decision::Receiver(resolution) => {
                     add_receiver_decision_row(builder, node_id, *resolution);
                 }
@@ -364,6 +370,45 @@ fn add_transfer_decision_row(
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "transfer")
         .optional_field("source", builder.node_source(node_id))
         .field("target", target);
+    builder.push(row);
+}
+
+/// Add one residual transfer resolution row.
+fn add_residual_decision_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: dir::ResidualDecision,
+) {
+    let target = match resolution.target {
+        dir::ResidualTarget::Try(target) => builder
+            .node_main_source(target.into_any())
+            .expect("residual target has no source label"),
+        dir::ResidualTarget::Callable => "callable".to_string(),
+    };
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "residual")
+        .optional_field("source", builder.node_source(node_id))
+        .field("target", target)
+        .type_field("residual", builder.global_type_label(resolution.residual));
+    builder.push(row);
+}
+
+/// Add one pattern coverage resolution row.
+fn add_coverage_decision_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::CoverageDecision,
+) {
+    let redundant = resolution
+        .redundant
+        .iter()
+        .filter_map(|pattern| builder.node_main_source(pattern.into_any()))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "coverage")
+        .optional_field("source", builder.node_source(node_id))
+        .field("exhaustive", resolution.is_exhaustive.to_string())
+        .field("disjoint", resolution.is_disjoint.to_string())
+        .optional_field("redundant", (!redundant.is_empty()).then_some(redundant));
     builder.push(row);
 }
 

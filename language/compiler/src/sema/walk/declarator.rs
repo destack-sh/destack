@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 
 use crate::sema::{
     CheckState, ExpectedType, FlowPredicate, Obligation, PatternCoverage,
-    PatternCoverageObligation, WalkState, Widening,
+    PatternCoverageObligation, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -84,9 +84,7 @@ impl WalkState<'_, '_> {
             }
 
             let exported = self
-                .check
-                .module(self.module)
-                .declaration_symbol(declarator.pattern.into_any())
+                .declared_symbol(declarator.pattern.into_any())
                 .is_some_and(|symbol| {
                     self.check
                         .binding_table(symbol.module_id)
@@ -133,23 +131,19 @@ impl WalkState<'_, '_> {
     fn walk_declarator_pattern(
         &mut self,
         declarator: &dir::Declarator,
-        binding_kind: Option<dir::LetKind>,
+        _binding_kind: Option<dir::LetKind>,
         is_ambient: bool,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let widening = self
-            .check
-            .declarator_widening(self.module, declarator, binding_kind);
+        let is_binding = true;
         self.walk_pattern(
             declarator.pattern,
             self.tree.get(declarator.pattern),
-            Some(widening),
+            is_binding,
         )?;
 
         // the declared layer already carries transcribed annotation entries
         let declared_row = self
-            .check
-            .module(self.module)
-            .declaration_symbol(declarator.pattern.into_any())
+            .declared_symbol(declarator.pattern.into_any())
             .is_some_and(|symbol| {
                 let module = self.check.module(self.module);
                 module.declared.is_some() && module.types.get_symbol_type_id(symbol).is_some()
@@ -361,42 +355,6 @@ impl CheckState<'_> {
 }
 
 impl CheckState<'_> {
-    /// Return the widening policy for one inferred declarator initializer.
-    pub(in crate::sema) fn declarator_widening(
-        &self,
-        module: ModuleId,
-        declarator: &dir::Declarator,
-        binding_kind: Option<dir::LetKind>,
-    ) -> Widening {
-        // annotated and valueless declarators never widen
-        if declarator.ty.is_some() {
-            return Widening::Never;
-        }
-        let Some(value) = declarator.value else {
-            return Widening::Never;
-        };
-
-        let tree = self.module(module).view();
-        match tree.get(value) {
-            // value satisfies T
-            dir::Expression::Satisfies { .. } => Widening::Never,
-            // value as const
-            dir::Expression::As { target_type, .. }
-                if matches!(tree.get(*target_type), dir::TypeExpression::Const) =>
-            {
-                Widening::Never
-            }
-            // mutable bindings widen their initialized value
-            _ if binding_kind != Some(dir::LetKind::Const) => Widening::Always,
-            // immutable aggregate bindings keep mutable contents usable
-            dir::Expression::ArrayExpression { .. }
-            | dir::Expression::TupleExpression { .. }
-            | dir::Expression::ObjectExpression { .. } => Widening::Always,
-            // immutable scalar bindings stay literal
-            _ => Widening::Never,
-        }
-    }
-
     /// Return whether one annotation writes a hole or elides a borrow lifetime.
     pub(in crate::sema) fn annotation_infers(
         &self,
@@ -438,7 +396,7 @@ impl CheckState<'_> {
         let tree = self.module(module).view();
         match tree.get(expression) {
             // 1, "text", true
-            dir::Expression::ScalarLiteral(_) => true,
+            dir::Expression::Literal(_) => true,
             dir::Expression::TemplateExpression {
                 value: dir::TemplateLiteral::String { .. },
             } => true,
@@ -446,7 +404,7 @@ impl CheckState<'_> {
             dir::Expression::Unary {
                 operator: dir::UnaryOperator::Negate | dir::UnaryOperator::Plus,
                 right,
-            } => matches!(tree.get(*right), dir::Expression::ScalarLiteral(_)),
+            } => matches!(tree.get(*right), dir::Expression::Literal(_)),
             // value as const
             dir::Expression::As {
                 expression,

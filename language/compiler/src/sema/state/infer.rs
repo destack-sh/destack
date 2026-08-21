@@ -4,7 +4,7 @@ use destack_dir as dir;
 use crate::sema::{
     BoundSide, Cause, CauseArena, CauseId, CheckId, CheckOutcome, CheckTable, Fulfillment,
     GenericParameterId, InferenceScope, Origin, OriginArena, OriginId, RelationStack, TypeBound,
-    Variable, VariableRole, VariableState, VariableTable, Widening,
+    Variable, VariableKind, VariableRole, VariableState, VariableTable,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -166,7 +166,7 @@ impl InferContext {
     pub(in crate::sema) fn allocate_variable(
         &mut self,
         origin: Origin,
-        widening: Widening,
+        kind: VariableKind,
         role: VariableRole,
     ) -> dir::TypeVariableId {
         let variable = dir::TypeVariableId(self.variables.count() as u32);
@@ -175,7 +175,7 @@ impl InferContext {
             previous: None,
         });
         let origin = self.origins.intern(origin);
-        self.variables.allocate(variable, origin, widening, role);
+        self.variables.allocate(variable, origin, kind, role);
 
         variable
     }

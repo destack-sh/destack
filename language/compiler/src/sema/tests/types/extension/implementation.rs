@@ -1476,6 +1476,7 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 }
 "#,
         r#"
+
 "#,
     );
 }
@@ -1742,9 +1743,8 @@ export class Bag<in out K, in out V> {
 }
 
 export extension<K, V, 'a, 'b> of Bag<K, V>
-    implements
-        Iterable<(K, V)>,
-        Iterable<Entry<&readonly K, &V>> {
+    implements Iterable<(K, V)>, Iterable<Entry<&readonly K, &V>>
+{
     iterator(): Iterator<(K, V)> {
         todo("Bag.iterator" as string | undefined)
     }
@@ -2023,6 +2023,7 @@ extension Int16Show of int16 implements Show {
 }
 "#,
         r#"
+
 "#,
     );
 }
@@ -2096,7 +2097,7 @@ extension SecondShow of int8 implements Show {
 }
 
 #[test]
-fn test_prefer_a_concrete_implementation_over_a_blanket() {
+fn test_reject_an_implementation_overlapping_a_bounded_blanket() {
     let session = TestSession::single(
         r#"
 import { Integer } from "destack:math";
@@ -2116,10 +2117,6 @@ extension IntShow of int16 implements Show {
         return "int16";
     }
 }
-
-declare const value: int16;
-
-const label = value.show();
 "#,
     );
 
@@ -2145,10 +2142,6 @@ extension IntShow of int16 implements Show {
         return "int16";
     }
 }
-
-declare const value: int16;
-
-const label: string = value.show();
 
 === dir ===
 import { Integer } from "destack:math";
@@ -2200,22 +2193,11 @@ extension IntShow of int16 implements Show {
         return "int16";
     }
 }
-
-declare const value: int16;
-/// @type.symbol symbol=value source=value type=int16
-/// @resolution.pattern source=value kind=binding target=value
-
-const label = value.show();
-/// @type.symbol symbol=label source=label type=string
-/// @resolution.pattern source=label kind=binding target=label
-/// @resolution.name source=value target=value
-/// @resolution.member source=value.show receiver=int16 type=<IntShow.show.'a>(this: &IntShow.show.'a readonly int16) => string kind=symbol target_receiver=int16 target=IntShow.show
-/// @resolution.call source=value.show() parameters=() return=string kind=symbol target=IntShow.show receiver=int16 adjustments=(borrow(&'static readonly int16))
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
-/// @resolution.access source=value root=value
 "#,
         r#"
-
+/// @diagnostic.error id=conflicting-implementation message="conflicting implementations of interface 'Show' for type 'int16'"
+/// @diagnostic.label line=14 column=11 span="IntShow" line_source="extension IntShow of int16 implements Show {"
+/// @diagnostic.related line=8 column=11 span="AnyShow" line_source="extension AnyShow<T: Integer> of T implements Show {" message="conflicting implementation"
 "#,
     );
 }
@@ -2281,6 +2263,7 @@ extension ToInt32 of int8 implements Convert<int32> {
 }
 "#,
         r#"
+
 "#,
     );
 }
@@ -2575,6 +2558,148 @@ extension of Box implements Sized {}
         r#"
 /// @diagnostic.error id=interface-not-implemented message="type 'Box' does not implement interface 'Sized'"
 /// @diagnostic.label line=10 column=29 span="Sized" line_source="extension of Box implements Sized {}"
+"#,
+    );
+}
+
+#[test]
+fn test_reject_implementations_meeting_across_modules() {
+    let session = TestSession::builder()
+        .module(
+            "bell.ds",
+            r#"
+export newtype interface Quiet {
+    whisper(this): string;
+}
+
+export struct Bell {}
+"#,
+        )
+        .module(
+            "first.ds",
+            r#"
+import { Bell, Quiet } from "./bell.ds";
+
+export extension FirstQuiet of Bell implements Quiet {
+    whisper(this): string {
+        return "first";
+    }
+}
+"#,
+        )
+        .module(
+            "second.ds",
+            r#"
+import { Bell, Quiet } from "./bell.ds";
+
+export extension SecondQuiet of Bell implements Quiet {
+    whisper(this): string {
+        return "second";
+    }
+}
+"#,
+        )
+        .build();
+
+    session.assert_dir_and_diagnostics(
+        "second.ds",
+        DirRows::none(),
+        r#"
+=== annotated ===
+import { Bell, Quiet } from "./bell.ds";
+
+export extension SecondQuiet of Bell implements Quiet {
+    whisper(this): string {
+        return "second";
+    }
+}
+
+=== dir ===
+import { Bell, Quiet } from "./bell.ds";
+
+export extension SecondQuiet of Bell implements Quiet {
+    whisper(this): string {
+        return "second";
+    }
+}
+"#,
+        r#"
+/// @diagnostic.error id=conflicting-implementation message="conflicting implementations of interface 'Quiet' for type 'Bell'"
+/// @diagnostic.label line=4 column=18 span="SecondQuiet" line_source="export extension SecondQuiet of Bell implements Quiet {"
+/// @diagnostic.related file="first.ds" line=4 column=18 span="FirstQuiet" line_source="export extension FirstQuiet of Bell implements Quiet {" message="conflicting implementation"
+"#,
+    );
+}
+
+#[test]
+fn test_satisfy_a_bound_through_an_unimported_implementation() {
+    let session = TestSession::builder()
+        .module(
+            "bell.ds",
+            r#"
+export newtype interface Quiet {
+    whisper(this): string;
+}
+
+export struct Bell {}
+"#,
+        )
+        .module(
+            "first.ds",
+            r#"
+import { Bell, Quiet } from "./bell.ds";
+
+export extension FirstQuiet of Bell implements Quiet {
+    whisper(this): string {
+        return "first";
+    }
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { Bell, Quiet } from "./bell.ds";
+
+declare function hush<T: Quiet>(value: T): string;
+
+const sound = hush(Bell {});
+"#,
+        )
+        .build();
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Bell, Quiet } from "./bell.ds";
+
+declare function hush<T: Quiet>(value: T): string;
+
+const sound: string = hush<Bell>(Bell {});
+
+=== dir ===
+import { Bell, Quiet } from "./bell.ds";
+
+declare function hush<T: Quiet>(value: T): string;
+/// @generic.template symbol=hush parameters=(T: bell.Quiet)
+/// @type.symbol symbol=hush source="declare function hush<T: Quiet>(value: T): string" type=<T: bell.Quiet>(T) => string
+/// @type.symbol symbol=hush.T source="T: Quiet" type=T
+/// @resolution.name source=Quiet target=bell.Quiet
+/// @type.symbol symbol=hush.value source="value: T" type=T
+/// @resolution.name source=T target=hush.T
+
+const sound = hush(Bell {});
+/// @type.symbol symbol=sound source=sound type=string
+/// @resolution.pattern source=sound kind=binding target=sound
+/// @resolution.name source=hush target=hush
+/// @resolution.call source="hush(Bell {})" parameters=(bell.Bell) arguments=(provided(Bell {}) as bell.Bell) return=string kind=symbol target=hush instance=hush<bell.Bell>
+/// @generic.instantiation id=hush<bell.Bell> template=hush arguments=(bell.Bell)
+/// @resolution.name source=Bell target=bell.Bell
+"#,
+        r#"
+
 "#,
     );
 }

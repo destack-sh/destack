@@ -8,9 +8,6 @@ use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
     /// Walk one declaration statement's bodies for the check traversal.
-    ///
-    /// Module statements walk against their declared entries; body-local
-    /// declarations declare in place first.
     pub(in crate::sema) fn visit_body_declaration_statement(
         &mut self,
         id: dir::LocalNodeId<dir::Declaration>,
@@ -22,10 +19,7 @@ impl WalkState<'_, '_> {
         }
 
         // read the declaration's bound symbol
-        let symbol = self
-            .check
-            .module(self.module)
-            .declaration_symbol(id.into_any());
+        let symbol = self.declared_symbol(id.into_any());
         let Some(symbol) = symbol else {
             return self.walk_declaration(id, &self.tree.get(id).clone());
         };
@@ -203,7 +197,7 @@ impl WalkState<'_, '_> {
 
             // destructure the written pattern against the declared type
             if let Some(pattern) = node.pattern() {
-                self.walk_pattern(pattern, self.tree.get(pattern), None)?;
+                self.walk_pattern(pattern, self.tree.get(pattern), false)?;
                 self.check_assignable(
                     pattern,
                     declared.ty,
@@ -272,10 +266,7 @@ impl WalkState<'_, '_> {
             } = self.tree.get(*member)
             {
                 let (annotation, default) = (*annotation, *default);
-                let field_symbol = self
-                    .check
-                    .module(self.module)
-                    .declaration_symbol(member.into_any());
+                let field_symbol = self.declared_symbol(member.into_any());
                 if let Some(field_symbol) = field_symbol
                     && let Some(field_type) = self.check.adopt_symbol_type_maybe(field_symbol)?
                 {
@@ -345,6 +336,7 @@ impl WalkState<'_, '_> {
         let Some(function) = self.check.adopt_symbol_type_maybe(symbol)? else {
             return Ok(false);
         };
+
         // function values wrap their signature
         let signature = match self.check.ty(function)? {
             dir::Type::Function(function) => function.signature,

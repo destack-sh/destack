@@ -135,23 +135,23 @@ const version = config.version;
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const config: { version: float64 } = { version: 1 };
-const version: float64 = config.version;
+const config: { version: int64 } = { version: 1 };
+const version: int64 = config.version;
 
 === dir ===
 const config = { version: 1 };
-/// @type.symbol symbol=config source=config type={ version: float64 }
+/// @type.symbol symbol=config source=config type={ version: int64 }
 /// @resolution.pattern source=config kind=binding target=config
-/// @type.node source={ version: 1 } type={ version: float64 }
+/// @type.node source={ version: 1 } type={ version: int64 }
 /// @type.node source=1 type=1
 
 const version = config.version;
-/// @type.symbol symbol=version source=version type=float64
+/// @type.symbol symbol=version source=version type=int64
 /// @resolution.pattern source=version kind=binding target=version
-/// @type.node source=config type={ version: float64 }
-/// @type.node source=config.version type=float64
+/// @type.node source=config type={ version: int64 }
+/// @type.node source=config.version type=int64
 /// @resolution.name source=config target=config
-/// @resolution.member source=config.version receiver={ version: float64 } type=float64 kind=field target_receiver={ version: float64 } key=version target_type=float64
+/// @resolution.member source=config.version receiver={ version: int64 } type=int64 kind=field target_receiver={ version: int64 } key=version target_type=int64
 /// @resolution.place source=config placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=config root=config
 /// @resolution.access source=config.version root=config keys=[version]
@@ -330,11 +330,11 @@ const copy = counter;
 === values.ds ===
 
 === annotated ===
-export let counter: float64 = 1;
+export let counter: int64 = 1;
 
 === dir ===
 export let counter = 1;
-/// @type.symbol symbol=counter source=counter type=float64
+/// @type.symbol symbol=counter source=counter type=int64
 /// @resolution.pattern source=counter kind=binding target=counter
 /// @type.node source=1 type=1
 
@@ -343,15 +343,15 @@ export let counter = 1;
 === annotated ===
 import { counter } from "./values.ds";
 
-const copy: float64 = counter;
+const copy: int64 = counter;
 
 === dir ===
 import { counter } from "./values.ds";
 
 const copy = counter;
-/// @type.symbol symbol=copy source=copy type=float64
+/// @type.symbol symbol=copy source=copy type=int64
 /// @resolution.pattern source=copy kind=binding target=copy
-/// @type.node source=counter type=float64
+/// @type.node source=counter type=int64
 /// @resolution.name source=counter target=values.counter
 /// @resolution.access source=counter root=values.counter
 "#,

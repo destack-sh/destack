@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use crate::sema::CheckState;
+use crate::sema::{CheckState, VariableKind};
 use crate::{CompilerError, CompilerResult};
 
 /// Nesting depth after which formatted types elide their details.
@@ -61,7 +61,11 @@ impl CheckState<'_> {
             dir::Type::Undefined => "undefined".to_string(),
             dir::Type::Intrinsic => "intrinsic".to_string(),
             dir::Type::This => "this".to_string(),
-            dir::Type::Variable(_) => "_".to_string(),
+            dir::Type::Variable(variable) => match self.infer.variable(variable)?.kind {
+                VariableKind::Type => "_".to_string(),
+                VariableKind::Integer => "{integer}".to_string(),
+                VariableKind::Float => "{float}".to_string(),
+            },
             dir::Type::Erased(_) => "*".to_string(),
 
             dir::Type::Primitive(primitive) => format_primitive(&primitive),
@@ -616,17 +620,17 @@ impl CheckState<'_> {
     }
 
     /// Format one scalar literal type.
-    pub(in crate::sema) fn format_scalar_literal(&self, literal: &dir::ScalarLiteral) -> String {
+    pub(in crate::sema) fn format_scalar_literal(&self, literal: &dir::Literal) -> String {
         match literal {
-            dir::ScalarLiteral::String(value) => format!("\"{}\"", self.text(*value)),
-            dir::ScalarLiteral::Character(value) => format!("'{value}'"),
-            dir::ScalarLiteral::Boolean(value) => value.to_string(),
-            dir::ScalarLiteral::Integer(value) => value.to_string(),
-            dir::ScalarLiteral::Float(value) => value.to_string(),
-            dir::ScalarLiteral::Bigint(value) => format!("{value}n"),
-            dir::ScalarLiteral::Null => "null".to_string(),
-            dir::ScalarLiteral::Undefined => "undefined".to_string(),
-            dir::ScalarLiteral::RegexString { .. } => "regex".to_string(),
+            dir::Literal::String(value) => format!("\"{}\"", self.text(*value)),
+            dir::Literal::Character(value) => format!("'{value}'"),
+            dir::Literal::Boolean(value) => value.to_string(),
+            dir::Literal::Integer(value) => value.to_string(),
+            dir::Literal::Float(value) => value.to_string(),
+            dir::Literal::Bigint(value) => format!("{value}n"),
+            dir::Literal::Null => "null".to_string(),
+            dir::Literal::Undefined => "undefined".to_string(),
+            dir::Literal::RegexString { .. } => "regex".to_string(),
         }
     }
 
@@ -658,7 +662,7 @@ impl CheckState<'_> {
     /// Format one committed static value.
     fn format_static(&self, value: dir::GlobalStaticId) -> String {
         match self.r#static(value) {
-            dir::StaticTerm::ScalarLiteral { value } => self.format_scalar_literal(value),
+            dir::StaticTerm::Literal { value } => self.format_scalar_literal(value),
             _ => "static".to_string(),
         }
     }

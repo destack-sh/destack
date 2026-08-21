@@ -1,12 +1,13 @@
 use std::ops::{Deref, DerefMut};
 
+use destack_dir as dir;
+use smallvec::SmallVec;
+
 use crate::CompilerResult;
 use crate::sema::{
     Cause, CauseId, CauseKind, CheckState, Expectation, FlowSite, InferMode, PlaceUse,
     ReceiverBinding, Relation, ValueCheck, ValueUse,
 };
-use destack_dir as dir;
-use smallvec::SmallVec;
 
 /// Yield targets for one generator body.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -76,7 +77,7 @@ impl<'state> CheckState<'state> {
             return_type: None,
             generator: None,
             initializes: None,
-            output_mode: InferMode::Exact,
+            output_mode: InferMode::Regular,
         }
     }
 }

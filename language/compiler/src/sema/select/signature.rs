@@ -6,7 +6,7 @@ use crate::sema::infer::InferMode;
 use crate::sema::{
     BodyState, CandidateOutcome, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome,
     Expectation, Origin, PlaceUse, ReceiverSteps, Relation, RelationCheck, TypeArgumentInference,
-    TypeSubstitution, Value, ValueUse, Verdict,
+    TypeSubstitution, Value, ValueUse, VariableRole, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -56,21 +56,16 @@ pub(in crate::sema) struct SignatureInstance {
     pub(in crate::sema) selection: SignatureSelection,
 }
 
-/// Result of constraining one invocation against a candidate signature.
-enum Invocation {
-    /// The invocation constrained, keeping whatever it decided.
-    Constrained {
-        /// The rejection the constraints produced, absent on acceptance.
-        rejection: Option<SignatureRejection>,
-        /// Whether the expected result refused the substituted return.
-        is_return_mismatch: bool,
-        /// The projection steps the declared this derived for the receiver.
-        receiver_steps: Option<ReceiverSteps>,
-        /// The coercions selected for the supplied arguments.
-        coercions: SmallVec<[(dir::GlobalNodeIdAny, dir::Coercion); 4]>,
-    },
-    /// The signature shape refuses the invocation outright.
-    Inapplicable,
+/// One invocation constrained against a candidate signature.
+struct Invocation {
+    /// The rejection the constraints produced, absent on acceptance.
+    rejection: Option<SignatureRejection>,
+    /// Whether the expected result refused the substituted return.
+    is_return_mismatch: bool,
+    /// The projection steps the declared `this` derived for the receiver.
+    receiver_steps: Option<ReceiverSteps>,
+    /// The coercions selected for the supplied arguments.
+    coercions: SmallVec<[(dir::GlobalNodeIdAny, dir::Coercion); 4]>,
 }
 
 /// Result of matching one callable signature.
@@ -382,6 +377,7 @@ impl BodyState<'_, '_> {
         let mut bindings = Vec::with_capacity(signature.parameters.len());
         for (index, selected) in signature.parameters.iter().enumerate() {
             let parameter = selected.parameter;
+
             // project rest elements through the deep normal form for settled selections
             let argument_type = if parameter.is_rest {
                 self.rest_element_type(origin, parameter.ty)?
@@ -580,6 +576,7 @@ impl BodyState<'_, '_> {
             ty,
             node: None,
             place: None,
+            is_fresh: false,
         });
 
         self.constrain_signature(
@@ -711,12 +708,12 @@ impl BodyState<'_, '_> {
             expectation,
             arguments,
         )?;
-        let Invocation::Constrained {
+        let Some(Invocation {
             rejection,
             is_return_mismatch,
             receiver_steps,
             coercions,
-        } = invocation
+        }) = invocation
         else {
             return Ok(SignatureMatch::Inapplicable(
                 SignatureRejection::Inapplicable,
@@ -761,24 +758,25 @@ impl BodyState<'_, '_> {
         function_return: Option<dir::GlobalTypeId>,
         expectation: Option<Expectation>,
         arguments: &[CallableArgument],
-    ) -> CompilerResult<Invocation> {
+    ) -> CompilerResult<Option<Invocation>> {
         // collect what the invocation decides about this candidate
         let mut is_return_mismatch = false;
         let mut receiver_steps = None;
         let mut coercions = SmallVec::new();
-        let constrained =
-            |rejection, is_return_mismatch, receiver_steps, coercions| Invocation::Constrained {
+        let constrained = |rejection, is_return_mismatch, receiver_steps, coercions| {
+            Some(Invocation {
                 rejection,
                 is_return_mismatch,
                 receiver_steps,
                 coercions,
-            };
+            })
+        };
 
         // relate the implicit receiver before explicit arguments
         if let (Some(receiver), Some(this_parameter)) = (receiver, function.this_parameter) {
             let receiver_substitution = substitution.clone().with_receiver(receiver.ty);
             let this_parameter = self.substitute_type(this_parameter, &receiver_substitution)?;
-            match self.constrain_receiver_argument(origin, receiver, this_parameter)? {
+            match self.constrain_receiver(origin, receiver, this_parameter)? {
                 Some(steps) => receiver_steps = Some(steps),
                 None => {
                     let rejection = SignatureRejection::Receiver {
@@ -814,11 +812,13 @@ impl BodyState<'_, '_> {
                     ty: return_type,
                     node: None,
                     place: None,
+                    is_fresh: false,
                 },
                 expectation.target,
                 expectation.use_,
                 expectation.mode,
             )?;
+
             // leave a pending expectation to the queue after commitment
             if matches!(converted.outcome, CheckOutcome::Fails(_)) {
                 is_return_mismatch = true;
@@ -834,7 +834,7 @@ impl BodyState<'_, '_> {
             .iter()
             .any(|parameter| parameter.is_rest);
         if !has_rest && arguments.len() > signature_parameters.len() {
-            return Ok(Invocation::Inapplicable);
+            return Ok(None);
         }
 
         // substitute parameter types once for candidate inference
@@ -845,12 +845,12 @@ impl BodyState<'_, '_> {
                 .get(index)
                 .or_else(|| signature_parameters.last());
             let Some(parameter) = parameter else {
-                return Ok(Invocation::Inapplicable);
+                return Ok(None);
             };
 
             // a spread supplies elements only through a rest window
             if argument.is_spread && !parameter.is_rest {
-                return Ok(Invocation::Inapplicable);
+                return Ok(None);
             }
 
             let parameter = self.select_parameter(
@@ -953,11 +953,15 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // settle the fixed shapes, then match the contextual closures
+        // fix the shapes the contextual closures read, widening their literal candidates
         if !contextual.is_empty() {
             let roots = self.check.open_type_variables(fixed.iter().copied())?;
+            for root in &roots {
+                let ty = self.check.variable_type(*root)?;
+                self.check.fix_literal_candidates(ty)?;
+            }
             if !roots.is_empty() {
-                self.check.fix_scope_variables(&roots)?;
+                self.check.resolve_variables(&roots)?;
             }
         }
         for entry in contextual {
@@ -1122,15 +1126,13 @@ impl BodyState<'_, '_> {
             },
         ));
 
-        // a spread argument supplies its element sequence to the rest slot
+        // a spread argument constrains its element against the rest slot
         if argument.is_spread {
             let site = self.visit_site(source)?;
             let ty = self.infer_node_type(site, PlaceUse::Read)?;
             let element = self.spread_element_type(ty)?;
-            if !self
-                .check
-                .evaluate_relation(origin, relation, element, parameter_type)?
-                .holds()
+            if self.constrain_type(origin, cause, relation, element, parameter_type)?
+                == Verdict::Fails
             {
                 let rejection = self.mismatch_rejection(
                     origin,
@@ -1148,8 +1150,15 @@ impl BodyState<'_, '_> {
             return Ok(Ok(None));
         }
 
-        // read the literal inference mode the parameter implies
-        let mode = self.contextual_literal_mode(origin, parameter_type, InferMode::Widen)?;
+        // a const parameter reads its argument as const, any other argument widens mutably
+        let mut mode = InferMode::Regular;
+        for variable in self.type_variables(parameter_type)? {
+            if let VariableRole::Instantiation { parameter } = self.infer.variable_role(variable)?
+                && self.require_generic_parameter(parameter)?.is_const
+            {
+                mode = InferMode::Const;
+            }
+        }
 
         // apply target-directed syntax before converting the resulting value
         let ty = match argument.ty {

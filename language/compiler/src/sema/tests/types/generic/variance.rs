@@ -332,7 +332,7 @@ struct Sink<out T> {
 }
 
 #[test]
-fn test_declared_covariance_binds_the_value_context() {
+fn test_widen_a_covariant_struct_as_a_value_and_as_a_handle() {
     let session = TestSession::single(
         r#"
 class Shape {}
@@ -878,7 +878,7 @@ take(increment);
 
 /// Discard an async callback result against a void-returning parameter.
 #[test]
-fn test_void_callback_parameter_discards_an_unsolved_result() {
+fn test_accept_an_async_callback_at_a_void_returning_parameter() {
     let session = TestSession::single(
         r#"
 declare function forEach(visit: (value: int32) => void): void;

@@ -37,13 +37,10 @@ impl BodyState<'_, '_> {
                 .report_borrow_access_not_granted(origin, requested, granted, value.ty)?;
         }
 
-        // record mutable access to directly stored binding values
-        if is_granted
-            && requested != dir::Access::Readonly
-            && let Some(source) = value.node
-            && !self.type_is_aliased(origin, value.ty)?
-        {
-            self.record_access_use(source, dir::BindingUse::MUTABLE);
+        // record the access this borrow requires from the lent place
+        if is_granted && let Some(source) = value.node {
+            let is_aliased = self.type_is_aliased(origin, value.ty)?;
+            self.record_required_access(source, requested, is_aliased);
         }
 
         // wrap the borrowed value in its borrow form
@@ -55,5 +52,23 @@ impl BodyState<'_, '_> {
         self.commit_node_type(node.into_any(), borrowed)?;
 
         Ok(())
+    }
+
+    /// Record the uses one borrow of a binding value demands from it.
+    pub(in crate::sema) fn record_required_access(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        requested: dir::Access,
+        is_aliased: bool,
+    ) {
+        // exclusive demand is a place requirement apart from binding mutability
+        if requested == dir::Access::Exclusive {
+            self.record_access_use(node, dir::BindingUse::EXCLUSIVE);
+        }
+
+        // record mutable access to directly stored binding values
+        if requested != dir::Access::Readonly && !is_aliased {
+            self.record_access_use(node, dir::BindingUse::MUTATE);
+        }
     }
 }

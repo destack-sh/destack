@@ -848,7 +848,7 @@ const broken: new (value: int32) => Counter = build;
 }
 
 #[test]
-fn test_new_without_arguments_admits_induced_only_template() {
+fn test_construct_a_class_without_arguments_inside_another_constructor() {
     let session = TestSession::single(
         r#"
 class State {

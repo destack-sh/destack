@@ -271,7 +271,7 @@ impl CheckState<'_> {
         }
 
         let text = self.strings().intern(text);
-        let literal = self.intern_type(dir::Type::Literal(dir::ScalarLiteral::String(text)))?;
+        let literal = self.intern_type(dir::Type::Literal(dir::Literal::String(text)))?;
 
         Ok(Some(literal))
     }
@@ -300,7 +300,7 @@ impl CheckState<'_> {
 
         let text = self.strings().intern(text);
 
-        self.intern_type(dir::Type::Literal(dir::ScalarLiteral::String(text)))
+        self.intern_type(dir::Type::Literal(dir::Literal::String(text)))
     }
 
     /// Capture one numeric span text under a reduced constraint head.
@@ -319,8 +319,8 @@ impl CheckState<'_> {
 
                 // integral captures stay const integers and adapt
                 match text.integer() {
-                    Some(value) => dir::ScalarLiteral::Integer(value),
-                    None => dir::ScalarLiteral::Float(value),
+                    Some(value) => dir::Literal::Integer(value),
+                    None => dir::Literal::Float(value),
                 }
             }
             dir::Type::Primitive(dir::PrimitiveType::Integer(integer)) => {
@@ -331,14 +331,14 @@ impl CheckState<'_> {
                     return Ok(NumericCapture::OutOfDomain);
                 }
 
-                dir::ScalarLiteral::Integer(value)
+                dir::Literal::Integer(value)
             }
             dir::Type::Primitive(dir::PrimitiveType::Bigint) => {
                 let Some(value) = text.integer() else {
                     return Ok(NumericCapture::OutOfDomain);
                 };
 
-                dir::ScalarLiteral::Bigint(value)
+                dir::Literal::Bigint(value)
             }
             dir::Type::Range(range) => {
                 let Some(literal) = text.range(range) else {
@@ -373,16 +373,12 @@ impl CheckState<'_> {
             dir::Type::Primitive(dir::PrimitiveType::Bigint) => template.integer().is_some(),
             dir::Type::Primitive(dir::PrimitiveType::Boolean) => text == "true" || text == "false",
             dir::Type::Range(range) => template.range(&range).is_some(),
-            // numeric literal spans match every spelling of their value
-            dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
+            // numeric literal spans match every written form of their value
+            dir::Type::Literal(dir::Literal::Integer(value)) => {
                 template.integer() == Some(value) || template.number() == Some(value as f64)
             }
-            dir::Type::Literal(dir::ScalarLiteral::Float(value)) => {
-                template.number() == Some(value)
-            }
-            dir::Type::Literal(dir::ScalarLiteral::Bigint(value)) => {
-                template.integer() == Some(value)
-            }
+            dir::Type::Literal(dir::Literal::Float(value)) => template.number() == Some(value),
+            dir::Type::Literal(dir::Literal::Bigint(value)) => template.integer() == Some(value),
             dir::Type::Literal(literal) => {
                 literal.template_text(self.strings()).as_deref() == Some(text)
             }
@@ -548,11 +544,9 @@ impl CheckState<'_> {
         span: dir::GlobalTypeId,
     ) -> CompilerResult<Option<String>> {
         let text = match self.ty(span)? {
-            // numeric literals admit many spellings, never one fixed text
+            // numeric literals admit many written forms
             dir::Type::Literal(
-                dir::ScalarLiteral::Integer(_)
-                | dir::ScalarLiteral::Float(_)
-                | dir::ScalarLiteral::Bigint(_),
+                dir::Literal::Integer(_) | dir::Literal::Float(_) | dir::Literal::Bigint(_),
             ) => None,
             dir::Type::Literal(literal) => literal.template_text(self.strings()),
             dir::Type::Key(dir::StaticKey::Name(name)) => {
@@ -591,7 +585,7 @@ impl CheckState<'_> {
                         pending = text.clone();
                         piece += 1;
                     }
-                    // spans cannot guarantee literal text
+                    // a span leaves the literal text open
                     _ => return Ok(false),
                 }
             }
@@ -838,10 +832,10 @@ impl TemplateText<'_> {
     }
 
     /// Parse this text in one interval's scalar domain.
-    fn range(self, range: &dir::RangeType) -> Option<dir::ScalarLiteral> {
+    fn range(self, range: &dir::RangeType) -> Option<dir::Literal> {
         let literal = match range.scalar_domain()? {
-            dir::ScalarDomain::Integer => dir::ScalarLiteral::Integer(self.integer()?),
-            dir::ScalarDomain::Bigint => dir::ScalarLiteral::Bigint(self.integer()?),
+            dir::ScalarDomain::Integer => dir::Literal::Integer(self.integer()?),
+            dir::ScalarDomain::Bigint => dir::Literal::Bigint(self.integer()?),
             dir::ScalarDomain::Character => {
                 let mut characters = self.0.chars();
                 let character = characters.next()?;
@@ -849,7 +843,7 @@ impl TemplateText<'_> {
                     return None;
                 }
 
-                dir::ScalarLiteral::Character(character)
+                dir::Literal::Character(character)
             }
             dir::ScalarDomain::Float
             | dir::ScalarDomain::String

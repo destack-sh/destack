@@ -38,6 +38,7 @@ function isByte(value: int32): boolean {
 
     return match (value) {
     /// @type.node type=boolean
+    /// @resolution.coverage exhaustive=true disjoint=false
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=isByte.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -112,6 +113,7 @@ const label = match (value) {
 /// @type.symbol symbol=label source=label type="low" | "two"
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="low" | "two"
+/// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=value type=0..=2
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="readonly"
@@ -176,6 +178,7 @@ const isEarly = match (value) {
 /// @type.symbol symbol=isEarly source=isEarly type=true | false
 /// @resolution.pattern source=isEarly kind=binding target=isEarly
 /// @type.node type=true | false
+/// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=value type='a'..='z'
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="readonly"
@@ -241,6 +244,7 @@ const label = match (value) {
 /// @type.symbol symbol=label source=label type="low" | "high"
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="low" | "high"
+/// @resolution.coverage exhaustive=false disjoint=true
 /// @type.node source=value type=0..=3
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="readonly"

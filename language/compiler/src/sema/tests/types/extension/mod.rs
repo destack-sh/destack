@@ -1,8 +1,10 @@
 mod access;
 mod blanket;
+mod coherence;
 mod collision;
 mod conformance;
 mod constraint;
 mod implementation;
 mod method;
 mod overload;
+mod target;

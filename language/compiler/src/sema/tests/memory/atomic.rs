@@ -72,8 +72,8 @@ function read<T: AtomicSafe>(value: &readonly Atomic<T>): T {
 
     return value.load();
     /// @resolution.name source=value target=read.value
-    /// @resolution.member source=value.load receiver=&read.'a readonly sync.atomic.Atomic<T> type=<sync.atomic.load.'a>(this: &sync.atomic.load.'a readonly &read.'a readonly sync.atomic.Atomic<T>, sync.atomic.MemoryOrdering?) => T kind=symbol target_receiver=&read.'a readonly sync.atomic.Atomic<T> target=sync.atomic.load
-    /// @resolution.call source=value.load() parameters=(sync.atomic.MemoryOrdering) arguments=(omitted as sync.atomic.MemoryOrdering) return=T kind=symbol target=sync.atomic.load receiver=&read.'a readonly sync.atomic.Atomic<T> adjustments=(&read.'a readonly sync.atomic.Atomic<T> => direct -> sync.atomic.Atomic<T>, borrow(&read.'a readonly sync.atomic.Atomic<T>)) instance=sync.atomic.Atomic<T>.<extension#1>.load
+    /// @resolution.member source=value.load receiver=&read.'a readonly sync.atomic.Atomic<T> type=<sync.atomic.load.'a>(this: &sync.atomic.load.'a readonly sync.atomic.Atomic<T>, sync.atomic.MemoryOrdering?) => T kind=symbol target_receiver=&read.'a readonly sync.atomic.Atomic<T> target=sync.atomic.load
+    /// @resolution.call source=value.load() parameters=(sync.atomic.MemoryOrdering) arguments=(omitted as sync.atomic.MemoryOrdering) return=T kind=symbol target=sync.atomic.load receiver=&read.'a readonly sync.atomic.Atomic<T> instance=sync.atomic.Atomic<T>.<extension#1>.load
     /// @resolution.place source=value placement="local" lifetime=read.'a access="readonly"
     /// @resolution.access source=value root=read.value
     /// @generic.instantiation id=sync.atomic.load<T> template=sync.atomic.load arguments=(T) owner=read

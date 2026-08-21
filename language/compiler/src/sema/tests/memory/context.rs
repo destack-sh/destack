@@ -595,6 +595,7 @@ Registry.current satisfies local User;
 /// @resolution.name source=Registry target=Registry
 /// @resolution.member source=Registry.current receiver=Registry type=User kind=field target_receiver=Registry key=current target=Registry.current target_type=User
 /// @resolution.place source=Registry.current placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=Registry.current root=Registry keys=[current]
 /// @resolution.name source=User target=User
 "#,
     );

@@ -35,13 +35,8 @@ impl WalkState<'_, '_> {
                 );
                 self.walk_declaration(declaration, self.tree.get(declaration))?;
 
-                // walk the declared bodies the declaration walk no longer visits
-                if !is_lambda
-                    && let Some(symbol) = self
-                        .check
-                        .module(self.module)
-                        .declaration_symbol(declaration.into_any())
-                {
+                // walk the declared bodies left behind by the declaration walk
+                if !is_lambda && let Some(symbol) = self.declared_symbol(declaration.into_any()) {
                     let is_declared = self.walk_declared_body(
                         declaration,
                         &self.tree.get(declaration).clone(),
@@ -56,15 +51,12 @@ impl WalkState<'_, '_> {
                     }
                 }
                 if is_lambda {
-                    let Some(symbol) = self
-                        .check
-                        .module(self.module)
-                        .declaration_symbol(declaration.into_any())
-                    else {
+                    let Some(symbol) = self.declared_symbol(declaration.into_any()) else {
                         return Err(CompilerError::Internal {
                             message: format!("function value {id:?} has no declaration symbol"),
                         });
                     };
+
                     // function values register their bodies at their expression
                     if let dir::Declaration::Function(function) = self.tree.get(declaration).clone()
                     {
@@ -220,7 +212,7 @@ impl WalkState<'_, '_> {
                 }
             }
             // 1, "text", true
-            dir::Expression::ScalarLiteral(_) => {}
+            dir::Expression::Literal(_) => {}
             // super
             dir::Expression::Super => {
                 let receiver = {
@@ -300,7 +292,7 @@ impl WalkState<'_, '_> {
                 children,
                 ..
             } => {
-                // lowercase tags name builder rows, not lexical values
+                // walk a capitalized tag as a value, lowercase tags name builder rows
                 if let Some(left) = *left
                     && !self.is_intrinsic_tree_tag(left)
                 {

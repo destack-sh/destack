@@ -98,6 +98,7 @@ impl BodyState<'_, '_> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl BodyState<'_, '_> {
     /// Check one tree literal form against its resolved builder.
     fn check_tree_form(
@@ -120,7 +121,7 @@ impl BodyState<'_, '_> {
                 dir::TreeChild::Text { value } => {
                     let ty = self
                         .check
-                        .intern_type(dir::Type::Literal(dir::ScalarLiteral::String(value)))?;
+                        .intern_type(dir::Type::Primitive(dir::PrimitiveType::String))?;
                     child_bindings.push(dir::TreeChildBinding::Text { value, ty });
                     child_types.push(ty);
                 }
@@ -277,7 +278,7 @@ impl BodyState<'_, '_> {
         // require the written tag among the declared rows
         let tag_type = self
             .check
-            .intern_type(dir::Type::Literal(dir::ScalarLiteral::String(tag)))?;
+            .intern_type(dir::Type::Literal(dir::Literal::String(tag)))?;
         let rows = self
             .check
             .intern_operation(dir::TypeOperation::KeyOf(dir::UnaryType {
@@ -373,24 +374,24 @@ impl BodyState<'_, '_> {
                                 Relation::Assignable,
                                 cause,
                                 ValueUse::Store,
-                                InferMode::Exact,
+                                InferMode::Regular,
                             )?;
 
                             (Some(value.into_global_any(module)), None, check.source)
                         }
                         Some(dir::TreeAttributeValue::String(text)) => {
-                            let ty = self.check.intern_type(dir::Type::Literal(
-                                dir::ScalarLiteral::String(text),
-                            ))?;
+                            let ty = self
+                                .check
+                                .intern_type(dir::Type::Literal(dir::Literal::String(text)))?;
                             self.check_tree_attribute_value(origin, source, ty, property)?;
 
                             (None, Some(text), ty)
                         }
                         // bare attributes provide true
                         None => {
-                            let ty = self.check.intern_type(dir::Type::Literal(
-                                dir::ScalarLiteral::Boolean(true),
-                            ))?;
+                            let ty = self
+                                .check
+                                .intern_type(dir::Type::Literal(dir::Literal::Boolean(true)))?;
                             self.check_tree_attribute_value(origin, source, ty, property)?;
 
                             (None, None, ty)
@@ -483,7 +484,7 @@ impl BodyState<'_, '_> {
         let module = node.module_id;
         let key_type = self
             .check
-            .intern_type(dir::Type::Literal(dir::ScalarLiteral::String(key)))?;
+            .intern_type(dir::Type::Literal(dir::Literal::String(key)))?;
 
         // reject attributes outside the declared row
         if !self
@@ -690,7 +691,6 @@ impl BodyState<'_, '_> {
     }
 
     /// Check one class component constructed through its selected constructor.
-    #[allow(clippy::too_many_arguments)]
     fn check_tree_class_component(
         &mut self,
         site: FlowSite,
@@ -804,7 +804,6 @@ impl BodyState<'_, '_> {
     }
 
     /// Check one struct component built through its literal field form.
-    #[allow(clippy::too_many_arguments)]
     fn check_tree_struct_component(
         &mut self,
         site: FlowSite,
@@ -900,7 +899,6 @@ impl BodyState<'_, '_> {
     }
 
     /// Select one builder static and record the tree resolution.
-    #[allow(clippy::too_many_arguments)]
     fn select_tree_call(
         &mut self,
         site: FlowSite,
@@ -918,6 +916,7 @@ impl BodyState<'_, '_> {
             ty: builder,
             node: None,
             place: None,
+            is_fresh: false,
         };
         let selected = self.select_language_protocol_call(
             origin,
@@ -931,7 +930,7 @@ impl BodyState<'_, '_> {
             argument_sources,
         )?;
 
-        // conformance proved the statics upstream, selection cannot reject
+        // conformance proved the statics upstream
         let Some((_, call)) = selected else {
             return Err(CompilerError::Internal {
                 message: format!("tree builder rejected its conformant '{key:?}' call"),

@@ -631,6 +631,7 @@ impl BodyState<'_, '_> {
                         ty: owner,
                         node: None,
                         place: None,
+                        is_fresh: false,
                     },
                     key,
                     &lookup,
@@ -686,9 +687,11 @@ impl BodyState<'_, '_> {
                         ty: owner,
                         node: None,
                         place: None,
+                        is_fresh: false,
                     },
                     candidate,
                 )?;
+
                 // the owner's own getter must accept its own receiver
                 let Some(call) = call else {
                     return Err(CompilerError::Internal {

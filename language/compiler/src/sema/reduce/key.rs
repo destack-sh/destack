@@ -3,8 +3,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::sema::{CheckState, MemberLookup, Origin, TypeSubstitution};
+use crate::{CompilerError, CompilerResult};
 
 /// One broad property-key domain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -287,7 +287,7 @@ impl CheckState<'_> {
             return Ok(OperationReduction::Rigid);
         }
 
-        // project static keys from member-bearing receivers
+        // project static keys from receivers that declare members
         let static_key = self.static_key_from_type(key)?;
         let key_domain = self.index_key_domain(key)?;
         if let Some(static_key) = static_key
@@ -357,7 +357,7 @@ impl CheckState<'_> {
 
                 Some(self.normalized_union_type(elements)?)
             }
-            // unprojected member-bearing receivers stay symbolic
+            // unprojected receivers that declare members stay symbolic
             (
                 dir::Type::Application(_)
                 | dir::Type::Reference(_)
@@ -517,7 +517,6 @@ impl CheckState<'_> {
                 set
             }
 
-            // nominal instance keys follow public instance members through heritage
             // arrays key by the index domain
             _ if self.array_element(target)?.is_some() => {
                 let mut set = KeySet::default();
@@ -525,6 +524,7 @@ impl CheckState<'_> {
 
                 set
             }
+            // nominal instance keys follow public instance members through heritage
             dir::Type::Application(instance) => self.instance_keyof_set(origin, instance.symbol)?,
 
             // declaration references expose static declaration members
@@ -609,7 +609,7 @@ impl CheckState<'_> {
                 let count = self.normalize(origin, array.count)?;
                 let mut set = KeySet::default();
                 match self.ty(count)? {
-                    dir::Type::Literal(dir::ScalarLiteral::Integer(count)) => {
+                    dir::Type::Literal(dir::Literal::Integer(count)) => {
                         for index in 0..count.max(0) as usize {
                             set.insert_key(dir::StaticKey::Index(index));
                         }
@@ -771,8 +771,8 @@ impl CheckState<'_> {
             dir::Type::Application(instance) if instance.arguments.is_empty() => {
                 return self.symbol_static_key(instance.symbol);
             }
-            dir::Type::Literal(dir::ScalarLiteral::String(name)) => dir::StaticKey::Name(name),
-            dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
+            dir::Type::Literal(dir::Literal::String(name)) => dir::StaticKey::Name(name),
+            dir::Type::Literal(dir::Literal::Integer(value)) => {
                 let Ok(index) = usize::try_from(value) else {
                     return Ok(None);
                 };
@@ -802,8 +802,12 @@ impl CheckState<'_> {
         let closed = self.normalize(origin, mapped.parameter.constraint)?;
         let closed_type = self.ty(closed)?;
         let keys = match closed_type {
-            dir::Type::Union(union) => {
-                SmallVec::<[_; 8]>::from_slice(self.type_ids(closed.module_id, union.elements)?)
+            dir::Type::Union(_) => {
+                let leaves = self.union_leaves(origin, closed)?;
+
+                leaves.ok_or_else(|| CompilerError::Internal {
+                    message: "a union key source exposed no arms".to_string(),
+                })?
             }
             dir::Type::Never => SmallVec::new(),
             dir::Type::Literal(_) | dir::Type::Primitive(_) => SmallVec::from_slice(&[closed]),

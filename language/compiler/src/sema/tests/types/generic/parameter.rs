@@ -107,8 +107,8 @@ const first = values[0];
 === annotated ===
 declare function id<T>(value: T): T;
 
-const values: float64[] = id<float64[]>([1, 2]);
-const first: float64 = values[0];
+const values: int64[] = id<int64[]>([1, 2]);
+const first: int64 = values[0];
 
 === dir ===
 declare function id<T>(value: T): T;
@@ -120,31 +120,31 @@ declare function id<T>(value: T): T;
 /// @resolution.name source=T target=id.T
 
 const values = id([1, 2]);
-/// @type.symbol symbol=values source=values type=float64[]
+/// @type.symbol symbol=values source=values type=int64[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<float64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
+/// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
 /// @resolution.name source=id target=id
-/// @resolution.call source="id([1, 2])" parameters=(float64[]) arguments=(provided([1, 2]) as float64[]) return=float64[] kind=symbol target=id instance=id<float64[]>
-/// @generic.instantiation id=id<float64[]> template=id arguments=(float64[])
-/// @generic.instance id=id<float64[]> template=id arguments=(float64[])
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
-/// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+/// @resolution.call source="id([1, 2])" parameters=(int64[]) arguments=(provided([1, 2]) as int64[]) return=int64[] kind=symbol target=id instance=id<int64[]>
+/// @generic.instantiation id=id<int64[]> template=id arguments=(int64[])
+/// @generic.instance id=id<int64[]> template=id arguments=(int64[])
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
+/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
+/// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
 
 const first = values[0];
-/// @type.symbol symbol=first source=first type=float64
+/// @type.symbol symbol=first source=first type=int64
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
-/// @generic.instantiation id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
-/// @generic.instance id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame float64, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame float64, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame float64[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame float64[], "exclusive")
+/// @resolution.subscript source=values[0] type=int64 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static int64, \"exclusive\">)"
+/// @generic.instantiation id="collections.array.index#1<int64, \"exclusive\">" template=collections.array.index#1 arguments=(int64, "exclusive")
+/// @generic.instance id="collections.array.index#1<int64, \"exclusive\">" template=collections.array.index#1 arguments=(int64, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame int64, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int64, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame int64[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int64[], "exclusive")
 "#,
     );
 }
@@ -319,7 +319,7 @@ const value = id((1, "x"));
 === annotated ===
 declare function id<T>(value: T): T;
 
-const value: (float64, string) = id<(float64, string)>((1, "x"));
+const value: (int64, string) = id<(int64, string)>((1, "x"));
 
 === dir ===
 declare function id<T>(value: T): T;
@@ -331,12 +331,12 @@ declare function id<T>(value: T): T;
 /// @resolution.name source=T target=id.T
 
 const value = id((1, "x"));
-/// @type.symbol symbol=value source=value type=(float64, string)
+/// @type.symbol symbol=value source=value type=(int64, string)
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=id target=id
-/// @resolution.call source="id((1, \"x\"))" parameters=((float64, string)) arguments=(provided((1, "x")) as (float64, string)) return=(float64, string) kind=symbol target=id instance="id<(float64, string)>"
-/// @generic.instantiation id="id<(float64, string)>" template=id arguments=((float64, string))
-/// @generic.instance id="id<(float64, string)>" template=id arguments=((float64, string))
+/// @resolution.call source="id((1, \"x\"))" parameters=((int64, string)) arguments=(provided((1, "x")) as (int64, string)) return=(int64, string) kind=symbol target=id instance="id<(int64, string)>"
+/// @generic.instantiation id="id<(int64, string)>" template=id arguments=((int64, string))
+/// @generic.instance id="id<(int64, string)>" template=id arguments=((int64, string))
 "#,
     );
 }
@@ -526,12 +526,12 @@ const level = value.level;
 === annotated ===
 declare function id<T>(value: T): T;
 
-const value: { kind: string; level: float64 } = id<{ kind: string; level: float64 }>({
+const value: { kind: string; level: int64 } = id<{ kind: string; level: int64 }>({
     kind: "ready",
     level: 1,
 });
 const kind: string = value.kind;
-const level: float64 = value.level;
+const level: int64 = value.level;
 
 === dir ===
 declare function id<T>(value: T): T;
@@ -543,27 +543,27 @@ declare function id<T>(value: T): T;
 /// @resolution.name source=T target=id.T
 
 const value = id({ kind: "ready", level: 1 });
-/// @type.symbol symbol=value source=value type={ kind: string; level: float64 }
+/// @type.symbol symbol=value source=value type={ kind: string; level: int64 }
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=id target=id
-/// @resolution.call source="id({ kind: \"ready\", level: 1 })" parameters=({ kind: string; level: float64 }) arguments=(provided({ kind: "ready", level: 1 }) as { kind: string; level: float64 }) return={ kind: string; level: float64 } kind=symbol target=id instance="id<{ kind: string; level: float64 }>"
-/// @generic.instantiation id="id<{ kind: string; level: float64 }>" template=id arguments=({ kind: string; level: float64 })
-/// @generic.instance id="id<{ kind: string; level: float64 }>" template=id arguments=({ kind: string; level: float64 })
+/// @resolution.call source="id({ kind: \"ready\", level: 1 })" parameters=({ kind: string; level: int64 }) arguments=(provided({ kind: "ready", level: 1 }) as { kind: string; level: int64 }) return={ kind: string; level: int64 } kind=symbol target=id instance="id<{ kind: string; level: int64 }>"
+/// @generic.instantiation id="id<{ kind: string; level: int64 }>" template=id arguments=({ kind: string; level: int64 })
+/// @generic.instance id="id<{ kind: string; level: int64 }>" template=id arguments=({ kind: string; level: int64 })
 
 const kind = value.kind;
 /// @type.symbol symbol=kind source=kind type=string
 /// @resolution.pattern source=kind kind=binding target=kind
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.kind receiver={ kind: string; level: float64 } type=string kind=field target_receiver={ kind: string; level: float64 } key=kind target_type=string
+/// @resolution.member source=value.kind receiver={ kind: string; level: int64 } type=string kind=field target_receiver={ kind: string; level: int64 } key=kind target_type=string
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.access source=value.kind root=value keys=[kind]
 
 const level = value.level;
-/// @type.symbol symbol=level source=level type=float64
+/// @type.symbol symbol=level source=level type=int64
 /// @resolution.pattern source=level kind=binding target=level
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.level receiver={ kind: string; level: float64 } type=float64 kind=field target_receiver={ kind: string; level: float64 } key=level target_type=float64
+/// @resolution.member source=value.level receiver={ kind: string; level: int64 } type=int64 kind=field target_receiver={ kind: string; level: int64 } key=level target_type=int64
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.access source=value.level root=value keys=[level]
@@ -2396,7 +2396,7 @@ function forward<U: int32>(value: U): void {
 }
 
 #[test]
-fn test_scratch_extension_output() {
+fn test_project_the_output_of_an_imported_subtract_extension() {
     let session = TestSession::builder()
         .module(
             "a.ds",
@@ -2480,5 +2480,212 @@ function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
 
 }
 "#,
+    );
+}
+
+/// Prove a readonly array bound through the parameter's own readonly array bound.
+#[test]
+fn test_prove_a_readonly_array_bound_through_the_parameter_bound() {
+    let session = TestSession::single(
+        r#"
+import { Iterable } from "destack:iter";
+
+export newtype interface Parameterized<P: readonly unknown[]> {
+    (name: string, body?: Function<P, void>): void;
+    readonly skip: Parameterized<P>;
+}
+
+export newtype interface Suite {
+    each<P: readonly unknown[]>(values: Iterable<P>): Parameterized<P>;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+import { Iterable } from "destack:iter";
+
+export newtype interface Parameterized<in out P: readonly unknown[]> {
+    (name: string, body?: Function<P, void>): void;
+    readonly skip: Parameterized<P>;
+}
+
+export newtype interface Suite {
+    each<P: readonly unknown[]>(values: Iterable<P>): Parameterized<P>;
+}
+
+=== dir ===
+import { Iterable } from "destack:iter";
+
+export newtype interface Parameterized<P: readonly unknown[]> {
+/// @generic.template symbol=Parameterized parameters=(in out P#1: readonly unknown[])
+/// @type.symbol symbol=Parameterized type=Parameterized
+/// @definition.interface symbol=Parameterized template=(in out P#1: readonly unknown[]) nominal=true
+/// @definition.where symbol=Parameterized relation=satisfies left=this right=Parameterized<P#1>
+/// @definition.field symbol=Parameterized.skip source="readonly skip: Parameterized<P>" key=skip type=Parameterized<P#1>
+/// @definition.signature kind=call source="(name: string, body?: Function<P, void>): void" type=Function<(string, Function<P#1, void> | undefined?), void>
+/// @type.symbol symbol=Parameterized.P source="P: readonly unknown[]" type=P#1
+
+    (name: string, body?: Function<P, void>): void;
+    /// @type.symbol symbol=Parameterized.name source="name: string" type=string
+    /// @type.symbol symbol=Parameterized.body source="body?: Function<P, void>" type=Function<P#1, void> | undefined
+    /// @resolution.name source=Function target=types.function.Function
+    /// @resolution.name source=P target=Parameterized.P
+
+    readonly skip: Parameterized<P>;
+    /// @type.symbol symbol=Parameterized.skip source="readonly skip: Parameterized<P>" type=Parameterized<P#1>
+    /// @resolution.name source=Parameterized target=Parameterized
+    /// @resolution.name source=P target=Parameterized.P
+
+}
+
+export newtype interface Suite {
+/// @type.symbol symbol=Suite type=Suite
+/// @definition.interface symbol=Suite nominal=true
+/// @definition.method symbol=Suite.each source="each<P: readonly unknown[]>(values: Iterable<P>): Parameterized<P>" slot=each type=<P#2: readonly unknown[]>(this: this, iter.iterator.Iterable<P#2>) => Parameterized<P#2>
+
+    each<P: readonly unknown[]>(values: Iterable<P>): Parameterized<P>;
+    /// @generic.template symbol=Suite.each parent=template#1 parameters=(P#2: readonly unknown[])
+    /// @type.symbol symbol=Suite.each source="each<P: readonly unknown[]>(values: Iterable<P>): Parameterized<P>" type=<P#2: readonly unknown[]>(this: this, iter.iterator.Iterable<P#2>) => Parameterized<P#2>
+    /// @type.symbol symbol=Suite.each.P source="P: readonly unknown[]" type=P#2
+    /// @type.symbol symbol=Suite.each.values source="values: Iterable<P>" type=iter.iterator.Iterable<P#2>
+    /// @resolution.name source=Iterable target=iter.iterator.Iterable
+    /// @resolution.name source=P target=Suite.each.P
+    /// @resolution.name source=Parameterized target=Parameterized
+    /// @resolution.name source=P target=Suite.each.P
+
+}
+"#, r#"
+
+"#);
+}
+
+/// Prove a function parameter list bound through one element of an intersection bound.
+#[test]
+fn test_prove_a_function_parameter_bound_through_an_intersection_bound() {
+    let session = TestSession::single(
+        r#"
+import { Copy } from "destack:memory";
+
+export newtype interface Parameterized<P: readonly unknown[] & Copy> {
+    (name: string, body?: Function<P, void>): void;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+import { Copy } from "destack:memory";
+
+export newtype interface Parameterized<in out P: readonly unknown[] & Copy> {
+    (name: string, body?: Function<P, void>): void;
+}
+
+=== dir ===
+import { Copy } from "destack:memory";
+
+export newtype interface Parameterized<P: readonly unknown[] & Copy> {
+/// @generic.template symbol=Parameterized parameters=(in out P: readonly unknown[] & memory.capability.Copy)
+/// @type.symbol symbol=Parameterized type=Parameterized
+/// @definition.interface symbol=Parameterized template=(in out P: readonly unknown[] & memory.capability.Copy) nominal=true
+/// @definition.where symbol=Parameterized relation=satisfies left=this right=Parameterized<P>
+/// @definition.signature kind=call source="(name: string, body?: Function<P, void>): void" type=Function<(string, Function<P, void> | undefined?), void>
+/// @type.symbol symbol=Parameterized.P source="P: readonly unknown[] & Copy" type=P
+/// @resolution.name source=Copy target=memory.capability.Copy
+
+    (name: string, body?: Function<P, void>): void;
+    /// @type.symbol symbol=Parameterized.name source="name: string" type=string
+    /// @type.symbol symbol=Parameterized.body source="body?: Function<P, void>" type=Function<P, void> | undefined
+    /// @resolution.name source=Function target=types.function.Function
+    /// @resolution.name source=P target=Parameterized.P
+
+}
+"#, r#""#);
+}
+
+/// Satisfy a property key bound with a parameter bounded by keyof.
+#[test]
+fn test_satisfy_a_property_key_bound_with_a_keyof_parameter() {
+    let session = TestSession::single(
+        r#"
+export newtype interface Test<TestValues = {}> {
+    override<const Name: keyof TestValues>(name: Name, value: TestValues[Name]): Omit<TestValues, Name>;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+export newtype interface Test<in out TestValues = {}> {
+    override<const Name: keyof TestValues>(
+        name: Name,
+        value: TestValues[Name],
+    ): Omit<TestValues, Name>;
+}
+
+=== dir ===
+export newtype interface Test<TestValues = {}> {
+/// @generic.template symbol=Test parameters=(in out TestValues = {})
+/// @type.symbol symbol=Test type=Test
+/// @definition.interface symbol=Test template=(in out TestValues = {}) nominal=true
+/// @definition.where symbol=Test relation=satisfies left=this right=Test<TestValues>
+/// @definition.method symbol=Test.override slot=override type=<const Name: keyof TestValues>(this: this, Name, TestValues[Name]) => Omit<TestValues, Name>
+/// @type.symbol symbol=Test.TestValues source="TestValues = {}" type=TestValues
+
+    override<const Name: keyof TestValues>(name: Name, value: TestValues[Name]): Omit<TestValues, Name>;
+    /// @generic.template symbol=Test.override parent=template#0 parameters=(const Name: keyof TestValues)
+    /// @type.symbol symbol=Test.override type=<const Name: keyof TestValues>(this: this, Name, TestValues[Name]) => Omit<TestValues, Name>
+    /// @type.symbol symbol=Test.override.Name source="const Name: keyof TestValues" type=Name
+    /// @resolution.name source=TestValues target=Test.TestValues
+    /// @type.symbol symbol=Test.override.name source="name: Name" type=Name
+    /// @resolution.name source=Name target=Test.override.Name
+    /// @type.symbol symbol=Test.override.value source="value: TestValues[Name]" type=TestValues[Name]
+    /// @resolution.name source=TestValues target=Test.TestValues
+    /// @resolution.name source=Name target=Test.override.Name
+    /// @resolution.name source=Omit target=types.object.Omit
+    /// @resolution.name source=TestValues target=Test.TestValues
+    /// @resolution.name source=Name target=Test.override.Name
+
+}
+"#, r#""#);
+}
+
+/// Assign a keyof over a parameter into the union adding undefined to the same keyof.
+#[test]
+fn test_assign_a_keyof_into_its_optional_union() {
+    let session = TestSession::single(
+        r#"
+function pick<T>(key: keyof T): keyof T | undefined {
+    return key;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function pick<T>(key: keyof T): keyof T | undefined {
+    return key as keyof T | undefined;
+}
+
+=== dir ===
+function pick<T>(key: keyof T): keyof T | undefined {
+/// @generic.template symbol=pick parameters=(T)
+/// @type.symbol symbol=pick type=<T>(keyof T) => keyof T | undefined
+/// @type.symbol symbol=pick.T source=T type=T
+/// @type.symbol symbol=pick.key source="key: keyof T" type=keyof T
+/// @resolution.name source=T target=pick.T
+/// @resolution.name source=T target=pick.T
+
+    return key;
+    /// @resolution.name source=key target=pick.key
+    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=key root=pick.key
+
+}
+"#,
+        r#""#,
     );
 }

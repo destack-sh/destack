@@ -22,6 +22,7 @@ impl CheckState<'_> {
         application: &DecoratorApplication,
         value: &dir::StaticTerm,
     ) -> CompilerResult<()> {
+        // decode the decorator value and find the declaration it owns
         let decorator = application.expression.decorator.into_global(module);
         let source = decorator.into_any();
         let representation_value = RepresentationValue::decode(value, self.strings())?;
@@ -34,6 +35,8 @@ impl CheckState<'_> {
 
             return Ok(());
         };
+
+        // reject a second representation decorator on the same declaration
         let previous = self
             .module(module)
             .decorators_tail
@@ -60,6 +63,7 @@ impl CheckState<'_> {
 
             return Ok(());
         }
+        // reject representations the declaration cannot carry
         let definition =
             self.definition(symbol)?
                 .cloned()
@@ -103,7 +107,7 @@ impl CheckState<'_> {
                         _ => None,
                     });
                     if let Some(value) = outside {
-                        let value = dir::ScalarLiteral::from(value);
+                        let value = dir::Literal::from(value);
                         let value = self.format_scalar_literal(&value);
                         let representation =
                             self.strings().get(representation_value.name).to_string();
@@ -174,6 +178,8 @@ impl CheckState<'_> {
             if !visited.insert(current) {
                 return Ok(true);
             }
+
+            // read whether the class declares virtual methods, and its base
             let (declares_virtual_dispatch, base) = match self.definition(current)? {
                 Some(dir::Definition::Class(definition)) => (
                     definition.declares_virtual_dispatch(),
@@ -190,6 +196,8 @@ impl CheckState<'_> {
             if declares_virtual_dispatch {
                 return Ok(true);
             }
+
+            // step to the base class
             symbol = match base {
                 Some(base) => {
                     let (_, base) = self.nominal_application(base)?;
@@ -223,6 +231,7 @@ impl CheckState<'_> {
 impl RepresentationValue {
     /// Decode one representation decorator value.
     fn decode(value: &dir::StaticTerm, strings: &StringPool) -> CompilerResult<Self> {
+        // unwrap the decorator's newtype and its argument tuple
         let Some((_, value)) = value.as_newtype() else {
             return Err(CompilerError::Internal {
                 message: "representation decorator has a non-newtype value".to_string(),
@@ -233,6 +242,8 @@ impl RepresentationValue {
                 message: "representation decorator has a non-tuple value".to_string(),
             });
         };
+
+        // read the written name and options out of the argument list
         let (name, options) = match elements {
             [value] => {
                 if let Some(name) = value.as_string() {
@@ -258,16 +269,20 @@ impl RepresentationValue {
                 });
             }
         };
+
         // select native layout for the options-only constructor
         let name = match name {
             Some(name) => name,
             None => strings.intern("destack"),
         };
+
+        // read the representation kind the name selects
         let name_text = strings.get(name);
         let kind =
             dir::RepresentationKind::try_from(name_text).map_err(|_| CompilerError::Internal {
                 message: format!("representation decorator has invalid name '{name_text}'"),
             })?;
+        // build the representation and apply its written options
         let mut value = Self {
             representation: dir::Representation {
                 kind,

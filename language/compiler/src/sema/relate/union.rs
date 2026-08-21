@@ -70,33 +70,27 @@ impl CheckState<'_> {
         Ok(Some(leaves))
     }
 
-    /// Relate a union target by membership when direct proof fell short.
-    pub(in crate::sema) fn relate_union_membership(
+    /// Relate a source into a union target by membership of one arm.
+    pub(in crate::sema) fn relate_into_union(
         &mut self,
         origin: Origin,
         cause: CauseId,
         relation: Relation,
-        decision: Verdict,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        // a direct proof needs no membership fallback
-        if decision == Verdict::Holds {
-            return Ok(Verdict::Holds);
-        }
-
-        // membership tags the value into the union carrier and never widens
+        // membership tags the value into the union carrier, which widening refuses
         if relation == Relation::Widens {
-            return Ok(decision);
+            return Ok(Verdict::Fails);
         }
         let dir::Type::Union(union) = self.ty(target)? else {
-            return Ok(decision);
+            return Ok(Verdict::Fails);
         };
 
         // relate the source against any one element, closed arms before open arms
         let elements: SmallVec<[_; 8]> = self.type_ids(target.module_id, union.elements)?.into();
         let mut open: SmallVec<[_; 8]> = SmallVec::new();
-        let mut verdict = decision;
+        let mut verdict = Verdict::Fails;
         for element in elements {
             if matches!(self.ty(element)?, dir::Type::Variable(_)) {
                 open.push(element);

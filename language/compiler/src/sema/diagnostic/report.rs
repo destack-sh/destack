@@ -355,6 +355,7 @@ impl CheckState<'_> {
             .unwrap_or_else(|| "the parameter".to_string())
     }
 
+    /// Report one path naming no visible declaration, suggesting the closest name in scope.
     fn report_unresolved_reference(
         &mut self,
         module: ModuleId,
@@ -371,7 +372,7 @@ impl CheckState<'_> {
             suggestion: best.as_ref().map(|best| best.candidate.clone()),
         };
 
-        // attach the spelling hint and any sibling module declaration
+        // attach the name suggestion and any sibling module declaration
         let mut diagnostic = DiagnosticBuilder::new(error);
         if let Some(suggestion) = best
             .as_ref()
@@ -886,7 +887,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
 
-        // anchor an exact key span instead of the whole access
+        // anchor an exact key span when the access supplies one
         let anchor = match key_span {
             Some(span) if span.len() as usize == key.len() => DiagnosticAnchor::Span(span),
             _ => anchor,
@@ -1247,8 +1248,7 @@ impl CheckState<'_> {
                 self.report_wrong_argument_count(origin, expected, supplied)?;
             }
 
-            // report the selected mismatch at its authored cause, the
-            //  provisional classification holds it while operands stay open
+            // report the selected mismatch at its authored cause
             SignatureRejection::Mismatch {
                 cause,
                 relation,
@@ -1387,6 +1387,24 @@ impl CheckState<'_> {
             module,
             member,
             target: Some(target),
+        };
+        self.report(module, error);
+    }
+
+    /// Report one extension member redeclaring a member of its root declaration.
+    pub(in crate::sema) fn report_inherent_member_redeclared(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        key: &dir::StaticKey,
+        target: String,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let member = self.format_static_key(key);
+        let error = CheckError::InherentMemberRedeclared {
+            anchor,
+            module,
+            member,
+            target,
         };
         self.report(module, error);
     }
@@ -1900,7 +1918,10 @@ impl CheckState<'_> {
 
                 DiagnosticBuilder::new(error)
             }
+            // the inner site reported the failure
+            CheckFailure::Reported => return Ok(false),
         };
+
         // explain the cause chain and report the failure once
         let diagnostic = self.explain_cause(diagnostic, cause, &anchor, blame.as_ref())?;
         self.report(module, diagnostic);
@@ -2158,9 +2179,9 @@ impl CheckState<'_> {
             ObligationFailure::NonLocalImplementation {
                 source,
                 interface,
-                ty,
+                root,
             } => {
-                self.report_non_local_implementation(source, interface, ty);
+                self.report_non_local_implementation(source, interface, root);
             }
             ObligationFailure::ForeignBlanketImplementation { source, interface } => {
                 self.report_foreign_blanket_implementation(source, interface);
@@ -2180,6 +2201,13 @@ impl CheckState<'_> {
                 target,
             } => {
                 self.report_duplicate_extension_member(source, &member, target);
+            }
+            ObligationFailure::InherentMemberRedeclared {
+                source,
+                member,
+                target,
+            } => {
+                self.report_inherent_member_redeclared(source, &member, target);
             }
             ObligationFailure::ConflictingImplementation {
                 source,
@@ -2591,14 +2619,19 @@ impl CheckState<'_> {
         &mut self,
         source: dir::GlobalNodeIdAny,
         interface: dir::GlobalSymbolId,
-        ty: dir::GlobalSymbolId,
+        root: dir::TypeRoot,
     ) {
         let (module, anchor) = self.source_anchor(source);
+        let ty = match root {
+            dir::TypeRoot::Declaration(symbol) => self.format_symbol(symbol),
+            dir::TypeRoot::Primitive(primitive) => primitive.as_str().to_string(),
+            dir::TypeRoot::Tuple => "tuple".to_string(),
+        };
         let warning = CheckWarning::NonLocalImplementation {
             anchor,
             module,
             interface: self.format_symbol(interface),
-            ty: self.format_symbol(ty),
+            ty,
         };
 
         self.module_mut(module).warnings.push(warning.into());
@@ -2618,6 +2651,27 @@ impl CheckState<'_> {
         };
 
         self.report(module, error);
+    }
+
+    /// Report one extension target without a root declaration.
+    pub(in crate::sema) fn report_invalid_extension_target(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::InvalidExtensionTarget {
+            anchor,
+            module,
+            ty: self.format_type(ty),
+        };
+        let diagnostic = DiagnosticBuilder::new(error).note(
+            "an extension targets a declaration, a primitive, a tuple, array, slice, or function \
+             type, or a bounded type parameter",
+        );
+        self.report(module, diagnostic);
+
+        Ok(())
     }
 
     /// Report one blanket extension member outside its declared interfaces.
@@ -2810,7 +2864,22 @@ impl CheckState<'_> {
         self.report(module, error);
     }
 
-    /// Report one lifetime bound spelled as a union.
+    /// Report one where clause bounding no parameter of its declaration.
+    pub(in crate::sema) fn report_where_clause_without_parameter(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<()> {
+        let anchor = self.diagnostic_anchor(source.module_id, source.local_id);
+        let error = CheckError::WhereClauseWithoutParameter {
+            anchor,
+            module: source.module_id,
+        };
+        self.report(source.module_id, error);
+
+        Ok(())
+    }
+
+    /// Report one lifetime bound written as a union.
     pub(in crate::sema) fn report_disjunctive_lifetime_bound(
         &mut self,
         source: dir::GlobalNodeIdAny,
@@ -2823,6 +2892,23 @@ impl CheckState<'_> {
         self.report(source.module_id, error);
 
         Ok(())
+    }
+
+    /// Report one overload an earlier overload of the same owner already accepts.
+    pub(in crate::sema) fn report_unreachable_overload(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        key: &dir::StaticKey,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let key = self.format_static_key(key);
+        let warning = CheckWarning::UnreachableOverload {
+            anchor,
+            module,
+            key,
+        };
+
+        self.module_mut(module).warnings.push(warning.into());
     }
 
     /// Report one repeated definition member.

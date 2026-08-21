@@ -2,19 +2,10 @@ use crate::tests::{DirRows, TestSession};
 
 /// Check test registration and matchers through the public test API.
 #[test]
-fn test_check_test_api() {
+fn test_register_suites_and_matchers_through_the_test_api() {
     let session = TestSession::single(
         r#"
-import {
-    beforeEach,
-    describe,
-    expect,
-    expectSoft,
-    test,
-    testOnly,
-    testSkip,
-    testTodo,
-} from "destack:test";
+import { beforeEach, describe, expect, test } from "destack:test";
 
 describe("arithmetic", () => {
     beforeEach(() => {});
@@ -22,12 +13,12 @@ describe("arithmetic", () => {
     test("adds values", () => {
         expect(1 + 1).toEqual(2);
         expect(2).toBe(2);
-        expectSoft("pineapple").toContain("apple");
+        expect.soft("pineapple").toContain("apple");
     });
 
-    testOnly("focused", () => {});
-    testSkip("skipped", () => {});
-    testTodo("pending");
+    test.only("focused", () => {});
+    test.skip("skipped", () => {});
+    test.todo("pending");
 });
 "#,
     );
@@ -37,44 +28,24 @@ describe("arithmetic", () => {
         DirRows::none(),
         r#"
 === annotated ===
-import {
-    beforeEach,
-    describe,
-    expect,
-    expectSoft,
-    test,
-    testOnly,
-    testSkip,
-    testTodo,
-} from "destack:test";
+import { beforeEach, describe, expect, test } from "destack:test";
 
 describe("arithmetic", ((): void => {
     beforeEach((): BodyResult => {});
 
     test("adds values", ((): BodyResult => {
-        expect<float64>((1 + 1) as &'frame readonly float64).toEqual<float64, float64>(
-            2 as &'frame readonly float64,
-        );
-        expect<float64>(2 as &'frame readonly float64).toBe<float64>(2 as &'frame readonly float64);
-        expectSoft<string>("pineapple").toContain<string>("apple" as &'frame readonly string);
-    }) as CaseArgument | undefined);
+        expect<2>((1 + 1) as &'frame readonly 2).toEqual<2, int64>(2 as &'frame readonly int64);
+        expect<int64>(2 as &'frame readonly int64).toBe<int64>(2 as &'frame readonly int64);
+        expect.soft<string>("pineapple").toContain<string>("apple");
+    }) as Body<TestContext<{}, {}, {}>> | undefined);
 
-    testOnly("focused", ((): BodyResult => {}) as CaseArgument | undefined);
-    testSkip("skipped", ((): BodyResult => {}) as CaseArgument | undefined);
-    testTodo("pending");
-}) as SuiteArgument | undefined);
+    test.only("focused", ((): BodyResult => {}) as Body<TestContext<{}, {}, {}>> | undefined);
+    test.skip("skipped", ((): BodyResult => {}) as Body<TestContext<{}, {}, {}>> | undefined);
+    test.todo("pending");
+}) as SuiteBody | undefined);
 
 === dir ===
-import {
-    beforeEach,
-    describe,
-    expect,
-    expectSoft,
-    test,
-    testOnly,
-    testSkip,
-    testTodo,
-} from "destack:test";
+import { beforeEach, describe, expect, test } from "destack:test";
 
 describe("arithmetic", () => {
     beforeEach(() => {});
@@ -82,12 +53,12 @@ describe("arithmetic", () => {
     test("adds values", () => {
         expect(1 + 1).toEqual(2);
         expect(2).toBe(2);
-        expectSoft("pineapple").toContain("apple");
+        expect.soft("pineapple").toContain("apple");
     });
 
-    testOnly("focused", () => {});
-    testSkip("skipped", () => {});
-    testTodo("pending");
+    test.only("focused", () => {});
+    test.skip("skipped", () => {});
+    test.todo("pending");
 });
 "#,
         "",

@@ -257,6 +257,7 @@ const value: Status = Status.Default;
 /// @resolution.name source=Status target=Status
 /// @resolution.member source=Status.Default receiver=Status type=Status kind=field target_receiver=Status key=Default target=Status.Default target_type=Status
 /// @resolution.place source=Status.Default placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=Status.Default root=Status keys=[Default]
 "#,
     );
 }
@@ -444,6 +445,7 @@ const value: Status = Status.Default;
 /// @resolution.name source=Status target=Status
 /// @resolution.member source=Status.Default receiver=Status type=Status kind=field target_receiver=Status key=Default target=Status.Default target_type=Status
 /// @resolution.place source=Status.Default placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=Status.Default root=Status keys=[Default]
 "#,
     );
 }

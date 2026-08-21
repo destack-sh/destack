@@ -6,10 +6,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Answer, BodyState, CallableArgument, Callee, CandidateVerdict, CheckFailure, CheckOutcome,
-    Expectation, FlowSite, InferMode, Origin, PlaceUse, REPORTED_REJECTIONS, Selected,
-    SignatureFamily, SignatureInstance, SignatureMatch, SignatureSelection, Value, ValueCheck,
-    ValueUse,
+    Answer, BodyState, CallableArgument, Callee, CheckFailure, CheckOutcome, Expectation, FlowSite,
+    InferMode, Origin, PlaceUse, REPORTED_REJECTIONS, Selected, SignatureFamily, SignatureInstance,
+    SignatureMatch, SignatureSelection, Value, ValueCheck, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -272,7 +271,7 @@ impl BodyState<'_, '_> {
                 }
 
                 // decide a member callee by checking it in place, else call its value
-                let _ = self.infer_node(callee_site, PlaceUse::Read, InferMode::Exact)?;
+                self.infer_node(callee_site, PlaceUse::Read, InferMode::Regular)?;
                 match self.decision(callee_node) {
                     Some(_) => self.callable_candidates(origin, module, callee_site, is_optional),
                     None => self.value_callable_candidates(origin, callee_site, is_optional),
@@ -626,15 +625,15 @@ impl BodyState<'_, '_> {
                 )?;
                 match verdict {
                     // keep a refused overload's description for the report
-                    CandidateVerdict::Rejected => rejections.extend(rejection),
+                    Verdict::Fails => rejections.extend(rejection),
                     // strict declaration order: the first viable overload wins
-                    CandidateVerdict::Viable => {
+                    Verdict::Holds => {
                         selected = Some((position, candidate));
 
                         break;
                     }
                     // hold the first undecided overload behind the viable ones
-                    CandidateVerdict::Indeterminate => {
+                    Verdict::Ambiguous => {
                         undecided.get_or_insert((position, candidate));
                     }
                 }
@@ -817,6 +816,7 @@ impl BodyState<'_, '_> {
 
         Ok(ValueCheck {
             source,
+            stored: source,
             outcome: CheckOutcome::Fails(CheckFailure::Relation),
             target,
         })
@@ -833,6 +833,7 @@ impl BodyState<'_, '_> {
 
         Ok(ValueCheck {
             source,
+            stored: source,
             outcome: CheckOutcome::Fails(CheckFailure::Relation),
             target,
         })
@@ -852,6 +853,7 @@ impl BodyState<'_, '_> {
 
         Ok(ValueCheck {
             source,
+            stored: source,
             outcome: CheckOutcome::Holds,
             target,
         })
@@ -1000,11 +1002,10 @@ impl BodyState<'_, '_> {
             );
         }
 
+        // read the call's argument values
         let arguments = self.callable_arguments(module, argument_nodes, ValueUse::Argument)?;
 
-        // ask two canonical selection questions: the argument-blind ask
-        //  serves argument-independent answers on any check, while the
-        //  argument-committed ask serves open generic answers on re-checks
+        // ask the argument-blind and the argument-committed selection question
         let expected = expectation.map(|expectation| expectation.target);
         let first = candidates.first();
         let (blind, question) = match first.map(|first| &first.target) {
@@ -1014,6 +1015,8 @@ impl BodyState<'_, '_> {
                         message: "a symbol callee lost its first overload".to_string(),
                     });
                 };
+
+                // ask blind over the callee, its written arguments, and the argument types
                 let mut operands = SmallVec::<[dir::GlobalTypeId; 8]>::new();
                 operands.push(first.ty);
                 operands.extend(dir::GenericArgumentBinding::values(
@@ -1027,6 +1030,7 @@ impl BodyState<'_, '_> {
                     &operands,
                 )?;
 
+                // ask again over the argument types this site has committed
                 let committed = arguments
                     .iter()
                     .map(|argument| self.committed_node_type(argument.source))
@@ -1055,8 +1059,7 @@ impl BodyState<'_, '_> {
             | None => (None, None),
         };
 
-        // replay the decided answer at this site's live roots, preferring
-        //  the argument-committed answer over the argument-blind one
+        // replay the decided answer at this site's live roots, preferring the committed one
         let replayed = [&question, &blind].into_iter().find_map(|asked| {
             let (asked, canonical) = asked.as_ref()?;
             match self.check.answers.get(asked) {
@@ -1073,8 +1076,7 @@ impl BodyState<'_, '_> {
                 .instantiate_response(origin, &canonical, &response)?
             {
                 Selected::Callable(mut instance) if instance.overload < candidates.len() => {
-                    // re-relate the receiver like a fresh attempt, adopting
-                    //  the projection steps this site derives
+                    // re-relate the receiver, adopting this site's projection steps
                     let callable = match self.check.ty(instance.selection.callable)? {
                         dir::Type::Function(function) => {
                             self.check.signature_head(function.signature)?
@@ -1087,11 +1089,7 @@ impl BodyState<'_, '_> {
                     ) {
                         // a declared this must accept this site's receiver
                         (Some(receiver), Some(this_parameter)) => {
-                            match self.constrain_receiver_argument(
-                                origin,
-                                receiver.value,
-                                this_parameter,
-                            )? {
+                            match self.constrain_receiver(origin, receiver.value, this_parameter)? {
                                 Some(steps) => {
                                     instance.selection.receiver_steps = Some(steps);
 
@@ -1131,6 +1129,7 @@ impl BodyState<'_, '_> {
 
                     return Ok(ValueCheck {
                         source,
+                        stored: source,
                         outcome: CheckOutcome::Holds,
                         target,
                     });
@@ -1165,7 +1164,7 @@ impl BodyState<'_, '_> {
             match &attempt {
                 // keep the inference an accepted call bound
                 SignatureMatch::Selected(_) => self.check.infer.commit(mark),
-                // keep what a sole candidate bound, since it reports in place
+                // keep what a sole candidate bound, reporting in place
                 SignatureMatch::Invalid { .. } | SignatureMatch::Inapplicable(_)
                     if is_single_candidate =>
                 {
@@ -1231,6 +1230,7 @@ impl BodyState<'_, '_> {
 
                     return Ok(ValueCheck {
                         source,
+                        stored: source,
                         outcome: CheckOutcome::Holds,
                         target,
                     });
@@ -1248,6 +1248,7 @@ impl BodyState<'_, '_> {
 
                     return Ok(ValueCheck {
                         source,
+                        stored: source,
                         outcome: CheckOutcome::Fails(CheckFailure::Relation),
                         target,
                     });
@@ -1269,6 +1270,7 @@ impl BodyState<'_, '_> {
 
                     return Ok(ValueCheck {
                         source,
+                        stored: source,
                         outcome: CheckOutcome::Holds,
                         target,
                     });
@@ -1455,6 +1457,7 @@ impl BodyState<'_, '_> {
 
         Ok(ValueCheck {
             source: return_type,
+            stored: return_type,
             outcome,
             target,
         })

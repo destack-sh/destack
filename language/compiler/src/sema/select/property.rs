@@ -148,14 +148,18 @@ impl BodyState<'_, '_> {
                                 Relation::Assignable,
                                 field_cause,
                                 ValueUse::Store,
-                                match field.access.is_writable() {
-                                    true => InferMode::Widen,
-                                    false => InferMode::Exact,
-                                },
+                                InferMode::Regular,
                             )?;
-                            check = check.and(field_check.outcome);
 
-                            field_check.source
+                            // the field site reported its own mismatch
+                            check = check.and(match field_check.outcome {
+                                CheckOutcome::Fails(_) => {
+                                    CheckOutcome::Fails(CheckFailure::Reported)
+                                }
+                                outcome => outcome,
+                            });
+
+                            field_check.stored
                         }
                         _ => self.merge_entry_type(source)?,
                     };
@@ -185,6 +189,7 @@ impl BodyState<'_, '_> {
 
                         return Ok(ValueCheck {
                             source,
+                            stored: source,
                             outcome: CheckOutcome::Fails(CheckFailure::Relation),
                             target,
                         });
@@ -234,8 +239,10 @@ impl BodyState<'_, '_> {
                             })
                             .map(|field| CheckFailure::ExcessProperty { key: field.key })
                     });
-                if check == CheckOutcome::Holds
-                    && let Some(failure) = failure
+                if matches!(
+                    check,
+                    CheckOutcome::Holds | CheckOutcome::Fails(CheckFailure::Reported)
+                ) && let Some(failure) = failure
                 {
                     check = CheckOutcome::Fails(failure);
                 }
@@ -244,6 +251,7 @@ impl BodyState<'_, '_> {
                 self.commit_node_type(node.into_any(), target)?;
                 Ok(ValueCheck {
                     source: target,
+                    stored: target,
                     outcome: check,
                     target,
                 })
@@ -257,6 +265,7 @@ impl BodyState<'_, '_> {
                 self.commit_node_type(node.into_any(), managed)?;
                 Ok(ValueCheck {
                     source: managed,
+                    stored: managed,
                     outcome: check,
                     target: managed,
                 })
@@ -282,6 +291,7 @@ impl BodyState<'_, '_> {
         }
 
         let source_site = self.visit_site(source)?;
+
         self.infer_node_type(source_site, PlaceUse::Read)
     }
 

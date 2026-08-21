@@ -329,7 +329,9 @@ function unwrap(values: (int32 | undefined)[]): int32[] {
         r#"
 === annotated ===
 function unwrap(values: (int32 | undefined)[]): int32[] {
-    return values.map<int32 | undefined, int32>((value: int32 | undefined) => value!) as int32[];
+    return values.map<int32 | undefined, int32>(
+        (value: int32 | undefined): int32 => value!,
+    ) as int32[];
 }
 
 === dir ===

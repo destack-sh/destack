@@ -14,37 +14,37 @@ const first = values[0];
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-let values: float64[] = [1, 2];
-const first: float64 = values[0];
+let values: int64[] = [1, 2];
+const first: int64 = values[0];
 
 === dir ===
 let values = [1, 2];
-/// @type.symbol symbol=values source=values type=float64[]
+/// @type.symbol symbol=values source=values type=int64[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<float64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
-/// @type.node source=[1, 2] type=float64[]
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
-/// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+/// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
+/// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
+/// @type.node source=[1, 2] type=int64[]
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
+/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
+/// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
 const first = values[0];
-/// @type.symbol symbol=first source=first type=float64
+/// @type.symbol symbol=first source=first type=int64
 /// @resolution.pattern source=first kind=binding target=first
-/// @type.node source=values type=float64[]
-/// @type.node source=values[0] type=float64
+/// @type.node source=values type=int64[]
+/// @type.node source=values[0] type=int64
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
-/// @generic.instantiation id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
-/// @generic.instance id="collections.array.index#1<float64, \"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame float64, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame float64, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame float64[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame float64[], "exclusive")
+/// @resolution.subscript source=values[0] type=int64 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static int64, \"exclusive\">)"
+/// @generic.instantiation id="collections.array.index#1<int64, \"exclusive\">" template=collections.array.index#1 arguments=(int64, "exclusive")
+/// @generic.instance id="collections.array.index#1<int64, \"exclusive\">" template=collections.array.index#1 arguments=(int64, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame int64, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int64, "exclusive")
+/// @generic.instance id="memory.type.WithAccess<&'frame int64[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int64[], "exclusive")
 /// @type.node source=0 type=0
 "#,
     );
@@ -260,11 +260,11 @@ let value = true ? 1 : 2;
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-let value: float64 = true ? 1 : 2;
+let value: int64 = true ? 1 : 2;
 
 === dir ===
 let value = true ? 1 : 2;
-/// @type.symbol symbol=value source=value type=float64
+/// @type.symbol symbol=value source=value type=int64
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="true ? 1 : 2" type=1 | 2
 /// @type.node source=true type=true

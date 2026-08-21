@@ -1,15 +1,127 @@
-use destack_core::FxIndexSet;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
     BodyState, CheckState, ExtensionCoherenceObligation, ImplementationCoherenceObligation,
-    ObligationCheck, ObligationFailure, Origin,
+    ObligationCheck, ObligationFailure, Origin, Relation,
 };
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
+    /// Report the member conflicts inside every definition the checked module declares.
+    pub(in crate::sema) fn report_member_conflicts(&mut self) -> CompilerResult<()> {
+        let module = self.module_id;
+        let definitions = self
+            .module
+            .iter_definitions()
+            .filter(|(symbol, _)| symbol.module_id == module)
+            .map(|(_, definition)| definition.clone())
+            .collect::<Vec<_>>();
+        for definition in &definitions {
+            self.report_definition_member_conflicts(definition)?;
+        }
+
+        Ok(())
+    }
+
+    /// Report the member conflicts inside one definition.
+    fn report_definition_member_conflicts(
+        &mut self,
+        definition: &dir::Definition,
+    ) -> CompilerResult<()> {
+        let mut seen = FxIndexMap::<(dir::MemberSpace, dir::StaticKey), bool>::default();
+        let mut overloads =
+            FxIndexMap::<(dir::MemberSpace, dir::StaticKey), Vec<dir::GlobalSymbolId>>::default();
+
+        for member in definition.members() {
+            let Some(key) = member.key() else {
+                continue;
+            };
+            let entry = (member.space(), key);
+            let is_overloadable = member.is_overloadable();
+
+            // a repeated key is a duplicate unless both declarations overload
+            if let Some(previous_is_overloadable) = seen.get(&entry) {
+                if !*previous_is_overloadable || !is_overloadable {
+                    self.report_duplicate_definition_member(member.source(), &key);
+                }
+            } else {
+                seen.insert(entry, is_overloadable);
+            }
+
+            // report a later overload an earlier one already subsumes
+            let dir::DefinitionMember::Method(method) = member else {
+                continue;
+            };
+            if method.role.is_some() {
+                continue;
+            }
+
+            // compare the later signature against each earlier overload of the key
+            let later = self.symbol_type(method.symbol)?;
+            let earlier_overloads = overloads.entry(entry).or_default().clone();
+            for earlier in earlier_overloads {
+                // skip earlier overloads generic in a type parameter
+                let earlier = self.symbol_type(earlier)?;
+                if let Some(template) = self.signature_head(earlier)?.and_then(|head| head.template)
+                    && self
+                        .generic_template_parameters(template)?
+                        .iter()
+                        .any(|parameter| {
+                            self.generic_parameter(*parameter)
+                                .is_none_or(|binding| binding.memory_parameter().is_none())
+                        })
+                {
+                    continue;
+                }
+
+                // report the later overload once the earlier signature takes its calls
+                let origin = Origin::Node(method.source, None);
+                if self.accepts_arities_of(earlier, later)?
+                    && self
+                        .evaluate_relation(origin, Relation::Assignable, earlier, later)?
+                        .holds()
+                {
+                    self.report_unreachable_overload(method.source, &key);
+                    break;
+                }
+            }
+
+            // record this overload for the members that follow
+            overloads.entry(entry).or_default().push(method.symbol);
+        }
+
+        Ok(())
+    }
+
+    /// Return whether one signature takes every call arity another signature takes.
+    fn accepts_arities_of(
+        &mut self,
+        earlier: dir::GlobalTypeId,
+        later: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let (Some(earlier_head), Some(later_head)) =
+            (self.signature_head(earlier)?, self.signature_head(later)?)
+        else {
+            return Ok(false);
+        };
+        let earlier = self.signature_parameters(earlier.module_id, earlier_head.parameters)?;
+        let later = self.signature_parameters(later.module_id, later_head.parameters)?;
+        let required = |parameters: &[dir::FunctionParameterType]| {
+            parameters
+                .iter()
+                .filter(|parameter| !parameter.is_optional && !parameter.is_rest)
+                .count()
+        };
+        let earlier_rest = earlier.iter().any(|parameter| parameter.is_rest);
+        let later_rest = later.iter().any(|parameter| parameter.is_rest);
+
+        Ok(required(earlier) <= required(later)
+            && (earlier_rest || (!later_rest && later.len() <= earlier.len())))
+    }
+
     /// Check one extension's implementation coherence.
     pub(in crate::sema) fn check_implementation_coherence(
         &mut self,
@@ -50,22 +162,31 @@ impl CheckState<'_> {
 
         // require every member of an unanchored blanket to implement a declared interface member
         if let dir::ExtensionTarget::Blanket { ty, .. } = target
+            && matches!(self.ty(ty)?, dir::Type::Parameter(_))
             && !self.is_blanket_interface_anchored(ty)?
         {
             self.check_blanket_member_anchoring(symbol, source, &interfaces, &mut failures)?;
         }
 
+        // finish a plain extension with the failures collected so far
         if interfaces.is_empty() {
             let check = ObligationCheck::from_failures(failures);
 
             return Ok(check);
         }
-        let package = module.package_id;
 
+        // judge the implemented pairs against the extension's own package
+        let package = module.package_id;
         match target {
-            // reject extension implementation pairs outside both packages
+            // reject headed implementation pairs outside both packages
             dir::ExtensionTarget::Rooted { root, ty } => {
-                let foreign_target = root.module_id.package_id != package;
+                // a head is foreign outside its owning package
+                let foreign_target = match root {
+                    dir::TypeRoot::Declaration(root) => root.module_id.package_id != package,
+                    dir::TypeRoot::Primitive(_) | dir::TypeRoot::Tuple => {
+                        package != self.language_package()?
+                    }
+                };
                 for implemented in &interfaces {
                     let (_, interface) = self.nominal_application(*implemented)?;
                     let interface = interface.symbol;
@@ -73,7 +194,7 @@ impl CheckState<'_> {
                         failures.push(ObligationFailure::NonLocalImplementation {
                             source,
                             interface,
-                            ty: root,
+                            root,
                         });
                     }
                 }
@@ -83,14 +204,13 @@ impl CheckState<'_> {
                     module,
                     source,
                     symbol,
-                    root,
                     ty,
                     &interfaces,
                 )?;
                 failures.extend(conflicts);
             }
-            _ => {
-                // require open implementations beside their interface
+            // require blanket implementations beside their interface
+            dir::ExtensionTarget::Blanket { ty, .. } => {
                 for implemented in &interfaces {
                     let (_, interface) = self.nominal_application(*implemented)?;
                     let interface = interface.symbol;
@@ -101,6 +221,16 @@ impl CheckState<'_> {
                         });
                     }
                 }
+
+                let conflicts = self.check_conflicting_implementations(
+                    origin,
+                    module,
+                    source,
+                    symbol,
+                    ty,
+                    &interfaces,
+                )?;
+                failures.extend(conflicts);
             }
         }
 
@@ -274,7 +404,9 @@ impl CheckState<'_> {
             return false;
         }
 
-        let target_is_local = target.root().is_some_and(|root| root.module_id == module);
+        let target_is_local = target
+            .declaration()
+            .is_some_and(|root| root.module_id == module);
         if target_is_local {
             return false;
         }
@@ -286,7 +418,7 @@ impl CheckState<'_> {
     }
 
     /// Return one symbol's implemented interfaces as written.
-    fn declared_interfaces(
+    pub(in crate::sema) fn declared_interfaces(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
@@ -326,84 +458,45 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-        root: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
         interfaces: &[dir::GlobalTypeId],
     ) -> CompilerResult<Vec<ObligationFailure>> {
         let mut failures = Vec::new();
 
-        // collect comparable implementations before overlap checks
-        let mut candidates = SmallVec::<
-            [(
-                dir::GlobalSymbolId,
-                dir::GlobalTypeId,
-                dir::GlobalTypeId,
-                dir::GlobalTypeId,
-            ); 2],
-        >::new();
-        for other in self.body().visible_extensions(module, root)? {
-            if other == symbol {
-                continue;
-            }
-            if !self.is_later_definition(source, other) {
-                continue;
-            }
-            let (other_root, other_ty) = match self.definition(other)? {
-                Some(dir::Definition::Extension(extension)) => match extension.target {
-                    dir::ExtensionTarget::Rooted { root, ty } => (root, ty),
-                    dir::ExtensionTarget::Blanket { .. } => continue,
-                },
-                Some(_) | None => continue,
-            };
-            if other_root != root {
-                continue;
-            }
-            let other_interfaces = self.declared_interfaces(other)?;
-            for other_interface_type in other_interfaces {
-                let (_, other_interface) = self.nominal_application(other_interface_type)?;
-                for interface_type in interfaces {
-                    let (_, interface) = self.nominal_application(*interface_type)?;
-                    if interface.symbol == other_interface.symbol {
-                        candidates.push((other, other_ty, *interface_type, other_interface_type));
-                        break;
-                    }
+        // collect earlier visible implementations sharing one declared interface
+        let mut candidates = SmallVec::<[(dir::GlobalSymbolId, dir::GlobalTypeId); 2]>::new();
+        for interface_type in interfaces {
+            let (_, interface) = self.nominal_application(*interface_type)?;
+            for other in self
+                .body()
+                .visible_implementations(module, interface.symbol)?
+            {
+                if other == symbol || !self.is_later_definition(source, other) {
+                    continue;
                 }
+                candidates.push((other, *interface_type));
             }
         }
 
-        // reject overlapping receivers under one unifiable interface instantiation
-        for (other, other_ty, interface, other_interface) in candidates {
-            if !self.types_may_overlap(origin, ty, other_ty)? {
+        // reject implementations some declared type satisfies together with this one
+        for (other, interface_type) in candidates {
+            let Some(witness) = self.body().extension_implementations_overlap(
+                origin,
+                module,
+                symbol,
+                ty,
+                interface_type,
+                other,
+            )?
+            else {
                 continue;
-            }
-            let (interface_module, interface_application) = self.nominal_application(interface)?;
-            let (other_module, other_application) = self.nominal_application(other_interface)?;
-            let interface_arguments =
-                self.filled_application_arguments(interface_module, &interface_application)?;
-            let other_arguments =
-                self.filled_application_arguments(other_module, &other_application)?;
-            if interface_arguments.len() == other_arguments.len() {
-                let mut distinct = false;
-                for (left, right) in interface_arguments
-                    .iter()
-                    .copied()
-                    .zip(other_arguments.iter().copied())
-                {
-                    if !self.types_may_overlap(origin, left, right)? {
-                        distinct = true;
-                        break;
-                    }
-                }
-                if distinct {
-                    continue;
-                }
-            }
-
+            };
+            let (_, interface) = self.nominal_application(interface_type)?;
             failures.push(ObligationFailure::ConflictingImplementation {
                 source,
                 conflict: other,
-                interface: interface_application.symbol,
-                ty,
+                interface: interface.symbol,
+                ty: witness,
             });
         }
 
@@ -431,7 +524,7 @@ impl CheckState<'_> {
 }
 
 impl BodyState<'_, '_> {
-    /// Check one extension against other visible extensions' properties.
+    /// Check one extension against other visible extensions' members.
     pub(in crate::sema) fn check_extension_coherence(
         &mut self,
         obligation: &ExtensionCoherenceObligation,
@@ -449,8 +542,12 @@ impl BodyState<'_, '_> {
         let extension = extension.clone();
         let mut failures = Vec::new();
 
-        // collect the properties this extension declares
-        let declared = self.property_members(&extension.members)?;
+        // collect the inherent members this extension declares
+        let requirements = self.requirement_keys(&extension.implements)?;
+        let target_form = self
+            .receiver_form(extension.target.r#type())?
+            .unwrap_or(ReceiverForm::MANAGED);
+        let declared = self.keyed_members(&extension.members, target_form, &requirements)?;
         if declared.is_empty() {
             return Ok(ObligationCheck::holds());
         }
@@ -458,25 +555,43 @@ impl BodyState<'_, '_> {
         // render the target once for the failure reports
         let target = self.format_type(extension.target.r#type());
 
-        // gather competitors sharing the target root or ground head
+        // gather competitors sharing the target head, leaving blanket overlap to use sites
         let root = extension.target.root();
         let competitors = match root {
             Some(root) => self.visible_extensions(module, root)?,
-            None => self.visible_blanket_extensions(module)?,
-        };
-        let ground = match root {
-            Some(_) => None,
-            None => match self.ty(extension.target.r#type())? {
-                dir::Type::Primitive(primitive) => Some(primitive),
-                // leave parameterized blanket overlap to use sites
-                _ => return Ok(ObligationCheck::holds()),
-            },
+            None => return Ok(ObligationCheck::holds()),
         };
 
-        // report every property a competing extension already declares
+        // report every member the root declaration itself declares
+        if let Some(dir::TypeRoot::Declaration(declaration)) = root
+            && let Some(definition) = self.definition(declaration)?
+        {
+            let members = definition.members().to_vec();
+            let inherent =
+                self.keyed_members(&members, ReceiverForm::MANAGED, &FxIndexSet::default())?;
+            for member in &declared {
+                let redeclared = inherent.iter().any(|candidate| {
+                    candidate.key == member.key
+                        && candidate.space == member.space
+                        && candidate.form.overlaps(member.form)
+                });
+                if redeclared {
+                    failures.push(ObligationFailure::InherentMemberRedeclared {
+                        source: member.source,
+                        member: member.key,
+                        target: target.clone(),
+                    });
+                }
+            }
+        }
+
+        // report every member an earlier competing extension already declares
         for competitor_symbol in competitors {
-            // leave same-module collisions to source order
-            if competitor_symbol == extension_symbol || competitor_symbol.module_id == module {
+            if competitor_symbol == extension_symbol
+                || !self
+                    .check
+                    .is_later_definition(obligation.source, competitor_symbol)
+            {
                 continue;
             }
             // require the competitor to extend the same target
@@ -485,35 +600,24 @@ impl BodyState<'_, '_> {
             else {
                 continue;
             };
-            let competes = match root {
-                Some(root) => competitor.target.root() == Some(root),
-                None => competitor.target.is_blanket(),
-            };
-            if !competes {
+            if competitor.target.root() != root {
                 continue;
             }
-
-            // require a blanket competitor to share the ground head
-            let competitor_target = competitor.target.r#type();
             let members = competitor.members.clone();
-            if ground.is_some()
-                && !matches!(
-                    self.ty(competitor_target)?,
-                    dir::Type::Primitive(primitive) if Some(primitive) == ground
-                )
-            {
-                continue;
-            }
+            let implements = competitor.implements.clone();
+            let competitor_target = competitor.target.r#type();
 
-            // report each declared property the competitor also declares
-            let other = self.property_members(&members)?;
+            // report each declared member the competitor also declares inherently
+            let requirements = self.requirement_keys(&implements)?;
+            let competitor_form = self
+                .receiver_form(competitor_target)?
+                .unwrap_or(ReceiverForm::MANAGED);
+            let other = self.keyed_members(&members, competitor_form, &requirements)?;
             for member in &declared {
                 let duplicated = other.iter().any(|candidate| {
                     candidate.key == member.key
                         && candidate.space == member.space
-                        && candidate.form == member.form
-                        && ((candidate.reads && member.reads)
-                            || (candidate.writes && member.writes))
+                        && candidate.form.overlaps(member.form)
                 });
                 if duplicated {
                     failures.push(ObligationFailure::DuplicateExtensionMember {
@@ -528,108 +632,189 @@ impl BodyState<'_, '_> {
         Ok(ObligationCheck::from_failures(failures))
     }
 
-    /// Collect the property members one extension declares.
-    fn property_members(
+    /// Collect the member keys the implemented interfaces require.
+    fn requirement_keys(
+        &mut self,
+        implements: &[dir::NominalConformance],
+    ) -> CompilerResult<FxIndexSet<dir::StaticKey>> {
+        let mut keys = FxIndexSet::default();
+        for conformance in implements {
+            let Some((_, interface)) = self.nominal_application_maybe(conformance.interface)?
+            else {
+                continue;
+            };
+            let Some(dir::Definition::Interface(definition)) = self.definition(interface.symbol)?
+            else {
+                continue;
+            };
+            keys.extend(definition.members.iter().filter_map(|member| member.key()));
+        }
+
+        Ok(keys)
+    }
+
+    /// Collect the inherent keyed members one extension declares.
+    fn keyed_members(
         &mut self,
         members: &[dir::DefinitionMember],
-    ) -> CompilerResult<Vec<PropertyMember>> {
-        let mut properties = Vec::new();
+        target_form: ReceiverForm,
+        requirements: &FxIndexSet<dir::StaticKey>,
+    ) -> CompilerResult<Vec<DeclaredMember>> {
+        let mut keyed = Vec::new();
         for member in members {
-            let (reads, writes) = match member {
-                dir::DefinitionMember::Field(field) => (true, !field.is_readonly),
-                dir::DefinitionMember::Method(method) => match method.role {
-                    Some(dir::FunctionRole::Getter) => (true, false),
-                    Some(dir::FunctionRole::Setter) => (false, true),
-                    // methods union as overloads and never collide
-                    _ => continue,
-                },
-                _ => continue,
-            };
             let Some(key) = member.key() else {
                 continue;
             };
+            if requirements.contains(&key) {
+                continue;
+            }
             let Some(ty) = self.definition_member_type(member)? else {
                 continue;
             };
+
+            // compare by an explicit receiver type, else by the extension target's form
             let this = self
                 .signature_head(ty)?
                 .and_then(|signature| signature.this_parameter);
-            let Some(form) = self.property_receiver(this)? else {
-                continue;
+            let form = match this {
+                Some(this) if !matches!(self.ty(this)?, dir::Type::This) => {
+                    match self.receiver_form(this)? {
+                        Some(form) => form,
+                        None => continue,
+                    }
+                }
+                _ => target_form,
             };
 
-            properties.push(PropertyMember {
+            keyed.push(DeclaredMember {
                 key,
                 space: member.space(),
-                reads,
-                writes,
                 form,
                 source: member.source(),
             });
         }
 
-        Ok(properties)
+        Ok(keyed)
     }
 
-    /// Return the comparable declared receiver of one property member.
-    fn property_receiver(
+    /// Return the receiver form one explicit `this` type writes.
+    pub(in crate::sema) fn receiver_form(
         &mut self,
-        this: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Option<PropertyReceiver>> {
-        let Some(this) = this else {
-            return Ok(Some(PropertyReceiver::Default));
-        };
+        this: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<ReceiverForm>> {
         let form = match self.ty(this)? {
             dir::Type::Form(form) => match form.form {
                 // borrows compare by their access value
                 dir::Form::Borrowed(borrow) => {
                     let borrow = self.check.type_borrow(this.module_id, borrow)?;
-                    let access = borrow.access;
-                    let access = match self.ty(access)? {
-                        dir::Type::Literal(dir::ScalarLiteral::String(name)) => Some(name),
-                        _ => None,
-                    };
 
-                    Some(PropertyReceiver::Borrowed(access))
+                    Some(ReceiverForm {
+                        ownership: dir::Ownership::Borrowed,
+                        access: self.written_access(borrow.access)?,
+                    })
                 }
-                dir::Form::Owned => Some(PropertyReceiver::Owned),
-                dir::Form::Raw => Some(PropertyReceiver::Raw),
-                _ => Some(PropertyReceiver::Default),
+                dir::Form::Owned => Some(ReceiverForm {
+                    ownership: dir::Ownership::Owned,
+                    access: None,
+                }),
+                dir::Form::Raw => Some(ReceiverForm {
+                    ownership: dir::Ownership::Raw,
+                    access: None,
+                }),
+                _ => Some(ReceiverForm::MANAGED),
             },
-            // conversion receivers never collide with plain slots
-            dir::Type::Application(_) => None,
-            _ => Some(PropertyReceiver::Default),
+            // written memory applications compare like the forms they name
+            dir::Type::Application(instance) => {
+                let arguments = self.type_ids(this.module_id, instance.arguments)?.to_vec();
+                match self.language_item(instance.symbol)? {
+                    Some(dir::LanguageItem::Owned) => Some(ReceiverForm {
+                        ownership: dir::Ownership::Owned,
+                        access: None,
+                    }),
+                    Some(dir::LanguageItem::Raw) => Some(ReceiverForm {
+                        ownership: dir::Ownership::Raw,
+                        access: None,
+                    }),
+                    Some(dir::LanguageItem::Borrowed) => {
+                        let access = match arguments.get(2) {
+                            Some(access) => self.written_access(*access)?,
+                            None => None,
+                        };
+
+                        Some(ReceiverForm {
+                            ownership: dir::Ownership::Borrowed,
+                            access,
+                        })
+                    }
+                    Some(dir::LanguageItem::Managed | dir::LanguageItem::Readonly) => {
+                        Some(ReceiverForm::MANAGED)
+                    }
+                    Some(
+                        dir::LanguageItem::Placed
+                        | dir::LanguageItem::WithBase
+                        | dir::LanguageItem::WithOwnership
+                        | dir::LanguageItem::WithPlace
+                        | dir::LanguageItem::WithSpace
+                        | dir::LanguageItem::WithLifetime
+                        | dir::LanguageItem::WithAccess,
+                    ) => match arguments.first() {
+                        Some(inner) => self.receiver_form(*inner)?,
+                        None => None,
+                    },
+                    // keep conversion receivers out of the plain slot
+                    Some(_) => None,
+                    None => Some(ReceiverForm::MANAGED),
+                }
+            }
+            _ => Some(ReceiverForm::MANAGED),
         };
 
         Ok(form)
     }
+
+    /// Return the access one access type writes, open for an access parameter.
+    fn written_access(&mut self, access: dir::GlobalTypeId) -> CompilerResult<Option<dir::Access>> {
+        Ok(match self.ty(access)? {
+            dir::Type::Memory(dir::MemoryLiteral::Access(access)) => Some(access),
+            _ => None,
+        })
+    }
 }
 
-/// One exclusive property member compared for duplicates.
-struct PropertyMember {
+/// One keyed member compared for duplicates across visible extensions.
+struct DeclaredMember {
     /// The member key.
     key: dir::StaticKey,
-    /// The member space declaring the property.
+    /// The member space declaring the member.
     space: dir::MemberSpace,
-    /// Whether the property serves reads.
-    reads: bool,
-    /// Whether the property serves writes.
-    writes: bool,
-    /// The comparable declared receiver form.
-    form: PropertyReceiver,
+    /// The receiver form the member takes.
+    form: ReceiverForm,
     /// The declaring member source node.
     source: dir::GlobalNodeIdAny,
 }
 
-/// The comparable declared receiver of one property member.
-#[derive(PartialEq)]
-enum PropertyReceiver {
+/// The ownership and access one member receiver takes.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(in crate::sema) struct ReceiverForm {
+    /// The receiver ownership.
+    pub(in crate::sema) ownership: dir::Ownership,
+    /// The borrowed access, open for an access parameter.
+    pub(in crate::sema) access: Option<dir::Access>,
+}
+
+impl ReceiverForm {
     /// The family-default managed receiver.
-    Default,
-    /// A borrowed receiver compared by access.
-    Borrowed(Option<dir::StringId>),
-    /// An owned receiver.
-    Owned,
-    /// A raw pointer receiver.
-    Raw,
+    pub(in crate::sema) const MANAGED: Self = Self {
+        ownership: dir::Ownership::Managed,
+        access: None,
+    };
+
+    /// Return whether two receiver forms admit one common receiver.
+    pub(in crate::sema) fn overlaps(self, other: Self) -> bool {
+        self.ownership == other.ownership
+            && match (self.access, other.access) {
+                (Some(left), Some(right)) => left == right,
+                _ => true,
+            }
+    }
 }

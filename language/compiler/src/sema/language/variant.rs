@@ -67,7 +67,7 @@ impl CheckState<'_> {
     fn enum_discriminant_domain(
         &mut self,
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<Vec<dir::ScalarLiteral>>> {
+    ) -> CompilerResult<Option<Vec<dir::Literal>>> {
         // require the value to name an enum declaration instance
         let dir::Type::Application(instance) = self.ty(value)? else {
             return Ok(None);
@@ -79,7 +79,7 @@ impl CheckState<'_> {
         // collect each variant's checked discriminant value
         let domain = definition
             .variants()
-            .map(|variant| dir::ScalarLiteral::from(variant.value))
+            .map(|variant| dir::Literal::from(variant.value))
             .collect();
 
         Ok(Some(domain))
@@ -89,7 +89,7 @@ impl CheckState<'_> {
     pub(in crate::sema) fn variant_discriminant_domain(
         &mut self,
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<Vec<dir::ScalarLiteral>>> {
+    ) -> CompilerResult<Option<Vec<dir::Literal>>> {
         // case-specific types expose only their selected discriminant
         if let dir::Type::Variant(variant) = self.ty(value)? {
             let discriminant = self.variant_discriminant(&variant)?;
@@ -101,10 +101,7 @@ impl CheckState<'_> {
     }
 
     /// Return the discriminant carried by one case-specific type.
-    fn variant_discriminant(
-        &mut self,
-        variant: &dir::VariantType,
-    ) -> CompilerResult<dir::ScalarLiteral> {
+    fn variant_discriminant(&mut self, variant: &dir::VariantType) -> CompilerResult<dir::Literal> {
         let owner = self.variant_owner(variant)?;
 
         // read the declared discriminant from the owning enum
@@ -112,7 +109,7 @@ impl CheckState<'_> {
             Some(dir::Definition::Enum(definition)) => definition
                 .variants()
                 .find(|member| member.symbol == variant.variant)
-                .map(|member| dir::ScalarLiteral::from(member.value)),
+                .map(|member| dir::Literal::from(member.value)),
             _ => None,
         };
         let Some(discriminant) = discriminant else {
@@ -145,7 +142,7 @@ impl CheckState<'_> {
     pub(in crate::sema) fn enum_case_key_from_discriminant(
         &mut self,
         mut value: dir::GlobalTypeId,
-        discriminant: dir::ScalarLiteral,
+        discriminant: dir::Literal,
     ) -> CompilerResult<Option<dir::StaticKey>> {
         if let dir::Type::Variant(variant) = self.ty(value)? {
             value = variant.owner;
@@ -161,7 +158,7 @@ impl CheckState<'_> {
 
         // name the variant carrying this discriminant
         for variant in definition.variants() {
-            if dir::ScalarLiteral::from(variant.value) == discriminant {
+            if dir::Literal::from(variant.value) == discriminant {
                 return Ok(Some(variant.key));
             }
         }

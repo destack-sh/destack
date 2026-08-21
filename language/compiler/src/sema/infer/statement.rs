@@ -8,8 +8,8 @@ use smallvec::SmallVec;
 use crate::sema::{
     BodyState, Cause, CauseKind, ConditionBranch, ControlTargetForm, Expectation, ExpectedType,
     FlowSite, GeneratorTargets, InferMode, Obligation, Origin, PatternCoverage,
-    PatternCoverageObligation, PlaceUse, Relation, RelationCheck, ValueUse, VariableRole,
-    WalkState, Widening,
+    PatternCoverageObligation, PlaceUse, Relation, RelationCheck, Value, ValueUse, VariableRole,
+    WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -169,6 +169,61 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
+    /// Return the open slot variable of one name pattern's binding, when it has one.
+    fn pattern_binding_variable(
+        &mut self,
+        module: ModuleId,
+        pattern: dir::LocalNodeId<dir::Pattern>,
+    ) -> CompilerResult<Option<dir::TypeVariableId>> {
+        let Some(symbol) = self.module(module).declaration_symbol(pattern.into_any()) else {
+            return Ok(None);
+        };
+        let Some(slot) = self.check.binding_type_maybe(symbol) else {
+            return Ok(None);
+        };
+
+        self.check.root_variable(slot)
+    }
+
+    /// Transfer one owned temporary initializer into its family default form.
+    fn default_owned_initializer(
+        &mut self,
+        site: FlowSite,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let Some(adopted) = self.check.family_default_of_owned(ty)? else {
+            return Ok(ty);
+        };
+        let cause = self.check.intern_cause(Cause::root(
+            site.origin(),
+            CauseKind::Initializer { annotation: None },
+        ));
+        self.check_value(
+            site,
+            ty,
+            Expectation {
+                target: adopted,
+                relation: Relation::Assignable,
+                cause,
+                use_: ValueUse::Store,
+                mode: InferMode::Regular,
+            },
+        )?;
+
+        Ok(adopted)
+    }
+
+    /// Record one const name pattern's binding as fresh, so its reads widen like the literal.
+    fn mark_fresh_pattern_binding(
+        &mut self,
+        module: ModuleId,
+        pattern: dir::LocalNodeId<dir::Pattern>,
+    ) {
+        if let Some(symbol) = self.module(module).declaration_symbol(pattern.into_any()) {
+            self.check.fresh_bindings.insert(symbol);
+        }
+    }
+
     /// Infer one yield statement against the enclosing generator targets.
     fn infer_yield_statement(
         &mut self,
@@ -256,9 +311,9 @@ impl BodyState<'_, '_> {
         };
 
         // the delegate return becomes the yield's own output
-        let variable =
-            self.check
-                .allocate_variable(site.origin(), Widening::Never, VariableRole::Regular);
+        let variable = self
+            .check
+            .allocate_variable(site.origin(), VariableRole::Regular);
         let output = self.check.variable_type(variable)?;
 
         // the delegate value must implement the generator protocol
@@ -346,9 +401,7 @@ impl BodyState<'_, '_> {
 
         // open the loop output joined by break values
         let origin = site.origin();
-        let variable = self
-            .check
-            .allocate_variable(origin, Widening::Never, VariableRole::Regular);
+        let variable = self.check.allocate_variable(origin, VariableRole::Regular);
         let result = self.check.variable_type(variable)?;
         let label = self.check.control_label(node.into_typed(), label)?;
         self.check.enter_control_target(
@@ -637,7 +690,7 @@ impl BodyState<'_, '_> {
                     relation: Relation::Assignable,
                     cause,
                     use_: ValueUse::Store,
-                    mode: InferMode::Exact,
+                    mode: InferMode::Regular,
                 };
                 self.attempt_node(site, PlaceUse::Read, Some(expectation))?;
 
@@ -652,7 +705,7 @@ impl BodyState<'_, '_> {
                 // infer the body while checking
                 if !self.is_declaration() {
                     let site = self.visit_site(value.into_global_any(module))?;
-                    self.infer_node(site, PlaceUse::Read, InferMode::Widen)?;
+                    self.infer_node(site, PlaceUse::Read, InferMode::Regular)?;
                 }
 
                 Some(self.intern_type(dir::Type::Error)?)
@@ -660,27 +713,32 @@ impl BodyState<'_, '_> {
             // infer the binding type from its initializer
             (Some(value), None) => {
                 let site = self.visit_site(value.into_global_any(module))?;
-                let widening = self
-                    .check
-                    .declarator_widening(module, &declarator, binding_kind);
-                let mode = match widening {
-                    Widening::Never
-                    | Widening::Aggregate
-                    | Widening::Multiple
-                    | Widening::Const => InferMode::Exact,
-                    Widening::Always => InferMode::Widen,
-                };
-                let ty = self.infer_node(site, PlaceUse::Read, mode)?;
+                let ty = self.infer_node(site, PlaceUse::Read, InferMode::Regular)?;
                 let ty = self.flow_type_at(site, ty)?;
+                let value = Value {
+                    ty,
+                    node: Some(site.node),
+                    place: self.select_expression_place(site, ty)?,
+                    is_fresh: self.check.fresh_nodes.contains_key(&site.node),
+                };
 
-                // take the value's base type for a widening name binding
-                let is_name_binding = matches!(
-                    self.module(module).view().get(pattern),
-                    dir::Pattern::Binding { .. }
-                );
-                let ty = match widening {
-                    Widening::Always if is_name_binding => self.check.widen_type(ty)?,
-                    _ => ty,
+                // a const keeps a fresh literal, any other binding widens it through its slot
+                let ty = if binding_kind == Some(dir::LetKind::Const) {
+                    if value.is_fresh {
+                        self.mark_fresh_pattern_binding(module, pattern);
+                    }
+                    ty
+                } else {
+                    match self.pattern_binding_variable(module, pattern)? {
+                        Some(slot) => self.bind_fresh(slot, value)?,
+                        None => self.fresh_variable(site.origin(), value)?,
+                    }
+                };
+
+                // an owned temporary takes the family default form, an owned place moves as it is
+                let ty = match value.place {
+                    Some(_) => ty,
+                    None => self.default_owned_initializer(site, ty)?,
                 };
 
                 Some(ty)
@@ -784,7 +842,7 @@ impl BodyState<'_, '_> {
                 CauseKind::Expression,
             )),
             use_: ValueUse::Condition,
-            mode: InferMode::Exact,
+            mode: InferMode::Regular,
         };
         self.attempt_node(site, PlaceUse::Read, Some(expectation))?;
 
@@ -850,7 +908,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         ty: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<()> {
-        // reuse a full earlier visit, not a declared-stage decision
+        // reuse a full earlier visit
         if self.check.decision(ty.into_global_any(module)).is_some()
             && self
                 .check
@@ -1073,7 +1131,7 @@ impl BodyState<'_, '_> {
 
         // type a function value with its expression
         if self.register_function_value(node, declaration)? {
-            self.check_function_value(site, None, InferMode::Exact)?;
+            self.check_function_value(site, None, InferMode::Regular)?;
 
             return Ok(());
         }

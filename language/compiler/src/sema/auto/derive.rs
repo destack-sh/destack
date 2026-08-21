@@ -13,13 +13,13 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         interface: dir::AutoInterface,
     ) -> CompilerResult<bool> {
-        // use bounds declared by generic types
+        // unfold aliases, then use bounds declared by generic types
+        let ty = self.normalize(origin, ty)?;
         if let Some(decision) = self.decide_generic_auto_interface(origin, ty, interface)? {
             return Ok(decision);
         }
 
         // close recursive types coinductively across conformance re-entry
-        let ty = self.shallow_resolve(ty)?;
         if !self.deriving.insert((ty, interface)) {
             return Ok(true);
         }
@@ -51,13 +51,29 @@ impl CheckState<'_> {
                 {
                     Ok(true)
                 }
-                // raw addresses compare, hash, and print by identity
-                dir::Form::Raw => Ok(true),
+                // refuse default and zero values for reference carriers
+                dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Owned
+                    if matches!(
+                        interface,
+                        dir::AutoInterface::Default | dir::AutoInterface::Zeroable
+                    ) =>
+                {
+                    Ok(false)
+                }
+                // unpin reference carriers
+                dir::Form::Managed | dir::Form::Borrowed(_)
+                    if interface == dir::AutoInterface::Unpin =>
+                {
+                    Ok(true)
+                }
+                // raw addresses compare, hash, print, and zero by identity, and refuse a default
+                dir::Form::Raw => Ok(interface != dir::AutoInterface::Default),
                 // forward every other carrier to its payload
                 dir::Form::Managed
                 | dir::Form::Readonly
                 | dir::Form::Borrowed(_)
                 | dir::Form::Owned => self.satisfies_derivable(origin, form.value, interface),
+                // forward a placed carrier to its payload
                 dir::Form::Placed { .. } => self.satisfies_derivable(origin, form.value, interface),
             };
         }
@@ -100,17 +116,21 @@ impl CheckState<'_> {
             | dir::Type::FunctionPointer(_)
             | dir::Type::Dynamic(_)
             | dir::Type::Function(_)
-            | dir::Type::Reference(_) => Ok(false),
+            | dir::Type::Reference(_) => Ok(interface == dir::AutoInterface::Unpin),
+            // memory parameters qualify storage and impose none of their own
+            dir::Type::Parameter(parameter) if self.is_memory_parameter(parameter) => Ok(true),
+            // fail the interface for type parameters that survived substitution
+            dir::Type::Parameter(_) => Ok(false),
             // fail loudly on generic forms that survived substitution
-            dir::Type::Parameter(_)
-            | dir::Type::Rigid(_)
-            | dir::Type::Erased(_)
-            | dir::Type::This => Err(CompilerError::Internal {
-                message: format!("generic type {ty:?} reached structural derivability"),
-            }),
-            dir::Type::Form(_) => {
-                unreachable!("memory forms return before structural derivability")
+            dir::Type::Rigid(_) | dir::Type::Erased(_) | dir::Type::This => {
+                Err(CompilerError::Internal {
+                    message: format!("generic type {ty:?} reached structural derivability"),
+                })
             }
+            // fail loudly on memory forms decided before this point
+            dir::Type::Form(_) => Err(CompilerError::Internal {
+                message: format!("memory form {ty:?} reached structural derivability"),
+            }),
 
             // decide a nominal instance through its declaration
             dir::Type::Application(instance) => {
@@ -118,7 +138,9 @@ impl CheckState<'_> {
             }
 
             // structural containers stay with their declared library conformances
-            dir::Type::Slice(_) | dir::Type::Object(_) => Ok(false),
+            dir::Type::Slice(_) | dir::Type::Object(_) => {
+                Ok(interface == dir::AutoInterface::Unpin)
+            }
 
             // decide composites through every component type
             dir::Type::FixedArray(array) => self.field_conforms(origin, array.element, interface),
@@ -160,14 +182,28 @@ impl CheckState<'_> {
         };
 
         match definition {
-            // look through an alias to its value
-            dir::Definition::TypeAlias(definition) => {
-                self.satisfies_derivable(origin, definition.value, interface)
-            }
-            // scalar-backed enums conform through their backing values
-            dir::Definition::Enum(_) => Ok(true),
+            // normalization unfolds aliases before this decision
+            dir::Definition::TypeAlias(_) => Err(CompilerError::Internal {
+                message: format!(
+                    "alias {:?} reached structural derivability",
+                    instance.symbol
+                ),
+            }),
+            // conform scalar-backed enums through their backing values, refusing default and zero
+            dir::Definition::Enum(_) => Ok(!matches!(
+                interface,
+                dir::AutoInterface::Default | dir::AutoInterface::Zeroable
+            )),
             // structs conform when every stored field conforms
             dir::Definition::Struct(definition) => {
+                // refuse Unpin for pinned storage
+                if interface == dir::AutoInterface::Unpin
+                    && self.language_item(instance.symbol)? == Some(dir::LanguageItem::Pin)
+                {
+                    return Ok(false);
+                }
+
+                // collect the stored field types
                 let mut fields = SmallVec::<[_; 8]>::new();
                 for member in &definition.members {
                     if let dir::DefinitionMember::Field(_) = member
@@ -187,7 +223,16 @@ impl CheckState<'_> {
                 [definition.backing],
                 interface,
             ),
+            // conform classes through managed identity and their stored fields
             dir::Definition::Class(definition) => {
+                // refuse default and zero values for managed objects
+                if matches!(
+                    interface,
+                    dir::AutoInterface::Default | dir::AutoInterface::Zeroable
+                ) {
+                    return Ok(false);
+                }
+
                 // class instances equate, hash, and clone by managed identity
                 let formats = matches!(
                     interface,
@@ -214,7 +259,7 @@ impl CheckState<'_> {
 
                 self.all_applied_conform(origin, instance_module, &instance, fields, interface)
             }
-            // interfaces and extensions declare no stored fields
+            // refuse conformance for interfaces and extensions
             dir::Definition::Interface(_) | dir::Definition::Extension(_) => Ok(false),
         }
     }

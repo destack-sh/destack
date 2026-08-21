@@ -24,22 +24,26 @@ impl CheckState<'_> {
         // resolve the solved operand before splitting its arms
         let value = self.shallow_resolve(value)?;
 
-        // split nullish members from the remaining value arms
+        // split nullish members from the remaining value arms, exposing aliased unions
         let mut nullish = Vec::new();
         let mut values = Vec::new();
-        let elements = match self.ty(value)? {
-            dir::Type::Union(union) => {
-                SmallVec::<[_; 4]>::from_slice(self.type_ids(value.module_id, union.elements)?)
-            }
-            dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(None),
-            _ => SmallVec::from_slice(&[value]),
+        let split = self.normalize(origin, value)?;
+        if matches!(
+            self.ty(split)?,
+            dir::Type::Variable(_) | dir::Type::Parameter(_)
+        ) {
+            return Ok(None);
+        }
+        let elements = match self.union_leaves(origin, split)? {
+            Some(leaves) => leaves,
+            None => SmallVec::from_slice(&[value]),
         };
         for element in elements {
-            let element = self.shallow_resolve(element)?;
-            match self.ty(element)? {
+            let resolved = self.normalize(origin, element)?;
+            match self.ty(resolved)? {
                 dir::Type::Null
                 | dir::Type::Undefined
-                | dir::Type::Literal(dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined) => {
+                | dir::Type::Literal(dir::Literal::Null | dir::Literal::Undefined) => {
                     nullish.push(element)
                 }
                 _ => values.push(element),

@@ -1072,6 +1072,7 @@ const selected: &readonly User = match (choice) {
 /// @type.symbol symbol=selected source=selected type=&'static readonly User
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=User target=User
+/// @resolution.coverage exhaustive=true disjoint=false
 /// @resolution.name source=choice target=choice
 /// @resolution.place source=choice placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=choice root=choice
@@ -1615,7 +1616,7 @@ declare const values: shared int32[];
 
 values.push(1);
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.push receiver=Placed<int32[], "shared"> type=<collections.array.push.'a>(this: Placed<&collections.array.push.'a exclusive int32[], "shared">, ...int32[]) => isize kind=symbol target_receiver=Placed<int32[], "shared"> target=collections.array.push
+/// @resolution.member source=values.push receiver=Placed<int32[], "shared"> type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=Placed<int32[], "shared"> target=collections.array.push
 /// @resolution.call source=values.push(1) parameters=(Placed<int32[], "shared">) arguments=(rest(1) pack=collections.array.arrayFromSlice as int32) return=isize kind=symbol target=collections.array.push receiver=Placed<int32[], "shared"> instance=Array<int32>.<extension#5>.push
 /// @resolution.place source=values placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=values root=values
@@ -1638,7 +1639,7 @@ declare const message: shared Message;
 
 messages.push(message);
 /// @resolution.name source=messages target=messages
-/// @resolution.member source=messages.push receiver=Placed<Message[], "shared"> type=<collections.array.push.'a>(this: Placed<&collections.array.push.'a exclusive Message[], "shared">, ...Message[]) => isize kind=symbol target_receiver=Placed<Message[], "shared"> target=collections.array.push
+/// @resolution.member source=messages.push receiver=Placed<Message[], "shared"> type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive Message[], ...Message[]) => isize kind=symbol target_receiver=Placed<Message[], "shared"> target=collections.array.push
 /// @resolution.call source=messages.push(message) parameters=(Placed<Message[], "shared">) arguments=(rest(message) pack=collections.array.arrayFromSlice as Placed<Message, "shared">) return=isize kind=symbol target=collections.array.push receiver=Placed<Message[], "shared"> instance=Array<Message>.<extension#5>.push
 /// @resolution.place source=messages placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=messages root=messages
@@ -1647,9 +1648,9 @@ messages.push(message);
 /// @resolution.name source=message target=message
 "#,
         r#"
-/// @diagnostic.error id=receiver-not-assignable message="receiver type 'shared int32[]' is not assignable to the method's 'this' type 'shared &exclusive int32[]'"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type 'shared int32[]' is not assignable to the method's 'this' type '&exclusive int32[]'"
 /// @diagnostic.label line=4 column=1 span="values.push(1)" line_source="values.push(1);"
-/// @diagnostic.error id=receiver-not-assignable message="receiver type 'shared Message[]' is not assignable to the method's 'this' type 'shared &exclusive Message[]'"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type 'shared Message[]' is not assignable to the method's 'this' type '&exclusive Message[]'"
 /// @diagnostic.label line=11 column=1 span="messages.push(message)" line_source="messages.push(message);"
 "#,
     );
@@ -2071,7 +2072,7 @@ import { Copy } from "destack:memory";
 declare function duplicate<T: Copy>(value: T): ^T;
 declare const values: ^int32[];
 
-duplicate<32>(32);
+duplicate<int64>(32);
 duplicate(values);
 
 === dir ===
@@ -2093,8 +2094,8 @@ declare const values: ^Array<int32>;
 
 duplicate(32);
 /// @resolution.name source=duplicate target=duplicate
-/// @resolution.call source=duplicate(32) parameters=(32) arguments=(provided(32) as 32) return=Owned<32> kind=symbol target=duplicate instance=duplicate<32>
-/// @generic.instantiation id=duplicate<32> template=duplicate arguments=(32)
+/// @resolution.call source=duplicate(32) parameters=(int64) arguments=(provided(32) as int64) return=Owned<int64> kind=symbol target=duplicate instance=duplicate<int64>
+/// @generic.instantiation id=duplicate<int64> template=duplicate arguments=(int64)
 
 duplicate(values);
 /// @resolution.name source=duplicate target=duplicate
@@ -2130,12 +2131,12 @@ filtered;
         r#"
 === annotated ===
 declare const values: (int32 | undefined)[];
-const mapped: ^(int32 | undefined)[] = values.map<int32 | undefined, int32 | undefined>(
+const mapped: (int32 | undefined)[] = values.map<int32 | undefined, int32 | undefined>(
     (value: int32 | undefined): int32 | undefined => value,
-);
-const filtered: ^(int32 | undefined)[] = mapped.filter<int32 | undefined>(
-    (value: &'a readonly (int32 | undefined)): boolean => (value as int32 | undefined) != undefined,
-);
+) as (int32 | undefined)[];
+const filtered: (int32 | undefined)[] = mapped.filter<int32 | undefined>(
+    (value: int32 | undefined): boolean => value != undefined,
+) as (int32 | undefined)[];
 
 filtered;
 
@@ -2145,7 +2146,7 @@ declare const values: (int32 | undefined)[];
 /// @resolution.pattern source=values kind=binding target=values
 
 const mapped = values.map((value) => value);
-/// @type.symbol symbol=mapped source=mapped type=Owned<int32 | undefined[]>
+/// @type.symbol symbol=mapped source=mapped type=int32 | undefined[]
 /// @resolution.pattern source=mapped kind=binding target=mapped
 /// @resolution.name source=values target=values
 /// @resolution.member source=values.map receiver=int32 | undefined[] type=<collections.array.map.U#2>(this: int32 | undefined[], Function<(int32 | undefined, isize), collections.array.map.U#2>) => Owned<collections.array.map.U#2[]> kind=symbol target_receiver=int32 | undefined[] target=collections.array.map#2
@@ -2161,17 +2162,16 @@ const mapped = values.map((value) => value);
 /// @resolution.access source=value root=symbol2.value
 
 const filtered = mapped.filter((value) => value != undefined);
-/// @type.symbol symbol=filtered source=filtered type=Owned<int32 | undefined[]>
+/// @type.symbol symbol=filtered source=filtered type=int32 | undefined[]
 /// @resolution.pattern source=filtered kind=binding target=filtered
 /// @resolution.name source=mapped target=mapped
-/// @resolution.member source=mapped.filter receiver=Owned<int32 | undefined[]> type=(this: Owned<int32 | undefined[]>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> & (this: Owned<int32 | undefined[]>, Function<(int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> kind=overload-set targets=[collections.array.filter#1, collections.array.filter#2]
-/// @resolution.call source="mapped.filter((value) => value != undefined)" parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value != undefined) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=Owned<int32 | undefined[]> kind=symbol target=collections.array.filter#1 receiver=Owned<int32 | undefined[]> instance=Owned<collections.array.T#2[]>.<extension#2>.filter#1
-/// @resolution.place source=mapped placement="local" lifetime="static" access="readonly"
+/// @resolution.member source=mapped.filter receiver=int32 | undefined[] type=(this: int32 | undefined[], Function<(int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> kind=symbol target_receiver=int32 | undefined[] target=collections.array.filter#2
+/// @resolution.call source="mapped.filter((value) => value != undefined)" parameters=(Function<(int32 | undefined, isize), boolean>) arguments=(provided((value) => value != undefined) as Function<(int32 | undefined, isize), boolean>) return=Owned<int32 | undefined[]> kind=symbol target=collections.array.filter#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#3>.filter#2"
+/// @resolution.place source=mapped placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=mapped root=mapped
-/// @generic.instantiation id="collections.array.filter#1<int32 | undefined>" template=collections.array.filter#1 arguments=(int32 | undefined)
 /// @generic.instantiation id="collections.array.filter#2<int32 | undefined>" template=collections.array.filter#2 arguments=(int32 | undefined)
-/// @type.symbol symbol=symbol5 source="(value) => value != undefined" type=Function<(&type_expression.'a readonly int32 | undefined,), boolean>
-/// @type.symbol symbol=symbol5.value source=value type=&type_expression.'a readonly int32 | undefined
+/// @type.symbol symbol=symbol5 source="(value) => value != undefined" type=Function<(int32 | undefined,), boolean>
+/// @type.symbol symbol=symbol5.value source=value type=int32 | undefined
 /// @resolution.name source=value target=symbol5.value
 /// @resolution.operator source="value != undefined" type=boolean operator="!=" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as undefined families=(undefined)]
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -2179,7 +2179,7 @@ const filtered = mapped.filter((value) => value != undefined);
 
 filtered;
 /// @resolution.name source=filtered target=filtered
-/// @resolution.place source=filtered placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=filtered placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=filtered root=filtered
 "#,
         r#"

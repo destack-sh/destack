@@ -98,6 +98,7 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
 
     match (outcome) {
     /// @type.node type=T#3
+    /// @resolution.coverage exhaustive=true disjoint=true
     /// @type.node source=outcome type=Outcome<T#3, E#3>
     /// @resolution.name source=outcome target=unwrapOr.outcome
     /// @resolution.place source=outcome placement="local" lifetime="frame" access="exclusive"
@@ -223,6 +224,7 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
 
     match (outcome) {
     /// @type.node type=T#3
+    /// @resolution.coverage exhaustive=false disjoint=true
     /// @type.node source=outcome type=Outcome<T#3, E#3>
     /// @resolution.name source=outcome target=unwrap.outcome
     /// @resolution.place source=outcome placement="local" lifetime="frame" access="exclusive"

@@ -33,7 +33,7 @@ pub(in crate::sema) struct PatternArm {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::sema) enum Obligation {
-    /// A pattern-bearing site must cover the matched value space.
+    /// A site's patterns must cover the matched value space.
     PatternCoverage(PatternCoverageObligation),
     /// An assignment must select a writable target.
     WritableTarget(Box<WritableTargetObligation>),
@@ -147,21 +147,21 @@ impl ObligationCheck {
 pub(in crate::sema) enum ObligationFailure {
     /// A match expression did not cover one remaining value.
     NonExhaustivePattern {
-        /// The expression or pattern-bearing source.
+        /// The source holding the patterns.
         source: dir::GlobalNodeIdAny,
         /// A representative uncovered value.
         missing: UncoveredValue,
     },
     /// A non-matching binding pattern can reject one remaining value.
     RefutablePattern {
-        /// The pattern-bearing source.
+        /// The source holding the pattern.
         source: dir::GlobalNodeIdAny,
         /// A representative uncovered value.
         missing: UncoveredValue,
     },
     /// A catch binding pattern can reject one remaining failure value.
     RefutableCatchPattern {
-        /// The pattern-bearing source.
+        /// The source holding the pattern.
         source: dir::GlobalNodeIdAny,
         /// A representative uncovered value.
         missing: UncoveredValue,
@@ -301,8 +301,17 @@ pub(in crate::sema) enum ObligationFailure {
         source: dir::GlobalNodeIdAny,
         /// The implemented interface.
         interface: dir::GlobalSymbolId,
-        /// The implemented type symbol.
-        ty: dir::GlobalSymbolId,
+        /// The implemented root.
+        root: dir::TypeRoot,
+    },
+    /// An extension member redeclares a member of the root declaration.
+    InherentMemberRedeclared {
+        /// The redeclaring member source.
+        source: dir::GlobalNodeIdAny,
+        /// The member key.
+        member: dir::StaticKey,
+        /// The rendered root declaration type.
+        target: String,
     },
     /// A blanket implementation is outside the interface package.
     ForeignBlanketImplementation {
@@ -473,7 +482,7 @@ pub(in crate::sema) enum UncoveredValue {
     },
 }
 
-/// Obliges a pattern-bearing site to cover the matched value space.
+/// Obliges one site's patterns to cover the matched value space.
 ///
 /// ```ds
 /// match (value) { true => 1, false => 0 }
@@ -490,7 +499,7 @@ pub(in crate::sema) struct PatternCoverageObligation {
     pub(in crate::sema) coverage: PatternCoverage,
 }
 
-/// A pattern-bearing site whose coverage must be checked.
+/// The patterns one site covers its matched value with.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::sema) enum PatternCoverage {
     /// A match expression whose active arms must be exhaustive.

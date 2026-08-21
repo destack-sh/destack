@@ -21,7 +21,7 @@ impl CheckState<'_> {
 
         match self.ty(target)? {
             // map one closed string literal
-            dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
+            dir::Type::Literal(dir::Literal::String(value)) => {
                 let mapped = self.reduce_string_mapping(id.module_id, mapping, value)?;
 
                 Ok(Some(mapped))
@@ -127,7 +127,7 @@ impl CheckState<'_> {
         let mut literals = Vec::with_capacity(joined.len());
         for text in joined {
             let text = self.strings().intern(&text);
-            let literal = dir::Type::Literal(dir::ScalarLiteral::String(text));
+            let literal = dir::Type::Literal(dir::Literal::String(text));
             literals.push(self.intern_type(literal)?);
         }
         let reduced = match literals.as_slice() {
@@ -151,7 +151,7 @@ impl CheckState<'_> {
         };
 
         // short-circuit logical joins on a decided left operand
-        if let Some(dir::ScalarLiteral::Boolean(value)) = left_literal {
+        if let Some(dir::Literal::Boolean(value)) = left_literal {
             match (binary.operator, value) {
                 (dir::StaticBinaryOperator::And, false) | (dir::StaticBinaryOperator::Or, true) => {
                     return Ok(Some(left));
@@ -160,7 +160,7 @@ impl CheckState<'_> {
                     let right = self.normalize(origin, binary.right)?;
 
                     return match self.ty(right)? {
-                        dir::Type::Literal(dir::ScalarLiteral::Boolean(_)) => Ok(Some(right)),
+                        dir::Type::Literal(dir::Literal::Boolean(_)) => Ok(Some(right)),
                         _ => Ok(None),
                     };
                 }
@@ -181,8 +181,8 @@ impl CheckState<'_> {
         // concatenate string literals through module storage
         if let (
             dir::StaticBinaryOperator::Add,
-            dir::ScalarLiteral::String(left_value),
-            dir::ScalarLiteral::String(right_value),
+            dir::Literal::String(left_value),
+            dir::Literal::String(right_value),
         ) = (binary.operator, left_literal, right_literal)
         {
             let _module = origin.module();
@@ -192,7 +192,7 @@ impl CheckState<'_> {
                 format!("{}{}", strings.get(left_value), strings.get(right_value))
             };
             let joined = self.strings().intern(&joined);
-            let literal = dir::Type::Literal(dir::ScalarLiteral::String(joined));
+            let literal = dir::Type::Literal(dir::Literal::String(joined));
 
             return Ok(Some(self.intern_type(literal)?));
         }
@@ -226,12 +226,12 @@ impl CheckState<'_> {
 
         // evaluate operators that are defined for the closed literal
         let evaluated = match (unary.operator, literal) {
-            (dir::StaticUnaryOperator::Not, dir::ScalarLiteral::Boolean(value)) => {
-                Some(dir::ScalarLiteral::Boolean(!value))
+            (dir::StaticUnaryOperator::Not, dir::Literal::Boolean(value)) => {
+                Some(dir::Literal::Boolean(!value))
             }
-            (dir::StaticUnaryOperator::Negate, dir::ScalarLiteral::Integer(value)) => {
+            (dir::StaticUnaryOperator::Negate, dir::Literal::Integer(value)) => {
                 match value.checked_neg() {
-                    Some(negated) => Some(dir::ScalarLiteral::Integer(negated)),
+                    Some(negated) => Some(dir::Literal::Integer(negated)),
                     None => {
                         self.report_static_operation(origin, "integer negation overflows")?;
 
@@ -239,11 +239,11 @@ impl CheckState<'_> {
                     }
                 }
             }
-            (dir::StaticUnaryOperator::Negate, dir::ScalarLiteral::Float(value)) => {
-                Some(dir::ScalarLiteral::Float(-value))
+            (dir::StaticUnaryOperator::Negate, dir::Literal::Float(value)) => {
+                Some(dir::Literal::Float(-value))
             }
-            (dir::StaticUnaryOperator::BitwiseNot, dir::ScalarLiteral::Integer(value)) => {
-                Some(dir::ScalarLiteral::Integer(!value))
+            (dir::StaticUnaryOperator::BitwiseNot, dir::Literal::Integer(value)) => {
+                Some(dir::Literal::Integer(!value))
             }
             _ => None,
         };
@@ -268,7 +268,7 @@ impl CheckState<'_> {
         let text = self.strings().get(value).to_string();
         let mapped = mapping.apply(&text);
         let mapped = self.strings().intern(&mapped);
-        let literal = dir::Type::Literal(dir::ScalarLiteral::String(mapped));
+        let literal = dir::Type::Literal(dir::Literal::String(mapped));
 
         self.intern_type(literal)
     }
@@ -283,7 +283,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let target = self.normalize(origin, target)?;
         let reduced = match self.ty(target)? {
-            dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
+            dir::Type::Literal(dir::Literal::String(value)) => {
                 self.reduce_string_mapping(module, mapping, value)?
             }
             dir::Type::Key(dir::StaticKey::Name(value)) => {

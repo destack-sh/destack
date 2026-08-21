@@ -283,30 +283,30 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             dir::Type::This => dir::TypeExpression::This,
 
             dir::Type::Primitive(primitive) => Self::literal(dir::TypeLiteral::from(primitive)),
-            dir::Type::Literal(literal) => dir::TypeExpression::ScalarLiteral { value: literal },
+            dir::Type::Literal(literal) => dir::TypeExpression::Literal { value: literal },
             dir::Type::Key(key) => {
                 let Some(value) = Self::static_key_literal(&key) else {
                     return Ok(None);
                 };
 
-                dir::TypeExpression::ScalarLiteral { value }
+                dir::TypeExpression::Literal { value }
             }
-            dir::Type::Memory(literal) => dir::TypeExpression::ScalarLiteral {
-                value: dir::ScalarLiteral::String(self.strings.intern(literal.text())),
+            dir::Type::Memory(literal) => dir::TypeExpression::Literal {
+                value: dir::Literal::String(self.strings.intern(literal.text())),
             },
             dir::Type::Static(value) => match self.check.r#static(value) {
-                dir::StaticTerm::ScalarLiteral { value } => {
-                    dir::TypeExpression::ScalarLiteral { value: *value }
+                dir::StaticTerm::Literal { value } => {
+                    dir::TypeExpression::Literal { value: *value }
                 }
                 _ => return Ok(None),
             },
             dir::Type::Range(range) => {
                 let start = range
                     .start
-                    .map(|value| self.insert(dir::TypeExpression::ScalarLiteral { value }));
+                    .map(|value| self.insert(dir::TypeExpression::Literal { value }));
                 let end = range
                     .end
-                    .map(|value| self.insert(dir::TypeExpression::ScalarLiteral { value }));
+                    .map(|value| self.insert(dir::TypeExpression::Literal { value }));
                 let end_kind = if range.is_inclusive {
                     dir::RangeEnd::Inclusive
                 } else {
@@ -402,7 +402,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 let dir::Type::Literal(value) = self.check.ty(count)? else {
                     return Ok(None);
                 };
-                let length = self.insert(dir::Expression::ScalarLiteral(value));
+                let length = self.insert(dir::Expression::Literal(value));
 
                 dir::TypeExpression::FixedArray { element, length }
             }
@@ -957,19 +957,19 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         let id = self.check.shallow_resolve(id)?;
 
         let expression = match self.check.ty(id)? {
-            dir::Type::Literal(value) => dir::Expression::ScalarLiteral(value),
+            dir::Type::Literal(value) => dir::Expression::Literal(value),
             dir::Type::Key(key) => {
                 let Some(value) = Self::static_key_literal(&key) else {
                     return Ok(None);
                 };
 
-                dir::Expression::ScalarLiteral(value)
+                dir::Expression::Literal(value)
             }
-            dir::Type::Memory(literal) => dir::Expression::ScalarLiteral(
-                dir::ScalarLiteral::String(self.strings.intern(literal.text())),
-            ),
+            dir::Type::Memory(literal) => {
+                dir::Expression::Literal(dir::Literal::String(self.strings.intern(literal.text())))
+            }
             dir::Type::Static(value) => match self.check.r#static(value) {
-                dir::StaticTerm::ScalarLiteral { value } => dir::Expression::ScalarLiteral(*value),
+                dir::StaticTerm::Literal { value } => dir::Expression::Literal(*value),
                 _ => return Ok(None),
             },
             dir::Type::Union(union) => {
@@ -1023,13 +1023,13 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
     }
 
     /// Return the scalar literal text of one exact key type.
-    fn static_key_literal(key: &dir::StaticKey) -> Option<dir::ScalarLiteral> {
+    fn static_key_literal(key: &dir::StaticKey) -> Option<dir::Literal> {
         match key {
-            dir::StaticKey::Name(name) => Some(dir::ScalarLiteral::String(*name)),
+            dir::StaticKey::Name(name) => Some(dir::Literal::String(*name)),
             dir::StaticKey::Index(index) => {
                 let index = i64::try_from(*index).ok()?;
 
-                Some(dir::ScalarLiteral::Integer(index))
+                Some(dir::Literal::Integer(index))
             }
         }
     }
@@ -1102,7 +1102,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         Some(self.insert(dir::Expression::Identifier { name }))
     }
 
-    /// Spell one symbol name into the render pool.
+    /// Write one symbol name into the render pool.
     fn symbol_name(&self, symbol: dir::GlobalSymbolId) -> Option<dir::StringId> {
         if let Some(item) = self.check.environment_bound.language.item(symbol) {
             return Some(self.language_item_name(item));
@@ -1116,14 +1116,14 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         }
     }
 
-    /// Spell one language item by its source export name.
+    /// Write one language item by its source export name.
     fn language_item_name(&self, item: dir::LanguageItem) -> dir::StringId {
         self.strings.intern(item.export_name())
     }
 
     /// Return one keyword type literal expression.
     fn literal(literal: dir::TypeLiteral) -> dir::TypeExpression {
-        dir::TypeExpression::Literal { value: literal }
+        dir::TypeExpression::Keyword { value: literal }
     }
 
     /// Return one bare type reference expression.

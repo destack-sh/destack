@@ -113,6 +113,7 @@ declare const point: Point;
 
 match (point) {
 /// @type.node type=int32
+/// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="local" lifetime="static" access="readonly"
@@ -178,6 +179,7 @@ declare const point: Point;
 
 match (point) {
 /// @type.node type=int32
+/// @resolution.coverage exhaustive=false disjoint=true
 /// @type.node source=point type={ x: int32; y: int32 }
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
@@ -280,6 +282,7 @@ declare const user: User;
 
 match (user) {
 /// @type.node type=<error>
+/// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"

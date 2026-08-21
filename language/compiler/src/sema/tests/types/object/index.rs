@@ -981,7 +981,7 @@ extension of Counter implements Index<string>, IndexSet<string, int32 | float64>
 }
 
 declare let counter: Counter;
-counter["value"] += 1;
+(counter["value"] += 1) as int32 | float64;
 
 === dir ===
 struct Counter {}

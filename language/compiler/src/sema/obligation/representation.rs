@@ -311,7 +311,7 @@ impl CheckState<'_> {
             }
         };
 
-        // reuse per-node proofs, since concrete and finite walks are place independent
+        // reuse the per-node proofs of the place independent walks
         match check {
             RepresentationCheck::Concrete { .. } => {
                 if self.is_representation_proven(origin, ty, dir::AutoInterface::Concrete)? {
@@ -326,6 +326,12 @@ impl CheckState<'_> {
                 }
             }
             RepresentationCheck::Shared { .. } => {}
+        }
+
+        // an open numeric variable stores like the scalar it settles to
+        let ty = self.shallow_resolve(ty)?;
+        if self.numeric_root(ty)?.is_some() {
+            return Ok(None);
         }
 
         // fail inline storage on a cycle and stop the shared walk

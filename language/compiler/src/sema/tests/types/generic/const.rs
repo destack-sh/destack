@@ -197,7 +197,7 @@ declare const flagged: Flagged<{ name: "search"; enabled: true }>;
 }
 
 #[test]
-fn test_scratch_usize_int_compare() {
+fn test_reject_a_comparison_between_usize_and_int64() {
     let session = TestSession::single(
         r#"
 function f(a: usize, b: int64): boolean {
@@ -240,7 +240,7 @@ function f(a: usize, b: int64): boolean {
 }
 
 #[test]
-fn test_scratch_slice_index_write() {
+fn test_assign_through_an_exclusive_generic_slice_index() {
     let session = TestSession::single(
         r#"
 function put<T>(destination: &exclusive [T], value: T): void {
@@ -296,7 +296,7 @@ function put<T>(destination: &exclusive [T], value: T): void {
 }
 
 #[test]
-fn test_scratch_slice_index_write_concrete() {
+fn test_assign_through_an_exclusive_int32_slice_index() {
     let session = TestSession::single(
         r#"
 function put(destination: &exclusive [int32], value: int32): void {

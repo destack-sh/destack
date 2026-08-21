@@ -13,7 +13,8 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
-        // use bounds declared by generic types
+        // unfold aliases, then use bounds declared by generic types
+        let ty = self.normalize(origin, ty)?;
         if let Some(decision) =
             self.decide_generic_auto_interface(origin, ty, dir::AutoInterface::Copy)?
         {
@@ -21,7 +22,6 @@ impl CheckState<'_> {
         }
 
         // close recursive structural types coinductively
-        let ty = self.shallow_resolve(ty)?;
         if active.contains(&ty) {
             return Ok(Verdict::Holds);
         }
@@ -82,7 +82,6 @@ impl CheckState<'_> {
 
                 self.satisfies_copy(origin, refined.base, active)
             }
-
             // copy owned scalar values directly
             dir::Type::Error
             | dir::Type::Never
@@ -108,23 +107,30 @@ impl CheckState<'_> {
             | dir::Type::Dynamic(_)
             | dir::Type::Function(_)
             | dir::Type::Reference(_) => Ok(Verdict::Fails),
+            // memory parameters qualify storage and impose none of their own
+            dir::Type::Parameter(parameter) if self.is_memory_parameter(parameter) => {
+                Ok(Verdict::Holds)
+            }
+            // fail the interface for type parameters that survived substitution
+            dir::Type::Parameter(_) => Ok(Verdict::Fails),
             // fail loudly on generic forms that survived substitution
-            dir::Type::Parameter(_)
-            | dir::Type::Rigid(_)
-            | dir::Type::Erased(_)
-            | dir::Type::This => Err(CompilerError::Internal {
-                message: format!("generic type {ty:?} reached structural copy"),
+            dir::Type::Rigid(_) | dir::Type::Erased(_) | dir::Type::This => {
+                Err(CompilerError::Internal {
+                    message: format!("generic type {ty:?} reached structural copy"),
+                })
+            }
+            // fail loudly on memory forms decided before this point
+            dir::Type::Form(_) => Err(CompilerError::Internal {
+                message: format!("memory form {ty:?} reached structural copy"),
             }),
-            // explicit memory forms decide before structural storage
-            dir::Type::Form(_) => unreachable!("memory forms return before structural copy"),
             // judge nominal storage through its declaration
             dir::Type::Application(instance) => {
                 self.satisfies_copy_instance(origin, ty.module_id, instance, active)
             }
-            // bare slices return through their managed default
-            dir::Type::Slice(_) => {
-                unreachable!("managed slices return before structural copy")
-            }
+            // fail loudly on managed slices decided before this point
+            dir::Type::Slice(_) => Err(CompilerError::Internal {
+                message: format!("managed slice {ty:?} reached structural copy"),
+            }),
             // judge fixed arrays through their element
             dir::Type::FixedArray(array) => self.satisfies_copy(origin, array.element, active),
             // judge tuples through every element
@@ -201,6 +207,8 @@ impl CheckState<'_> {
 
         // decide owned payloads by their stored representation
         match kind {
+            // decide explicit memory carriers through the carrier rules
+            dir::Type::Form(_) => self.satisfies_copy(origin, ty, active),
             // reject carriers whose descriptor uniquely owns indirect storage
             dir::Type::Dynamic(_) | dir::Type::Function(_) | dir::Type::Slice(_) => {
                 Ok(Verdict::Fails)
@@ -241,11 +249,11 @@ impl CheckState<'_> {
         };
 
         match definition {
-            // look through an alias to the type it names
-            dir::Definition::TypeAlias(definition) => {
-                self.satisfies_copy(origin, definition.value, active)
-            }
-            // copy a struct once every field copies
+            // normalization unfolds aliases before this decision
+            dir::Definition::TypeAlias(_) => Err(CompilerError::Internal {
+                message: format!("alias {:?} reached structural copy", instance.symbol),
+            }),
+            // copy a struct once every field copies, a raw pointer field under a written derive
             dir::Definition::Struct(definition) => {
                 let mut fields = SmallVec::<[_; 8]>::new();
                 for member in &definition.members {
@@ -255,19 +263,34 @@ impl CheckState<'_> {
                         fields.push(ty);
                     }
                 }
+                if !derives_copy(definition.derives.as_deref()) {
+                    for field in &fields {
+                        if self.is_raw_pointer(*field)? {
+                            return Ok(Verdict::Fails);
+                        }
+                    }
+                }
 
                 self.all_applied_copy(origin, instance_module, &instance, fields, active)
             }
             // copy an enum at its integer tag or managed string reference
             dir::Definition::Enum(_) => Ok(Verdict::Holds),
-            // copy a newtype once its backing type copies
-            dir::Definition::Newtype(definition) => self.all_applied_copy(
-                origin,
-                instance_module,
-                &instance,
-                [definition.backing],
-                active,
-            ),
+            // copy a newtype through its backing type, a raw pointer backing under a written derive
+            dir::Definition::Newtype(definition) => {
+                if !derives_copy(definition.derives.as_deref())
+                    && self.is_raw_pointer(definition.backing)?
+                {
+                    return Ok(Verdict::Fails);
+                }
+
+                self.all_applied_copy(
+                    origin,
+                    instance_module,
+                    &instance,
+                    [definition.backing],
+                    active,
+                )
+            }
             // move class values
             dir::Definition::Class(_) => Ok(Verdict::Fails),
             // move interface values
@@ -299,6 +322,13 @@ impl CheckState<'_> {
         Ok(verdict)
     }
 
+    /// Return whether one type is a raw pointer form.
+    fn is_raw_pointer(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let ty = self.shallow_resolve(ty)?;
+
+        Ok(matches!(self.ty(ty)?, dir::Type::Form(form) if form.form == dir::Form::Raw))
+    }
+
     /// Decide whether every type in one iterator is copyable.
     fn all_copy(
         &mut self,
@@ -316,4 +346,9 @@ impl CheckState<'_> {
 
         Ok(verdict)
     }
+}
+
+/// Return whether one written derive list names `Copy`.
+fn derives_copy(derives: Option<&[dir::AutoInterface]>) -> bool {
+    derives.is_some_and(|derives| derives.contains(&dir::AutoInterface::Copy))
 }

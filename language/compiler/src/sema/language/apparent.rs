@@ -98,7 +98,21 @@ impl CheckState<'_> {
         instance.intern(self)
     }
 
-    /// Return the declaration instance that owns one receiver's apparent members.
+    /// Return the root an undeclared structural type keys its extensions at: a primitive, or
+    /// the tuple constructor.
+    pub(in crate::sema) fn structural_root(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::TypeRoot>> {
+        Ok(match self.ty(ty)? {
+            dir::Type::Primitive(primitive) => Some(dir::TypeRoot::Primitive(primitive)),
+            dir::Type::Tuple(_) => Some(dir::TypeRoot::Tuple),
+            _ => None,
+        })
+    }
+
+    /// Return the declaration instance owning one receiver's apparent members: its nominal
+    /// declaration, or the language item a structural type roots at (tsc's apparent type).
     pub(in crate::sema) fn apparent_instance(
         &mut self,
         receiver: dir::GlobalTypeId,
@@ -134,10 +148,69 @@ impl CheckState<'_> {
                 symbol: self.language_symbol(dir::LanguageItem::FixedArray)?,
                 arguments: SmallVec::from_slice(&[array.element, array.count]),
             },
+            dir::Type::Function(function) => {
+                let Some(instance) =
+                    self.function_instance(function.signature, Some(function.multiplicity))?
+                else {
+                    return Ok(None);
+                };
+
+                instance
+            }
+            dir::Type::FunctionSignature(_) => {
+                let Some(instance) = self.function_instance(receiver, None)? else {
+                    return Ok(None);
+                };
+
+                instance
+            }
             _ => return Ok(None),
         };
 
         Ok(Some(instance))
+    }
+
+    /// Return the `Function` instance one signature writes: its parameter tuple, return type,
+    /// and multiplicity.
+    fn function_instance(
+        &mut self,
+        signature: dir::GlobalTypeId,
+        multiplicity: Option<dir::Multiplicity>,
+    ) -> CompilerResult<Option<ApparentInstance>> {
+        let Some(function) = self.signature_head(signature)? else {
+            return Ok(None);
+        };
+        let Some(return_type) = function.return_type else {
+            return Ok(None);
+        };
+        let elements = self
+            .signature_parameters(signature.module_id, function.parameters)?
+            .iter()
+            .map(|parameter| dir::TypeElement {
+                label: parameter.name,
+                ty: parameter.ty,
+                is_optional: parameter.is_optional,
+                is_readonly: false,
+                is_rest: parameter.is_rest,
+            })
+            .collect::<Vec<_>>();
+        let elements = self.intern_elements(&elements)?;
+        let parameters = self.intern_type(dir::Type::Tuple(dir::TupleType {
+            form: dir::TupleForm::Tuple,
+            elements,
+        }))?;
+        let multiplicity = match multiplicity.unwrap_or(dir::Multiplicity::Repeatable) {
+            dir::Multiplicity::Repeatable => "repeatable",
+            dir::Multiplicity::Once => "once",
+        };
+        let multiplicity = self.intern_type(dir::Type::Literal(dir::Literal::String(
+            dir::StringId::for_text(multiplicity),
+        )))?;
+
+        Ok(Some(ApparentInstance {
+            symbol: self.language_symbol(dir::LanguageItem::Function)?,
+            arguments: SmallVec::from_slice(&[parameters, return_type, multiplicity]),
+        }))
     }
 }
 

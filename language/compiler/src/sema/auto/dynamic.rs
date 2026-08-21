@@ -13,7 +13,8 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
-        // use bounds declared by generic types
+        // unfold aliases, then use bounds declared by generic types
+        let ty = self.normalize(origin, ty)?;
         if let Some(decision) =
             self.decide_generic_auto_interface(origin, ty, dir::AutoInterface::DynamicSafe)?
         {
@@ -21,7 +22,6 @@ impl CheckState<'_> {
         }
 
         // close recursive structural types coinductively
-        let ty = self.shallow_resolve(ty)?;
         if active.contains(&ty) {
             return Ok(Verdict::Holds);
         }
@@ -53,7 +53,7 @@ impl CheckState<'_> {
 
                 self.satisfies_dynamic_safe(origin, refined.base, active)
             }
-
+            // represent scalar leaves directly
             dir::Type::Error
             | dir::Type::Never
             | dir::Type::Any
@@ -68,10 +68,13 @@ impl CheckState<'_> {
             | dir::Type::Static(_)
             | dir::Type::Intrinsic
             | dir::Type::Range(_) => Ok(Verdict::Holds),
+            // represent a variant through its owning enum
             dir::Type::Variant(variant) => {
                 self.satisfies_dynamic_safe(origin, variant.owner, active)
             }
+            // reject bare declaration references
             dir::Type::Reference(_) => Ok(Verdict::Fails),
+            // represent nominal instances of every declaration but an extension
             dir::Type::Application(instance) => {
                 let Some(definition) = self.definition(instance.symbol)? else {
                     return Ok(Verdict::Fails);
@@ -80,21 +83,32 @@ impl CheckState<'_> {
 
                 Ok(Verdict::decided(is_type_reference))
             }
-            dir::Type::Parameter(_)
-            | dir::Type::Rigid(_)
-            | dir::Type::Erased(_)
-            | dir::Type::This => Err(CompilerError::Internal {
-                message: format!("generic type {ty:?} reached structural dynamic safety"),
-            }),
+            // memory parameters qualify storage and impose none of their own
+            dir::Type::Parameter(parameter) if self.is_memory_parameter(parameter) => {
+                Ok(Verdict::Holds)
+            }
+            // fail the interface for type parameters that survived substitution
+            dir::Type::Parameter(_) => Ok(Verdict::Fails),
+            // fail loudly on generic forms that survived substitution
+            dir::Type::Rigid(_) | dir::Type::Erased(_) | dir::Type::This => {
+                Err(CompilerError::Internal {
+                    message: format!("generic type {ty:?} reached structural dynamic safety"),
+                })
+            }
+            // reject unreduced type operations
             dir::Type::Member(_) | dir::Type::Operation(_) => Ok(Verdict::Fails),
+            // represent a memory carrier through its payload
             dir::Type::Form(form) => self.satisfies_dynamic_safe(origin, form.value, active),
+            // represent an erased type through its constraint
             dir::Type::Dynamic(dynamic) => {
                 self.satisfies_dynamic_safe(origin, dynamic.constraint, active)
             }
+            // represent arrays and slices through their element
             dir::Type::FixedArray(array) => {
                 self.satisfies_dynamic_safe(origin, array.element, active)
             }
             dir::Type::Slice(slice) => self.satisfies_dynamic_safe(origin, slice.element, active),
+            // represent a tuple through every element
             dir::Type::Tuple(tuple) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
                     .tuple_elements(ty.module_id, tuple.elements)?
@@ -104,7 +118,7 @@ impl CheckState<'_> {
 
                 self.all_dynamic_safe(origin, ids, active)
             }
-            // a signature-bearing object type erases through the members it declares
+            // an object type declaring signatures erases through the members it declares
             dir::Type::Object(shape) if shape.declares_signatures() => {
                 let mut ids: SmallVec<[dir::GlobalTypeId; 8]> = self
                     .shape_properties(ty.module_id, shape.properties)?
@@ -129,23 +143,29 @@ impl CheckState<'_> {
 
                 self.all_dynamic_safe(origin, ids, active)
             }
+            // represent a plain object shape directly
             dir::Type::Object(_) => Ok(Verdict::Holds),
+            // represent a signature through its erasure rules
             dir::Type::FunctionSignature(function) => {
                 let function = self.type_signature(ty.module_id, function)?;
+
                 self.satisfies_dynamic_safe_function(origin, ty.module_id, &function, active)
             }
+            // represent function values and pointers through their signature
             dir::Type::Function(function) => {
                 self.satisfies_dynamic_safe(origin, function.signature, active)
             }
             dir::Type::FunctionPointer(function) => {
                 self.satisfies_dynamic_safe(origin, function.signature, active)
             }
+            // represent a union through every alternative
             dir::Type::Union(union) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> =
                     SmallVec::from_slice(self.type_ids(ty.module_id, union.elements)?);
 
                 self.all_dynamic_safe(origin, ids, active)
             }
+            // represent an intersection through every constituent
             dir::Type::Intersection(intersection) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> =
                     SmallVec::from_slice(self.type_ids(ty.module_id, intersection.elements)?);

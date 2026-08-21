@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, CandidateOutcome, CandidateVerdict, CheckAttempt, CheckOutcome, Expectation,
-    FlowSite, InferMode, PlaceUse, Relation, ValueCheck,
+    BodyState, CandidateOutcome, CheckAttempt, CheckOutcome, Expectation, FlowSite, InferMode,
+    PlaceUse, Relation, ValueCheck, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -18,6 +18,16 @@ impl BodyState<'_, '_> {
         self.check
             .expected_types
             .insert(site.node, expectation.target);
+
+        // convert a node checked once by its committed type
+        if let Some(source) = self.check.node_types.get(&site.node) {
+            return Ok(ValueCheck {
+                source,
+                stored: source,
+                outcome: CheckOutcome::Holds,
+                target: expectation.target,
+            });
+        }
 
         // use the contextual type before inference
         let checked = self.try_check_expression(site, expectation)?;
@@ -37,6 +47,7 @@ impl BodyState<'_, '_> {
 
         Ok(ValueCheck {
             source,
+            stored: source,
             outcome: CheckOutcome::Holds,
             target: expectation.target,
         })
@@ -61,7 +72,7 @@ impl BodyState<'_, '_> {
 
         // classify every member without retaining speculative state
         for target in targets {
-            let mode = self.contextual_literal_mode(site.origin(), target, expectation.mode)?;
+            let mode = expectation.mode;
             let candidate = Expectation {
                 target,
                 mode,
@@ -103,14 +114,14 @@ impl BodyState<'_, '_> {
 
             // prefer a unique viable member over speculative members
             match verdict {
-                CandidateVerdict::Viable if viable.replace(target).is_some() => {
+                Verdict::Holds if viable.replace(target).is_some() => {
                     is_viable_ambiguous = true;
                 }
-                CandidateVerdict::Viable => {}
-                CandidateVerdict::Indeterminate if indeterminate.replace(target).is_some() => {
+                Verdict::Holds => {}
+                Verdict::Ambiguous if indeterminate.replace(target).is_some() => {
                     is_indeterminate_ambiguous = true;
                 }
-                CandidateVerdict::Indeterminate | CandidateVerdict::Rejected => {}
+                Verdict::Ambiguous | Verdict::Fails => {}
             }
         }
 
@@ -130,7 +141,7 @@ impl BodyState<'_, '_> {
         };
 
         // confirm the selected member in the owning state
-        let mode = self.contextual_literal_mode(site.origin(), target, expectation.mode)?;
+        let mode = expectation.mode;
         let candidate = Expectation {
             target,
             mode,
@@ -144,6 +155,7 @@ impl BodyState<'_, '_> {
         };
         let check = ValueCheck {
             source: check.source,
+            stored: check.source,
             outcome: check.outcome,
             target: expectation.target,
         };
@@ -170,12 +182,12 @@ impl BodyState<'_, '_> {
         if let dir::Expression::Declaration(declaration) = &expression
             && self.register_function_value(site.node, *declaration)?
         {
-            let check = self.check_function_value(site, Some(expectation), InferMode::Exact)?;
+            let check = self.check_function_value(site, Some(expectation), InferMode::Regular)?;
 
             return Ok(CheckAttempt::Checked(check));
         }
         if self.check.lambdas.contains_key(&site.node) {
-            let check = self.check_function_value(site, Some(expectation), InferMode::Exact)?;
+            let check = self.check_function_value(site, Some(expectation), InferMode::Regular)?;
 
             return Ok(CheckAttempt::Checked(check));
         }
@@ -185,6 +197,7 @@ impl BodyState<'_, '_> {
                 let source = self.check_tree_expression(site, Some(&expectation))?;
                 let check = ValueCheck {
                     source,
+                    stored: source,
                     outcome: CheckOutcome::Holds,
                     target,
                 };
@@ -194,11 +207,13 @@ impl BodyState<'_, '_> {
             dir::Expression::Identifier { name } => {
                 self.check_reference_expression(site, name, expectation)
             }
-            dir::Expression::ScalarLiteral(value) => {
-                let source = self.scalar_literal_type(node, value)?;
+            dir::Expression::Literal(value) => {
+                let source = self.literal_type(value)?;
                 self.commit_node_type(site.node, source)?;
+                self.check.fresh_nodes.insert(site.node, None);
                 let check = ValueCheck {
                     source,
+                    stored: source,
                     outcome: CheckOutcome::Holds,
                     target,
                 };
@@ -208,8 +223,10 @@ impl BodyState<'_, '_> {
             dir::Expression::TemplateExpression { value } => {
                 let source = self.template_expression_type(site, value)?;
                 self.commit_node_type(site.node, source)?;
+                self.check.fresh_nodes.insert(site.node, None);
                 let check = ValueCheck {
                     source,
+                    stored: source,
                     outcome: CheckOutcome::Holds,
                     target,
                 };
@@ -307,6 +324,7 @@ impl BodyState<'_, '_> {
 
                 Ok(CheckAttempt::Checked(ValueCheck {
                     source: check.source,
+                    stored: check.source,
                     outcome: check.outcome,
                     target,
                 }))
@@ -328,6 +346,7 @@ impl BodyState<'_, '_> {
                 )?;
                 Ok(CheckAttempt::Checked(ValueCheck {
                     source: check.source,
+                    stored: check.source,
                     outcome: check.outcome,
                     target,
                 }))
@@ -341,6 +360,7 @@ impl BodyState<'_, '_> {
                 )?;
                 let check = ValueCheck {
                     source,
+                    stored: source,
                     outcome: CheckOutcome::Holds,
                     target,
                 };
@@ -406,7 +426,7 @@ impl BodyState<'_, '_> {
                     CheckOutcome::Fails(_) => CandidateOutcome::Rejected(()),
                 })
             })?;
-            if matches!(verdict, CandidateVerdict::Viable) {
+            if matches!(verdict, Verdict::Holds) {
                 selected = Some(symbol);
 
                 break;
@@ -439,6 +459,7 @@ impl BodyState<'_, '_> {
         self.commit_node_type(site.node, check.source)?;
         let check = ValueCheck {
             source: check.source,
+            stored: check.source,
             outcome: check.outcome,
             target: check.target,
         };

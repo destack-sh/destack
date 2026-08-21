@@ -11,5 +11,6 @@ mod representation;
 mod wellformed;
 mod write;
 
+pub(in crate::sema) use extension::ReceiverForm;
 pub(in crate::sema) use obligation::*;
 pub(in crate::sema) use write::*;

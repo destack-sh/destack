@@ -1,7 +1,7 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
-use smallvec::SmallVec;
-
 use destack_source::ModuleId;
+use smallvec::SmallVec;
 
 use crate::sema::{Cause, CauseKind, CheckState, Origin, Relation, TypeSubstitution, Verdict};
 use crate::{CompilerError, CompilerResult};
@@ -42,7 +42,7 @@ impl CheckState<'_> {
                 }
             };
             if let Some(other) = other {
-                // read argument solutions settled since the bound was queued
+                // read the argument solutions settled after the bound was queued
                 let other = self.shallow_resolve(other)?;
                 let substitution = TypeSubstitution::default().with_receiver(ty);
                 let other = self.substitute_type(other, &substitution)?;
@@ -155,8 +155,6 @@ impl CheckState<'_> {
             dir::AutoInterface::SharedSafe => {
                 self.satisfies_shared_safe(origin, ty).map(Verdict::decided)
             }
-            // TODO #Incomplete: the remaining auto interfaces never hold
-            dir::AutoInterface::Unpin | dir::AutoInterface::Zeroable => Ok(Verdict::Fails),
             dir::AutoInterface::Concrete => {
                 self.satisfies_concrete(origin, ty).map(Verdict::decided)
             }
@@ -168,7 +166,10 @@ impl CheckState<'_> {
             | dir::AutoInterface::Clone
             | dir::AutoInterface::Debug
             | dir::AutoInterface::Display
-            | dir::AutoInterface::Hash => self
+            | dir::AutoInterface::Hash
+            | dir::AutoInterface::Default
+            | dir::AutoInterface::Unpin
+            | dir::AutoInterface::Zeroable => self
                 .satisfies_derivable(origin, ty, interface)
                 .map(Verdict::decided),
             // order scalars intrinsically
@@ -181,9 +182,7 @@ impl CheckState<'_> {
                 ))
             }
             // leave defaults and serialization to written derives
-            dir::AutoInterface::Default
-            | dir::AutoInterface::Serialize
-            | dir::AutoInterface::Deserialize => Ok(Verdict::Fails),
+            dir::AutoInterface::Serialize | dir::AutoInterface::Deserialize => Ok(Verdict::Fails),
         }?;
 
         // memoize a settled verdict, leaving an ambiguous one uncached
@@ -280,6 +279,81 @@ impl CheckState<'_> {
         Ok(holds)
     }
 
+    /// Record the representation markers every committed settled type satisfies.
+    ///
+    /// A type open in parameters or `this` is judged under the template governing its site.
+    pub(in crate::sema) fn record_committed_conformances(
+        &mut self,
+        module: ModuleId,
+    ) -> CompilerResult<()> {
+        // collect the committed node types of this module at their sites
+        let mut targets = FxIndexSet::default();
+        for node in self.node_types.nodes() {
+            if node.module_id != module {
+                continue;
+            }
+            if let Some(ty) = self.node_types.get(&node) {
+                targets.insert((ty, node));
+            }
+        }
+        // collect the argument types of committed instances and instantiations at their sites
+        for (_, instance) in self.module(module).generics_tail.iter_instances() {
+            for binding in &instance.selection.arguments {
+                targets.insert((binding.argument, instance.source));
+            }
+        }
+        for instantiation in self.module(module).generics_tail.iter_instantiations() {
+            for binding in &instantiation.selection.arguments {
+                targets.insert((binding.argument, instantiation.source));
+            }
+        }
+
+        // judge each settled value type against the representation markers
+        // NOTE #Performance: foreign-owned targets re-judge in every asking module
+        for (target, site) in targets {
+            let flags = self.type_flags(target)?;
+            if flags.has_variable() || flags.has_hole() {
+                continue;
+            }
+
+            // skip heads outside value judgment
+            if matches!(
+                self.ty(target)?,
+                dir::Type::Reference(_)
+                    | dir::Type::Erased(_)
+                    | dir::Type::Rigid(_)
+                    | dir::Type::Key(_)
+                    | dir::Type::Operation(_)
+                    | dir::Type::Member(_)
+                    | dir::Type::Error
+            ) {
+                continue;
+            }
+
+            // an open type assumes the bounds of the template governing its site
+            let scope = match flags.has_parameter() || flags.has_this() {
+                true => self.template_at_node(site),
+                false => None,
+            };
+            let origin = Origin::Node(site, scope);
+
+            // record the markers this type satisfies, deciding each once
+            for interface in dir::AutoInterface::REPRESENTATION {
+                if self.module(module).auto.conforms(target, scope, interface) {
+                    continue;
+                }
+                let verdict = self.satisfies_auto_interface(origin, target, interface)?;
+                if verdict == Verdict::Holds {
+                    self.module_mut(module)
+                        .auto
+                        .push_conformance(target, scope, interface);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Record marker conformance and seal written derives for each concrete nominal.
     pub(in crate::sema) fn derive_module_conformances(
         &mut self,
@@ -317,7 +391,7 @@ impl CheckState<'_> {
                 if verdict == Verdict::Holds {
                     self.module_mut(module)
                         .auto
-                        .push_conformance(dir::AutoConformance { interface, target });
+                        .push_conformance(target, None, interface);
                 }
             }
         }

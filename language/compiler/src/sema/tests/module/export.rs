@@ -168,8 +168,8 @@ export const config = { retries: 3, name: "job" };
 export const flag: true = true;
 export const count: -3 = -3;
 export const label: string = `name`;
-export const pair: float64[] = [1, 2];
-export const config: { retries: float64; name: string } = { retries: 3, name: "job" };
+export const pair: int64[] = [1, 2];
+export const config: { retries: int64; name: string } = { retries: 3, name: "job" };
 
 === dir ===
 export const flag = true;
@@ -186,17 +186,17 @@ export const label = `name`;
 /// @resolution.pattern source=label kind=binding target=label
 
 export const pair = [1, 2];
-/// @type.symbol symbol=pair source=pair type=float64[]
+/// @type.symbol symbol=pair source=pair type=int64[]
 /// @resolution.pattern source=pair kind=binding target=pair
-/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<float64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
-/// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+/// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
+/// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
+/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
+/// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
 
 export const config = { retries: 3, name: "job" };
-/// @type.symbol symbol=config source=config type={ retries: float64; name: string }
+/// @type.symbol symbol=config source=config type={ retries: int64; name: string }
 /// @resolution.pattern source=config kind=binding target=config
 "#,
     );

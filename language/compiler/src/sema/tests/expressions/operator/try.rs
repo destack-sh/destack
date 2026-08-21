@@ -42,7 +42,7 @@ extension of Token implements Add<Token> {
 
 declare const token: Token | undefined;
 declare const fallback: Token;
-const selected: Token = token ?? fallback;
+const selected: string | Token = token ?? fallback;
 
 === dir ===
 import { Add } from "destack:ops";
@@ -87,10 +87,10 @@ declare const fallback: Token;
 /// @resolution.name source=Token target=Token
 
 const selected = token ?? fallback;
-/// @type.symbol symbol=selected source=selected type=Token
+/// @type.symbol symbol=selected source=selected type=string | Token
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=token target=token
-/// @resolution.operator source="token ?? fallback" type=Token operator="??" kind=builtin operands=[token as Token | undefined, fallback as Token]
+/// @resolution.operator source="token ?? fallback" type=string | Token operator="??" kind=builtin operands=[token as Token | undefined, fallback as Token]
 /// @resolution.place source=token placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=token root=token
 /// @resolution.name source=fallback target=fallback
@@ -305,6 +305,7 @@ function passthrough(value: Result<int32, string>): Result<int32, string> {
     /// @resolution.name source=value target=passthrough.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=passthrough.value
+    /// @resolution.residual source=value? target=callable residual=TryResidual<error.result.Result<int32, string>>
 
     return Result.ok(total);
     /// @type.node source=Result.ok type=(error.result.T#1) => error.result.Result<error.result.T#1, error.result.E#1>

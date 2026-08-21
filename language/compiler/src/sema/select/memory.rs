@@ -81,8 +81,11 @@ impl BodyState<'_, '_> {
             else {
                 continue;
             };
-            let ty = self
-                .operator_expression_type(operator_protocol.expression_result, call.return_type)?;
+            let ty = self.operator_expression_type(
+                origin,
+                operator_protocol.expression_result,
+                call.return_type,
+            )?;
 
             let dir::OperationResolution::One(call) = call.resolution else {
                 return Err(CompilerError::Internal {
@@ -179,6 +182,7 @@ impl BodyState<'_, '_> {
                 ty: input,
                 node: None,
                 place: None,
+                is_fresh: false,
             },
             dir::Access::Readonly,
         )?

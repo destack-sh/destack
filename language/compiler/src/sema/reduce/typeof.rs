@@ -36,7 +36,7 @@ impl CheckState<'_> {
                     return Ok(None);
                 };
 
-                let key = self.intern_type(dir::Type::Literal(dir::ScalarLiteral::String(name)))?;
+                let key = self.intern_type(dir::Type::Literal(dir::Literal::String(name)))?;
                 let projection = self.reduce_static_member_projection(
                     origin,
                     owner,

@@ -4,8 +4,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     AssignmentSelection, BodyState, Cause, CauseKind, Expectation, FlowPointId, FlowSite,
-    InferMode, Obligation, Origin, PlaceUse, Relation, ValueUse, Widening,
-    WritableTargetObligation,
+    InferMode, Obligation, Origin, PlaceUse, Relation, ValueUse, WritableTargetObligation,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -168,7 +167,7 @@ impl BodyState<'_, '_> {
             .map_or_else(|| resolution.write.ty(), dir::ReadResolution::ty);
         let source = resolution.target;
         self.commit_decision(source, dir::Decision::Assignment(Box::new(resolution)))?;
-        self.record_access_use(source, dir::BindingUse::WRITTEN);
+        self.record_access_use(source, dir::BindingUse::WRITE);
         self.commit_node_type(source, source_type)?;
 
         // require the written place to be writable
@@ -593,7 +592,7 @@ impl BodyState<'_, '_> {
             } => {
                 self.poison_pattern_bindings(module, error, pattern)?;
             }
-            // { name }, ...rest without a pattern and holes bind nothing nested
+            // bare names, bare rests, and elisions bind nothing nested
             dir::PatternField::Named { pattern: None, .. }
             | dir::PatternField::Rest { pattern: None }
             | dir::PatternField::Elision => {}
@@ -610,59 +609,7 @@ impl BodyState<'_, '_> {
         symbol: dir::GlobalSymbolId,
         input: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let mut slot = self.check.binding_type_maybe(symbol);
-        while let Some(ty) = slot
-            && let dir::Type::Form(form) = self.ty(ty)?
-        {
-            slot = Some(form.value);
-        }
-        let widening = match slot {
-            Some(slot) => match self.check.root_variable(slot)? {
-                Some(variable) => self.check.infer.variable(variable)?.widening,
-                // transcribed bindings widen by their written declarator
-                None => self.written_binding_widening(symbol)?,
-            },
-            None => Widening::Never,
-        };
-        let input = match widening {
-            Widening::Always => self.widen_type(input)?,
-            Widening::Never | Widening::Aggregate | Widening::Multiple | Widening::Const => input,
-        };
-
         self.check.place_binding_type(symbol, input)
-    }
-
-    /// Return the written widening of one binding's declarator.
-    fn written_binding_widening(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<Widening> {
-        let module = symbol.module_id;
-        let Some(state) = self.check.module_maybe(module) else {
-            return Ok(Widening::Never);
-        };
-        let Ok(pattern) = state.symbol_declaration_node(symbol.local_id) else {
-            return Ok(Widening::Never);
-        };
-        let view = state.view();
-
-        // read the pattern's enclosing declarator
-        let Some(parent) = view.get_parent_any(pattern) else {
-            return Ok(Widening::Never);
-        };
-        let Ok(declarator) = parent.try_into_typed::<dir::Declarator>() else {
-            return Ok(Widening::Never);
-        };
-
-        // resolve the enclosing let expression's kind, if any
-        let kind = view
-            .get_parent_any(parent)
-            .and_then(|node| node.try_into_typed::<dir::Expression>().ok())
-            .and_then(|node| match view.get(node) {
-                dir::Expression::Let { kind, .. } => Some(*kind),
-                _ => None,
-            });
-
-        let declarator = view.get(declarator).clone();
-
-        Ok(self.check.declarator_widening(module, &declarator, kind))
     }
 
     /// Return whether one pattern has a default branch.
@@ -841,7 +788,7 @@ impl BodyState<'_, '_> {
                 CauseKind::Pattern { pattern },
             )),
             use_: ValueUse::Store,
-            mode: InferMode::Exact,
+            mode: InferMode::Regular,
         };
         self.attempt_node(site, PlaceUse::Read, Some(expectation))?;
 

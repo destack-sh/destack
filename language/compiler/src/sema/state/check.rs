@@ -7,7 +7,7 @@ use destack_artifact::{
 use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 use destack_dir as dir;
 use destack_repository::{ArtifactAttemptRecorder, ArtifactReader, Environment, ProviderContext};
-use destack_source::{ModuleId, ProfileId, StringId};
+use destack_source::{ModuleId, PackageId, ProfileId, StringId};
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 
@@ -181,11 +181,14 @@ pub(in crate::sema) struct CheckState<'a> {
         FxIndexMap<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>), dir::GlobalTypeId>,
     /// Barrier-erased forms of closed contextual targets.
     pub(in crate::sema) erasures: FxIndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
-    /// Extension symbols visible per looking module and target declaration.
+    /// Extension symbols visible per looking module and target head.
     pub(in crate::sema) extension_sets:
-        FxIndexMap<(ModuleId, dir::GlobalSymbolId), SmallVec<[dir::GlobalSymbolId; 4]>>,
+        FxIndexMap<(ModuleId, dir::TypeRoot), SmallVec<[dir::GlobalSymbolId; 4]>>,
     /// Member keys each blanket extension can expose.
     pub(in crate::sema) blanket_keys: FxIndexMap<dir::GlobalSymbolId, FxIndexSet<dir::StaticKey>>,
+    /// Interface requirements each extension implements, keyed by member key.
+    pub(in crate::sema) requirement_interfaces:
+        FxIndexMap<dir::GlobalSymbolId, FxIndexMap<dir::StaticKey, dir::GlobalSymbolId>>,
     /// Written-syntax ranks per generic parameter.
     pub(in crate::sema) argument_ranks:
         FxIndexMap<GenericParameterId, (usize, Option<dir::GlobalGenericTemplateId>, usize)>,
@@ -253,6 +256,10 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) binding_types: FxIndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Checked source node occurrence types.
     pub(in crate::sema) node_types: NodeTable,
+    /// Expression nodes whose value is a literal fresh from its expression.
+    pub(in crate::sema) fresh_nodes: FxIndexMap<dir::GlobalNodeIdAny, Option<dir::GlobalTypeId>>,
+    /// Const bindings initialized by a fresh literal, whose reads stay fresh.
+    pub(in crate::sema) fresh_bindings: FxIndexSet<dir::GlobalSymbolId>,
     /// Flow cursor state for the pass's single body traversal.
     pub(in crate::sema) flow: FlowState,
     /// Constructor exit branches per initialized class, filled at check.
@@ -370,6 +377,7 @@ impl<'a> CheckState<'a> {
             premise_contents: FxIndexMap::default(),
             extension_sets: FxIndexMap::default(),
             blanket_keys: FxIndexMap::default(),
+            requirement_interfaces: FxIndexMap::default(),
             counters: CheckCounters::default(),
             normalizations: FxIndexMap::default(),
             erasures: FxIndexMap::default(),
@@ -393,6 +401,8 @@ impl<'a> CheckState<'a> {
             declaration_types: FxIndexMap::default(),
             binding_types: FxIndexMap::default(),
             node_types: NodeTable::default(),
+            fresh_nodes: FxIndexMap::default(),
+            fresh_bindings: FxIndexSet::default(),
             flow: FlowState::default(),
             constructor_branches: FxIndexMap::default(),
             expected_types: NodeTable::default(),
@@ -537,6 +547,16 @@ impl<'a> CheckState<'a> {
             })
     }
 
+    /// Return the package that declares the language items.
+    pub(in crate::sema) fn language_package(&self) -> CompilerResult<PackageId> {
+        self.environment_bound
+            .language
+            .package()
+            .ok_or_else(|| CompilerError::Internal {
+                message: "bound environment declares no language items".to_string(),
+            })
+    }
+
     /// Return the language item named by one resolved symbol.
     pub(in crate::sema) fn language_item(
         &self,
@@ -574,7 +594,7 @@ impl CheckState<'_> {
         else if let Some(external) = self.external_modules.get(&id.module_id) {
             Ok(external.types.get_type(id.local_id))
         }
-        // fail loudly on a module this check never loaded
+        // fail loudly on a module missing from this check
         else {
             Err(CompilerError::Internal {
                 message: format!("check type {id:?} belongs to an unloaded module"),
@@ -612,7 +632,7 @@ impl CheckState<'_> {
         else if let Some(external) = self.external_modules.get(&id.module_id) {
             Ok(external.types.get_type_flags(id.local_id))
         }
-        // fail loudly on a module this check never loaded
+        // fail loudly on a module missing from this check
         else {
             Err(CompilerError::Internal {
                 message: format!("check type {id:?} belongs to an unloaded module"),
@@ -1278,8 +1298,6 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         definition: dir::Definition,
     ) -> CompilerResult<()> {
-        self.report_duplicate_definition_members(&definition);
-
         // keep checked segments append-grow: unchanged declared entries stay layered
         if !self.is_declaration()
             && let Some(declared) = self
@@ -1338,27 +1356,6 @@ impl CheckState<'_> {
         }
 
         Ok(())
-    }
-
-    /// Report duplicate non-overload member keys in one definition.
-    fn report_duplicate_definition_members(&mut self, definition: &dir::Definition) {
-        let mut seen = FxIndexMap::<(dir::MemberSpace, dir::StaticKey), bool>::default();
-
-        for member in definition.members() {
-            let Some(key) = member.key() else {
-                continue;
-            };
-
-            let entry = (member.space(), key);
-            let is_overloadable = member.is_overloadable();
-            if let Some(previous_is_overloadable) = seen.get(&entry) {
-                if !*previous_is_overloadable || !is_overloadable {
-                    self.report_duplicate_definition_member(member.source(), &key);
-                }
-            } else {
-                seen.insert(entry, is_overloadable);
-            }
-        }
     }
 
     /// Rebuild one type value by mapping every direct child type id.
@@ -1694,25 +1691,6 @@ impl CheckState<'_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("type {id:?} has no nominal application"),
             })
-    }
-
-    /// Return one written application's arguments with elided slots filled.
-    pub(in crate::sema) fn filled_application_arguments(
-        &mut self,
-        module: ModuleId,
-        instance: &dir::GenericApplication,
-    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
-        let filled = self.fill_elided_application(module, instance)?;
-        if let Some(filled) = filled
-            && let dir::Type::Application(application) = self.ty(filled)?
-        {
-            // read the arguments from the module the filled type interned into
-            return Ok(self
-                .type_ids(filled.module_id, application.arguments)?
-                .to_vec());
-        }
-
-        Ok(self.type_ids(module, instance.arguments)?.to_vec())
     }
 
     /// Return the nominal application beneath refinements, if present.

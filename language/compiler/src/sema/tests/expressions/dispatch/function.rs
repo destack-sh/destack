@@ -21,7 +21,7 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     ).find<int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>>(
         (value: &'a readonly (int32 | undefined)): boolean =>
             value !== (undefined as int32 | undefined) && (value as int32) > 0,
-    ) as int32 | undefined
+    )
 }
 
 === dir ===
@@ -72,11 +72,11 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     /// @resolution.name source=value target=firstPositive.symbol5.value
     /// @resolution.operator source="value !== undefined && value > 0" type=boolean operator="&&" kind=builtin operands=[value !== undefined as boolean families=(boolean), value > 0 as boolean families=(boolean)]
     /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime=type_expression.'a access="readonly"
     /// @resolution.access source=value root=firstPositive.symbol5.value
     /// @resolution.name source=value target=firstPositive.symbol5.value
     /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime=type_expression.'a access="readonly"
     /// @resolution.access source=value root=firstPositive.symbol5.value
 
 }
@@ -275,7 +275,7 @@ const value = map(() => 1);
 === annotated ===
 declare function map<T>(callback: (arg0: unknown) => T): T;
 
-const value: float64 = map<float64>((): float64 => 1);
+const value: int64 = map<int64>((): int64 => 1);
 
 === dir ===
 declare function map<T>(callback: (value: unknown) => T): T;
@@ -288,16 +288,16 @@ declare function map<T>(callback: (value: unknown) => T): T;
 /// @resolution.name source=T target=map.T
 
 const value = map(() => 1);
-/// @type.symbol symbol=value source=value type=float64
+/// @type.symbol symbol=value source=value type=int64
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source="map(() => 1)" type=float64
-/// @type.node source=map type=(Function<(unknown,), float64>) => float64
+/// @type.node source="map(() => 1)" type=int64
+/// @type.node source=map type=(Function<(unknown,), int64>) => int64
 /// @resolution.name source=map target=map
-/// @resolution.call source="map(() => 1)" parameters=(Function<(unknown,), float64>) arguments=(provided(() => 1) as Function<(unknown,), float64>) return=float64 kind=symbol target=map instance=map<float64>
-/// @generic.instantiation id=map<float64> template=map arguments=(float64)
-/// @generic.instance id=map<float64> template=map arguments=(float64)
-/// @type.symbol symbol=symbol5 source="() => 1" type=Function<(), float64>
-/// @type.node source="() => 1" type=Function<(), float64>
+/// @resolution.call source="map(() => 1)" parameters=(Function<(unknown,), int64>) arguments=(provided(() => 1) as Function<(unknown,), int64>) return=int64 kind=symbol target=map instance=map<int64>
+/// @generic.instantiation id=map<int64> template=map arguments=(int64)
+/// @generic.instance id=map<int64> template=map arguments=(int64)
+/// @type.symbol symbol=symbol5 source="() => 1" type=Function<(), int64>
+/// @type.node source="() => 1" type=Function<(), int64>
 /// @type.node source=1 type=1
 "#,
     );

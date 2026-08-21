@@ -928,9 +928,11 @@ b1:
     return v7
 
 b2:
-    v8: ref<float64, borrowed, readonly> = field.address v0, 1
-    v9: float64 = load v8
-    return v9
+    v8: ref<variant<uint1> { 0uint1 = Circle; 1uint1 = Square; }, borrowed, 'a, readonly> = field.address v0, 0
+    v9: ref<Circle, borrowed, 'a, readonly> = variant.payload.address v8, 0
+    v10: ref<float64, borrowed, readonly> = field.address v9, 1
+    v11: float64 = load v10
+    return v11
 }
 
 /// @layout.struct name=Circle size=8 align=8

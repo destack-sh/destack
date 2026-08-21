@@ -27,7 +27,7 @@ type Flags<T> = { [K in keyof T]: boolean };
 /// @type.symbol symbol=Flags source="type Flags<T> = { [K in keyof T]: boolean }" type={ [K in keyof T]: boolean }
 /// @definition.type symbol=Flags source="type Flags<T> = { [K in keyof T]: boolean }" template=(T) value={ [K in keyof T]: boolean }
 /// @type.symbol symbol=Flags.T source=T type=T
-/// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
+/// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 /// @type.symbol symbol=Flags.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Flags.T
 
@@ -67,7 +67,7 @@ type Clone<T> = { [K in keyof T]: T[K] };
 /// @type.symbol symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" type={ [K in keyof T]: T[K] }
 /// @definition.type symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" template=(T) value={ [K in keyof T]: T[K] }
 /// @type.symbol symbol=Clone.T source=T type=T
-/// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
+/// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 /// @type.symbol symbol=Clone.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Clone.T
 /// @resolution.name source=T target=Clone.T
@@ -104,7 +104,7 @@ type Loose<T> = { [K in keyof T]?: T[K] };
 /// @type.symbol symbol=Loose source="type Loose<T> = { [K in keyof T]?: T[K] }" type={ [K in keyof T]?: T[K] }
 /// @definition.type symbol=Loose source="type Loose<T> = { [K in keyof T]?: T[K] }" template=(T) value={ [K in keyof T]?: T[K] }
 /// @type.symbol symbol=Loose.T source=T type=T
-/// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
+/// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 /// @type.symbol symbol=Loose.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Loose.T
 /// @resolution.name source=T target=Loose.T
@@ -145,7 +145,7 @@ type Optional<T> = { [K in keyof T]?: T[K] };
 /// @type.symbol symbol=Optional source="type Optional<T> = { [K in keyof T]?: T[K] }" type={ [K in keyof T]?: T[K] }
 /// @definition.type symbol=Optional source="type Optional<T> = { [K in keyof T]?: T[K] }" template=(T) value={ [K in keyof T]?: T[K] }
 /// @type.symbol symbol=Optional.T source=T type=T
-/// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
+/// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 /// @type.symbol symbol=Optional.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Optional.T
 /// @resolution.name source=T target=Optional.T
@@ -191,7 +191,7 @@ type Optional<T> = { [K in keyof T]?: T[K] };
 /// @type.symbol symbol=Optional source="type Optional<T> = { [K in keyof T]?: T[K] }" type={ [K in keyof T]?: T[K] }
 /// @definition.type symbol=Optional source="type Optional<T> = { [K in keyof T]?: T[K] }" template=(T) value={ [K in keyof T]?: T[K] }
 /// @type.symbol symbol=Optional.T source=T type=T
-/// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
+/// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 /// @type.symbol symbol=Optional.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Optional.T
 /// @resolution.name source=T target=Optional.T
@@ -238,7 +238,7 @@ type Strict<T> = { -readonly [K in keyof T]-?: T[K] };
 /// @type.symbol symbol=Strict source="type Strict<T> = { -readonly [K in keyof T]-?: T[K] }" type={ -readonly[K in keyof T]-?: T[K] }
 /// @definition.type symbol=Strict source="type Strict<T> = { -readonly [K in keyof T]-?: T[K] }" template=(T) value={ -readonly[K in keyof T]-?: T[K] }
 /// @type.symbol symbol=Strict.T source=T type=T
-/// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
+/// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 /// @type.symbol symbol=Strict.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Strict.T
 /// @resolution.name source=T target=Strict.T
@@ -271,7 +271,7 @@ type Caps = { [K in "name" | "age" as Uppercase<K>]: boolean };
 type Caps = { [K in "name" | "age" as Uppercase<K>]: boolean };
 /// @type.symbol symbol=Caps source="type Caps = { [K in \"name\" | \"age\" as Uppercase<K>]: boolean }" type={ [K in "name" | "age" as Uppercase<K>]: boolean }
 /// @definition.type symbol=Caps source="type Caps = { [K in \"name\" | \"age\" as Uppercase<K>]: boolean }" value={ [K in "name" | "age" as Uppercase<K>]: boolean }
-/// @generic.template source=mapped_type_parameter parameters=(K: "name" | "age")
+/// @generic.template source=type_expression parameters=(K: "name" | "age")
 /// @type.symbol symbol=Caps.K source=[K in "name" | "age" as Uppercase<K>] type=K
 /// @resolution.name source=Uppercase target=types.string.Uppercase
 /// @resolution.name source=K target=Caps.K
@@ -310,7 +310,7 @@ type Collide<T> = { [K in keyof T as "value"]: T[K] };
 /// @type.symbol symbol=Collide source="type Collide<T> = { [K in keyof T as \"value\"]: T[K] }" type={ [K in keyof T as "value"]: T[K] }
 /// @definition.type symbol=Collide source="type Collide<T> = { [K in keyof T as \"value\"]: T[K] }" template=(T) value={ [K in keyof T as "value"]: T[K] }
 /// @type.symbol symbol=Collide.T source=T type=T
-/// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
+/// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 /// @type.symbol symbol=Collide.K source=[K in keyof T as "value"] type=K
 /// @resolution.name source=T target=Collide.T
 /// @resolution.name source=T target=Collide.T
@@ -360,7 +360,7 @@ type WithoutSecret<T> = { [K in keyof T as K extends "secret" ? never : K]: T[K]
 /// @type.symbol symbol=WithoutSecret type={ [K in keyof T as K extends "secret" ? never : K]: T[K] }
 /// @definition.type symbol=WithoutSecret template=(T) value={ [K in keyof T as K extends "secret" ? never : K]: T[K] }
 /// @type.symbol symbol=WithoutSecret.T source=T type=T
-/// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
+/// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 /// @type.symbol symbol=WithoutSecret.K source=[K in keyof T as K extends "secret" ? never : K] type=K
 /// @resolution.name source=T target=WithoutSecret.T
 /// @resolution.name source=K target=WithoutSecret.K
@@ -399,7 +399,7 @@ type Locked<T> = { +readonly [K in keyof T]+?: T[K] };
 /// @type.symbol symbol=Locked source="type Locked<T> = { +readonly [K in keyof T]+?: T[K] }" type={ +readonly[K in keyof T]+?: T[K] }
 /// @definition.type symbol=Locked source="type Locked<T> = { +readonly [K in keyof T]+?: T[K] }" template=(T) value={ +readonly[K in keyof T]+?: T[K] }
 /// @type.symbol symbol=Locked.T source=T type=T
-/// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
+/// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 /// @type.symbol symbol=Locked.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Locked.T
 /// @resolution.name source=T target=Locked.T
@@ -421,7 +421,7 @@ function first<T>(value: { [K in keyof T]: T[K] }, fallback: T): T {
     return fallback;
 }
 
-function build(): float64 {
+function build(): int64 {
     const point = first({ x: 1, y: 2 }, { x: 3, y: 4 });
     return point.x;
 }
@@ -437,8 +437,8 @@ function first<T>(value: { [K in keyof T]: T[K] }, fallback: T): T {
     return fallback;
 }
 
-function build(): float64 {
-    const point: { x: float64; y: float64 } = first<{ x: float64; y: float64 }>(
+function build(): int64 {
+    const point: { x: int64; y: int64 } = first<{ x: int64; y: int64 }>(
         { x: 1, y: 2 },
         { x: 3, y: 4 },
     );
@@ -451,7 +451,7 @@ function first<T>(value: { [K in keyof T]: T[K] }, fallback: T): T {
 /// @type.symbol symbol=first type=<T>({ [K in keyof T]: T[K] }, T) => T
 /// @type.symbol symbol=first.T source=T type=T
 /// @type.symbol symbol=first.value source="value: { [K in keyof T]: T[K] }" type={ [K in keyof T]: T[K] }
-/// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
+/// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 /// @type.symbol symbol=first.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=first.T
 /// @resolution.name source=T target=first.T
@@ -467,20 +467,20 @@ function first<T>(value: { [K in keyof T]: T[K] }, fallback: T): T {
 
 }
 
-function build(): float64 {
-/// @type.symbol symbol=build type=() => float64
+function build(): int64 {
+/// @type.symbol symbol=build type=() => int64
 
     const point = first({ x: 1, y: 2 }, { x: 3, y: 4 });
-    /// @type.symbol symbol=build.point source=point type={ x: float64; y: float64 }
+    /// @type.symbol symbol=build.point source=point type={ x: int64; y: int64 }
     /// @resolution.pattern source=point kind=binding target=build.point
     /// @resolution.name source=first target=first
-    /// @resolution.call source="first({ x: 1, y: 2 }, { x: 3, y: 4 })" parameters=({ [K in keyof { x: float64; y: float64 }]: { x: float64; y: float64 }[K] }, { x: float64; y: float64 }) arguments=(provided({ x: 1, y: 2 }) as { [K in keyof { x: float64; y: float64 }]: { x: float64; y: float64 }[K] }, provided({ x: 3, y: 4 }) as { x: float64; y: float64 }) return={ x: float64; y: float64 } kind=symbol target=first instance="first<{ x: float64; y: float64 }>"
-    /// @generic.instantiation id="first<{ x: float64; y: float64 }>" template=first arguments=({ x: float64; y: float64 })
-    /// @generic.instance id="first<{ x: float64; y: float64 }>" template=first arguments=({ x: float64; y: float64 })
+    /// @resolution.call source="first({ x: 1, y: 2 }, { x: 3, y: 4 })" parameters=({ [K in keyof { x: int64; y: int64 }]: { x: int64; y: int64 }[K] }, { x: int64; y: int64 }) arguments=(provided({ x: 1, y: 2 }) as { [K in keyof { x: int64; y: int64 }]: { x: int64; y: int64 }[K] }, provided({ x: 3, y: 4 }) as { x: int64; y: int64 }) return={ x: int64; y: int64 } kind=symbol target=first instance="first<{ x: int64; y: int64 }>"
+    /// @generic.instantiation id="first<{ x: int64; y: int64 }>" template=first arguments=({ x: int64; y: int64 })
+    /// @generic.instance id="first<{ x: int64; y: int64 }>" template=first arguments=({ x: int64; y: int64 })
 
     return point.x;
     /// @resolution.name source=point target=build.point
-    /// @resolution.member source=point.x receiver={ x: float64; y: float64 } type=float64 kind=field target_receiver={ x: float64; y: float64 } key=x target_type=float64
+    /// @resolution.member source=point.x receiver={ x: int64; y: int64 } type=int64 kind=field target_receiver={ x: int64; y: int64 } key=x target_type=int64
     /// @resolution.place source=point placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=point root=build.point
     /// @resolution.place source=point.x placement="local" lifetime="frame" access="exclusive"

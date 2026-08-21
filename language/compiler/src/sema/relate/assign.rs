@@ -22,7 +22,7 @@ impl CheckState<'_> {
         let decision = match (self.ty(source)?, self.ty(target)?) {
             // error types absorb everything
             (dir::Type::Error, _) | (_, dir::Type::Error) => Verdict::Holds,
-            // box erasable values into an erased top target, which never widens
+            // box erasable values into an erased top target
             (_, dir::Type::Any) | (_, dir::Type::Unknown) => match widens {
                 true => Verdict::Fails,
                 false => self.erasable_source(origin, source)?,
@@ -31,11 +31,9 @@ impl CheckState<'_> {
             (dir::Type::Never, _) => Verdict::Holds,
 
             // string literals inhabit matching template literal patterns
-            (
-                dir::Type::Literal(dir::ScalarLiteral::String(text)),
-                dir::Type::Operation(operation),
-            ) if let dir::TypeOperation::TemplateLiteral(template) =
-                self.type_operation(target.module_id, operation)? =>
+            (dir::Type::Literal(dir::Literal::String(text)), dir::Type::Operation(operation))
+                if let dir::TypeOperation::TemplateLiteral(template) =
+                    self.type_operation(target.module_id, operation)? =>
             {
                 let text = self.strings().get(text).to_string();
 
@@ -104,6 +102,34 @@ impl CheckState<'_> {
                 Verdict::Holds
             }
 
+            // require every element of an intersection target
+            (_, dir::Type::Intersection(intersection)) => {
+                let elements: SmallVec<[_; 8]> = self
+                    .type_ids(target.module_id, intersection.elements)?
+                    .into();
+
+                self.relate_all_targets(origin, cause, relation, source, &elements)?
+            }
+            // intersection sources assign through any element
+            (dir::Type::Intersection(intersection), _) => {
+                let elements: SmallVec<[_; 8]> = self
+                    .type_ids(source.module_id, intersection.elements)?
+                    .into();
+
+                self.relate_any_source(origin, cause, relation, &elements, target)?
+            }
+            // assign parameters and erased arguments through their bounds, then their form
+            (dir::Type::Parameter(parameter) | dir::Type::Erased(parameter), _) => {
+                let decision = self
+                    .relate_parameter_bounds(origin, cause, relation, parameter, target)?
+                    .or_else(|| self.relate_into_union(origin, cause, relation, source, target))?;
+                match decision {
+                    Verdict::Holds => Verdict::Holds,
+                    decision => self
+                        .constrain_form_assignable(origin, cause, relation, source, target)?
+                        .unwrap_or(decision),
+                }
+            }
             // decide memory forms through their placement and readonly views
             _ if let Some(decision) =
                 self.constrain_form_assignable(origin, cause, relation, source, target)? =>
@@ -158,21 +184,12 @@ impl CheckState<'_> {
 
                 self.relate_all_sources(origin, cause, relation, &elements, target)?
             }
-            // assign parameters and erased arguments through their constraints or a union target
-            (dir::Type::Parameter(parameter) | dir::Type::Erased(parameter), _) => {
-                let decision =
-                    self.relate_parameter_bounds(origin, cause, relation, parameter, target)?;
-
-                self.relate_union_membership(origin, cause, relation, decision, source, target)?
-            }
             // reject concrete writes into an erased parameter target
             (_, dir::Type::Erased(_)) => Verdict::Fails,
             // assign this through its enclosing interface hypotheses or a union target
-            (dir::Type::This, _) => {
-                let decision = self.relate_this_bounds(origin, cause, relation, target)?;
-
-                self.relate_union_membership(origin, cause, relation, decision, source, target)?
-            }
+            (dir::Type::This, _) => self
+                .relate_this_bounds(origin, cause, relation, target)?
+                .or_else(|| self.relate_into_union(origin, cause, relation, source, target))?,
             // rigid projections assign through their declared constraint
             (dir::Type::Member(member), _) => {
                 let member = self.type_member(source.module_id, member)?;
@@ -184,15 +201,8 @@ impl CheckState<'_> {
                     None => Verdict::Fails,
                 };
 
-                self.relate_union_membership(origin, cause, relation, decision, source, target)?
-            }
-            // intersection sources assign through any element
-            (dir::Type::Intersection(intersection), _) => {
-                let elements: SmallVec<[_; 8]> = self
-                    .type_ids(source.module_id, intersection.elements)?
-                    .into();
-
-                self.relate_any_source(origin, cause, relation, &elements, target)?
+                decision
+                    .or_else(|| self.relate_into_union(origin, cause, relation, source, target))?
             }
             // accept a union target when one element is viable
             (_, dir::Type::Union(union)) => {
@@ -200,14 +210,6 @@ impl CheckState<'_> {
                     self.type_ids(target.module_id, union.elements)?.into();
 
                 self.relate_any_target(origin, cause, relation, source, &elements)?
-            }
-            // require every element of an intersection target
-            (_, dir::Type::Intersection(intersection)) => {
-                let elements: SmallVec<[_; 8]> = self
-                    .type_ids(target.module_id, intersection.elements)?
-                    .into();
-
-                self.relate_all_targets(origin, cause, relation, source, &elements)?
             }
             // relate two erased carriers through their constraints, which rebuild the fat pointer
             (dir::Type::Dynamic(source_dynamic), dir::Type::Dynamic(target_dynamic)) => {
@@ -303,7 +305,7 @@ impl CheckState<'_> {
                 source.element,
                 target.element,
             )?,
-            // widen value container elements, since the container copies whole
+            // widen value container elements, which the container copies whole
             (dir::Type::FixedArray(source), dir::Type::FixedArray(target)) => {
                 let element = self.constrain_type(
                     origin,
@@ -340,11 +342,17 @@ impl CheckState<'_> {
             (dir::Type::Tuple(_), dir::Type::Tuple(_)) => {
                 self.relate_tuple_assignable(origin, cause, relation, source, target)?
             }
+            // an array flows into the tuple writing its rest, `T[]` into `[...T[]]`
+            (dir::Type::Application(_), dir::Type::Tuple(tuple))
+                if let Some(rest) = self.sole_rest_container(target, tuple)? =>
+            {
+                self.constrain_type(origin, cause, relation, source, rest)?
+            }
 
             // anonymous classes and nominal declarations
             (dir::Type::Object(_), dir::Type::Object(target_shape)) => {
                 match target_shape.declares_signatures() {
-                    // a signature-bearing object type reads its members structurally
+                    // an object type declaring signatures reads its members structurally
                     true => {
                         self.relate_shape(origin, cause, Relation::Assignable, source, target)?
                     }
@@ -352,7 +360,7 @@ impl CheckState<'_> {
                     false => self.relate_shape_equal(origin, cause, source, target)?,
                 }
             }
-            // satisfy a signature-bearing object type from a static declaration reference
+            // satisfy an object type declaring signatures from a static declaration reference
             (dir::Type::Reference(_), dir::Type::Object(target_shape))
                 if target_shape.declares_signatures() =>
             {
@@ -458,6 +466,19 @@ impl CheckState<'_> {
                 self.relate_function_assignable(origin, cause, relation, source, target)?
             }
 
+            // a keyof stuck on a parameter proves through the property key domain
+            (dir::Type::Operation(operation), _)
+                if !widens
+                    && self.type_flags(source)?.has_parameter()
+                    && matches!(
+                        self.type_operation(source.module_id, operation)?,
+                        dir::TypeOperation::KeyOf(_)
+                    ) =>
+            {
+                let keys = self.language_type(dir::LanguageItem::PropertyKey, &[])?;
+
+                self.constrain_type(origin, cause, relation, keys, target)?
+            }
             _ => Verdict::Fails,
         };
 
@@ -509,6 +530,21 @@ impl CheckState<'_> {
         }
 
         self.constrain_type(origin, cause, Relation::Assignable, source, constraint)
+    }
+
+    /// Return the rest container of a tuple written as `...T[]`, if it is.
+    fn sole_rest_container(
+        &mut self,
+        tuple_id: dir::GlobalTypeId,
+        tuple: dir::TupleType,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let elements = self.tuple_elements(tuple_id.module_id, tuple.elements)?;
+        let rest = match elements {
+            [element] if element.is_rest => Some(element.ty),
+            _ => None,
+        };
+
+        Ok(rest)
     }
 
     /// Relate one parameter's bounds against a target.

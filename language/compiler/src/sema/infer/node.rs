@@ -54,7 +54,7 @@ impl Expectation {
             relation: Relation::Assignable,
             cause,
             use_,
-            mode: InferMode::Exact,
+            mode: InferMode::Regular,
         }
     }
 }
@@ -75,7 +75,7 @@ impl BodyState<'_, '_> {
                 Some(check)
             }
             None => {
-                let _ = self.infer_node(site, use_, InferMode::Exact)?;
+                self.infer_node(site, use_, InferMode::Regular)?;
 
                 None
             }
@@ -93,7 +93,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<dir::Decision> {
         if self.decision(node).is_none() {
             let site = self.visit_site(node)?;
-            let _ = self.infer_node(site, PlaceUse::Read, InferMode::Exact)?;
+            self.infer_node(site, PlaceUse::Read, InferMode::Regular)?;
         }
 
         match self.decision(node) {
@@ -121,6 +121,7 @@ impl BodyState<'_, '_> {
             use_,
             mode,
         };
+
         self.check_node(site, expectation)
     }
 
@@ -175,6 +176,7 @@ impl BodyState<'_, '_> {
 
         Ok(ValueCheck {
             source,
+            stored: conversion.source,
             outcome: conversion.outcome,
             target: conversion.target,
         })
@@ -228,6 +230,7 @@ impl BodyState<'_, '_> {
 
                 return Ok(ValueCheck {
                     source: expectation.target,
+                    stored: expectation.target,
                     outcome: CheckOutcome::Holds,
                     target: expectation.target,
                 });
@@ -262,6 +265,7 @@ impl BodyState<'_, '_> {
 
                     return Ok(ValueCheck {
                         source: target,
+                        stored: target,
                         outcome: CheckOutcome::Holds,
                         target,
                     });
@@ -270,6 +274,7 @@ impl BodyState<'_, '_> {
 
                 ValueCheck {
                     source: target,
+                    stored: target,
                     outcome: CheckOutcome::Holds,
                     target,
                 }
@@ -293,6 +298,7 @@ impl BodyState<'_, '_> {
 
                     return Ok(ValueCheck {
                         source: target,
+                        stored: target,
                         outcome: CheckOutcome::Holds,
                         target,
                     });
@@ -307,12 +313,14 @@ impl BodyState<'_, '_> {
 
                 ValueCheck {
                     source: target,
+                    stored: target,
                     outcome: CheckOutcome::Holds,
                     target,
                 }
             }
             dir::NodeType::TypeExpression => ValueCheck {
                 source: target,
+                stored: target,
                 outcome: CheckOutcome::Holds,
                 target,
             },
@@ -377,7 +385,7 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         use_: PlaceUse,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = self.infer_node(site, use_, InferMode::Exact)?;
+        let ty = self.infer_node(site, use_, InferMode::Regular)?;
         let ty = self.flow_type_at(site, ty)?;
         self.commit_expression_place(site, ty)?;
 

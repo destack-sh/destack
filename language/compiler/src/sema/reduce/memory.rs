@@ -342,7 +342,7 @@ impl CheckState<'_> {
             return Ok(ty);
         }
 
-        // types without runtime values have no placement
+        // keep a type without runtime values as it is
         if chain.forms.is_empty() && !self.ty(chain.base)?.is_placeable() {
             return Ok(ty);
         }
@@ -385,7 +385,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let mut value = self.normalize(origin, target)?;
 
-        // construction owns storage forms but never manufactures references
+        // construction owns storage forms, stopping at a reference
         while let dir::Type::Form(form) = self.ty(value)? {
             if matches!(form.form, dir::Form::Borrowed(_) | dir::Form::Raw) {
                 return Ok(None);
@@ -486,7 +486,7 @@ impl CheckState<'_> {
             return Ok(true);
         }
 
-        // placement does not qualify types without runtime values
+        // placement leaves a type without runtime values as it is
         if matches!(form, dir::Form::Placed { .. }) && !self.ty(value)?.is_placeable() {
             return Ok(true);
         }
@@ -1339,7 +1339,7 @@ impl CheckState<'_> {
         let component = self.normalize(origin, component)?;
 
         let text = match self.ty(component)? {
-            dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
+            dir::Type::Literal(dir::Literal::String(value)) => {
                 Some(self.strings().get(value).to_string())
             }
             dir::Type::Memory(literal) => Some(literal.text().to_string()),
@@ -1356,7 +1356,7 @@ impl CheckState<'_> {
         text: &str,
     ) -> CompilerResult<bool> {
         let is_match = match self.ty(ty)? {
-            dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
+            dir::Type::Literal(dir::Literal::String(value)) => {
                 value == dir::StringId::for_text(text)
             }
             dir::Type::Memory(literal) => literal.text() == text,
@@ -1374,10 +1374,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let value = self.strings().intern(text);
 
-        self.intern_memory_type(
-            origin,
-            dir::Type::Literal(dir::ScalarLiteral::String(value)),
-        )
+        self.intern_memory_type(origin, dir::Type::Literal(dir::Literal::String(value)))
     }
 
     /// Push one boolean literal type.
@@ -1386,10 +1383,8 @@ impl CheckState<'_> {
         origin: Origin,
         value: bool,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let ty = self.intern_memory_type(
-            origin,
-            dir::Type::Literal(dir::ScalarLiteral::Boolean(value)),
-        )?;
+        let ty =
+            self.intern_memory_type(origin, dir::Type::Literal(dir::Literal::Boolean(value)))?;
 
         Ok(Some(ty))
     }
@@ -1511,7 +1506,7 @@ impl CheckState<'_> {
         let space = match self.ty(place)? {
             dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(space)))
             | dir::Type::Memory(dir::MemoryLiteral::Space(space)) => Some(space),
-            dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
+            dir::Type::Literal(dir::Literal::String(value)) => {
                 [dir::Space::Local, dir::Space::Shared]
                     .into_iter()
                     .find(|space| value == dir::StringId::for_text(space.text()))

@@ -161,7 +161,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether one generic parameter occurs in one type graph.
-    fn parameter_occurs(
+    pub(in crate::sema) fn parameter_occurs(
         &mut self,
         ty: dir::GlobalTypeId,
         parameter: dir::GlobalGenericParameterId,

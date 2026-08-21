@@ -6,7 +6,6 @@ use smallvec::SmallVec;
 use crate::sema::{
     CauseKind, CheckError, CheckState, FunctionHeader, GenericTemplateId, InducedParameterOwner,
     Origin, Receiver, ReceiverBinding, Relation, TypeSubstitution, VariableRole, WalkState,
-    Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -181,11 +180,7 @@ impl WalkState<'_, '_> {
         where_clauses: &[dir::LocalNodeId<dir::WhereClause>],
         pass: TemplatePass,
     ) -> CompilerResult<()> {
-        let Some(symbol) = self
-            .check
-            .module(self.module)
-            .declaration_symbol(id.into_any())
-        else {
+        let Some(symbol) = self.declared_symbol(id.into_any()) else {
             return Ok(());
         };
         let source = id.into_global_any(self.module);
@@ -271,12 +266,7 @@ impl WalkState<'_, '_> {
         signature: &dir::FunctionSignature,
     ) -> CompilerResult<()> {
         // symbol-less declarations own no template
-        if self
-            .check
-            .module(self.module)
-            .declaration_symbol(id.into_any())
-            .is_none()
-        {
+        if self.declared_symbol(id.into_any()).is_none() {
             return Ok(());
         }
         let source = id.into_global_any(self.module);
@@ -402,11 +392,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::TypeDeclaration,
     ) -> CompilerResult<()> {
-        let Some(symbol) = self
-            .check
-            .module(self.module)
-            .declaration_symbol(id.into_any())
-        else {
+        let Some(symbol) = self.declared_symbol(id.into_any()) else {
             return Ok(());
         };
 
@@ -622,11 +608,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::StructDeclaration,
     ) -> CompilerResult<()> {
-        let Some(symbol) = self
-            .check
-            .module(self.module)
-            .declaration_symbol(id.into_any())
-        else {
+        let Some(symbol) = self.declared_symbol(id.into_any()) else {
             return Ok(());
         };
 
@@ -683,11 +665,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::ClassDeclaration,
     ) -> CompilerResult<()> {
-        let Some(symbol) = self
-            .check
-            .module(self.module)
-            .declaration_symbol(id.into_any())
-        else {
+        let Some(symbol) = self.declared_symbol(id.into_any()) else {
             return Ok(());
         };
 
@@ -901,11 +879,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::EnumDeclaration,
     ) -> CompilerResult<()> {
-        let Some(symbol) = self
-            .check
-            .module(self.module)
-            .declaration_symbol(id.into_any())
-        else {
+        let Some(symbol) = self.declared_symbol(id.into_any()) else {
             return Ok(());
         };
 
@@ -959,7 +933,7 @@ impl WalkState<'_, '_> {
 
             // preserve one nominal member per runtime value
             if let Some(previous) = values.get(&variant.value).copied() {
-                let literal = dir::ScalarLiteral::from(variant.value);
+                let literal = dir::Literal::from(variant.value);
                 let value = self.check.format_scalar_literal(&literal);
                 self.check
                     .report_duplicate_enum_variant_value(variant.source, previous, value);
@@ -977,7 +951,7 @@ impl WalkState<'_, '_> {
                 variant: variant.symbol,
             }))?;
             self.bind_symbol_type(variant.symbol, ty)?;
-            let literal = dir::ScalarLiteral::from(variant.value);
+            let literal = dir::Literal::from(variant.value);
             let static_type = self.intern_type(dir::Type::Literal(literal))?;
             self.commit_static_value(variant.symbol, static_type)?;
 
@@ -1021,11 +995,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::InterfaceDeclaration,
     ) -> CompilerResult<()> {
-        let Some(symbol) = self
-            .check
-            .module(self.module)
-            .declaration_symbol(id.into_any())
-        else {
+        let Some(symbol) = self.declared_symbol(id.into_any()) else {
             return Ok(());
         };
 
@@ -1095,11 +1065,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::ExtensionDeclaration,
     ) -> CompilerResult<()> {
-        let Some(symbol) = self
-            .check
-            .module(self.module)
-            .declaration_symbol(id.into_any())
-        else {
+        let Some(symbol) = self.declared_symbol(id.into_any()) else {
             return Ok(());
         };
 
@@ -1115,8 +1081,12 @@ impl WalkState<'_, '_> {
         let origin = Origin::Node(source, self.flow().template_scope());
         let target = self.walk_extension_target(origin, target_type)?;
         let target_name = match &target {
-            dir::ExtensionTarget::Rooted { root, .. } => self.check.format_symbol(*root),
-            _ => self.check.format_type(target_type),
+            dir::ExtensionTarget::Rooted { root, .. } => match root {
+                dir::TypeRoot::Declaration(symbol) => self.check.format_symbol(*symbol),
+                dir::TypeRoot::Primitive(primitive) => primitive.as_str(),
+                dir::TypeRoot::Tuple => "tuple".into(),
+            },
+            dir::ExtensionTarget::Blanket { .. } => self.check.format_type(target_type),
         };
         let ownership = self.check.default_ownership(origin, target_type)?;
         let receiver = Receiver {
@@ -1201,10 +1171,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::FunctionDeclaration,
     ) -> CompilerResult<()> {
-        let symbol = self
-            .check
-            .module(self.module)
-            .declaration_symbol(id.into_any());
+        let symbol = self.declared_symbol(id.into_any());
         let Some(symbol) = symbol else {
             // validate local signatures without a declaration symbol
             self.walk_function_signature(None, &declaration.signature)?;
@@ -1265,11 +1232,7 @@ impl WalkState<'_, '_> {
             return Ok(WalkedEnumVariant::Absent);
         }
         let (name, value) = (enum_field.name, enum_field.value);
-        let Some(symbol) = self
-            .check
-            .module(self.module)
-            .declaration_symbol(id.into_any())
-        else {
+        let Some(symbol) = self.declared_symbol(id.into_any()) else {
             return Ok(WalkedEnumVariant::Invalid);
         };
 
@@ -1305,10 +1268,10 @@ impl WalkState<'_, '_> {
                 );
                 let static_type = self.check.normalize(origin, static_type)?;
                 let value = match self.check.ty(static_type)? {
-                    dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
+                    dir::Type::Literal(dir::Literal::Integer(value)) => {
                         dir::EnumVariantValue::Integer(value)
                     }
-                    dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
+                    dir::Type::Literal(dir::Literal::String(value)) => {
                         dir::EnumVariantValue::String(value)
                     }
                     dir::Type::Error => return Ok(None),
@@ -1382,19 +1345,13 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
-        // check clauses without a template through current bound logic
-        let Some(template) = template else {
-            let origin = Origin::Node(
-                id.into_global_any(self.module),
-                self.flow().template_scope(),
-            );
-            self.relate_type(
-                origin,
-                CauseKind::Expression,
-                Relation::Satisfies,
-                left,
-                right,
-            )?;
+        // require the clause to bound one parameter of the declaration
+        let bounds_parameter = self.check.type_flags(left)?.has_parameter()
+            || self.check.type_flags(right)?.has_parameter()
+            || self.check.is_lifetime_term(left)?;
+        let Some(template) = template.filter(|_| bounds_parameter) else {
+            self.check
+                .report_where_clause_without_parameter(id.into_global_any(self.module))?;
 
             return Ok(());
         };
@@ -1489,11 +1446,7 @@ impl WalkState<'_, '_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<ReceiverBinding> {
         // read the receiver binding
-        let Some(symbol) = self
-            .check
-            .module(self.module)
-            .declaration_symbol(parameter.into_any())
-        else {
+        let Some(symbol) = self.declared_symbol(parameter.into_any()) else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "this parameter {:?} has no declaration symbol",
@@ -1564,7 +1517,7 @@ impl WalkState<'_, '_> {
             return Ok((Some(result), tracked));
         }
 
-        // setters return void by role, never written or inferred
+        // setters return void by role
         if signature.role == Some(dir::FunctionRole::Setter) {
             return Ok((Some(self.intern_type(dir::Type::Void)?), Vec::new()));
         }
@@ -1582,7 +1535,7 @@ impl WalkState<'_, '_> {
             );
         if infers {
             return Ok((
-                Some(self.open_type_hole(source, Widening::Never, VariableRole::Return)?),
+                Some(self.open_type_hole(source, VariableRole::Return)?),
                 Vec::new(),
             ));
         }
@@ -1726,25 +1679,31 @@ impl WalkState<'_, '_> {
             .map(|instance| instance.symbol)
             .or(carrier)
         {
-            return Ok(dir::ExtensionTarget::Rooted { root, ty });
+            return Ok(dir::ExtensionTarget::Rooted {
+                root: dir::TypeRoot::Declaration(root),
+                ty,
+            });
         }
 
         // root structural constructors at their language items
-        let item = match self.check.ty(chain.base())? {
-            dir::Type::Slice(_) => Some(dir::LanguageItem::Slice),
-            dir::Type::FixedArray(_) => Some(dir::LanguageItem::FixedArray),
-            dir::Type::Function(_) | dir::Type::FunctionSignature(_) => {
-                Some(dir::LanguageItem::Function)
-            }
-            _ => None,
-        };
-        if let Some(item) = item {
+        if let Some(item) = self.check.ty(chain.base())?.member_owner_item() {
             let root = self.check.language_symbol(item)?;
 
+            return Ok(dir::ExtensionTarget::Rooted {
+                root: dir::TypeRoot::Declaration(root),
+                ty,
+            });
+        }
+
+        // root the remaining primitives and tuples at their structural constructor
+        if let Some(root) = self.check.structural_root(chain.base())? {
             return Ok(dir::ExtensionTarget::Rooted { root, ty });
         }
 
-        // fall back to a blanket over the written target
+        // reject targets without a root declaration, blankets covering bare parameters
+        if !matches!(self.check.ty(chain.base())?, dir::Type::Parameter(_)) {
+            self.report_invalid_extension_target(origin, ty)?;
+        }
         let coverage = self.blanket_coverage(origin, ty)?;
 
         Ok(dir::ExtensionTarget::Blanket { ty, coverage })
@@ -1765,10 +1724,16 @@ impl WalkState<'_, '_> {
             return Ok(dir::BlanketCoverage::Deferred);
         };
 
-        // defer blankets with constrained undefaulted secondary parameters
+        // read the target parameter's bound
         let Some(template) = template else {
             return Ok(dir::BlanketCoverage::Deferred);
         };
+        let Some(binding) = self.check.generic_parameter(parameter) else {
+            return Ok(dir::BlanketCoverage::Deferred);
+        };
+        let constraint = binding.constraint;
+
+        // defer a blanket whose target bound leaves a constrained secondary parameter free
         for secondary in self.check.generic_template_parameters(template)? {
             if secondary == parameter {
                 continue;
@@ -1777,16 +1742,17 @@ impl WalkState<'_, '_> {
                 .check
                 .generic_parameter(secondary)
                 .is_none_or(|binding| binding.constraint.is_some() && binding.default.is_none());
-            if constrained {
+            let determined = match constraint {
+                Some(constraint) => self.check.parameter_occurs(constraint, secondary)?,
+                None => false,
+            };
+            if constrained && !determined {
                 return Ok(dir::BlanketCoverage::Deferred);
             }
         }
 
         // unbounded targets cover every receiver
-        let Some(binding) = self.check.generic_parameter(parameter) else {
-            return Ok(dir::BlanketCoverage::Deferred);
-        };
-        let Some(constraint) = binding.constraint else {
+        let Some(constraint) = constraint else {
             return Ok(dir::BlanketCoverage::Every);
         };
 

@@ -817,7 +817,7 @@ requireEqual(Point { x: 1 });
 }
 
 #[test]
-fn test_check_replaces_auto_set_with_written_derives() {
+fn test_limit_derived_interfaces_to_the_written_derive_list() {
     let session = TestSession::single(
         r#"
 @derive(Copy)
@@ -972,12 +972,12 @@ class Session {
 
 const a: Point = Point { x: 1 };
 const b: Point = Point { x: 2 };
-const same: boolean = a == b;
+const same: boolean = a == (b as &'static readonly Point);
 same satisfies boolean;
 
 const s1: Session = new Session();
 const s2: Session = new Session();
-const csame: boolean = s1 == s2;
+const csame: boolean = s1 == (s2 as &'static readonly Session);
 const cstrict: boolean = s1 === s2;
 csame satisfies boolean;
 cstrict satisfies boolean;
@@ -1017,9 +1017,11 @@ const same = a == b;
 /// @type.symbol symbol=same source=same type=boolean
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=a target=a
-/// @resolution.operator source="a == b" type=boolean operator="==" kind=builtin operands=[a as Point, b as Point]
+/// @resolution.operator source="a == b" type=boolean operator="==" kind=call parameters=(&'static readonly Point) arguments=(provided(b) as &'static readonly Point) return=boolean kind=symbol target=ops.equality.PartialEqual.equal receiver=Point adjustments=(borrow(&'static readonly Point)) instance=PartialEqual<Point>.equal
 /// @resolution.place source=a placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=a root=a
+/// @generic.instantiation id=ops.equality.PartialEqual.equal<Point> template=ops.equality.PartialEqual.equal arguments=(Point)
+/// @generic.instance id=ops.equality.PartialEqual.equal<Point> template=ops.equality.PartialEqual.equal arguments=(Point)
 /// @resolution.name source=b target=b
 /// @resolution.place source=b placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=b root=b
@@ -1045,9 +1047,11 @@ const csame = s1 == s2;
 /// @type.symbol symbol=csame source=csame type=boolean
 /// @resolution.pattern source=csame kind=binding target=csame
 /// @resolution.name source=s1 target=s1
-/// @resolution.operator source="s1 == s2" type=boolean operator="==" kind=builtin operands=[s1 as Session, s2 as Session]
+/// @resolution.operator source="s1 == s2" type=boolean operator="==" kind=call parameters=(&'static readonly Session) arguments=(provided(s2) as &'static readonly Session) return=boolean kind=symbol target=ops.equality.PartialEqual.equal receiver=Session adjustments=(borrow(&'static readonly Session)) instance=PartialEqual<Session>.equal
 /// @resolution.place source=s1 placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=s1 root=s1
+/// @generic.instantiation id=ops.equality.PartialEqual.equal<Session> template=ops.equality.PartialEqual.equal arguments=(Session)
+/// @generic.instance id=ops.equality.PartialEqual.equal<Session> template=ops.equality.PartialEqual.equal arguments=(Session)
 /// @resolution.name source=s2 target=s2
 /// @resolution.place source=s2 placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=s2 root=s2
@@ -1142,7 +1146,7 @@ const strict = a === b;
 }
 
 #[test]
-fn test_check_rejects_clone_bound_on_late_settled_generic_argument() {
+fn test_reject_a_clone_bound_on_a_type_argument_inferred_later() {
     let session = TestSession::single(
         r#"
 struct Blocker {
@@ -1175,7 +1179,7 @@ const cloned = requireClone(hold(), holdBlocker());
 }
 
 #[test]
-fn test_check_rejects_clone_bound_on_settled_function_field() {
+fn test_reject_a_clone_bound_on_a_struct_with_a_function_field() {
     let session = TestSession::single(
         r#"
 struct Blocker {

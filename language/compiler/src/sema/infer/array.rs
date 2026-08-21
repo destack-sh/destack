@@ -2,8 +2,9 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, Cause, CauseKind, CheckAttempt, CheckOutcome, Expectation, FlowSite, InferMode,
-    Origin, PlaceUse, Relation, RelationCheck, ValueCheck, ValueUse, VariableRole, Widening,
+    BodyState, Cause, CauseId, CauseKind, CheckAttempt, CheckOutcome, Expectation, FlowSite,
+    InferMode, Origin, PlaceUse, Relation, RelationCheck, ValueCheck, ValueUse, VariableRole,
+    Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -25,7 +26,7 @@ impl BodyState<'_, '_> {
         let mut values = SmallVec::<[(Option<dir::GlobalNodeIdAny>, dir::GlobalTypeId); 8]>::new();
         let mut spreads =
             SmallVec::<[(dir::LocalNodeId<dir::Expression>, dir::GlobalTypeId); 2]>::new();
-        let element_mode = mode.descend(false);
+        let element_mode = mode;
 
         // infer explicit elements and spread sources
         for argument in elements {
@@ -76,33 +77,42 @@ impl BodyState<'_, '_> {
             return Ok(readonly);
         }
 
-        // empty literals without spreads construct the never array
+        // an empty literal constructs the never array
         let element = if values.is_empty() && spreads.is_empty() {
             self.intern_type(dir::Type::Never)?
         }
-        // open one widening element variable and relate every element into it
+        // open one element variable and relate every element into it
         else {
             let origin = site.origin();
-            let variable = self.allocate_variable(origin, Widening::Always, VariableRole::Regular);
+            let variable = self.allocate_variable(origin, VariableRole::Regular);
             let element = self.variable_type(variable)?;
 
             for (source, value) in &values {
-                // elided elements relate their undefined at the literal itself
-                let origin = match source {
-                    Some(source) => Origin::Node(*source, site.scope),
-                    None => origin,
+                // a hole adds undefined beside the inferred element below
+                let Some(source) = source else {
+                    continue;
                 };
+                let origin = Origin::Node(*source, site.scope);
+                let source_site = self.visit_site(*source)?;
+                let value = self.expression_value(source_site, *value)?;
+                let value = self.fresh_variable(origin, value)?;
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 self.push_relation(RelationCheck::new(
                     origin,
                     Relation::Assignable,
-                    *value,
+                    value,
                     element,
                     cause,
                 ))?;
             }
 
-            element
+            // holes read as undefined
+            if values.iter().any(|(source, _)| source.is_none()) {
+                let undefined = self.intern_type(dir::Type::Undefined)?;
+                self.normalized_union_type([element, undefined])?
+            } else {
+                element
+            }
         };
         let array = self.array_type(element)?;
 
@@ -160,15 +170,17 @@ impl BodyState<'_, '_> {
 
         // infer the repeated value under the element mode
         let value_site = self.visit_site(value.into_global_any(module))?;
-        let element_mode = mode.descend(false);
+        let element_mode = mode;
         let source_element = self.infer_node(value_site, PlaceUse::Read, element_mode)?;
         let source_element = self.flow_type_at(value_site, source_element)?;
 
         // commit the fixed array over the selected element type
-        let element = if mode.widens_aggregate() {
-            self.widen_type(source_element)?
-        } else {
-            source_element
+        let element = match mode {
+            InferMode::Regular => {
+                let value = self.expression_value(value_site, source_element)?;
+                self.widen_fresh(value)?
+            }
+            InferMode::Const => source_element,
         };
         let array = self.intern_type(dir::Type::FixedArray(dir::FixedArrayType {
             element,
@@ -208,7 +220,7 @@ impl BodyState<'_, '_> {
 
         let mut fields = Vec::with_capacity(elements.len());
         let mut sources = Vec::with_capacity(elements.len());
-        let element_mode = mode.descend(false);
+        let element_mode = mode;
 
         // infer each tuple field under the current literal mode
         for element in elements {
@@ -233,9 +245,20 @@ impl BodyState<'_, '_> {
                 continue;
             };
 
-            let value_site = self.visit_site(value.into_global_any(module))?;
+            let source = value.into_global_any(module);
+            let value_site = self.visit_site(source)?;
             let ty = self.infer_node(value_site, PlaceUse::Read, element_mode)?;
             let ty = self.flow_type_at(value_site, ty)?;
+
+            // a fresh literal element opens its numeric variable, a const tuple keeps it
+            let ty = match mode {
+                InferMode::Const => ty,
+                InferMode::Regular if is_rest => ty,
+                InferMode::Regular => {
+                    let value = self.expression_value(value_site, ty)?;
+                    self.fresh_variable(Origin::Node(source, site.scope), value)?
+                }
+            };
             fields.push(dir::TypeElement {
                 label: None,
                 ty,
@@ -243,7 +266,7 @@ impl BodyState<'_, '_> {
                 is_readonly: false,
                 is_rest,
             });
-            sources.push(Some(value.into_global_any(module)));
+            sources.push(Some(source));
         }
 
         // intern the authored tuple
@@ -259,10 +282,6 @@ impl BodyState<'_, '_> {
                 form: dir::Form::Readonly,
                 value: tuple,
             }))?
-        }
-        // widen the mutable contents this mode does not preserve
-        else if mode.widens_aggregate() {
-            self.widen_type(tuple)?
         }
         // otherwise keep the authored tuple
         else {
@@ -323,11 +342,17 @@ impl BodyState<'_, '_> {
         let node = site.node.into_typed::<dir::Expression>();
         let target = expectation.target;
 
+        // take the literal's own element types for an open destination
+        if self.root_variable(target_value)?.is_some() {
+            return Ok(CheckAttempt::NotApplicable);
+        }
+
         // walk the element decorators, keeping the statically present elements
         let elements = self.walk_body_arguments(node.module_id, elements)?;
         let elements = elements.as_slice();
 
         // read the expected element type and any declared length
+        let mut adapts_interface = false;
         let expected = if let Some(element) = self.check.array_element(target_value)? {
             Some((element, None))
         } else {
@@ -338,21 +363,59 @@ impl BodyState<'_, '_> {
                 _ if self.is_erased_value(target_value)? => self
                     .iterable_value_argument(target_value)?
                     .map(|element| (element, None)),
-                _ => None,
+                // an interface the array implements types elements through that implementation
+                _ => {
+                    let element = self.implemented_array_element(
+                        site.origin(),
+                        expectation.cause,
+                        target_value,
+                    )?;
+                    adapts_interface = element.is_some();
+                    element.map(|element| (element, None))
+                }
             }
         };
         let Some((element, count)) = expected else {
             return Ok(CheckAttempt::NotApplicable);
         };
+
         let mut source_elements = SmallVec::<[(dir::GlobalNodeIdAny, dir::GlobalTypeId); 8]>::new();
         let mut check = CheckOutcome::Holds;
 
-        // check every explicit element against the expected element type
+        // check every element against the expected element type, a spread through its own element
         for (index, argument) in elements.iter().enumerate() {
-            let dir::Argument::Positional { value } =
-                self.module(node.module_id).view().get(*argument)
-            else {
-                return Ok(CheckAttempt::NotApplicable);
+            let value = match self.module(node.module_id).view().get(*argument) {
+                dir::Argument::Positional { value } => *value,
+                dir::Argument::Spread { value } => {
+                    let value = *value;
+                    let spread_site = self.visit_site(value.into_global_any(node.module_id))?;
+                    let spread = self.infer_node_type(spread_site, PlaceUse::Read)?;
+                    let item = self.spread_element_type(spread)?;
+                    let cause = self.intern_cause(Cause::child(
+                        Origin::Node(value.into_global_any(node.module_id), site.scope),
+                        CauseKind::Element {
+                            index: index as u32,
+                        },
+                        expectation.cause,
+                    ));
+                    let verdict = self.constrain_type(
+                        spread_site.origin(),
+                        cause,
+                        Relation::Assignable,
+                        item,
+                        element,
+                    )?;
+                    check = check.and(self.complete_constraint_check(
+                        spread_site.origin(),
+                        Relation::Assignable,
+                        item,
+                        element,
+                        verdict,
+                    )?);
+
+                    continue;
+                }
+                _ => return Ok(CheckAttempt::NotApplicable),
             };
             let child = value.into_global_any(node.module_id);
             let child_site = self.visit_site(child)?;
@@ -363,21 +426,18 @@ impl BodyState<'_, '_> {
                 },
                 expectation.cause,
             ));
-            let mode = expectation.mode.descend(false);
-            let mode = self.contextual_literal_mode(site.origin(), element, mode)?;
             let child_expectation = Expectation {
                 target: element,
                 cause,
-                mode,
+                use_: ValueUse::Store,
                 ..expectation
             };
             let child_check = self.check_node(child_site, child_expectation)?;
-            let storage = self.literal_slot_storage(
+            let storage = self.slot_storage(
                 site.origin(),
                 expectation.relation,
                 element,
-                child_check.source,
-                mode,
+                child_check.stored,
             )?;
             source_elements.push((child, storage));
             check = check.and(child_check.outcome);
@@ -393,9 +453,9 @@ impl BodyState<'_, '_> {
         }
         // commit the authored length against a fixed array target
         else if count.is_some() {
-            let actual_count = self.intern_type(dir::Type::Literal(
-                dir::ScalarLiteral::Integer(elements.len() as i64),
-            ))?;
+            let actual_count = self.intern_type(dir::Type::Literal(dir::Literal::Integer(
+                elements.len() as i64,
+            )))?;
             let value = self.intern_type(dir::Type::FixedArray(dir::FixedArrayType {
                 element,
                 count: actual_count,
@@ -414,6 +474,12 @@ impl BodyState<'_, '_> {
                 self.replace_form_value(site.origin(), carrier, value)?,
                 Some((element, value)),
             )
+        }
+        // commit the array itself for an implemented interface target, converting it below
+        else if adapts_interface {
+            let value = self.array_type(element)?;
+
+            (value, Some((element, value)))
         }
         // otherwise keep the checked carrier
         else {
@@ -437,11 +503,47 @@ impl BodyState<'_, '_> {
             )?;
         }
 
+        // convert the array into the interface it adapted to
+        if adapts_interface {
+            let checked = self.check_value(site, carrier, expectation)?;
+
+            return Ok(CheckAttempt::Checked(checked));
+        }
+
         Ok(CheckAttempt::Checked(ValueCheck {
             source: carrier,
+            stored: carrier,
             outcome: check,
             target,
         }))
+    }
+
+    /// Open the element variable of an array assignable to one expected interface.
+    fn implemented_array_element(
+        &mut self,
+        origin: Origin,
+        cause: CauseId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let dir::Type::Application(instance) = self.ty(target)? else {
+            return Ok(None);
+        };
+        if !matches!(
+            self.definition(instance.symbol)?,
+            Some(dir::Definition::Interface(_))
+        ) {
+            return Ok(None);
+        }
+        let variable = self.allocate_variable(origin, VariableRole::Regular);
+        let element = self.variable_type(variable)?;
+        let array = self.array_type(element)?;
+        if self.constrain_type(origin, cause, Relation::Assignable, array, target)?
+            == Verdict::Fails
+        {
+            return Ok(None);
+        }
+
+        Ok(Some(element))
     }
 
     /// Check one repeated fixed array literal under an expected fixed array.
@@ -469,12 +571,10 @@ impl BodyState<'_, '_> {
             CauseKind::Element { index: 0 },
             expectation.cause,
         ));
-        let mode = expectation.mode.descend(false);
-        let mode = self.contextual_literal_mode(site.origin(), array.element, mode)?;
         let child_expectation = Expectation {
             target: array.element,
             cause: element_cause,
-            mode,
+            use_: ValueUse::Store,
             ..expectation
         };
         let check = self.check_node(child_site, child_expectation)?;
@@ -499,6 +599,7 @@ impl BodyState<'_, '_> {
 
         Ok(CheckAttempt::Checked(ValueCheck {
             source: ty,
+            stored: ty,
             outcome: check.outcome,
             target,
         }))
@@ -549,18 +650,16 @@ impl BodyState<'_, '_> {
                 },
                 expectation.cause,
             ));
-            let mode = expectation.mode.descend(element.is_readonly);
-            let mode = self.contextual_literal_mode(site.origin(), element.ty, mode)?;
             let child_expectation = Expectation {
                 target: element.ty,
                 cause: element_cause,
-                mode,
+                use_: ValueUse::Store,
                 ..expectation
             };
             let child_check = self.check_node(child_site, child_expectation)?;
             source_elements.push(dir::TypeElement {
                 label: None,
-                ty: child_check.source,
+                ty: child_check.stored,
                 is_optional: false,
                 is_readonly: expectation.mode.is_readonly(),
                 is_rest: false,
@@ -585,6 +684,7 @@ impl BodyState<'_, '_> {
 
         Ok(CheckAttempt::Checked(ValueCheck {
             source: carrier,
+            stored: carrier,
             outcome: check,
             target,
         }))

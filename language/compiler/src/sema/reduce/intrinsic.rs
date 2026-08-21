@@ -299,7 +299,7 @@ impl CheckState<'_> {
         multiplicity: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::Multiplicity>> {
         let multiplicity = self.normalize(origin, multiplicity)?;
-        let dir::Type::Literal(dir::ScalarLiteral::String(text)) = self.ty(multiplicity)? else {
+        let dir::Type::Literal(dir::Literal::String(text)) = self.ty(multiplicity)? else {
             return Ok(None);
         };
 
@@ -336,6 +336,13 @@ impl CheckState<'_> {
                     is_rest: element.is_rest,
                 })
                 .collect(),
+            // an open or rigid pack stands as one rest parameter binding the whole tuple
+            dir::Type::Variable(_) | dir::Type::Parameter(_) => vec![dir::FunctionParameterType {
+                name: None,
+                ty: parameters,
+                is_optional: false,
+                is_rest: true,
+            }],
             _ => return Ok(None),
         };
         let parameters = self.intern_parameters(&parameters)?;

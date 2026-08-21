@@ -22,7 +22,7 @@ function pick<A, B>(second: B, first: A): A {
 }
 
 function use(): string {
-    return pick<"x", float64>(1, "x");
+    return pick<"x", int64>(1, "x");
 }
 
 === dir ===
@@ -49,9 +49,9 @@ function use(): string {
 
     return pick(1, "x");
     /// @resolution.name source=pick target=pick
-    /// @resolution.call source="pick(1, \"x\")" parameters=(float64, "x") arguments=(provided(1) as float64, provided("x") as "x") return="x" kind=symbol target=pick instance="pick<\"x\", float64>"
-    /// @generic.instantiation id="pick<\"x\", float64>" template=pick arguments=("x", float64)
-    /// @generic.instance id="pick<\"x\", float64>" template=pick arguments=("x", float64)
+    /// @resolution.call source="pick(1, \"x\")" parameters=(int64, "x") arguments=(provided(1) as int64, provided("x") as "x") return="x" kind=symbol target=pick instance="pick<\"x\", int64>"
+    /// @generic.instantiation id="pick<\"x\", int64>" template=pick arguments=("x", int64)
+    /// @generic.instance id="pick<\"x\", int64>" template=pick arguments=("x", int64)
 
 }
 "#);

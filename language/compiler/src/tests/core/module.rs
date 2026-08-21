@@ -46,7 +46,7 @@ pub(crate) fn parse_module(
 
     // preserve a stable module-level anchor
     let anchor_expression = tree.insert(
-        dir::Expression::ScalarLiteral(dir::ScalarLiteral::Boolean(false)),
+        dir::Expression::Literal(dir::Literal::Boolean(false)),
         Span::empty(module.file_id),
     );
 
@@ -94,7 +94,7 @@ fn parse_module_file(
     // restore the shared tree
     *tree = parse.tree;
     let anchor_expression = tree.insert(
-        dir::Expression::ScalarLiteral(dir::ScalarLiteral::Boolean(false)),
+        dir::Expression::Literal(dir::Literal::Boolean(false)),
         Span::empty(source_file.id),
     );
 

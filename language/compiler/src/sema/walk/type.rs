@@ -3,7 +3,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     GenericArgument, MemberRole, MixedObjectSignature, Origin, Receiver, TypeSubstitution,
-    VariableRole, WalkState, Widening,
+    VariableRole, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -28,11 +28,9 @@ impl WalkState<'_, '_> {
 
         match self.tree.get(id) {
             // "ok", 42, true
-            dir::TypeExpression::ScalarLiteral { value } => {
-                self.intern_type(dir::Type::Literal(*value))
-            }
+            dir::TypeExpression::Literal { value } => self.intern_type(dir::Type::Literal(*value)),
             // never, any, null, number, ...
-            dir::TypeExpression::Literal { value } => {
+            dir::TypeExpression::Keyword { value } => {
                 self.intern_type(dir::Type::from(value.clone()))
             }
             // reject intrinsic markers outside declaration values
@@ -315,6 +313,22 @@ impl WalkState<'_, '_> {
                 // distribute only naked parameter scrutinees over unions
                 let is_distributive = matches!(self.check.ty(left)?, dir::Type::Parameter(_));
                 let right = self.walk_type_expression(extends_type)?;
+
+                // assume the parameter's extension inside the true branch, as a where clause would
+                if is_distributive {
+                    let source = source.into_global(self.module);
+                    let template = self.check.open_generic_template(source)?;
+                    self.check.push_template_predicate(
+                        template,
+                        dir::WherePredicate {
+                            source,
+                            relation: dir::WhereRelation::Satisfies,
+                            left,
+                            right,
+                        },
+                    )?;
+                }
+
                 let then_type = self.walk_type_expression(then_type)?;
                 let else_type = self.walk_type_expression(else_type)?;
 
@@ -332,9 +346,9 @@ impl WalkState<'_, '_> {
                 let left = self.walk_type_expression(*left)?;
                 let right = self.walk_type_expression(*right)?;
                 let then_type =
-                    self.intern_type(dir::Type::Literal(dir::ScalarLiteral::Boolean(true)))?;
+                    self.intern_type(dir::Type::Literal(dir::Literal::Boolean(true)))?;
                 let else_type =
-                    self.intern_type(dir::Type::Literal(dir::ScalarLiteral::Boolean(false)))?;
+                    self.intern_type(dir::Type::Literal(dir::Literal::Boolean(false)))?;
 
                 self.intern_operation(dir::TypeOperation::Conditional(dir::ConditionalType {
                     left,
@@ -405,7 +419,7 @@ impl WalkState<'_, '_> {
                     return Ok(rejected);
                 }
 
-                self.open_type_hole(source, Widening::Always, VariableRole::Regular)
+                self.open_type_hole(source, VariableRole::Regular)
             }
 
             // preserve named infer bindings for conditional matching
@@ -415,16 +429,13 @@ impl WalkState<'_, '_> {
                     None => None,
                 };
                 let symbol = match name {
-                    Some(_) => Some(
-                        self.check
-                            .module(self.module)
-                            .declaration_symbol(source)
-                            .ok_or_else(|| CompilerError::Internal {
-                                message: format!(
-                                    "named infer binding {id:?} has no declaration symbol"
-                                ),
-                            })?,
-                    ),
+                    Some(_) => Some(self.declared_symbol(source).ok_or_else(|| {
+                        CompilerError::Internal {
+                            message: format!(
+                                "named infer binding {id:?} has no declaration symbol"
+                            ),
+                        }
+                    })?),
                     None => None,
                 };
 
@@ -1432,6 +1443,7 @@ impl WalkState<'_, '_> {
             form: dir::Form::Placed { place },
             value,
         }))?;
+
         Ok(ty)
     }
 
@@ -1483,11 +1495,11 @@ impl WalkState<'_, '_> {
     }
 
     /// Return the discrete scalar domain of one interval bound literal.
-    fn interval_bound_domain(literal: dir::ScalarLiteral) -> Option<dir::ScalarDomain> {
+    fn interval_bound_domain(literal: dir::Literal) -> Option<dir::ScalarDomain> {
         match literal {
-            dir::ScalarLiteral::Integer(_) => Some(dir::ScalarDomain::Integer),
-            dir::ScalarLiteral::Bigint(_) => Some(dir::ScalarDomain::Bigint),
-            dir::ScalarLiteral::Character(_) => Some(dir::ScalarDomain::Character),
+            dir::Literal::Integer(_) => Some(dir::ScalarDomain::Integer),
+            dir::Literal::Bigint(_) => Some(dir::ScalarDomain::Bigint),
+            dir::Literal::Character(_) => Some(dir::ScalarDomain::Character),
             _ => None,
         }
     }
@@ -1496,9 +1508,9 @@ impl WalkState<'_, '_> {
     fn range_literal_bound(
         &mut self,
         bound: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<Option<dir::ScalarLiteral>> {
+    ) -> CompilerResult<Option<dir::Literal>> {
         match self.tree.get(bound) {
-            dir::TypeExpression::ScalarLiteral { value } => Ok(Some(*value)),
+            dir::TypeExpression::Literal { value } => Ok(Some(*value)),
             _ => Ok(None),
         }
     }
@@ -1506,7 +1518,7 @@ impl WalkState<'_, '_> {
     /// Return one mapped type expression.
     fn walk_mapped_type(
         &mut self,
-        _id: dir::LocalNodeId<dir::TypeExpression>,
+        id: dir::LocalNodeId<dir::TypeExpression>,
         parameter: dir::LocalNodeId<dir::TypeMappedParameter>,
         readonly: dir::MappedTypeModifier,
         optional: dir::MappedTypeModifier,
@@ -1515,11 +1527,7 @@ impl WalkState<'_, '_> {
         // read the written binder and its source constraint
         let mapped = self.tree.get(parameter);
         let (name, source_type, key_remap) = (mapped.name, mapped.source_type, mapped.key_remap);
-        let Some(symbol) = self
-            .check
-            .module(self.module)
-            .declaration_symbol(parameter.into_any())
-        else {
+        let Some(symbol) = self.declared_symbol(parameter.into_any()) else {
             return self.intern_type(dir::Type::Error);
         };
 
@@ -1529,9 +1537,10 @@ impl WalkState<'_, '_> {
         let binder = match self.check.parameter_by_symbol(symbol) {
             Some(binder) => binder,
             None => {
+                // the mapped type introduces the scope its key parameter lives in
                 let template = self
                     .check
-                    .open_generic_template(parameter.into_global_any(self.module))?;
+                    .open_generic_template(id.into_global_any(self.module))?;
                 self.check.push_generic_parameter(
                     template,
                     parameter.into_global_any(self.module),

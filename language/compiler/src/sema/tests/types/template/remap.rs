@@ -48,9 +48,9 @@ type Handlers<T> = {
 /// @type.symbol symbol=Handlers type={ [K in keyof T as `on-${K}`]: Function<(T[K],), void> }
 /// @definition.type symbol=Handlers template=(T) value={ [K in keyof T as `on-${K}`]: Function<(T[K],), void> }
 /// @type.symbol symbol=Handlers.T source=T type=T
+/// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 
     [K in keyof T as `on-${K}`]: (value: T[K]) => void;
-    /// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
     /// @type.symbol symbol=Handlers.K source=[K in keyof T as `on-${K}`] type=K
     /// @resolution.name source=T target=Handlers.T
     /// @resolution.name source=K target=Handlers.K
@@ -140,9 +140,9 @@ type Getters<T> = {
 /// @type.symbol symbol=Getters type={ [K in keyof T as `get${Capitalize<string & K>}`]: Function<(), T[K]> }
 /// @definition.type symbol=Getters template=(T) value={ [K in keyof T as `get${Capitalize<string & K>}`]: Function<(), T[K]> }
 /// @type.symbol symbol=Getters.T source=T type=T
+/// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 
     [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K];
-    /// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
     /// @type.symbol symbol=Getters.K source=[K in keyof T as `get${Capitalize<string & K>}`] type=K
     /// @resolution.name source=T target=Getters.T
     /// @resolution.name source=Capitalize target=types.string.Capitalize
@@ -220,9 +220,9 @@ type Handlers<T> = {
 /// @type.symbol symbol=Handlers type={ [K in keyof T as `on-${K}`]: T[K] }
 /// @definition.type symbol=Handlers template=(T) value={ [K in keyof T as `on-${K}`]: T[K] }
 /// @type.symbol symbol=Handlers.T source=T type=T
+/// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 
     [K in keyof T as `on-${K}`]: T[K];
-    /// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
     /// @type.symbol symbol=Handlers.K source=[K in keyof T as `on-${K}`] type=K
     /// @resolution.name source=T target=Handlers.T
     /// @resolution.name source=K target=Handlers.K
@@ -300,9 +300,9 @@ type Names<T> = {
 /// @type.symbol symbol=Names type={ [K in keyof T as K extends `${infer Name}Created` ? Names.Name : never]: T[K] }
 /// @definition.type symbol=Names template=(T) value={ [K in keyof T as K extends `${infer Name}Created` ? Names.Name : never]: T[K] }
 /// @type.symbol symbol=Names.T source=T type=T
+/// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 
     [K in keyof T as K extends `${infer Name}Created` ? Name : never]: T[K];
-    /// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
     /// @type.symbol symbol=Names.K source=[K in keyof T as K extends `${infer Name}Created` ? Name : never] type=K
     /// @resolution.name source=T target=Names.T
     /// @resolution.name source=K target=Names.K
@@ -378,9 +378,9 @@ type Names<T> = {
 /// @type.symbol symbol=Names type={ [K in keyof T as K extends `${infer Name}Created` ? Names.Name : never]: T[K] }
 /// @definition.type symbol=Names template=(T) value={ [K in keyof T as K extends `${infer Name}Created` ? Names.Name : never]: T[K] }
 /// @type.symbol symbol=Names.T source=T type=T
+/// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 
     [K in keyof T as K extends `${infer Name}Created` ? Name : never]: T[K];
-    /// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
     /// @type.symbol symbol=Names.K source=[K in keyof T as K extends `${infer Name}Created` ? Name : never] type=K
     /// @resolution.name source=T target=Names.T
     /// @resolution.name source=K target=Names.K
@@ -450,9 +450,9 @@ type HandlerMap<T> = {
 /// @type.symbol symbol=HandlerMap type={ [K in keyof T as `on-${K}`]: T[K] }
 /// @definition.type symbol=HandlerMap template=(T) value={ [K in keyof T as `on-${K}`]: T[K] }
 /// @type.symbol symbol=HandlerMap.T source=T type=T
+/// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 
     [K in keyof T as `on-${K}`]: T[K];
-    /// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
     /// @type.symbol symbol=HandlerMap.K source=[K in keyof T as `on-${K}`] type=K
     /// @resolution.name source=T target=HandlerMap.T
     /// @resolution.name source=K target=HandlerMap.K

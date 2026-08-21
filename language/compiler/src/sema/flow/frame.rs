@@ -83,6 +83,8 @@ impl ControlTargetForm {
 /// A `try` body that can receive propagated failures.
 #[derive(Debug)]
 pub(in crate::sema) struct TryTarget {
+    /// The receiving try expression.
+    pub(in crate::sema::flow) node: dir::GlobalNodeId<dir::Expression>,
     /// The residual types the body propagated, one per try site.
     pub(in crate::sema::flow) residuals: Vec<dir::GlobalTypeId>,
 }

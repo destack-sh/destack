@@ -8,6 +8,7 @@ use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use rustc_hash::FxHashMap;
+use smallvec::SmallVec;
 
 use super::{CheckState, Pass};
 use crate::{CompilerError, CompilerResult};
@@ -84,7 +85,7 @@ impl CheckState<'_> {
             return Ok(Arc::clone(resolved));
         }
 
-        // read the resolve stage directly; it never depends on declared modules
+        // read the resolve stage directly
         let resolved = self
             .artifacts
             .read::<DirResolved>((module, self.profile))
@@ -92,6 +93,31 @@ impl CheckState<'_> {
         self.external_resolved.insert(module, Arc::clone(&resolved));
 
         Ok(resolved)
+    }
+
+    /// Return the implementations of one interface declared across the program with their roots.
+    pub(in crate::sema) fn program_implementations(
+        &mut self,
+        interface: dir::GlobalSymbolId,
+    ) -> CompilerResult<SmallVec<[(dir::GlobalSymbolId, Option<dir::GlobalSymbolId>); 4]>> {
+        // skip program reads while declaring
+        if self.is_declaration() {
+            return Ok(SmallVec::new());
+        }
+
+        // read the graph's per interface projection, depending on that interface alone
+        let graph = self
+            .artifacts
+            .module_graph_reader(self.profile)
+            .map_err(CompilerError::from)?;
+        let symbols = graph
+            .interface_implementations(interface)
+            .map_err(CompilerError::from)?
+            .iter()
+            .map(|implementation| (implementation.symbol, implementation.root))
+            .collect::<SmallVec<[_; 4]>>();
+
+        Ok(symbols)
     }
 
     /// Import and return state for one external module while checking.

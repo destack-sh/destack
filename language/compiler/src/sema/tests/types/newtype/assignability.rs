@@ -314,7 +314,7 @@ const config: Config = { debug: true };
 /// @resolution.name source=Config target=Config
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '{ debug: true }' is not assignable to type 'Config'"
+/// @diagnostic.error id=not-assignable message="type '{ debug: boolean }' is not assignable to type 'Config'"
 /// @diagnostic.label line=4 column=24 span="{ debug: true }" line_source="const config: Config = { debug: true };"
 /// @diagnostic.related line=4 column=15 span="Config" line_source="const config: Config = { debug: true };" message="expected due to this annotation"
 "#,

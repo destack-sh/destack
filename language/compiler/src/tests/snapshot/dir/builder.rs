@@ -879,7 +879,7 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Render one static term label.
     pub(crate) fn static_term_label(&self, term: &dir::StaticTerm) -> String {
         match term {
-            dir::StaticTerm::ScalarLiteral { value } => self.scalar_literal_label(value),
+            dir::StaticTerm::Literal { value } => self.scalar_literal_label(value),
             dir::StaticTerm::Type { ty } => self.global_type_label(*ty),
             dir::StaticTerm::Array { elements } => {
                 // render array elements recursively
@@ -944,17 +944,17 @@ impl<'a> DirSnapshotBuilder<'a> {
     }
 
     /// Render one scalar literal label.
-    pub(crate) fn scalar_literal_label(&self, literal: &dir::ScalarLiteral) -> String {
+    pub(crate) fn scalar_literal_label(&self, literal: &dir::Literal) -> String {
         match literal {
-            dir::ScalarLiteral::Null => "null".to_string(),
-            dir::ScalarLiteral::Undefined => "undefined".to_string(),
-            dir::ScalarLiteral::Boolean(value) => value.to_string(),
-            dir::ScalarLiteral::Integer(value) => value.to_string(),
-            dir::ScalarLiteral::Bigint(value) => format!("{value}n"),
-            dir::ScalarLiteral::Float(value) => value.to_string(),
-            dir::ScalarLiteral::Character(value) => format!("'{value}'"),
-            dir::ScalarLiteral::String(value) => format!("{:?}", self.strings.get(*value)),
-            dir::ScalarLiteral::RegexString { content, flags } => {
+            dir::Literal::Null => "null".to_string(),
+            dir::Literal::Undefined => "undefined".to_string(),
+            dir::Literal::Boolean(value) => value.to_string(),
+            dir::Literal::Integer(value) => value.to_string(),
+            dir::Literal::Bigint(value) => format!("{value}n"),
+            dir::Literal::Float(value) => value.to_string(),
+            dir::Literal::Character(value) => format!("'{value}'"),
+            dir::Literal::String(value) => format!("{:?}", self.strings.get(*value)),
+            dir::Literal::RegexString { content, flags } => {
                 let flags = flags.map(|flags| self.strings.get(flags)).unwrap_or("");
 
                 format!("/{}/{flags}", self.strings.get(*content))
@@ -963,9 +963,9 @@ impl<'a> DirSnapshotBuilder<'a> {
     }
 
     /// Render one scalar literal as a plain row value.
-    pub(crate) fn scalar_literal_value_label(&self, literal: &dir::ScalarLiteral) -> String {
+    pub(crate) fn scalar_literal_value_label(&self, literal: &dir::Literal) -> String {
         match literal {
-            dir::ScalarLiteral::String(value) => self.strings.get(*value).to_string(),
+            dir::Literal::String(value) => self.strings.get(*value).to_string(),
             _ => self.scalar_literal_label(literal),
         }
     }

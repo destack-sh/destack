@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_reject_unerasable_source_stored_at_unknown() {
+fn test_reject_an_unbounded_parameter_returned_as_unknown() {
     let session = TestSession::single(
         r#"
 function keep<T>(value: T): unknown {
@@ -43,7 +43,7 @@ function keep<T>(value: T): unknown {
 }
 
 #[test]
-fn test_erase_bounded_source_stored_at_unknown() {
+fn test_accept_a_dynamic_safe_parameter_returned_as_unknown() {
     let session = TestSession::single(
         r#"
 import { DynamicSafe } from "destack:memory";

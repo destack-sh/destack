@@ -5,8 +5,8 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     BodyState, CandidateOutcome, CheckState, DeclaredMember, ExtensionMatch, InterfaceMember,
-    MemberCandidate, MemberLookup, Origin, Relation, SignatureMatch, TypeArgumentInference,
-    TypeSubstitution, Value,
+    MemberCandidate, MemberLookup, OpenBounds, Origin, Relation, SignatureMatch,
+    TypeArgumentInference, TypeSubstitution, Value,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -306,7 +306,9 @@ impl BodyState<'_, '_> {
         let interface = protocol.instance(self, module)?;
         let interface = self.intern_type(dir::Type::Application(interface))?;
         let requirements = protocol.members(self, interface, lookup_receiver, space, key)?;
-        let lookup = self.lookup_inherent_member(origin, module, lookup_receiver, space, key)?;
+
+        // a requirement may be met by any member visible on the receiver
+        let lookup = self.lookup_visible_member(origin, module, lookup_receiver, space, key)?;
         self.select_protocol_member_lookup(
             origin,
             module,
@@ -623,6 +625,7 @@ impl BodyState<'_, '_> {
             template,
             target_type,
             interfaces,
+            OpenBounds::Probe,
         )?;
 
         // unproven bounds leave the protocol unselected at this ask
@@ -810,7 +813,7 @@ impl BodyState<'_, '_> {
         requirements: &[InterfaceMember],
         candidates: Vec<MemberCandidate>,
     ) -> CompilerResult<Option<ProtocolMember>> {
-        let candidates = self.select_nominal_protocol_candidates(
+        let candidates = self.retain_protocol_implementers(
             origin,
             module,
             lookup_receiver,
@@ -877,7 +880,7 @@ impl BodyState<'_, '_> {
         argument_sources: &[dir::ArgumentSource],
         candidates: Vec<MemberCandidate>,
     ) -> CompilerResult<Option<ProtocolCall>> {
-        let candidates = self.select_nominal_protocol_candidates(
+        let candidates = self.retain_protocol_implementers(
             origin,
             module,
             lookup_receiver,
@@ -900,8 +903,32 @@ impl BodyState<'_, '_> {
         Ok(None)
     }
 
+    /// Collect the members one owner's conformances select for an interface's requirements.
+    fn collect_conformance_members(
+        &mut self,
+        owner: dir::GlobalSymbolId,
+        interface: dir::GlobalSymbolId,
+        members: &mut FxIndexSet<dir::GlobalSymbolId>,
+    ) -> CompilerResult<()> {
+        let conformances = match self.definition(owner)? {
+            Some(definition) => definition.implementations().to_vec(),
+            None => Vec::new(),
+        };
+        for conformance in conformances {
+            let Some((_, applied)) = self.nominal_application_maybe(conformance.interface)? else {
+                continue;
+            };
+            if applied.symbol != interface {
+                continue;
+            }
+            members.extend(conformance.members.iter().map(|member| member.member));
+        }
+
+        Ok(())
+    }
+
     /// Retain candidates declared by the interface or its proven implementers.
-    fn select_nominal_protocol_candidates(
+    fn retain_protocol_implementers(
         &mut self,
         origin: Origin,
         module: ModuleId,
@@ -919,13 +946,33 @@ impl BodyState<'_, '_> {
 
             return Ok(selected);
         };
+        let interface = protocol.instance(self.check, module)?;
         let mut owners = FxIndexSet::default();
         owners.insert(receiver_instance.symbol);
         owners.extend(candidates.iter().map(|candidate| candidate.owner));
-        let interface = protocol.instance(self.check, module)?;
+
+        // every visible implementation of the protocol may have selected the member
+        let implementations =
+            self.visible_implementation_extensions(origin, module, receiver, interface.symbol)?;
+
+        // keep only the implementations whose target the receiver matches
+        let root = dir::TypeRoot::Declaration(receiver_instance.symbol);
+        let applicable = self
+            .decided_extension_sources(origin, module, receiver, receiver, root)?
+            .into_iter()
+            .map(|source| source.extension)
+            .collect::<FxIndexSet<_>>();
 
         // match the requested interface against each owner's declared implementations
         let mut implementing_owners = FxIndexSet::default();
+        let mut implementing_members = FxIndexSet::default();
+        for owner in implementations {
+            if !applicable.contains(&owner) {
+                continue;
+            }
+            implementing_owners.insert(owner);
+            self.collect_conformance_members(owner, interface.symbol, &mut implementing_members)?;
+        }
         for owner in owners {
             let Some(definition) = self.definition(owner)? else {
                 return Err(CompilerError::Internal {
@@ -968,14 +1015,22 @@ impl BodyState<'_, '_> {
             )?;
             if matched.is_some() {
                 implementing_owners.insert(owner);
+                self.collect_conformance_members(
+                    owner,
+                    interface.symbol,
+                    &mut implementing_members,
+                )?;
             }
         }
 
-        // retain interface declarations and members of proven implementers
+        // retain interface declarations and the members of proven implementers
         let mut selected = Vec::new();
         for candidate in candidates {
             let source = self.symbol_source(candidate.symbol)?;
-            if implementing_owners.contains(&candidate.owner) || declarations.contains(&source) {
+            if implementing_owners.contains(&candidate.owner)
+                || implementing_members.contains(&candidate.symbol)
+                || declarations.contains(&source)
+            {
                 selected.push(candidate);
             }
         }

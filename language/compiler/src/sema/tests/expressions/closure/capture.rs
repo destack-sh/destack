@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_closure_captures_lexical_binding() {
     let session = TestSession::single(
         r#"
-function make(): () => float64 {
+function make(): () => int64 {
     let count = 1;
     const next = () => count + 1;
     return next;
@@ -17,40 +17,40 @@ function make(): () => float64 {
         DirRows::checked().with_reference_types().with_capture(),
         r#"
 === annotated ===
-function make(): () => float64 {
-    let count: float64 = 1;
-    const next: () => float64 = (): float64 => count + 1;
+function make(): () => int64 {
+    let count: int64 = 1;
+    const next: () => int64 = (): int64 => count + 1;
     return next;
 }
 
 === dir ===
-function make(): () => float64 {
-/// @type.symbol symbol=make type=() => Function<(), float64>
+function make(): () => int64 {
+/// @type.symbol symbol=make type=() => Function<(), int64>
 /// @capture.function function=make bindings=0
 
     let count = 1;
-    /// @type.symbol symbol=make.count source=count type=float64
+    /// @type.symbol symbol=make.count source=count type=int64
     /// @resolution.pattern source=count kind=binding target=make.count
     /// @type.node source=1 type=1
 
     const next = () => count + 1;
-    /// @type.symbol symbol=make.next source=next type=Function<(), float64>
+    /// @type.symbol symbol=make.next source=next type=Function<(), int64>
     /// @resolution.pattern source=next kind=binding target=make.next
-    /// @type.symbol symbol=make.symbol3 source="() => count + 1" type=Function<(), float64>
-    /// @type.node source="() => count + 1" type=Function<(), float64>
+    /// @type.symbol symbol=make.symbol3 source="() => count + 1" type=Function<(), int64>
+    /// @type.node source="() => count + 1" type=Function<(), int64>
     /// @capture.function function=make.symbol3 bindings=1 frames=(main.<frame0>)
-    /// @capture.binding function=make.symbol3 symbol=count mode=manage type=float64 frame=main.<frame0>
-    /// @capture.frame frame=main.<frame0> scope=scope4 type=Managed<{ count: float64 }> fields={ count: float64 }
-    /// @type.node source="count + 1" type=float64
-    /// @type.node source=count type=float64
+    /// @capture.binding function=make.symbol3 symbol=count mode=manage type=int64 frame=main.<frame0>
+    /// @capture.frame frame=main.<frame0> scope=scope4 type=Managed<{ count: int64 }> fields={ count: int64 }
+    /// @type.node source="count + 1" type=int64
+    /// @type.node source=count type=int64
     /// @resolution.name source=count target=make.count
-    /// @resolution.operator source="count + 1" type=float64 operator="+" kind=builtin operands=[count as float64 families=(float), 1 as float64 families=(float)]
+    /// @resolution.operator source="count + 1" type=int64 operator="+" kind=builtin operands=[count as int64 families=(integer), 1 as int64 families=(integer)]
     /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=count root=make.count
     /// @type.node source=1 type=1
 
     return next;
-    /// @type.node source=next type=Function<(), float64>
+    /// @type.node source=next type=Function<(), int64>
     /// @resolution.name source=next target=make.next
     /// @resolution.place source=next placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=next root=make.next
@@ -91,9 +91,9 @@ function run(): void {
         r#"
 === annotated ===
 function run(): void {
-    let a: float64 = 0;
-    let b: float64 = 0;
-    let c: float64 = 0;
+    let a: int64 = 0;
+    let b: int64 = 0;
+    let c: int64 = 0;
 
     const foo: () => void = (): void => {
         a += 1;
@@ -115,17 +115,17 @@ function run(): void {
 /// @capture.function function=run bindings=0
 
     let a = 0;
-    /// @type.symbol symbol=run.a source=a type=float64
+    /// @type.symbol symbol=run.a source=a type=int64
     /// @resolution.pattern source=a kind=binding target=run.a
     /// @type.node source=0 type=0
 
     let b = 0;
-    /// @type.symbol symbol=run.b source=b type=float64
+    /// @type.symbol symbol=run.b source=b type=int64
     /// @resolution.pattern source=b kind=binding target=run.b
     /// @type.node source=0 type=0
 
     let c = 0;
-    /// @type.symbol symbol=run.c source=c type=float64
+    /// @type.symbol symbol=run.c source=c type=int64
     /// @resolution.pattern source=c kind=binding target=run.c
     /// @type.node source=0 type=0
 
@@ -135,29 +135,29 @@ function run(): void {
     /// @type.symbol symbol=run.symbol5 type=Function<(), void>
     /// @type.node type=Function<(), void>
     /// @capture.function function=run.symbol5 bindings=2 frames=(main.<frame0>)
-    /// @capture.binding function=run.symbol5 symbol=a mode=manage type=float64 frame=main.<frame0>
-    /// @capture.binding function=run.symbol5 symbol=b mode=manage type=float64 frame=main.<frame0>
-    /// @capture.frame frame=main.<frame0> scope=scope3 type=Managed<{ a: float64; b: float64; c: float64 }> fields={ a: float64, b: float64, c: float64 }
+    /// @capture.binding function=run.symbol5 symbol=a mode=manage type=int64 frame=main.<frame0>
+    /// @capture.binding function=run.symbol5 symbol=b mode=manage type=int64 frame=main.<frame0>
+    /// @capture.frame frame=main.<frame0> scope=scope3 type=Managed<{ a: int64; b: int64; c: int64 }> fields={ a: int64, b: int64, c: int64 }
 
         a += 1;
-        /// @type.node source="a += 1" type=float64
-        /// @type.node source=a type=float64
+        /// @type.node source="a += 1" type=int64
+        /// @type.node source=a type=int64
         /// @resolution.name source=a target=run.a
-        /// @resolution.operator source="a += 1" type=float64 operator="+" kind=builtin operands=[a as float64 families=(float), 1 as float64 families=(float)]
+        /// @resolution.operator source="a += 1" type=int64 operator="+" kind=builtin operands=[a as int64 families=(integer), 1 as int64 families=(integer)]
         /// @resolution.pattern.assign source=a kind=place
         /// @resolution.place source=a placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.assignment source=a read=binding(run.a) write=binding(run.a) type=float64
+        /// @resolution.assignment source=a read=binding(run.a) write=binding(run.a) type=int64
         /// @resolution.access source=a root=run.a
         /// @type.node source=1 type=1
 
         b += 1;
-        /// @type.node source="b += 1" type=float64
-        /// @type.node source=b type=float64
+        /// @type.node source="b += 1" type=int64
+        /// @type.node source=b type=int64
         /// @resolution.name source=b target=run.b
-        /// @resolution.operator source="b += 1" type=float64 operator="+" kind=builtin operands=[b as float64 families=(float), 1 as float64 families=(float)]
+        /// @resolution.operator source="b += 1" type=int64 operator="+" kind=builtin operands=[b as int64 families=(integer), 1 as int64 families=(integer)]
         /// @resolution.pattern.assign source=b kind=place
         /// @resolution.place source=b placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.assignment source=b read=binding(run.b) write=binding(run.b) type=float64
+        /// @resolution.assignment source=b read=binding(run.b) write=binding(run.b) type=int64
         /// @resolution.access source=b root=run.b
         /// @type.node source=1 type=1
 
@@ -169,28 +169,28 @@ function run(): void {
     /// @type.symbol symbol=run.symbol7 type=Function<(), void>
     /// @type.node type=Function<(), void>
     /// @capture.function function=run.symbol7 bindings=2 frames=(main.<frame0>)
-    /// @capture.binding function=run.symbol7 symbol=b mode=manage type=float64 frame=main.<frame0>
-    /// @capture.binding function=run.symbol7 symbol=c mode=manage type=float64 frame=main.<frame0>
+    /// @capture.binding function=run.symbol7 symbol=b mode=manage type=int64 frame=main.<frame0>
+    /// @capture.binding function=run.symbol7 symbol=c mode=manage type=int64 frame=main.<frame0>
 
         b += 1;
-        /// @type.node source="b += 1" type=float64
-        /// @type.node source=b type=float64
+        /// @type.node source="b += 1" type=int64
+        /// @type.node source=b type=int64
         /// @resolution.name source=b target=run.b
-        /// @resolution.operator source="b += 1" type=float64 operator="+" kind=builtin operands=[b as float64 families=(float), 1 as float64 families=(float)]
+        /// @resolution.operator source="b += 1" type=int64 operator="+" kind=builtin operands=[b as int64 families=(integer), 1 as int64 families=(integer)]
         /// @resolution.pattern.assign source=b kind=place
         /// @resolution.place source=b placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.assignment source=b read=binding(run.b) write=binding(run.b) type=float64
+        /// @resolution.assignment source=b read=binding(run.b) write=binding(run.b) type=int64
         /// @resolution.access source=b root=run.b
         /// @type.node source=1 type=1
 
         c += 1;
-        /// @type.node source="c += 1" type=float64
-        /// @type.node source=c type=float64
+        /// @type.node source="c += 1" type=int64
+        /// @type.node source=c type=int64
         /// @resolution.name source=c target=run.c
-        /// @resolution.operator source="c += 1" type=float64 operator="+" kind=builtin operands=[c as float64 families=(float), 1 as float64 families=(float)]
+        /// @resolution.operator source="c += 1" type=int64 operator="+" kind=builtin operands=[c as int64 families=(integer), 1 as int64 families=(integer)]
         /// @resolution.pattern.assign source=c kind=place
         /// @resolution.place source=c placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.assignment source=c read=binding(run.c) write=binding(run.c) type=float64
+        /// @resolution.assignment source=c read=binding(run.c) write=binding(run.c) type=int64
         /// @resolution.access source=c root=run.c
         /// @type.node source=1 type=1
 
@@ -221,7 +221,7 @@ function run(): void {
 fn test_capture_directives_select_capture_mode() {
     let session = TestSession::single(
         r#"
-function make(): () => float64 {
+function make(): () => int64 {
     let count = 1;
     let step = 2;
 
@@ -240,37 +240,37 @@ function make(): () => float64 {
         DirRows::checked().with_reference_types().with_capture(),
         r#"
 === annotated ===
-function make(): () => float64 {
-    let count: float64 = 1;
-    let step: float64 = 2;
+function make(): () => int64 {
+    let count: int64 = 1;
+    let step: int64 = 2;
 
     @capture({
-        default: "manage",
-        step: "copy",
+        default: "manage" as CaptureMode,
+        step: "copy" as CaptureMode,
     })
-    const next: () => float64 = (): float64 => count + step;
+    const next: () => int64 = (): int64 => count + step;
     return next;
 }
 
 === dir ===
-function make(): () => float64 {
-/// @type.symbol symbol=make type=() => Function<(), float64>
+function make(): () => int64 {
+/// @type.symbol symbol=make type=() => Function<(), int64>
 /// @capture.function function=make bindings=0
 
     let count = 1;
-    /// @type.symbol symbol=make.count source=count type=float64
+    /// @type.symbol symbol=make.count source=count type=int64
     /// @resolution.pattern source=count kind=binding target=make.count
     /// @type.node source=1 type=1
 
     let step = 2;
-    /// @type.symbol symbol=make.step source=step type=float64
+    /// @type.symbol symbol=make.step source=step type=int64
     /// @resolution.pattern source=step kind=binding target=make.step
     /// @type.node source=2 type=2
 
     @capture({
     /// @type.node source=capture type=capture
     /// @resolution.name source=capture target=decorator.capture.capture
-    /// @type.node type={ default: "manage"; step: "copy" }
+    /// @type.node type={ default: decorator.capture.CaptureMode; step: decorator.capture.CaptureMode }
 
         default: "manage",
         /// @type.node source="\"manage\"" type="manage"
@@ -280,29 +280,29 @@ function make(): () => float64 {
 
     })
     const next = () => count + step;
-    /// @type.symbol symbol=make.next source=next type=Function<(), float64>
+    /// @type.symbol symbol=make.next source=next type=Function<(), int64>
     /// @resolution.pattern source=next kind=binding target=make.next
-    /// @type.symbol symbol=make.symbol4 source="() => count + step" type=Function<(), float64>
-    /// @type.node source="() => count + step" type=Function<(), float64>
+    /// @type.symbol symbol=make.symbol4 source="() => count + step" type=Function<(), int64>
+    /// @type.node source="() => count + step" type=Function<(), int64>
     /// @capture.function function=make.symbol4 bindings=2 frames=(main.<frame0>)
-    /// @capture.binding function=make.symbol4 symbol=count mode=manage type=float64 frame=main.<frame0>
-    /// @capture.binding function=make.symbol4 symbol=step mode=copy type=float64
+    /// @capture.binding function=make.symbol4 symbol=count mode=manage type=int64 frame=main.<frame0>
+    /// @capture.binding function=make.symbol4 symbol=step mode=copy type=int64
     /// @capture.directive function=make.symbol4 default=manage rules=1
     /// @capture.rule function=make.symbol4 binding=step mode=copy
-    /// @capture.frame frame=main.<frame0> scope=scope4 type=Managed<{ count: float64 }> fields={ count: float64 }
-    /// @type.node source="count + step" type=float64
-    /// @type.node source=count type=float64
+    /// @capture.frame frame=main.<frame0> scope=scope4 type=Managed<{ count: int64 }> fields={ count: int64 }
+    /// @type.node source="count + step" type=int64
+    /// @type.node source=count type=int64
     /// @resolution.name source=count target=make.count
-    /// @resolution.operator source="count + step" type=float64 operator="+" kind=builtin operands=[count as float64 families=(float), step as float64 families=(float)]
+    /// @resolution.operator source="count + step" type=int64 operator="+" kind=builtin operands=[count as int64 families=(integer), step as int64 families=(integer)]
     /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=count root=make.count
-    /// @type.node source=step type=float64
+    /// @type.node source=step type=int64
     /// @resolution.name source=step target=make.step
     /// @resolution.place source=step placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=step root=make.step
 
     return next;
-    /// @type.node source=next type=Function<(), float64>
+    /// @type.node source=next type=Function<(), int64>
     /// @resolution.name source=next target=make.next
     /// @resolution.place source=next placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=next root=make.next
@@ -348,12 +348,12 @@ struct Socket {
 }
 
 function connect(): void {
-    let count: float64 = 0;
+    let count: int64 = 0;
     let socket: Socket = Socket {};
 
     @capture({
-        default: "manage",
-        socket: "move",
+        default: "manage" as CaptureMode,
+        socket: "move" as CaptureMode,
     })
     const send: ^((arg0: string) => void) = (message: string): void => {
         count += 1;
@@ -382,7 +382,7 @@ function connect(): void {
 /// @capture.function function=connect bindings=0
 
     let count = 0;
-    /// @type.symbol symbol=connect.count source=count type=float64
+    /// @type.symbol symbol=connect.count source=count type=int64
     /// @resolution.pattern source=count kind=binding target=connect.count
     /// @type.node source=0 type=0
 
@@ -395,7 +395,7 @@ function connect(): void {
     @capture({
     /// @type.node source=capture type=capture
     /// @resolution.name source=capture target=decorator.capture.capture
-    /// @type.node type={ default: "manage"; socket: "move" }
+    /// @type.node type={ default: decorator.capture.CaptureMode; socket: decorator.capture.CaptureMode }
 
         default: "manage",
         /// @type.node source="\"manage\"" type="manage"
@@ -411,21 +411,21 @@ function connect(): void {
     /// @type.symbol symbol=connect.symbol8 type=Function<(string,), void>
     /// @type.node type=Owned<Function<(string,), void>>
     /// @capture.function function=connect.symbol8 bindings=2 frames=(main.<frame0>)
-    /// @capture.binding function=connect.symbol8 symbol=count mode=manage type=float64 frame=main.<frame0>
+    /// @capture.binding function=connect.symbol8 symbol=count mode=manage type=int64 frame=main.<frame0>
     /// @capture.binding function=connect.symbol8 symbol=socket mode=move type=Socket
     /// @capture.directive function=connect.symbol8 default=manage rules=1
     /// @capture.rule function=connect.symbol8 binding=socket mode=move
-    /// @capture.frame frame=main.<frame0> scope=scope6 type=Managed<{ count: float64 }> fields={ count: float64 }
+    /// @capture.frame frame=main.<frame0> scope=scope6 type=Managed<{ count: int64 }> fields={ count: int64 }
     /// @type.symbol symbol=connect.symbol8.message source=message type=string
 
         count += 1;
-        /// @type.node source="count += 1" type=float64
-        /// @type.node source=count type=float64
+        /// @type.node source="count += 1" type=int64
+        /// @type.node source=count type=int64
         /// @resolution.name source=count target=connect.count
-        /// @resolution.operator source="count += 1" type=float64 operator="+" kind=builtin operands=[count as float64 families=(float), 1 as float64 families=(float)]
+        /// @resolution.operator source="count += 1" type=int64 operator="+" kind=builtin operands=[count as int64 families=(integer), 1 as int64 families=(integer)]
         /// @resolution.pattern.assign source=count kind=place
         /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.assignment source=count read=binding(connect.count) write=binding(connect.count) type=float64
+        /// @resolution.assignment source=count read=binding(connect.count) write=binding(connect.count) type=int64
         /// @resolution.access source=count root=connect.count
         /// @type.node source=1 type=1
 
@@ -646,15 +646,16 @@ const reset = () => ({ value: 1 });
         DirRows::checked(),
         r#"
 === annotated ===
-const reset: () => { value: 1 } = (): { value: 1 } => ({ value: 1 });
+const reset: () => { value: int64 } = (): { value: int64 } => ({ value: 1 });
 
 === dir ===
 const reset = () => ({ value: 1 });
-/// @type.symbol symbol=reset source=reset type=Function<(), { value: 1 }>
+/// @type.symbol symbol=reset source=reset type=Function<(), { value: int64 }>
 /// @resolution.pattern source=reset kind=binding target=reset
-/// @type.symbol symbol=symbol1 source=() => ({ value: 1 }) type=Function<(), { value: 1 }>
+/// @type.symbol symbol=symbol1 source=() => ({ value: 1 }) type=Function<(), { value: int64 }>
 "#,
         r#"
+
 "#,
     );
 }
@@ -673,12 +674,12 @@ const reset = () => ({ value: (current = 0) });
         DirRows::checked(),
         r#"
 === annotated ===
-let current: float64 = 1;
+let current: int64 = 1;
 const reset: () => { value: 0 } = (): { value: 0 } => ({ value: (current = 0) });
 
 === dir ===
 let current = 1;
-/// @type.symbol symbol=current source=current type=float64
+/// @type.symbol symbol=current source=current type=int64
 /// @resolution.pattern source=current kind=binding target=current
 
 const reset = () => ({ value: (current = 0) });
@@ -688,9 +689,10 @@ const reset = () => ({ value: (current = 0) });
 /// @resolution.name source=current target=current
 /// @resolution.pattern.assign source=current kind=place
 /// @resolution.access source=current root=current
-/// @resolution.assignment source=current write=binding(current) type=float64
+/// @resolution.assignment source=current write=binding(current) type=int64
 "#,
         r#"
+
 "#,
     );
 }

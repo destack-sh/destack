@@ -1,3 +1,4 @@
+use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
@@ -133,7 +134,7 @@ impl CheckState<'_> {
                     values.push(value);
                 }
                 dir::ArgumentSource::Omitted => {
-                    values.push(dir::ScalarLiteral::Undefined.into());
+                    values.push(dir::Literal::Undefined.into());
                 }
                 dir::ArgumentSource::Write => {
                     return Err(CompilerError::Internal {
@@ -315,40 +316,47 @@ impl CheckState<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
         source_properties: &[dir::LocalNodeId<dir::Property>],
     ) -> CompilerResult<Result<dir::StaticTerm, StaticError>> {
-        let mut properties = Vec::with_capacity(source_properties.len());
+        let mut fields = FxIndexMap::<dir::StaticKey, dir::StaticTerm>::default();
 
-        // evaluate fields and flatten spreads in source order
+        // evaluate fields and flatten spreads in source order, later keys overriding earlier ones
         for property in source_properties {
             let property = self.module_view(module).get(*property).clone();
             match property {
                 dir::Property::Field { name, value, .. } => {
-                    let key = name.into();
                     let value = match self.evaluate_static_expression(module, value)? {
                         Ok(value) => value,
                         Err(error) => return Ok(Err(error)),
                     };
-
-                    properties.push(dir::StaticProperty::Field { key, value });
+                    fields.insert(name.into(), value);
                 }
                 dir::Property::Spread { value } => {
                     let value = match self.evaluate_static_expression(module, value)? {
                         Ok(value) => value,
                         Err(error) => return Ok(Err(error)),
                     };
-                    let dir::StaticTerm::Object {
-                        properties: spread_properties,
-                    } = value
-                    else {
+                    let dir::StaticTerm::Object { properties } = value else {
                         return Ok(Err(StaticError::NotStatic(expression)));
                     };
-
-                    properties.extend(spread_properties);
+                    for property in properties {
+                        match property {
+                            dir::StaticProperty::Field { key, value } => {
+                                fields.insert(key, value);
+                            }
+                            dir::StaticProperty::Method { .. } => {
+                                return Ok(Err(StaticError::NotStatic(expression)));
+                            }
+                        }
+                    }
                 }
                 dir::Property::Method { .. } | dir::Property::Error => {
                     return Ok(Err(StaticError::NotStatic(expression)));
                 }
             }
         }
+        let properties = fields
+            .into_iter()
+            .map(|(key, value)| dir::StaticProperty::Field { key, value })
+            .collect();
 
         Ok(Ok(dir::StaticTerm::Object { properties }))
     }
@@ -380,7 +388,7 @@ impl CheckState<'_> {
             let value = self.shallow_resolve(value)?;
 
             match self.ty(value)? {
-                dir::Type::Literal(value) => dir::StaticTerm::ScalarLiteral { value },
+                dir::Type::Literal(value) => dir::StaticTerm::Literal { value },
                 dir::Type::Static(value) => self.r#static(value).clone(),
                 _ => return Ok(Err(StaticError::NotStatic(expression))),
             }

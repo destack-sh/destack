@@ -217,7 +217,7 @@ impl CheckState<'_> {
         replacement: S,
         select: impl Fn(&mut CheckModuleState) -> &mut S,
     ) -> CompilerResult<()> {
-        // fold the segment outside the module, since resolving reads the rest of the state
+        // fold the segment outside the module, where resolving reads the rest of the state
         let mut segment = std::mem::replace(select(&mut self.module), replacement);
 
         // selections keep the types they chose, so only their variables resolve
@@ -239,7 +239,7 @@ impl CheckState<'_> {
         }
     }
 
-    /// Resolve one committed type into the canonical form the write boundary requires.
+    /// Resolve one committed type into the canonical form writeback requires.
     pub(in crate::sema) fn fully_resolve(
         &mut self,
         ty: dir::GlobalTypeId,
@@ -250,7 +250,7 @@ impl CheckState<'_> {
         let mut settled = FxIndexMap::default();
         let resolved = self.resolve_open_type(ty, &mut active, &mut settled)?;
 
-        // require the write to close, since a pass exports solutions and holes only
+        // require the write to close over solutions and holes
         if self.type_flags(resolved)?.has_variable() {
             return Err(CompilerError::Internal {
                 message: format!("check variable survived the write of {resolved:?}"),
@@ -297,13 +297,16 @@ impl CheckState<'_> {
 
                     self.resolve_open_type(solution, active, settled)?
                 }
-                // a clean declaration writes every type it carries and
-                //  reported errors poison the remainder
+                // a clean declaration writes every type it carries
                 None if self.is_declaration()
                     && self.module(self.module_id).diagnostics.is_empty() =>
                 {
+                    let origin = self.infer.origin(self.infer.variable(variable)?.origin);
                     return Err(CompilerError::Internal {
-                        message: format!("declaration variable {variable:?} left unsolved"),
+                        message: format!(
+                            "declaration variable {variable:?} at {} left unsolved",
+                            self.node_label(self.origin_source(origin)?),
+                        ),
                     });
                 }
                 None => self.intern_type(dir::Type::Error)?,

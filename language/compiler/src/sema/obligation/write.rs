@@ -73,7 +73,7 @@ impl CheckState<'_> {
         let mutates_direct_value = target.mode == WriteMode::Direct
             && !matches!(target.write, dir::WriteResolution::Binding { .. });
         if matches!(check, ObligationCheck::Holds) && mutates_direct_value {
-            self.record_access_use(target.source, dir::BindingUse::MUTABLE);
+            self.record_access_use(target.source, dir::BindingUse::MUTATE);
         }
 
         Ok(check)
@@ -238,6 +238,7 @@ impl CheckState<'_> {
         }
 
         // require a value that overwrites atomically for a shared receiver
+        let ty = self.normalize(origin, ty)?;
         match self.satisfies_auto_interface(origin, ty, dir::AutoInterface::OverwriteStable)? {
             Verdict::Holds => return Ok(ObligationCheck::holds()),
             // stall the obligation while an open variable leaves the rule undecided

@@ -65,19 +65,40 @@ impl VariableRole {
     }
 }
 
-/// Literal widening policy for one solved variable.
+/// What one inference variable ranges over.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::sema) enum Widening {
-    /// Keep literal solutions exact.
-    Never,
-    /// Keep the solution exact while widening mutable aggregate descendants.
-    Aggregate,
-    /// Widen when several exact literal candidates compete.
-    Multiple,
-    /// Widen every exact literal candidate to its base type.
-    Always,
-    /// Widen literal candidates into their const family, yielding to a typed candidate.
-    Const,
+pub(in crate::sema) enum VariableKind {
+    /// Any type.
+    Type,
+    /// An integer type, `int64` when nothing decides the width.
+    Integer,
+    /// A float type, `float64` when nothing decides the width.
+    Float,
+}
+
+impl VariableKind {
+    /// Join the kinds of two unified variables, a numeric kind narrowing a type kind.
+    pub(in crate::sema) fn join(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Type, other) => other,
+            (kind, Self::Type) => kind,
+            (Self::Float, _) | (_, Self::Float) => Self::Float,
+            (Self::Integer, Self::Integer) => Self::Integer,
+        }
+    }
+
+    /// Return the primitive the kind falls back to when nothing decides it.
+    pub(in crate::sema) fn fallback(self) -> Option<dir::Type> {
+        match self {
+            Self::Type => None,
+            Self::Integer => Some(dir::Type::Primitive(dir::PrimitiveType::Integer(
+                dir::IntegerType::DEFAULT,
+            ))),
+            Self::Float => Some(dir::Type::Primitive(dir::PrimitiveType::Float(
+                dir::FloatType::Float64,
+            ))),
+        }
+    }
 }
 
 /// Variables opened by one task, owned as a dense arena interval.
@@ -117,8 +138,8 @@ pub(in crate::sema) struct Variable {
     pub(in crate::sema) upper: BoundList,
     /// The variable's inference state.
     pub(in crate::sema) state: VariableState,
-    /// The literal widening policy applied when solving.
-    pub(in crate::sema) widening: Widening,
+    /// What the variable ranges over.
+    pub(in crate::sema) kind: VariableKind,
 }
 
 /// Inference state of one variable.
@@ -173,7 +194,7 @@ impl VariableTable {
         &mut self,
         variable: dir::TypeVariableId,
         origin: OriginId,
-        widening: Widening,
+        kind: VariableKind,
         role: VariableRole,
     ) {
         debug_assert_eq!(self.variables.len() as u32, variable.0);
@@ -182,7 +203,7 @@ impl VariableTable {
             lower: BoundList::new(),
             upper: BoundList::new(),
             state: VariableState::Open,
-            widening,
+            kind,
         });
         self.roles.push(role);
     }
@@ -242,8 +263,7 @@ impl VariableTable {
         side: BoundSide,
         bound: TypeBound,
     ) -> CompilerResult<bool> {
-        // reject bounds already collected on this side; the first
-        //  cause wins, since provenance never changes the solution
+        // keep the first cause of a bound already collected on this side
         if self
             .side_bounds(id, side)?
             .any(|existing| existing.ty == bound.ty && existing.relation == bound.relation)

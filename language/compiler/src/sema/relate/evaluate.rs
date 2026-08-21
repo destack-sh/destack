@@ -4,8 +4,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::sema::{
-    Answer, Ask, CandidateOutcome, CandidateVerdict, Cause, CauseId, CauseKind, CheckState, Cycle,
-    Origin, Relation,
+    Answer, Ask, CandidateOutcome, Cause, CauseId, CauseKind, CheckState, Cycle, Origin, Relation,
 };
 
 /// The outcome of deciding one relation, keeping ambiguity apart from failure.
@@ -50,6 +49,17 @@ impl Verdict {
         }
     }
 
+    /// Join one disjunct proven only when this one does not hold.
+    pub(in crate::sema) fn or_else(
+        self,
+        other: impl FnOnce() -> CompilerResult<Self>,
+    ) -> CompilerResult<Self> {
+        match self {
+            Self::Holds => Ok(Self::Holds),
+            verdict => Ok(verdict.or(other()?)),
+        }
+    }
+
     /// Join one disjunct, where success dominates and ambiguity taints.
     pub(in crate::sema) fn or(self, other: Self) -> Self {
         match (self, other) {
@@ -88,7 +98,7 @@ impl CheckState<'_> {
 
             Ok(related.holds())
         })?;
-        if probe == CandidateVerdict::Viable {
+        if probe == Verdict::Holds {
             return Ok(Verdict::Holds);
         }
 
@@ -97,7 +107,7 @@ impl CheckState<'_> {
         let reduced_target = self.structurally_normalize(origin, target)?;
         if reduced_source == source && reduced_target == target {
             // leave a relation over open heads undecided
-            if probe == CandidateVerdict::Indeterminate || related == Verdict::Ambiguous {
+            if probe == Verdict::Ambiguous || related == Verdict::Ambiguous {
                 return Ok(Verdict::Ambiguous);
             }
 
@@ -268,7 +278,7 @@ impl CheckState<'_> {
             return Ok(Verdict::Holds);
         }
 
-        // canonicalize the pair, deciding uncanonical pairs outside the memo
+        // canonicalize the pair
         let Some((question, canonical)) =
             self.ask(origin, Ask::Relation(relation), &[source, target], true)?
         else {
@@ -278,8 +288,7 @@ impl CheckState<'_> {
             self.type_flags(canonical.operands[0])? | self.type_flags(canonical.operands[1])?;
         let has_holes = flags.has_hole();
 
-        // replay a decided answer, taking a disproof for a holed pair, since
-        //  a proof would have bound the holes this goal leaves open
+        // replay a decided answer
         if let Some(answer) = self.answers.get(&question) {
             let holds = matches!(answer, Answer::Holds);
             if !has_holes || !holds {
@@ -289,8 +298,7 @@ impl CheckState<'_> {
             }
         }
 
-        // decide holed pairs outside the in-flight stack, storing the
-        //  disproofs a cycle hypothesis or probe leaves untouched
+        // decide holed pairs outside the in-flight stack
         if has_holes {
             let decision = self.relate_matrix(origin, cause, relation, source, target)?;
             if decision == Verdict::Fails && self.infer.relations.is_idle() {
@@ -300,9 +308,7 @@ impl CheckState<'_> {
             return Ok(decision);
         }
 
-        // reuse decided relations, treating in-flight pairs as recursive
-        //  cycles: structural pairs hold coinductively, conformance pairs
-        //  reject self-supported proof
+        // reuse decided relations
         let cycle = if self.is_conformance_target(target)? {
             Cycle::Inductive
         } else {
@@ -525,11 +531,9 @@ impl CheckState<'_> {
             }
 
             // scalar singleton and interval inclusion
-            (
-                dir::Type::Literal(dir::ScalarLiteral::String(text)),
-                dir::Type::Operation(operation),
-            ) if let dir::TypeOperation::TemplateLiteral(template) =
-                self.type_operation(target.module_id, operation)? =>
+            (dir::Type::Literal(dir::Literal::String(text)), dir::Type::Operation(operation))
+                if let dir::TypeOperation::TemplateLiteral(template) =
+                    self.type_operation(target.module_id, operation)? =>
             {
                 let text = self.strings().get(text).to_string();
 

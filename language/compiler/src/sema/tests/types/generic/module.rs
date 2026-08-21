@@ -389,21 +389,21 @@ export function identity<T>(value: T): T {
 === annotated ===
 import { identity } from "./lib.ds";
 
-const number: 1 = identity<1>(1);
+const number: int64 = identity<int64>(1);
 const text: "x" = identity<"x">("x");
 
 === dir ===
 import { identity } from "./lib.ds";
 
 const number = identity(1);
-/// @type.symbol symbol=number source=number type=1
+/// @type.symbol symbol=number source=number type=int64
 /// @resolution.pattern source=number kind=binding target=number
-/// @type.node source=identity type=(1) => 1
-/// @type.node source=identity(1) type=1
+/// @type.node source=identity type=(int64) => int64
+/// @type.node source=identity(1) type=int64
 /// @resolution.name source=identity target=lib.identity
-/// @resolution.call source=identity(1) parameters=(1) arguments=(provided(1) as 1) return=1 kind=symbol target=lib.identity instance=lib.identity<1>
-/// @generic.instantiation id=lib.identity<1> template=lib.identity arguments=(1)
-/// @generic.instance id=lib.identity<1> template=lib.identity arguments=(1)
+/// @resolution.call source=identity(1) parameters=(int64) arguments=(provided(1) as int64) return=int64 kind=symbol target=lib.identity instance=lib.identity<int64>
+/// @generic.instantiation id=lib.identity<int64> template=lib.identity arguments=(int64)
+/// @generic.instance id=lib.identity<int64> template=lib.identity arguments=(int64)
 /// @type.node source=1 type=1
 
 const text = identity("x");
@@ -745,7 +745,7 @@ struct Wrap<T> {
     value: T;
 }
 
-function unwrap(wrapped: Wrap<float64>): float64 {
+function unwrap(wrapped: Wrap<int64>): int64 {
     match (wrapped) {
         Wrap { value } => value
     }
@@ -765,14 +765,14 @@ struct Wrap<out T> {
     value: T;
 }
 
-function unwrap(wrapped: Wrap<float64>): float64 {
+function unwrap(wrapped: Wrap<int64>): int64 {
     match (wrapped) {
         Wrap { value } => value
     }
 }
 
-const built: Wrap<float64> = Wrap<float64> { value: 1 };
-const out: float64 = unwrap(built);
+const built: Wrap<int64> = Wrap<int64> { value: 1 };
+const out: int64 = unwrap(built);
 
 === dir ===
 struct Wrap<T> {
@@ -788,21 +788,22 @@ struct Wrap<T> {
 
 }
 
-function unwrap(wrapped: Wrap<float64>): float64 {
-/// @type.symbol symbol=unwrap type=(Wrap<float64>) => float64
-/// @type.symbol symbol=unwrap.wrapped source="wrapped: Wrap<float64>" type=Wrap<float64>
+function unwrap(wrapped: Wrap<int64>): int64 {
+/// @type.symbol symbol=unwrap type=(Wrap<int64>) => int64
+/// @type.symbol symbol=unwrap.wrapped source="wrapped: Wrap<int64>" type=Wrap<int64>
 /// @resolution.name source=Wrap target=Wrap
 
     match (wrapped) {
+    /// @resolution.coverage exhaustive=true disjoint=true
     /// @resolution.name source=wrapped target=unwrap.wrapped
     /// @resolution.place source=wrapped placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=wrapped root=unwrap.wrapped
 
         Wrap { value } => value
         /// @resolution.name source=Wrap target=Wrap
-        /// @resolution.pattern source="Wrap { value }" kind=nominal_object target=Wrap instance=Wrap<float64> fields={ Wrap.value }
-        /// @generic.instantiation id=Wrap<float64> template=Wrap arguments=(float64)
-        /// @type.symbol symbol=unwrap.value source=value type=float64
+        /// @resolution.pattern source="Wrap { value }" kind=nominal_object target=Wrap instance=Wrap<int64> fields={ Wrap.value }
+        /// @generic.instantiation id=Wrap<int64> template=Wrap arguments=(int64)
+        /// @type.symbol symbol=unwrap.value source=value type=int64
         /// @resolution.name source=value target=unwrap.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=value root=unwrap.value
@@ -811,15 +812,15 @@ function unwrap(wrapped: Wrap<float64>): float64 {
 }
 
 const built = Wrap { value: 1 };
-/// @type.symbol symbol=built source=built type=Wrap<float64>
+/// @type.symbol symbol=built source=built type=Wrap<int64>
 /// @resolution.pattern source=built kind=binding target=built
 /// @resolution.name source=Wrap target=Wrap
 
 const out = unwrap(built);
-/// @type.symbol symbol=out source=out type=float64
+/// @type.symbol symbol=out source=out type=int64
 /// @resolution.pattern source=out kind=binding target=out
 /// @resolution.name source=unwrap target=unwrap
-/// @resolution.call source=unwrap(built) parameters=(Wrap<float64>) arguments=(provided(built) as Wrap<float64>) return=float64 kind=symbol target=unwrap
+/// @resolution.call source=unwrap(built) parameters=(Wrap<int64>) arguments=(provided(built) as Wrap<int64>) return=int64 kind=symbol target=unwrap
 /// @resolution.name source=built target=built
 /// @resolution.place source=built placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=built root=built

@@ -29,7 +29,7 @@ mod variant;
 
 pub(in crate::sema) use destack_dir::MemberRole;
 
-pub(in crate::sema) use extension::{ExtensionMatch, UnboundParameters};
+pub(in crate::sema) use extension::{ExtensionMatch, OpenBounds, UnboundParameters};
 pub(in crate::sema) use instantiation::TypeArgumentInference;
 pub(in crate::sema) use member::*;
 pub(in crate::sema) use newtype::{

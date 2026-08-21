@@ -114,7 +114,7 @@ for (const key in target) {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const target: { a: float64; b: float64 } = { a: 1, b: 2 };
+const target: { a: int64; b: int64 } = { a: 1, b: 2 };
 
 for (const key in target) {
     key satisfies string;
@@ -122,16 +122,16 @@ for (const key in target) {
 
 === dir ===
 const target = { a: 1, b: 2 };
-/// @type.symbol symbol=target source=target type={ a: float64; b: float64 }
+/// @type.symbol symbol=target source=target type={ a: int64; b: int64 }
 /// @resolution.pattern source=target kind=binding target=target
-/// @type.node source={ a: 1, b: 2 } type={ a: float64; b: float64 }
+/// @type.node source={ a: 1, b: 2 } type={ a: int64; b: int64 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
 for (const key in target) {
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
-/// @type.node source=target type={ a: float64; b: float64 }
+/// @type.node source=target type={ a: int64; b: int64 }
 /// @resolution.name source=target target=target
 /// @resolution.access source=target root=target
 
@@ -164,7 +164,7 @@ for (const key in target) {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const target: { a: float64; b: float64 } = { a: 1, b: 2 };
+const target: { a: int64; b: int64 } = { a: 1, b: 2 };
 
 for (const key in target) {
     key satisfies "a" | "b";
@@ -172,16 +172,16 @@ for (const key in target) {
 
 === dir ===
 const target = { a: 1, b: 2 };
-/// @type.symbol symbol=target source=target type={ a: float64; b: float64 }
+/// @type.symbol symbol=target source=target type={ a: int64; b: int64 }
 /// @resolution.pattern source=target kind=binding target=target
-/// @type.node source={ a: 1, b: 2 } type={ a: float64; b: float64 }
+/// @type.node source={ a: 1, b: 2 } type={ a: int64; b: int64 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
 for (const key in target) {
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
-/// @type.node source=target type={ a: float64; b: float64 }
+/// @type.node source=target type={ a: int64; b: int64 }
 /// @resolution.name source=target target=target
 /// @resolution.access source=target root=target
 
@@ -265,7 +265,7 @@ for (const key in &readonly target) {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const target: { a: float64; b: float64 } = { a: 1, b: 2 };
+const target: { a: int64; b: int64 } = { a: 1, b: 2 };
 
 for (const key in &readonly target) {
     key satisfies string;
@@ -273,17 +273,17 @@ for (const key in &readonly target) {
 
 === dir ===
 const target = { a: 1, b: 2 };
-/// @type.symbol symbol=target source=target type={ a: float64; b: float64 }
+/// @type.symbol symbol=target source=target type={ a: int64; b: int64 }
 /// @resolution.pattern source=target kind=binding target=target
-/// @type.node source={ a: 1, b: 2 } type={ a: float64; b: float64 }
+/// @type.node source={ a: 1, b: 2 } type={ a: int64; b: int64 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
 for (const key in &readonly target) {
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
-/// @type.node source="&readonly target" type=&'static readonly { a: float64; b: float64 }
-/// @type.node source=target type={ a: float64; b: float64 }
+/// @type.node source="&readonly target" type=&'static readonly { a: int64; b: int64 }
+/// @type.node source=target type={ a: int64; b: int64 }
 /// @resolution.name source=target target=target
 /// @resolution.place source=target placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=target root=target
@@ -413,9 +413,9 @@ for (const key in [1, 2, 3]) {
 for (const key in [1, 2, 3]) {
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
-/// @type.node source=[1, 2, 3] type=float64[]
-/// @resolution.call source=[1, 2, 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2, 3) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+/// @type.node source=[1, 2, 3] type=int64[]
+/// @resolution.call source=[1, 2, 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
+/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3

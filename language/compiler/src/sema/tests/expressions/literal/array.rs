@@ -13,23 +13,23 @@ let values = [1, 2];
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
-let values: float64[] = [1, 2];
+let values: int64[] = [1, 2];
 
 === dir ===
 let values = [1, 2];
-/// @type.symbol symbol=values source=values type=float64[]
+/// @type.symbol symbol=values source=values type=int64[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<float64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
-/// @type.node source=[1, 2] type=float64[]
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
-/// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+/// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
+/// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
+/// @type.node source=[1, 2] type=int64[]
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
+/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
+/// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
 /// @type.node source=1 type=1
-/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: float64 }] origin=implicit
+/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int64 }] origin=implicit
 /// @type.node source=2 type=2
-/// @coercion.node source=2 from=2 adjustments=[{ kind: widen, target: float64 }] origin=implicit
+/// @coercion.node source=2 from=2 adjustments=[{ kind: widen, target: int64 }] origin=implicit
 "#,
     );
 }
@@ -47,23 +47,23 @@ const values = [1, 2];
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
-const values: float64[] = [1, 2];
+const values: int64[] = [1, 2];
 
 === dir ===
 const values = [1, 2];
-/// @type.symbol symbol=values source=values type=float64[]
+/// @type.symbol symbol=values source=values type=int64[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<float64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
-/// @type.node source=[1, 2] type=float64[]
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
-/// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+/// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
+/// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
+/// @type.node source=[1, 2] type=int64[]
+/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
+/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
+/// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
 /// @type.node source=1 type=1
-/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: float64 }] origin=implicit
+/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int64 }] origin=implicit
 /// @type.node source=2 type=2
-/// @coercion.node source=2 from=2 adjustments=[{ kind: widen, target: float64 }] origin=implicit
+/// @coercion.node source=2 from=2 adjustments=[{ kind: widen, target: int64 }] origin=implicit
 "#,
     );
 }
@@ -170,44 +170,38 @@ const values: int32[] = [];
 }
 
 #[test]
-fn test_mixed_array_infers_union_element_type() {
+fn test_reject_an_integer_literal_beside_other_element_types() {
     let session = TestSession::single(
         r#"
 let values = [1, "two", true];
 "#,
     );
 
-    session.assert_dir(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked()
             .with_reference_types()
-            .with_coercion()
-            ,
+            .with_coercion(),
         r#"
 === annotated ===
-let values: (float64 | string | boolean)[] = [
-    1 as float64 | string | boolean,
-    "two" as float64 | string | boolean,
-    true as float64 | string | boolean,
-];
+let values: (string | boolean)[] = [1, "two" as string | boolean, true as string | boolean];
 
 === dir ===
 let values = [1, "two", true];
-/// @type.symbol symbol=values source=values type=float64 | string | boolean[]
+/// @type.symbol symbol=values source=values type=string | boolean[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id="Array<float64 | string | boolean>" template=collections.array.Array arguments=(float64 | string | boolean)
-/// @generic.instance id="collections.slice.new<memory.init.MaybeUninit<float64 | string | boolean>>" template=collections.slice.new arguments=(memory.init.MaybeUninit<float64 | string | boolean>)
-/// @generic.instance id="memory.init.MaybeUninit<float64 | string | boolean>" template=memory.init.MaybeUninit arguments=(float64 | string | boolean)
-/// @type.node source=[1, "two", true] type=float64 | string | boolean[]
-/// @resolution.call source=[1, "two", true] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, "two", true) as float64 | string | boolean) return=float64 | string | boolean[] kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<float64 | string | boolean>"
-/// @generic.instantiation id="collections.array.arrayFromSlice<float64 | string | boolean>" template=collections.array.arrayFromSlice arguments=(float64 | string | boolean)
-/// @generic.instance id="collections.array.arrayFromSlice<float64 | string | boolean>" template=collections.array.arrayFromSlice arguments=(float64 | string | boolean)
+/// @type.node source=[1, "two", true] type=string | boolean[]
+/// @resolution.call source=[1, "two", true] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, "two", true) as string | boolean) return=string | boolean[] kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<string | boolean>"
+/// @generic.instantiation id="collections.array.arrayFromSlice<string | boolean>" template=collections.array.arrayFromSlice arguments=(string | boolean)
 /// @type.node source=1 type=1
-/// @coercion.node source=1 from=1 adjustments=[{ kind: union, target: float64 | string | boolean, cases: ({ source: 1, target: float64, adjustments: [{ kind: widen, target: float64 }] }) }] origin=implicit
 /// @type.node source="\"two\"" type="two"
-/// @coercion.node source="\"two\"" from="two" adjustments=[{ kind: union, target: float64 | string | boolean, cases: ({ source: "two", target: string, adjustments: [{ kind: widen, target: string }] }) }] origin=implicit
+/// @coercion.node source="\"two\"" from="two" adjustments=[{ kind: union, target: string | boolean, cases: ({ source: "two", target: string, adjustments: [{ kind: widen, target: string }] }) }] origin=implicit
 /// @type.node source=true type=true
-/// @coercion.node source=true from=true adjustments=[{ kind: union, target: float64 | string | boolean, cases: ({ source: true, target: boolean, adjustments: [{ kind: widen, target: boolean }] }) }] origin=implicit
+/// @coercion.node source=true from=true adjustments=[{ kind: union, target: string | boolean, cases: ({ source: true, target: boolean, adjustments: [{ kind: widen, target: boolean }] }) }] origin=implicit
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type '1' is not assignable to type 'string | boolean'"
+/// @diagnostic.label line=2 column=15 span="1" line_source="let values = [1, \"two\", true];"
 "#,
     );
 }

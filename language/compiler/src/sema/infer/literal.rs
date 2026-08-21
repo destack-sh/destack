@@ -1,215 +1,293 @@
 use destack_dir as dir;
-use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::sema::{BodyState, Origin, Relation, VariableRole, Widening};
+use crate::sema::{BodyState, Origin, Relation, Value, ValueUse, VariableKind, VariableRole};
 
-/// Inference mode for literal expressions.
+/// The context one expression is inferred in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::sema) enum InferMode {
-    /// Preserve the expression's direct literal precision.
-    Exact,
-    /// Preserve scalar precision while widening mutable aggregate contents.
-    Mutable,
-    /// Infer literals as their default widened type.
-    Widen,
-    /// Infer under `as const` literal-preserving rules.
+    /// Aggregate slots widen the fresh literals they store.
+    Regular,
+    /// An `as const` context keeps literals and makes its aggregates readonly.
     Const,
 }
 
 impl InferMode {
-    /// Return whether object fields inferred in this mode are readonly.
+    /// Return whether aggregates inferred in this mode are readonly.
     pub(in crate::sema) fn is_readonly(self) -> bool {
-        matches!(self, Self::Const)
-    }
-
-    /// Return whether mutable aggregate contents widen in this mode.
-    pub(in crate::sema) fn widens_aggregate(self) -> bool {
-        matches!(self, Self::Mutable | Self::Widen)
-    }
-
-    /// Return this mode after entering one aggregate member.
-    pub(in crate::sema) fn descend(self, is_readonly: bool) -> Self {
-        match (self, is_readonly) {
-            (Self::Const, _) => Self::Const,
-            (_, true) => Self::Exact,
-            (Self::Exact, false) => Self::Exact,
-            (Self::Mutable | Self::Widen, false) => Self::Widen,
-        }
+        self == Self::Const
     }
 }
 
 impl BodyState<'_, '_> {
-    /// Select the literal inference mode at one contextual type position.
-    pub(in crate::sema) fn contextual_literal_mode(
+    /// Return the numeric family one fresh value's literals belong to.
+    fn fresh_numeric_kind(
         &mut self,
-        origin: Origin,
-        target: dir::GlobalTypeId,
-        default_mode: InferMode,
-    ) -> CompilerResult<InferMode> {
-        // start the search at the written target position
-        let mut pending = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(&[target]);
-        let mut visited = SmallVec::<[dir::GlobalTypeId; 8]>::new();
-        let mut selected = None;
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<VariableKind>> {
+        // read the arms the value carries
+        let ty = self.shallow_resolve(ty)?;
+        let arms = match self.ty(ty)? {
+            dir::Type::Union(union) => self.type_ids(ty.module_id, union.elements)?.to_vec(),
+            _ => vec![ty],
+        };
 
-        // collect one consistent policy across transparent alternatives
-        while let Some(target) = pending.pop() {
-            if visited.contains(&target) {
-                continue;
-            }
-            visited.push(target);
-
-            match self.ty(target)? {
-                // take the mode the open target position requires
-                dir::Type::Variable(variable) => {
-                    let mode = match self.infer.variable_role(variable)? {
-                        // take the mode the bound generic parameter requires
-                        VariableRole::Instantiation { parameter } => {
-                            let is_const = self.require_generic_parameter(parameter)?.is_const;
-                            if is_const {
-                                InferMode::Const
-                            }
-                            // a settled contextual expectation already shapes the literal
-                            else if self.has_contextual_expectation(variable)? {
-                                InferMode::Exact
-                            } else {
-                                match self.infer.variable(variable)?.widening {
-                                    Widening::Never => InferMode::Exact,
-                                    Widening::Aggregate => default_mode,
-                                    Widening::Multiple | Widening::Const => InferMode::Mutable,
-                                    Widening::Always => InferMode::Widen,
-                                }
-                            }
-                        }
-                        // literals widen into an inferred return
-                        VariableRole::Return => match default_mode {
-                            InferMode::Const => InferMode::Const,
-                            _ => InferMode::Widen,
-                        },
-                        _ => continue,
-                    };
-                    if selected.is_some_and(|selected| selected != mode) {
-                        return Ok(default_mode);
-                    }
-
-                    selected = Some(mode);
-                }
-                // consume the literal exactly at a literal target position
-                dir::Type::Literal(_) => {
-                    let mode = InferMode::Exact;
-                    if selected.is_some_and(|selected| selected != mode) {
-                        return Ok(default_mode);
-                    }
-
-                    selected = Some(mode);
-                }
-                // look through the form to its value
-                dir::Type::Form(form) => pending.push(form.value),
-                // look through alias, member, and newtype heads to their values
-                dir::Type::Application(_) | dir::Type::Member(_) => {
-                    let reduced = self.normalize(origin, target)?;
-                    if reduced != target {
-                        pending.push(reduced);
-                    } else if let Some(instance) = self.newtype_payload(origin, target)? {
-                        pending.push(instance.backing);
-                    }
-                }
-                // visit every alternative of a union
-                dir::Type::Union(union) => {
-                    pending.extend(
-                        self.type_ids(target.module_id, union.elements)?
-                            .iter()
-                            .copied(),
-                    );
-                }
-                // visit every member of an intersection
-                dir::Type::Intersection(intersection) => {
-                    pending.extend(
-                        self.type_ids(target.module_id, intersection.elements)?
-                            .iter()
-                            .copied(),
-                    );
-                }
-                // look through the head of a type operation
-                dir::Type::Operation(_) => match self.operation_head(target)? {
-                    // template literals consume scalar precision
-                    Some(dir::TypeOperation::TemplateLiteral(_)) => {
-                        let mode = InferMode::Mutable;
-                        if selected.is_some_and(|selected| selected != mode) {
-                            return Ok(default_mode);
-                        }
-
-                        selected = Some(mode);
-                    }
-                    // both conditional branches are reachable positions
-                    Some(dir::TypeOperation::Conditional(conditional)) => {
-                        pending.push(conditional.then_type);
-                        pending.push(conditional.else_type);
-                    }
-                    _ => {}
-                },
-                _ => {}
-            }
+        // join the numeric family across every arm
+        let mut kind = None;
+        for arm in arms {
+            let arm = self.shallow_resolve(arm)?;
+            let arm_kind = match self.ty(arm)? {
+                dir::Type::Literal(dir::Literal::Integer(_)) => VariableKind::Integer,
+                dir::Type::Literal(dir::Literal::Float(_)) => VariableKind::Float,
+                _ => return Ok(None),
+            };
+            kind = Some(kind.map_or(arm_kind, |kind: VariableKind| kind.join(arm_kind)));
         }
 
-        Ok(selected.unwrap_or(default_mode))
+        Ok(kind)
     }
 
-    /// Return the type one literal slot stores.
-    pub(in crate::sema) fn literal_slot_storage(
+    /// Record the widening one fresh literal node takes to its stored type.
+    fn record_widening(&mut self, value: Value, target: dir::GlobalTypeId) -> CompilerResult<()> {
+        if let Some(node) = value.node
+            && target != value.ty
+        {
+            let coercion = dir::Coercion::new(
+                value.ty,
+                vec![dir::CoercionAdjustment::Widen { target }],
+                dir::CastOrigin::Implicit,
+            );
+            self.check.commit_coercion(node, coercion)?;
+        }
+
+        Ok(())
+    }
+
+    /// Widen one fresh value stored in a mutable slot.
+    pub(in crate::sema) fn widen_fresh(
+        &mut self,
+        value: Value,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        if !value.is_fresh {
+            return Ok(value.ty);
+        }
+
+        // a numeric family widens to its fallback, every other literal to its base type
+        let widened = match self
+            .fresh_numeric_kind(value.ty)?
+            .and_then(VariableKind::fallback)
+        {
+            Some(fallback) => self.intern_type(fallback)?,
+            None => self.widen_type(value.ty)?,
+        };
+        self.record_widening(value, widened)?;
+
+        Ok(widened)
+    }
+
+    /// Bind one fresh value to a binding slot.
+    pub(in crate::sema) fn bind_fresh(
+        &mut self,
+        slot: dir::TypeVariableId,
+        value: Value,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        if !value.is_fresh {
+            return Ok(value.ty);
+        }
+
+        // a value outside the numeric families widens to its base type
+        let Some(kind) = self.fresh_numeric_kind(value.ty)? else {
+            let widened = self.widen_type(value.ty)?;
+            self.record_widening(value, widened)?;
+
+            return Ok(widened);
+        };
+
+        // join the slot's own family and take its type
+        self.join_variable_kind(slot, kind)?;
+        let ty = self.variable_type(slot)?;
+        self.record_widening(value, ty)?;
+
+        Ok(ty)
+    }
+
+    /// Open one numeric variable for a fresh value meeting an inference destination.
+    pub(in crate::sema) fn fresh_variable(
+        &mut self,
+        origin: Origin,
+        value: Value,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        if !value.is_fresh {
+            return Ok(value.ty);
+        }
+
+        // one literal node opens one variable, however often its conversion replays
+        if let Some(Some(widened)) = value
+            .node
+            .and_then(|node| self.check.fresh_nodes.get(&node))
+        {
+            return Ok(*widened);
+        }
+
+        // a numeric family opens a variable, every other literal widens to its base type
+        let widened = match self.fresh_numeric_kind(value.ty)? {
+            Some(kind) => {
+                let variable = self.allocate_variable_of(origin, kind, VariableRole::Regular);
+                self.variable_type(variable)?
+            }
+            None => self.widen_type(value.ty)?,
+        };
+
+        // remember the node's variable for the replays that follow
+        if let Some(node) = value.node {
+            self.check.fresh_nodes.insert(node, Some(widened));
+        }
+
+        Ok(widened)
+    }
+
+    /// Return the open variable one fresh literal's destination settles into.
+    ///
+    /// The variable sits beneath the destination's memory forms, standing alone or as the sole
+    /// arm of its literal family in a union.
+    fn destination_variable(
+        &mut self,
+        value: Value,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::TypeVariableId>> {
+        // read beneath the destination's memory forms
+        let mut target = self.shallow_resolve(target)?;
+        while let dir::Type::Form(form) = self.ty(target)? {
+            let payload = self.shallow_resolve(form.value)?;
+            if payload == target {
+                break;
+            }
+            target = payload;
+        }
+
+        // take the variable itself, or the first variable arm of a union
+        let destination = match self.ty(target)? {
+            dir::Type::Union(union) => {
+                let literal = self.shallow_resolve(value.ty)?;
+                let family = match self.ty(literal)? {
+                    dir::Type::Literal(literal) => literal.scalar_domain(),
+                    _ => None,
+                };
+                let arms = self.type_ids(target.module_id, union.elements)?.to_vec();
+                let mut destination = None;
+                for arm in arms {
+                    let arm = self.shallow_resolve(arm)?;
+                    match self.ty(arm)? {
+                        dir::Type::Literal(arm) if arm.scalar_domain() == family => {
+                            return Ok(None);
+                        }
+                        dir::Type::Variable(variable) if destination.is_none() => {
+                            destination = Some(variable);
+                        }
+                        _ => {}
+                    }
+                }
+                let Some(destination) = destination else {
+                    return Ok(None);
+                };
+                destination
+            }
+            dir::Type::Variable(variable) => variable,
+            _ => return Ok(None),
+        };
+
+        Ok(self
+            .open_variable(destination)?
+            .is_some()
+            .then_some(destination))
+    }
+
+    /// Return the candidate one fresh literal contributes to its destination variable: the
+    /// literal itself where the destination keeps literals, else the variable the literal opens.
+    pub(in crate::sema) fn literal_candidate(
+        &mut self,
+        origin: Origin,
+        value: Value,
+        target: dir::GlobalTypeId,
+        use_: ValueUse,
+    ) -> CompilerResult<Value> {
+        if !value.is_fresh || use_ == ValueUse::Const {
+            return Ok(value);
+        }
+
+        // read the destination variable one fresh literal settles into
+        let Some(destination) = self.destination_variable(value, target)? else {
+            return Ok(value);
+        };
+
+        let keeps_literals = match self.infer.variable_role(destination)? {
+            VariableRole::Instantiation { parameter } => {
+                let binding = *self.require_generic_parameter(parameter)?;
+                let mut keeps = self.parameter_keeps_literals(origin, parameter)?;
+                let template =
+                    dir::GlobalGenericTemplateId::new(parameter.module_id, binding.template);
+                let owner = self
+                    .generic_template(template)
+                    .and_then(|template| template.symbol);
+
+                // a string or boolean literal keeps its type at a signature's top-level return
+                if use_ != ValueUse::Store
+                    && self.fresh_numeric_kind(value.ty)?.is_none()
+                    && let Some(owner) = owner
+                    && let Some(ty) = self.adopt_symbol_type_maybe(owner)?
+                    && let Some(head) = self.signature_head(ty)?
+                    && let Some(return_type) = head.return_type
+                {
+                    keeps |= self.exposes_type(return_type, binding.ty)?;
+                }
+                keeps
+            }
+            _ => false,
+        };
+        if keeps_literals {
+            return Ok(Value {
+                is_fresh: false,
+                ..value
+            });
+        }
+        let ty = self.fresh_variable(origin, value)?;
+
+        Ok(Value {
+            ty,
+            is_fresh: false,
+            ..value
+        })
+    }
+
+    /// Return the type one aggregate slot stores for a checked value.
+    pub(in crate::sema) fn slot_storage(
         &mut self,
         origin: Origin,
         relation: Relation,
         slot: dir::GlobalTypeId,
         source: dir::GlobalTypeId,
-        mode: InferMode,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // keep the precise value under a check-only relation
+        // keep the precise value under a check-only relation or into an open slot
         if relation == Relation::Satisfies {
             return Ok(source);
         }
-
-        // let an open slot take the inferred candidate, resolving a solved one
         let slot = self.deeply_resolve(origin, slot)?;
         if self.type_flags(slot)?.has_variable() {
-            return self.inference_candidate_type(source, mode);
-        }
-
-        // keep the selected member in a union slot under exact mode
-        if mode == InferMode::Exact && matches!(self.ty(source)?, dir::Type::Literal(_)) {
-            let head = self.structurally_normalize(origin, slot)?;
-            if matches!(self.ty(head)?, dir::Type::Union(_)) {
-                return Ok(source);
-            }
+            return Ok(source);
         }
 
         Ok(slot)
     }
 
-    /// Return one value's candidate type under its inference mode.
-    pub(in crate::sema) fn inference_candidate_type(
+    /// Return the type of one literal expression.
+    pub(in crate::sema) fn literal_type(
         &mut self,
-        ty: dir::GlobalTypeId,
-        mode: InferMode,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        match mode {
-            InferMode::Widen => self.widen_type(ty),
-            InferMode::Exact | InferMode::Mutable | InferMode::Const => Ok(ty),
-        }
-    }
-
-    /// Return the type of one scalar literal expression.
-    pub(in crate::sema) fn scalar_literal_type(
-        &mut self,
-        _node: dir::GlobalNodeId<dir::Expression>,
-        value: dir::ScalarLiteral,
+        value: dir::Literal,
     ) -> CompilerResult<dir::GlobalTypeId> {
         match value {
-            dir::ScalarLiteral::RegexString { .. } => {
-                self.language_type(dir::LanguageItem::RegExp, &[])
-            }
-            dir::ScalarLiteral::Null => self.intern_type(dir::Type::Null),
-            dir::ScalarLiteral::Undefined => self.intern_type(dir::Type::Undefined),
+            dir::Literal::RegexString { .. } => self.language_type(dir::LanguageItem::RegExp, &[]),
+            dir::Literal::Null => self.intern_type(dir::Type::Null),
+            dir::Literal::Undefined => self.intern_type(dir::Type::Undefined),
             value => self.intern_type(dir::Type::Literal(value)),
         }
     }

@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 /// Keep static parameters independent from a shared declaration receiver.
 #[test]
-fn test_static_shared_receiver_does_not_place_parameters() {
+fn test_keep_static_parameters_independent_of_a_shared_receiver() {
     let session = TestSession::single(
         r#"
 shared class Pack<out T> {}
@@ -123,7 +123,7 @@ channel.send(message);
 }
 
 #[test]
-fn test_sibling_static_call_with_interface_params_selects_without_cycling() {
+fn test_owned_form_static_call_selects_the_value_form_sibling() {
     let session = TestSession::single(
         r#"
 struct Pack<T> {
@@ -227,10 +227,10 @@ export extension<T: Compare<T>> of ^Pack<T> {
 
         Pack.from(values)
         /// @type.node source=Pack type=Pack
-        /// @type.node source=Pack.from type=(Iterable<T#2>) => Owned<Pack<T#2>> & (Iterable<T#3>) => Owned<Pack<T#3>>
+        /// @type.node source=Pack.from type=(Iterable<T#2>) => Owned<Pack<T#2>>
         /// @type.node source=Pack.from(values) type=Owned<Pack<T#3>>
         /// @resolution.name source=Pack target=Pack
-        /// @resolution.member source=Pack.from receiver=Pack type=(Iterable<T#2>) => Owned<Pack<T#2>> & (Iterable<T#3>) => Owned<Pack<T#3>> kind=overload-set targets=[from#1, from#2]
+        /// @resolution.member source=Pack.from receiver=Pack type=(Iterable<T#2>) => Owned<Pack<T#2>> kind=symbol target_receiver=Pack target=from#1
         /// @resolution.call source=Pack.from(values) parameters=(Iterable<T#3>) arguments=(provided(values) as Iterable<T#3>) return=Owned<Pack<T#3>> kind=symbol target=from#1 instance=Pack<T#3>.<extension#1>.from#1
         /// @generic.instantiation id=from#1<T#3> template=from#1 arguments=(T#3) owner=from#2
         /// @type.node source=values type=Iterable<T#3>
@@ -242,12 +242,13 @@ export extension<T: Compare<T>> of ^Pack<T> {
 }
 "#,
         r#"
+
 "#,
     );
 }
 
 #[test]
-fn test_prove_enum_arguments_by_member_value() {
+fn test_accept_an_enum_member_as_a_const_type_argument() {
     let session = TestSession::single(
         r#"
 enum Mode {
@@ -486,6 +487,7 @@ export extension<T, E> of Outcome<T, E> {
 
         match (this) {
         /// @type.node type=Outcome<U, E#3>
+        /// @resolution.coverage exhaustive=true disjoint=true
         /// @type.node source=this type=Outcome<T#3, E#3>
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Outcome<T#3, E#3>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
@@ -541,7 +543,7 @@ export extension<T, E> of Outcome<T, E> {
 }
 
 #[test]
-fn test_alias_named_receivers_reach_the_root_statics() {
+fn test_call_a_static_member_through_a_type_alias_receiver() {
     // a type alias in static-receiver position names its body's root
     // declaration, so its statics resolve and instantiate freshly
     let session = TestSession::single(
@@ -821,233 +823,6 @@ function check<T>(pack: &readonly Pack<T>, expected: T): void {
 }
 "#,
         r#"
-"#,
-    );
-}
-
-#[test]
-fn test_sibling_static_calls_instantiate_independently() {
-    let session = TestSession::single(
-        r#"
-struct Ok<T> {
-    value: T;
-}
-
-struct Err<E> {
-    error: E;
-}
-
-newtype Outcome<T, E> = Ok<T> | Err<E>;
-
-export extension<T, E> of Outcome<T, E> {
-    static ok(value: T): Outcome<T, E> {
-        Outcome(Ok { value })
-    }
-
-    static err(error: E): Outcome<T, E> {
-        Outcome(Err { error })
-    }
-
-    map<U>(f: (value: T) => U): Outcome<U, E> {
-        match (this) {
-            Ok { value } => Outcome.ok(f(value))
-            Err { error } => Outcome.err(error)
-        }
-    }
-}
-"#,
-    );
-
-    session.assert_dir(
-        "main.ds",
-        DirRows::checked().with_reference_types(),
-        r#"
-=== annotated ===
-struct Ok<out T> {
-    value: T;
-}
-
-struct Err<out E> {
-    error: E;
-}
-
-newtype Outcome<out T, out E> = Ok<T> | Err<E>;
-
-export extension<T, E> of Outcome<T, E> {
-    static ok(value: T): Outcome<T, E> {
-        Outcome(Ok<T> { value })
-    }
-
-    static err(error: E): Outcome<T, E> {
-        Outcome(Err<E> { error })
-    }
-
-    map<U>(f: (arg0: T) => U): Outcome<U, E> {
-        match (this) {
-            Ok { value } => Outcome.ok<U, E>(f(value))
-            Err { error } => Outcome.err<U, E>(error)
-        }
-    }
-}
-
-=== dir ===
-struct Ok<T> {
-/// @generic.template symbol=Ok parameters=(out T#1)
-/// @type.symbol symbol=Ok type=Ok
-/// @definition.struct symbol=Ok template=(out T#1)
-/// @definition.field symbol=Ok.value source="value: T" key=value type=T#1
-/// @type.symbol symbol=Ok.T source=T type=T#1
-
-    value: T;
-    /// @type.symbol symbol=Ok.value source="value: T" type=T#1
-    /// @resolution.name source=T target=Ok.T
-
-}
-
-struct Err<E> {
-/// @generic.template symbol=Err parameters=(out E#1)
-/// @type.symbol symbol=Err type=Err
-/// @definition.struct symbol=Err template=(out E#1)
-/// @definition.field symbol=Err.error source="error: E" key=error type=E#1
-/// @type.symbol symbol=Err.E source=E type=E#1
-
-    error: E;
-    /// @type.symbol symbol=Err.error source="error: E" type=E#1
-    /// @resolution.name source=E target=Err.E
-
-}
-
-newtype Outcome<T, E> = Ok<T> | Err<E>;
-/// @generic.template symbol=Outcome parameters=(out T#2, out E#2)
-/// @type.symbol symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" type=Outcome
-/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) backing=Ok<T#2> | Err<E#2> constructors=[<T#2, E#2>(Ok<T#2>) => Outcome<T#2, E#2>, <T#2, E#2>(Err<E#2>) => Outcome<T#2, E#2>, <T#2, E#2>(Ok<T#2> | Err<E#2>) => Outcome<T#2, E#2>]
-/// @type.symbol symbol=Outcome.T source=T type=T#2
-/// @type.symbol symbol=Outcome.E source=E type=E#2
-/// @resolution.name source=Ok target=Ok
-/// @resolution.name source=T target=Outcome.T
-/// @resolution.name source=Err target=Err
-/// @resolution.name source=E target=Outcome.E
-
-export extension<T, E> of Outcome<T, E> {
-/// @generic.template symbol=<module>#2 parameters=(T#3, E#3)
-/// @definition.extension symbol=<module>#2 form=exported target=Outcome<T#3, E#3>
-/// @definition.method symbol=err slot=err static=true type=(E#3) => Outcome<T#3, E#3>
-/// @definition.method symbol=map slot=map type=<U>(this: this, Function<(T#3,), U>) => Outcome<U, E#3>
-/// @definition.method symbol=ok slot=ok static=true type=(T#3) => Outcome<T#3, E#3>
-/// @type.symbol symbol=T source=T type=T#3
-/// @type.symbol symbol=E source=E type=E#3
-/// @resolution.name source=Outcome target=Outcome
-/// @resolution.name source=T target=T
-/// @resolution.name source=E target=E
-
-    static ok(value: T): Outcome<T, E> {
-    /// @type.symbol symbol=ok type=(T#3) => Outcome<T#3, E#3>
-    /// @type.symbol symbol=ok.value source="value: T" type=T#3
-    /// @resolution.name source=T target=T
-    /// @resolution.name source=Outcome target=Outcome
-    /// @resolution.name source=T target=T
-    /// @resolution.name source=E target=E
-
-        Outcome(Ok { value })
-        /// @type.node source="Outcome(Ok { value })" type=Outcome<T#3, E#3>
-        /// @type.node source=Outcome type=Outcome
-        /// @resolution.name source=Outcome target=Outcome
-        /// @resolution.construct source="Outcome(Ok { value })" parameters=(Ok<T#3>) arguments=(provided(Ok { value }) as Ok<T#3>) return=Outcome<T#3, E#3> kind=newtype target=Outcome backing=Ok<T#3> instance="Outcome<T#3, E#3>"
-        /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=ok
-        /// @type.node source="Ok { value }" type=Ok<T#3>
-        /// @resolution.name source=Ok target=Ok
-        /// @type.node source=value type=T#3
-        /// @resolution.name source=value target=ok.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=value root=ok.value
-
-    }
-
-    static err(error: E): Outcome<T, E> {
-    /// @type.symbol symbol=err type=(E#3) => Outcome<T#3, E#3>
-    /// @type.symbol symbol=err.error source="error: E" type=E#3
-    /// @resolution.name source=E target=E
-    /// @resolution.name source=Outcome target=Outcome
-    /// @resolution.name source=T target=T
-    /// @resolution.name source=E target=E
-
-        Outcome(Err { error })
-        /// @type.node source="Outcome(Err { error })" type=Outcome<T#3, E#3>
-        /// @type.node source=Outcome type=Outcome
-        /// @resolution.name source=Outcome target=Outcome
-        /// @resolution.construct source="Outcome(Err { error })" parameters=(Err<E#3>) arguments=(provided(Err { error }) as Err<E#3>) return=Outcome<T#3, E#3> kind=newtype target=Outcome backing=Err<E#3> instance="Outcome<T#3, E#3>"
-        /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=err
-        /// @type.node source="Err { error }" type=Err<E#3>
-        /// @resolution.name source=Err target=Err
-        /// @type.node source=error type=E#3
-        /// @resolution.name source=error target=err.error
-        /// @resolution.place source=error placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=error root=err.error
-
-    }
-
-    map<U>(f: (value: T) => U): Outcome<U, E> {
-    /// @generic.template symbol=map parent=template#3 parameters=(U)
-    /// @type.symbol symbol=map type=<U>(this: this, Function<(T#3,), U>) => Outcome<U, E#3>
-    /// @type.symbol symbol=map.U source=U type=U
-    /// @type.symbol symbol=map.f source="f: (value: T) => U" type=Function<(T#3,), U>
-    /// @type.symbol symbol=map.value#1 source="value: T" type=T#3
-    /// @resolution.name source=T target=T
-    /// @resolution.name source=U target=map.U
-    /// @resolution.name source=Outcome target=Outcome
-    /// @resolution.name source=U target=map.U
-    /// @resolution.name source=E target=E
-
-        match (this) {
-        /// @type.node type=Outcome<U, E#3>
-        /// @type.node source=this type=Outcome<T#3, E#3>
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Outcome<T#3, E#3>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.access source=this root=this
-
-            Ok { value } => Outcome.ok(f(value))
-            /// @resolution.name source=Ok target=Ok
-            /// @resolution.pattern source="Ok { value }" kind=nominal_object target=Ok instance=Ok<T#3> fields={ Ok.value }
-            /// @generic.instantiation id=Ok<T#3> template=Ok arguments=(T#3) owner=map
-            /// @type.symbol symbol=map.value#2 source=value type=T#3
-            /// @type.node source=Outcome type=Outcome
-            /// @type.node source=Outcome.ok type=(T#3) => Outcome<T#3, E#3>
-            /// @type.node source=Outcome.ok(f(value)) type=Outcome<U, E#3>
-            /// @resolution.name source=Outcome target=Outcome
-            /// @resolution.member source=Outcome.ok receiver=Outcome type=(T#3) => Outcome<T#3, E#3> kind=symbol target_receiver=Outcome target=ok
-            /// @resolution.call source=Outcome.ok(f(value)) parameters=(U) arguments=(provided(f(value)) as U) return=Outcome<U, E#3> kind=symbol target=ok instance="Outcome<U, E#3>.<extension#1>.ok"
-            /// @generic.instantiation id="ok<U, E#3>" template=ok arguments=(U, E#3) owner=map
-            /// @type.node source=f type=Function<(T#3,), U>
-            /// @type.node source=f(value) type=U
-            /// @resolution.name source=f target=map.f
-            /// @resolution.call source=f(value) parameters=(T#3) arguments=(provided(value) as T#3) return=U kind=expression target=expression
-            /// @resolution.place source=f placement="local" lifetime="frame" access="exclusive"
-            /// @resolution.access source=f root=map.f
-            /// @type.node source=value type=T#3
-            /// @resolution.name source=value target=map.value#2
-            /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
-            /// @resolution.access source=value root=map.value#2
-
-            Err { error } => Outcome.err(error)
-            /// @resolution.name source=Err target=Err
-            /// @resolution.pattern source="Err { error }" kind=nominal_object target=Err instance=Err<E#3> fields={ Err.error }
-            /// @generic.instantiation id=Err<E#3> template=Err arguments=(E#3) owner=map
-            /// @type.symbol symbol=map.error source=error type=E#3
-            /// @type.node source=Outcome type=Outcome
-            /// @type.node source=Outcome.err type=(E#3) => Outcome<T#3, E#3>
-            /// @type.node source=Outcome.err(error) type=Outcome<U, E#3>
-            /// @resolution.name source=Outcome target=Outcome
-            /// @resolution.member source=Outcome.err receiver=Outcome type=(E#3) => Outcome<T#3, E#3> kind=symbol target_receiver=Outcome target=err
-            /// @resolution.call source=Outcome.err(error) parameters=(E#3) arguments=(provided(error) as E#3) return=Outcome<U, E#3> kind=symbol target=err instance="Outcome<U, E#3>.<extension#1>.err"
-            /// @generic.instantiation id="err<U, E#3>" template=err arguments=(U, E#3) owner=map
-            /// @type.node source=error type=E#3
-            /// @resolution.name source=error target=map.error
-            /// @resolution.place source=error placement="local" lifetime="frame" access="readonly"
-            /// @resolution.access source=error root=map.error
-
-        }
-    }
-}
 "#,
     );
 }

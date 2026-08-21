@@ -867,8 +867,8 @@ extension<T> of Box<T> {
     /// @resolution.name source=T target=T
 
         this.borrow()
-        /// @resolution.member source=this.borrow receiver=&forward.'a readonly Box<T#2> type=<borrow.'a>(this: &borrow.'a readonly &forward.'a readonly Box<T#2>) => &borrow.'a readonly T#2 kind=symbol target_receiver=&forward.'a readonly Box<T#2> dispatch=dynamic constraint=Box<T#2> target=borrow
-        /// @resolution.call source=this.borrow() parameters=() return=&forward.'a readonly T#2 kind=dynamic target=borrow receiver=&forward.'a readonly Box<T#2> constraint=Box<T#2> adjustments=(&forward.'a readonly Box<T#2> => direct -> Box<T#2>, borrow(&forward.'a readonly Box<T#2>)) generic_arguments=(T#2)
+        /// @resolution.member source=this.borrow receiver=&forward.'a readonly Box<T#2> type=<borrow.'a>(this: &borrow.'a readonly Box<T#2>) => &borrow.'a readonly T#2 kind=symbol target_receiver=&forward.'a readonly Box<T#2> dispatch=dynamic constraint=Box<T#2> target=borrow
+        /// @resolution.call source=this.borrow() parameters=() return=&forward.'a readonly T#2 kind=dynamic target=borrow receiver=&forward.'a readonly Box<T#2> constraint=Box<T#2> generic_arguments=(T#2)
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&forward.'a readonly Box<T#2>
         /// @resolution.place source=this placement="local" lifetime=forward.'a access="readonly"
         /// @resolution.access source=this root=this
@@ -897,7 +897,7 @@ declare const mixedBox: local Box<shared User>;
 
 localBox.borrow() satisfies local &readonly User;
 /// @resolution.name source=localBox target=localBox
-/// @resolution.member source=localBox.borrow receiver=Placed<Box<User>, "local"> type=<borrow.'a>(this: Placed<&borrow.'a readonly Box<User>, "local">) => &borrow.'a readonly User kind=symbol target_receiver=Placed<Box<User>, "local"> dispatch=dynamic constraint=Box<User> target=borrow
+/// @resolution.member source=localBox.borrow receiver=Placed<Box<User>, "local"> type=<borrow.'a>(this: &borrow.'a readonly Box<User>) => &borrow.'a readonly User kind=symbol target_receiver=Placed<Box<User>, "local"> dispatch=dynamic constraint=Box<User> target=borrow
 /// @resolution.call source=localBox.borrow() parameters=() return=&'static readonly User kind=dynamic target=borrow receiver=Placed<Box<User>, "local"> constraint=Box<User> adjustments=(Placed<Box<User>, "local"> => direct -> Box<User>, borrow(&'static readonly Box<User>)) generic_arguments=(User)
 /// @resolution.place source=localBox placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=localBox root=localBox
@@ -907,7 +907,7 @@ localBox.borrow() satisfies local &readonly User;
 
 mixedBox.borrow() satisfies shared &readonly User;
 /// @resolution.name source=mixedBox target=mixedBox
-/// @resolution.member source=mixedBox.borrow receiver=Placed<Box<Placed<User, "shared">>, "local"> type=<borrow.'a>(this: Placed<&borrow.'a readonly Box<Placed<User, "shared">>, "local">) => Placed<&borrow.'a readonly User, "shared"> kind=symbol target_receiver=Placed<Box<Placed<User, "shared">>, "local"> dispatch=dynamic constraint=Box<Placed<User, "shared">> target=borrow
+/// @resolution.member source=mixedBox.borrow receiver=Placed<Box<Placed<User, "shared">>, "local"> type=<borrow.'a>(this: &borrow.'a readonly Box<Placed<User, "shared">>) => Placed<&borrow.'a readonly User, "shared"> kind=symbol target_receiver=Placed<Box<Placed<User, "shared">>, "local"> dispatch=dynamic constraint=Box<Placed<User, "shared">> target=borrow
 /// @resolution.call source=mixedBox.borrow() parameters=() return=Placed<&'static readonly User, "shared"> kind=dynamic target=borrow receiver=Placed<Box<Placed<User, "shared">>, "local"> constraint=Box<Placed<User, "shared">> adjustments=(Placed<Box<Placed<User, "shared">>, "local"> => direct -> Box<Placed<User, "shared">>, borrow(&'static readonly Box<Placed<User, "shared">>)) generic_arguments=(Placed<User, "shared">)
 /// @resolution.place source=mixedBox placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=mixedBox root=mixedBox

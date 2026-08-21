@@ -102,9 +102,9 @@ interface EventShape<T> {
 
     type Handlers = {
     /// @type.symbol symbol=EventShape.Handlers type={ [K in keyof T#1 as `on-${K}`]: T#1[K] }
+    /// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T#1)
 
         [K in keyof T as `on-${K}`]: T[K];
-        /// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T#1)
         /// @type.symbol symbol=EventShape.Handlers.K source=[K in keyof T as `on-${K}`] type=K
         /// @resolution.name source=T target=EventShape.T
         /// @resolution.name source=K target=EventShape.Handlers.K

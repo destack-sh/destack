@@ -332,7 +332,7 @@ struct Counter {
     }
 }
 
-const next: Counter = (Counter { value: 1 }).increment();
+const next: Counter = Counter { value: 1 }.increment();
 next satisfies Counter;
 
 === dir ===
@@ -775,4 +775,123 @@ function make(options?: Options): Entry {
 }
 "#,
     );
+}
+
+/// Report a mismatched struct field once, without a second report at the enclosing return.
+#[test]
+fn test_report_a_mismatched_struct_field_once() {
+    let session = TestSession::single(
+        r#"
+struct Expectation {
+    message?: ^string;
+
+    get not(this): Expectation {
+        Expectation { message: this.message }
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+struct Expectation {
+    message?: ^string;
+
+    get not(this): Expectation {
+        Expectation { message: this.message }
+    }
+}
+
+=== dir ===
+struct Expectation {
+/// @type.symbol symbol=Expectation type=Expectation
+/// @definition.struct symbol=Expectation
+/// @definition.field symbol=Expectation.message source="message?: ^string" key=message type=Owned<string>
+/// @definition.method symbol=Expectation.not slot=not role=getter type=(this: this) => Expectation
+
+    message?: ^string;
+    /// @type.symbol symbol=Expectation.message source="message?: ^string" type=Owned<string>
+
+    get not(this): Expectation {
+    /// @type.symbol symbol=Expectation.not type=(this: this) => Expectation
+    /// @type.symbol symbol=Expectation.not.this source=this type=this
+    /// @resolution.name source=Expectation target=Expectation
+
+        Expectation { message: this.message }
+        /// @resolution.name source=Expectation target=Expectation
+        /// @resolution.member source=this.message receiver=Expectation type=Owned<string> | undefined kind=field target_receiver=Expectation key=message target=Expectation.message target_type=Owned<string> | undefined
+        /// @resolution.receiver source=this kind=this declaration=Expectation type=Expectation
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.message placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.message root=this keys=[message]
+
+    }
+}
+"#, r#"
+/// @diagnostic.error id=not-assignable message="type '^string | undefined' is not assignable to type '^string'"
+/// @diagnostic.label line=6 column=32 span="this.message" line_source="Expectation { message: this.message }"
+/// @diagnostic.related line=6 column=9 span="Expectation { message: this.message }" line_source="Expectation { message: this.message }" message="expected due to the type of this target"
+/// @diagnostic.note message="the mismatch is in field 'message': expected '^string', found 'undefined'"
+"#);
+}
+
+/// Report a missing struct field alongside a mismatched one.
+#[test]
+fn test_report_a_missing_field_alongside_a_mismatched_field() {
+    let session = TestSession::single(
+        r#"
+struct Pair {
+    left: int32;
+    right: int32;
+}
+
+function pair(): Pair {
+    return Pair { left: "one" };
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+struct Pair {
+    left: int32;
+    right: int32;
+}
+
+function pair(): Pair {
+    return Pair { left: "one" };
+}
+
+=== dir ===
+struct Pair {
+/// @type.symbol symbol=Pair type=Pair
+/// @definition.struct symbol=Pair
+/// @definition.field symbol=Pair.left source="left: int32" key=left type=int32
+/// @definition.field symbol=Pair.right source="right: int32" key=right type=int32
+
+    left: int32;
+    /// @type.symbol symbol=Pair.left source="left: int32" type=int32
+
+    right: int32;
+    /// @type.symbol symbol=Pair.right source="right: int32" type=int32
+
+}
+
+function pair(): Pair {
+/// @type.symbol symbol=pair type=() => Pair
+/// @resolution.name source=Pair target=Pair
+
+    return Pair { left: "one" };
+    /// @resolution.name source=Pair target=Pair
+
+}
+"#, r#"
+/// @diagnostic.error id=missing-required-property message="missing required property 'right' for type 'Pair'"
+/// @diagnostic.label line=8 column=12 span="Pair { left: \"one\" }" line_source="return Pair { left: \"one\" };"
+/// @diagnostic.error id=not-assignable message="type '\"one\"' is not assignable to type 'int32'"
+/// @diagnostic.label line=8 column=25 span="\"one\"" line_source="return Pair { left: \"one\" };"
+/// @diagnostic.related line=8 column=12 span="Pair { left: \"one\" }" line_source="return Pair { left: \"one\" };" message="expected due to the type of this target"
+/// @diagnostic.note message="the mismatch is in field 'left'"
+"#);
 }

@@ -63,6 +63,7 @@ function read(value: Result<int32, Cancelled>): int32 {
         /// @resolution.name source=value target=read.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=read.value
+        /// @resolution.residual source=value? target=try residual=TryResidual<error.result.Result<int32, Cancelled>>
 
     } catch (Cancelled) {
     /// @type.symbol symbol=read.Cancelled source=Cancelled type=Cancelled
@@ -126,6 +127,7 @@ try {
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
     /// @resolution.call source=read() parameters=() return=Result<string, { code: int32; message: string }> kind=symbol target=read
+    /// @resolution.residual source=read()? target=try residual=TryResidual<Result<string, { code: int32; message: string }>>
 
 } catch ({ code, message }) {
 /// @resolution.pattern source={ code, message } kind=object fields={ code, message }
@@ -195,6 +197,7 @@ try {
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
     /// @resolution.call source=read() parameters=() return=Result<string, string> kind=symbol target=read
+    /// @resolution.residual source=read()? target=try residual=TryResidual<Result<string, string>>
 
 } catch {
     const handled = true;
@@ -251,6 +254,7 @@ try {
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
     /// @resolution.call source=read() parameters=() return=Result<string, { message: string }> kind=symbol target=read
+    /// @resolution.residual source=read()? target=try residual=TryResidual<Result<string, { message: string }>>
 
 } catch (error) {
 /// @type.symbol symbol=error source=error type={ message: string }
@@ -311,6 +315,7 @@ try {
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
     /// @resolution.call source=read() parameters=() return=Result<string, "missing" | "denied"> kind=symbol target=read
+    /// @resolution.residual source=read()? target=try residual=TryResidual<Result<string, "missing" | "denied">>
 
 } catch ("missing") {
 /// @type.node source="\"missing\"" type="missing"

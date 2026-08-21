@@ -41,10 +41,7 @@ impl CheckState<'_> {
                 dir::PrimitiveType::String | dir::PrimitiveType::Integer(_)
             ),
             dir::Type::Literal(literal) => {
-                matches!(
-                    literal,
-                    dir::ScalarLiteral::String(_) | dir::ScalarLiteral::Integer(_)
-                )
+                matches!(literal, dir::Literal::String(_) | dir::Literal::Integer(_))
             }
             dir::Type::Key(_) => true,
             // require every alternative of a union to key on its own
@@ -1169,7 +1166,7 @@ impl CheckState<'_> {
 
     /// Return directed function assignment pairs, or none when the shapes cannot relate.
     fn function_assignability_pairs(
-        &self,
+        &mut self,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         this_parameter: ThisParameterComparison,
@@ -1201,31 +1198,51 @@ impl CheckState<'_> {
         }
 
         // require source parameters to accept every target call arity
-        let source_parameters =
-            self.signature_parameters(source.module_id, source_signature.parameters)?;
-        let target_parameters =
-            self.signature_parameters(target.module_id, target_signature.parameters)?;
-        if !accepts_target_call_arities(source_parameters, target_parameters) {
+        let source_slots = self.parameter_slots(source.module_id, source_signature.parameters)?;
+        let target_slots = self.parameter_slots(target.module_id, target_signature.parameters)?;
+        let required = source_slots
+            .iter()
+            .filter(|slot| !slot.is_optional && !slot.is_rest)
+            .count();
+        if target_slots.len() < required && !target_slots.iter().any(|slot| slot.is_rest) {
             return Ok(None);
         }
 
-        // compare runtime inputs contravariantly
-        let shared = source_parameters.len().min(target_parameters.len());
-        for (index, (source, target)) in source_parameters[..shared]
-            .iter()
-            .zip(&target_parameters[..shared])
-            .enumerate()
-        {
-            if source.is_rest != target.is_rest {
-                return Ok(None);
+        // compare runtime inputs contravariantly, spreading rest slots over the other positions
+        let mut source_index = 0usize;
+        for (index, target) in target_slots.iter().enumerate() {
+            let cause = Some(CauseKind::Parameter {
+                index: index as u32,
+            });
+
+            // spread the target rest over every remaining source slot
+            if target.is_rest {
+                let element = self.rest_element_type(target.ty)?;
+                while let Some(source) = source_slots.get(source_index) {
+                    let target = if source.is_rest { target.ty } else { element };
+                    let cause = Some(CauseKind::Parameter {
+                        index: source_index as u32,
+                    });
+                    pairs.push((cause, target, source.ty));
+                    source_index += 1;
+                }
+                break;
             }
-            pairs.push((
-                Some(CauseKind::Parameter {
-                    index: index as u32,
-                }),
-                target.ty,
-                source.ty,
-            ));
+
+            // stop at the target inputs past the source slots
+            let Some(source) = source_slots.get(source_index) else {
+                break;
+            };
+
+            // spread the source rest element over every remaining target slot
+            if source.is_rest {
+                let element = self.rest_element_type(source.ty)?;
+                pairs.push((cause, target.ty, element));
+                continue;
+            }
+
+            pairs.push((cause, target.ty, source.ty));
+            source_index += 1;
         }
 
         // compare outputs covariantly, discarding results a void target ignores
@@ -1258,16 +1275,73 @@ impl ThisParameterComparison {
     }
 }
 
-/// Return whether source parameters accept every target call arity.
-fn accepts_target_call_arities(
-    source: &[dir::FunctionParameterType],
-    target: &[dir::FunctionParameterType],
-) -> bool {
-    // count the source parameters every call must supply
-    let required = source
-        .iter()
-        .filter(|parameter| !parameter.is_optional && !parameter.is_rest)
-        .count();
+/// One positional slot of a parameter list, with rest tuples spread in place.
+pub(in crate::sema) struct ParameterSlot {
+    /// The slot type, the whole container for a rest slot.
+    pub(in crate::sema) ty: dir::GlobalTypeId,
+    /// Whether a call may omit the slot.
+    pub(in crate::sema) is_optional: bool,
+    /// Whether the slot captures every remaining call argument.
+    pub(in crate::sema) is_rest: bool,
+}
 
-    target.len() >= required
+impl CheckState<'_> {
+    /// Expand one parameter list, spreading a rest tuple over its elements.
+    pub(in crate::sema) fn parameter_slots(
+        &self,
+        module: ModuleId,
+        parameters: dir::TypeListId,
+    ) -> CompilerResult<SmallVec<[ParameterSlot; 6]>> {
+        let mut slots = SmallVec::new();
+        for parameter in self.signature_parameters(module, parameters)? {
+            if !parameter.is_rest {
+                slots.push(ParameterSlot {
+                    ty: parameter.ty,
+                    is_optional: parameter.is_optional,
+                    is_rest: false,
+                });
+                continue;
+            }
+            let rest = self.shallow_resolve(parameter.ty)?;
+            match self.ty(rest)? {
+                dir::Type::Tuple(tuple) => {
+                    for element in self.tuple_elements(rest.module_id, tuple.elements)? {
+                        slots.push(ParameterSlot {
+                            ty: element.ty,
+                            is_optional: element.is_optional,
+                            is_rest: element.is_rest,
+                        });
+                    }
+                }
+                _ => slots.push(ParameterSlot {
+                    ty: rest,
+                    is_optional: false,
+                    is_rest: true,
+                }),
+            }
+        }
+
+        Ok(slots)
+    }
+
+    /// Return the type one rest container supplies to each position it spreads over.
+    pub(in crate::sema) fn rest_element_type(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the sequence head beneath ownership and access forms
+        let mut value = self.shallow_resolve(ty)?;
+        while let dir::Type::Form(form) = self.ty(value)? {
+            value = self.shallow_resolve(form.value)?;
+        }
+
+        let element = match self.ty(value)? {
+            dir::Type::Application(_) if let Some(element) = self.array_element(value)? => element,
+            dir::Type::Slice(slice) => slice.element,
+            dir::Type::FixedArray(array) => array.element,
+            _ => value,
+        };
+
+        Ok(element)
+    }
 }

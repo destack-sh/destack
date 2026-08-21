@@ -93,7 +93,7 @@ impl BodyState<'_, '_> {
         };
 
         // test the discriminant and narrow to the variant's own type
-        let discriminant = dir::ScalarLiteral::from(value);
+        let discriminant = dir::Literal::from(value);
         let mut narrowed = Vec::with_capacity(owners.len());
         for owner in owners {
             let member = self.intern_type(dir::Type::Variant(dir::VariantType {

@@ -56,6 +56,7 @@ function describe(mode: Mode): int32 {
 /// @resolution.name source=Mode target=Mode
 
     match (mode) {
+    /// @resolution.coverage exhaustive=true disjoint=true
     /// @resolution.name source=mode target=describe.mode
     /// @resolution.place source=mode placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=mode root=describe.mode
@@ -130,6 +131,7 @@ function describe(mode: Mode): int32 {
 /// @resolution.name source=Mode target=Mode
 
     match (mode) {
+    /// @resolution.coverage exhaustive=false disjoint=true
     /// @resolution.name source=mode target=describe.mode
     /// @resolution.place source=mode placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=mode root=describe.mode
@@ -289,6 +291,7 @@ declare const status: Status;
 /// @resolution.name source=Status target=Status
 
 match (status) {
+/// @resolution.coverage exhaustive=true disjoint=true
 /// @resolution.name source=status target=status
 /// @resolution.place source=status placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=status root=status
@@ -366,6 +369,7 @@ declare const mode: &readonly Mode;
 const value = match (mode) {
 /// @type.symbol symbol=value source=value type=10 | 20
 /// @resolution.pattern source=value kind=binding target=value
+/// @resolution.coverage exhaustive=true disjoint=true
 /// @resolution.name source=mode target=mode
 /// @resolution.place source=mode placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=mode root=mode

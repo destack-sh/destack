@@ -278,7 +278,7 @@ extension of Buffer {
 }
 
 #[test]
-fn test_check_retains_attempted_call_bindings_on_rejection() {
+fn test_keep_argument_bindings_when_a_call_is_rejected() {
     let session = TestSession::single(
         r#"
 function greet(name: string, count: int32): string {
@@ -611,6 +611,7 @@ function sum(values: Iterator<int32>): Result<int32, string> {
         /// @resolution.name source=result target=sum.symbol5.result
         /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=result root=sum.symbol5.result
+        /// @resolution.residual source=result? target=callable residual=TryResidual<error.result.Result<int32, string>>
 
         Result.ok(total + value + (index as int32))
         /// @type.node source="Result.ok(total + value + (index as int32))" type=error.result.Result<int32, string>
@@ -648,7 +649,7 @@ function sum(values: Iterator<int32>): Result<int32, string> {
 }
 
 #[test]
-fn test_widen_literal_initials_at_the_closure_fixing_point() {
+fn test_widen_the_literal_initial_argument_of_a_reduce_overload() {
     let session = TestSession::single(
         r#"
 newtype interface It<T, R = void> {

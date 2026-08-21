@@ -141,7 +141,7 @@ impl CheckState<'_> {
         let auto_interface = self
             .language_item(application.symbol)?
             .and_then(dir::AutoInterface::from_language_item)
-            .filter(|interface| interface.is_intrinsic());
+            .filter(|interface| interface.has_builtin_implementation());
         if let Some(auto_interface) = auto_interface {
             // decide markers by their compiler rule alone
             if auto_interface.is_marker() {
@@ -272,7 +272,13 @@ impl CheckState<'_> {
 
             // include matching members inherited by the target declaration
             if candidates.is_empty() {
-                let inherent = self.inherent_member_candidates(origin, target, requirement)?;
+                let Some(inherent) =
+                    self.inherent_member_candidates(origin, target, requirement)?
+                else {
+                    return Ok(ConformanceSelection::Undecided(
+                        self.open_type_variables([target, interface])?,
+                    ));
+                };
                 for candidate in inherent {
                     let ty = candidate.callable.unwrap_or(candidate.access_type);
                     candidates.push((candidate.symbol, Some(ty)));
@@ -411,7 +417,7 @@ impl CheckState<'_> {
         origin: Origin,
         target: dir::GlobalTypeId,
         requirement: &InterfaceMember,
-    ) -> CompilerResult<Vec<MemberCandidate>> {
+    ) -> CompilerResult<Option<Vec<MemberCandidate>>> {
         let lookup = self.body().lookup_inherent_member(
             origin,
             origin.module(),
@@ -420,8 +426,25 @@ impl CheckState<'_> {
             requirement.key,
         )?;
 
+        // requirements are satisfied by every member visible on the target
+        let mut is_visible = false;
+        let lookup = match lookup {
+            MemberLookup::Missing if !requirement.has_default => {
+                is_visible = true;
+                self.body().lookup_visible_member(
+                    origin,
+                    origin.module(),
+                    target,
+                    requirement.space,
+                    requirement.key,
+                )?
+            }
+            lookup => lookup,
+        };
+
         // yield declaration candidates for a nominal implementation
-        let mut candidates = match lookup {
+        let candidates = match lookup {
+            MemberLookup::Undecided => return Ok(None),
             MemberLookup::Missing => Vec::new(),
             MemberLookup::Found(candidates) => candidates,
             lookup @ MemberLookup::Intersection(_) => {
@@ -436,17 +459,27 @@ impl CheckState<'_> {
                     message: "nominal implementation has a structural member".into(),
                 });
             }
-            MemberLookup::Undecided => {
-                return Err(CompilerError::Internal {
-                    message: "an inherent lookup re-entered an extension decision".into(),
-                });
-            }
         };
 
-        // conformances select only public members
-        candidates.retain(|candidate| self.is_public_member(candidate.symbol));
+        // keep the public members, a visible one declared beside its target
+        let mut kept = Vec::with_capacity(candidates.len());
+        for candidate in candidates {
+            if !self.is_public_member(candidate.symbol) {
+                continue;
+            }
+            if is_visible
+                && (candidate.origin == dir::MemberOrigin::BlanketExtension
+                    || matches!(
+                        self.definition(candidate.owner)?,
+                        Some(dir::Definition::Interface(_))
+                    ))
+            {
+                continue;
+            }
+            kept.push(candidate);
+        }
 
-        Ok(candidates)
+        Ok(Some(kept))
     }
 
     /// Return whether one member is part of its declaration's public membership.

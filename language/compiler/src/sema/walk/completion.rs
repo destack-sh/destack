@@ -99,7 +99,7 @@ impl CheckState<'_> {
 
                 finally && (body || catch)
             }
-            // expressions that do not force control transfer by form
+            // expressions completing normally by form
             dir::Expression::Declaration(_)
             | dir::Expression::Import { .. }
             | dir::Expression::Export { .. }
@@ -114,7 +114,7 @@ impl CheckState<'_> {
             | dir::Expression::Yield { .. }
             | dir::Expression::Identifier { .. }
             | dir::Expression::This
-            | dir::Expression::ScalarLiteral(_)
+            | dir::Expression::Literal(_)
             | dir::Expression::Super
             | dir::Expression::ImportMeta
             | dir::Expression::ImportSource

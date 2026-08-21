@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::sema::{
     Check, CheckState, FlowPointChange, FlowPredicate, FlowSite, NarrowingCheck, Origin, Relation,
-    VariableRole, Verdict, Widening,
+    VariableRole, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -48,8 +48,7 @@ impl CheckState<'_> {
             FlowNarrowing::Unchanged => Ok(ty),
             // wait for the consulted operation to decide, then re-narrow and close the hole
             FlowNarrowing::Pending { operation, .. } => {
-                let hole =
-                    self.allocate_variable(site.origin(), Widening::Never, VariableRole::Regular);
+                let hole = self.allocate_variable(site.origin(), VariableRole::Regular);
                 self.register_check(Check::Narrowing(NarrowingCheck {
                     site,
                     path: path.path().clone(),
@@ -350,7 +349,7 @@ impl CheckState<'_> {
             return Ok(Ok(narrowed));
         }
 
-        // leave paths the operand does not reach untouched
+        // keep the flow of paths outside the operand's reach
         if !operand_path.starts_with(path) {
             return Ok(Ok(None));
         }
@@ -375,8 +374,7 @@ impl CheckState<'_> {
         origin: Origin,
         value: dir::GlobalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // peel the written assertions so the compared value decides,
-        //  stepping through `as` where the inner type widens
+        // peel the written assertions down to the compared value
         let mut value = value;
         loop {
             let node = self.module(value.module_id).view().get(value.local_id);
@@ -462,7 +460,7 @@ impl CheckState<'_> {
     }
 
     /// Return the type subset accepted by one pattern.
-    fn pattern_predicate_target(
+    pub(in crate::sema) fn pattern_predicate_target(
         &mut self,
         origin: Origin,
         pattern: dir::GlobalNodeId<dir::Pattern>,

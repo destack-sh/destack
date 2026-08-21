@@ -70,11 +70,11 @@ const value = loop {
 === annotated ===
 declare const flag: boolean;
 
-const value: 1 | 2 = loop {
+const value: int64 = loop {
     if (flag) {
-        break 1 as 1 | 2;
+        break 1;
     }
-    break 2 as 1 | 2;
+    break 2;
 };
 
 === dir ===
@@ -83,9 +83,9 @@ declare const flag: boolean;
 /// @resolution.pattern source=flag kind=binding target=flag
 
 const value = loop {
-/// @type.symbol symbol=value source=value type=1 | 2
+/// @type.symbol symbol=value source=value type=int64
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node type=1 | 2
+/// @type.node type=int64
 
     if (flag) {
     /// @type.node source=flag type=boolean

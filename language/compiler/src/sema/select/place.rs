@@ -42,6 +42,7 @@ impl BodyState<'_, '_> {
             ty,
             node: Some(site.node),
             place,
+            is_fresh: self.check.fresh_nodes.contains_key(&site.node),
         })
     }
 
@@ -51,9 +52,22 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
+        if let Some(place) = self.select_expression_place(site, ty)? {
+            self.commit_place(site.node, place)?;
+        }
+
+        Ok(())
+    }
+
+    /// Return the addressable storage one checked expression designates, `None` for a value.
+    pub(in crate::sema) fn select_expression_place(
+        &mut self,
+        site: FlowSite,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::PlaceResolution>> {
         // designate storage from expressions only
         if site.node.local_id.ty != dir::NodeType::Expression {
-            return Ok(());
+            return Ok(None);
         }
 
         // select the place each addressable expression form designates
@@ -110,13 +124,8 @@ impl BodyState<'_, '_> {
             } => Some(self.project_expression_place(site, right, ty)?),
             _ => None,
         };
-        let Some(place) = place else {
-            return Ok(());
-        };
 
-        self.commit_place(site.node, place)?;
-
-        Ok(())
+        Ok(place)
     }
 
     /// Return one lexical binding place.
@@ -129,7 +138,7 @@ impl BodyState<'_, '_> {
             return Ok(None);
         };
 
-        // foreign symbols never denote body places
+        // body places come from binding symbols
         if self
             .symbol_kind_maybe(symbol)?
             .is_none_or(|kind| !kind.is_binding())
@@ -314,7 +323,7 @@ impl BodyState<'_, '_> {
                 return Ok(());
             }
 
-            // keep the first resolution, since lifetime and access are proofs
+            // keep the first resolution of a matching placement
             if previous.placement == place.placement {
                 return Ok(());
             }
@@ -396,8 +405,14 @@ impl BodyState<'_, '_> {
                 let space = self.member_receiver_space(receiver_node, receiver)?;
                 let key = dir::StaticKey::Name(name);
                 let subject = dir::MemberSubject::new(receiver, receiver, space);
-                let lookup = self.lookup_member(origin, module, subject, key)?;
-
+                let lookup = self.probe_member(
+                    origin,
+                    module,
+                    receiver_value,
+                    subject,
+                    key,
+                    dir::Access::Mutable,
+                )?;
                 let Some(selection) =
                     self.select_member_assignment(origin, receiver_value, key, use_, lookup)?
                 else {
@@ -528,6 +543,10 @@ impl BodyState<'_, '_> {
                     }
                     PlaceUse::Write | PlaceUse::Read => None,
                 };
+
+                // record the exclusive access a write through the pointer demands
+                let is_aliased = self.type_is_aliased(origin, receiver)?;
+                self.record_required_access(receiver_node, dir::Access::Exclusive, is_aliased);
                 let write = dir::WriteResolution::Dereference(write);
 
                 Ok(Some(AssignmentSelection {

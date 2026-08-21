@@ -326,7 +326,7 @@ impl BodyState<'_, '_> {
         // infer the physical receiver and its flow-narrowed lookup type
         let receiver_node = left.into_global_any(module);
         let receiver_site = self.visit_site(receiver_node)?;
-        let receiver = self.infer_node(receiver_site, PlaceUse::Read, InferMode::Exact)?;
+        let receiver = self.infer_node(receiver_site, PlaceUse::Read, InferMode::Regular)?;
         let written_receiver = self.flow_type_at(receiver_site, receiver)?;
         self.commit_expression_place(receiver_site, written_receiver)?;
         let receiver_value = self.expression_value(receiver_site, receiver)?;
@@ -474,6 +474,19 @@ impl BodyState<'_, '_> {
             )?
         {
             return Ok(Some(selection));
+        }
+
+        // index structural payloads through their memory forms
+        if let dir::Type::Form(_) = self.ty(receiver_type)? {
+            let payload = self.strip_form(origin, receiver_type)?;
+            if matches!(
+                self.ty(payload)?,
+                dir::Type::Tuple(_) | dir::Type::Object(_)
+            ) {
+                return self.select_subscript(
+                    origin, module, use_, receiver, payload, space, index_node, index,
+                );
+            }
         }
 
         match self.ty(receiver_type)? {
@@ -716,6 +729,7 @@ impl BodyState<'_, '_> {
                 ty: receiver,
                 node: None,
                 place: None,
+                is_fresh: false,
             },
             receiver_type,
             space,
@@ -754,7 +768,7 @@ impl BodyState<'_, '_> {
                 value,
                 target,
                 ValueUse::Argument,
-                InferMode::Exact,
+                InferMode::Regular,
             )?;
             if matches!(conversion.outcome, CheckOutcome::Fails(_)) {
                 return Ok(false);
@@ -818,7 +832,7 @@ impl BodyState<'_, '_> {
         tuple: dir::TupleType,
     ) -> CompilerResult<Option<SubscriptSelection>> {
         let position = match self.ty(index)? {
-            dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => usize::try_from(value).ok(),
+            dir::Type::Literal(dir::Literal::Integer(value)) => usize::try_from(value).ok(),
             _ => None,
         };
         let elements = self.tuple_elements(lookup_receiver.module_id, tuple.elements)?;
@@ -881,6 +895,7 @@ impl BodyState<'_, '_> {
         let key_domain = self.intern_operation(dir::TypeOperation::KeyOf(dir::UnaryType {
             target: lookup_receiver,
         }))?;
+
         // keep the candidate alive on an undecided key relation, reject only a proven mismatch
         let accepts = self.evaluate_relation(origin, Relation::Assignable, index, key_domain)?
             != Verdict::Fails;
@@ -1326,6 +1341,7 @@ impl BodyState<'_, '_> {
                 ty: receiver,
                 node: None,
                 place: None,
+                is_fresh: false,
             },
             receiver,
             dir::MemberSpace::Instance,

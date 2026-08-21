@@ -156,7 +156,7 @@ sound satisfies string;
 }
 
 #[test]
-fn test_blanket_extension_yields_to_the_declared_implementation() {
+fn test_reject_a_concrete_implementation_overlapping_a_blanket() {
     let session = TestSession::single(
         r#"
 newtype interface Loud {
@@ -186,14 +186,10 @@ extension of Bell implements Quiet {
         return "ring";
     }
 }
-
-const bell = Bell {};
-const sound = bell.whisper();
-sound satisfies string;
 "#,
     );
 
-    session.assert_dir(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -226,18 +222,14 @@ extension of Bell implements Quiet {
     }
 }
 
-const bell: Bell = Bell {};
-const sound: string = bell.whisper();
-sound satisfies string;
-
 === dir ===
 newtype interface Loud {
 /// @type.symbol symbol=Loud type=Loud
 /// @definition.interface symbol=Loud nominal=true
-/// @definition.method symbol=Loud.shout source="shout(this): string" slot=shout type=(this: Loud) => string
+/// @definition.method symbol=Loud.shout source="shout(this): string" slot=shout type=(this: this) => string
 
     shout(this): string;
-    /// @type.symbol symbol=Loud.shout source="shout(this): string" type=(this: Loud) => string
+    /// @type.symbol symbol=Loud.shout source="shout(this): string" type=(this: this) => string
     /// @type.symbol symbol=Loud.shout.this source=this type=this
 
 }
@@ -245,10 +237,10 @@ newtype interface Loud {
 newtype interface Quiet {
 /// @type.symbol symbol=Quiet type=Quiet
 /// @definition.interface symbol=Quiet nominal=true
-/// @definition.method symbol=Quiet.whisper source="whisper(this): string" slot=whisper type=(this: Quiet) => string
+/// @definition.method symbol=Quiet.whisper source="whisper(this): string" slot=whisper type=(this: this) => string
 
     whisper(this): string;
-    /// @type.symbol symbol=Quiet.whisper source="whisper(this): string" type=(this: Quiet) => string
+    /// @type.symbol symbol=Quiet.whisper source="whisper(this): string" type=(this: this) => string
     /// @type.symbol symbol=Quiet.whisper.this source=this type=this
 
 }
@@ -285,13 +277,13 @@ struct Bell {}
 extension of Bell implements Loud {
 /// @definition.extension symbol=<module>#3 form=local target=Bell
 /// @definition.implements symbol=<module>#3 source=Loud target=Loud
-/// @definition.method symbol=shout slot=shout type=(this: Bell) => string
+/// @definition.method symbol=shout slot=shout type=(this: this) => string
 /// @definition.conformance symbol=<module>#3 member=shout requirement=Loud.shout
 /// @resolution.name source=Bell target=Bell
 /// @resolution.name source=Loud target=Loud
 
     shout(this): string {
-    /// @type.symbol symbol=shout type=(this: Bell) => string
+    /// @type.symbol symbol=shout type=(this: this) => string
     /// @type.symbol symbol=shout.this source=this type=this
 
         return "RING";
@@ -301,37 +293,23 @@ extension of Bell implements Loud {
 extension of Bell implements Quiet {
 /// @definition.extension symbol=<module>#4 form=local target=Bell
 /// @definition.implements symbol=<module>#4 source=Quiet target=Quiet
-/// @definition.method symbol=whisper#2 slot=whisper type=(this: Bell) => string
+/// @definition.method symbol=whisper#2 slot=whisper type=(this: this) => string
 /// @definition.conformance symbol=<module>#4 member=whisper#2 requirement=Quiet.whisper
 /// @resolution.name source=Bell target=Bell
 /// @resolution.name source=Quiet target=Quiet
 
     whisper(this): string {
-    /// @type.symbol symbol=whisper#2 type=(this: Bell) => string
+    /// @type.symbol symbol=whisper#2 type=(this: this) => string
     /// @type.symbol symbol=whisper.this#2 source=this type=this
 
         return "ring";
     }
 }
-
-const bell = Bell {};
-/// @type.symbol symbol=bell source=bell type=Bell
-/// @resolution.pattern source=bell kind=binding target=bell
-/// @resolution.name source=Bell target=Bell
-
-const sound = bell.whisper();
-/// @type.symbol symbol=sound source=sound type=string
-/// @resolution.pattern source=sound kind=binding target=sound
-/// @resolution.name source=bell target=bell
-/// @resolution.member source=bell.whisper receiver=Bell type=(this: Bell) => string kind=symbol target_receiver=Bell target=whisper#2
-/// @resolution.call source=bell.whisper() parameters=() return=string kind=symbol target=whisper#2 receiver=Bell
-/// @resolution.place source=bell placement="local" lifetime="static" access="readonly"
-/// @resolution.access source=bell root=bell
-
-sound satisfies string;
-/// @resolution.name source=sound target=sound
-/// @resolution.place source=sound placement="local" lifetime="static" access="exclusive"
-/// @resolution.access source=sound root=sound
+"#,
+        r#"
+/// @diagnostic.error id=conflicting-implementation message="conflicting implementations of interface 'Quiet' for type 'Bell'"
+/// @diagnostic.label line=24 column=14 span="Bell" line_source="extension of Bell implements Quiet {"
+/// @diagnostic.related line=10 column=23 span="I" line_source="extension<I: Loud> of I implements Quiet {" message="conflicting implementation"
 "#,
     );
 }
@@ -1127,4 +1105,210 @@ failure satisfies Error;
 /// @resolution.access source=failure root=failure
 /// @resolution.name source=Error target=error.error.Error
 "#);
+}
+
+#[test]
+fn test_reject_two_bounded_blankets_for_one_interface() {
+    let session = TestSession::single(
+        r#"
+newtype interface Loud {
+    shout(this): string;
+}
+
+newtype interface Bright {
+    shine(this): string;
+}
+
+newtype interface Quiet {
+    whisper(this): string;
+}
+
+extension<T: Loud> of T implements Quiet {
+    whisper(this): string {
+        return this.shout();
+    }
+}
+
+extension<T: Bright> of T implements Quiet {
+    whisper(this): string {
+        return this.shine();
+    }
+}
+
+struct Bell {}
+
+extension of Bell implements Loud, Bright {
+    shout(this): string {
+        return "RING";
+    }
+
+    shine(this): string {
+        return "glint";
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype interface Loud {
+    shout(this): string;
+}
+
+newtype interface Bright {
+    shine(this): string;
+}
+
+newtype interface Quiet {
+    whisper(this): string;
+}
+
+extension<T: Loud> of T implements Quiet {
+    whisper(this): string {
+        return this.shout();
+    }
+}
+
+extension<T: Bright> of T implements Quiet {
+    whisper(this): string {
+        return this.shine();
+    }
+}
+
+struct Bell {}
+
+extension of Bell implements Loud, Bright {
+    shout(this): string {
+        return "RING";
+    }
+
+    shine(this): string {
+        return "glint";
+    }
+}
+
+=== dir ===
+newtype interface Loud {
+/// @type.symbol symbol=Loud type=Loud
+/// @definition.interface symbol=Loud nominal=true
+/// @definition.method symbol=Loud.shout source="shout(this): string" slot=shout type=(this: this) => string
+
+    shout(this): string;
+    /// @type.symbol symbol=Loud.shout source="shout(this): string" type=(this: this) => string
+    /// @type.symbol symbol=Loud.shout.this source=this type=this
+
+}
+
+newtype interface Bright {
+/// @type.symbol symbol=Bright type=Bright
+/// @definition.interface symbol=Bright nominal=true
+/// @definition.method symbol=Bright.shine source="shine(this): string" slot=shine type=(this: this) => string
+
+    shine(this): string;
+    /// @type.symbol symbol=Bright.shine source="shine(this): string" type=(this: this) => string
+    /// @type.symbol symbol=Bright.shine.this source=this type=this
+
+}
+
+newtype interface Quiet {
+/// @type.symbol symbol=Quiet type=Quiet
+/// @definition.interface symbol=Quiet nominal=true
+/// @definition.method symbol=Quiet.whisper source="whisper(this): string" slot=whisper type=(this: this) => string
+
+    whisper(this): string;
+    /// @type.symbol symbol=Quiet.whisper source="whisper(this): string" type=(this: this) => string
+    /// @type.symbol symbol=Quiet.whisper.this source=this type=this
+
+}
+
+extension<T: Loud> of T implements Quiet {
+/// @generic.template symbol=<module>#2 parameters=(T#1: Loud)
+/// @definition.extension symbol=<module>#2 form=local target=T#1
+/// @definition.implements symbol=<module>#2 source=Quiet target=Quiet
+/// @definition.method symbol=whisper#1 slot=whisper type=(this: this) => string
+/// @definition.conformance symbol=<module>#2 member=whisper#1 requirement=Quiet.whisper
+/// @type.symbol symbol=T#1 source="T: Loud" type=T#1
+/// @resolution.name source=Loud target=Loud
+/// @resolution.name source=T target=T#1
+/// @resolution.name source=Quiet target=Quiet
+
+    whisper(this): string {
+    /// @type.symbol symbol=whisper#1 type=(this: this) => string
+    /// @type.symbol symbol=whisper.this#1 source=this type=this
+
+        return this.shout();
+        /// @resolution.member source=this.shout receiver=T#1 type=(this: T#1) => string kind=symbol target_receiver=T#1 target=Loud.shout
+        /// @resolution.call source=this.shout() parameters=() return=string kind=symbol target=Loud.shout receiver=T#1
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=T#1
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+
+    }
+}
+
+extension<T: Bright> of T implements Quiet {
+/// @generic.template symbol=<module>#3 parameters=(T#2: Bright)
+/// @definition.extension symbol=<module>#3 form=local target=T#2
+/// @definition.implements symbol=<module>#3 source=Quiet target=Quiet
+/// @definition.method symbol=whisper#2 slot=whisper type=(this: this) => string
+/// @definition.conformance symbol=<module>#3 member=whisper#2 requirement=Quiet.whisper
+/// @type.symbol symbol=T#2 source="T: Bright" type=T#2
+/// @resolution.name source=Bright target=Bright
+/// @resolution.name source=T target=T#2
+/// @resolution.name source=Quiet target=Quiet
+
+    whisper(this): string {
+    /// @type.symbol symbol=whisper#2 type=(this: this) => string
+    /// @type.symbol symbol=whisper.this#2 source=this type=this
+
+        return this.shine();
+        /// @resolution.member source=this.shine receiver=T#2 type=(this: T#2) => string kind=symbol target_receiver=T#2 target=Bright.shine
+        /// @resolution.call source=this.shine() parameters=() return=string kind=symbol target=Bright.shine receiver=T#2
+        /// @resolution.receiver source=this kind=this declaration=<module>#3 type=T#2
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+
+    }
+}
+
+struct Bell {}
+/// @type.symbol symbol=Bell source="struct Bell {}" type=Bell
+/// @definition.struct symbol=Bell source="struct Bell {}"
+
+extension of Bell implements Loud, Bright {
+/// @definition.extension symbol=<module>#4 form=local target=Bell
+/// @definition.implements symbol=<module>#4 source=Bright target=Bright
+/// @definition.implements symbol=<module>#4 source=Loud target=Loud
+/// @definition.method symbol=shine slot=shine type=(this: this) => string
+/// @definition.method symbol=shout slot=shout type=(this: this) => string
+/// @definition.conformance symbol=<module>#4 member=shine requirement=Bright.shine
+/// @definition.conformance symbol=<module>#4 member=shout requirement=Loud.shout
+/// @resolution.name source=Bell target=Bell
+/// @resolution.name source=Loud target=Loud
+/// @resolution.name source=Bright target=Bright
+
+    shout(this): string {
+    /// @type.symbol symbol=shout type=(this: this) => string
+    /// @type.symbol symbol=shout.this source=this type=this
+
+        return "RING";
+    }
+
+    shine(this): string {
+    /// @type.symbol symbol=shine type=(this: this) => string
+    /// @type.symbol symbol=shine.this source=this type=this
+
+        return "glint";
+    }
+}
+"#,
+        r#"
+/// @diagnostic.error id=conflicting-implementation message="conflicting implementations of interface 'Quiet' for type 'Bell'"
+/// @diagnostic.label line=20 column=25 span="T" line_source="extension<T: Bright> of T implements Quiet {"
+/// @diagnostic.related line=14 column=23 span="T" line_source="extension<T: Loud> of T implements Quiet {" message="conflicting implementation"
+"#,
+    );
 }

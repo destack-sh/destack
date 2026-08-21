@@ -289,7 +289,7 @@ function subtract<T: int32 | float64>(value: T): T where T: float64 {
 }
 
 #[test]
-fn test_literal_operand_satisfies_conjoined_scalar_constraints() {
+fn test_accept_a_literal_operand_fitting_every_conjoined_bound() {
     let session = TestSession::single(
         r#"
 function offset<T: int8 | float64>(value: T): T where T: uint8 {
@@ -329,7 +329,7 @@ function offset<T: int8 | float64>(value: T): T where T: uint8 {
 }
 
 #[test]
-fn test_literal_operand_must_satisfy_conjoined_scalar_constraints() {
+fn test_reject_a_literal_operand_outside_one_conjoined_bound() {
     let session = TestSession::single(
         r#"
 function offset<T: int8 | float64>(value: T): T where T: uint8 {

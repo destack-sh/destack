@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_tuple_optional_absorption_reshapes_the_value() {
+fn test_assign_a_tuple_to_a_target_with_a_trailing_optional_element() {
     let session = TestSession::single(
         r#"
 declare const pair: (int32, int32);

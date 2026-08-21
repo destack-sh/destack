@@ -917,7 +917,7 @@ declare const items: ^Array<int32>;
 
 items.push(1);
 /// @resolution.name source=items target=items
-/// @resolution.member source=items.push receiver=Owned<int32[]> type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive Owned<int32[]>, ...int32[]) => isize kind=symbol target_receiver=Owned<int32[]> target=collections.array.push
+/// @resolution.member source=items.push receiver=Owned<int32[]> type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=Owned<int32[]> target=collections.array.push
 /// @resolution.call source=items.push(1) parameters=(int32[]) arguments=(rest(1) pack=collections.array.arrayFromSlice as int32) return=isize kind=symbol target=collections.array.push receiver=Owned<int32[]> instance=Array<int32>.<extension#5>.push
 /// @resolution.place source=items placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=items root=items
@@ -925,7 +925,7 @@ items.push(1);
 /// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)
 "#,
         r#"
-/// @diagnostic.error id=receiver-not-assignable message="receiver type '^int32[]' is not assignable to the method's 'this' type '&exclusive ^int32[]'"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type '^int32[]' is not assignable to the method's 'this' type '&exclusive int32[]'"
 /// @diagnostic.label line=4 column=1 span="items.push(1)" line_source="items.push(1);"
 "#,
     );
@@ -969,6 +969,103 @@ items.push(1);
 /// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)
 /// @generic.instance id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
 /// @generic.instance id=collections.array.push<int32> template=collections.array.push arguments=(int32)
+"#,
+    );
+}
+
+#[test]
+fn test_record_an_exclusive_use_for_a_returned_exclusive_borrow() {
+    let session = TestSession::single(
+        r#"
+struct Counter {
+    value: int32;
+}
+
+function identity<'a>(counter: &'a exclusive Counter): &'a exclusive Counter {
+    return counter;
+}
+
+function forward<'a>(counter: &'a exclusive Counter): &'a exclusive Counter {
+    return identity(counter);
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_flows(),
+        r#"
+=== annotated ===
+struct Counter {
+    value: int32;
+}
+
+function identity<'a>(counter: &'a exclusive Counter): &'a exclusive Counter {
+    return counter;
+}
+
+function forward<'a>(counter: &'a exclusive Counter): &'a exclusive Counter {
+    return identity(counter);
+}
+
+=== dir ===
+struct Counter {
+/// @type.symbol symbol=Counter type=Counter
+/// @definition.struct symbol=Counter
+/// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
+/// @flow.use symbol=Counter uses=read
+
+    value: int32;
+    /// @type.symbol symbol=Counter.value source="value: int32" type=int32
+
+}
+
+function identity<'a>(counter: &'a exclusive Counter): &'a exclusive Counter {
+/// @generic.template symbol=identity parameters=('a#1)
+/// @type.symbol symbol=identity type=<'a#1>(&'a#1 exclusive Counter) => &'a#1 exclusive Counter
+/// @flow.use symbol=identity uses=read
+/// @type.symbol symbol=identity.'a source='a type='a#1
+/// @flow.use symbol='a#1 uses=read
+/// @type.symbol symbol=identity.counter source="counter: &'a exclusive Counter" type=&'a#1 exclusive Counter
+/// @flow.use symbol=counter#1 uses=read+exclusive
+/// @resolution.name source='a target=identity.'a
+/// @resolution.name source=Counter target=Counter
+/// @resolution.name source='a target=identity.'a
+/// @resolution.name source=Counter target=Counter
+
+    return counter;
+    /// @flow.diverging source="return counter"
+    /// @resolution.name source=counter target=identity.counter
+    /// @resolution.place source=counter placement="local" lifetime='a#1 access="exclusive"
+    /// @resolution.access source=counter root=identity.counter
+    /// @flow.access source=counter root=identity.counter uses=read+exclusive
+
+}
+
+function forward<'a>(counter: &'a exclusive Counter): &'a exclusive Counter {
+/// @generic.template symbol=forward parameters=('a#2)
+/// @type.symbol symbol=forward type=<'a#2>(&'a#2 exclusive Counter) => &'a#2 exclusive Counter
+/// @type.symbol symbol=forward.'a source='a type='a#2
+/// @flow.use symbol='a#2 uses=read
+/// @type.symbol symbol=forward.counter source="counter: &'a exclusive Counter" type=&'a#2 exclusive Counter
+/// @flow.use symbol=counter#2 uses=read+exclusive
+/// @resolution.name source='a target=forward.'a
+/// @resolution.name source=Counter target=Counter
+/// @resolution.name source='a target=forward.'a
+/// @resolution.name source=Counter target=Counter
+
+    return identity(counter);
+    /// @flow.diverging source="return identity(counter)"
+    /// @resolution.name source=identity target=identity
+    /// @resolution.call source=identity(counter) parameters=(&'a#2 exclusive Counter) arguments=(provided(counter) as &'a#2 exclusive Counter) return=&'a#2 exclusive Counter kind=symbol target=identity
+    /// @resolution.name source=counter target=forward.counter
+    /// @resolution.place source=counter placement="local" lifetime='a#2 access="exclusive"
+    /// @resolution.access source=counter root=forward.counter
+    /// @flow.access source=counter root=forward.counter uses=read+exclusive
+
+}
+"#,
+        r#"
 "#,
     );
 }

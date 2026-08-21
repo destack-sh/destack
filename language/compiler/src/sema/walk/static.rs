@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::sema::{CheckState, DecoratorExpression, VariableRole, WalkState, Widening};
+use crate::sema::{CheckState, DecoratorExpression, VariableRole, WalkState};
 use crate::r#static::{StaticError, StaticEvaluator, StaticGuard};
 
 pub(in crate::sema) use dir::StaticPresence;
@@ -28,7 +28,7 @@ impl CheckState<'_> {
             return Ok(gate);
         }
 
-        // trust earlier-stage gate decisions from the table, never re-judge them
+        // trust the earlier-stage gate decisions in the table
         if let Some(gate) = self.module(self.module_id).statics.presence(decorated) {
             return Ok(gate);
         }
@@ -168,9 +168,9 @@ impl CheckState<'_> {
     }
 
     /// Return one eagerly evaluated static term as a scalar literal.
-    fn static_term_literal(&self, term: dir::StaticTerm) -> Option<dir::ScalarLiteral> {
+    fn static_term_literal(&self, term: dir::StaticTerm) -> Option<dir::Literal> {
         match term {
-            dir::StaticTerm::ScalarLiteral { value } => Some(value),
+            dir::StaticTerm::Literal { value } => Some(value),
             _ => None,
         }
     }
@@ -227,8 +227,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let source = expression.into_any();
 
-        // embed eagerly evaluable subtrees as literals, covering profile
-        //  and module metadata like import.meta inside mixed guards
+        // embed an eagerly evaluable subtree as a literal
         let evaluated = {
             let input = self.check.module(self.module);
             let evaluator = StaticEvaluator::new(
@@ -261,7 +260,7 @@ impl WalkState<'_, '_> {
             } => {
                 let ty = match self.reject_declaration_hole(source)? {
                     Some(rejected) => rejected,
-                    None => self.open_type_hole(source, Widening::Never, VariableRole::Regular)?,
+                    None => self.open_type_hole(source, VariableRole::Regular)?,
                 };
                 self.commit_node_type(expression, ty)?;
 
@@ -277,9 +276,7 @@ impl WalkState<'_, '_> {
                     let source = (*value).into_any();
                     let ty = match self.reject_declaration_hole(source)? {
                         Some(rejected) => rejected,
-                        None => {
-                            self.open_type_hole(source, Widening::Never, VariableRole::Regular)?
-                        }
+                        None => self.open_type_hole(source, VariableRole::Regular)?,
                     };
                     self.commit_node_type(*value, ty)?
                 } else {
@@ -289,7 +286,7 @@ impl WalkState<'_, '_> {
                 self.bind_static_term(expression, ty)
             }
             // 1
-            dir::Expression::ScalarLiteral(value) => {
+            dir::Expression::Literal(value) => {
                 let ty = self.intern_type(dir::Type::Literal(*value))?;
 
                 self.bind_static_term(expression, ty)
@@ -336,8 +333,7 @@ impl WalkState<'_, '_> {
                 self.check
                     .commit_name(global_source, dir::NameResolution::new(symbol))?;
 
-                // const parameters write their parameter type so
-                //  instantiation substitution reaches the predicate
+                // const parameters write their parameter type
                 if let Some(parameter) = self.check.parameter_by_symbol(symbol) {
                     // declared value reads pin the parameter to one exact value
                     if self.imposes_requirements && parameter.module_id == self.module {

@@ -6,7 +6,8 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     CheckFailure, MemberLookup, NewtypeInstance, NewtypeOverload, OperatorExpressionResult,
-    ProtocolCall, Relation, Response, SignatureInstance, ValueUse, VariableRole, Verdict, Widening,
+    ProtocolCall, Relation, Response, SignatureInstance, ValueUse, VariableKind, VariableRole,
+    Verdict,
 };
 
 /// One question the solver decides, in canonical form.
@@ -27,10 +28,10 @@ pub(in crate::sema) enum Ask {
     Relation(Relation),
     /// One implementation decision over [source, target].
     Implementation(Relation),
-    /// The extensions one owner admits over [receiver, subject].
+    /// The extensions one head admits over [receiver, subject].
     Sources {
-        /// The declaration whose extensions the ask reaches.
-        owner: dir::GlobalSymbolId,
+        /// The head whose extensions the ask reaches.
+        root: dir::TypeRoot,
         /// The module whose visibility admits the extensions.
         module: ModuleId,
     },
@@ -183,8 +184,8 @@ pub(in crate::sema) struct Hole {
     pub(in crate::sema) upper: SmallVec<[(Relation, dir::GlobalTypeId); 2]>,
     /// The canonical declared default.
     pub(in crate::sema) default: Option<dir::GlobalTypeId>,
-    /// The literal widening the root applies when solving.
-    pub(in crate::sema) widening: Widening,
+    /// What the root ranges over.
+    pub(in crate::sema) kind: VariableKind,
     /// The special role the root carries.
     pub(in crate::sema) role: VariableRole,
 }

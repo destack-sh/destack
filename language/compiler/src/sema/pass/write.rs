@@ -17,7 +17,7 @@ impl CheckState<'_> {
         for (symbol, literal) in symbol_literals {
             let id = state
                 .statics_tail
-                .push_static(dir::StaticTerm::ScalarLiteral { value: literal });
+                .push_static(dir::StaticTerm::Literal { value: literal });
             state
                 .statics_tail
                 .set_symbol_static(symbol, id.into_global(module));
@@ -143,7 +143,7 @@ impl CheckState<'_> {
     /// Store the membership each settled subject selects.
     fn write_member_bindings(&mut self, module: ModuleId) -> CompilerResult<()> {
         for (site, recorded) in self.recorded_member_sites(module) {
-            // re-key the site, since inference solved its subject after selection
+            // re-key the site against the subject inference solved
             let subject = self.settle_member_site(module, site, recorded)?;
 
             // require one membership per settled subject
@@ -183,8 +183,7 @@ impl CheckState<'_> {
         self.is_settling = false;
         let mut membership = membership?;
 
-        // settle the open types a structural binding still carries,
-        //  folding throwaway instantiation variables to erased parameter holes
+        // settle the open types a structural binding still carries
         for binding in &mut membership.structural {
             binding.map_types(&mut |ty| {
                 if !self.type_flags(ty)?.has_variable() {
@@ -275,7 +274,7 @@ impl CheckState<'_> {
                 module,
                 subject.receiver,
                 core,
-                instance.symbol,
+                dir::TypeRoot::Declaration(instance.symbol),
             )?;
             for source in sources {
                 let arguments = self.intern_type_ids(&source.arguments)?;
@@ -523,7 +522,7 @@ impl CheckState<'_> {
     fn static_symbol_literals(
         &mut self,
         module: ModuleId,
-    ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::ScalarLiteral)>> {
+    ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::Literal)>> {
         // collect the values the walk recorded per symbol
         let static_values = self
             .module(module)

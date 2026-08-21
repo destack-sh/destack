@@ -31,7 +31,7 @@ impl CheckState<'_> {
             }
         }
 
-        // lifetime variables join through the provenance meet, never through relations
+        // lifetime variables join through the provenance meet
         if self.variable_memory_parameter(variable)? == Some(dir::MemoryParameter::Lifetime) {
             let survivors = self.meet_lifetime_survivors(resolved)?;
 
@@ -156,7 +156,7 @@ impl CheckState<'_> {
                 let accesses_equal = self.ty(borrow.access)? == self.ty(other_borrow.access)?;
                 if payloads_equal && accesses_equal {
                     consumed.push(other_bound);
-                    if !self.contains_type_head(&lifetimes, other_borrow.lifetime)? {
+                    if !self.contains_type_root(&lifetimes, other_borrow.lifetime)? {
                         lifetimes.push(other_borrow.lifetime);
                     }
                 }
@@ -202,8 +202,8 @@ impl CheckState<'_> {
         Ok(merged)
     }
 
-    /// Return whether one type head is already collected.
-    fn contains_type_head(
+    /// Return whether one type root is already collected.
+    fn contains_type_root(
         &self,
         collected: &[dir::GlobalTypeId],
         ty: dir::GlobalTypeId,
@@ -243,21 +243,6 @@ impl CheckState<'_> {
         }
     }
 
-    /// Widen one closed type, keeping const integer literals in the integer family.
-    pub(in crate::sema) fn widen_const_type(
-        &mut self,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // widen an integer literal to the declared integer default
-        if let dir::Type::Literal(literal @ dir::ScalarLiteral::Integer(_)) = self.ty(ty)? {
-            let widened = literal.widen_integer();
-
-            return self.intern_type(widened);
-        }
-
-        self.widen_type(ty)
-    }
-
     /// Rebuild one widening solution composite with widened leaves.
     fn widen_tree(
         &mut self,
@@ -284,7 +269,7 @@ impl CheckState<'_> {
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         match self.ty(id)? {
-            // literal leaves widen to their base types
+            // widen literal leaves to their base types, integers to the integer default
             dir::Type::Literal(literal) => {
                 let widened = literal.widen();
 
@@ -382,7 +367,7 @@ impl CheckState<'_> {
                 // drop members that repeat an earlier member's type
                 let mut distinct = Vec::<dir::GlobalTypeId>::new();
                 for element in widened {
-                    if !self.contains_type_head(&distinct, element)? {
+                    if !self.contains_type_root(&distinct, element)? {
                         distinct.push(element);
                     }
                 }

@@ -172,7 +172,7 @@ impl CheckState<'_> {
         let has_exact_key = closed.iter().any(|element| {
             matches!(
                 self.ty(*element),
-                Ok(dir::Type::Key(_) | dir::Type::Literal(dir::ScalarLiteral::String(_)))
+                Ok(dir::Type::Key(_) | dir::Type::Literal(dir::Literal::String(_)))
             )
         });
         if has_exact_key {

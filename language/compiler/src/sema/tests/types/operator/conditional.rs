@@ -543,3 +543,189 @@ const first: Element<typeof values> = values[0];
 "#,
     );
 }
+
+/// Refine the check type by the extends type inside a conditional's true branch.
+#[test]
+fn test_refine_the_check_type_in_the_true_branch() {
+    let session = TestSession::single(
+        r#"
+import { Copy } from "destack:memory";
+
+struct Holder<T: Copy> {
+    value: T;
+}
+
+export type Poll<T> = T | (T extends Copy ? Holder<T> : never);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+import { Copy } from "destack:memory";
+
+struct Holder<out T: Copy> {
+    value: T;
+}
+
+export type Poll<T> = T | (T extends Copy ? Holder<T> : never);
+
+=== dir ===
+import { Copy } from "destack:memory";
+
+struct Holder<T: Copy> {
+/// @generic.template symbol=Holder parameters=(out T#1: memory.capability.Copy)
+/// @type.symbol symbol=Holder type=Holder
+/// @definition.struct symbol=Holder template=(out T#1: memory.capability.Copy)
+/// @definition.field symbol=Holder.value source="value: T" key=value type=T#1
+/// @type.symbol symbol=Holder.T source="T: Copy" type=T#1
+/// @resolution.name source=Copy target=memory.capability.Copy
+
+    value: T;
+    /// @type.symbol symbol=Holder.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Holder.T
+
+}
+
+export type Poll<T> = T | (T extends Copy ? Holder<T> : never);
+/// @generic.template symbol=Poll parameters=(T#2)
+/// @type.symbol symbol=Poll source="export type Poll<T> = T | (T extends Copy ? Holder<T> : never)" type=T#2 | T#2 extends memory.capability.Copy ? Holder<T#2> : never
+/// @definition.type symbol=Poll source="export type Poll<T> = T | (T extends Copy ? Holder<T> : never)" template=(T#2) value=T#2 | T#2 extends memory.capability.Copy ? Holder<T#2> : never
+/// @type.symbol symbol=Poll.T source=T type=T#2
+/// @resolution.name source=T target=Poll.T
+/// @resolution.name source=T target=Poll.T
+/// @resolution.name source=Copy target=memory.capability.Copy
+/// @resolution.name source=Holder target=Holder
+/// @resolution.name source=T target=Poll.T
+"#, r#""#);
+}
+
+/// Reject a bound the false branch of a conditional leaves unproven.
+#[test]
+fn test_reject_the_refinement_in_the_false_branch() {
+    let session = TestSession::single(
+        r#"
+import { Copy } from "destack:memory";
+
+struct Holder<T: Copy> {
+    value: T;
+}
+
+export type Poll<T> = T extends Copy ? never : Holder<T>;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+import { Copy } from "destack:memory";
+
+struct Holder<out T: Copy> {
+    value: T;
+}
+
+export type Poll<T> = T extends Copy ? never : Holder<T>;
+
+=== dir ===
+import { Copy } from "destack:memory";
+
+struct Holder<T: Copy> {
+/// @generic.template symbol=Holder parameters=(out T#1: memory.capability.Copy)
+/// @type.symbol symbol=Holder type=Holder
+/// @definition.struct symbol=Holder template=(out T#1: memory.capability.Copy)
+/// @definition.field symbol=Holder.value source="value: T" key=value type=T#1
+/// @type.symbol symbol=Holder.T source="T: Copy" type=T#1
+/// @resolution.name source=Copy target=memory.capability.Copy
+
+    value: T;
+    /// @type.symbol symbol=Holder.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Holder.T
+
+}
+
+export type Poll<T> = T extends Copy ? never : Holder<T>;
+/// @generic.template symbol=Poll parameters=(T#2)
+/// @type.symbol symbol=Poll source="export type Poll<T> = T extends Copy ? never : Holder<T>" type=T#2 extends memory.capability.Copy ? never : Holder<T#2>
+/// @definition.type symbol=Poll source="export type Poll<T> = T extends Copy ? never : Holder<T>" template=(T#2) value=T#2 extends memory.capability.Copy ? never : Holder<T#2>
+/// @type.symbol symbol=Poll.T source=T type=T#2
+/// @resolution.name source=T target=Poll.T
+/// @resolution.name source=Copy target=memory.capability.Copy
+/// @resolution.name source=Holder target=Holder
+/// @resolution.name source=T target=Poll.T
+"#, r#"
+/// @diagnostic.error id=not-erasable message="type 'T' cannot be erased into 'Copy'"
+/// @diagnostic.label line=8 column=55 span="T" line_source="export type Poll<T> = T extends Copy ? never : Holder<T>;"
+/// @diagnostic.related line=4 column=15 span="T" line_source="struct Holder<T: Copy> {" message="required by this bound on 'T'"
+/// @diagnostic.help message="prove the source erasable with a DynamicSafe bound"
+"#);
+}
+
+/// Keep a concrete conditional check from becoming an assumption in its true branch.
+#[test]
+fn test_keep_a_concrete_check_out_of_the_true_branch() {
+    let session = TestSession::single(
+        r#"
+import { Copy } from "destack:memory";
+
+struct Buffer {
+    text: ^string;
+}
+
+struct Holder<T: Copy> {
+    value: T;
+}
+
+export type Pick = string extends usize ? Holder<Buffer> : never;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+import { Copy } from "destack:memory";
+
+struct Buffer {
+    text: ^string;
+}
+
+struct Holder<out T: Copy> {
+    value: T;
+}
+
+export type Pick = string extends usize ? Holder<Buffer> : never;
+
+=== dir ===
+import { Copy } from "destack:memory";
+
+struct Buffer {
+/// @type.symbol symbol=Buffer type=Buffer
+/// @definition.struct symbol=Buffer
+/// @definition.field symbol=Buffer.text source="text: ^string" key=text type=Owned<string>
+
+    text: ^string;
+    /// @type.symbol symbol=Buffer.text source="text: ^string" type=Owned<string>
+
+}
+
+struct Holder<T: Copy> {
+/// @generic.template symbol=Holder parameters=(out T: memory.capability.Copy)
+/// @type.symbol symbol=Holder type=Holder
+/// @definition.struct symbol=Holder template=(out T: memory.capability.Copy)
+/// @definition.field symbol=Holder.value source="value: T" key=value type=T
+/// @type.symbol symbol=Holder.T source="T: Copy" type=T
+/// @resolution.name source=Copy target=memory.capability.Copy
+
+    value: T;
+    /// @type.symbol symbol=Holder.value source="value: T" type=T
+    /// @resolution.name source=T target=Holder.T
+
+}
+
+export type Pick = string extends usize ? Holder<Buffer> : never;
+/// @type.symbol symbol=Pick source="export type Pick = string extends usize ? Holder<Buffer> : never" type=never
+/// @definition.type symbol=Pick source="export type Pick = string extends usize ? Holder<Buffer> : never" value=never
+/// @resolution.name source=Holder target=Holder
+/// @resolution.name source=Buffer target=Buffer
+"#, r#"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Buffer' does not satisfy 'Copy'"
+/// @diagnostic.label line=12 column=50 span="Buffer" line_source="export type Pick = string extends usize ? Holder<Buffer> : never;"
+/// @diagnostic.related line=8 column=15 span="T" line_source="struct Holder<T: Copy> {" message="required by this bound on 'T'"
+"#);
+}

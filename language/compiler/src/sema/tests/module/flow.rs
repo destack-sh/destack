@@ -21,10 +21,10 @@ function run(): int32 {
         r#"
 === annotated ===
 function run(): int32 {
-    let counted: float64 = 1;
+    let counted: int32 = 1;
     counted = 2;
     const idle: 3 = 3;
-    const observe: () => float64 = (): float64 => counted;
+    const observe: () => int32 = (): int32 => counted;
     return counted;
     counted;
 }
@@ -52,8 +52,7 @@ function run(): int32 {
 }
 "#,
         r#"
-/// @diagnostic.error id=return-not-assignable message="type 'float64' is not assignable to the declared result type 'int32'"
-/// @diagnostic.label line=7 column=12 span="counted" line_source="return counted;"
+
 "#,
     );
 }
@@ -276,16 +275,16 @@ field.value = 1;
 /// @flow.access source=field.value root=field keys=[value] uses=written+mutable
 
 let called: Counter = Counter { value: 0 };
-/// @flow.use symbol=called uses=read+mutable
+/// @flow.use symbol=called uses=read+mutable+exclusive
 
 called.increment();
-/// @flow.access source=called root=called uses=read+mutable
+/// @flow.access source=called root=called uses=read+mutable+exclusive
 
 let referenced: Service = new Service();
-/// @flow.use symbol=referenced uses=read
+/// @flow.use symbol=referenced uses=read+exclusive
 
 referenced.increment();
-/// @flow.access source=referenced root=referenced uses=read
+/// @flow.access source=referenced root=referenced uses=read+exclusive
 "#,
         r#"
 "#,

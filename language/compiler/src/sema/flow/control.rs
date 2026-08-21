@@ -64,9 +64,10 @@ impl CheckState<'_> {
     }
 
     /// Enter one try failure target.
-    pub(in crate::sema) fn enter_try_target(&mut self) {
+    pub(in crate::sema) fn enter_try_target(&mut self, node: dir::GlobalNodeId<dir::Expression>) {
         // expose target to nested try propagation
         self.flow.push_try(TryTarget {
+            node,
             residuals: Vec::new(),
         });
     }
@@ -132,14 +133,17 @@ impl CheckState<'_> {
     }
 
     /// Collect one try residual into the current try target, when one is open.
-    pub(in crate::sema) fn collect_try_residual(&mut self, residual: dir::GlobalTypeId) -> bool {
+    pub(in crate::sema) fn collect_try_residual(
+        &mut self,
+        residual: dir::GlobalTypeId,
+    ) -> Option<dir::GlobalNodeId<dir::Expression>> {
         match self.flow.current_try_mut() {
             Some(target) => {
                 target.residuals.push(residual);
 
-                true
+                Some(target.node)
             }
-            None => false,
+            None => None,
         }
     }
 }

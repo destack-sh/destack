@@ -51,7 +51,7 @@ declare const text: TextSink;
 declare const number: NumberSink;
 
 write<string>("message", text);
-write<float64>(1, number);
+write<int64>(1, number);
 
 === dir ===
 interface TextSink {
@@ -125,8 +125,8 @@ write("message", text);
 
 write(1, number);
 /// @resolution.name source=write target=write
-/// @resolution.call source="write(1, number)" parameters=(float64, NumberSink) arguments=(provided(1) as float64, provided(number) as NumberSink) return=void kind=symbol target=write instance=write<float64>
-/// @generic.instantiation id=write<float64> template=write arguments=(float64)
+/// @resolution.call source="write(1, number)" parameters=(int64, NumberSink) arguments=(provided(1) as int64, provided(number) as NumberSink) return=void kind=symbol target=write instance=write<int64>
+/// @generic.instantiation id=write<int64> template=write arguments=(int64)
 /// @resolution.name source=number target=number
 /// @resolution.place source=number placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=number root=number

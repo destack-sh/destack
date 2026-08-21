@@ -131,7 +131,7 @@ impl CheckState<'_> {
             self.ty(target)?,
             dir::Type::Null
                 | dir::Type::Undefined
-                | dir::Type::Literal(dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined)
+                | dir::Type::Literal(dir::Literal::Null | dir::Literal::Undefined)
         ) {
             return Ok(Some(target));
         }

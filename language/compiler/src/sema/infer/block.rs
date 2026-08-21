@@ -115,9 +115,13 @@ impl BodyState<'_, '_> {
                 let check = self.check_node(value, expectation)?;
                 let value_type = check.source;
                 self.commit_node_type(site.node, value_type)?;
+                if self.check.fresh_nodes.contains_key(&value.node) {
+                    self.check.fresh_nodes.insert(site.node, None);
+                }
 
                 ValueCheck {
                     source: value_type,
+                    stored: value_type,
                     outcome: check.outcome,
                     target: check.target,
                 }
@@ -127,6 +131,7 @@ impl BodyState<'_, '_> {
                 self.commit_node_type(site.node, value)?;
                 ValueCheck {
                     source: value,
+                    stored: value,
                     outcome: CheckOutcome::Holds,
                     target: expectation.target,
                 }

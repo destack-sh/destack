@@ -411,7 +411,7 @@ user.profile.name = "Grace";
 }
 
 #[test]
-fn test_copy_owned_inline_storage() {
+fn test_copy_only_owned_inline_storage() {
     let session = TestSession::single(
         r#"
 import { Copy } from "destack:memory";
@@ -642,7 +642,6 @@ declare const values: ^Array<int32>;
 witness(values);
 /// @resolution.name source=witness target=witness
 /// @resolution.call source=witness(values) parameters=(<error>) arguments=(provided(values) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
-/// @generic.instantiation id=witness<<error>> template=witness arguments=(<error>)
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
@@ -718,6 +717,9 @@ witness(big);
 /// @diagnostic.error id=constraint-not-satisfied message="type '^Pair' does not satisfy 'Copy'"
 /// @diagnostic.label line=26 column=1 span="witness(pair)" line_source="witness(pair);"
 /// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
+/// @diagnostic.error id=constraint-not-satisfied message="type '^Named' does not satisfy 'Copy'"
+/// @diagnostic.label line=32 column=1 span="witness(named)" line_source="witness(named);"
+/// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
 /// @diagnostic.error id=constraint-not-satisfied message="type '^int32[]' does not satisfy 'Copy'"
 /// @diagnostic.label line=35 column=1 span="witness(values)" line_source="witness(values);"
 /// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
@@ -738,9 +740,6 @@ witness(big);
 /// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
 /// @diagnostic.error id=constraint-not-satisfied message="type '^bigint' does not satisfy 'Copy'"
 /// @diagnostic.label line=53 column=1 span="witness(big)" line_source="witness(big);"
-/// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
-/// @diagnostic.error id=constraint-not-satisfied message="type '^Named' does not satisfy 'Copy'"
-/// @diagnostic.label line=32 column=1 span="witness(named)" line_source="witness(named);"
 /// @diagnostic.related line=18 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
 "#,
     );
@@ -795,7 +794,7 @@ extension<T> of ^Bag<T> implements Collect<T> {
 
 declare function gather<C>(): C where C: Collect<int32>;
 
-const bag: ^Bag<int32> = gather<^Bag<int32>>();
+const bag: Bag<int32> = gather<^Bag<int32>>() as Bag<int32>;
 
 === dir ===
 newtype interface Collect<T> {
@@ -872,7 +871,7 @@ declare function gather<C>(): C where C: Collect<int32>;
 /// @generic.instance id=Collect<int32> template=Collect arguments=(int32)
 
 const bag = gather<^Bag<int32>>();
-/// @type.symbol symbol=bag source=bag type=Owned<Bag<int32>>
+/// @type.symbol symbol=bag source=bag type=Bag<int32>
 /// @resolution.pattern source=bag kind=binding target=bag
 /// @generic.instance id=Bag<int32> template=Bag arguments=(int32)
 /// @type.node source=gather type=() => Owned<Bag<int32>>
@@ -929,7 +928,7 @@ extension of Point implements Collect<int32> {
 
 declare function gather<C>(): C where C: Collect<int32>;
 
-const point: ^Point = gather<^Point>();
+const point: Point = gather<^Point>();
 
 === dir ===
 newtype interface Collect<T> {
@@ -986,7 +985,7 @@ declare function gather<C>(): C where C: Collect<int32>;
 /// @resolution.name source=Collect target=Collect
 
 const point = gather<^Point>();
-/// @type.symbol symbol=point source=point type=Owned<Point>
+/// @type.symbol symbol=point source=point type=Point
 /// @resolution.pattern source=point kind=binding target=point
 /// @type.node source=gather type=() => Owned<Point>
 /// @type.node source=gather<^Point>() type=Owned<Point>
@@ -999,7 +998,7 @@ const point = gather<^Point>();
     );
 }
 #[test]
-fn test_select_creation_statics_ahead_of_conformance_twins() {
+fn test_select_the_inherent_static_over_its_conformance_member() {
     let session = TestSession::single(
         r#"
 import { Deque } from "destack:collections";
@@ -1015,41 +1014,154 @@ const values = Deque.from([1, 2, 3]);
 === annotated ===
 import { Deque } from "destack:collections";
 
-const values: ^Deque<float64> = Deque.from<float64>([1, 2, 3]);
+const values: Deque<int64> = Deque.from<int64>([1, 2, 3]) as Deque<int64>;
 
 === dir ===
 import { Deque } from "destack:collections";
 
 const values = Deque.from([1, 2, 3]);
-/// @type.symbol symbol=values source=values type=Owned<collections.deque.Deque<float64>>
+/// @type.symbol symbol=values source=values type=collections.deque.Deque<int64>
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=collections.deque.Deque<float64> template=collections.deque.Deque arguments=(float64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<float64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=collections.deque.Deque<int64> template=collections.deque.Deque arguments=(int64)
+/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
+/// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
 /// @resolution.name source=Deque target=collections.deque.Deque
-/// @resolution.member source=Deque.from receiver=collections.deque.Deque type=(iter.iterator.Iterable<collections.deque.T#4>) => Owned<collections.deque.Deque<collections.deque.T#4>> & (iter.iterator.Iterable<collections.deque.T#5>) => collections.deque.Deque<collections.deque.T#5> & (iter.iterator.Iterable<collections.deque.T#6>) => Owned<collections.deque.Deque<collections.deque.T#6>> kind=overload-set targets=[collections.deque.from#1, collections.deque.from#2, collections.deque.from#3]
-/// @resolution.call source="Deque.from([1, 2, 3])" parameters=(iter.iterator.Iterable<float64>) arguments=(provided([1, 2, 3]) as iter.iterator.Iterable<float64>) return=Owned<collections.deque.Deque<float64>> kind=symbol target=collections.deque.from#1 instance=collections.deque.Deque<float64>.<extension#4>.from#1
-/// @generic.instantiation id=collections.deque.from#1<float64> template=collections.deque.from#1 arguments=(float64)
-/// @generic.instance id=collections.deque.from#1<float64> template=collections.deque.from#1 arguments=(float64)
-/// @resolution.call source=[1, 2, 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2, 3) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
-/// @generic.instance id="iter.iterator.DropIterator<iter.iterator.Iterator<float64>, float64>" template=iter.iterator.DropIterator arguments=(iter.iterator.Iterator<float64>, float64)
-/// @generic.instance id="iter.iterator.DropWhileIterator<iter.iterator.Iterator<float64>, float64>" template=iter.iterator.DropWhileIterator arguments=(iter.iterator.Iterator<float64>, float64)
-/// @generic.instance id="iter.iterator.EnumeratedIterator<iter.iterator.Iterator<float64>, float64>" template=iter.iterator.EnumeratedIterator arguments=(iter.iterator.Iterator<float64>, float64)
-/// @generic.instance id="iter.iterator.FilterIterator<iter.iterator.Iterator<float64>, float64>" template=iter.iterator.FilterIterator arguments=(iter.iterator.Iterator<float64>, float64)
-/// @generic.instance id="iter.iterator.InspectIterator<iter.iterator.Iterator<float64>, float64>" template=iter.iterator.InspectIterator arguments=(iter.iterator.Iterator<float64>, float64)
-/// @generic.instance id="iter.iterator.IteratorResult<float64, iter.iterator.Iterator<float64>.Return>" template=iter.iterator.IteratorResult arguments=(float64, iter.iterator.Iterator<float64>.Return)
-/// @generic.instance id="iter.iterator.IteratorResult<float64, void>" template=iter.iterator.IteratorResult arguments=(float64, void)
-/// @generic.instance id="iter.iterator.PeekableIterator<iter.iterator.Iterator<float64>, float64>" template=iter.iterator.PeekableIterator arguments=(iter.iterator.Iterator<float64>, float64)
-/// @generic.instance id="iter.iterator.TakeIterator<iter.iterator.Iterator<float64>, float64>" template=iter.iterator.TakeIterator arguments=(iter.iterator.Iterator<float64>, float64)
-/// @generic.instance id="iter.iterator.TakeWhileIterator<iter.iterator.Iterator<float64>, float64>" template=iter.iterator.TakeWhileIterator arguments=(iter.iterator.Iterator<float64>, float64)
-/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
-/// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
-/// @generic.instance id=iter.iterator.Iterable<float64> template=iter.iterator.Iterable arguments=(float64)
-/// @generic.instance id=iter.iterator.Iterator<float64> template=iter.iterator.Iterator arguments=(float64)
-/// @generic.instance id=iter.iterator.IteratorReturn<iter.iterator.Iterator<float64>.Return> template=iter.iterator.IteratorReturn arguments=(iter.iterator.Iterator<float64>.Return)
+/// @resolution.member source=Deque.from receiver=collections.deque.Deque type=(iter.iterator.Iterable<collections.deque.T#4>) => Owned<collections.deque.Deque<collections.deque.T#4>> kind=symbol target_receiver=collections.deque.Deque target=collections.deque.from#1
+/// @resolution.call source="Deque.from([1, 2, 3])" parameters=(iter.iterator.Iterable<int64>) arguments=(provided([1, 2, 3]) as iter.iterator.Iterable<int64>) return=Owned<collections.deque.Deque<int64>> kind=symbol target=collections.deque.from#1 instance=collections.deque.Deque<int64>.<extension#4>.from#1
+/// @generic.instantiation id=collections.deque.from#1<int64> template=collections.deque.from#1 arguments=(int64)
+/// @generic.instance id=collections.deque.from#1<int64> template=collections.deque.from#1 arguments=(int64)
+/// @resolution.call source=[1, 2, 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
+/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
+/// @generic.instance id="iter.iterator.DropIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.DropIterator arguments=(iter.iterator.Iterator<int64>, int64)
+/// @generic.instance id="iter.iterator.DropWhileIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.DropWhileIterator arguments=(iter.iterator.Iterator<int64>, int64)
+/// @generic.instance id="iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.EnumeratedIterator arguments=(iter.iterator.Iterator<int64>, int64)
+/// @generic.instance id="iter.iterator.FilterIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.FilterIterator arguments=(iter.iterator.Iterator<int64>, int64)
+/// @generic.instance id="iter.iterator.InspectIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.InspectIterator arguments=(iter.iterator.Iterator<int64>, int64)
+/// @generic.instance id="iter.iterator.IteratorResult<int64, iter.iterator.Iterator<int64>.Return>" template=iter.iterator.IteratorResult arguments=(int64, iter.iterator.Iterator<int64>.Return)
+/// @generic.instance id="iter.iterator.IteratorResult<int64, void>" template=iter.iterator.IteratorResult arguments=(int64, void)
+/// @generic.instance id="iter.iterator.PeekableIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.PeekableIterator arguments=(iter.iterator.Iterator<int64>, int64)
+/// @generic.instance id="iter.iterator.TakeIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.TakeIterator arguments=(iter.iterator.Iterator<int64>, int64)
+/// @generic.instance id="iter.iterator.TakeWhileIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.TakeWhileIterator arguments=(iter.iterator.Iterator<int64>, int64)
+/// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
+/// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
+/// @generic.instance id=iter.iterator.Iterable<int64> template=iter.iterator.Iterable arguments=(int64)
+/// @generic.instance id=iter.iterator.Iterator<int64> template=iter.iterator.Iterator arguments=(int64)
+/// @generic.instance id=iter.iterator.IteratorReturn<iter.iterator.Iterator<int64>.Return> template=iter.iterator.IteratorReturn arguments=(iter.iterator.Iterator<int64>.Return)
 /// @generic.instance id=iter.iterator.IteratorReturn<void> template=iter.iterator.IteratorReturn arguments=(void)
-/// @generic.instance id=iter.iterator.IteratorYield<float64> template=iter.iterator.IteratorYield arguments=(float64)
+/// @generic.instance id=iter.iterator.IteratorYield<int64> template=iter.iterator.IteratorYield arguments=(int64)
 "#,
+    );
+}
+
+/// Compare a readonly view of an owned union field arm-wise.
+#[test]
+fn test_compare_readonly_owned_union_field() {
+    let session = TestSession::single(
+        r#"
+struct Holder<T> {
+    private storage: ^[T] | undefined = undefined;
+
+    get isInline(): boolean {
+        this.storage == undefined
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Holder<in out T> {
+    private storage: ^[T] | undefined = undefined as ^[T] | undefined;
+
+    get isInline(): boolean {
+        (this.storage as ^[T] | undefined) == undefined
+    }
+}
+
+=== dir ===
+struct Holder<T> {
+/// @generic.template symbol=Holder parameters=(in out T)
+/// @type.symbol symbol=Holder type=Holder
+/// @definition.struct symbol=Holder template=(in out T)
+/// @definition.field symbol=Holder.storage source="private storage: ^[T] | undefined = undefined" key=storage type=Owned<Slice<T>> | undefined
+/// @definition.method symbol=Holder.isInline slot=isInline role=getter type=<Holder.isInline.'a>(this: &Holder.isInline.'a readonly this) => boolean
+/// @type.symbol symbol=Holder.T source=T type=T
+
+    private storage: ^[T] | undefined = undefined;
+    /// @type.symbol symbol=Holder.storage source="private storage: ^[T] | undefined = undefined" type=Owned<Slice<T>> | undefined
+    /// @resolution.name source=T target=Holder.T
+
+    get isInline(): boolean {
+    /// @generic.template symbol=Holder.isInline parent=template#0 parameters=('a)
+    /// @type.symbol symbol=Holder.isInline type=<Holder.isInline.'a>(this: &Holder.isInline.'a readonly this) => boolean
+
+        this.storage == undefined
+        /// @resolution.member source=this.storage receiver=&Holder.isInline.'a readonly Holder<T> type=Readonly<Owned<Slice<T>> | undefined> kind=field target_receiver=&Holder.isInline.'a readonly Holder<T> key=storage target=Holder.storage target_type=Readonly<Owned<Slice<T>> | undefined>
+        /// @resolution.operator source="this.storage == undefined" type=boolean operator="==" kind=builtin operands=[this.storage as Owned<Slice<T>> | undefined, undefined as undefined families=(undefined)]
+        /// @resolution.receiver source=this kind=this declaration=Holder type=&Holder.isInline.'a readonly Holder<T>
+        /// @resolution.place source=this placement="local" lifetime=Holder.isInline.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.storage placement="local" lifetime=Holder.isInline.'a access="readonly"
+        /// @resolution.access source=this.storage root=this keys=[storage]
+
+    }
+}
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Store an owned operator result back into a managed compound assignment place.
+#[test]
+fn test_compound_assign_transfers_owned_result_into_managed_place() {
+    let session = TestSession::single(
+        r#"
+function build(): string {
+    let output = "";
+    output += "x";
+    return output;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function build(): string {
+    let output: string = "";
+    (output += "x") as string;
+    return output;
+}
+
+=== dir ===
+function build(): string {
+/// @type.symbol symbol=build type=() => string
+
+    let output = "";
+    /// @type.symbol symbol=build.output source=output type=string
+    /// @resolution.pattern source=output kind=binding target=build.output
+
+    output += "x";
+    /// @resolution.name source=output target=build.output
+    /// @resolution.operator source="output += \"x\"" type=Owned<string> operator="+" kind=call parameters=(string) arguments=(provided("x") as string) return=Owned<string> kind=symbol target=string.string.add receiver=string adjustments=(borrow(&'frame readonly string))
+    /// @resolution.pattern.assign source=output kind=place
+    /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.assignment source=output read=binding(build.output) write=binding(build.output) type=string
+    /// @resolution.access source=output root=build.output
+
+    return output;
+    /// @resolution.name source=output target=build.output
+    /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=output root=build.output
+
+}
+"#,
+        "",
     );
 }

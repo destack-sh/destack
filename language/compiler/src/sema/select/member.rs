@@ -1,18 +1,17 @@
 use std::slice;
 
 use destack_dir as dir;
+use destack_dir::MemberRole;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, Check, CheckState,
-    ExtensionMatch, FlowSite, InferMode, NullishPart, Origin, PlaceUse, ReceiverSteps, Relation,
-    RelationCheck, SelectionCheck, SignatureMatch, TypeSubstitution, UnboundParameters, Value,
-    ValueUse, VariableRole, Widening,
+    BodyState, CallableArgument, CandidateOutcome, Check, CheckState, ExtensionMatch, FlowSite,
+    InferMode, NullishPart, OpenBounds, Origin, PlaceUse, ReceiverSteps, Relation, RelationCheck,
+    SelectionCheck, SignatureMatch, TypeSubstitution, UnboundParameters, Value, ValueUse,
+    VariableRole, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
-
-use destack_dir::MemberRole;
 
 /// One field found by member lookup.
 #[derive(Debug, Clone)]
@@ -558,6 +557,8 @@ pub(in crate::sema) struct MemberCandidate {
     pub(in crate::sema) owner: dir::GlobalSymbolId,
     /// The declaration family the member came from.
     pub(in crate::sema) origin: dir::MemberOrigin,
+    /// The interface whose requirement the member implements, when it does.
+    pub(in crate::sema) requirement: Option<dir::GlobalSymbolId>,
     /// The member space that selected this candidate.
     pub(in crate::sema) space: dir::MemberSpace,
     /// How the member behaves at a use site.
@@ -632,13 +633,14 @@ impl LookupReceiver {
 
 impl MemberCandidate {
     /// Return this candidate's selection precedence.
-    pub(in crate::sema) fn precedence(&self) -> (dir::MemberOrigin, bool) {
+    pub(in crate::sema) fn precedence(&self) -> (bool, dir::MemberOrigin, bool) {
         let is_adjusted = match &self.receiver {
             LookupReceiver::Direct(steps) => !steps.is_empty(),
             LookupReceiver::Dynamic { .. } => true,
         };
 
-        (self.origin, is_adjusted)
+        // rank inherent members before interface requirements
+        (self.requirement.is_some(), self.origin, is_adjusted)
     }
 
     /// Return the type produced by reading this candidate.
@@ -952,6 +954,23 @@ impl BodyState<'_, '_> {
                     .filter(|candidate| Some(candidate.precedence()) == best)
                     .collect::<Vec<_>>();
 
+                // report survivors from several blocks or interfaces as ambiguous
+                let block = |candidate: &MemberCandidate| match candidate.requirement {
+                    Some(interface) => interface,
+                    None => candidate.owner,
+                };
+                let first = block(candidates[0]);
+                let candidates = if candidates.iter().any(|candidate| block(candidate) != first) {
+                    let key = self.format_static_key(&key);
+                    self.report_ambiguous_member(origin, key)?;
+                    candidates
+                        .into_iter()
+                        .filter(|candidate| block(candidate) == first)
+                        .collect::<Vec<_>>()
+                } else {
+                    candidates
+                };
+
                 // keep the first single-slot declaration among the survivors
                 let single_slot = candidates
                     .iter()
@@ -1254,7 +1273,7 @@ impl BodyState<'_, '_> {
         // infer the receiver before member lookup
         let receiver_node = left.into_global_any(module);
         let receiver_site = self.visit_site(receiver_node)?;
-        let receiver = self.infer_node(receiver_site, PlaceUse::Read, InferMode::Exact)?;
+        let receiver = self.infer_node(receiver_site, PlaceUse::Read, InferMode::Regular)?;
         let written_receiver = self.flow_type_at(receiver_site, receiver)?;
         self.commit_expression_place(receiver_site, written_receiver)?;
 
@@ -1285,9 +1304,18 @@ impl BodyState<'_, '_> {
             return Ok(());
         };
 
-        // look the written key up and commit whatever it finds
+        // probe the written key over the receiver's dereference steps
         let key = dir::StaticKey::Name(name);
-        let mut lookup = self.lookup_member(origin, module, subject, key)?;
+        let receiver_site = self.visit_site(receiver_node)?;
+        let receiver_value = self.expression_value(receiver_site, receiver)?;
+        let mut lookup = self.probe_member(
+            origin,
+            module,
+            receiver_value,
+            subject,
+            key,
+            dir::Access::Readonly,
+        )?;
 
         // materialize the answer for narrowed receivers
         if receiver != subject.target {
@@ -1302,15 +1330,9 @@ impl BodyState<'_, '_> {
                 self.reject_member(node, origin, written_receiver, key)
             }
             // commit whatever the lookup found
-            found => self.commit_member_lookup(
-                node,
-                receiver_node,
-                origin,
-                subject.receiver,
-                key,
-                name,
-                &found,
-            ),
+            found => {
+                self.commit_member_lookup(node, receiver_node, origin, receiver, key, name, &found)
+            }
         }
     }
 
@@ -1368,6 +1390,11 @@ impl BodyState<'_, '_> {
         let ty = self.flow_type_at(site, ty)?;
         self.commit_node_type(node, ty)?;
 
+        // an enum variant reads as a fresh literal of its enum
+        if matches!(self.ty(ty)?, dir::Type::Variant(_)) {
+            self.check.fresh_nodes.insert(node, None);
+        }
+
         Ok(())
     }
 
@@ -1406,8 +1433,7 @@ impl BodyState<'_, '_> {
         // commit an open hole so enclosing checks proceed
         let node = site.node;
         if self.committed_node_type(node).is_none() {
-            let variable =
-                self.allocate_variable(site.origin(), Widening::Never, VariableRole::Regular);
+            let variable = self.allocate_variable(site.origin(), VariableRole::Regular);
             let hole = self.variable_type(variable)?;
             self.commit_node_type(node, hole)?;
         }
@@ -1632,6 +1658,7 @@ impl BodyState<'_, '_> {
                     template,
                     target_type,
                     &interfaces,
+                    OpenBounds::Probe,
                 )?;
 
                 Ok(match matched {
@@ -1643,7 +1670,7 @@ impl BodyState<'_, '_> {
                 })
             })?;
 
-            if !matches!(verdict, CandidateVerdict::Viable) {
+            if !matches!(verdict, Verdict::Holds) {
                 continue;
             }
 
@@ -1658,6 +1685,7 @@ impl BodyState<'_, '_> {
                 template,
                 target_type,
                 &interfaces,
+                OpenBounds::Probe,
             )?;
             let ExtensionMatch::Matched(substitution, _) = matched else {
                 continue;

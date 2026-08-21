@@ -241,12 +241,12 @@ fn test_access_generic_receiver_selects_fixed_array_sibling_method() {
     let session = TestSession::single(
         r#"
 export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly"> of [T; N] {
-    view(this: WithAccess<&[T; N], A>): int32 {
+    inspect(this: WithAccess<&[T; N], A>): int32 {
         1
     }
 
-    peek(this: WithAccess<&[T; N], A>): int32 {
-        this.view()
+    probe(this: WithAccess<&[T; N], A>): int32 {
+        this.inspect()
     }
 }
 "#,
@@ -258,12 +258,12 @@ export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly
         r#"
 === annotated ===
 export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly"> of [T; N] {
-    view(this: WithAccess<&[T; N], A>): int32 {
+    inspect(this: WithAccess<&[T; N], A>): int32 {
         1
     }
 
-    peek(this: WithAccess<&[T; N], A>): int32 {
-        this.view<T, N, A>()
+    probe(this: WithAccess<&[T; N], A>): int32 {
+        this.inspect<T, N, A>()
     }
 }
 
@@ -271,8 +271,8 @@ export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly
 export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly"> of [T; N] {
 /// @generic.template symbol=FixedArrayAccess parameters=(T, const N: usize, const A: Access = "readonly")
 /// @definition.extension symbol=FixedArrayAccess form=exported target=FixedArray<T, N>
-/// @definition.method symbol=FixedArrayAccess.peek slot=peek type=<FixedArrayAccess.peek.'a>(this: WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>) => int32
-/// @definition.method symbol=FixedArrayAccess.view slot=view type=<FixedArrayAccess.view.'a>(this: WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>) => int32
+/// @definition.method symbol=FixedArrayAccess.inspect slot=inspect type=<FixedArrayAccess.inspect.'a>(this: WithAccess<&FixedArrayAccess.inspect.'a FixedArray<T, N>, A>) => int32
+/// @definition.method symbol=FixedArrayAccess.probe slot=probe type=<FixedArrayAccess.probe.'a>(this: WithAccess<&FixedArrayAccess.probe.'a FixedArray<T, N>, A>) => int32
 /// @type.symbol symbol=FixedArrayAccess.T source=T type=T
 /// @type.symbol symbol=FixedArrayAccess.N source="const N: usize" type=N
 /// @type.symbol symbol=FixedArrayAccess.A source="const A: Access = \"readonly\"" type=A
@@ -280,10 +280,10 @@ export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly
 /// @resolution.name source=T target=FixedArrayAccess.T
 /// @resolution.name source=N target=FixedArrayAccess.N
 
-    view(this: WithAccess<&[T; N], A>): int32 {
-    /// @generic.template symbol=FixedArrayAccess.view parent=template#0 parameters=('a)
-    /// @type.symbol symbol=FixedArrayAccess.view type=<FixedArrayAccess.view.'a>(this: WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>) => int32
-    /// @type.symbol symbol=FixedArrayAccess.view.this source="this: WithAccess<&[T; N], A>" type=WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>
+    inspect(this: WithAccess<&[T; N], A>): int32 {
+    /// @generic.template symbol=FixedArrayAccess.inspect parent=template#0 parameters=('a)
+    /// @type.symbol symbol=FixedArrayAccess.inspect type=<FixedArrayAccess.inspect.'a>(this: WithAccess<&FixedArrayAccess.inspect.'a FixedArray<T, N>, A>) => int32
+    /// @type.symbol symbol=FixedArrayAccess.inspect.this source="this: WithAccess<&[T; N], A>" type=WithAccess<&FixedArrayAccess.inspect.'a FixedArray<T, N>, A>
     /// @resolution.name source=WithAccess target=memory.type.WithAccess
     /// @resolution.name source=T target=FixedArrayAccess.T
     /// @resolution.name source=N target=FixedArrayAccess.N
@@ -294,26 +294,25 @@ export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly
 
     }
 
-    peek(this: WithAccess<&[T; N], A>): int32 {
-    /// @generic.template symbol=FixedArrayAccess.peek parent=template#0 parameters=('a)
-    /// @type.symbol symbol=FixedArrayAccess.peek type=<FixedArrayAccess.peek.'a>(this: WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>) => int32
-    /// @type.symbol symbol=FixedArrayAccess.peek.this source="this: WithAccess<&[T; N], A>" type=WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>
+    probe(this: WithAccess<&[T; N], A>): int32 {
+    /// @generic.template symbol=FixedArrayAccess.probe parent=template#0 parameters=('a)
+    /// @type.symbol symbol=FixedArrayAccess.probe type=<FixedArrayAccess.probe.'a>(this: WithAccess<&FixedArrayAccess.probe.'a FixedArray<T, N>, A>) => int32
+    /// @type.symbol symbol=FixedArrayAccess.probe.this source="this: WithAccess<&[T; N], A>" type=WithAccess<&FixedArrayAccess.probe.'a FixedArray<T, N>, A>
     /// @resolution.name source=WithAccess target=memory.type.WithAccess
     /// @resolution.name source=T target=FixedArrayAccess.T
     /// @resolution.name source=N target=FixedArrayAccess.N
     /// @resolution.name source=A target=FixedArrayAccess.A
 
-        this.view()
-        /// @type.node source=this type=WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>
-        /// @type.node source=this.view type=<FixedArrayAccess.view.'a>(this: WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>) => int32 & <const collections.fixed-array.view.A: Access = "readonly", collections.fixed-array.view.'a>(this: WithAccess<&collections.fixed-array.view.'a FixedArray<T, N>, collections.fixed-array.view.A>, isize, isize | undefined?) => WithAccess<&collections.fixed-array.view.'a Slice<T>, collections.fixed-array.view.A>
-        /// @type.node source=this.view() type=int32
-        /// @resolution.member source=this.view receiver=WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A> type=<FixedArrayAccess.view.'a>(this: WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>) => int32 & <const collections.fixed-array.view.A: Access = "readonly", collections.fixed-array.view.'a>(this: WithAccess<&collections.fixed-array.view.'a FixedArray<T, N>, collections.fixed-array.view.A>, isize, isize | undefined?) => WithAccess<&collections.fixed-array.view.'a Slice<T>, collections.fixed-array.view.A> kind=overload-set targets=[FixedArrayAccess.view, collections.fixed-array.view]
-        /// @resolution.call source=this.view() parameters=() return=int32 kind=symbol target=FixedArrayAccess.view receiver=WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A> instance="FixedArrayAccess<T, N, A>.view"
-        /// @resolution.receiver source=this kind=this declaration=FixedArrayAccess type=WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>
+        this.inspect()
+        /// @type.node source=this type=WithAccess<&FixedArrayAccess.probe.'a FixedArray<T, N>, A>
+        /// @type.node source=this.inspect type=<FixedArrayAccess.inspect.'a>(this: WithAccess<&FixedArrayAccess.inspect.'a FixedArray<T, N>, A>) => int32
+        /// @type.node source=this.inspect() type=int32
+        /// @resolution.member source=this.inspect receiver=WithAccess<&FixedArrayAccess.probe.'a FixedArray<T, N>, A> type=<FixedArrayAccess.inspect.'a>(this: WithAccess<&FixedArrayAccess.inspect.'a FixedArray<T, N>, A>) => int32 kind=symbol target_receiver=WithAccess<&FixedArrayAccess.probe.'a FixedArray<T, N>, A> target=FixedArrayAccess.inspect
+        /// @resolution.call source=this.inspect() parameters=() return=int32 kind=symbol target=FixedArrayAccess.inspect receiver=WithAccess<&FixedArrayAccess.probe.'a FixedArray<T, N>, A> instance="FixedArrayAccess<T, N, A>.inspect"
+        /// @resolution.receiver source=this kind=this declaration=FixedArrayAccess type=WithAccess<&FixedArrayAccess.probe.'a FixedArray<T, N>, A>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @generic.instantiation id="FixedArrayAccess.view<T, N, A>" template=FixedArrayAccess.view arguments=(T, N, A) owner=FixedArrayAccess.peek
-        /// @generic.instantiation id="collections.fixed-array.view<T, N>" template=collections.fixed-array.view arguments=(T, N) owner=FixedArrayAccess.peek
+        /// @generic.instantiation id="FixedArrayAccess.inspect<T, N, A>" template=FixedArrayAccess.inspect arguments=(T, N, A) owner=FixedArrayAccess.probe
 
     }
 }
@@ -326,12 +325,12 @@ fn test_access_generic_receiver_selects_array_sibling_method() {
     let session = TestSession::single(
         r#"
 export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
-    view(this: WithAccess<&Array<T>, A>): int32 {
+    inspect(this: WithAccess<&Array<T>, A>): int32 {
         1
     }
 
-    peek(this: WithAccess<&Array<T>, A>): int32 {
-        this.view()
+    probe(this: WithAccess<&Array<T>, A>): int32 {
+        this.inspect()
     }
 }
 "#,
@@ -343,12 +342,12 @@ export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
         r#"
 === annotated ===
 export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
-    view(this: WithAccess<&Array<T>, A>): int32 {
+    inspect(this: WithAccess<&Array<T>, A>): int32 {
         1
     }
 
-    peek(this: WithAccess<&Array<T>, A>): int32 {
-        this.view<T, A>()
+    probe(this: WithAccess<&Array<T>, A>): int32 {
+        this.inspect<T, A>()
     }
 }
 
@@ -356,18 +355,18 @@ export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
 export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
 /// @generic.template symbol=ArrayAccess parameters=(T, const A: Access = "readonly")
 /// @definition.extension symbol=ArrayAccess form=exported target=T[]
-/// @definition.method symbol=ArrayAccess.peek slot=peek type=<ArrayAccess.peek.'a>(this: WithAccess<&ArrayAccess.peek.'a T[], A>) => int32
-/// @definition.method symbol=ArrayAccess.view slot=view type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a T[], A>) => int32
+/// @definition.method symbol=ArrayAccess.inspect slot=inspect type=<ArrayAccess.inspect.'a>(this: WithAccess<&ArrayAccess.inspect.'a T[], A>) => int32
+/// @definition.method symbol=ArrayAccess.probe slot=probe type=<ArrayAccess.probe.'a>(this: WithAccess<&ArrayAccess.probe.'a T[], A>) => int32
 /// @type.symbol symbol=ArrayAccess.T source=T type=T
 /// @type.symbol symbol=ArrayAccess.A source="const A: Access = \"readonly\"" type=A
 /// @resolution.name source=Access target=memory.access.Access
 /// @resolution.name source=Array target=collections.array.Array
 /// @resolution.name source=T target=ArrayAccess.T
 
-    view(this: WithAccess<&Array<T>, A>): int32 {
-    /// @generic.template symbol=ArrayAccess.view parent=template#0 parameters=('a)
-    /// @type.symbol symbol=ArrayAccess.view type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a T[], A>) => int32
-    /// @type.symbol symbol=ArrayAccess.view.this source="this: WithAccess<&Array<T>, A>" type=WithAccess<&ArrayAccess.view.'a T[], A>
+    inspect(this: WithAccess<&Array<T>, A>): int32 {
+    /// @generic.template symbol=ArrayAccess.inspect parent=template#0 parameters=('a)
+    /// @type.symbol symbol=ArrayAccess.inspect type=<ArrayAccess.inspect.'a>(this: WithAccess<&ArrayAccess.inspect.'a T[], A>) => int32
+    /// @type.symbol symbol=ArrayAccess.inspect.this source="this: WithAccess<&Array<T>, A>" type=WithAccess<&ArrayAccess.inspect.'a T[], A>
     /// @resolution.name source=WithAccess target=memory.type.WithAccess
     /// @resolution.name source=Array target=collections.array.Array
     /// @resolution.name source=T target=ArrayAccess.T
@@ -378,26 +377,25 @@ export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
 
     }
 
-    peek(this: WithAccess<&Array<T>, A>): int32 {
-    /// @generic.template symbol=ArrayAccess.peek parent=template#0 parameters=('a)
-    /// @type.symbol symbol=ArrayAccess.peek type=<ArrayAccess.peek.'a>(this: WithAccess<&ArrayAccess.peek.'a T[], A>) => int32
-    /// @type.symbol symbol=ArrayAccess.peek.this source="this: WithAccess<&Array<T>, A>" type=WithAccess<&ArrayAccess.peek.'a T[], A>
+    probe(this: WithAccess<&Array<T>, A>): int32 {
+    /// @generic.template symbol=ArrayAccess.probe parent=template#0 parameters=('a)
+    /// @type.symbol symbol=ArrayAccess.probe type=<ArrayAccess.probe.'a>(this: WithAccess<&ArrayAccess.probe.'a T[], A>) => int32
+    /// @type.symbol symbol=ArrayAccess.probe.this source="this: WithAccess<&Array<T>, A>" type=WithAccess<&ArrayAccess.probe.'a T[], A>
     /// @resolution.name source=WithAccess target=memory.type.WithAccess
     /// @resolution.name source=Array target=collections.array.Array
     /// @resolution.name source=T target=ArrayAccess.T
     /// @resolution.name source=A target=ArrayAccess.A
 
-        this.view()
-        /// @type.node source=this type=WithAccess<&ArrayAccess.peek.'a T[], A>
-        /// @type.node source=this.view type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a T[], A>) => int32 & <const collections.array.view.A: Access = "readonly", collections.array.view.'a>(this: WithAccess<&collections.array.view.'a T[], collections.array.view.A>, isize, isize | undefined?) => WithAccess<&collections.array.view.'a Slice<T>, collections.array.view.A>
-        /// @type.node source=this.view() type=int32
-        /// @resolution.member source=this.view receiver=WithAccess<&ArrayAccess.peek.'a T[], A> type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a T[], A>) => int32 & <const collections.array.view.A: Access = "readonly", collections.array.view.'a>(this: WithAccess<&collections.array.view.'a T[], collections.array.view.A>, isize, isize | undefined?) => WithAccess<&collections.array.view.'a Slice<T>, collections.array.view.A> kind=overload-set targets=[ArrayAccess.view, collections.array.view]
-        /// @resolution.call source=this.view() parameters=() return=int32 kind=symbol target=ArrayAccess.view receiver=WithAccess<&ArrayAccess.peek.'a T[], A> instance="ArrayAccess<T, A>.view"
-        /// @resolution.receiver source=this kind=this declaration=ArrayAccess type=WithAccess<&ArrayAccess.peek.'a T[], A>
+        this.inspect()
+        /// @type.node source=this type=WithAccess<&ArrayAccess.probe.'a T[], A>
+        /// @type.node source=this.inspect type=<ArrayAccess.inspect.'a>(this: WithAccess<&ArrayAccess.inspect.'a T[], A>) => int32
+        /// @type.node source=this.inspect() type=int32
+        /// @resolution.member source=this.inspect receiver=WithAccess<&ArrayAccess.probe.'a T[], A> type=<ArrayAccess.inspect.'a>(this: WithAccess<&ArrayAccess.inspect.'a T[], A>) => int32 kind=symbol target_receiver=WithAccess<&ArrayAccess.probe.'a T[], A> target=ArrayAccess.inspect
+        /// @resolution.call source=this.inspect() parameters=() return=int32 kind=symbol target=ArrayAccess.inspect receiver=WithAccess<&ArrayAccess.probe.'a T[], A> instance="ArrayAccess<T, A>.inspect"
+        /// @resolution.receiver source=this kind=this declaration=ArrayAccess type=WithAccess<&ArrayAccess.probe.'a T[], A>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @generic.instantiation id="ArrayAccess.view<T, A>" template=ArrayAccess.view arguments=(T, A) owner=ArrayAccess.peek
-        /// @generic.instantiation id=collections.array.view<T> template=collections.array.view arguments=(T) owner=ArrayAccess.peek
+        /// @generic.instantiation id="ArrayAccess.inspect<T, A>" template=ArrayAccess.inspect arguments=(T, A) owner=ArrayAccess.probe
 
     }
 }

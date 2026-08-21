@@ -139,10 +139,24 @@ impl BodyState<'_, '_> {
         self.check.merge_flow_branches_from(before, &branches);
         self.commit_node_type(node.into_any(), result)?;
 
+        // a conditional whose branches are fresh literals stays fresh
+        let then_fresh = self
+            .check
+            .fresh_nodes
+            .contains_key(&then_expression.into_global_any(module));
+        let else_fresh = else_expression.is_some_and(|expression| {
+            self.check
+                .fresh_nodes
+                .contains_key(&expression.into_global_any(module))
+        });
+        if then_fresh && else_fresh {
+            self.check.fresh_nodes.insert(site.node, None);
+        }
+
         Ok(())
     }
 
-    /// Check one if expression under an expected result type.
+    /// Check one if expression under an expected type.
     pub(in crate::sema) fn check_if_expression(
         &mut self,
         site: FlowSite,
@@ -205,8 +219,24 @@ impl BodyState<'_, '_> {
         self.check.merge_flow_branches_from(before, &branches);
         self.commit_node_type(site.node, result)?;
 
+        // a conditional whose branches are fresh literals stays fresh
+        let module = site.node.module_id;
+        let then_fresh = self
+            .check
+            .fresh_nodes
+            .contains_key(&then_expression.into_global_any(module));
+        let else_fresh = else_expression.is_some_and(|expression| {
+            self.check
+                .fresh_nodes
+                .contains_key(&expression.into_global_any(module))
+        });
+        if then_fresh && else_fresh {
+            self.check.fresh_nodes.insert(site.node, None);
+        }
+
         Ok(CheckAttempt::Checked(ValueCheck {
             source: result,
+            stored: result,
             outcome: check,
             target,
         }))
@@ -226,7 +256,7 @@ impl BodyState<'_, '_> {
 
         // check the body branch from the incoming flow, collecting residuals
         if catch.is_some() {
-            self.check.enter_try_target();
+            self.check.enter_try_target(node);
         }
         let body_site = self.visit_site(body.into_global_any(module))?;
         let body_type = self.infer_node_type(body_site, PlaceUse::Read)?;
@@ -368,7 +398,7 @@ impl BodyState<'_, '_> {
                     Relation::Assignable,
                     cause,
                     ValueUse::Store,
-                    InferMode::Exact,
+                    InferMode::Regular,
                 )?;
                 let scope = self.check.flow.template_scope();
                 self.check.push_obligation(
@@ -387,6 +417,7 @@ impl BodyState<'_, '_> {
 
         // catch (...) { ... }: the handler value joins the try result
         let body_site = self.visit_site(body.into_global_any(module))?;
+
         self.infer_node_type(body_site, PlaceUse::Read)
     }
 
@@ -779,6 +810,7 @@ impl BodyState<'_, '_> {
             self.commit_node_type(site.node, never)?;
             let check = ValueCheck {
                 source: never,
+                stored: never,
                 outcome: CheckOutcome::Holds,
                 target,
             };
@@ -800,6 +832,7 @@ impl BodyState<'_, '_> {
 
         Ok(CheckAttempt::Checked(ValueCheck {
             source: result,
+            stored: result,
             outcome: check,
             target,
         }))
@@ -850,7 +883,7 @@ impl BodyState<'_, '_> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let iterator_site = self.visit_site(iterator.into_global_any(module))?;
-        let iterator_type = self.infer_node(iterator_site, PlaceUse::Read, InferMode::Mutable)?;
+        let iterator_type = self.infer_node(iterator_site, PlaceUse::Read, InferMode::Regular)?;
         let iterator_type = self.flow_type_at(iterator_site, iterator_type)?;
         let target = self.for_each_value_type(site.origin(), site.node, operator, iterator_type)?;
 
@@ -867,7 +900,7 @@ impl BodyState<'_, '_> {
             Relation::Assignable,
             cause,
             ValueUse::Store,
-            InferMode::Exact,
+            InferMode::Regular,
         )?;
 
         // check the loop body with the iteration bindings assigned

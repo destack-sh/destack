@@ -4,7 +4,7 @@ use std::ptr::NonNull;
 
 use crate::sema::{
     CauseKind, FlowBranch, FlowState, GenericTemplateId, InducedParameterOwner, Origin, Receiver,
-    ReceiverBinding, Relation, ValueUse, WalkState, Widening,
+    ReceiverBinding, Relation, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -125,10 +125,7 @@ impl WalkState<'_, '_> {
             } => {
                 let body = *body;
 
-                let symbol = self
-                    .check
-                    .module(self.module)
-                    .declaration_symbol(id.into_any());
+                let symbol = self.declared_symbol(id.into_any());
 
                 // walk the header before building the method type
                 let source = id.into_global_any(self.module);
@@ -200,10 +197,7 @@ impl WalkState<'_, '_> {
                 ..
             } => {
                 let (name, constraint, value) = (*name, *constraint, *value);
-                let symbol = self
-                    .check
-                    .module(self.module)
-                    .declaration_symbol(id.into_any());
+                let symbol = self.declared_symbol(id.into_any());
 
                 // walk generic parameters
                 let source = id.into_global_any(self.module);
@@ -271,10 +265,7 @@ impl WalkState<'_, '_> {
                     .map(|value| self.walk_static_term(value))
                     .transpose()?;
 
-                let symbol = self
-                    .check
-                    .module(self.module)
-                    .declaration_symbol(id.into_any());
+                let symbol = self.declared_symbol(id.into_any());
                 if let Some(symbol) = symbol {
                     let ty = match declared {
                         Some(declared) => declared,
@@ -339,10 +330,7 @@ impl WalkState<'_, '_> {
                 }
 
                 // resolve the field symbol
-                let symbol = self
-                    .check
-                    .module(self.module)
-                    .declaration_symbol(id.into_any());
+                let symbol = self.declared_symbol(id.into_any());
 
                 // derive the field type
                 let field_type = match declared_type {
@@ -352,7 +340,7 @@ impl WalkState<'_, '_> {
                     None if is_uninferable => Some(self.intern_type(dir::Type::Error)?),
                     // infer the field from its default through the binding slot
                     None => symbol
-                        .map(|symbol| self.binding_type_slot(symbol, Widening::Always))
+                        .map(|symbol| self.binding_type_slot(symbol))
                         .transpose()?,
                 };
 
@@ -418,17 +406,14 @@ impl WalkState<'_, '_> {
                 let Some(slot) = member.slot() else {
                     return Ok(None);
                 };
-                let Some(symbol) = self
-                    .check
-                    .module(self.module)
-                    .declaration_symbol(id.into_any())
-                else {
+                let Some(symbol) = self.declared_symbol(id.into_any()) else {
                     return Err(CompilerError::Internal {
                         message: format!("method member {id:?} has no declaration symbol"),
                     });
                 };
                 let source = id.into_global_any(self.module);
                 let template = self.open_signature_template(source, signature)?;
+
                 // open signature parameters under the signature's own scope
                 let _scope = self.enter_template_scope(template);
                 let header = self.walk_function_signature(template, signature)?;
@@ -545,11 +530,7 @@ impl WalkState<'_, '_> {
         if body.is_none() || *is_ambient || abstraction.is_abstract() {
             return Ok(None);
         }
-        let Some(symbol) = self
-            .check
-            .module(self.module)
-            .declaration_symbol(id.into_any())
-        else {
+        let Some(symbol) = self.declared_symbol(id.into_any()) else {
             return Ok(None);
         };
         let Some(method) = self.check.adopt_symbol_type_maybe(symbol)? else {
@@ -610,11 +591,7 @@ impl WalkState<'_, '_> {
                 let Some(body) = *body else {
                     return Ok(None);
                 };
-                let Some(symbol) = self
-                    .check
-                    .module(self.module)
-                    .declaration_symbol(id.into_any())
-                else {
+                let Some(symbol) = self.declared_symbol(id.into_any()) else {
                     return Err(CompilerError::Internal {
                         message: format!("method member {id:?} has no declaration symbol"),
                     });
@@ -708,10 +685,7 @@ impl WalkState<'_, '_> {
                 let written = self.walk_type_expression(declared_type)?;
 
                 // write the field symbol type
-                let symbol = self
-                    .check
-                    .module(self.module)
-                    .declaration_symbol(id.into_any());
+                let symbol = self.declared_symbol(id.into_any());
                 if let Some(symbol) = symbol {
                     self.bind_symbol_type(symbol, written)?;
                 }
@@ -750,11 +724,7 @@ impl WalkState<'_, '_> {
                 let Some(slot) = member.slot() else {
                     return Ok(None);
                 };
-                let Some(symbol) = self
-                    .check
-                    .module(self.module)
-                    .declaration_symbol(id.into_any())
-                else {
+                let Some(symbol) = self.declared_symbol(id.into_any()) else {
                     return Err(CompilerError::Internal {
                         message: format!("type method member {id:?} has no declaration symbol"),
                     });
@@ -871,10 +841,7 @@ impl WalkState<'_, '_> {
                 ..
             } => {
                 let (name, constraint, value) = (*name, *constraint, *value);
-                let symbol = self
-                    .check
-                    .module(self.module)
-                    .declaration_symbol(id.into_any());
+                let symbol = self.declared_symbol(id.into_any());
 
                 // walk generic parameters
                 let template = match symbol {
@@ -932,10 +899,7 @@ impl WalkState<'_, '_> {
                     .map(|value| self.walk_static_term(value))
                     .transpose()?;
 
-                let symbol = self
-                    .check
-                    .module(self.module)
-                    .declaration_symbol(id.into_any());
+                let symbol = self.declared_symbol(id.into_any());
                 if let Some(symbol) = symbol {
                     if let Some(declared) = declared {
                         self.bind_symbol_type(symbol, declared)?;
@@ -1046,7 +1010,7 @@ impl WalkState<'_, '_> {
         signature: &dir::FunctionSignature,
         scope: Option<Receiver>,
     ) -> CompilerResult<Option<dir::Form>> {
-        // explicit receivers and constructors spell their own form
+        // explicit receivers and constructors write their own form
         let Some(scope) = scope else {
             return Ok(None);
         };

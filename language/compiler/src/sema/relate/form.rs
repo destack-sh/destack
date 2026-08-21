@@ -102,7 +102,7 @@ impl CheckState<'_> {
                     .type_ids(target.module_id, target_instance.arguments)?
                     .into();
 
-                // complete an elided side so the slots align with the declared parameters
+                // complete an elided side to align the slots with the declared parameters
                 if source_arguments.len() < target_arguments.len()
                     && let Some(filled) =
                         self.fill_elided_application(source.module_id, &source_instance)?
@@ -182,7 +182,7 @@ impl CheckState<'_> {
         let source_place = self.form_space(source)?;
         let target_place = self.form_space(target)?;
 
-        // treat local placement on one side as transparent, since bare values are local
+        // treat local placement on one side as transparent
         if relation != Relation::Widens
             && let dir::Type::Form(target_form) = self.ty(target)?
             && target_place == Some(dir::Space::Local)
@@ -334,7 +334,7 @@ impl CheckState<'_> {
                     target_form.form,
                 )?;
                 if constructor == Verdict::Fails {
-                    // read copyable payloads out of unmatched borrows, never widening
+                    // read copyable payloads out of unmatched borrows outside widening
                     if relation != Relation::Widens
                         && matches!(source_form.form, dir::Form::Borrowed(_))
                     {
@@ -362,7 +362,7 @@ impl CheckState<'_> {
                 Ok(Some(constructor.and(payload)))
             }
 
-            // copy values into concrete storage, never relabeling references
+            // copy values into concrete storage outside widening
             (_, dir::Type::Form(target_form))
                 if relation != Relation::Widens
                     && matches!(
@@ -370,7 +370,7 @@ impl CheckState<'_> {
                         dir::Form::Owned | dir::Form::Placed { .. }
                     ) =>
             {
-                // never relabel a safe reference as uniquely owned storage
+                // refuse a safe reference as uniquely owned storage
                 if target_form.form == dir::Form::Owned {
                     let is_reference = self.type_is_reference(origin, source)?;
                     if is_reference {
@@ -490,7 +490,7 @@ impl CheckState<'_> {
                     target,
                 )?))
             }
-            // borrows read copyable payloads out by value, never widening
+            // borrows read copyable payloads out by value outside widening
             (dir::Type::Form(source_form), _)
                 if relation != Relation::Widens
                     && matches!(source_form.form, dir::Form::Borrowed(_)) =>
@@ -626,6 +626,10 @@ impl CheckState<'_> {
         }
 
         match (self.ty(source)?, self.ty(target)?) {
+            // every access grants readonly
+            (_, dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly))) => {
+                Ok(Verdict::Holds)
+            }
             (
                 dir::Type::Memory(dir::MemoryLiteral::Access(source)),
                 dir::Type::Memory(dir::MemoryLiteral::Access(target)),

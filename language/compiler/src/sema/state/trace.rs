@@ -2,7 +2,7 @@ use destack_artifact::{ArtifactEvent, ArtifactEventLog};
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::sema::{CandidateVerdict, Check, CheckId, CheckState, DumpContext, TypeBound, Widening};
+use crate::sema::{Check, CheckId, CheckState, DumpContext, TypeBound, VariableKind, Verdict};
 
 /// Environment variable naming the file check events stream into.
 const CHECK_EVENT_STREAM_ENV: &str = "DESTACK_CHECK_EVENT_STREAM";
@@ -75,14 +75,14 @@ pub(in crate::sema) enum CheckEvent {
     /// One speculative probe finished.
     ProbeFinished {
         /// The winnowed verdict, absent when the probe produced none.
-        verdict: Option<CandidateVerdict>,
+        verdict: Option<Verdict>,
     },
     /// One variable was allocated.
     VariableAllocated {
         /// The allocated variable.
         variable: dir::TypeVariableId,
-        /// The literal widening policy applied when solving.
-        widening: Widening,
+        /// What the variable ranges over.
+        kind: VariableKind,
     },
     /// One lower bound was pushed onto an inference variable.
     LowerBoundPushed {

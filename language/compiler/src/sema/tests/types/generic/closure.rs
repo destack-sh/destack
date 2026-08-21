@@ -75,7 +75,7 @@ declare class Box<in out T> {}
 declare function load(): int32;
 declare function use(callback: () => int32 | Box<int32>): int32;
 
-const value: int32 = use((): int32 => load());
+const value: int32 = use((): int32 | Box<int32> => load() as int32 | Box<int32>);
 
 === dir ===
 declare class Box<in out T> {}
@@ -100,8 +100,8 @@ const value = use(() => load());
 /// @type.node source=use type=(Function<(), int32 | Box<int32>>) => int32
 /// @resolution.name source=use target=use
 /// @resolution.call source="use(() => load())" parameters=(Function<(), int32 | Box<int32>>) arguments=(provided(() => load()) as Function<(), int32 | Box<int32>>) return=int32 kind=symbol target=use
-/// @type.symbol symbol=symbol6 source=() => load() type=Function<(), int32>
-/// @type.node source=() => load() type=Function<(), int32>
+/// @type.symbol symbol=symbol6 source=() => load() type=Function<(), int32 | Box<int32>>
+/// @type.node source=() => load() type=Function<(), int32 | Box<int32>>
 /// @type.node source=load type=() => int32
 /// @type.node source=load() type=int32
 /// @resolution.name source=load target=load
@@ -131,7 +131,7 @@ declare class Box<in out T> {}
 declare function make(): Box<Box<int32>>;
 declare function use<T>(callback: () => Box<T> | Box<Box<T>>): T;
 
-const value = use((): Box<Box<int32>> => make());
+const value = use(() => make());
 
 === dir ===
 declare class Box<in out T> {}
@@ -165,8 +165,8 @@ const value = use(() => make());
 /// @resolution.name source=use target=use
 /// @resolution.call source="use(() => make())" parameters=(Function<(), Box<<error>> | Box<Box<<error>>>>) arguments=(provided(() => make()) as Function<(), Box<<error>> | Box<Box<<error>>>>) return=<error> kind=symbol target=use instance=use<<error>>
 /// @generic.instantiation id=use<<error>> template=use arguments=(<error>)
-/// @type.symbol symbol=symbol7 source=() => make() type=Function<(), Box<Box<int32>>>
-/// @type.node source=() => make() type=Function<(), Box<Box<int32>>>
+/// @type.symbol symbol=symbol7 source=() => make() type=Function<(), <error>>
+/// @type.node source=() => make() type=Function<(), <error>>
 /// @type.node source=make type=() => Box<Box<int32>>
 /// @type.node source=make() type=Box<Box<int32>>
 /// @resolution.name source=make target=make
@@ -200,7 +200,7 @@ const value = map(1, (item) => item);
 === annotated ===
 declare function map<T, U>(value: T, callback: (arg0: T) => U): U;
 
-const value: float64 = map<float64, float64>(1, (item: float64): float64 => item);
+const value: int64 = map<int64, int64>(1, (item: int64): int64 => item);
 
 === dir ===
 declare function map<T, U>(value: T, callback: (value: T) => U): U;
@@ -217,19 +217,19 @@ declare function map<T, U>(value: T, callback: (value: T) => U): U;
 /// @resolution.name source=U target=map.U
 
 const value = map(1, (item) => item);
-/// @type.symbol symbol=value source=value type=float64
+/// @type.symbol symbol=value source=value type=int64
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source="map(1, (item) => item)" type=float64
-/// @type.node source=map type=(float64, Function<(float64,), float64>) => float64
+/// @type.node source="map(1, (item) => item)" type=int64
+/// @type.node source=map type=(int64, Function<(int64,), int64>) => int64
 /// @resolution.name source=map target=map
-/// @resolution.call source="map(1, (item) => item)" parameters=(float64, Function<(float64,), float64>) arguments=(provided(1) as float64, provided((item) => item) as Function<(float64,), float64>) return=float64 kind=symbol target=map instance="map<float64, float64>"
-/// @generic.instantiation id="map<float64, float64>" template=map arguments=(float64, float64)
-/// @generic.instance id="map<float64, float64>" template=map arguments=(float64, float64)
+/// @resolution.call source="map(1, (item) => item)" parameters=(int64, Function<(int64,), int64>) arguments=(provided(1) as int64, provided((item) => item) as Function<(int64,), int64>) return=int64 kind=symbol target=map instance="map<int64, int64>"
+/// @generic.instantiation id="map<int64, int64>" template=map arguments=(int64, int64)
+/// @generic.instance id="map<int64, int64>" template=map arguments=(int64, int64)
 /// @type.node source=1 type=1
-/// @type.symbol symbol=symbol7 source="(item) => item" type=Function<(float64,), float64>
-/// @type.node source="(item) => item" type=Function<(float64,), float64>
-/// @type.symbol symbol=symbol7.item source=item type=float64
-/// @type.node source=item type=float64
+/// @type.symbol symbol=symbol7 source="(item) => item" type=Function<(int64,), int64>
+/// @type.node source="(item) => item" type=Function<(int64,), int64>
+/// @type.symbol symbol=symbol7.item source=item type=int64
+/// @type.node source=item type=int64
 /// @resolution.name source=item target=symbol7.item
 /// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=item root=symbol7.item
@@ -333,7 +333,10 @@ const value = map(1, (item) => item);
 declare class Box<in out T> {}
 declare function map<T, U>(value: T, callback: (arg0: T) => U | Box<U>): U;
 
-const value: float64 = map<float64, float64>(1, (item: float64): float64 => item);
+const value: int64 = map<int64, int64>(
+    1,
+    (item: int64): int64 | Box<int64> => item as int64 | Box<int64>,
+);
 
 === dir ===
 declare class Box<in out T> {}
@@ -358,20 +361,20 @@ declare function map<T, U>(value: T, callback: (value: T) => U | Box<U>): U;
 /// @resolution.name source=U target=map.U
 
 const value = map(1, (item) => item);
-/// @type.symbol symbol=value source=value type=float64
+/// @type.symbol symbol=value source=value type=int64
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source="map(1, (item) => item)" type=float64
-/// @type.node source=map type=(float64, Function<(float64,), float64 | Box<float64>>) => float64
+/// @type.node source="map(1, (item) => item)" type=int64
+/// @type.node source=map type=(int64, Function<(int64,), int64 | Box<int64>>) => int64
 /// @resolution.name source=map target=map
-/// @resolution.call source="map(1, (item) => item)" parameters=(float64, Function<(float64,), float64 | Box<float64>>) arguments=(provided(1) as float64, provided((item) => item) as Function<(float64,), float64 | Box<float64>>) return=float64 kind=symbol target=map instance="map<float64, float64>"
-/// @generic.instantiation id="map<float64, float64>" template=map arguments=(float64, float64)
-/// @generic.instance id="map<float64, float64>" template=map arguments=(float64, float64)
-/// @generic.instance id=Box<float64> template=Box arguments=(float64)
+/// @resolution.call source="map(1, (item) => item)" parameters=(int64, Function<(int64,), int64 | Box<int64>>) arguments=(provided(1) as int64, provided((item) => item) as Function<(int64,), int64 | Box<int64>>) return=int64 kind=symbol target=map instance="map<int64, int64>"
+/// @generic.instantiation id="map<int64, int64>" template=map arguments=(int64, int64)
+/// @generic.instance id="map<int64, int64>" template=map arguments=(int64, int64)
 /// @type.node source=1 type=1
-/// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(float64,), float64>
-/// @type.node source="(item) => item" type=Function<(float64,), float64>
-/// @type.symbol symbol=symbol9.item source=item type=float64
-/// @type.node source=item type=float64
+/// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(int64,), int64 | Box<int64>>
+/// @type.node source="(item) => item" type=Function<(int64,), int64 | Box<int64>>
+/// @generic.instance id=Box<int64> template=Box arguments=(int64)
+/// @type.symbol symbol=symbol9.item source=item type=int64
+/// @type.node source=item type=int64
 /// @resolution.name source=item target=symbol9.item
 /// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=item root=symbol9.item
@@ -402,7 +405,9 @@ declare class Box<out T> {
 }
 
 declare const box: Box<int32>;
-const value: int32 = box.map<int32, int32>((item: int32): int32 => item);
+const value: int32 = box.map<int32, int32>(
+    (item: int32): int32 | Box<int32> => item as int32 | Box<int32>,
+);
 
 === dir ===
 declare class Box<T> {
@@ -446,8 +451,8 @@ const value = box.map((item) => item);
 /// @generic.instantiation id="Box.map<int32, int32>" template=Box.map arguments=(int32, int32)
 /// @generic.instantiation id=Box.map<int32> template=Box.map arguments=(int32)
 /// @generic.instance id="Box.map<int32, int32>" template=Box.map arguments=(int32, int32)
-/// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(int32,), int32>
-/// @type.node source="(item) => item" type=Function<(int32,), int32>
+/// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(int32,), int32 | Box<int32>>
+/// @type.node source="(item) => item" type=Function<(int32,), int32 | Box<int32>>
 /// @type.symbol symbol=symbol9.item source=item type=int32
 /// @type.node source=item type=int32
 /// @resolution.name source=item target=symbol9.item
@@ -455,4 +460,113 @@ const value = box.map((item) => item);
 /// @resolution.access source=item root=symbol9.item
 "#,
     );
+}
+
+/// Contextualize a function value through the sole callable member of a union expectation.
+#[test]
+fn test_contextualize_a_function_value_through_a_union_expectation() {
+    let session = TestSession::single(
+        r#"
+export type Message = string | Function<(), string, "once">;
+
+export function check(condition: boolean, message?: Message): void {}
+
+function call(): void {
+    check(true, () => "lazy");
+    check(true, "eager");
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+export type Message = string | Function<(), string, "once">;
+
+export function check(condition: boolean, message?: Message): void {}
+
+function call(): void {
+    check(true, ((): string => "lazy") as Message | undefined);
+    check(true, "eager" as Message | undefined);
+}
+
+=== dir ===
+export type Message = string | Function<(), string, "once">;
+/// @type.symbol symbol=Message source="export type Message = string | Function<(), string, \"once\">" type=string | Function<(), string, "once">
+/// @definition.type symbol=Message source="export type Message = string | Function<(), string, \"once\">" value=string | Function<(), string, "once">
+/// @resolution.name source=Function target=types.function.Function
+
+export function check(condition: boolean, message?: Message): void {}
+/// @type.symbol symbol=check source="export function check(condition: boolean, message?: Message): void {}" type=(boolean, Message | undefined?) => void
+/// @type.symbol symbol=check.condition source="condition: boolean" type=boolean
+/// @type.symbol symbol=check.message source="message?: Message" type=Message | undefined
+/// @resolution.name source=Message target=Message
+
+function call(): void {
+/// @type.symbol symbol=call type=() => void
+
+    check(true, () => "lazy");
+    /// @resolution.name source=check target=check
+    /// @resolution.call source="check(true, () => \"lazy\")" parameters=(boolean, Message | undefined) arguments=(provided(true) as boolean, provided(() => "lazy") as Message | undefined) return=void kind=symbol target=check
+    /// @type.symbol symbol=call.symbol6 source="() => \"lazy\"" type=Function<(), string>
+
+    check(true, "eager");
+    /// @resolution.name source=check target=check
+    /// @resolution.call source="check(true, \"eager\")" parameters=(boolean, Message | undefined) arguments=(provided(true) as boolean, provided("eager") as Message | undefined) return=void kind=symbol target=check
+
+}
+"#, r#""#);
+}
+
+/// Leave a function value uncontextualized under a union with two callable members.
+#[test]
+fn test_leave_a_function_value_uncontextualized_under_two_callable_members() {
+    let session = TestSession::single(
+        r#"
+export type Handler = ((value: int32) => void) | ((value: string) => void);
+
+export function run(handler: Handler): void {}
+
+function call(): void {
+    run((value) => {});
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+export type Handler = ((value: int32) => void) | ((value: string) => void);
+
+export function run(handler: ((arg0: int32) => void) | ((arg0: string) => void)): void {}
+
+function call(): void {
+    run((value) => {});
+}
+
+=== dir ===
+export type Handler = ((value: int32) => void) | ((value: string) => void);
+/// @type.symbol symbol=Handler source="export type Handler = ((value: int32) => void) | ((value: string) => void)" type=Function<(int32,), void> | Function<(string,), void>
+/// @definition.type symbol=Handler source="export type Handler = ((value: int32) => void) | ((value: string) => void)" value=Function<(int32,), void> | Function<(string,), void>
+/// @type.symbol symbol=Handler.value#1 source="value: int32" type=int32
+/// @type.symbol symbol=Handler.value#2 source="value: string" type=string
+
+export function run(handler: Handler): void {}
+/// @type.symbol symbol=run source="export function run(handler: Handler): void {}" type=(Handler) => void
+/// @type.symbol symbol=run.handler source="handler: Handler" type=Function<(int32,), void> | Function<(string,), void>
+/// @resolution.name source=Handler target=Handler
+
+function call(): void {
+/// @type.symbol symbol=call type=() => void
+
+    run((value) => {});
+    /// @resolution.name source=run target=run
+    /// @resolution.call source="run((value) => {})" parameters=(Handler) arguments=(provided((value) => {}) as Handler) return=void kind=symbol target=run
+    /// @type.symbol symbol=call.symbol7 source="(value) => {}" type=Function<(<error>,), <error>>
+    /// @type.symbol symbol=call.symbol7.value source=value type=<error>
+
+}
+"#, r#"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '(value: _) => _' is not assignable to parameter of type 'Handler'"
+/// @diagnostic.label line=7 column=9 span="(value) => {}" line_source="run((value) => {});"
+/// @diagnostic.related line=7 column=5 span="run((value) => {})" line_source="run((value) => {});" message="in this call"
+"#);
 }

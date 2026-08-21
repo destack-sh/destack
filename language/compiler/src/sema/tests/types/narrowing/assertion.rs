@@ -208,3 +208,605 @@ function render(message: string | (() => string) | undefined): string {
 }
 "#, "");
 }
+
+/// Function type guards narrow arms stored behind a type alias.
+#[test]
+fn test_function_type_guard_narrows_through_an_alias() {
+    let session = TestSession::single(
+        r#"
+type Message = string | (() => string);
+
+function render(message: Message | undefined): string {
+    if (message is () => string) {
+        return message();
+    }
+    return message ?? "fallback";
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Message = string | (() => string);
+
+function render(message: Message | undefined): string {
+    if (message is () => string) {
+        return message();
+    }
+    return message ?? "fallback";
+}
+
+=== dir ===
+type Message = string | (() => string);
+/// @type.symbol symbol=Message source="type Message = string | (() => string)" type=string | Function<(), string>
+/// @definition.type symbol=Message source="type Message = string | (() => string)" value=string | Function<(), string>
+
+function render(message: Message | undefined): string {
+/// @type.symbol symbol=render type=(Message | undefined) => string
+/// @type.symbol symbol=render.message source="message: Message | undefined" type=Message | undefined
+/// @resolution.name source=Message target=Message
+
+    if (message is () => string) {
+    /// @resolution.name source=message target=render.message
+    /// @resolution.guard source="message is () => string" kind=is value=Message | undefined target=Function<(), string> predicate="Message | undefined is type(Function<(), string>)" narrowed=Narrow<Message | undefined, Function<(), string>>
+    /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=message root=render.message
+
+        return message();
+        /// @resolution.name source=message target=render.message
+        /// @resolution.call source=message() parameters=() return=string kind=expression target=expression
+        /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=message root=render.message
+
+    }
+    return message ?? "fallback";
+    /// @resolution.name source=message target=render.message
+    /// @resolution.operator source="message ?? \"fallback\"" type=string operator="??" kind=builtin operands=[message as string | undefined families=(string | undefined), "fallback" as "fallback" families=(string)]
+    /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=message root=render.message
+
+}
+"#,
+        "",
+    );
+}
+
+/// Coalesce splits nullish arms stored behind a type alias.
+#[test]
+fn test_coalesce_splits_aliased_nullish_arms() {
+    let session = TestSession::single(
+        r#"
+type Nothing = null | undefined;
+
+function pick(value: string | Nothing): string {
+    return value ?? "fallback";
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Nothing = null | undefined;
+
+function pick(value: string | Nothing): string {
+    return value ?? "fallback";
+}
+
+=== dir ===
+type Nothing = null | undefined;
+/// @type.symbol symbol=Nothing source="type Nothing = null | undefined" type=null | undefined
+/// @definition.type symbol=Nothing source="type Nothing = null | undefined" value=null | undefined
+
+function pick(value: string | Nothing): string {
+/// @type.symbol symbol=pick type=(string | Nothing) => string
+/// @type.symbol symbol=pick.value source="value: string | Nothing" type=string | Nothing
+/// @resolution.name source=Nothing target=Nothing
+
+    return value ?? "fallback";
+    /// @resolution.name source=value target=pick.value
+    /// @resolution.operator source="value ?? \"fallback\"" type=string operator="??" kind=builtin operands=[value as string | Nothing families=(string | null | undefined), "fallback" as "fallback" families=(string)]
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=pick.value
+
+}
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Compare characters with builtin relational operators.
+#[test]
+fn test_compare_characters_relationally() {
+    let session = TestSession::single(
+        r#"
+function isLowercase(character: char): boolean {
+    return character >= 'a' && character <= 'z';
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function isLowercase(character: char): boolean {
+    return character >= 'a' && character <= 'z';
+}
+
+=== dir ===
+function isLowercase(character: char): boolean {
+/// @type.symbol symbol=isLowercase type=(char) => boolean
+/// @type.symbol symbol=isLowercase.character source="character: char" type=char
+
+    return character >= 'a' && character <= 'z';
+    /// @resolution.name source=character target=isLowercase.character
+    /// @resolution.operator source="character >= 'a' && character <= 'z'" type=boolean operator="&&" kind=builtin operands=[character >= 'a' as boolean families=(boolean), character <= 'z' as boolean families=(boolean)]
+    /// @resolution.operator source="character >= 'a'" type=boolean operator=">=" kind=builtin operands=[character as char families=(character), 'a' as 'a' families=(character)]
+    /// @resolution.place source=character placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=character root=isLowercase.character
+    /// @resolution.name source=character target=isLowercase.character
+    /// @resolution.operator source="character <= 'z'" type=boolean operator="<=" kind=builtin operands=[character as char families=(character), 'z' as 'z' families=(character)]
+    /// @resolution.place source=character placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=character root=isLowercase.character
+
+}
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Accept an object spread that overrides an earlier property.
+#[test]
+fn test_accept_a_spread_that_overrides_an_earlier_property() {
+    let session = TestSession::single(
+        r#"
+function describe(): { reason: string } {
+    return {
+        reason: "",
+        ...{ reason: "generated" },
+    };
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function describe(): { reason: string } {
+    return {
+        reason: "",
+        ...{ reason: "generated" },
+    };
+}
+
+=== dir ===
+function describe(): { reason: string } {
+/// @type.symbol symbol=describe type=() => { reason: string }
+
+    return {
+        reason: "",
+        ...{ reason: "generated" },
+    };
+}
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Match decorator object arguments with spread overrides against newtype backings.
+#[test]
+fn test_spread_decorator_argument_matches_newtype_backing() {
+    let session = TestSession::single(
+        r#"
+@allow("constant-condition", {
+    if: true,
+    reason: "",
+    ...{ reason: "generated" },
+})
+function decorated(): boolean {
+    return true;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+@allow("constant-condition", {
+    if: true,
+    reason: "",
+    ...{ reason: "generated" },
+})
+function decorated(): boolean {
+    return true;
+}
+
+=== dir ===
+@allow("constant-condition", {
+/// @resolution.name source=allow target=decorator.diagnostic.allow
+
+    if: true,
+    reason: "",
+    ...{ reason: "generated" },
+})
+function decorated(): boolean {
+/// @type.symbol symbol=decorated type=() => boolean
+
+    return true;
+}
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Look up prelude extension methods on primitive char receivers.
+#[test]
+fn test_call_character_extension_methods() {
+    let session = TestSession::single(
+        r#"
+function classify(character: char): boolean {
+    return character.isAsciiAlphabetic() || character.isAsciiDigit();
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function classify(character: char): boolean {
+    return character.isAsciiAlphabetic() || character.isAsciiDigit();
+}
+
+=== dir ===
+function classify(character: char): boolean {
+/// @type.symbol symbol=classify type=(char) => boolean
+/// @type.symbol symbol=classify.character source="character: char" type=char
+
+    return character.isAsciiAlphabetic() || character.isAsciiDigit();
+    /// @resolution.name source=character target=classify.character
+    /// @resolution.member source=character.isAsciiAlphabetic receiver=char type=<string.character.Character.isAsciiAlphabetic.'a>(this: &string.character.Character.isAsciiAlphabetic.'a readonly char) => boolean kind=symbol target_receiver=char target=string.character.Character.isAsciiAlphabetic
+    /// @resolution.call source=character.isAsciiAlphabetic() parameters=() return=boolean kind=symbol target=string.character.Character.isAsciiAlphabetic receiver=char adjustments=(borrow(&'frame readonly char))
+    /// @resolution.operator source="character.isAsciiAlphabetic() || character.isAsciiDigit()" type=boolean operator="||" kind=builtin operands=[character.isAsciiAlphabetic() as boolean families=(boolean), character.isAsciiDigit() as boolean families=(boolean)]
+    /// @resolution.place source=character placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=character root=classify.character
+    /// @resolution.name source=character target=classify.character
+    /// @resolution.member source=character.isAsciiDigit receiver=char type=<string.character.Character.isAsciiDigit.'a>(this: &string.character.Character.isAsciiDigit.'a readonly char) => boolean kind=symbol target_receiver=char target=string.character.Character.isAsciiDigit
+    /// @resolution.call source=character.isAsciiDigit() parameters=() return=boolean kind=symbol target=string.character.Character.isAsciiDigit receiver=char adjustments=(borrow(&'frame readonly char))
+    /// @resolution.place source=character placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=character root=classify.character
+
+}
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Look up module extension methods on primitive receivers.
+#[test]
+fn test_call_local_primitive_extension_methods() {
+    let session = TestSession::single(
+        r#"
+extension Doubling of int32 {
+    doubled(this): int32 {
+        this * 2
+    }
+}
+
+function double(value: int32): int32 {
+    return value.doubled();
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+extension Doubling of int32 {
+    doubled(this): int32 {
+        this * 2
+    }
+}
+
+function double(value: int32): int32 {
+    return value.doubled();
+}
+
+=== dir ===
+extension Doubling of int32 {
+/// @definition.extension symbol=Doubling form=local target=int32
+/// @definition.method symbol=Doubling.doubled slot=doubled type=(this: this) => int32
+
+    doubled(this): int32 {
+    /// @type.symbol symbol=Doubling.doubled type=(this: this) => int32
+    /// @type.symbol symbol=Doubling.doubled.this source=this type=this
+
+        this * 2
+        /// @resolution.operator source="this * 2" type=int32 operator="*" kind=builtin operands=[this as int32 families=(integer), 2 as int32 families=(integer)]
+        /// @resolution.receiver source=this kind=this declaration=Doubling type=int32
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+
+    }
+}
+
+function double(value: int32): int32 {
+/// @type.symbol symbol=double type=(int32) => int32
+/// @type.symbol symbol=double.value source="value: int32" type=int32
+
+    return value.doubled();
+    /// @resolution.name source=value target=double.value
+    /// @resolution.member source=value.doubled receiver=int32 type=(this: int32) => int32 kind=symbol target_receiver=int32 target=Doubling.doubled
+    /// @resolution.call source=value.doubled() parameters=() return=int32 kind=symbol target=Doubling.doubled receiver=int32
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=double.value
+
+}
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Unwrap a result value with the try operator.
+#[test]
+fn test_unwrap_a_result_with_the_try_operator() {
+    let session = TestSession::single(
+        r#"
+declare function parseCount(source: string): Result<int32, string>;
+
+function incrementCount(source: string): Result<int32, string> {
+    const count = parseCount(source)?;
+    return Result.ok(count + 1);
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function parseCount(source: string): Result<int32, string>;
+
+function incrementCount(source: string): Result<int32, string> {
+    const count: int32 = parseCount(source)?;
+    return Result.ok<int32, string>(count + 1);
+}
+
+=== dir ===
+declare function parseCount(source: string): Result<int32, string>;
+/// @type.symbol symbol=parseCount source="declare function parseCount(source: string): Result<int32, string>" type=(string) => Result<int32, string>
+/// @type.symbol symbol=parseCount.source source="source: string" type=string
+/// @resolution.name source=Result target=error.result.Result
+
+function incrementCount(source: string): Result<int32, string> {
+/// @type.symbol symbol=incrementCount type=(string) => Result<int32, string>
+/// @type.symbol symbol=incrementCount.source source="source: string" type=string
+/// @resolution.name source=Result target=error.result.Result
+
+    const count = parseCount(source)?;
+    /// @type.symbol symbol=incrementCount.count source=count type=int32
+    /// @resolution.pattern source=count kind=binding target=incrementCount.count
+    /// @resolution.name source=parseCount target=parseCount
+    /// @resolution.call source=parseCount(source) parameters=(string) arguments=(provided(source) as string) return=Result<int32, string> kind=symbol target=parseCount
+    /// @resolution.residual source=parseCount(source)? target=callable residual=TryResidual<Result<int32, string>>
+    /// @resolution.name source=source target=incrementCount.source
+    /// @resolution.place source=source placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=source root=incrementCount.source
+
+    return Result.ok(count + 1);
+    /// @resolution.name source=Result target=error.result.Result
+    /// @resolution.member source=Result.ok receiver=Result type=(error.result.T#1) => Result<error.result.T#1, error.result.E#1> kind=symbol target_receiver=Result target=error.result.ok#1
+    /// @resolution.call source="Result.ok(count + 1)" parameters=(int32) arguments=(provided(count + 1) as int32) return=Result<int32, string> kind=symbol target=error.result.ok#1 instance="Result<int32, string>.<extension#1>.ok#1"
+    /// @generic.instantiation id="error.result.ok#1<int32, string>" template=error.result.ok#1 arguments=(int32, string)
+    /// @resolution.name source=count target=incrementCount.count
+    /// @resolution.operator source="count + 1" type=int32 operator="+" kind=builtin operands=[count as int32 families=(integer), 1 as int32 families=(integer)]
+    /// @resolution.place source=count placement="local" lifetime="frame" access="readonly"
+    /// @resolution.access source=count root=incrementCount.count
+
+}
+"#,
+        "",
+    );
+}
+
+/// Match a result exhaustively over its ok and error arms.
+#[test]
+fn test_match_a_result_exhaustively() {
+    let session = TestSession::single(
+        r#"
+function unwrap(result: Result<int32, string>): int32 {
+    const value = match (result) {
+        Err { error: _ } => 0
+        Ok { value } => value
+    };
+    return value;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function unwrap(result: Result<int32, string>): int32 {
+    const value: int32 = match (result) {
+        Err { error: _ } => 0
+        Ok { value } => value
+    };
+    return value;
+}
+
+=== dir ===
+function unwrap(result: Result<int32, string>): int32 {
+/// @type.symbol symbol=unwrap type=(Result<int32, string>) => int32
+/// @type.symbol symbol=unwrap.result source="result: Result<int32, string>" type=Result<int32, string>
+/// @resolution.name source=Result target=error.result.Result
+
+    const value = match (result) {
+    /// @type.symbol symbol=unwrap.value#2 source=value type=int32
+    /// @resolution.pattern source=value kind=binding target=unwrap.value#2
+    /// @resolution.coverage exhaustive=true disjoint=true
+    /// @resolution.name source=result target=unwrap.result
+    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=result root=unwrap.result
+
+        Err { error: _ } => 0
+        /// @resolution.name source=Err target=error.result.Err
+        /// @resolution.pattern source="Err { error: _ }" kind=nominal_object target=error.result.Err instance=Err<string> fields={ error.result.Err.error: _ }
+        /// @generic.instantiation id=Err<string> template=error.result.Err arguments=(string)
+        /// @resolution.pattern source=_ kind=wildcard
+
+        Ok { value } => value
+        /// @resolution.name source=Ok target=error.result.Ok
+        /// @resolution.pattern source="Ok { value }" kind=nominal_object target=error.result.Ok instance=Ok<int32> fields={ error.result.Ok.value }
+        /// @generic.instantiation id=Ok<int32> template=error.result.Ok arguments=(int32)
+        /// @type.symbol symbol=unwrap.value#1 source=value type=int32
+        /// @resolution.name source=value target=unwrap.value#1
+        /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
+        /// @resolution.access source=value root=unwrap.value#1
+
+    };
+    return value;
+    /// @resolution.name source=value target=unwrap.value#2
+    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
+    /// @resolution.access source=value root=unwrap.value#2
+
+}
+"#,
+        "",
+    );
+}
+
+/// Retain the access each borrow requires from the place it lends.
+#[test]
+fn test_retain_required_borrow_access() {
+    let session = TestSession::single(
+        r#"
+declare function fill(buffer: &exclusive [int32]): void;
+
+function prepare(values: [int32]): void {
+    fill(&exclusive values);
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_flows(),
+        r#"
+=== annotated ===
+declare function fill<'a>(buffer: &'a exclusive [int32]): void;
+
+function prepare(values: [int32]): void {
+    fill(&exclusive values);
+}
+
+=== dir ===
+declare function fill(buffer: &exclusive [int32]): void;
+/// @generic.template symbol=fill parameters=('a)
+/// @type.symbol symbol=fill source="declare function fill(buffer: &exclusive [int32]): void" type=<fill.'a>(&fill.'a exclusive Slice<int32>) => void
+/// @flow.use symbol=fill uses=read
+/// @type.symbol symbol=fill.buffer source="buffer: &exclusive [int32]" type=&fill.'a exclusive Slice<int32>
+
+function prepare(values: [int32]): void {
+/// @type.symbol symbol=prepare type=(Slice<int32>) => void
+/// @type.symbol symbol=prepare.values source="values: [int32]" type=Slice<int32>
+/// @flow.use symbol=values uses=read+exclusive
+
+    fill(&exclusive values);
+    /// @resolution.name source=fill target=fill
+    /// @resolution.call source="fill(&exclusive values)" parameters=(&'frame exclusive Slice<int32>) arguments=(provided(&exclusive values) as &'frame exclusive Slice<int32>) return=void kind=symbol target=fill
+    /// @resolution.name source=values target=prepare.values
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=values root=prepare.values
+    /// @flow.access source=values root=prepare.values uses=read+exclusive
+
+}
+"#,
+        "",
+    );
+}
+
+/// Type spread arguments and spread literals contextually against iterable expectations.
+#[test]
+fn test_spread_arguments_type_contextually() {
+    let session = TestSession::single(
+        r#"
+declare function consume(values: Iterable<int32>): void;
+
+function feed(output: Array<int32>, values: [int32]): void {
+    output.push(1, ...[2, 3], 4);
+    consume([...values]);
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function consume(values: Iterable<int32>): void;
+
+function feed(output: int32[], values: [int32]): void {
+    output.push<int32>(1, ...[2, 3], 4);
+    consume([...values]);
+}
+
+=== dir ===
+declare function consume(values: Iterable<int32>): void;
+/// @type.symbol symbol=consume source="declare function consume(values: Iterable<int32>): void" type=(Iterable<int32>) => void
+/// @type.symbol symbol=consume.values source="values: Iterable<int32>" type=Iterable<int32>
+/// @resolution.name source=Iterable target=iter.iterator.Iterable
+
+function feed(output: Array<int32>, values: [int32]): void {
+/// @type.symbol symbol=feed type=(int32[], Slice<int32>) => void
+/// @type.symbol symbol=feed.output source="output: Array<int32>" type=int32[]
+/// @resolution.name source=Array target=collections.array.Array
+/// @type.symbol symbol=feed.values source="values: [int32]" type=Slice<int32>
+
+    output.push(1, ...[2, 3], 4);
+    /// @resolution.name source=output target=feed.output
+    /// @resolution.member source=output.push receiver=int32[] type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=collections.array.push
+    /// @resolution.call source="output.push(1, ...[2, 3], 4)" parameters=(int32[]) arguments=(rest(1, ...[2, 3], 4) pack=collections.array.arrayFromSlice as int32) return=isize kind=symbol target=collections.array.push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance=Array<int32>.<extension#5>.push
+    /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=output root=feed.output
+    /// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)
+    /// @resolution.call source=[2, 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(2, 3) as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
+    /// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
+
+    consume([...values]);
+    /// @resolution.name source=consume target=consume
+    /// @resolution.call source=consume([...values]) parameters=(Iterable<int32>) arguments=(provided([...values]) as Iterable<int32>) return=void kind=symbol target=consume
+    /// @resolution.call source=[...values] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
+    /// @resolution.name source=values target=feed.values
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=values root=feed.values
+
+}
+"#,
+        "",
+    );
+}

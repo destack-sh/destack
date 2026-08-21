@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 
-use crate::sema::{CheckId, CheckState, ExpectedType, Origin, Relation, TypeBound, Widening};
+use crate::sema::{CheckId, CheckState, ExpectedType, Origin, Relation, TypeBound};
 
 /// Rendering context for check trace values.
 pub(in crate::sema) struct DumpContext<'a, 'b> {
@@ -84,17 +84,6 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             .map(|bound| self.type_label(bound.ty))
             .collect::<Vec<_>>()
             .join(", ")
-    }
-
-    /// Return a compact widening policy label.
-    pub(in crate::sema) fn widening_label(&self, widening: Widening) -> &'static str {
-        match widening {
-            Widening::Never => "never",
-            Widening::Aggregate => "aggregate",
-            Widening::Multiple => "multiple",
-            Widening::Always => "always",
-            Widening::Const => "const",
-        }
     }
 
     /// Return one variable's origin label.

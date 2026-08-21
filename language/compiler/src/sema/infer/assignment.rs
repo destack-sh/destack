@@ -57,7 +57,7 @@ impl BodyState<'_, '_> {
                 Relation::Assignable,
                 cause,
                 ValueUse::Store,
-                InferMode::Exact,
+                InferMode::Regular,
             )?;
             let value = check.source;
             self.commit_assign_pattern_place(site.origin(), left_node, place)?;
@@ -162,7 +162,7 @@ impl BodyState<'_, '_> {
             Relation::Assignable,
             cause,
             ValueUse::Store,
-            InferMode::Exact,
+            InferMode::Regular,
         )?;
         if matches!(check.outcome, CheckOutcome::Fails(_)) {
             return self.reject_assignment_expression(node, left_node);

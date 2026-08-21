@@ -409,13 +409,13 @@ impl CheckState<'_> {
             // template patterns split the actual text into span captures
             (
                 dir::Type::Operation(operation),
-                dir::Type::Literal(dir::ScalarLiteral::String(_))
+                dir::Type::Literal(dir::Literal::String(_))
                 | dir::Type::Key(dir::StaticKey::Name(_)),
             ) if let dir::TypeOperation::TemplateLiteral(template) =
                 self.type_operation(pattern_module, operation)? =>
             {
                 let text = match actual_type {
-                    dir::Type::Literal(dir::ScalarLiteral::String(text))
+                    dir::Type::Literal(dir::Literal::String(text))
                     | dir::Type::Key(dir::StaticKey::Name(text)) => {
                         self.strings().get(text).to_string()
                     }

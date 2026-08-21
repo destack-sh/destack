@@ -7,7 +7,7 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::sema::{
     CandidateOutcome, CheckState, ExtensionCoherenceObligation, ImplementationCoherenceObligation,
-    InterfaceConformanceObligation, Origin, Relation, VariableRole, Widening,
+    InterfaceConformanceObligation, Origin, Relation, VariableRole,
 };
 
 impl CheckState<'_> {
@@ -98,6 +98,7 @@ impl CheckState<'_> {
                 .collect(),
             None => Vec::new(),
         };
+
         // keep each applied interface root once
         for interface in conformances {
             if let Some((_, instance)) = self.nominal_application_maybe(interface)?
@@ -128,14 +129,10 @@ impl CheckState<'_> {
         };
 
         self.body().probe_candidate(|state| {
-            // ask the most general application: every argument opens fresh,
-            //  which the memo canonicalizes into holes
+            // ask the most general application, opening every argument fresh
             let mut arguments = SmallVec::<[dir::GlobalTypeId; 4]>::new();
             for _ in 0..count {
-                let variable =
-                    state
-                        .check
-                        .allocate_variable(origin, Widening::Never, VariableRole::Regular);
+                let variable = state.check.allocate_variable(origin, VariableRole::Regular);
                 arguments.push(state.intern_type(dir::Type::Variable(variable))?);
             }
 

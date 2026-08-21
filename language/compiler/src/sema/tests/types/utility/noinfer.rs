@@ -60,7 +60,7 @@ ok satisfies "red" | "blue";
 }
 
 #[test]
-fn test_noinfer_never_binds_open_outer_inference() {
+fn test_noinfer_rejects_a_mismatched_argument_for_an_open_parameter() {
     let session = TestSession::single(
         r#"
 declare function choose<C: string>(values: C[], fallback: NoInfer<C>): C;
@@ -135,7 +135,7 @@ const reds: "red"[] = values;
 }
 
 #[test]
-fn test_noinfer_composite_targets_verify_once_closed() {
+fn test_noinfer_rejects_a_mismatched_element_in_an_array_argument() {
     let session = TestSession::single(
         r#"
 declare function keep<C: string>(values: C[], extras: NoInfer<C[]>): C;
@@ -204,7 +204,7 @@ const reds: "red"[] = values;
 /// @resolution.access source=values root=values
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '\"green\"' is not assignable to parameter of type '\"red\"'"
+/// @diagnostic.error id=not-assignable message="type '\"green\"' is not assignable to type '\"red\"'"
 /// @diagnostic.label line=6 column=28 span="\"green\"" line_source="const kept = keep(values, [\"green\"]);"
 /// @diagnostic.related line=6 column=14 span="keep(values, [\"green\"])" line_source="const kept = keep(values, [\"green\"]);" message="in this call"
 /// @diagnostic.note message="the mismatch is in element 0"
@@ -229,7 +229,7 @@ const value = first((1, "text"));
 === annotated ===
 declare function first<T, U = string>(value: (T, NoInfer<U>)): T;
 
-const value: float64 = first<float64, string>((1, "text"));
+const value: int64 = first<int64, string>((1, "text"));
 
 === dir ===
 declare function first<T, U = string>(value: (T, NoInfer<U>)): T;
@@ -244,14 +244,14 @@ declare function first<T, U = string>(value: (T, NoInfer<U>)): T;
 /// @resolution.name source=T target=first.T
 
 const value = first((1, "text"));
-/// @type.symbol symbol=value source=value type=float64
+/// @type.symbol symbol=value source=value type=int64
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=first target=first
-/// @resolution.call source="first((1, \"text\"))" parameters=((float64, string)) arguments=(provided((1, "text")) as (float64, string)) return=float64 kind=symbol target=first instance="first<float64, string>"
-/// @generic.instantiation id="first<float64, string>" template=first arguments=(float64, string)
+/// @resolution.call source="first((1, \"text\"))" parameters=((int64, string)) arguments=(provided((1, "text")) as (int64, string)) return=int64 kind=symbol target=first instance="first<int64, string>"
+/// @generic.instantiation id="first<int64, string>" template=first arguments=(int64, string)
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'NoInfer<string>' is not assignable to parameter of type 'string'"
+/// @diagnostic.error id=not-assignable message="type 'NoInfer<string>' is not assignable to type 'string'"
 /// @diagnostic.label line=4 column=25 span="\"text\"" line_source="const value = first((1, \"text\"));"
 /// @diagnostic.related line=4 column=15 span="first((1, \"text\"))" line_source="const value = first((1, \"text\"));" message="in this call"
 /// @diagnostic.note message="the mismatch is in element 1"

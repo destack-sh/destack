@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 
 use crate::sema::{
     Cause, CauseKind, Check, CheckState, Expectation, FlowSite, FlowState, NodeCheck, Origin,
-    Relation, RelationCheck, ValueUse, VariableRole, Widening,
+    Relation, RelationCheck, ValueUse, VariableRole,
 };
 use crate::{CheckError, CompilerError, CompilerResult};
 
@@ -72,6 +72,14 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.imposes_requirements = false;
 
         self
+    }
+
+    /// Return the symbol one declaration node of the walked module declares.
+    pub(in crate::sema) fn declared_symbol(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Option<dir::GlobalSymbolId> {
+        self.check.module(self.module).declaration_symbol(node)
     }
 
     /// Return flow state for the active module.
@@ -222,7 +230,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             kind: dir::MemoryParameter::Lifetime,
             constraint,
         };
-        let lifetime = self.open_type_hole(source, Widening::Never, role)?;
+        let lifetime = self.open_type_hole(source, role)?;
         let Some(variable) = self.check.root_variable(lifetime)? else {
             return Ok(lifetime);
         };
@@ -241,7 +249,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let constraint = self.memory_parameter_constraint(kind)?;
         let role = VariableRole::Memory { kind, constraint };
 
-        self.open_type_hole(source, Widening::Never, role)
+        self.open_type_hole(source, role)
     }
 
     /// Return one memory-domain constraint type.
@@ -310,14 +318,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
     pub(in crate::sema) fn open_type_hole(
         &mut self,
         source: dir::LocalNodeIdAny,
-        widening: Widening,
         role: VariableRole,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let origin = Origin::Node(
             source.into_global(self.module),
             self.flow().template_scope(),
         );
-        let variable = self.check.allocate_variable(origin, widening, role);
+        let variable = self.check.allocate_variable(origin, role);
 
         self.check.variable_type(variable)
     }
@@ -379,11 +386,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
         // local variables use body-owned binding types
         else if self.check.symbol_kind(symbol)?.is_binding() {
-            self.binding_type_slot(symbol, Widening::Never)?
+            self.binding_type_slot(symbol)?
         }
         // local declarations use stable declaration types
         else {
-            self.declaration_type_slot(symbol, Widening::Never)?
+            self.declaration_type_slot(symbol)?
         };
 
         Ok(ty)
@@ -413,7 +420,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
     pub(in crate::sema) fn declaration_type_slot(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        widening: Widening,
     ) -> CompilerResult<dir::GlobalTypeId> {
         if let Some(ty) = self.check.declaration_type_maybe(symbol) {
             return Ok(ty);
@@ -421,9 +427,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // infer declaration types when recursive and forward references need a slot
         let origin = Origin::Symbol(symbol);
-        let variable = self
-            .check
-            .allocate_variable(origin, widening, VariableRole::Regular);
+        let variable = self.check.allocate_variable(origin, VariableRole::Regular);
         let ty = self.check.variable_type(variable)?;
         self.check.commit_declaration_type(symbol, ty)?;
 
@@ -434,16 +438,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
     pub(in crate::sema) fn binding_type_slot(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        widening: Widening,
     ) -> CompilerResult<dir::GlobalTypeId> {
         if let Some(ty) = self.check.binding_type_maybe(symbol) {
             return Ok(ty);
         }
 
         let origin = Origin::Symbol(symbol);
-        let variable = self
-            .check
-            .allocate_variable(origin, widening, VariableRole::Regular);
+        let variable = self.check.allocate_variable(origin, VariableRole::Regular);
         let ty = self.check.variable_type(variable)?;
         let space = {
             let bindings = self.check.module(symbol.module_id).binding_table();

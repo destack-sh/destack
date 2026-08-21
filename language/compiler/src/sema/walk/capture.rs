@@ -29,7 +29,7 @@ impl CheckState<'_> {
             return Ok(Some(receiver.receiver));
         }
 
-        // do not inherit declaration receivers into function bodies
+        // stop declaration receivers at the function boundary
         if self.flow.current_function().is_some() {
             return Ok(None);
         }
@@ -55,7 +55,7 @@ impl CheckState<'_> {
             return;
         };
 
-        // ignore references that do not cross into an outer function
+        // keep references crossing into an outer function
         if !self.is_captured_symbol_reference(symbol, function) {
             return;
         }
@@ -65,7 +65,7 @@ impl CheckState<'_> {
         self.module_mut(source.module_id).flows.record_binding_use(
             source.local_id,
             symbol,
-            dir::BindingUse::CAPTURED,
+            dir::BindingUse::CAPTURE,
         );
     }
 

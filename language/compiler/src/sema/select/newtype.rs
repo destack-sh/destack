@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Answer, BodyState, CallableArgument, Callee, CandidateOutcome, CandidateVerdict, CheckState,
-    Expectation, Origin, Selected, SignatureMatch, SignatureRejection, SignatureSelection,
-    TypeSubstitution, ValueUse,
+    Answer, BodyState, CallableArgument, Callee, CandidateOutcome, CheckState, Expectation, Origin,
+    Selected, SignatureMatch, SignatureRejection, SignatureSelection, TypeSubstitution, ValueUse,
+    Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -211,9 +211,9 @@ impl BodyState<'_, '_> {
             )?;
             match verdict {
                 // keep a rejected alternative's description for the report
-                CandidateVerdict::Rejected => notes.extend(rejection),
+                Verdict::Fails => notes.extend(rejection),
                 // a second viable alternative makes an unambiguous ask ambiguous
-                CandidateVerdict::Viable => {
+                Verdict::Holds => {
                     if overload == NewtypeOverload::Unambiguous && selected_candidate.is_some() {
                         return Ok(NewtypeMatch::Rejected(NewtypeRejection::Ambiguous));
                     }
@@ -224,7 +224,7 @@ impl BodyState<'_, '_> {
                     }
                 }
                 // an undecided alternative settles ordered asks and blocks unambiguous ones
-                CandidateVerdict::Indeterminate => {
+                Verdict::Ambiguous => {
                     if overload == NewtypeOverload::Unambiguous {
                         return Ok(NewtypeMatch::Rejected(NewtypeRejection::Ambiguous));
                     }

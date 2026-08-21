@@ -163,3 +163,69 @@ interface Serialize<S: Serializer> {
 "#,
     );
 }
+
+/// Anchor the induced template of a signature member on the signature's own scope.
+#[test]
+fn test_anchor_a_signature_member_template_on_its_own_scope() {
+    let session = TestSession::single(
+        r#"
+export newtype interface Table<T, Context> {
+    (name: string, body?: (value: &readonly T, context: &Context) => void): void;
+    (name: string, options: int32, body?: (value: &readonly T, context: &Context) => void): void;
+    readonly skip: Table<T, Context>;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+export newtype interface Table<out T, in out Context> {
+    (name: string, body?: (value: &'a readonly T, context: &'b Context) => void): void;
+    (
+        name: string,
+        options: int32,
+        body?: (value: &'a readonly T, context: &'b Context) => void,
+    ): void;
+    readonly skip: Table<T, Context>;
+}
+
+=== dir ===
+export newtype interface Table<T, Context> {
+/// @generic.template symbol=Table parameters=(out T, in out Context)
+/// @type.symbol symbol=Table type=Table
+/// @definition.interface symbol=Table template=(out T, in out Context) nominal=true
+/// @definition.where symbol=Table relation=satisfies left=this right=Table<T, Context>
+/// @definition.field symbol=Table.skip source="readonly skip: Table<T, Context>" key=skip type=Table<T, Context>
+/// @definition.signature kind=call source="(name: string, body?: (value: &readonly T, context: &Context) => void): void" type=Function<(string, Function<(&type_expression.'a readonly T, &type_expression.'b Context), void> | undefined?), void>
+/// @definition.signature kind=call type=Function<(string, int32, Function<(&type_expression.'a readonly T, &type_expression.'b Context), void> | undefined?), void>
+/// @type.symbol symbol=Table.T source=T type=T
+/// @type.symbol symbol=Table.Context source=Context type=Context
+
+    (name: string, body?: (value: &readonly T, context: &Context) => void): void;
+    /// @type.symbol symbol=Table.name#1 source="name: string" type=string
+    /// @type.symbol symbol=Table.body#1 source="body?: (value: &readonly T, context: &Context) => void" type=Function<(&type_expression.'a readonly T, &type_expression.'b Context), void> | undefined
+    /// @generic.template source=type_expression parent=template#2 parameters=('a, 'b)
+    /// @type.symbol symbol=Table.value#1 source="value: &readonly T" type=&type_expression.'a readonly T
+    /// @resolution.name source=T target=Table.T
+    /// @type.symbol symbol=Table.context#1 source="context: &Context" type=&type_expression.'b Context
+    /// @resolution.name source=Context target=Table.Context
+
+    (name: string, options: int32, body?: (value: &readonly T, context: &Context) => void): void;
+    /// @type.symbol symbol=Table.name#2 source="name: string" type=string
+    /// @type.symbol symbol=Table.options source="options: int32" type=int32
+    /// @type.symbol symbol=Table.body#2 source="body?: (value: &readonly T, context: &Context) => void" type=Function<(&type_expression.'a readonly T, &type_expression.'b Context), void> | undefined
+    /// @generic.template source=type_expression parent=template#4 parameters=('a, 'b)
+    /// @type.symbol symbol=Table.value#2 source="value: &readonly T" type=&type_expression.'a readonly T
+    /// @resolution.name source=T target=Table.T
+    /// @type.symbol symbol=Table.context#2 source="context: &Context" type=&type_expression.'b Context
+    /// @resolution.name source=Context target=Table.Context
+
+    readonly skip: Table<T, Context>;
+    /// @type.symbol symbol=Table.skip source="readonly skip: Table<T, Context>" type=Table<T, Context>
+    /// @resolution.name source=Table target=Table
+    /// @resolution.name source=T target=Table.T
+    /// @resolution.name source=Context target=Table.Context
+
+}
+"#, r#""#);
+}

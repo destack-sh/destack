@@ -249,8 +249,8 @@ impl BodyState<'_, '_> {
                 return self.runtime_predicate(origin, value, refined.base);
             }
             dir::Type::Never => dir::PredicateCondition::Never,
-            dir::Type::Null => dir::PredicateCondition::Literal(dir::ScalarLiteral::Null),
-            dir::Type::Undefined => dir::PredicateCondition::Literal(dir::ScalarLiteral::Undefined),
+            dir::Type::Null => dir::PredicateCondition::Literal(dir::Literal::Null),
+            dir::Type::Undefined => dir::PredicateCondition::Literal(dir::Literal::Undefined),
             dir::Type::Primitive(primitive) => dir::PredicateCondition::Primitive(primitive),
             dir::Type::Literal(literal) => dir::PredicateCondition::Literal(literal),
             dir::Type::Variant(_) => dir::PredicateCondition::Type(target),
@@ -338,11 +338,9 @@ impl BodyState<'_, '_> {
             return Ok(None);
         }
 
-        match self.ty(value)? {
-            // unions can still test their known runtime arms
-            dir::Type::Union(union) => {
-                let elements: SmallVec<[_; 8]> =
-                    self.type_ids(value.module_id, union.elements)?.into();
+        match self.union_leaves(origin, value)? {
+            // unions can still test their known runtime arms, expanded to their leaves
+            Some(elements) => {
                 let mut alternatives = Vec::with_capacity(elements.len());
                 for element in elements {
                     // build no predicate for an undecided arm
@@ -377,8 +375,8 @@ impl BodyState<'_, '_> {
                 Ok(Some(predicate))
             }
 
-            // plain values either satisfy the target statically or never can
-            _ => {
+            // plain values decide the target statically
+            None => {
                 let condition =
                     match self.evaluate_relation(origin, Relation::Satisfies, value, target)? {
                         Verdict::Holds => dir::PredicateCondition::Always,

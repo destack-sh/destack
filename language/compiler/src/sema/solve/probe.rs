@@ -1,7 +1,8 @@
 use destack_dir as dir;
 
 use crate::sema::{
-    BodyState, Check, CheckEvent, CheckId, CheckOutcome, CheckState, Settle, TrailMark, WorkState,
+    BodyState, Check, CheckEvent, CheckId, CheckOutcome, CheckState, Settle, TrailMark, Verdict,
+    WorkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -20,17 +21,6 @@ enum CandidateAttempt<T, R> {
     Outcome(CandidateOutcome<T, R>),
     /// One constraint solved during the attempt failed, rejecting the candidate.
     Failed,
-}
-
-/// Verdict of one winnowed candidate.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::sema) enum CandidateVerdict {
-    /// The candidate applies.
-    Viable,
-    /// Probe-local inference leaves the candidate open.
-    Indeterminate,
-    /// The candidate is refused.
-    Rejected,
 }
 
 /// Check state mark before one probe.
@@ -86,9 +76,24 @@ impl BodyState<'_, '_> {
     pub(in crate::sema) fn probe_candidate<T, R>(
         &mut self,
         mut attempt: impl FnMut(&mut Self) -> CompilerResult<CandidateOutcome<T, R>>,
-    ) -> CompilerResult<CandidateVerdict> {
+    ) -> CompilerResult<Verdict> {
         let mark = self.check.open_probe();
-        let outcome = self.attempt_candidate(&mark, false, &mut attempt);
+        let outcome = self.attempt_candidate(&mark, &mut attempt);
+
+        self.check.finish_probe(mark, outcome)
+    }
+
+    /// Probe one candidate under a rollback, fulfilling its constraints first.
+    ///
+    /// The fulfillment also steps pending work queued before the probe, and the rollback keeps
+    /// that work completed, so only a caller that confirms the winner afterwards may probe
+    /// this way.
+    pub(in crate::sema) fn probe_candidate_fulfilling<T, R>(
+        &mut self,
+        mut attempt: impl FnMut(&mut Self) -> CompilerResult<CandidateOutcome<T, R>>,
+    ) -> CompilerResult<Verdict> {
+        let mark = self.check.open_probe();
+        let outcome = self.evaluate_candidate(&mark, &mut attempt);
 
         self.check.finish_probe(mark, outcome)
     }
@@ -100,7 +105,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Option<R>> {
         // pull the deduced value out before the rollback consumes the outcome
         let mark = self.check.open_probe();
-        let outcome = self.attempt_candidate(&mark, false, &mut attempt);
+        let outcome = self.attempt_candidate(&mark, &mut attempt);
         let (outcome, deduced): (CompilerResult<CandidateAttempt<(), ()>>, Option<R>) =
             match outcome {
                 Ok(CandidateAttempt::Outcome(CandidateOutcome::Rejected(deduced))) => (
@@ -123,46 +128,63 @@ impl BodyState<'_, '_> {
     fn attempt_candidate<T, R>(
         &mut self,
         mark: &ProbeMark,
-        fulfill: bool,
         attempt: &mut impl FnMut(&mut Self) -> CompilerResult<CandidateOutcome<T, R>>,
     ) -> CompilerResult<CandidateAttempt<T, R>> {
         let outcome = attempt(self)?;
 
-        // solve the attempt's queued relation checks before the verdict
-        let mut has_failed_relation = false;
-        if fulfill {
-            // fulfill the candidate's own scope to a fixpoint
-            let scope = mark.trail.inference_scope();
-            self.check.fulfill_scope(scope, Settle::Complete)?;
+        Ok(self.judge_attempt(mark, outcome, false))
+    }
 
-            // re-solve the stalled pending set alongside fresh allocations
-            let mut relations: Vec<CheckId> = Vec::new();
-            for (id, check) in self.check.fulfill.checks.iter() {
-                let is_open = self.check.fulfill.checks.state(id) != WorkState::Done;
-                if is_open && matches!(check, Check::Relation(_)) {
-                    relations.push(id);
-                }
+    /// Run one candidate attempt and fulfill the relations it queued to a fixpoint, rejecting
+    /// it on failed constraints.
+    fn evaluate_candidate<T, R>(
+        &mut self,
+        mark: &ProbeMark,
+        attempt: &mut impl FnMut(&mut Self) -> CompilerResult<CandidateOutcome<T, R>>,
+    ) -> CompilerResult<CandidateAttempt<T, R>> {
+        let outcome = attempt(self)?;
+
+        // fulfill the candidate's own scope to a fixpoint
+        let scope = mark.trail.inference_scope();
+        self.check.fulfill_scope(scope, Settle::Complete)?;
+
+        // re-solve the stalled pending set alongside fresh allocations
+        let mut relations: Vec<CheckId> = Vec::new();
+        for (id, check) in self.check.fulfill.checks.iter() {
+            let is_open = self.check.fulfill.checks.state(id) != WorkState::Done;
+            if is_open && matches!(check, Check::Relation(_)) {
+                relations.push(id);
             }
-            for (id, check) in self
-                .check
-                .fulfill
-                .checks
-                .iter()
-                .skip(mark.trail.check_count())
-            {
-                if matches!(check, Check::Relation(_)) && !relations.contains(&id) {
-                    relations.push(id);
-                }
+        }
+        for (id, check) in self
+            .check
+            .fulfill
+            .checks
+            .iter()
+            .skip(mark.trail.check_count())
+        {
+            if matches!(check, Check::Relation(_)) && !relations.contains(&id) {
+                relations.push(id);
             }
-            for id in relations {
-                self.check.solve_relation(id, Settle::Complete)?;
-                if let Some(outcome) = self.check.fulfill.checks.result(id)? {
-                    has_failed_relation |= matches!(outcome, CheckOutcome::Fails(_));
-                }
+        }
+        let mut has_failed_relation = false;
+        for id in relations {
+            self.check.solve_relation(id, Settle::Complete)?;
+            if let Some(outcome) = self.check.fulfill.checks.result(id)? {
+                has_failed_relation |= matches!(outcome, CheckOutcome::Fails(_));
             }
         }
 
-        // reject the attempt when a relation check it solved failed
+        Ok(self.judge_attempt(mark, outcome, has_failed_relation))
+    }
+
+    /// Reject one attempt whose solved relation checks failed.
+    fn judge_attempt<T, R>(
+        &self,
+        mark: &ProbeMark,
+        outcome: CandidateOutcome<T, R>,
+        has_failed_relation: bool,
+    ) -> CandidateAttempt<T, R> {
         let has_failure = self
             .check
             .fulfill
@@ -173,9 +195,9 @@ impl BodyState<'_, '_> {
             || self.check.fulfill.failures.len() > mark.failures;
 
         if has_failure || has_failed_relation {
-            Ok(CandidateAttempt::Failed)
+            CandidateAttempt::Failed
         } else {
-            Ok(CandidateAttempt::Outcome(outcome))
+            CandidateAttempt::Outcome(outcome)
         }
     }
 
@@ -184,10 +206,10 @@ impl BodyState<'_, '_> {
         &mut self,
         mut attempt: impl FnMut(&mut Self) -> CompilerResult<CandidateOutcome<T, R>>,
         describe: impl FnOnce(&mut Self, &R) -> CompilerResult<String>,
-    ) -> CompilerResult<(CandidateVerdict, Option<String>)> {
+    ) -> CompilerResult<(Verdict, Option<String>)> {
         self.check.counters.selection_probes += 1;
         let mark = self.check.open_probe();
-        let outcome = self.attempt_candidate(&mark, true, &mut attempt);
+        let outcome = self.evaluate_candidate(&mark, &mut attempt);
 
         // describe the rejection before the rollback drops its state
         let note = match &outcome {
@@ -207,7 +229,7 @@ impl BodyState<'_, '_> {
         mut attempt: impl FnMut(&mut Self) -> CompilerResult<CandidateOutcome<T, R>>,
     ) -> CompilerResult<Option<T>> {
         let mark = self.check.open_probe();
-        let outcome = match self.attempt_candidate(&mark, false, &mut attempt) {
+        let outcome = match self.attempt_candidate(&mark, &mut attempt) {
             Ok(CandidateAttempt::Outcome(outcome)) => outcome,
             Ok(CandidateAttempt::Failed) => {
                 self.check.reject_probe(mark)?;
@@ -230,7 +252,7 @@ impl CheckState<'_> {
     pub(in crate::sema) fn probe_candidate<T, R>(
         &mut self,
         mut attempt: impl FnMut(&mut Self) -> CompilerResult<CandidateOutcome<T, R>>,
-    ) -> CompilerResult<CandidateVerdict> {
+    ) -> CompilerResult<Verdict> {
         let mark = self.open_probe();
         let outcome = attempt(self).map(CandidateAttempt::Outcome);
 
@@ -241,7 +263,7 @@ impl CheckState<'_> {
     pub(in crate::sema) fn probe_relation(
         &mut self,
         attempt: impl FnOnce(&mut Self) -> CompilerResult<bool>,
-    ) -> CompilerResult<CandidateVerdict> {
+    ) -> CompilerResult<Verdict> {
         self.counters.probes += 1;
         self.record_event(CheckEvent::ProbeStarted {
             variables: self.infer.variable_count(),
@@ -274,10 +296,10 @@ impl CheckState<'_> {
             self.infer.rollback(trail, poison, &mut self.fulfill)?;
             self.fulfill.failures.truncate(failures);
             self.record_event(CheckEvent::ProbeFinished {
-                verdict: Some(CandidateVerdict::Rejected),
+                verdict: Some(Verdict::Fails),
             });
 
-            return Ok(CandidateVerdict::Rejected);
+            return Ok(Verdict::Fails);
         }
 
         // keep the judgment indeterminate while its variables stay open
@@ -285,8 +307,8 @@ impl CheckState<'_> {
             .open_scope_variables(trail.inference_scope())?
             .is_empty()
         {
-            true => CandidateVerdict::Viable,
-            false => CandidateVerdict::Indeterminate,
+            true => Verdict::Holds,
+            false => Verdict::Ambiguous,
         };
         self.infer.commit(trail);
         self.record_event(CheckEvent::ProbeFinished {
@@ -323,7 +345,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<T>> {
         let verdict = match &outcome {
             CandidateOutcome::Accepted(_) => self.accepted_verdict(&mark),
-            CandidateOutcome::Rejected(_) => Ok(CandidateVerdict::Rejected),
+            CandidateOutcome::Rejected(_) => Ok(Verdict::Fails),
         };
         let verdict = match verdict {
             Ok(verdict) => verdict,
@@ -336,7 +358,7 @@ impl CheckState<'_> {
 
         // commit complete candidates and provisional children
         match verdict {
-            CandidateVerdict::Viable | CandidateVerdict::Indeterminate => {
+            Verdict::Holds | Verdict::Ambiguous => {
                 let CandidateOutcome::Accepted(selected) = outcome else {
                     self.end_probe(mark)?;
 
@@ -351,7 +373,7 @@ impl CheckState<'_> {
 
                 Ok(Some(selected))
             }
-            CandidateVerdict::Rejected => {
+            Verdict::Fails => {
                 self.reject_probe(mark)?;
 
                 Ok(None)
@@ -360,13 +382,13 @@ impl CheckState<'_> {
     }
 
     /// Close one probe whose solved constraints failed.
-    fn reject_probe(&mut self, mark: ProbeMark) -> CompilerResult<CandidateVerdict> {
+    fn reject_probe(&mut self, mark: ProbeMark) -> CompilerResult<Verdict> {
         self.record_event(CheckEvent::ProbeFinished {
-            verdict: Some(CandidateVerdict::Rejected),
+            verdict: Some(Verdict::Fails),
         });
         self.end_probe(mark)?;
 
-        Ok(CandidateVerdict::Rejected)
+        Ok(Verdict::Fails)
     }
 
     /// Map one attempted outcome onto its verdict, rolling the probe back.
@@ -374,13 +396,13 @@ impl CheckState<'_> {
         &mut self,
         mark: ProbeMark,
         outcome: CompilerResult<CandidateAttempt<T, R>>,
-    ) -> CompilerResult<CandidateVerdict> {
+    ) -> CompilerResult<Verdict> {
         let verdict = match outcome {
             Ok(CandidateAttempt::Outcome(CandidateOutcome::Accepted(_))) => {
                 self.accepted_verdict(&mark)
             }
             Ok(CandidateAttempt::Outcome(CandidateOutcome::Rejected(_)))
-            | Ok(CandidateAttempt::Failed) => Ok(CandidateVerdict::Rejected),
+            | Ok(CandidateAttempt::Failed) => Ok(Verdict::Fails),
             Err(error) => Err(error),
         };
         let verdict = match verdict {
@@ -401,7 +423,7 @@ impl CheckState<'_> {
     }
 
     /// Return the verdict of one accepted candidate's probe.
-    fn accepted_verdict(&mut self, mark: &ProbeMark) -> CompilerResult<CandidateVerdict> {
+    fn accepted_verdict(&mut self, mark: &ProbeMark) -> CompilerResult<Verdict> {
         let scope = mark.trail.inference_scope();
         let has_failure = self
             .fulfill
@@ -411,15 +433,15 @@ impl CheckState<'_> {
             .is_some()
             || self.fulfill.failures.len() > mark.failures;
         if has_failure {
-            return Ok(CandidateVerdict::Rejected);
+            return Ok(Verdict::Fails);
         }
 
         // keep the candidate indeterminate while its variables stay open
         if !self.open_scope_variables(scope)?.is_empty() {
-            return Ok(CandidateVerdict::Indeterminate);
+            return Ok(Verdict::Ambiguous);
         }
 
-        Ok(CandidateVerdict::Viable)
+        Ok(Verdict::Holds)
     }
 
     /// Begin one probe, recording its start event.

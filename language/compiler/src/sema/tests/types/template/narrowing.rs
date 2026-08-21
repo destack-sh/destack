@@ -165,6 +165,7 @@ const route: Route = "api:users";
 const section = match (route) {
 /// @type.symbol symbol=section source=section type="users" | "posts"
 /// @resolution.pattern source=section kind=binding target=section
+/// @resolution.coverage exhaustive=true disjoint=true
 /// @resolution.name source=route target=route
 /// @resolution.place source=route placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=route root=route

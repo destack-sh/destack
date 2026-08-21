@@ -261,14 +261,15 @@ const callback: (value: int32) => int32 | undefined = (value) => value + 1;
         DirRows::checked(),
         r#"
 === annotated ===
-const callback: (arg0: int32) => int32 | undefined = (value: int32): int32 => value + 1;
+const callback: (arg0: int32) => int32 | undefined = (value: int32): int32 | undefined =>
+    (value + 1) as int32 | undefined;
 
 === dir ===
 const callback: (value: int32) => int32 | undefined = (value) => value + 1;
 /// @type.symbol symbol=callback source=callback type=Function<(int32,), int32 | undefined>
 /// @resolution.pattern source=callback kind=binding target=callback
 /// @type.symbol symbol=value source="value: int32" type=int32
-/// @type.symbol symbol=symbol1 source="(value) => value + 1" type=Function<(int32,), int32>
+/// @type.symbol symbol=symbol1 source="(value) => value + 1" type=Function<(int32,), int32 | undefined>
 /// @type.symbol symbol=symbol1.value source=value type=int32
 /// @resolution.name source=value target=symbol1.value
 /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]

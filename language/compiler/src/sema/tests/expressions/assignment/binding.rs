@@ -155,22 +155,22 @@ value = 2;
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-let value: float64 = 1;
+let value: int64 = 1;
 value = 2;
 
 === dir ===
 let value = 1;
-/// @type.symbol symbol=value source=value type=float64
+/// @type.symbol symbol=value source=value type=int64
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 
 value = 2;
 /// @type.node source="value = 2" type=2
-/// @type.node source=value type=float64
+/// @type.node source=value type=int64
 /// @resolution.name source=value target=value
 /// @resolution.pattern.assign source=value kind=place
 /// @resolution.access source=value root=value
-/// @resolution.assignment source=value write=binding(value) type=float64
+/// @resolution.assignment source=value write=binding(value) type=int64
 /// @type.node source=2 type=2
 "#,
     );
@@ -190,26 +190,26 @@ value = "text";
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-let value: float64 = 1;
+let value: int64 = 1;
 value = "text";
 
 === dir ===
 let value = 1;
-/// @type.symbol symbol=value source=value type=float64
+/// @type.symbol symbol=value source=value type=int64
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 
 value = "text";
 /// @type.node source="value = \"text\"" type="text"
-/// @type.node source=value type=float64
+/// @type.node source=value type=int64
 /// @resolution.name source=value target=value
 /// @resolution.pattern.assign source=value kind=place
 /// @resolution.access source=value root=value
-/// @resolution.assignment source=value write=binding(value) type=float64
+/// @resolution.assignment source=value write=binding(value) type=int64
 /// @type.node source="\"text\"" type="text"
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"text\"' is not assignable to type 'float64'"
+/// @diagnostic.error id=not-assignable message="type '\"text\"' is not assignable to type 'int64'"
 /// @diagnostic.label line=3 column=9 span="\"text\"" line_source="value = \"text\";"
 /// @diagnostic.related line=3 column=1 span="value" line_source="value = \"text\";" message="expected due to the type of this target"
 "#,

@@ -120,10 +120,10 @@ function read<T>(state: State<T>): T {
     /// @type.node source="\"ready\"" type="ready"
 
         return state.value;
-        /// @type.node source=state type=Ready<T#4>
+        /// @type.node source=state type=State<T#4> & Ready<T#4>
         /// @type.node source=state.value type=T#4
         /// @resolution.name source=state target=read.state
-        /// @resolution.member source=state.value receiver=Ready<T#4> type=T#4 kind=field target_receiver=Ready<T#4> key=value target=Ready.value target_type=T#4
+        /// @resolution.member source=state.value receiver=State<T#4> & Ready<T#4> type=T#4 kind=field target_receiver=State<T#4> & Ready<T#4> adjustments=(newtype.payload(State, Pending<T#4> | Ready<T#4>), union.payload(Pending<T#4> | Ready<T#4>, Ready<T#4>, Ready<T#4>)) key=value target=Ready.value target_type=T#4
         /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=state root=read.state
         /// @resolution.place source=state.value placement="local" lifetime="frame" access="exclusive"
@@ -132,10 +132,10 @@ function read<T>(state: State<T>): T {
     }
 
     return state.waiting;
-    /// @type.node source=state type=Pending<T#4>
+    /// @type.node source=state type=State<T#4> & Pending<T#4>
     /// @type.node source=state.waiting type=T#4
     /// @resolution.name source=state target=read.state
-    /// @resolution.member source=state.waiting receiver=Pending<T#4> type=T#4 kind=field target_receiver=Pending<T#4> key=waiting target=Pending.waiting target_type=T#4
+    /// @resolution.member source=state.waiting receiver=State<T#4> & Pending<T#4> type=T#4 kind=field target_receiver=State<T#4> & Pending<T#4> adjustments=(newtype.payload(State, Pending<T#4> | Ready<T#4>), union.payload(Pending<T#4> | Ready<T#4>, Pending<T#4>, Pending<T#4>)) key=waiting target=Pending.waiting target_type=T#4
     /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state root=read.state
     /// @resolution.place source=state.waiting placement="local" lifetime="frame" access="exclusive"
@@ -220,10 +220,10 @@ function read<T>(state: State<T>): T {
     /// @type.node source="\"ready\"" type="ready"
 
         return state.value;
-        /// @type.node source=state type=state.Ready<T>
+        /// @type.node source=state type=state.State<T> & state.Ready<T>
         /// @type.node source=state.value type=T
         /// @resolution.name source=state target=read.state
-        /// @resolution.member source=state.value receiver=state.Ready<T> type=T kind=field target_receiver=state.Ready<T> key=value target=state.Ready.value target_type=T
+        /// @resolution.member source=state.value receiver=state.State<T> & state.Ready<T> type=T kind=field target_receiver=state.State<T> & state.Ready<T> adjustments=(newtype.payload(state.State, state.Pending<T> | state.Ready<T>), union.payload(state.Pending<T> | state.Ready<T>, state.Ready<T>, state.Ready<T>)) key=value target=state.Ready.value target_type=T
         /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=state root=read.state
         /// @resolution.place source=state.value placement="local" lifetime="frame" access="exclusive"
@@ -232,10 +232,10 @@ function read<T>(state: State<T>): T {
     }
 
     return state.waiting;
-    /// @type.node source=state type=state.Pending<T>
+    /// @type.node source=state type=state.State<T> & state.Pending<T>
     /// @type.node source=state.waiting type=T
     /// @resolution.name source=state target=read.state
-    /// @resolution.member source=state.waiting receiver=state.Pending<T> type=T kind=field target_receiver=state.Pending<T> key=waiting target=state.Pending.waiting target_type=T
+    /// @resolution.member source=state.waiting receiver=state.State<T> & state.Pending<T> type=T kind=field target_receiver=state.State<T> & state.Pending<T> adjustments=(newtype.payload(state.State, state.Pending<T> | state.Ready<T>), union.payload(state.Pending<T> | state.Ready<T>, state.Pending<T>, state.Pending<T>)) key=waiting target=state.Pending.waiting target_type=T
     /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state root=read.state
     /// @resolution.place source=state.waiting placement="local" lifetime="frame" access="exclusive"
@@ -1657,8 +1657,8 @@ newtype State = Pending | Ready;
 
 function read<'a>(state: &'a readonly State): int32 {
     if (
-        (state.kind as readonly "pending" | readonly "ready" | "ready") ===
-        ("ready" as readonly "pending" | readonly "ready" | "ready")
+        (state.kind as readonly "pending" | readonly "ready" | "ready")
+            === ("ready" as readonly "pending" | readonly "ready" | "ready")
     ) {
         return state.value;
     }
@@ -1723,10 +1723,10 @@ function read(state: &readonly State): int32 {
     /// @type.node source="\"ready\"" type="ready"
 
         return state.value;
-        /// @type.node source=state type=&read.'a readonly Ready
+        /// @type.node source=state type=&read.'a readonly State & Ready
         /// @type.node source=state.value type=int32
         /// @resolution.name source=state target=read.state
-        /// @resolution.member source=state.value receiver=&read.'a readonly Ready type=int32 kind=field target_receiver=&read.'a readonly Ready key=value target=Ready.value target_type=int32
+        /// @resolution.member source=state.value receiver=&read.'a readonly State & Ready type=int32 kind=field target_receiver=&read.'a readonly State & Ready adjustments=(newtype.payload(State, &read.'a readonly Pending | Ready), union.payload(Pending | Ready, Ready, &read.'a readonly Ready)) key=value target=Ready.value target_type=int32
         /// @resolution.place source=state placement="local" lifetime=read.'a access="readonly"
         /// @resolution.access source=state root=read.state
         /// @resolution.place source=state.value placement="local" lifetime=read.'a access="readonly"
@@ -1735,10 +1735,10 @@ function read(state: &readonly State): int32 {
     }
 
     return state.waiting;
-    /// @type.node source=state type=&read.'a readonly Pending
+    /// @type.node source=state type=&read.'a readonly State & Pending
     /// @type.node source=state.waiting type=int32
     /// @resolution.name source=state target=read.state
-    /// @resolution.member source=state.waiting receiver=&read.'a readonly Pending type=int32 kind=field target_receiver=&read.'a readonly Pending key=waiting target=Pending.waiting target_type=int32
+    /// @resolution.member source=state.waiting receiver=&read.'a readonly State & Pending type=int32 kind=field target_receiver=&read.'a readonly State & Pending adjustments=(newtype.payload(State, &read.'a readonly Pending | Ready), union.payload(Pending | Ready, Pending, &read.'a readonly Pending)) key=waiting target=Pending.waiting target_type=int32
     /// @resolution.place source=state placement="local" lifetime=read.'a access="readonly"
     /// @resolution.access source=state root=read.state
     /// @resolution.place source=state.waiting placement="local" lifetime=read.'a access="readonly"
@@ -2109,10 +2109,10 @@ function read(state: State): int32 {
     /// @type.node source="\"ready\"" type="ready"
 
         return state.waiting;
-        /// @type.node source=state type=Pending
+        /// @type.node source=state type=State & Pending
         /// @type.node source=state.waiting type=int32
         /// @resolution.name source=state target=read.state
-        /// @resolution.member source=state.waiting receiver=Pending type=int32 kind=field target_receiver=Pending key=waiting target=Pending.waiting target_type=int32
+        /// @resolution.member source=state.waiting receiver=State & Pending type=int32 kind=field target_receiver=State & Pending adjustments=(newtype.payload(State, Pending | Ready), union.payload(Pending | Ready, Pending, Pending)) key=waiting target=Pending.waiting target_type=int32
         /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=state root=read.state
         /// @resolution.place source=state.waiting placement="local" lifetime="frame" access="exclusive"
@@ -2121,10 +2121,10 @@ function read(state: State): int32 {
     }
 
     return state.value;
-    /// @type.node source=state type=Ready
+    /// @type.node source=state type=State & Ready
     /// @type.node source=state.value type=int32
     /// @resolution.name source=state target=read.state
-    /// @resolution.member source=state.value receiver=Ready type=int32 kind=field target_receiver=Ready key=value target=Ready.value target_type=int32
+    /// @resolution.member source=state.value receiver=State & Ready type=int32 kind=field target_receiver=State & Ready adjustments=(newtype.payload(State, Pending | Ready), union.payload(Pending | Ready, Ready, Ready)) key=value target=Ready.value target_type=int32
     /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state root=read.state
     /// @resolution.place source=state.value placement="local" lifetime="frame" access="exclusive"
@@ -2240,10 +2240,10 @@ function read(state: State): int32 {
     /// @type.node source="\"ready\"" type="ready"
 
         return state.value;
-        /// @type.node source=state type=Ready
+        /// @type.node source=state type=State & Ready
         /// @type.node source=state.value type=int32
         /// @resolution.name source=state target=read.state
-        /// @resolution.member source=state.value receiver=Ready type=int32 kind=field target_receiver=Ready key=value target=Ready.value target_type=int32
+        /// @resolution.member source=state.value receiver=State & Ready type=int32 kind=field target_receiver=State & Ready adjustments=(newtype.payload(State, Pending | Ready), union.payload(Pending | Ready, Ready, Ready)) key=value target=Ready.value target_type=int32
         /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=state root=read.state
         /// @resolution.place source=state.value placement="local" lifetime="frame" access="exclusive"
@@ -2252,10 +2252,10 @@ function read(state: State): int32 {
     }
 
     return state.waiting;
-    /// @type.node source=state type=Pending
+    /// @type.node source=state type=State & Pending
     /// @type.node source=state.waiting type=int32
     /// @resolution.name source=state target=read.state
-    /// @resolution.member source=state.waiting receiver=Pending type=int32 kind=field target_receiver=Pending key=waiting target=Pending.waiting target_type=int32
+    /// @resolution.member source=state.waiting receiver=State & Pending type=int32 kind=field target_receiver=State & Pending adjustments=(newtype.payload(State, Pending | Ready), union.payload(Pending | Ready, Pending, Pending)) key=waiting target=Pending.waiting target_type=int32
     /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state root=read.state
     /// @resolution.place source=state.waiting placement="local" lifetime="frame" access="exclusive"
@@ -2308,8 +2308,8 @@ type State = Pending | Ready;
 
 function read<'a>(state: &'a readonly State): int32 {
     if (
-        (state.kind as readonly "pending" | readonly "ready" | "ready") ===
-        ("ready" as readonly "pending" | readonly "ready" | "ready")
+        (state.kind as readonly "pending" | readonly "ready" | "ready")
+            === ("ready" as readonly "pending" | readonly "ready" | "ready")
     ) {
         return state.value;
     }
@@ -2523,4 +2523,126 @@ function read(state: State): int32 {
 
 }
 "#);
+}
+
+#[test]
+fn test_read_a_field_of_the_arm_a_borrowed_newtype_keeps_after_a_kind_check() {
+    let session = TestSession::single(
+        r#"
+struct Circle {
+    kind: "circle" = "circle";
+    radius: float64;
+}
+
+struct Square {
+    kind: "square" = "square";
+    side: float64;
+}
+
+newtype Shape = Circle | Square;
+
+function radius(shape: &readonly Shape): float64 {
+    if (shape.kind !== "circle") {
+        return 0.0;
+    }
+
+    return shape.radius;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Circle {
+    kind: "circle" = "circle";
+    radius: float64;
+}
+
+struct Square {
+    kind: "square" = "square";
+    side: float64;
+}
+
+newtype Shape = Circle | Square;
+
+function radius<'a>(shape: &'a readonly Shape): float64 {
+    if (
+        (shape.kind as readonly "circle" | readonly "square" | "circle")
+            !== ("circle" as readonly "circle" | readonly "square" | "circle")
+    ) {
+        return 0.0;
+    }
+
+    return shape.radius;
+}
+
+=== dir ===
+struct Circle {
+/// @type.symbol symbol=Circle type=Circle
+/// @definition.struct symbol=Circle
+/// @definition.field symbol=Circle.kind source="kind: \"circle\" = \"circle\"" key=kind type="circle"
+/// @definition.field symbol=Circle.radius source="radius: float64" key=radius type=float64
+
+    kind: "circle" = "circle";
+    /// @type.symbol symbol=Circle.kind source="kind: \"circle\" = \"circle\"" type="circle"
+
+    radius: float64;
+    /// @type.symbol symbol=Circle.radius source="radius: float64" type=float64
+
+}
+
+struct Square {
+/// @type.symbol symbol=Square type=Square
+/// @definition.struct symbol=Square
+/// @definition.field symbol=Square.kind source="kind: \"square\" = \"square\"" key=kind type="square"
+/// @definition.field symbol=Square.side source="side: float64" key=side type=float64
+
+    kind: "square" = "square";
+    /// @type.symbol symbol=Square.kind source="kind: \"square\" = \"square\"" type="square"
+
+    side: float64;
+    /// @type.symbol symbol=Square.side source="side: float64" type=float64
+
+}
+
+newtype Shape = Circle | Square;
+/// @type.symbol symbol=Shape source="newtype Shape = Circle | Square" type=Shape
+/// @definition.newtype symbol=Shape source="newtype Shape = Circle | Square" backing=Circle | Square constructors=[(Circle) => Shape, (Square) => Shape, (Circle | Square) => Shape]
+/// @resolution.name source=Circle target=Circle
+/// @resolution.name source=Square target=Square
+
+function radius(shape: &readonly Shape): float64 {
+/// @generic.template symbol=radius parameters=('a)
+/// @type.symbol symbol=radius type=<radius.'a>(&radius.'a readonly Shape) => float64
+/// @type.symbol symbol=radius.shape source="shape: &readonly Shape" type=&radius.'a readonly Shape
+/// @resolution.name source=Shape target=Shape
+
+    if (shape.kind !== "circle") {
+    /// @resolution.name source=shape target=radius.shape
+    /// @resolution.member source=shape.kind receiver=&radius.'a readonly Shape type=Readonly<"circle"> | Readonly<"square"> kind=projection target="discriminant(Circle | Square, kind, cases=[Circle: circle, Square: square], Readonly<\"circle\"> | Readonly<\"square\">)" adjustments=(newtype.payload(Shape, &radius.'a readonly Circle | Square))
+    /// @resolution.operator source="shape.kind !== \"circle\"" type=boolean operator="!==" kind=builtin operands=[shape.kind as Readonly<"circle"> | Readonly<"square"> | "circle", "circle" as Readonly<"circle"> | Readonly<"square"> | "circle"]
+    /// @resolution.place source=shape placement="local" lifetime=radius.'a access="readonly"
+    /// @resolution.access source=shape root=radius.shape
+    /// @resolution.place source=shape.kind placement="local" lifetime=radius.'a access="readonly"
+    /// @resolution.access source=shape.kind root=radius.shape keys=[kind]
+
+        return 0.0;
+    }
+
+    return shape.radius;
+    /// @resolution.name source=shape target=radius.shape
+    /// @resolution.member source=shape.radius receiver=&radius.'a readonly Shape & Circle type=float64 kind=field target_receiver=&radius.'a readonly Shape & Circle adjustments=(newtype.payload(Shape, &radius.'a readonly Circle | Square), union.payload(Circle | Square, Circle, &radius.'a readonly Circle)) key=radius target=Circle.radius target_type=float64
+    /// @resolution.place source=shape placement="local" lifetime=radius.'a access="readonly"
+    /// @resolution.access source=shape root=radius.shape
+    /// @resolution.place source=shape.radius placement="local" lifetime=radius.'a access="readonly"
+    /// @resolution.access source=shape.radius root=radius.shape keys=[radius]
+
+}
+"#,
+        r#"
+"#,
+    );
 }

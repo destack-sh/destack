@@ -548,7 +548,7 @@ impl CheckState<'_> {
                     lower: SmallVec::new(),
                     upper: SmallVec::new(),
                     default: None,
-                    widening: self.infer.variable(root)?.widening,
+                    kind: self.infer.variable(root)?.kind,
                     role,
                 });
 
@@ -586,7 +586,7 @@ impl CheckState<'_> {
                 lower,
                 upper,
                 default,
-                widening: self.infer.variable(root)?.widening,
+                kind: self.infer.variable(root)?.kind,
                 role,
             });
         }

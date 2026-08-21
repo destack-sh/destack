@@ -127,7 +127,7 @@ impl CheckState<'_> {
         let mut live_holes: SmallVec<[dir::TypeVariableId; 4]> =
             SmallVec::from_slice(&canonical.holes);
         for hole in &response.holes {
-            live_holes.push(self.allocate_variable(origin, hole.widening, hole.role));
+            live_holes.push(self.allocate_variable_of(origin, hole.kind, hole.role));
         }
 
         // complete each reopened hole with its recorded default

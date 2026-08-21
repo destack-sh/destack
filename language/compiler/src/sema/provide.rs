@@ -478,17 +478,7 @@ impl Compiler {
                                 .or_default()
                                 .push(symbol);
                         }
-                        None => {
-                            let target = extension.target.r#type();
-                            match types.get_type_maybe(target.local_id) {
-                                Some(dir::Type::Primitive(primitive)) => environment
-                                    .extensions_by_primitive
-                                    .entry(primitive)
-                                    .or_default()
-                                    .push(symbol),
-                                _ => environment.blanket_extensions.push(symbol),
-                            }
-                        }
+                        None => environment.blanket_extensions.push(symbol),
                     }
                 }
 

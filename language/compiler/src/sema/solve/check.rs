@@ -477,7 +477,7 @@ pub(in crate::sema) struct FailedCheck {
     pub(in crate::sema) target: dir::GlobalTypeId,
     /// The failure reason.
     pub(in crate::sema) failure: CheckFailure,
-    /// Whether an open variable was load-bearing when the check judged.
+    /// Whether the check judged over open variables, so its failure is re-judged once they close.
     pub(in crate::sema) is_provisional: bool,
 }
 
@@ -507,6 +507,8 @@ pub(in crate::sema) enum CheckFailure {
         /// The required writable index signature.
         signature: dir::TypeIndexSignature,
     },
+    /// An inner site reported the failure, so the outer check stays silent.
+    Reported,
 }
 
 /// Result of checking one source against one target.
@@ -525,6 +527,8 @@ pub(in crate::sema) enum CheckOutcome {
 pub(in crate::sema) struct ValueCheck {
     /// The checked source type at its flow site.
     pub(in crate::sema) source: dir::GlobalTypeId,
+    /// The type a slot stores for the value: the source as converted.
+    pub(in crate::sema) stored: dir::GlobalTypeId,
     /// Whether value checking held.
     pub(in crate::sema) outcome: CheckOutcome,
     /// The concrete contextual target.
@@ -540,6 +544,8 @@ pub(in crate::sema) struct Value {
     pub(in crate::sema) node: Option<dir::GlobalNodeIdAny>,
     /// The storage designated by the source expression.
     pub(in crate::sema) place: Option<dir::PlaceResolution>,
+    /// Whether the value is a literal fresh from its expression, still open to widening.
+    pub(in crate::sema) is_fresh: bool,
 }
 
 /// Result of converting one checked value to its expected type.
@@ -547,6 +553,8 @@ pub(in crate::sema) struct Value {
 pub(in crate::sema) struct ValueConversion {
     /// Whether the conversion held.
     pub(in crate::sema) outcome: CheckOutcome,
+    /// The source type as converted, a widened literal taking its inference variable.
+    pub(in crate::sema) source: dir::GlobalTypeId,
     /// The concrete target used after inference completed.
     pub(in crate::sema) target: dir::GlobalTypeId,
     /// The required runtime coercion.

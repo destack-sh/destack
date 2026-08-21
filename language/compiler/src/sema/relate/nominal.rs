@@ -87,7 +87,7 @@ impl CheckState<'_> {
                 .transpose()?
                 .flatten()
                 .and_then(dir::AutoInterface::from_language_item)
-                .filter(|interface| interface.is_intrinsic())
+                .filter(|interface| interface.has_builtin_implementation())
             {
                 return self.satisfies_auto_interface(origin, source, interface);
             }
@@ -101,6 +101,37 @@ impl CheckState<'_> {
             {
                 return self.relate_interface(origin, cause, relation, source, target);
             }
+        }
+
+        // intersection targets require every element under the same relation
+        if let dir::Type::Intersection(intersection) = self.ty(target)? {
+            let elements: SmallVec<[_; 8]> = self
+                .type_ids(target.module_id, intersection.elements)?
+                .into();
+
+            return self.relate_all_targets(origin, cause, relation, source, &elements);
+        }
+
+        // intersection sources satisfy through any element
+        if let dir::Type::Intersection(intersection) = self.ty(source)? {
+            let elements: SmallVec<[_; 8]> = self
+                .type_ids(source.module_id, intersection.elements)?
+                .into();
+
+            return self.relate_any_source(origin, cause, relation, &elements, target);
+        }
+
+        // generic parameters prove relations through their bounds, then their form
+        if let dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) = self.ty(source)? {
+            let decision = self
+                .relate_parameter_bounds(origin, cause, relation, parameter, target)?
+                .or_else(|| self.relate_into_union(origin, cause, relation, source, target))?;
+            if decision == Verdict::Holds {
+                return Ok(Verdict::Holds);
+            }
+            let formed = self.constrain_form_assignable(origin, cause, relation, source, target)?;
+
+            return Ok(formed.unwrap_or(decision));
         }
 
         // memory forms decide like closed form assignability
@@ -133,14 +164,6 @@ impl CheckState<'_> {
             return self.constrain_type(origin, cause, relation, member.owner, target);
         }
 
-        // generic parameters prove relations through their active bounds
-        if let dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) = self.ty(source)? {
-            let decision =
-                self.relate_parameter_bounds(origin, cause, relation, parameter, target)?;
-
-            return self.relate_union_membership(origin, cause, relation, decision, source, target);
-        }
-
         // union sources must satisfy the target through every element
         if let dir::Type::Union(union) = self.ty(source)? {
             let elements: SmallVec<[_; 8]> =
@@ -167,7 +190,7 @@ impl CheckState<'_> {
                 let dir::DefinitionMember::EnumVariant(variant) = member else {
                     continue;
                 };
-                if dir::ScalarLiteral::from(variant.value) == literal {
+                if dir::Literal::from(variant.value) == literal {
                     return Ok(Verdict::Holds);
                 }
             }
@@ -185,24 +208,6 @@ impl CheckState<'_> {
             if verdict != Verdict::Fails {
                 return Ok(verdict);
             }
-        }
-
-        // intersection targets require every element under the same relation
-        if let dir::Type::Intersection(intersection) = self.ty(target)? {
-            let elements: SmallVec<[_; 8]> = self
-                .type_ids(target.module_id, intersection.elements)?
-                .into();
-
-            return self.relate_all_targets(origin, cause, relation, source, &elements);
-        }
-
-        // intersection sources satisfy through any element
-        if let dir::Type::Intersection(intersection) = self.ty(source)? {
-            let elements: SmallVec<[_; 8]> = self
-                .type_ids(source.module_id, intersection.elements)?
-                .into();
-
-            return self.relate_any_source(origin, cause, relation, &elements, target);
         }
 
         // read the nominal application the target names, if any
@@ -248,9 +253,8 @@ impl CheckState<'_> {
                 }
 
                 // everything else decides through assignability
-                let assignable = self.relate_assignable(origin, cause, relation, source, target)?;
-
-                self.relate_union_membership(origin, cause, relation, assignable, source, target)
+                self.relate_assignable(origin, cause, relation, source, target)?
+                    .or_else(|| self.relate_into_union(origin, cause, relation, source, target))
             }
         }
     }

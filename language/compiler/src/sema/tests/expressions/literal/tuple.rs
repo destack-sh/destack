@@ -16,15 +16,15 @@ let value = (1, "two", true);
             ,
         r#"
 === annotated ===
-let value: (float64, string, boolean) = (1, "two", true);
+let value: (int64, string, boolean) = (1, "two", true);
 
 === dir ===
 let value = (1, "two", true);
-/// @type.symbol symbol=value source=value type=(float64, string, boolean)
+/// @type.symbol symbol=value source=value type=(int64, string, boolean)
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source=(1, "two", true) type=(float64, string, boolean)
+/// @type.node source=(1, "two", true) type=(int64, string, boolean)
 /// @type.node source=1 type=1
-/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: float64 }] origin=implicit
+/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int64 }] origin=implicit
 /// @type.node source="\"two\"" type="two"
 /// @coercion.node source="\"two\"" from="two" adjustments=[{ kind: widen, target: string }] origin=implicit
 /// @type.node source=true type=true
@@ -74,13 +74,13 @@ const value = (1, "two", true);
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const value: (float64, string, boolean) = (1, "two", true);
+const value: (int64, string, boolean) = (1, "two", true);
 
 === dir ===
 const value = (1, "two", true);
-/// @type.symbol symbol=value source=value type=(float64, string, boolean)
+/// @type.symbol symbol=value source=value type=(int64, string, boolean)
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source=(1, "two", true) type=(float64, string, boolean)
+/// @type.node source=(1, "two", true) type=(int64, string, boolean)
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 /// @type.node source=true type=true
@@ -101,15 +101,15 @@ const value = (1, (2, 3));
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const value: (float64, (float64, float64)) = (1, (2, 3));
+const value: (int64, (int64, int64)) = (1, (2, 3));
 
 === dir ===
 const value = (1, (2, 3));
-/// @type.symbol symbol=value source=value type=(float64, (float64, float64))
+/// @type.symbol symbol=value source=value type=(int64, (int64, int64))
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source=(1, (2, 3)) type=(float64, (float64, float64))
+/// @type.node source=(1, (2, 3)) type=(int64, (int64, int64))
 /// @type.node source=1 type=1
-/// @type.node source=(2, 3) type=(float64, float64)
+/// @type.node source=(2, 3) type=(int64, int64)
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 "#,

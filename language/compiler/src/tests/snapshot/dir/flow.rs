@@ -75,14 +75,17 @@ fn binding_use_label(binding_use: dir::BindingUse) -> String {
     if binding_use.contains(dir::BindingUse::READ) {
         labels.push("read");
     }
-    if binding_use.contains(dir::BindingUse::WRITTEN) {
+    if binding_use.contains(dir::BindingUse::WRITE) {
         labels.push("written");
     }
-    if binding_use.contains(dir::BindingUse::CAPTURED) {
+    if binding_use.contains(dir::BindingUse::CAPTURE) {
         labels.push("captured");
     }
-    if binding_use.contains(dir::BindingUse::MUTABLE) {
+    if binding_use.contains(dir::BindingUse::MUTATE) {
         labels.push("mutable");
+    }
+    if binding_use.contains(dir::BindingUse::EXCLUSIVE) {
+        labels.push("exclusive");
     }
 
     labels.join("+")

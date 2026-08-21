@@ -3,10 +3,10 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, CallableArgument, CandidateVerdict, CheckFailure, CheckOutcome, Expectation,
-    FlowSite, NewtypeMatch, NewtypeOverload, NewtypeRejection, NewtypeSignature, Origin, PlaceUse,
-    SignatureFamily, SignatureMatch, SignatureRejection, SignatureSelection, TypeArgumentInference,
-    TypeSubstitution, ValueCheck, ValueUse,
+    BodyState, CallableArgument, CheckFailure, CheckOutcome, Expectation, FlowSite, NewtypeMatch,
+    NewtypeOverload, NewtypeRejection, NewtypeSignature, Origin, PlaceUse, SignatureFamily,
+    SignatureMatch, SignatureRejection, SignatureSelection, TypeArgumentInference,
+    TypeSubstitution, ValueCheck, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -419,8 +419,8 @@ impl BodyState<'_, '_> {
                 },
             )?;
             match verdict {
-                CandidateVerdict::Rejected => rejections.extend(rejection),
-                CandidateVerdict::Viable | CandidateVerdict::Indeterminate => {
+                Verdict::Fails => rejections.extend(rejection),
+                Verdict::Holds | Verdict::Ambiguous => {
                     selected = Some(constructor);
 
                     break;
@@ -487,6 +487,7 @@ impl BodyState<'_, '_> {
         }
 
         rejections.truncate(4);
+
         self.reject_construct(site, node, origin, argument_nodes, &rejections)
     }
 
@@ -605,8 +606,7 @@ impl BodyState<'_, '_> {
         };
         let return_type = function.return_type;
 
-        // infer omitted class arguments while testing this constructor,
-        //  while induced-only templates admit through their defaults below
+        // infer omitted class arguments while testing this constructor
         let template = self.symbol_template(instance.symbol)?;
         let infers_arguments = match template {
             Some(template) if instance.arguments.is_empty() => {
@@ -700,6 +700,7 @@ impl BodyState<'_, '_> {
 
                     return Ok(ValueCheck {
                         source,
+                        stored: source,
                         outcome: CheckOutcome::Fails(CheckFailure::Relation),
                         target,
                     });
@@ -711,6 +712,7 @@ impl BodyState<'_, '_> {
 
                     return Ok(ValueCheck {
                         source,
+                        stored: source,
                         outcome: CheckOutcome::Fails(CheckFailure::Relation),
                         target,
                     });
@@ -775,6 +777,7 @@ impl BodyState<'_, '_> {
 
         Ok(ValueCheck {
             source: signature.return_type,
+            stored: signature.return_type,
             outcome,
             target: expected,
         })
@@ -885,8 +888,8 @@ impl BodyState<'_, '_> {
                 },
             )?;
             match verdict {
-                CandidateVerdict::Rejected => rejections.extend(rejection),
-                CandidateVerdict::Viable | CandidateVerdict::Indeterminate => {
+                Verdict::Fails => rejections.extend(rejection),
+                Verdict::Holds | Verdict::Ambiguous => {
                     selected = Some(signature);
 
                     break;
@@ -1062,8 +1065,8 @@ impl BodyState<'_, '_> {
                 },
             )?;
             match verdict {
-                CandidateVerdict::Rejected => rejections.extend(rejection),
-                CandidateVerdict::Viable | CandidateVerdict::Indeterminate => {
+                Verdict::Fails => rejections.extend(rejection),
+                Verdict::Holds | Verdict::Ambiguous => {
                     selected = Some(constructor);
 
                     break;
@@ -1111,6 +1114,7 @@ impl BodyState<'_, '_> {
 
         // reject the super call when no base constructor accepts the arguments
         rejections.truncate(4);
+
         self.reject_construct(site, node, origin, argument_nodes, &rejections)?;
 
         self.reject_call(node, None, None)
@@ -1158,6 +1162,7 @@ impl BodyState<'_, '_> {
 
         Ok(ValueCheck {
             source: produced,
+            stored: produced,
             outcome: CheckOutcome::Holds,
             target: produced,
         })
