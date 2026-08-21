@@ -458,7 +458,7 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<Option<SymbolOccurrence>> {
         if !matches!(
             view.get(expression_id),
-            dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_))
+            dir::Expression::Literal(dir::Literal::String(_))
         ) {
             return Ok(None);
         }

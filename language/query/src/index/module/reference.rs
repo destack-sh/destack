@@ -911,7 +911,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
         // retain only static string member keys
         if !matches!(
             self.module.view().get(*index),
-            dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_))
+            dir::Expression::Literal(dir::Literal::String(_))
         ) {
             return Ok(None);
         }

@@ -667,7 +667,7 @@ impl InlineValue {
             text,
             precedence: node.precedence(),
             needs_postfix_group: matches!(node, dir::Expression::ObjectExpression { .. }),
-            is_literal: matches!(node, dir::Expression::ScalarLiteral(_)),
+            is_literal: matches!(node, dir::Expression::Literal(_)),
         })
     }
 }

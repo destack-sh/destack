@@ -164,7 +164,7 @@ impl Formatter<'_, '_, '_> {
     fn template_segment(&self, type_id: dir::GlobalTypeId) -> QueryResult<String> {
         self.program
             .read_type(type_id, |type_value, module| match type_value {
-                dir::Type::Literal(dir::ScalarLiteral::String(string_id)) => {
+                dir::Type::Literal(dir::Literal::String(string_id)) => {
                     Ok(module.strings().get(*string_id).to_string())
                 }
                 dir::Type::Error => Err(QueryError::missing(format!(
