@@ -9,8 +9,8 @@ use super::TokenProbe;
 /// The tokenization mode used for the next parser-visible token.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub(crate) enum TokenMode {
-    /// Use regular language tokenization.
-    Normal,
+    /// Use ordinary language tokenization.
+    Ordinary,
     /// Use tree tag tokenization.
     TreeTag,
     /// Use tree child tokenization.
@@ -31,16 +31,18 @@ struct TokenEdit {
 
 /// An indexed contextual token cursor over one source file.
 pub(crate) struct TokenCursor {
-    /// The source byte length used to synthesize repeated EOF tokens.
-    source_len: u32,
+    /// The parsed source file.
+    file: Arc<File>,
+    /// The active comment retention mode.
+    comment_retention: CommentRetention,
     /// The ordinary semantic tokens in source order.
     tokens: Vec<Token>,
     /// The next ordinary semantic token index.
     index: usize,
     /// The current parser-visible token.
     current: Token,
-    /// Whether the current parser-visible token is unchanged ordinary input.
-    is_current_ordinary: bool,
+    /// Whether the parser produced the current token contextually.
+    is_current_contextual: bool,
     /// The unconsumed suffix of one split compound token.
     split: Option<Token>,
     /// The last consumed parser-visible token.
@@ -63,8 +65,7 @@ pub(crate) struct TokenCursor {
 impl TokenCursor {
     /// Tokenize one file and create a cursor at its first visible token.
     pub(crate) fn new(file: Arc<File>, comment_retention: CommentRetention) -> Self {
-        let source_len = file.len;
-        let mut lexer = Lexer::new(file);
+        let mut lexer = Lexer::new(file.clone());
         lexer.set_comment_retention(comment_retention);
         lexer.lex_to_end();
         let comments = lexer.take_comments();
@@ -74,10 +75,11 @@ impl TokenCursor {
         let consumed = Vec::with_capacity(tokens.len());
 
         Self {
-            source_len,
+            file,
+            comment_retention,
             index: 1,
             current,
-            is_current_ordinary: true,
+            is_current_contextual: false,
             split: None,
             previous: Token::eof(0),
             #[cfg(test)]
@@ -175,23 +177,23 @@ impl TokenCursor {
         token.is(TokenType::Identifier) && file.span_str(token.span(file.id)) == expected
     }
 
-    /// Advance to the next regularly tokenized visible token.
+    /// Advance to the next ordinarily tokenized visible token.
     #[inline(always)]
     pub(crate) fn bump(&mut self) {
         self.consume_current();
-        (self.current, self.is_current_ordinary) = self.read_ordinary();
+        self.read_ordinary();
     }
 
     /// Advance to the next visible token in one lexical mode.
     pub(crate) fn bump_with_mode(&mut self, file: &File, mode: TokenMode) {
-        if mode == TokenMode::Normal {
+        if mode == TokenMode::Ordinary {
             self.bump();
 
             return;
         }
 
         self.consume_current();
-        (self.current, self.is_current_ordinary) = self.read_in_mode(file, mode);
+        self.read_in_mode(file, mode);
     }
 
     /// Record the current token as consumed.
@@ -200,8 +202,8 @@ impl TokenCursor {
         let current = self.current;
 
         // record only parser-visible replacements of ordinary tokenization
-        if !self.is_current_ordinary && !current.is(TokenType::End) {
-            self.record_tree_text_range();
+        if self.is_current_contextual && !current.is(TokenType::End) {
+            self.record_current_contextual_range();
             self.record_edit(current);
         }
 
@@ -237,8 +239,7 @@ impl TokenCursor {
             .with_on_new_line(current.is_on_new_line());
         let remainder_start = current.start() + prefix_len;
         let remainder_len = current.len() - prefix_len;
-        self.current = prefix;
-        self.is_current_ordinary = false;
+        self.set_contextual(prefix);
         self.split = Some(Token::simple(
             remainder_type,
             remainder_start,
@@ -290,28 +291,25 @@ impl TokenCursor {
             }),
         )
         .with_on_new_line(current.is_on_new_line());
-        self.current = token;
-        self.is_current_ordinary = false;
-        self.split = None;
-        self.skip_ordinary_tokens_before(end);
-        self.record_contextual_range(token);
+        self.set_contextual(token);
 
         token
     }
 
-    /// Record comment coverage for one contextual tree-text token.
-    fn record_tree_text_range(&mut self) {
+    /// Record comment coverage for the current contextual literal.
+    fn record_current_contextual_range(&mut self) {
         let current = self.current;
-        let is_tree_text = current.is(TokenType::Literal)
+        let covers_comments = current.is(TokenType::Literal)
             && matches!(
                 current.literal(),
-                Some(TokenLiteral::TreeString)
+                Some(TokenLiteral::RegexString { .. })
+                    | Some(TokenLiteral::TreeString)
                     | Some(TokenLiteral::Character {
                         is_html_entity: true,
                         ..
                     })
             );
-        if is_tree_text {
+        if covers_comments {
             self.record_contextual_range(current);
         }
     }
@@ -319,7 +317,7 @@ impl TokenCursor {
     /// Finish and return the parser-visible semantic token stream.
     pub(crate) fn take_tokens(&mut self) -> Vec<Token> {
         // retain the current contextual token and every pending split suffix
-        if !self.is_current_ordinary && !self.current.is(TokenType::End) {
+        if self.is_current_contextual && !self.current.is(TokenType::End) {
             self.record_edit(self.current);
         }
         if let Some(split) = self.split.take() {
@@ -327,7 +325,7 @@ impl TokenCursor {
         }
 
         // remove contextual comments and materialize sparse token replacements
-        self.record_tree_text_range();
+        self.record_current_contextual_range();
         self.remove_contextual_comments();
 
         self.materialize_tokens()
@@ -346,49 +344,120 @@ impl TokenCursor {
     }
 
     /// Read one visible token in one tokenization mode.
-    fn read_in_mode(&mut self, file: &File, mode: TokenMode) -> (Token, bool) {
+    fn read_in_mode(&mut self, file: &File, mode: TokenMode) {
         let ordinary = self.split.unwrap_or_else(|| self.peek_ordinary());
         let start = ordinary.start();
         let is_on_new_line = ordinary.is_on_new_line();
         let token = match mode {
-            TokenMode::Normal => return self.read_ordinary(),
-            TokenMode::TreeTag => {
-                self.split = None;
-                Tokenizer::tree_tag_token(file, start, is_on_new_line)
-            }
-            TokenMode::TreeChild => {
-                self.split = None;
-                Tokenizer::tree_child_token(file, self.previous_end, false)
-            }
+            TokenMode::Ordinary => return self.read_ordinary(),
+            TokenMode::TreeTag => Tokenizer::tree_tag_token(file, start, is_on_new_line),
+            TokenMode::TreeChild => Tokenizer::tree_child_token(file, self.previous_end, false),
             TokenMode::TreeAttributeValue => {
                 let Some(token) =
                     Tokenizer::tree_attribute_value_token(file, start, is_on_new_line)
                 else {
                     return self.read_ordinary();
                 };
-                self.split = None;
 
                 token
             }
         };
-        self.skip_ordinary_tokens_before(token.end());
 
-        (token, false)
+        self.set_contextual(token);
     }
 
     /// Read the next ordinary token or a pending split suffix.
     #[inline(always)]
-    fn read_ordinary(&mut self) -> (Token, bool) {
+    fn read_ordinary(&mut self) {
         if let Some(split) = self.split.take() {
-            return (split, false);
+            self.current = split;
+            self.is_current_contextual = true;
+
+            return;
         }
 
-        let token = self.peek_ordinary();
+        self.current = self.peek_ordinary();
+        self.is_current_contextual = false;
         if self.index < self.tokens.len() {
             self.index += 1;
         }
+    }
 
-        (token, true)
+    /// Install one contextual token and skip the ordinary tokens it replaces.
+    fn set_contextual(&mut self, token: Token) {
+        self.current = token;
+        self.is_current_contextual = true;
+        self.split = None;
+        self.skip_ordinary_tokens_before(token.end());
+        self.retokenize_masked_comment_suffix(token);
+    }
+
+    /// Retokenize an ordinary suffix when contextual text masks a comment opener.
+    fn retokenize_masked_comment_suffix(&mut self, token: Token) {
+        if !self.masks_comment_suffix(token) {
+            return;
+        }
+
+        // lex through the first unaffected ordinary token
+        let synchronization = self.peek_ordinary();
+        let lexer = Lexer::resume(self.file.clone(), token, self.comment_retention);
+        let (tokens, comments) = lexer.lex_through(synchronization.start());
+        debug_assert_eq!(
+            tokens.last().map(|token| token.start()),
+            Some(synchronization.start()),
+            "contextual retokenization must reach the ordinary token stream"
+        );
+
+        // replace the damaged ordinary interval and its comments
+        self.tokens.splice(self.index..self.index + 1, tokens);
+        let comment_start = self
+            .comments
+            .partition_point(|comment| comment.span.end <= token.start());
+        let comment_end = self
+            .comments
+            .partition_point(|comment| comment.span.start < synchronization.end());
+        self.comments.splice(comment_start..comment_end, comments);
+    }
+
+    /// Return whether one contextual token starts a comment that ends beyond it.
+    fn masks_comment_suffix(&self, token: Token) -> bool {
+        let text = self.file.span_str(token.span(self.file.id));
+        let bytes = text.as_bytes();
+        let mut index = 0;
+
+        // inspect each ordinary comment opener in the contextual range
+        while index + 1 < bytes.len() {
+            if bytes[index] != b'/' {
+                index += 1;
+                continue;
+            }
+
+            // line comments remain contained when the contextual token includes their newline
+            if bytes[index + 1] == b'/' {
+                let suffix = &bytes[index + 2..];
+                let Some(end) = suffix.iter().position(|byte| matches!(byte, b'\n' | b'\r')) else {
+                    return true;
+                };
+
+                index += end + 3;
+                continue;
+            }
+
+            // block comments remain contained when their terminator is inside the token
+            if bytes[index + 1] == b'*' {
+                let suffix = &bytes[index + 2..];
+                let Some(end) = suffix.windows(2).position(|bytes| bytes == b"*/") else {
+                    return true;
+                };
+
+                index += end + 4;
+                continue;
+            }
+
+            index += 1;
+        }
+
+        false
     }
 
     /// Return the next ordinary token without advancing.
@@ -403,7 +472,7 @@ impl TokenCursor {
         self.tokens
             .get(index)
             .copied()
-            .unwrap_or_else(|| Token::eof(self.source_len))
+            .unwrap_or_else(|| Token::eof(self.file.len))
     }
 
     /// Skip ordinary tokens covered by one contextual source range.

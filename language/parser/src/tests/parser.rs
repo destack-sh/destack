@@ -1,6 +1,6 @@
 use destack_dir::{
-    AssignPattern, Block, Expression, LocalNodeId, Node, NodeType, TokenLiteral, TokenType, Tree,
-    TypeExpression,
+    AssignPattern, Block, Expression, LocalNodeId, Node, NodeType, NumberBase, TokenLiteral,
+    TokenType, Tree, TypeExpression,
 };
 use std::sync::Arc;
 
@@ -198,7 +198,7 @@ fn test_take_tokens_materializes_splits() {
 /// Materialize one contextually reclassified regex token after parsing.
 #[test]
 fn test_take_tokens_materializes_regex() {
-    let test = TestParser::new("const pattern = /a+b/g;");
+    let test = TestParser::new("const pattern = /[/*]/g; /** next */ const value = 1;");
     let mut parser = test.prepare();
     parser.parse_in_place();
     let tokens = parser.take_tokens();
@@ -216,19 +216,39 @@ fn test_take_tokens_materializes_regex() {
             (
                 TokenType::Literal,
                 Some(TokenLiteral::RegexString { has_flags: true }),
-                "/a+b/g",
+                "/[/*]/g",
+            ),
+            (TokenType::Semicolon, None, ";"),
+            (TokenType::Identifier, None, "const"),
+            (TokenType::Identifier, None, "value"),
+            (TokenType::Assign, None, "="),
+            (
+                TokenType::Literal,
+                Some(TokenLiteral::Int {
+                    base: NumberBase::Decimal,
+                    is_empty: false,
+                    is_bigint: false,
+                }),
+                "1",
             ),
             (TokenType::Semicolon, None, ";"),
             (TokenType::End, None, ""),
         ]
     );
+    let comments: Vec<_> = parser
+        .comments()
+        .iter()
+        .map(|comment| comment.text(parser.file.text()).into_owned())
+        .collect();
+    assert_eq!(comments, vec![" next"]);
     test.assert_no_errors(&parser);
 }
 
 /// Materialize contextually tokenized tree names and text after parsing.
 #[test]
 fn test_take_tokens_materializes_tree() {
-    let test = TestParser::new("const tree = <panel-name title={value}>hello world</panel-name>;");
+    let test =
+        TestParser::new("const tree = <panel-name title={value}>hello /* world */</panel-name>;");
     let mut parser = test.prepare();
     parser.parse_in_place();
     let tokens = parser.take_tokens();
@@ -256,7 +276,7 @@ fn test_take_tokens_materializes_tree() {
             (
                 TokenType::Literal,
                 Some(TokenLiteral::TreeString),
-                "hello world"
+                "hello /* world */"
             ),
             (TokenType::LessThan, None, "<"),
             (TokenType::Divide, None, "/"),
@@ -268,6 +288,7 @@ fn test_take_tokens_materializes_tree() {
             (TokenType::End, None, ""),
         ]
     );
+    assert!(parser.comments().is_empty());
     test.assert_no_errors(&parser);
 }
 

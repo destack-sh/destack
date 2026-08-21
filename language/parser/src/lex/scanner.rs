@@ -18,17 +18,23 @@ pub(super) struct Scanner {
 }
 
 impl Scanner {
-    /// Create a scanner for one file.
-    pub(super) fn new(file: &File) -> Self {
+    /// Create a scanner at one source byte position.
+    pub(super) fn at(file: &File, position: u32) -> Self {
         let source = file.text();
         let source_pointer = source.as_ptr();
         let source_len = source.len();
+        let position = position as usize;
+        debug_assert!(position <= source_len, "scanner position exceeds source");
+        debug_assert!(
+            source.is_char_boundary(position),
+            "scanner position splits UTF-8"
+        );
 
         Self {
             source: source_pointer,
             source_len,
-            position: 0,
-            token_start: 0,
+            position,
+            token_start: position,
         }
     }
 

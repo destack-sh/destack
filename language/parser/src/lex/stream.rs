@@ -88,25 +88,29 @@ impl Lexer {
         }
 
         loop {
-            let token = self.tokenizer.read_source_token();
-
-            // retain parser-visible tokens
-            if token.is_semantic() {
-                self.push_semantic_token(token);
-
-                // finish at the end of source
-                if token.is(TokenType::End) {
-                    self.eof_token = Some(token);
-
-                    return token;
-                }
-            }
-            // process raw trivia and retained comments
-            else {
-                let has_line_terminator = self.trivia_token_has_line_terminator();
-                self.record_trivia(token, has_line_terminator);
+            if let Some(token) = self.lex_token()
+                && token.is(TokenType::End)
+            {
+                return token;
             }
         }
+    }
+
+    /// Lex through the first semantic token at or after one source position.
+    pub(crate) fn lex_through(mut self, position: u32) -> (Vec<Token>, Vec<Comment>) {
+        // lex through the synchronization token
+        loop {
+            let Some(token) = self.lex_token() else {
+                continue;
+            };
+            if token.start() >= position || token.is(TokenType::End) {
+                break;
+            }
+        }
+
+        let comments = self.comments.take_comments();
+
+        (self.tokens, comments)
     }
 
     /// Return owned semantic token spans and leave the stream empty.
@@ -130,6 +134,27 @@ impl Lexer {
         self.pending_line_terminator_before_next = false;
 
         tokens
+    }
+
+    /// Lex one raw token and return it when parser-visible.
+    fn lex_token(&mut self) -> Option<Token> {
+        let token = self.tokenizer.read_source_token();
+
+        // retain one parser-visible token
+        if token.is_semantic() {
+            self.push_semantic_token(token);
+            if token.is(TokenType::End) {
+                self.eof_token = Some(token);
+            }
+
+            return Some(token);
+        }
+
+        // process raw trivia and retained comments
+        let has_line_terminator = self.trivia_token_has_line_terminator();
+        self.record_trivia(token, has_line_terminator);
+
+        None
     }
 
     /// Retain one semantic token with its leading line state.

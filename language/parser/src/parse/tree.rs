@@ -94,7 +94,7 @@ impl Parser {
         // expression container
         if self.peek_is(TokenType::OpenBrace) {
             let container_start = self.mark_parse_start();
-            self.bump_with_mode(TokenMode::Normal);
+            self.bump_with_mode(TokenMode::Ordinary);
 
             if self.peek_is(TokenType::CloseBrace) {
                 self.bump_with_mode(follow_mode);
@@ -220,7 +220,7 @@ impl Parser {
         // spread expression container
         if self.peek_is(TokenType::OpenBrace) {
             let container_start = self.mark_parse_start();
-            self.bump_with_mode(TokenMode::Normal);
+            self.bump_with_mode(TokenMode::Ordinary);
             if !self.peek_is(TokenType::Spread) {
                 return Err(ParserError::unexpected(self.peek_token_span()));
             }
@@ -253,7 +253,7 @@ impl Parser {
                 // tree expression container: attr={expr}
                 if self.peek_is(TokenType::OpenBrace) {
                     let container_start = self.mark_parse_start();
-                    self.bump_with_mode(TokenMode::Normal);
+                    self.bump_with_mode(TokenMode::Ordinary);
                     let value = self.parse_expression(ExpressionContext {
                         function,
                         ..ExpressionContext::default()
@@ -414,7 +414,7 @@ impl Parser {
         &mut self,
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        self.parse_tree_literal_in_mode(TokenMode::Normal, function)
+        self.parse_tree_literal_in_mode(TokenMode::Ordinary, function)
     }
 
     /// Parse a tree literal and advance in the requested mode after it closes.
@@ -688,14 +688,14 @@ impl Parser {
         &mut self,
         function: FunctionContext,
     ) -> ParserResult<Option<Vec<LocalNodeId<TreeAttribute>>>> {
-        self.skip_tree_whitespace(TokenMode::Normal);
+        self.skip_tree_whitespace(TokenMode::Ordinary);
         if self.peek_is(TokenType::Divide) || self.peek_tree_tag_close() {
             return Ok(None);
         }
 
         let mut attributes = Vec::new();
         while self.has_more_tokens() {
-            self.skip_tree_whitespace(TokenMode::Normal);
+            self.skip_tree_whitespace(TokenMode::Ordinary);
 
             // leave enclosing closing tags for the open tree stack
             if self.peek_tree_literal_close() {
@@ -752,7 +752,7 @@ impl Parser {
             Some(path)
         };
 
-        self.skip_tree_whitespace(TokenMode::Normal);
+        self.skip_tree_whitespace(TokenMode::Ordinary);
         let follow_mode = follow_mode(&path);
         self.eat_tree_tag_close(follow_mode)?;
         let range = self.range_since(&start);

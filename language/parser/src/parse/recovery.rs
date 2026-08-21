@@ -319,7 +319,7 @@ impl Parser {
     fn skip_damaged_tree_attribute(&mut self) {
         // consume a malformed spread container as one attribute
         if self.peek_is(TokenType::OpenBrace) {
-            self.bump_with_mode(TokenMode::Normal);
+            self.bump_with_mode(TokenMode::Ordinary);
             self.skip_damaged_tree_expression(TokenMode::TreeTag);
             return;
         }
@@ -348,7 +348,7 @@ impl Parser {
 
         // consume one delimited or scalar attribute value
         if self.peek_is(TokenType::OpenBrace) {
-            self.bump_with_mode(TokenMode::Normal);
+            self.bump_with_mode(TokenMode::Ordinary);
             self.skip_damaged_tree_expression(TokenMode::TreeTag);
         } else {
             self.bump_with_mode(TokenMode::TreeTag);
@@ -363,7 +363,7 @@ impl Parser {
 
         match self.peek_token_type() {
             TokenType::OpenBrace => {
-                self.bump_with_mode(TokenMode::Normal);
+                self.bump_with_mode(TokenMode::Ordinary);
                 self.skip_damaged_tree_expression(TokenMode::TreeChild);
             }
             TokenType::LessThan => self.skip_damaged_tree_tag(),
@@ -387,7 +387,7 @@ impl Parser {
             match token_type {
                 TokenType::OpenBrace => {
                     depth += 1;
-                    self.bump_with_mode(TokenMode::Normal);
+                    self.bump_with_mode(TokenMode::Ordinary);
                 }
                 TokenType::CloseBrace if depth == 1 => {
                     self.bump_with_mode(follow_mode);
@@ -395,10 +395,10 @@ impl Parser {
                 }
                 TokenType::CloseBrace => {
                     depth -= 1;
-                    self.bump_with_mode(TokenMode::Normal);
+                    self.bump_with_mode(TokenMode::Ordinary);
                 }
                 TokenType::End => return,
-                _ => self.bump_with_mode(TokenMode::Normal),
+                _ => self.bump_with_mode(TokenMode::Ordinary),
             }
         }
     }

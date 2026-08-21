@@ -47,6 +47,27 @@ impl Lexer {
         }
     }
 
+    /// Resume ordinary lexing after one parser-visible token.
+    pub(crate) fn resume(
+        file: Arc<File>,
+        previous: Token,
+        comment_retention: CommentRetention,
+    ) -> Self {
+        // anchor retained comments to the preceding contextual token
+        let mut comments = LexerComments::new();
+        comments.record_token(previous.ty(), previous.start());
+
+        // resume ordinary tokenization at the contextual token boundary
+        Self {
+            tokenizer: Tokenizer::at(file, previous.end()),
+            comments,
+            comment_retention,
+            tokens: Vec::new(),
+            pending_line_terminator_before_next: false,
+            eof_token: None,
+        }
+    }
+
     /// Return whether the most recent trivia token contained a line terminator.
     #[inline]
     pub(super) fn trivia_token_has_line_terminator(&self) -> bool {

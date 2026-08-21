@@ -498,7 +498,7 @@ impl Parser {
     /// Eat one generic argument opening angle and split `<<` when needed.
     fn eat_generic_angle_open(&mut self) -> ParserResult<GenericClose> {
         if self.peek_is(TokenType::LessThan) {
-            self.bump_with_mode(TokenMode::Normal);
+            self.bump_with_mode(TokenMode::Ordinary);
 
             return Ok(GenericClose::Expression);
         }
@@ -511,7 +511,7 @@ impl Parser {
                 ));
             }
 
-            self.bump_with_mode(TokenMode::Normal);
+            self.bump_with_mode(TokenMode::Ordinary);
 
             return Ok(GenericClose::Type);
         }

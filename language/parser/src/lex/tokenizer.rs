@@ -17,7 +17,12 @@ pub(crate) struct Tokenizer {
 impl Tokenizer {
     /// Create a tokenizer at the beginning of one file.
     pub(crate) fn new(file: Arc<File>) -> Self {
-        let scanner = Scanner::new(&file);
+        Self::at(file, 0)
+    }
+
+    /// Create a tokenizer at one source byte position.
+    pub(crate) fn at(file: Arc<File>, position: u32) -> Self {
+        let scanner = Scanner::at(&file, position);
 
         Self {
             file,
