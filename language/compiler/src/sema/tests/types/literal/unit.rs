@@ -90,9 +90,9 @@ const slash: "\\w+" = "\\w+";
         DirRows::checked(),
         r#"
 === annotated ===
-const letter: "A" = "A";
+const letter: "A" = "\u0041";
 const tab: "a\tb" = "a\tb";
-const slash: "\w+" = "\w+";
+const slash: "\\w+" = "\\w+";
 
 === dir ===
 const letter: "A" = "\u0041";
