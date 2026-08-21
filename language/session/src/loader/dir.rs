@@ -3,7 +3,7 @@ use std::sync::Arc;
 use destack_artifact::{
     ArtifactDependencySet, ArtifactPayload, DiagnosticRecord, DirParsed, DirParsedFile,
 };
-use destack_dir::{Expression, ScalarLiteral, Tree};
+use destack_dir::{Expression, Literal, Tree};
 use destack_parser::{CommentRetention, ParseOptions, Parser};
 use destack_repository::{Module, ModuleFile, ProviderContext};
 use destack_source::{File, LanguageType, ModuleId, Span};
@@ -64,7 +64,7 @@ impl SessionState {
     fn make_empty_dir(file: &File, module_id: ModuleId) -> DirParsed {
         let mut tree = Tree::new(module_id);
         let span = Span::empty(file.id);
-        let root_expression = tree.insert(Expression::ScalarLiteral(ScalarLiteral::Null), span);
+        let root_expression = tree.insert(Expression::Literal(Literal::Null), span);
 
         let file = DirParsedFile {
             file_id: file.id,
@@ -99,7 +99,7 @@ impl SessionState {
         // preserve a stable module-level anchor
         let span = Span::empty(module.file_id);
         let anchor_expression = tree.insert(
-            Expression::ScalarLiteral(ScalarLiteral::Boolean(false)),
+            Expression::Literal(Literal::Boolean(false)),
             span,
         );
         let dir = DirParsed::new(tree, files, anchor_expression);
@@ -157,7 +157,7 @@ impl SessionState {
         *tree = parse.tree;
         let span = Span::empty(file.id);
         let anchor_expression = tree.insert(
-            Expression::ScalarLiteral(ScalarLiteral::Boolean(false)),
+            Expression::Literal(Literal::Boolean(false)),
             span,
         );
 
