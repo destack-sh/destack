@@ -1,6 +1,0 @@
-/// Application entry point.
-function main() {
-    console.log("Hello, Destack!");
-}
-
-main();

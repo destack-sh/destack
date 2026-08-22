@@ -20,7 +20,6 @@ const FILE_GLOBS_TO_UPDATE: &[&str] = &[
     "*/*/*/*/package.json",
 ];
 const FILE_GLOBS_TO_IGNORE: &[&str] = &[
-    "template/create-destack/templates/",
     "language/formatter/fixture/",
     "language/query/fixture/",
     "bridge/fixture/",
@@ -436,12 +435,5 @@ mod tests {
         let path = Path::new("bridge/vscode/package.json");
 
         assert!(!should_ignore_path(path));
-    }
-
-    #[test]
-    fn test_should_ignore_path_for_project_template_package() {
-        let path = Path::new("template/create-destack/templates/blank/package.json");
-
-        assert!(should_ignore_path(path));
     }
 }

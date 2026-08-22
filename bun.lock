@@ -157,6 +157,9 @@
       "bin": {
         "create-destack": "bin/create-destack.mjs",
       },
+      "dependencies": {
+        "@destack/cli": "0.55.4",
+      },
     },
   },
   "packages": {

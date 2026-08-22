@@ -1,7 +1,7 @@
 {
     "name": "create-destack",
     "version": "0.55.4",
-    "description": "Create Destack apps",
+    "description": "Create Destack projects",
     "license": "MIT",
     "type": "module",
     "repository": {
@@ -23,15 +23,17 @@
         "create-destack": "bin/create-destack.mjs"
     },
     "files": [
-        "bin",
-        "templates"
+        "bin"
     ],
     "scripts": {
-        "build": "node ./bin/create-destack.mjs --help",
-        "test": "node ./bin/create-destack.mjs --help",
+        "build": "node --check ./bin/create-destack.mjs",
+        "test": "node --check ./bin/create-destack.mjs",
         "prepublishOnly": "npm run build",
         "publish:dry": "npm publish --dry-run --access public",
         "publish:live": "npm publish --access public"
+    },
+    "dependencies": {
+        "@destack/cli": "0.55.4"
     },
     "publishConfig": {
         "access": "public"
