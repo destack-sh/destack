@@ -190,6 +190,11 @@ pub(in crate::sema) struct CheckState<'a> {
     /// Interface requirements each extension implements, keyed by member key.
     pub(in crate::sema) requirement_interfaces:
         FxIndexMap<dir::GlobalSymbolId, FxIndexMap<dir::StaticKey, dir::GlobalSymbolId>>,
+    /// Visible implementations per interface, each with its extension target root.
+    pub(in crate::sema) visible_implementations: FxIndexMap<
+        (ModuleId, dir::GlobalSymbolId),
+        SmallVec<[(dir::GlobalSymbolId, Option<dir::TypeRoot>); 4]>,
+    >,
     /// Written-syntax ranks per generic parameter.
     pub(in crate::sema) argument_ranks:
         FxIndexMap<GenericParameterId, (usize, Option<dir::GlobalGenericTemplateId>, usize)>,
@@ -381,6 +386,7 @@ impl<'a> CheckState<'a> {
             extension_sets: FxIndexMap::default(),
             blanket_keys: FxIndexMap::default(),
             requirement_interfaces: FxIndexMap::default(),
+            visible_implementations: FxIndexMap::default(),
             counters: CheckCounters::default(),
             normalizations: FxIndexMap::default(),
             erasures: FxIndexMap::default(),

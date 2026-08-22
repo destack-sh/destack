@@ -179,7 +179,7 @@ impl CheckState<'_> {
         let package = module.package_id;
         match target {
             // reject headed implementation pairs outside both packages
-            dir::ExtensionTarget::Rooted { root, ty } => {
+            dir::ExtensionTarget::Rooted { root, .. } => {
                 // a head is foreign outside its owning package
                 let foreign_target = match root {
                     dir::TypeRoot::Declaration(root) => root.module_id.package_id != package,
@@ -204,13 +204,13 @@ impl CheckState<'_> {
                     module,
                     source,
                     symbol,
-                    ty,
+                    target,
                     &interfaces,
                 )?;
                 failures.extend(conflicts);
             }
             // require blanket implementations beside their interface
-            dir::ExtensionTarget::Blanket { ty, .. } => {
+            dir::ExtensionTarget::Blanket { .. } => {
                 for implemented in &interfaces {
                     let (_, interface) = self.nominal_application(*implemented)?;
                     let interface = interface.symbol;
@@ -227,7 +227,7 @@ impl CheckState<'_> {
                     module,
                     source,
                     symbol,
-                    ty,
+                    target,
                     &interfaces,
                 )?;
                 failures.extend(conflicts);
@@ -461,20 +461,29 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-        ty: dir::GlobalTypeId,
+        target: dir::ExtensionTarget,
         interfaces: &[dir::GlobalTypeId],
     ) -> CompilerResult<Vec<ObligationFailure>> {
+        let ty = target.r#type();
         let mut failures = Vec::new();
 
         // collect earlier visible implementations sharing one declared interface
         let mut candidates = SmallVec::<[(dir::GlobalSymbolId, dir::GlobalTypeId); 2]>::new();
         for interface_type in interfaces {
             let (_, interface) = self.nominal_application(*interface_type)?;
-            for other in self
+            for (other, other_root) in self
                 .body()
                 .visible_implementations(module, interface.symbol)?
             {
                 if other == symbol || !self.is_later_definition(source, other) {
+                    continue;
+                }
+
+                // skip rooted pairs over distinct roots, no type inhabits both targets
+                if let dir::ExtensionTarget::Rooted { root, .. } = target
+                    && let Some(other_root) = other_root
+                    && other_root != root
+                {
                     continue;
                 }
                 candidates.push((other, *interface_type));

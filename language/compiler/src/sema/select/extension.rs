@@ -1414,7 +1414,7 @@ impl BodyState<'_, '_> {
         }
 
         // rooted implementations witness themselves, blankets witness through their bound
-        for implementor in self.visible_implementations(module, instance.symbol)? {
+        for (implementor, _) in self.visible_implementations(module, instance.symbol)? {
             let Some(dir::Definition::Extension(extension)) = self.definition(implementor)? else {
                 continue;
             };
@@ -1442,12 +1442,18 @@ impl BodyState<'_, '_> {
         Ok(true)
     }
 
-    /// Collect the visible implementation declarations of one interface.
+    /// Collect the visible implementations of one interface, each with its target root.
     pub(in crate::sema) fn visible_implementations(
         &mut self,
         module: ModuleId,
         interface: dir::GlobalSymbolId,
-    ) -> CompilerResult<SmallVec<[dir::GlobalSymbolId; 4]>> {
+    ) -> CompilerResult<SmallVec<[(dir::GlobalSymbolId, Option<dir::TypeRoot>); 4]>> {
+        // serve the memo
+        if let Some(implementations) = self.check.visible_implementations.get(&(module, interface))
+        {
+            return Ok(implementations.clone());
+        }
+
         // gather the implementations the program declares, then the local extensions
         let mut candidates = self
             .module(module)
@@ -1476,14 +1482,19 @@ impl BodyState<'_, '_> {
             .collect::<SmallVec<[_; 8]>>();
         candidates.extend(imported);
 
-        // keep the declarations whose conformances reach the interface
-        let mut symbols = SmallVec::new();
+        // keep the declarations whose conformances reach the interface, with their roots
+        let mut symbols: SmallVec<[(dir::GlobalSymbolId, Option<dir::TypeRoot>); 4]> =
+            SmallVec::new();
         for symbol in candidates {
-            if symbols.contains(&symbol) {
+            if symbols.iter().any(|(kept, _)| *kept == symbol) {
                 continue;
             }
             let Some(dir::Definition::Extension(extension)) = self.definition(symbol)? else {
                 continue;
+            };
+            let root = match extension.target {
+                dir::ExtensionTarget::Rooted { root, .. } => Some(root),
+                dir::ExtensionTarget::Blanket { .. } => None,
             };
             let interfaces = extension
                 .implements
@@ -1491,9 +1502,13 @@ impl BodyState<'_, '_> {
                 .map(|conformance| conformance.interface)
                 .collect::<SmallVec<[_; 2]>>();
             if self.implements_requested_interface(&interfaces, interface)? {
-                symbols.push(symbol);
+                symbols.push((symbol, root));
             }
         }
+
+        self.check
+            .visible_implementations
+            .insert((module, interface), symbols.clone());
 
         Ok(symbols)
     }
