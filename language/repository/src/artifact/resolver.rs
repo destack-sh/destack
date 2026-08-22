@@ -483,14 +483,14 @@ impl<'a> ArtifactResolver<'a> {
                 SourceDependency::file(file, blob.id)
             }
             SourceDependencyKey::Packages => {
-                let packages = self.repository.package_ids(self.revision)?;
+                let fingerprint = self.repository.packages_fingerprint(self.revision)?;
 
-                SourceDependency::packages(&packages)
+                SourceDependency::Packages { fingerprint }
             }
             SourceDependencyKey::Modules => {
-                let modules = self.repository.module_ids(self.revision)?;
+                let fingerprint = self.repository.modules_fingerprint(self.revision)?;
 
-                SourceDependency::modules(&modules)
+                SourceDependency::Modules { fingerprint }
             }
             SourceDependencyKey::ModulePath(file) => {
                 let module = self.repository.module_id_for_file(self.revision, file)?;

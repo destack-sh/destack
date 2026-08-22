@@ -1,9 +1,11 @@
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
-use destack_source::{FileId, ProfileId};
+use destack_artifact::{ModuleSetFingerprint, PackageSetFingerprint};
+use destack_source::{DiagnosticCollection, FileId, ProfileId};
 use im::OrdMap;
-use rustc_hash::FxHashSet;
+use parking_lot::Mutex;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::repository::FileEntry;
 use crate::{ModuleIndex, PackageIndex, Profile, Root};
@@ -23,6 +25,13 @@ pub(crate) struct RevisionCache {
     pub(crate) profiles: OnceLock<Arc<OrdMap<ProfileId, Arc<Profile>>>>,
     /// Root directory paths.
     pub(crate) directory_paths: OnceLock<Arc<FxHashSet<PathBuf>>>,
+
+    /// The fingerprint over this revision's module ids, matching Modules observations.
+    pub(crate) modules_fingerprint: OnceLock<ModuleSetFingerprint>,
+    /// The fingerprint over this revision's package ids, matching Packages observations.
+    pub(crate) packages_fingerprint: OnceLock<PackageSetFingerprint>,
+    /// Terminal dependency-closure diagnostics by requested artifact key set.
+    pub(crate) diagnostics: Mutex<FxHashMap<u64, Arc<DiagnosticCollection>>>,
 }
 
 impl RevisionCache {

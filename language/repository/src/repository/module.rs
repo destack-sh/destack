@@ -3,7 +3,7 @@ use std::collections::hash_map::Entry;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::SourceDependency;
+use destack_artifact::{ModuleSetFingerprint, SourceDependency};
 use destack_source::{
     DESTACK_FILE_TYPES, FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri,
 };
@@ -409,6 +409,23 @@ impl Repository {
         };
 
         Ok(Some(module.uri.to_string()))
+    }
+
+    /// Return the module set fingerprint for one revision.
+    pub fn modules_fingerprint(
+        &self,
+        revision: Revision,
+    ) -> Result<ModuleSetFingerprint, RepositoryError> {
+        let state = self.revision(revision)?;
+        if let Some(fingerprint) = state.cache().modules_fingerprint.get() {
+            return Ok(*fingerprint);
+        }
+        let fingerprint = ModuleSetFingerprint::new(&self.module_ids(revision)?);
+
+        Ok(*state
+            .cache()
+            .modules_fingerprint
+            .get_or_init(|| fingerprint))
     }
 
     /// Return the module ids visible in one revision.

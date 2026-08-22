@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ConditionSet, ExportPattern, ExportTarget, PackageDependency, PackageExports, PackageNode,
+    PackageSetFingerprint,
 };
 use destack_core::{TreapRoot, stable_hash_value_128};
 use destack_source::{PackageId, TargetId, Uri, matches};
@@ -345,6 +346,23 @@ impl Repository {
             .or_else(|| package.path.as_ref().map(|path| path.display().to_string()));
 
         Ok(name)
+    }
+
+    /// Return the package set fingerprint for one revision.
+    pub fn packages_fingerprint(
+        &self,
+        revision: Revision,
+    ) -> Result<PackageSetFingerprint, RepositoryError> {
+        let state = self.revision(revision)?;
+        if let Some(fingerprint) = state.cache().packages_fingerprint.get() {
+            return Ok(*fingerprint);
+        }
+        let fingerprint = PackageSetFingerprint::new(&self.package_ids(revision)?);
+
+        Ok(*state
+            .cache()
+            .packages_fingerprint
+            .get_or_init(|| fingerprint))
     }
 
     /// Return the package ids visible in one revision.

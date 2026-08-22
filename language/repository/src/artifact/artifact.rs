@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use crate::artifact::ArtifactReader;
@@ -16,7 +17,7 @@ use destack_source::{
     Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, ModuleId, ProfileId,
     Span,
 };
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashSet, FxHasher};
 
 impl Repository {
     /// Return a read-only artifact reader for one pinned revision.
@@ -412,19 +413,28 @@ impl Repository {
     }
 
     /// Return diagnostics for requested roots and everything they were built from.
-    ///
-    /// Walks each root's dependency closure once, so diagnostics attached to
-    /// shared dependencies, like one checked component under its per-module
-    /// facades, report exactly once.
     pub fn diagnostics_for_keys(
         &self,
         revision: Revision,
         artifact_keys: &[ArtifactKey],
     ) -> Result<DiagnosticCollection, RepositoryError> {
+        // serve the memoized closure for this exact key set
+        let state = self.revision(revision)?;
+        let mut requested_keys = artifact_keys.to_vec();
+        requested_keys.sort_unstable();
+        requested_keys.dedup();
+        let mut hasher = FxHasher::default();
+        requested_keys.hash(&mut hasher);
+        let requested = hasher.finish();
+        if let Some(diagnostics) = state.cache().diagnostics.lock().get(&requested) {
+            return Ok(diagnostics.as_ref().clone());
+        }
+
         let mut diagnostics = DiagnosticCollection::new();
         let mut merged = FxHashSet::default();
         let mut visited = FxHashSet::default();
-        let mut pending = artifact_keys.to_vec();
+        let mut is_terminal = true;
+        let mut pending = requested_keys;
 
         // walk exact revision bindings rather than conflating equal result versions
         while let Some(artifact_key) = pending.pop() {
@@ -432,6 +442,8 @@ impl Repository {
                 continue;
             }
             let Some(version) = self.artifact_version(revision, &artifact_key)? else {
+                is_terminal = false;
+
                 continue;
             };
             if merged.insert(version) {
@@ -450,6 +462,15 @@ impl Repository {
                     ArtifactDependency::Source(_) => {}
                 }
             }
+        }
+
+        // memoize only fully terminal closures, partial walks resolve further later
+        if is_terminal {
+            state
+                .cache()
+                .diagnostics
+                .lock()
+                .insert(requested, Arc::new(diagnostics.clone()));
         }
 
         Ok(diagnostics)
