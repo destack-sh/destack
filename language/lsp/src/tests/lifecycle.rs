@@ -11,11 +11,23 @@ async fn test_initialize_minimal_client() {
     let mut server = TestServer::new("initialize-minimal-client");
     server.write("main.ds", "export const value: float64 = 1;\n");
 
-    server
+    let initialized = server
         .initialize(lsp::ClientCapabilities::default(), None)
         .await
         .unwrap();
     server.initialized().await;
+
+    // advertise the canonical virtual source scheme
+    let content = initialized
+        .capabilities
+        .workspace
+        .and_then(|workspace| workspace.text_document_content);
+    assert_eq!(
+        content,
+        Some(lsp::TextDocumentContentOptions {
+            schemes: vec!["destack".to_string()],
+        })
+    );
 
     server.assert_no_message();
 }

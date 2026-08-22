@@ -9,7 +9,7 @@ use destack_repository::{
     Commit, DestackLayoutOverride, Environment, Host, Repository, Revision, Settings,
 };
 use destack_session::Executor;
-use destack_source::{Edit, FileId, FileSystem, TextChange, apply_text_changes};
+use destack_source::{Edit, File, FileId, FileSystem, TextChange, Uri, apply_text_changes};
 use destack_workspace::{FileSelection, Workspace};
 
 use super::{internal_error, workspace_error};
@@ -388,6 +388,17 @@ impl ProjectSet {
     /// Return every opened project workspace in source-root order.
     pub(super) fn workspaces(&self) -> Vec<Arc<Workspace>> {
         self.projects.iter().map(Project::workspace).collect()
+    }
+
+    /// Read one embedded builtin source URI through an active project.
+    pub(super) fn read_builtin_file(&self, uri: &Uri) -> jsonrpc::Result<Option<Arc<File>>> {
+        // embedded files are identical across repositories in this server build
+        let project = self
+            .projects
+            .first()
+            .ok_or_else(|| jsonrpc::Error::invalid_params("no Destack project is open"))?;
+
+        Ok(project.workspace.read_builtin_file(uri))
     }
 
     /// Reload every project and merge closed physical files into editor branches.

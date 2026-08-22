@@ -15,7 +15,10 @@ use destack_workspace::{
 };
 use serde_json::to_value;
 
-use super::{ClientCapabilities, ServerSession, ServerSettings, internal_error, workspace_error};
+use super::{
+    ClientCapabilities, DESTACK_URI_SCHEME, ServerSession, ServerSettings, internal_error,
+    workspace_error,
+};
 use crate::query::{
     CodeActionContext, DiagnosticDelivery, DiagnosticPublisher, Document, DocumentSet, IntoLsp,
     IntoSource, QueryContinuation, SemanticTokenStream,
@@ -819,7 +822,9 @@ impl LanguageServer for DestackLanguageServer {
                     }),
                     will_delete: None,
                 }),
-                text_document_content: None,
+                text_document_content: Some(lsp::TextDocumentContentOptions {
+                    schemes: vec![DESTACK_URI_SCHEME.to_string()],
+                }),
             }),
             ..Default::default()
         };
@@ -1047,6 +1052,21 @@ impl LanguageServer for DestackLanguageServer {
                     .report_error("deleted_file_diagnostics.clear", error);
             }
         }
+    }
+
+    // ------------------------------------------------------------------------
+    // VIRTUAL DOCUMENTS
+    // ------------------------------------------------------------------------
+
+    async fn text_document_content(
+        &self,
+        params: lsp::TextDocumentContentParams,
+    ) -> jsonrpc::Result<lsp::TextDocumentContentResult> {
+        let file = self.session()?.read_file(&params.uri)?;
+
+        Ok(lsp::TextDocumentContentResult {
+            text: file.text().to_string(),
+        })
     }
 
     // ------------------------------------------------------------------------

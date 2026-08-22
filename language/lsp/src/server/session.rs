@@ -9,7 +9,7 @@ use destack_lsp_types as lsp;
 use destack_query as query;
 use destack_repository::{Execution, Revision, SourceRoot};
 use destack_session::{ArtifactRunEvent, ArtifactRunEventHandler, Executor};
-use destack_source::{FileSystem, PhysicalFileSystem, TextChange};
+use destack_source::{File, FileSystem, PhysicalFileSystem, TextChange, Uri};
 use destack_workspace::Workspace;
 use parking_lot::RwLock;
 use serde::Deserialize;
@@ -20,6 +20,8 @@ use crate::query::DiagnosticDelivery;
 
 /// Maximum artifact keys rendered in one run log record.
 const ARTIFACT_LOG_LIMIT: usize = 12;
+/// URI scheme served by the Destack virtual document provider.
+pub(super) const DESTACK_URI_SCHEME: &str = "destack";
 
 /// State installed after one language server initialization.
 #[derive(Debug)]
@@ -197,6 +199,28 @@ impl ServerSession {
     /// Return project state shared with diagnostic delivery.
     pub(super) fn projects(&self) -> Arc<RwLock<ProjectSet>> {
         self.projects.clone()
+    }
+
+    /// Read one server-owned source file by its canonical URI.
+    pub(super) fn read_file(&self, uri: &lsp::Uri) -> jsonrpc::Result<Arc<File>> {
+        if uri.scheme().as_str() != DESTACK_URI_SCHEME {
+            return Err(jsonrpc::Error::invalid_params(format!(
+                "unsupported source URI scheme: {}",
+                uri.scheme()
+            )));
+        }
+
+        // read the exact embedded source file
+        let source_uri = Uri::from_string(uri.as_str());
+        let file = self
+            .projects
+            .read()
+            .read_builtin_file(&source_uri)?
+            .ok_or_else(|| {
+                jsonrpc::Error::invalid_params(format!("source URI is not tracked: {uri:?}"))
+            })?;
+
+        Ok(file)
     }
 
     /// Reload physical state for every opened project.

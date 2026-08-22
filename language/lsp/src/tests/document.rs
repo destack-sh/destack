@@ -593,6 +593,39 @@ async fn test_return_resolved_document_links() {
         .await;
 }
 
+/// Open builtin module links through virtual documents.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_open_builtin_module_links() {
+    let source = "import { log } from \"destack:console\";\n";
+    let target: lsp::Uri = "destack://console/index.ds".parse().unwrap();
+    let (mut server, document) = TestServer::open_workspace(
+        "builtin-module-links",
+        &[("src/main.ds", source)],
+        "src/main.ds",
+    )
+    .await;
+
+    // resolve the import through its builtin module identity
+    let expected = Some(vec![lsp::DocumentLink {
+        range: range(0, 20, 0, 37),
+        target: Some(target.clone()),
+        tooltip: None,
+        data: None,
+    }]);
+    server
+        .assert_request::<lsp::request::DocumentLinkRequest>(document.links(), Ok(expected))
+        .await;
+
+    // read the exact source exposed by the resolved link
+    let params = lsp::TextDocumentContentParams { uri: target };
+    let expected = lsp::TextDocumentContentResult {
+        text: "export * from \"./console.ds\";\n".to_string(),
+    };
+    server
+        .assert_request::<lsp::request::TextDocumentContentRequest>(params, Ok(expected))
+        .await;
+}
+
 /// Resolve intrinsic declarations exported through the builtin global provider.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_hover_builtin_intrinsics() {
