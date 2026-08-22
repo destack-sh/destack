@@ -110,9 +110,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
     }
 
     /// Commit one completed walk and reset the flow cursor.
-    ///
-    /// The point log survives the restart, so ids stay durable without
-    /// any rebasing.
     pub(in crate::sema) fn commit(mut self) -> CompilerResult<()> {
         self.flush_flows()?;
         self.check.flow.reset_cursor();

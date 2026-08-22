@@ -92,6 +92,7 @@ impl CheckState<'_> {
         let mut open: SmallVec<[_; 8]> = SmallVec::new();
         let mut verdict = Verdict::Fails;
         for element in elements {
+            let element = self.shallow_resolve(element)?;
             if matches!(self.ty(element)?, dir::Type::Variable(_)) {
                 open.push(element);
                 continue;

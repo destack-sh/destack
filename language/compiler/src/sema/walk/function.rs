@@ -188,7 +188,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             if !visited.insert(id) {
                 continue;
             }
-            let node = self.check.ty(id)?;
+            let node = self.check.ty_raw(id)?;
 
             // follow solved variables toward their lifetime terms
             if let dir::Type::Variable(variable) = node {

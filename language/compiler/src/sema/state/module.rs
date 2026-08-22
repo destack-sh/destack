@@ -802,7 +802,7 @@ impl CheckState<'_> {
             }
 
             // solve a committed hole, or require re-derivations to agree
-            if let dir::Type::Variable(variable) = self.ty(previous)? {
+            if let dir::Type::Variable(variable) = self.ty_raw(previous)? {
                 if self.infer.variable(variable)?.state.is_open() {
                     // commit a closed derivation and equate an open one as a bound
                     if self.type_variables(ty)?.is_empty() {

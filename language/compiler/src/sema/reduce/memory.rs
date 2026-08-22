@@ -1432,7 +1432,10 @@ impl CheckState<'_> {
         let dir::Type::Form(form) = ty else {
             return Ok(ty);
         };
-        let dir::Type::Form(inner) = self.ty(form.value)? else {
+
+        // read the payload head through any solved variable
+        let payload = self.shallow_resolve(form.value)?;
+        let dir::Type::Form(inner) = self.ty(payload)? else {
             return Ok(ty);
         };
 
@@ -1503,6 +1506,9 @@ impl CheckState<'_> {
         &self,
         place: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::Space>> {
+        // read the place through its solution
+        let place = self.shallow_resolve(place)?;
+
         let space = match self.ty(place)? {
             dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(space)))
             | dir::Type::Memory(dir::MemoryLiteral::Space(space)) => Some(space),

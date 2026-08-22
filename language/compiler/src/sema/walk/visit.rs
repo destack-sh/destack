@@ -115,15 +115,15 @@ impl CheckState<'_> {
             walk.flush_flows()?;
         }
 
-        // commit the walk, then judge every written type
+        // commit the walk, then oblige every written type
         walk.commit()?;
-        self.judge_written_types(module)?;
+        self.oblige_written_types(module)?;
 
         Ok(())
     }
 
-    /// Judge written types: application bounds, predicates, and wellformed entries.
-    fn judge_written_types(&mut self, module: ModuleId) -> CompilerResult<()> {
+    /// Oblige written types: application bounds, predicates, and well-formed entries.
+    fn oblige_written_types(&mut self, module: ModuleId) -> CompilerResult<()> {
         // collect the declared and committed type entries of this module
         let mut written = Vec::new();
         let mut symbols = Vec::new();
@@ -143,34 +143,37 @@ impl CheckState<'_> {
             }
         }
 
-        // judge each written type entry once
-        let mut judged = FxIndexSet::default();
+        // oblige each written type entry once
+        let mut obliged = FxIndexSet::default();
         for (source, ty) in written {
             if source.try_into_typed::<dir::TypeExpression>().is_err() {
                 continue;
             }
 
-            // judge the argument bounds and predicates of a built application
-            let mut head = ty;
+            // oblige the argument bounds and predicates of a built application
+            let mut head = self.shallow_resolve(ty)?;
             while let dir::Type::Refined(refined) = self.ty(head)? {
-                head = self.type_refined(head.module_id, refined)?.base;
+                head = self.shallow_resolve(self.type_refined(head.module_id, refined)?.base)?;
             }
             if let dir::Type::Application(instance) = self.ty(head)?
-                && judged.insert(head)
+                && obliged.insert(head)
             {
                 let scope = self.template_at_node(source);
                 self.collect_application_bounds(source, head, instance, scope)?;
             }
 
             // oblige index operations and placed forms to be well-formed
-            let checked = matches!(self.operation_head(ty)?, Some(dir::TypeOperation::Index(_)))
-                || matches!(
-                    self.ty(ty)?,
-                    dir::Type::Form(dir::FormType {
-                        form: dir::Form::Placed { .. },
-                        ..
-                    })
-                );
+            let resolved = self.shallow_resolve(ty)?;
+            let checked = matches!(
+                self.operation_head(resolved)?,
+                Some(dir::TypeOperation::Index(_))
+            ) || matches!(
+                self.ty(resolved)?,
+                dir::Type::Form(dir::FormType {
+                    form: dir::Form::Placed { .. },
+                    ..
+                })
+            );
             if !checked {
                 continue;
             }
@@ -190,7 +193,7 @@ impl CheckState<'_> {
                 if existing.is_none() || existing == Some(ty) {
                     self.commit_declaration_type(symbol, ty)?;
                 }
-                if judged.insert(ty) {
+                if obliged.insert(ty) {
                     let source = self.symbol_source(symbol)?;
                     let scope = self.loaded_symbol_template(symbol);
                     self.collect_application_bounds(source, ty, instance, scope)?;
@@ -252,7 +255,7 @@ impl CheckState<'_> {
             if self.type_flags(argument)?.has_infer() {
                 continue;
             }
-            // skip this-typed bounds, they judge at conformance sites with a receiver
+            // skip this-typed bounds, they oblige at conformance sites with a receiver
             if self.type_flags(argument)?.has_this() || self.type_flags(constraint)?.has_this() {
                 continue;
             }

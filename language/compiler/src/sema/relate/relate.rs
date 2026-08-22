@@ -75,6 +75,10 @@ impl CheckState<'_> {
             return Ok(CheckOutcome::Pending);
         }
 
+        // read both sides through their solutions
+        let source = self.shallow_resolve(source)?;
+        let target = self.shallow_resolve(target)?;
+
         // property relations explain themselves through their first bad field
         let is_property_relation = matches!(relation, Relation::Assignable | Relation::Satisfies);
         let check = match (verdict.holds(), is_property_relation) {
@@ -406,7 +410,7 @@ impl CheckState<'_> {
         let mut current = id;
 
         // substitute a solved top variable for its solution
-        while let dir::Type::Variable(variable) = self.ty(current)? {
+        while let dir::Type::Variable(variable) = self.ty_raw(current)? {
             let solution = self.infer.solution(variable)?;
             let Some(solution) = solution else {
                 return Ok(current);

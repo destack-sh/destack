@@ -28,6 +28,9 @@ impl CheckState<'_> {
         site: FlowSite,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the type through its solution before narrowing
+        let ty = self.shallow_resolve(ty)?;
+
         // narrow expression occurrences only
         let dir::NodeType::Expression = site.node.local_id.ty else {
             return Ok(ty);

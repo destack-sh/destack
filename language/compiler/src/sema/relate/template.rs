@@ -241,11 +241,11 @@ impl CheckState<'_> {
         text: &str,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // answer from the span's own variable before its component root
-        let immediate = match self.ty(span)? {
+        let immediate = match self.ty_raw(span)? {
             dir::Type::Variable(variable) => Some(variable),
             _ => None,
         };
-        let root = self.root_variable(self.shallow_resolve(span)?)?;
+        let root = self.root_variable(span)?;
         let mut hint = None;
         for variable in [immediate, root].into_iter().flatten() {
             hint = self
@@ -258,11 +258,11 @@ impl CheckState<'_> {
                 break;
             }
         }
+        // capture a numeric span within its constraint's domain
         let module = origin.module();
-        if let Some(hint) = hint
-            && let Ok(head) = self.normalize(origin, hint)
-            && let Ok(kind) = self.ty(head)
-        {
+        if let Some(hint) = hint {
+            let head = self.normalize(origin, hint)?;
+            let kind = self.ty(head)?;
             match self.numeric_template_capture(module, &kind, text)? {
                 NumericCapture::Captured(literal) => return Ok(Some(literal)),
                 NumericCapture::OutOfDomain => return Ok(None),

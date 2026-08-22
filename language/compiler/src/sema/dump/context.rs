@@ -58,7 +58,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
 
     /// Return a compact type label.
     pub(in crate::sema) fn type_label(&self, ty: dir::GlobalTypeId) -> String {
-        if let Ok(dir::Type::Variable(variable)) = self.check.ty(ty) {
+        if let Ok(dir::Type::Variable(variable)) = self.check.ty_raw(ty) {
             return self.variable_label(variable);
         }
 

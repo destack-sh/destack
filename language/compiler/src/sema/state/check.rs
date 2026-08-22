@@ -1,3 +1,4 @@
+use std::panic::Location;
 use std::sync::Arc;
 
 use destack_artifact::{
@@ -590,8 +591,31 @@ impl<'a> CheckState<'a> {
 }
 
 impl CheckState<'_> {
-    /// Return one type from this module's open overlay or external tables.
+    /// Return one type head from this module's open overlay or external tables.
+    /// Reading a solved variable is an internal error, its payloads belong to its solution.
+    #[track_caller]
     pub(in crate::sema) fn ty(&self, id: dir::GlobalTypeId) -> CompilerResult<dir::Type> {
+        let ty = self.ty_raw(id)?;
+
+        // refuse a solved variable left unresolved, whose payloads belong to its solution
+        if let dir::Type::Variable(variable) = ty
+            && self.infer.solution(variable)?.is_some()
+        {
+            let caller = Location::caller();
+
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "solved variable {variable:?} read unresolved as type {id:?} at {caller}"
+                ),
+            });
+        }
+
+        Ok(ty)
+    }
+
+    /// Return one type head as written, solved variables included.
+    /// Reserved for callers that match variables explicitly, like resolution and write-back.
+    pub(in crate::sema) fn ty_raw(&self, id: dir::GlobalTypeId) -> CompilerResult<dir::Type> {
         // read this module's open working types
         if self.is_own_module(id.module_id) {
             self.type_maybe(id.local_id)
@@ -617,7 +641,8 @@ impl CheckState<'_> {
         operands: &[dir::GlobalTypeId],
     ) -> CompilerResult<bool> {
         for operand in operands {
-            if self.type_flags(*operand)?.has_error() {
+            let operand = self.shallow_resolve(*operand)?;
+            if self.type_flags(operand)?.has_error() {
                 return Ok(true);
             }
         }
@@ -1031,6 +1056,8 @@ impl CheckState<'_> {
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::TypeOperation>> {
+        let id = self.shallow_resolve(id)?;
+
         match self.ty(id)? {
             dir::Type::Operation(operation) => {
                 Ok(Some(self.type_operation(id.module_id, operation)?))

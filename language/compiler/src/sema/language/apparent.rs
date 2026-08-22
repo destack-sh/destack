@@ -117,6 +117,9 @@ impl CheckState<'_> {
         &mut self,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Option<ApparentInstance>> {
+        // read the receiver through its solution
+        let receiver = self.shallow_resolve(receiver)?;
+
         let instance = match self.ty(receiver)? {
             dir::Type::Form(form) => return self.apparent_instance(form.value),
             dir::Type::Variant(variant) => {

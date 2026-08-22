@@ -289,7 +289,7 @@ impl CheckState<'_> {
         }
 
         // resolve a variable through its root, erroring unsolved ones
-        let ty = self.ty(id)?;
+        let ty = self.ty_raw(id)?;
         let resolved = if let dir::Type::Variable(variable) = ty {
             match self.infer.solution(variable)? {
                 Some(solution) => {

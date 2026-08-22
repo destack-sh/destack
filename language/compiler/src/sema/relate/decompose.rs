@@ -634,6 +634,9 @@ impl CheckState<'_> {
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // read the type through its solution
+        let id = self.shallow_resolve(id)?;
+
         // treat a union as a lifetime slot once every member is one
         if let dir::Type::Union(union) = self.ty(id)? {
             let elements =

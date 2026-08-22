@@ -145,7 +145,7 @@ impl CheckState<'_> {
         // reject anonymous exported extensions on nonlocal targets
         let module = source.module_id;
         let mut failures = Vec::new();
-        if self.is_unnamed_exported_nonlocal_extension(module, symbol, form, target) {
+        if self.is_unnamed_exported_nonlocal_extension(module, symbol, form, target)? {
             failures.push(ObligationFailure::UnnamedExportedNonlocalExtension {
                 source,
                 target: target.r#type(),
@@ -394,27 +394,30 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         form: dir::ExtensionForm,
         target: dir::ExtensionTarget,
-    ) -> bool {
+    ) -> CompilerResult<bool> {
         if form != dir::ExtensionForm::Exported {
-            return false;
+            return Ok(false);
         }
 
         // accept a blanket extension, its bound interface names it
-        if matches!(self.ty(target.r#type()), Ok(dir::Type::Parameter(_))) {
-            return false;
+        if matches!(self.ty(target.r#type())?, dir::Type::Parameter(_)) {
+            return Ok(false);
         }
 
         let target_is_local = target
             .declaration()
             .is_some_and(|root| root.module_id == module);
         if target_is_local {
-            return false;
+            return Ok(false);
         }
 
-        self.binding_table(symbol.module_id)
+        let is_unnamed = self
+            .binding_table(symbol.module_id)
             .get_symbol(symbol.local_id)
             .key
-            .is_none()
+            .is_none();
+
+        Ok(is_unnamed)
     }
 
     /// Return one symbol's implemented interfaces as written.

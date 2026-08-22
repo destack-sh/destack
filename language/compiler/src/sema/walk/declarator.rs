@@ -59,8 +59,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Walk one let declaration's annotated and exported bindings.
-    ///
-    /// Every other declarator belongs to the checking pass.
     pub(in crate::sema) fn walk_let_bindings(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,

@@ -111,7 +111,11 @@ impl CheckState<'_> {
             let Some(ty) = self.symbol_type_maybe(symbol.into_global(module_id)) else {
                 continue;
             };
-            if matches!(self.ty(ty)?, dir::Type::Member(_) | dir::Type::Operation(_)) {
+            let head = self.shallow_resolve(ty)?;
+            if matches!(
+                self.ty(head)?,
+                dir::Type::Member(_) | dir::Type::Operation(_)
+            ) {
                 let reduced =
                     self.deeply_resolve(Origin::Symbol(symbol.into_global(module_id)), ty)?;
                 reductions.insert(ty, reduced);

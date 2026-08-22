@@ -681,16 +681,20 @@ impl CheckState<'_> {
         let relation = self.instance_argument_relation(symbol, relation)?;
         let mut verdict = Verdict::Holds;
         for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
+            // read both arguments through their solutions
+            let source = self.shallow_resolve(*source)?;
+            let target = self.shallow_resolve(*target)?;
+
             // erased target arguments admit every instantiation of their parameter
-            if matches!(self.ty(*target)?, dir::Type::Erased(_)) {
+            if matches!(self.ty(target)?, dir::Type::Erased(_)) {
                 continue;
             }
 
             // skip closed lifetime slots for Verify, still linking open ones
-            if !self.type_flags(*source)?.has_variable()
-                && !self.type_flags(*target)?.has_variable()
-                && self.is_lifetime_slot_type(*source)?
-                && self.is_lifetime_slot_type(*target)?
+            if !self.type_flags(source)?.has_variable()
+                && !self.type_flags(target)?.has_variable()
+                && self.is_lifetime_slot_type(source)?
+                && self.is_lifetime_slot_type(target)?
             {
                 continue;
             }
@@ -704,16 +708,16 @@ impl CheckState<'_> {
             let related = match variance.argument_relation(relation) {
                 // bivariant arguments still constrain open holes so inference closes
                 None => {
-                    if self.type_flags(*source)?.has_variable()
-                        || self.type_flags(*target)?.has_variable()
+                    if self.type_flags(source)?.has_variable()
+                        || self.type_flags(target)?.has_variable()
                     {
-                        self.constrain_type(origin, child, Relation::Equal, *source, *target)?
+                        self.constrain_type(origin, child, Relation::Equal, source, target)?
                     } else {
                         Verdict::Holds
                     }
                 }
                 Some((relation, order)) => {
-                    let (source, target) = order.orient(*source, *target);
+                    let (source, target) = order.orient(source, target);
 
                     self.constrain_type(origin, child, relation, source, target)?
                 }

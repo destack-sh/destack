@@ -957,6 +957,10 @@ impl BodyState<'_, '_> {
         source_type: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
+        // read both operands through their solutions
+        let source_type = self.shallow_resolve(source_type)?;
+        let target = self.shallow_resolve(target)?;
+
         // const-folded operations have no runtime operands
         if matches!(self.ty(target)?, dir::Type::Literal(_)) {
             return Ok(());

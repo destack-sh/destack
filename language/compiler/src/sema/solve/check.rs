@@ -644,7 +644,8 @@ impl CheckState<'_> {
             // try rigid arguments through their declared bounds for transitive relations
             if !satisfied
                 && check.relation == Relation::Satisfies
-                && let dir::Type::Parameter(parameter) = self.ty(check.source)?
+                && let dir::Type::Parameter(parameter) =
+                    self.ty(self.shallow_resolve(check.source)?)?
                 && let Some(declared) = self
                     .generic_parameter(parameter)
                     .and_then(|binding| binding.constraint)

@@ -664,7 +664,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            let ty = self.ty(id)?;
+            let ty = self.ty_raw(id)?;
 
             // follow solved variables and collect open variables once
             if let dir::Type::Variable(variable) = ty {

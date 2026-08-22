@@ -367,6 +367,8 @@ impl BodyState<'_, '_> {
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        let ty = self.check.shallow_resolve(ty)?;
+
         Ok(match self.check.ty(ty)? {
             dir::Type::Application(instance) => Some(instance.symbol),
             dir::Type::Reference(reference) => Some(reference.symbol),

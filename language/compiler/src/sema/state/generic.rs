@@ -1057,6 +1057,8 @@ impl CheckState<'_> {
         &self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // accept a type that already names a lifetime slot
+        let ty = self.shallow_resolve(ty)?;
         if self.is_lifetime_slot(&self.ty(ty)?)? {
             return Ok(true);
         }

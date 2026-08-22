@@ -331,7 +331,7 @@ impl BodyState<'_, '_> {
         Ok(check)
     }
 
-    /// Infer one source node by its kind.
+    /// Infer one source node by its kind, returning its type through any solved variables.
     pub(in crate::sema) fn infer_node(
         &mut self,
         site: FlowSite,
@@ -341,10 +341,10 @@ impl BodyState<'_, '_> {
         let node = site.node;
         if let Some(ty) = self.node_types.get(&node) {
             // committed holes re-infer until their node decides
-            let is_hole = matches!(self.check.ty(ty)?, dir::Type::Variable(_))
+            let is_hole = matches!(self.check.ty_raw(ty)?, dir::Type::Variable(_))
                 && self.check.decision(node).is_none();
             if !is_hole {
-                return Ok(ty);
+                return self.shallow_resolve(ty);
             }
         }
 
@@ -352,7 +352,7 @@ impl BodyState<'_, '_> {
         if self.check.lambdas.contains_key(&node) {
             let check = self.check_function_value(site, None, mode)?;
 
-            return Ok(check.source);
+            return self.shallow_resolve(check.source);
         }
 
         // infer every other node by its syntax family
@@ -376,7 +376,7 @@ impl BodyState<'_, '_> {
             });
         };
 
-        Ok(ty)
+        self.shallow_resolve(ty)
     }
 
     /// Infer one source node and return its type at the same flow site.

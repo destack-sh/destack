@@ -765,6 +765,9 @@ impl CheckState<'_> {
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::StaticKey>> {
+        // read the type through its solution
+        let ty = self.shallow_resolve(ty)?;
+
         let key = match self.ty(ty)? {
             dir::Type::Key(key) => key,
             // named static values preserve their exact key

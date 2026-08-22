@@ -674,7 +674,7 @@ impl CheckState<'_> {
         marks.insert(id, false);
 
         // decide leaves directly and inherit composites from their children
-        let ty = self.ty(id)?;
+        let ty = self.ty_raw(id)?;
         let hit = match (ty, rule) {
             _ if matches!(rule, SubstitutionRule::Normalize { .. }) => true,
             _ if matches!(rule, SubstitutionRule::Replace { from, .. } if from == id) => true,
@@ -769,6 +769,33 @@ impl CheckState<'_> {
             return Ok(to);
         }
 
+        // resolve one solved variable through its root
+        let variable = match self.ty_raw(id)? {
+            dir::Type::Variable(variable) => Some(variable),
+            _ => None,
+        };
+        if let Some(variable) = variable {
+            return match self.infer.solution(variable)? {
+                // substitute through the solution, which marks apart from its variable entry
+                Some(solution) => {
+                    let mut marks = FxIndexMap::default();
+                    self.mark_substitutions(solution, rule, &mut marks)?;
+
+                    self.substitute_guarded(target, solution, rule, &marks, substituting)
+                }
+                // rename one open root to its numbered canonical hole
+                None => match rule {
+                    SubstitutionRule::Canonicalize { holes, .. } => {
+                        match holes.get(&self.infer.alias_root(variable)?) {
+                            Some(hole) => self.intern_type(dir::Type::Hole(*hole)),
+                            None => Ok(id),
+                        }
+                    }
+                    _ => Ok(id),
+                },
+            };
+        }
+
         // substitute one conditional-infer binder reference
         if let dir::Type::Application(instance) = self.ty(id)?
             && instance.arguments.is_empty()
@@ -844,33 +871,6 @@ impl CheckState<'_> {
             && let Some(rigid) = parameters.get(&parameter)
         {
             return self.intern_type(dir::Type::Rigid(*rigid));
-        }
-
-        // resolve one solved variable through its root
-        let variable = match self.ty(id)? {
-            dir::Type::Variable(variable) => Some(variable),
-            _ => None,
-        };
-        if let Some(variable) = variable {
-            return match self.infer.solution(variable)? {
-                // substitute through the solution, which marks apart from its variable entry
-                Some(solution) => {
-                    let mut marks = FxIndexMap::default();
-                    self.mark_substitutions(solution, rule, &mut marks)?;
-
-                    self.substitute_guarded(target, solution, rule, &marks, substituting)
-                }
-                // rename one open root to its numbered canonical hole
-                None => match rule {
-                    SubstitutionRule::Canonicalize { holes, .. } => {
-                        match holes.get(&self.infer.alias_root(variable)?) {
-                            Some(hole) => self.intern_type(dir::Type::Hole(*hole)),
-                            None => Ok(id),
-                        }
-                    }
-                    _ => Ok(id),
-                },
-            };
         }
 
         // read type records from their owner and intern the result in the target module

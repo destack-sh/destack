@@ -322,6 +322,7 @@ impl CheckState<'_> {
         pending.push(pattern);
 
         while let Some(id) = pending.pop() {
+            let id = self.shallow_resolve(id)?;
             match self.ty(id)? {
                 dir::Type::Operation(operation)
                     if let dir::TypeOperation::Infer(infer) =

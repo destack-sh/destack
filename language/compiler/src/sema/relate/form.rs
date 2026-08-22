@@ -90,6 +90,10 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
+        // read both sides through their solutions
+        let source = self.shallow_resolve(source)?;
+        let target = self.shallow_resolve(target)?;
+
         match (self.ty(source)?, self.ty(target)?) {
             // relate nominal arguments by the declaration's variance in this form
             (dir::Type::Application(source_instance), dir::Type::Application(target_instance))

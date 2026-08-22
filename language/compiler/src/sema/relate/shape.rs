@@ -1310,7 +1310,8 @@ impl CheckState<'_> {
         // compare outputs covariantly, discarding results a void target ignores
         match (source_signature.return_type, target_signature.return_type) {
             (Some(source), Some(target)) => {
-                if !matches!(self.ty(target)?, dir::Type::Void) {
+                let resolved = self.shallow_resolve(target)?;
+                if !matches!(self.ty(resolved)?, dir::Type::Void) {
                     pairs.push((Some(CauseKind::ReturnSlot), source, target));
                 }
             }
