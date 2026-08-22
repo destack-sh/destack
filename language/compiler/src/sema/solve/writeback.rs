@@ -1,6 +1,6 @@
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
-use destack_dir::{TypeFold, WalkSelections};
+use destack_dir::{SelectionVisit, TypeFold};
 
 use crate::sema::{CheckModuleState, CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
@@ -126,7 +126,7 @@ impl CheckState<'_> {
         let mut seen = FxIndexSet::default();
         let mut instantiations = Vec::new();
         for (node, decision) in self.module.decisions.decision_entries() {
-            decision.for_each_selection(&mut |selection| {
+            decision.visit_selections(&mut |selection| {
                 if selection.arguments.is_empty() {
                     return;
                 }
