@@ -8,7 +8,7 @@ use destack_artifact::{
 use destack_core::Blob;
 use destack_repository::{Repository, Revision, Trace, TraceSnapshot, TraceView};
 use destack_session::{ArtifactRun, Executor, Session};
-use destack_source::{File, FileId};
+use destack_source::{File, FileId, Uri};
 use futures::future::BoxFuture;
 use parking_lot::Mutex;
 
@@ -459,6 +459,14 @@ impl Workspace {
             })
             .await
         })
+    }
+
+    /// Read one embedded builtin source file by URI.
+    pub fn read_builtin_file(&self, uri: &Uri) -> Option<Arc<File>> {
+        self.repository
+            .embedded_builtin()
+            .file_for_uri(uri)
+            .cloned()
     }
 
     /// Read source files from one exact revision.
