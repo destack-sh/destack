@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::fmt;
 
-use destack_artifact::{DiagnosticAnchor, DiagnosticBuilder};
+use destack_artifact::{DiagnosticAnchor, DiagnosticBuilder, IndexKind};
 use destack_repository::{LintLevel, ProviderError};
 use destack_source::{Applicability, DiagnosticSuggestion, PatchSet};
 
@@ -232,6 +232,8 @@ pub struct Lint {
     pub default_level: LintLevel,
     /// The safety of emitted corrections.
     pub fixability: Fixability,
+    /// The module indexes required by the check.
+    pub module_indexes: &'static [IndexKind],
     /// The check.
     pub check: LintCheck,
 }

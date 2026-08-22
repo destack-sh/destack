@@ -2,12 +2,12 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, DiagnosticControlIndex, DirChecked,
-    EnvironmentBound, IndexKind, ModuleLinted,
+    EnvironmentBound, ModuleLinted,
 };
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
 use destack_source::{ModuleId, TargetId};
 
-use super::{Dir, LintSet, Linter, Mir};
+use super::{Dir, LintScope, LintSet, Linter, Mir};
 
 impl Linter {
     /// Collect dependencies for one module lint artifact.
@@ -39,7 +39,9 @@ impl Linter {
         // require this module's checked DIR
         if lints.has_dir_modules() {
             dependencies.require(ArtifactKey::environment_bound(profile));
-            dependencies.require(ArtifactKey::module_index(module, profile, IndexKind::Code));
+            for kind in lints.dir_indexes(LintScope::Module) {
+                dependencies.require(ArtifactKey::module_index(module, profile, kind));
+            }
             self.require_dir_modules(revision, &[module], profile, &mut dependencies)?;
         }
 
@@ -104,6 +106,7 @@ impl Linter {
         let revision = context.revision();
         let artifacts = self.artifact_reader(context);
         let environment = artifacts.read::<EnvironmentBound>(profile)?;
+        let indexes = lints.dir_indexes(LintScope::Module).collect::<Vec<_>>();
         let dir = Dir::load(
             self.repository.as_ref(),
             revision,
@@ -111,6 +114,8 @@ impl Linter {
             profile,
             environment,
             &[module],
+            &[module],
+            &indexes,
         )?;
         let module = dir.module(module)?;
         let strings = &dir.strings;

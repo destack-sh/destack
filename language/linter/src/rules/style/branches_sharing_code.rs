@@ -44,6 +44,7 @@ function finish(condition: boolean): void {
         category: Style,
         level: Warning,
         fixable: None,
+        indexes: [Code],
         check: DirModule(check),
     }
 }

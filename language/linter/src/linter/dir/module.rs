@@ -53,8 +53,8 @@ pub struct DirModule<'a> {
     pub captures: &'a dir::CaptureTable<'static>,
     /// The flow conclusion table.
     pub flows: &'a dir::FlowTable<'static>,
-    /// The code fingerprint index.
-    code: &'a ModuleIndex,
+    /// The loaded module indexes by stable kind ordinal.
+    indexes: &'a [Option<Arc<ModuleIndex>>; IndexKind::ALL.len()],
     /// The top-level expression roots.
     pub roots: &'a [dir::LocalNodeId<dir::Expression>],
     /// The stable module node.
@@ -104,8 +104,8 @@ pub(super) struct DirModuleStorage {
     captures: dir::CaptureTable<'static>,
     /// The flow conclusion table.
     flows: dir::FlowTable<'static>,
-    /// The code fingerprint index.
-    code: Arc<ModuleIndex>,
+    /// The loaded module indexes by stable kind ordinal.
+    indexes: [Option<Arc<ModuleIndex>>; IndexKind::ALL.len()],
     /// The top-level expression roots.
     roots: Vec<dir::LocalNodeId<dir::Expression>>,
     /// The stable module node.
@@ -138,7 +138,7 @@ impl<'a> DirModule<'a> {
             coercions: &storage.coercions,
             captures: &storage.captures,
             flows: &storage.flows,
-            code: &storage.code,
+            indexes: &storage.indexes,
             roots: &storage.roots,
             module_node: storage.module_node,
             namespace_scope: storage.namespace_scope,
@@ -228,12 +228,25 @@ impl<'a> DirModule<'a> {
         Ok(type_id)
     }
 
+    /// Return one loaded module index.
+    fn index(&self, kind: IndexKind) -> Result<&ModuleIndex, ProviderError> {
+        let Some(index) = self.indexes[kind.ordinal()].as_deref() else {
+            return Err(ProviderError::internal(format!(
+                "DIR module {:?} was loaded without its {kind:?} index",
+                self.id,
+            )));
+        };
+
+        Ok(index)
+    }
+
     /// Return the code fingerprint index.
     fn code(&self) -> Result<&dir::CodeIndex, ProviderError> {
-        match self.code {
+        match self.index(IndexKind::Code)? {
             ModuleIndex::Code(index) => Ok(index),
             index => Err(ProviderError::internal(format!(
-                "loaded code artifact has {:?} index",
+                "DIR module {:?} code index slot contains {:?}",
+                self.id,
                 index.kind()
             ))),
         }
@@ -258,6 +271,7 @@ impl DirModuleStorage {
         profile: ProfileId,
         module: Arc<Module>,
         artifacts: &ArtifactReader<'_>,
+        indexes: &[IndexKind],
     ) -> Result<Self, ProviderError> {
         let module_id = module.id;
 
@@ -269,15 +283,22 @@ impl DirModuleStorage {
         let expanded = artifacts.read::<DirExpanded>((module_id, profile))?;
         let exported = artifacts.read::<DirExported>((module_id, profile))?;
         let checked = artifacts.read::<DirChecked>((module_id, profile))?;
-        let code = artifacts.read::<ModuleIndex>((module_id, profile, IndexKind::Code))?;
-        if !matches!(code.as_ref(), ModuleIndex::Code(_)) {
-            return Err(ProviderError::internal(format!(
-                "module {module_id:?} code artifact has {:?} index",
-                code.kind()
-            )));
-        }
         let declared = artifacts.read::<DirDeclared>((module_id, profile))?;
         let elaborated = artifacts.read::<DirElaborated>((module_id, profile))?;
+
+        // load each index explicitly requested by an active lint
+        let mut loaded_indexes = std::array::from_fn(|_| None);
+        for kind in indexes.iter().copied() {
+            let index = artifacts.read::<ModuleIndex>((module_id, profile, kind))?;
+            if index.kind() != kind {
+                return Err(ProviderError::internal(format!(
+                    "module {module_id:?} requested {kind:?} index but loaded {:?}",
+                    index.kind()
+                )));
+            }
+            loaded_indexes[kind.ordinal()] = Some(index);
+        }
+
         let expected_files = module
             .files
             .iter()
@@ -348,7 +369,7 @@ impl DirModuleStorage {
             coercions,
             captures,
             flows,
-            code,
+            indexes: loaded_indexes,
             roots,
             module_node,
             namespace_scope,

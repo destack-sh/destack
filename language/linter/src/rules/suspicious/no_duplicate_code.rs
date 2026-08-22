@@ -42,6 +42,7 @@ function increment(value: int32): int32 {
         category: Suspicious,
         level: Warning,
         fixable: None,
+        indexes: [Code],
         check: DirProgram(check),
     }
 }

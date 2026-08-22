@@ -28,6 +28,7 @@ macro_rules! declare_lint_stub {
             category: $category:ident,
             level: $level:ident,
             fixable: $fixable:ident,
+            module_indexes: $module_indexes:expr,
             check: $check:expr,
         }
     ) => {
@@ -46,6 +47,7 @@ macro_rules! declare_lint_stub {
             category: $crate::LintCategory::$category,
             default_level: destack_repository::LintLevel::$level,
             fixability: $crate::Fixability::$fixable,
+            module_indexes: $module_indexes,
             check: $check,
         };
     };
@@ -79,6 +81,7 @@ macro_rules! declare_lint_stub {
                 category: $category,
                 level: $level,
                 fixable: $fixable,
+                module_indexes: &[],
                 check: $crate::LintCheck::$check(None),
             }
         }
@@ -127,6 +130,7 @@ macro_rules! declare_lint {
             category: $category:ident,
             level: $level:ident,
             fixable: $fixable:ident,
+            $(indexes: [$($index:ident),* $(,)?],)?
             check: $check:ident($function:path),
         }
     ) => {
@@ -144,6 +148,7 @@ macro_rules! declare_lint {
                 category: $category,
                 level: $level,
                 fixable: $fixable,
+                module_indexes: &[$($(destack_artifact::IndexKind::$index),*)?],
                 check: $crate::LintCheck::$check(Some($function)),
             }
         }

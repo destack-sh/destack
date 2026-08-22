@@ -34,6 +34,7 @@ function describe(value: int32): string {
         category: Suspicious,
         level: Warning,
         fixable: None,
+        indexes: [Code],
         check: DirModule(check),
     }
 }

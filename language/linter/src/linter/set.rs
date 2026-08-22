@@ -1,11 +1,14 @@
 use std::sync::Arc;
 
-use destack_artifact::{DiagnosticAnchor, DiagnosticControlIndex};
+use destack_artifact::{DiagnosticAnchor, DiagnosticControlIndex, IndexKind};
 use destack_core::{FxIndexSet, StringId};
 use destack_repository::{LintLevel, LinterOptions};
 use destack_source::{DiagnosticSeverity, PackageId};
 
-use super::{DirModuleCheck, DirProgramCheck, Lint, LintCheck, MirModuleCheck, MirProgramCheck};
+use super::{
+    DirModuleCheck, DirProgramCheck, Lint, LintCheck, LintScope, LintTier, MirModuleCheck,
+    MirProgramCheck,
+};
 use crate::LinterError;
 
 /// Lints selected for one module or program.
@@ -145,6 +148,18 @@ impl LintSet {
     /// Return whether this set contains checked DIR program lints.
     pub(crate) fn has_dir_programs(&self) -> bool {
         self.dir_programs().next().is_some()
+    }
+
+    /// Iterate module indexes required by checked DIR lints at one scope.
+    pub(crate) fn dir_indexes(&self, scope: LintScope) -> impl Iterator<Item = IndexKind> + '_ {
+        IndexKind::ALL.into_iter().filter(move |kind| {
+            self.iter().any(|(lint, _)| {
+                lint.is_implemented()
+                    && lint.tier() == LintTier::Dir
+                    && lint.scope() == scope
+                    && lint.module_indexes.contains(kind)
+            })
+        })
     }
 
     /// Return whether this set contains verified MIR module lints.

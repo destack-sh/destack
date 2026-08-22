@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, EnvironmentBound,
+    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, EnvironmentBound, IndexKind,
 };
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
@@ -516,9 +516,12 @@ impl<'a> Dir<'a> {
         profile: ProfileId,
         environment: Arc<EnvironmentBound>,
         modules: &[ModuleId],
+        indexed_modules: &[ModuleId],
+        indexes: &[IndexKind],
     ) -> Result<Self, ProviderError> {
         let mut loaded = FxIndexMap::default();
         loaded.reserve(modules.len());
+        let indexed_modules = indexed_modules.iter().copied().collect::<FxIndexSet<_>>();
 
         // load every selected code module
         for module in modules.iter().copied() {
@@ -530,12 +533,18 @@ impl<'a> Dir<'a> {
                 continue;
             }
 
+            let module_indexes = if indexed_modules.contains(&module) {
+                indexes
+            } else {
+                &[]
+            };
             let module = DirModuleStorage::load(
                 repository,
                 revision,
                 profile,
                 repository_module,
                 artifacts,
+                module_indexes,
             )?;
             loaded.insert(module.id, module);
         }

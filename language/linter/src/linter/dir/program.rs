@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::EnvironmentBound;
+use destack_artifact::{EnvironmentBound, IndexKind};
 use destack_repository::{ArtifactReader, ProviderError, Repository, Revision};
 use destack_source::ModuleId;
 
@@ -25,6 +25,8 @@ impl<'a> DirProgram<'a> {
         program: Arc<LintProgram>,
         environment: Arc<EnvironmentBound>,
         modules: &[ModuleId],
+        indexed_modules: &[ModuleId],
+        indexes: &[IndexKind],
     ) -> Result<Self, ProviderError> {
         let dir = Dir::load(
             repository,
@@ -33,6 +35,8 @@ impl<'a> DirProgram<'a> {
             program.profile.id(),
             environment,
             modules,
+            indexed_modules,
+            indexes,
         )?;
 
         Ok(Self { program, dir })

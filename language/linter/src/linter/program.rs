@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey,
-    DiagnosticControlIndex, DirChecked, EnvironmentBound, IndexKind, ProgramLinted,
+    DiagnosticControlIndex, DirChecked, EnvironmentBound, ProgramLinted,
 };
 use destack_core::FxIndexSet;
 use destack_repository::{
@@ -11,7 +11,7 @@ use destack_repository::{
 };
 use destack_source::{ModuleId, TargetId};
 
-use super::{DirProgram, LintSet, Linter, MirProgram};
+use super::{DirProgram, LintScope, LintSet, Linter, MirProgram};
 
 /// One target program inspected by program lints.
 #[derive(Debug)]
@@ -173,8 +173,16 @@ impl Linter {
             }
 
             self.require_dir_modules(revision, &modules, profile, &mut dependencies)?;
-            for module in modules {
-                dependencies.require(ArtifactKey::module_index(module, profile, IndexKind::Code));
+            let indexes = lints.dir_indexes(LintScope::Program).collect::<Vec<_>>();
+            for module in program_modules.iter().copied() {
+                if module.package_id != target.package_id()
+                    || !self.module(revision, module)?.is_code()
+                {
+                    continue;
+                }
+                for kind in indexes.iter().copied() {
+                    dependencies.require(ArtifactKey::module_index(module, profile, kind));
+                }
             }
         }
 
@@ -270,6 +278,8 @@ impl Linter {
         roots.sort_unstable();
         roots.dedup();
         let module_ids = graph.reachable(&roots)?;
+        let indexed_modules = program.owned_module_ids().collect::<Vec<_>>();
+        let indexes = lints.dir_indexes(LintScope::Program).collect::<Vec<_>>();
         let program = DirProgram::load(
             self.repository.as_ref(),
             revision,
@@ -277,6 +287,8 @@ impl Linter {
             program,
             environment,
             &module_ids,
+            &indexed_modules,
+            &indexes,
         )?;
         let strings = &program.dir.strings;
 
