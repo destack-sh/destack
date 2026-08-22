@@ -750,17 +750,16 @@ impl BodyState<'_, '_> {
                     false => Some(written),
                 }
             }
-            // reject ambient bindings without a written type
-            (None, None) if is_ambient => {
-                if self.is_declaration() {
+            // report an unannotated binding on its first typing visit
+            (None, None) => {
+                let source = pattern.into_global_any(module);
+                if self.check.committed_node_type(source).is_none() {
                     self.check
                         .report_missing_type_annotation(module, pattern.into_any());
                 }
 
                 Some(self.intern_type(dir::Type::Error)?)
             }
-            // nothing written and nothing to infer
-            (None, None) => None,
         };
 
         // check the pattern against the destructured value

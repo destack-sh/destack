@@ -675,24 +675,24 @@ impl WalkState<'_, '_> {
                     *is_readonly,
                 );
 
-                if declared_type.is_none() {
+                // type the field from its annotation or the reported error
+                let field_type = if let Some(declared_type) = declared_type {
+                    self.walk_type_expression(declared_type)?
+                } else {
                     self.check
                         .report_missing_type_annotation(self.module, id.into_any());
-                }
-                let Some(declared_type) = declared_type else {
-                    return Ok(None);
-                };
-                let written = self.walk_type_expression(declared_type)?;
 
-                // write the field symbol type
-                let symbol = self.declared_symbol(id.into_any());
-                if let Some(symbol) = symbol {
-                    self.bind_symbol_type(symbol, written)?;
-                }
-
-                let Some(symbol) = symbol else {
-                    return Ok(None);
+                    self.intern_type(dir::Type::Error)?
                 };
+
+                // resolve and type the field symbol
+                let Some(symbol) = self.declared_symbol(id.into_any()) else {
+                    return Err(CompilerError::Internal {
+                        message: format!("type field member {id:?} has no declaration symbol"),
+                    });
+                };
+                self.bind_symbol_type(symbol, field_type)?;
+
                 let key = name.into();
 
                 Ok(Some(dir::DefinitionMember::Field(dir::FieldDefinition {

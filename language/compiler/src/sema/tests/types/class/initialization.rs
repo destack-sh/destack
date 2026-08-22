@@ -287,10 +287,9 @@ class Connection {
     );
 }
 
+/// Report an unannotated class field.
 #[test]
-fn test_unannotated_field_reports_and_binds_the_error_type() {
-    // assert a bare field reports its missing annotation and settles
-    //  as the error type, leaving the checked write intact
+fn test_report_unannotated_class_field() {
     let session = TestSession::single(
         r#"
 class Foo {

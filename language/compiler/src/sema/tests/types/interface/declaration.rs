@@ -1,5 +1,43 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Report an unannotated interface field.
+#[test]
+fn test_report_unannotated_interface_field() {
+    let session = TestSession::single(
+        r#"
+interface User {
+    name
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface User {
+    name;
+}
+
+=== dir ===
+interface User {
+/// @type.symbol symbol=User type=User
+/// @definition.interface symbol=User
+/// @definition.field symbol=User.name source=name key=name type=<error>
+
+    name
+    /// @type.symbol symbol=User.name source=name type=<error>
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=missing-type-annotation message="missing type annotation"
+/// @diagnostic.label line=3 column=5 span="name" line_source="name"
+"#,
+    );
+}
+
 #[test]
 fn test_interface_implementation_records_selected_members() {
     let session = TestSession::single(

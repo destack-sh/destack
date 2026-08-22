@@ -1,43 +1,5 @@
 use crate::tests::{DirRows, TestSession};
 
-/// Provide checked DIR for a class member left incomplete mid-edit.
-#[test]
-fn test_check_provides_for_an_incomplete_class_member() {
-    let session = TestSession::single(
-        r#"
-class Foo {
-    like
-}
-"#,
-    );
-
-    session.assert_dir_and_diagnostics(
-        "main.ds",
-        DirRows::checked(),
-        r#"
-=== annotated ===
-class Foo {
-    like;
-}
-
-=== dir ===
-class Foo {
-/// @type.symbol symbol=Foo type=Foo
-/// @definition.class symbol=Foo
-/// @definition.field symbol=Foo.like source=like key=like type=<error>
-
-    like
-    /// @type.symbol symbol=Foo.like source=like type=<error>
-
-}
-"#,
-        r#"
-/// @diagnostic.error id=missing-type-annotation message="missing type annotation"
-/// @diagnostic.label line=3 column=5 span="like" line_source="like"
-"#,
-    );
-}
-
 /// Check a class declared inside a function body.
 #[test]
 fn test_check_a_function_local_class() {
