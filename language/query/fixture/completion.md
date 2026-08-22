@@ -2372,3 +2372,37 @@ const message = greet;
 @completion.item label=greet kind=function replace=main.ds#prefix suffix="(count: int32): int32" declaration="export function greet(count: int32): int32" description="from ./library" insert="greet(${1:count})$0" snippet=true auto_import=true matches=0,1,2,3,4
 @completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```
+
+### Complete a member while typing a module
+
+Execute completion after each typed character.
+
+```ds main.ds
+// module
+```
+
+```ds main.ds type
+// module
+
+class World {
+    name: string;
+}
+
+struct Position {
+    x: float64;
+    y: float64;
+}
+
+class Player {
+    world: World;
+    position: Position;
+}
+
+declare const player: Player;
+const selected = player.wo;
+                        ^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=world kind=field replace=main.ds#prefix suffix=": World" declaration="Player.world: World" matches=0,1
+```

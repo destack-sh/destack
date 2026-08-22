@@ -555,3 +555,59 @@ const answer = 42;
 @outline.symbol depth=0 name=ping kind=function detail="(): void" range=main.ds#ping_range selection=main.ds#ping_selection
 @outline.symbol depth=0 name=answer kind=constant detail=42 range=main.ds#answer_range selection=main.ds#answer_selection
 ```
+
+### Outline a module while typing
+
+Build the outline after each typed character.
+
+```ds main.ds
+// module
+```
+
+```ds main.ds type
+// module
+
+class World {
+^ world_range:start
+      ^^^^^ world_selection
+    name: string;
+    ^^^^^^^^^^^^ world_name_range
+    ^^^^ world_name_selection
+}
+^ world_range:end
+
+struct Position {
+^ position_range:start
+       ^^^^^^^^ position_selection
+    x: float64;
+    ^^^^^^^^^^ position_x_range
+    ^ position_x_selection
+    y: float64;
+    ^^^^^^^^^^ position_y_range
+    ^ position_y_selection
+}
+^ position_range:end
+
+class Player {
+^ player_range:start
+      ^^^^^^ player_selection
+    world: World;
+    ^^^^^^^^^^^^ player_world_range
+    ^^^^^ player_world_selection
+    position: Position;
+    ^^^^^^^^^^^^^^^^^^ player_position_range
+    ^^^^^^^^ player_position_selection
+}
+^ player_range:end
+```
+
+```query outline main.ds
+@outline.symbol depth=0 name=World kind=class range=main.ds#world_range selection=main.ds#world_selection
+@outline.symbol depth=1 name=name kind=field detail=string range=main.ds#world_name_range selection=main.ds#world_name_selection
+@outline.symbol depth=0 name=Position kind=struct range=main.ds#position_range selection=main.ds#position_selection
+@outline.symbol depth=1 name=x kind=field detail=float64 range=main.ds#position_x_range selection=main.ds#position_x_selection
+@outline.symbol depth=1 name=y kind=field detail=float64 range=main.ds#position_y_range selection=main.ds#position_y_selection
+@outline.symbol depth=0 name=Player kind=class range=main.ds#player_range selection=main.ds#player_selection
+@outline.symbol depth=1 name=world kind=field detail=World range=main.ds#player_world_range selection=main.ds#player_world_selection
+@outline.symbol depth=1 name=position kind=field detail=Position range=main.ds#player_position_range selection=main.ds#player_position_selection
+```

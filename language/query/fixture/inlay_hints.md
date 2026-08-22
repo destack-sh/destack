@@ -678,3 +678,50 @@ send("ready");
 ```query inlay_hints main.ds#call
 @inlay_hints.hint position=main.ds#argument label="message:" kind=parameter padding_right=true
 ```
+
+### Request hints while typing a module
+
+Request inlay hints after each typed character.
+
+```ds main.ds
+// module
+```
+
+```ds main.ds type
+// module
+^^^^^^^^^ module:start
+
+class World {}
+
+struct Position {
+    x: float64;
+    y: float64;
+}
+
+class Player {
+    world: World;
+    position: Position;
+}
+
+const playerCount = 1;
+      ^^^^^^^^^^^ player_count
+^^^^^^^^^^^^^^^^^^^^^ module:end
+```
+
+```query inlay_hints main.ds#module
+@inlay_hints.hint position=main.ds#player_count@end label=": 1" kind=type
+```
+
+### Render an inferred template literal type
+
+An inferred hint preserves every static string segment and interpolated type.
+
+```ds main.ds
+declare const route: `api:${string}`;
+const selected = route;
+      ^^^^^^^^ selected
+```
+
+```query inlay_hints main.ds#selected
+@inlay_hints.hint position=main.ds#selected@end label=": `api:${string}`" kind=type
+```

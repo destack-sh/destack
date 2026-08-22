@@ -1260,3 +1260,52 @@ function identity(item: int32): int32 {
 @semantic_tokens.token range=main.ds#parameter type=parameter modifiers=declaration
 @semantic_tokens.token range=main.ds#reference type=parameter
 ```
+
+### Classify a module while typing
+
+Classify the module after each typed character.
+
+```ds main.ds
+// module
+```
+
+```ds main.ds type
+// module
+
+class World {
+      ^^^^^ world
+    name: string;
+    ^^^^ world_name
+}
+
+struct Position {
+       ^^^^^^^^ position
+    x: float64;
+    ^ position_x
+    y: float64;
+    ^ position_y
+}
+
+class Player {
+      ^^^^^^ player
+    world: World;
+    ^^^^^ player_world
+           ^^^^^ world_reference
+    position: Position;
+    ^^^^^^^^ player_position
+              ^^^^^^^^ position_reference
+}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#world type=class modifiers=declaration
+@semantic_tokens.token range=main.ds#world_name type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#position type=struct modifiers=declaration
+@semantic_tokens.token range=main.ds#position_x type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#position_y type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#player type=class modifiers=declaration
+@semantic_tokens.token range=main.ds#player_world type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#world_reference type=class
+@semantic_tokens.token range=main.ds#player_position type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#position_reference type=struct
+```

@@ -103,19 +103,28 @@ impl<'a> QueryRun<'a> {
 
         // execute each revision in declaration order
         for (revision_index, revision) in revisions.iter().enumerate() {
+            let revision_number = revision_index + 1;
+
             // publish the revision changes
             if !revision.changes.is_empty()
-                && let Some(trace) = self.advance(&revision.changes)?
+                && let Some(trace) = self
+                    .advance(&revision.changes)
+                    .map_err(|error| format!("revision {revision_number} change failed: {error}"))?
             {
                 traces.push(QueryTrace {
-                    name: format!("revision {} change", revision_index + 1),
+                    name: format!("revision {revision_number} change"),
                     trace,
                 });
             }
 
             // execute the revision assertions
             for (assertion_index, assertion) in revision.assertions.iter().enumerate() {
-                let result = self.run_assertion(assertion, is_blessing)?;
+                let assertion_number = assertion_index + 1;
+                let result = self
+                    .run_assertion(assertion, is_blessing)
+                    .map_err(|error| {
+                        format!("revision {revision_number}.{assertion_number} failed: {error}")
+                    })?;
                 if let Some(update) = result.response_update {
                     updates.push(update);
                 }
@@ -124,9 +133,7 @@ impl<'a> QueryRun<'a> {
                     let repeat = if repeat == 0 { "" } else { " warm" };
                     traces.push(QueryTrace {
                         name: format!(
-                            "revision {}.{} {method}{repeat}",
-                            revision_index + 1,
-                            assertion_index + 1
+                            "revision {revision_number}.{assertion_number} {method}{repeat}"
                         ),
                         trace,
                     });

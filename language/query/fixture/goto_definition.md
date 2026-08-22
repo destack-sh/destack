@@ -891,3 +891,36 @@ export function greet(name: string): string {
 ```query goto_definition main.ds#reference
 @goto_definition.target origin=main.ds#reference location=library.ds#declaration selection=library.ds#definition symbol=library.ds#greet@2
 ```
+
+### Resolve a type while typing a module
+
+Execute definition lookup after each typed character.
+
+```ds main.ds
+// module
+```
+
+```ds main.ds type
+// module
+
+class World {
+^ declaration:start
+      ^^^^^ definition
+}
+^ declaration:end
+
+struct Position {
+    x: float64;
+    y: float64;
+}
+
+class Player {
+    world: World;
+           ^^^^^ reference
+    position: Position;
+}
+```
+
+```query goto_definition main.ds#reference
+@goto_definition.target origin=main.ds#reference location=main.ds#declaration selection=main.ds#definition symbol=main.ds#World@1
+```
