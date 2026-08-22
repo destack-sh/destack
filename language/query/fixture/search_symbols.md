@@ -324,6 +324,84 @@ import { externalSearch } from "./library.ds";
 @search_symbols.symbol name=externalSearch kind=function location=library.ds:1:1-1:42 selection=library.ds#name symbol=library.ds#externalSearch@1
 ```
 
+### Return named re-export aliases
+
+Named re-exports use the target declaration kind at the alias declaration.
+
+```ds library.ds
+export function internalRender(): void {}
+export const internalLimit = 10;
+```
+
+```ds barrel.ds
+export { internalRender as publicRender } from "./library.ds";
+                           ^^^^^^^^^^^^ name
+export { internalLimit as publicLimit } from "./library.ds";
+                          ^^^^^^^^^^^ public_limit
+```
+
+```query search_symbols query=publicRender max_results=10
+@search_symbols.symbol name=publicRender kind=function location=barrel.ds:1:10-1:40 selection=barrel.ds#name symbol=barrel.ds#publicRender@1
+```
+
+```query search_symbols query=publicLimit max_results=10
+@search_symbols.symbol name=publicLimit kind=constant location=barrel.ds:2:10-2:38 selection=barrel.ds#public_limit symbol=barrel.ds#publicLimit@2
+```
+
+### Resolve re-export alias chains
+
+Re-export chains use the final declaration kind at the outer alias.
+
+```ds library.ds
+export function internalRender(): void {}
+```
+
+```ds intermediate.ds
+export { internalRender as sharedRender } from "./library.ds";
+```
+
+```ds barrel.ds
+export { sharedRender as publicRender } from "./intermediate.ds";
+                         ^^^^^^^^^^^^ name
+```
+
+```query search_symbols query=publicRender max_results=10
+@search_symbols.symbol name=publicRender kind=function location=barrel.ds:1:10-1:38 selection=barrel.ds#name symbol=barrel.ds#publicRender@1
+```
+
+### Return namespace re-export aliases
+
+Namespace re-exports retain their authored alias and module kind.
+
+```ds library.ds
+export function execute(): void {}
+```
+
+```ds barrel.ds
+export * as publicApi from "./library.ds";
+            ^^^^^^^^^ name
+```
+
+```query search_symbols query=publicApi max_results=10
+@search_symbols.symbol name=publicApi kind=namespace location=barrel.ds:1:8-1:42 selection=barrel.ds#name symbol=barrel.ds#publicApi@1
+```
+
+### Return no unresolved re-export alias
+
+An unresolved alias has no editor symbol kind.
+
+```ds library.ds
+export function available(): void {}
+```
+
+```ds barrel.ds
+export { missing as publicMissing } from "./library.ds";
+```
+
+```query search_symbols query=publicMissing max_results=10
+@search_symbols.none
+```
+
 ## Declaration Kinds
 
 ### Return a type alias

@@ -86,7 +86,8 @@ pub fn search_symbols(
     // collect matching declarations
     for program in programs {
         for (profile_id, entry) in program.search_symbol_candidates(query)? {
-            if let Some(candidate) = SymbolCandidate::symbol_entry(profile_id, entry, query)? {
+            if let Some(candidate) = SymbolCandidate::from_entry(program, profile_id, entry, query)?
+            {
                 candidates.push(candidate);
             }
         }
@@ -129,7 +130,7 @@ impl SearchSymbol {
     }
 
     /// Convert one cached symbol entry to a symbol match.
-    fn symbol_entry(
+    fn from_entry(
         profile_id: ProfileId,
         entry: dir::SymbolEntry,
         kind: SymbolKind,
@@ -161,32 +162,96 @@ struct SymbolCandidate {
 
 impl SymbolCandidate {
     /// Build one candidate from an indexed symbol entry.
-    fn symbol_entry(
+    fn from_entry(
+        program: &ProgramQueryContext<'_>,
         profile_id: ProfileId,
         entry: dir::SymbolEntry,
         query: &str,
     ) -> QueryResult<Option<Self>> {
         // classify supported indexed declarations
-        let mut kind = match entry.member_kind {
-            Some(kind) => SymbolKind::from(kind),
-            None => SymbolKind::try_from(entry.kind).map_err(|kind| {
-                QueryError::invalid(format!(
-                    "search symbol kind: {:?}, {:?}",
-                    entry.symbol, kind
-                ))
-            })?,
+        let Some(kind) = Self::classify(program, &entry)? else {
+            return Ok(None);
         };
-        if kind == SymbolKind::Variable && entry.mutability == Some(dir::Mutability::Immutable) {
-            kind = SymbolKind::Constant;
-        }
 
         // rank the exact declaration candidate
-        let symbol = SearchSymbol::symbol_entry(profile_id, entry, kind)?;
+        let symbol = SearchSymbol::from_entry(profile_id, entry, kind)?;
         let Some(order) = symbol.order(query) else {
             return Ok(None);
         };
 
         Ok(Some(Self { order, symbol }))
+    }
+
+    /// Classify one indexed declaration for editor display.
+    fn classify(
+        program: &ProgramQueryContext<'_>,
+        entry: &dir::SymbolEntry,
+    ) -> QueryResult<Option<SymbolKind>> {
+        // follow explicit public aliases to their resolved target
+        if entry.kind == dir::SymbolKind::ExportAlias {
+            let module = program.module(entry.symbol.module_id)?;
+            let declaration = entry.declaration.into_global(entry.symbol.module_id);
+            let reference =
+                module
+                    .resolved()?
+                    .references
+                    .get(declaration)
+                    .ok_or(QueryError::missing(format!(
+                        "search symbol target: {declaration:?}"
+                    )))?;
+
+            return Self::classify_alias(program, reference);
+        }
+
+        // classify ordinary declarations directly
+        let kind = SymbolKind::try_from(entry).map_err(|kind| {
+            QueryError::invalid(format!(
+                "search symbol kind: {:?}, {:?}",
+                entry.symbol, kind
+            ))
+        })?;
+
+        Ok(Some(kind))
+    }
+
+    /// Classify the final target selected by one export alias.
+    fn classify_alias(
+        program: &ProgramQueryContext<'_>,
+        reference: &dir::Reference,
+    ) -> QueryResult<Option<SymbolKind>> {
+        // classify each final reference form
+        let symbols = match reference {
+            dir::Reference::Bound(symbols) => symbols,
+            dir::Reference::Namespace { .. } => return Ok(Some(SymbolKind::Namespace)),
+            dir::Reference::Ambiguous(_) | dir::Reference::Missing => return Ok(None),
+            dir::Reference::Projected { .. } => {
+                return Err(QueryError::invalid(
+                    "search symbol alias has a projected target",
+                ));
+            }
+        };
+        let mut kind = None;
+
+        // require one classification shared by every selected declaration
+        for symbol in symbols {
+            let index = program.symbol_index(symbol.module_id)?;
+            let entry = index.entry(*symbol).ok_or(QueryError::missing(format!(
+                "search target symbol: {symbol:?}"
+            )))?;
+            let candidate = SymbolKind::try_from(entry).map_err(|kind| {
+                QueryError::invalid(format!(
+                    "search target symbol kind: {:?}, {:?}",
+                    entry.symbol, kind
+                ))
+            })?;
+            if kind.is_some_and(|kind| kind != candidate) {
+                return Ok(None);
+            }
+
+            kind = Some(candidate);
+        }
+
+        Ok(kind)
     }
 }
 
@@ -286,5 +351,26 @@ impl From<dir::MemberKind> for SymbolKind {
             dir::MemberKind::Property => Self::Property,
             dir::MemberKind::Variant => Self::EnumMember,
         }
+    }
+}
+
+impl TryFrom<&dir::SymbolEntry> for SymbolKind {
+    type Error = dir::SymbolKind;
+
+    /// Convert one indexed declaration into its editor-facing kind.
+    fn try_from(entry: &dir::SymbolEntry) -> Result<Self, Self::Error> {
+        // classify declaration members from their authored role
+        if let Some(kind) = entry.member_kind {
+            return Ok(Self::from(kind));
+        }
+
+        // distinguish immutable and mutable value bindings
+        if entry.kind == dir::SymbolKind::Variable
+            && entry.mutability == Some(dir::Mutability::Immutable)
+        {
+            return Ok(Self::Constant);
+        }
+
+        Self::try_from(entry.kind)
     }
 }
