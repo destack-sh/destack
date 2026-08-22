@@ -21,13 +21,13 @@ Filtering uses the text before the cursor, but accepting the item replaces the c
 
 ```ds main.ds
 const alpha = 1;
-const result = alWrong;
-               ^^ prefix
-               ^^^^^^^ token
+const result = alphaWrong;
+               ^^^^^ prefix
+               ^^^^^^^^^^ token
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=alpha kind=constant replace=main.ds#token suffix=": 1" declaration="const alpha: 1" preselect=true matches=0,1
+@completion.item label=alpha kind=constant replace=main.ds#token suffix=": 1" declaration="const alpha: 1" preselect=true matches=0,1,2,3,4
 ```
 
 ### Exclude a later local declaration
@@ -55,14 +55,14 @@ An initializer cannot use the binding introduced by its own declarator.
 const target: string = "outer";
 
 function read(): string {
-    const target = tar;
-                   ^^^ prefix
+    const target = target;
+                   ^^^^^^ prefix
     return target;
 }
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=target kind=constant replace=main.ds#prefix suffix=": string" declaration="const target: string" preselect=true matches=0,1,2
+@completion.item label=target kind=constant replace=main.ds#prefix suffix=": string" declaration="const target: string" preselect=true matches=0,1,2,3,4,5
 ```
 
 ### Exclude the current destructuring pattern
@@ -71,12 +71,12 @@ Bindings introduced by a declarator are unavailable throughout its initializer.
 
 ```ds main.ds
 const target = 1;
-const { targetField, source: targetAlias } = tar;
-                                             ^^^ prefix
+const { targetField, source: targetAlias } = target;
+                                             ^^^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=target kind=constant replace=main.ds#prefix suffix=": 1" declaration="const target: 1" preselect=true matches=0,1,2
+@completion.item label=target kind=constant replace=main.ds#prefix suffix=": 1" declaration="const target: 1" preselect=true matches=0,1,2,3,4,5
 ```
 
 ### Retain an earlier destructuring binding
@@ -85,12 +85,12 @@ A default value can use bindings evaluated earlier in the same pattern, but not 
 
 ```ds main.ds
 declare const source: { targetValue?: int32; targetField?: int32 };
-const { targetValue = 1, targetField = tar } = source;
-                                       ^^^ prefix
+const { targetValue = 1, targetField = targetValue } = source;
+                                       ^^^^^^^^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=targetValue kind=constant replace=main.ds#prefix suffix=": int32" declaration="const targetValue: int32" preselect=true matches=0,1,2
+@completion.item label=targetValue kind=constant replace=main.ds#prefix suffix=": int32" declaration="const targetValue: int32" preselect=true matches=0,1,2,3,4,5,6,7,8,9,10
 ```
 
 ### Distinguish a mutable binding
@@ -99,12 +99,12 @@ Mutable bindings use their variable kind and widened type.
 
 ```ds main.ds
 let mutableValue = 1;
-const result = mutab;
-               ^^^^^ prefix
+const result = mutableValue;
+               ^^^^^^^^^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=mutableValue kind=variable replace=main.ds#prefix suffix=": int64" declaration="let mutableValue: int64" preselect=true matches=0,1,2,3,4
+@completion.item label=mutableValue kind=variable replace=main.ds#prefix suffix=": int64" declaration="let mutableValue: int64" preselect=true matches=0,1,2,3,4,5,6,7,8,9,10,11
 ```
 
 ### Complete a function parameter
@@ -208,13 +208,13 @@ const message = wel;
 Lexical matching returns the character positions used for ranking and highlighting.
 
 ```ds main.ds
-const currentValue = 1;
-const result = cv;
-               ^^ prefix
+const fixtureCurrentValue = 1;
+const result = fCV;
+               ^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=currentValue kind=constant replace=main.ds#prefix suffix=": 1" declaration="const currentValue: 1" preselect=true matches=0,7
+@completion.item label=fixtureCurrentValue kind=constant replace=main.ds#prefix suffix=": 1" declaration="const fixtureCurrentValue: 1" preselect=true matches=0,7,14
 ```
 
 ### Mark a deprecated declaration
@@ -232,6 +232,21 @@ const result = legacy;
 
 ```query completion main.ds#prefix@end
 @completion.item label=legacyName kind=function replace=main.ds#prefix suffix="(): void" declaration="function legacyName(): void" documentation="Use currentName." insert="legacyName()" preselect=true deprecated=true matches=0,1,2,3,4,5
+```
+
+## Global Symbols
+
+### Complete a profile global
+
+Profile globals participate in ordinary value completion.
+
+```ds main.ds
+const context = currentContex;
+                ^^^^^^^^^^^^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=currentContext kind=function replace=main.ds#prefix suffix="(): Context" declaration="export declare function currentContext(): Context" documentation="Return the current execution context." insert="currentContext()" preselect=true matches=0,1,2,3,4,5,6,7,8,9,10,11,12
 ```
 
 ## Members
@@ -646,7 +661,7 @@ function isEmpty(value: string): boolean {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=isEmpty kind=property replace=main.ds#prefix suffix=": boolean" declaration="get String.isEmpty(): boolean" documentation="Check if the string is empty." matches=0,1,2
+@completion.item label=isEmpty kind=property replace=main.ds#prefix suffix=": boolean" declaration="get String.isEmpty(): boolean" documentation="Check if the string is empty." preselect=true matches=0,1,2
 @completion.item label=isWellFormed kind=method replace=main.ds#prefix suffix="(): boolean" declaration="String.isWellFormed(): boolean" documentation="Return whether this string is well-formed Unicode." insert="isWellFormed()" matches=0,1,3
 ```
 
@@ -729,7 +744,7 @@ function identify(value: Named & Identified): int32 {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=id kind=field replace=main.ds#prefix suffix=": int32" declaration="Identified.id: int32" matches=0
+@completion.item label=id kind=field replace=main.ds#prefix suffix=": int32" declaration="Identified.id: int32" preselect=true matches=0
 @completion.item label=into kind=method replace=main.ds#prefix suffix="(): *" declaration="into(): U" documentation="Convert this value through `U.from`." insert="into()" matches=0
 @completion.item label=tryInto kind=method replace=main.ds#prefix suffix="(): Result<*, *.Error>" declaration="tryInto(): Result<U, U.Error>" documentation="Convert this value through `U.tryFrom`." insert="tryInto()" matches=3
 ```
@@ -831,16 +846,16 @@ declare const packet: library.Pac;
 Type positions include visible type declarations.
 
 ```ds main.ds
-struct Point {
+struct FixturePoint {
     x: int32;
 }
 
-declare const point: Poi;
-                     ^^^ prefix
+declare const point: FixturePoin;
+                     ^^^^^^^^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=Point kind=struct replace=main.ds#prefix declaration="struct Point" preselect=true matches=0,1,2
+@completion.item label=FixturePoint kind=struct replace=main.ds#prefix declaration="struct FixturePoint" preselect=true matches=0,1,2,3,4,5,6,7,8,9,10
 ```
 
 ### Exclude value-only declarations from a type position
@@ -863,14 +878,29 @@ declare const packet: PacketV;
 A generic parameter remains visible throughout its declaration.
 
 ```ds main.ds
-function identity<Value>(value: Value): Val {
-                                        ^^^ prefix
+function identity<Value>(value: Value): Value {
+                                        ^^^^^ prefix
     return value;
 }
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=Value kind=type_parameter replace=main.ds#prefix declaration=Value preselect=true matches=0,1,2
+@completion.item label=Value kind=type_parameter replace=main.ds#prefix declaration=Value preselect=true matches=0,1,2,3,4
+```
+
+### Complete a type with an explicit lifetime
+
+Type details preserve a general lifetime parameter in borrowed forms.
+
+```ds main.ds
+type Alias<const L: Lifetime> = BorrowedFields<unknown, L>;
+                                ^^^^^^^^^^^^^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=BorrowedFields kind=type_alias replace=main.ds#prefix suffix="<T, const L: Lifetime>" declaration="export type BorrowedFields<T, const L: Lifetime> = { [K in keyof T]: WithLifetime<&T[K], L> }" documentation="Rebase each field of `T` into borrowed form." preselect=true matches=0,1,2,3,4,5,6,7,8,9,10,11,12,13
+@completion.item label=ReadonlyBorrowedFields kind=type_alias replace=main.ds#prefix suffix="<T, const L: Lifetime>" declaration="export type ReadonlyBorrowedFields<T, const L: Lifetime> = { [K in keyof T]: ReadonlyBorrowed<T[K], L> }" documentation="Rebase each field of `T` into readonly borrowed form." matches=8,9,10,11,12,13,14,15,16,17,18,19,20,21
+@completion.item label=ExclusiveBorrowedFields kind=type_alias replace=main.ds#prefix suffix="<T, const L: Lifetime>" declaration="export type ExclusiveBorrowedFields<T, const L: Lifetime> = { [K in keyof T]: ExclusiveBorrowed<T[K], L> }" documentation="Rebase each field of `T` into exclusive borrowed form." matches=9,10,11,12,13,14,15,16,17,18,19,20,21,22
 ```
 
 ### Complete an imported type through a re-export
@@ -926,14 +956,13 @@ newtype Status =
     | { type: "error"; error: int32 };
 
 function statusType(status: Status): string {
-    return status.ty;
-                  ^^ prefix
+    return status.type;
+                  ^^^^ prefix
 }
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=type kind=field replace=main.ds#prefix suffix=": \"ok\" | \"error\"" matches=0,1
-@completion.item label=tryInto kind=method replace=main.ds#prefix suffix="(): Result<*, *.Error>" declaration="tryInto(): Result<U, U.Error>" documentation="Convert this value through `U.tryFrom`." insert="tryInto()" matches=0,2
+@completion.item label=type kind=field replace=main.ds#prefix suffix=": \"ok\" | \"error\"" preselect=true matches=0,1,2,3
 ```
 
 ## Constructors
@@ -961,17 +990,17 @@ const widget = new Widget;
 A struct value completion can insert every required field.
 
 ```ds main.ds
-struct Point {
+struct FixturePoint {
     x: int32;
     y: int32;
 }
 
-const result = Poi;
-               ^^^ prefix
+const result = FixturePoin;
+               ^^^^^^^^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=Point kind=struct replace=main.ds#prefix declaration="struct Point" insert="Point { x: ${1}, y: ${2} }$0" snippet=true preselect=true matches=0,1,2
+@completion.item label=FixturePoint kind=struct replace=main.ds#prefix declaration="struct FixturePoint" insert="FixturePoint { x: ${1}, y: ${2} }$0" snippet=true preselect=true matches=0,1,2,3,4,5,6,7,8,9,10
 ```
 
 ### Complete a newtype constructor
@@ -989,6 +1018,23 @@ const result = UserI;
 @completion.item label=UserId kind=constructor replace=main.ds#prefix suffix="(string): UserId" declaration="newtype UserId = string" insert="UserId(${1})$0" snippet=true preselect=true matches=0,1,2,3,4
 ```
 
+### Complete every newtype constructor once
+
+A selected newtype expands into its constructor overloads with one preselected item.
+
+```ds main.ds
+newtype Choice = string | int32;
+
+const result = Choice(1);
+               ^^^^^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=Choice kind=constructor replace=main.ds#prefix suffix="(string): Choice" declaration="newtype Choice = string | int32" insert="Choice(${1})$0" snippet=true preselect=true matches=0,1,2,3,4,5
+@completion.item label=Choice kind=constructor replace=main.ds#prefix suffix="(int32): Choice" declaration="newtype Choice = string | int32" insert="Choice(${1})$0" snippet=true matches=0,1,2,3,4,5
+@completion.item label=Choice kind=constructor replace=main.ds#prefix suffix="(string | int32): Choice" declaration="newtype Choice = string | int32" insert="Choice(${1})$0" snippet=true matches=0,1,2,3,4,5
+```
+
 ## Object Literals
 
 ### Complete a missing field
@@ -1003,13 +1049,13 @@ struct Rectangle {
 
 const rectangle: Rectangle = {
     width: 10,
-    hei
-    ^^^ prefix
+    heigh
+    ^^^^^ prefix
 };
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=height kind=field replace=main.ds#prefix suffix=": int32" declaration="Rectangle.height: int32" insert="height: ${1}" snippet=true preselect=true matches=0,1,2
+@completion.item label=height kind=field replace=main.ds#prefix suffix=": int32" declaration="Rectangle.height: int32" insert="height: ${1}" snippet=true preselect=true matches=0,1,2,3,4
 ```
 
 ### Substitute a generic field type
@@ -1094,13 +1140,13 @@ struct Rectangle {
 const height: int32 = 20;
 const rectangle: Rectangle = {
     width: 10,
-    hei
-    ^^^ prefix
+    heigh
+    ^^^^^ prefix
 };
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=height kind=field replace=main.ds#prefix suffix=": int32" declaration="Rectangle.height: int32" preselect=true matches=0,1,2
+@completion.item label=height kind=field replace=main.ds#prefix suffix=": int32" declaration="Rectangle.height: int32" preselect=true matches=0,1,2,3,4
 ```
 
 ### Complete a visible shorthand without a contextual type
@@ -1110,13 +1156,13 @@ An object literal can use any visible value as a shorthand property.
 ```ds main.ds
 const height: int32 = 20;
 const rectangle = {
-    hei
-    ^^^ prefix
+    heigh
+    ^^^^^ prefix
 };
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=height kind=field replace=main.ds#prefix suffix=": int32" declaration="const height: int32" preselect=true matches=0,1,2
+@completion.item label=height kind=field replace=main.ds#prefix suffix=": int32" declaration="const height: int32" preselect=true matches=0,1,2,3,4
 ```
 
 ### Omit a field supplied by a spread
@@ -1197,12 +1243,12 @@ function consume(target: int32): void {}
 
 const tangible: int32 = 1;
 
-consume(ta);
-        ^^ prefix
+consume(tangible);
+        ^^^^^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=tangible kind=constant replace=main.ds#prefix suffix=": int32" declaration="const tangible: int32" preselect=true matches=0,1
+@completion.item label=tangible kind=constant replace=main.ds#prefix suffix=": int32" declaration="const tangible: int32" preselect=true matches=0,1,2,3,4,5,6,7
 ```
 
 ## Imports
@@ -1365,26 +1411,26 @@ function main(): void {
 @completion.additional_edit item=1 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```
 
-### Refresh an incomplete completion list
+### Refresh completion with a longer prefix
 
-A retriggered request continues the candidate family returned by the incomplete list.
+A retriggered request filters candidates with the latest prefix.
 
 ```ds library.ds
-export function target(): void {}
+export function refreshTarget(): void {}
 ```
 
 ```ds main.ds
 
 ^ insertion
 function main(): void {
-    t;
-    ^ prefix
+    refreshTarge;
+    ^^^^^^^^^^^^ prefix
 }
 ```
 
 ```query completion main.ds#prefix@end trigger=incomplete include_auto_imports=true
-@completion.item label=target kind=function replace=main.ds#prefix suffix="(): void" declaration="export function target(): void" description="from ./library" insert="target()" preselect=true auto_import=true matches=0
-@completion.additional_edit item=0 range=main.ds#insertion text="import { target } from \"./library\";\n"
+@completion.item label=refreshTarget kind=function replace=main.ds#prefix suffix="(): void" declaration="export function refreshTarget(): void" description="from ./library" insert="refreshTarget()" preselect=true auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10,11
+@completion.additional_edit item=0 range=main.ds#insertion text="import { refreshTarget } from \"./library\";\n"
 ```
 
 ### Report a truncated completion list
@@ -1392,168 +1438,168 @@ function main(): void {
 A truncated short-prefix list reports that more matching candidates are available.
 
 ```ds library.ds
-export type x00 = int32;
-export type x01 = int32;
-export type x02 = int32;
-export type x03 = int32;
-export type x04 = int32;
-export type x05 = int32;
-export type x06 = int32;
-export type x07 = int32;
-export type x08 = int32;
-export type x09 = int32;
-export type x10 = int32;
-export type x11 = int32;
-export type x12 = int32;
-export type x13 = int32;
-export type x14 = int32;
-export type x15 = int32;
-export type x16 = int32;
-export type x17 = int32;
-export type x18 = int32;
-export type x19 = int32;
-export type x20 = int32;
-export type x21 = int32;
-export type x22 = int32;
-export type x23 = int32;
-export type x24 = int32;
-export type x25 = int32;
-export type x26 = int32;
-export type x27 = int32;
-export type x28 = int32;
-export type x29 = int32;
-export type x30 = int32;
-export type x31 = int32;
-export type x32 = int32;
-export type x33 = int32;
-export type x34 = int32;
-export type x35 = int32;
-export type x36 = int32;
-export type x37 = int32;
-export type x38 = int32;
-export type x39 = int32;
-export type x40 = int32;
-export type x41 = int32;
-export type x42 = int32;
-export type x43 = int32;
-export type x44 = int32;
-export type x45 = int32;
-export type x46 = int32;
-export type x47 = int32;
-export type x48 = int32;
-export type x49 = int32;
-export type x50 = int32;
+export type $x00 = int32;
+export type $x01 = int32;
+export type $x02 = int32;
+export type $x03 = int32;
+export type $x04 = int32;
+export type $x05 = int32;
+export type $x06 = int32;
+export type $x07 = int32;
+export type $x08 = int32;
+export type $x09 = int32;
+export type $x10 = int32;
+export type $x11 = int32;
+export type $x12 = int32;
+export type $x13 = int32;
+export type $x14 = int32;
+export type $x15 = int32;
+export type $x16 = int32;
+export type $x17 = int32;
+export type $x18 = int32;
+export type $x19 = int32;
+export type $x20 = int32;
+export type $x21 = int32;
+export type $x22 = int32;
+export type $x23 = int32;
+export type $x24 = int32;
+export type $x25 = int32;
+export type $x26 = int32;
+export type $x27 = int32;
+export type $x28 = int32;
+export type $x29 = int32;
+export type $x30 = int32;
+export type $x31 = int32;
+export type $x32 = int32;
+export type $x33 = int32;
+export type $x34 = int32;
+export type $x35 = int32;
+export type $x36 = int32;
+export type $x37 = int32;
+export type $x38 = int32;
+export type $x39 = int32;
+export type $x40 = int32;
+export type $x41 = int32;
+export type $x42 = int32;
+export type $x43 = int32;
+export type $x44 = int32;
+export type $x45 = int32;
+export type $x46 = int32;
+export type $x47 = int32;
+export type $x48 = int32;
+export type $x49 = int32;
+export type $x50 = int32;
 ```
 
 ```ds main.ds
 
 ^ insertion
-type Selected = x;
+type Selected = $;
                 ^ prefix
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
 @completion.list incomplete=true
-@completion.item label=x00 kind=type_alias replace=main.ds#prefix declaration="export type x00 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=0 range=main.ds#insertion text="import { x00 } from \"./library\";\n"
-@completion.item label=x01 kind=type_alias replace=main.ds#prefix declaration="export type x01 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=1 range=main.ds#insertion text="import { x01 } from \"./library\";\n"
-@completion.item label=x02 kind=type_alias replace=main.ds#prefix declaration="export type x02 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=2 range=main.ds#insertion text="import { x02 } from \"./library\";\n"
-@completion.item label=x03 kind=type_alias replace=main.ds#prefix declaration="export type x03 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=3 range=main.ds#insertion text="import { x03 } from \"./library\";\n"
-@completion.item label=x04 kind=type_alias replace=main.ds#prefix declaration="export type x04 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=4 range=main.ds#insertion text="import { x04 } from \"./library\";\n"
-@completion.item label=x05 kind=type_alias replace=main.ds#prefix declaration="export type x05 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=5 range=main.ds#insertion text="import { x05 } from \"./library\";\n"
-@completion.item label=x06 kind=type_alias replace=main.ds#prefix declaration="export type x06 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=6 range=main.ds#insertion text="import { x06 } from \"./library\";\n"
-@completion.item label=x07 kind=type_alias replace=main.ds#prefix declaration="export type x07 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=7 range=main.ds#insertion text="import { x07 } from \"./library\";\n"
-@completion.item label=x08 kind=type_alias replace=main.ds#prefix declaration="export type x08 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=8 range=main.ds#insertion text="import { x08 } from \"./library\";\n"
-@completion.item label=x09 kind=type_alias replace=main.ds#prefix declaration="export type x09 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=9 range=main.ds#insertion text="import { x09 } from \"./library\";\n"
-@completion.item label=x10 kind=type_alias replace=main.ds#prefix declaration="export type x10 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=10 range=main.ds#insertion text="import { x10 } from \"./library\";\n"
-@completion.item label=x11 kind=type_alias replace=main.ds#prefix declaration="export type x11 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=11 range=main.ds#insertion text="import { x11 } from \"./library\";\n"
-@completion.item label=x12 kind=type_alias replace=main.ds#prefix declaration="export type x12 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=12 range=main.ds#insertion text="import { x12 } from \"./library\";\n"
-@completion.item label=x13 kind=type_alias replace=main.ds#prefix declaration="export type x13 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=13 range=main.ds#insertion text="import { x13 } from \"./library\";\n"
-@completion.item label=x14 kind=type_alias replace=main.ds#prefix declaration="export type x14 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=14 range=main.ds#insertion text="import { x14 } from \"./library\";\n"
-@completion.item label=x15 kind=type_alias replace=main.ds#prefix declaration="export type x15 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=15 range=main.ds#insertion text="import { x15 } from \"./library\";\n"
-@completion.item label=x16 kind=type_alias replace=main.ds#prefix declaration="export type x16 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=16 range=main.ds#insertion text="import { x16 } from \"./library\";\n"
-@completion.item label=x17 kind=type_alias replace=main.ds#prefix declaration="export type x17 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=17 range=main.ds#insertion text="import { x17 } from \"./library\";\n"
-@completion.item label=x18 kind=type_alias replace=main.ds#prefix declaration="export type x18 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=18 range=main.ds#insertion text="import { x18 } from \"./library\";\n"
-@completion.item label=x19 kind=type_alias replace=main.ds#prefix declaration="export type x19 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=19 range=main.ds#insertion text="import { x19 } from \"./library\";\n"
-@completion.item label=x20 kind=type_alias replace=main.ds#prefix declaration="export type x20 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=20 range=main.ds#insertion text="import { x20 } from \"./library\";\n"
-@completion.item label=x21 kind=type_alias replace=main.ds#prefix declaration="export type x21 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=21 range=main.ds#insertion text="import { x21 } from \"./library\";\n"
-@completion.item label=x22 kind=type_alias replace=main.ds#prefix declaration="export type x22 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=22 range=main.ds#insertion text="import { x22 } from \"./library\";\n"
-@completion.item label=x23 kind=type_alias replace=main.ds#prefix declaration="export type x23 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=23 range=main.ds#insertion text="import { x23 } from \"./library\";\n"
-@completion.item label=x24 kind=type_alias replace=main.ds#prefix declaration="export type x24 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=24 range=main.ds#insertion text="import { x24 } from \"./library\";\n"
-@completion.item label=x25 kind=type_alias replace=main.ds#prefix declaration="export type x25 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=25 range=main.ds#insertion text="import { x25 } from \"./library\";\n"
-@completion.item label=x26 kind=type_alias replace=main.ds#prefix declaration="export type x26 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=26 range=main.ds#insertion text="import { x26 } from \"./library\";\n"
-@completion.item label=x27 kind=type_alias replace=main.ds#prefix declaration="export type x27 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=27 range=main.ds#insertion text="import { x27 } from \"./library\";\n"
-@completion.item label=x28 kind=type_alias replace=main.ds#prefix declaration="export type x28 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=28 range=main.ds#insertion text="import { x28 } from \"./library\";\n"
-@completion.item label=x29 kind=type_alias replace=main.ds#prefix declaration="export type x29 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=29 range=main.ds#insertion text="import { x29 } from \"./library\";\n"
-@completion.item label=x30 kind=type_alias replace=main.ds#prefix declaration="export type x30 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=30 range=main.ds#insertion text="import { x30 } from \"./library\";\n"
-@completion.item label=x31 kind=type_alias replace=main.ds#prefix declaration="export type x31 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=31 range=main.ds#insertion text="import { x31 } from \"./library\";\n"
-@completion.item label=x32 kind=type_alias replace=main.ds#prefix declaration="export type x32 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=32 range=main.ds#insertion text="import { x32 } from \"./library\";\n"
-@completion.item label=x33 kind=type_alias replace=main.ds#prefix declaration="export type x33 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=33 range=main.ds#insertion text="import { x33 } from \"./library\";\n"
-@completion.item label=x34 kind=type_alias replace=main.ds#prefix declaration="export type x34 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=34 range=main.ds#insertion text="import { x34 } from \"./library\";\n"
-@completion.item label=x35 kind=type_alias replace=main.ds#prefix declaration="export type x35 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=35 range=main.ds#insertion text="import { x35 } from \"./library\";\n"
-@completion.item label=x36 kind=type_alias replace=main.ds#prefix declaration="export type x36 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=36 range=main.ds#insertion text="import { x36 } from \"./library\";\n"
-@completion.item label=x37 kind=type_alias replace=main.ds#prefix declaration="export type x37 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=37 range=main.ds#insertion text="import { x37 } from \"./library\";\n"
-@completion.item label=x38 kind=type_alias replace=main.ds#prefix declaration="export type x38 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=38 range=main.ds#insertion text="import { x38 } from \"./library\";\n"
-@completion.item label=x39 kind=type_alias replace=main.ds#prefix declaration="export type x39 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=39 range=main.ds#insertion text="import { x39 } from \"./library\";\n"
-@completion.item label=x40 kind=type_alias replace=main.ds#prefix declaration="export type x40 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=40 range=main.ds#insertion text="import { x40 } from \"./library\";\n"
-@completion.item label=x41 kind=type_alias replace=main.ds#prefix declaration="export type x41 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=41 range=main.ds#insertion text="import { x41 } from \"./library\";\n"
-@completion.item label=x42 kind=type_alias replace=main.ds#prefix declaration="export type x42 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=42 range=main.ds#insertion text="import { x42 } from \"./library\";\n"
-@completion.item label=x43 kind=type_alias replace=main.ds#prefix declaration="export type x43 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=43 range=main.ds#insertion text="import { x43 } from \"./library\";\n"
-@completion.item label=x44 kind=type_alias replace=main.ds#prefix declaration="export type x44 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=44 range=main.ds#insertion text="import { x44 } from \"./library\";\n"
-@completion.item label=x45 kind=type_alias replace=main.ds#prefix declaration="export type x45 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=45 range=main.ds#insertion text="import { x45 } from \"./library\";\n"
-@completion.item label=x46 kind=type_alias replace=main.ds#prefix declaration="export type x46 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=46 range=main.ds#insertion text="import { x46 } from \"./library\";\n"
-@completion.item label=x47 kind=type_alias replace=main.ds#prefix declaration="export type x47 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=47 range=main.ds#insertion text="import { x47 } from \"./library\";\n"
-@completion.item label=x48 kind=type_alias replace=main.ds#prefix declaration="export type x48 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=48 range=main.ds#insertion text="import { x48 } from \"./library\";\n"
-@completion.item label=x49 kind=type_alias replace=main.ds#prefix declaration="export type x49 = int32" description="from ./library" auto_import=true matches=0
-@completion.additional_edit item=49 range=main.ds#insertion text="import { x49 } from \"./library\";\n"
+@completion.item label="$x00" kind=type_alias replace=main.ds#prefix declaration="export type $x00 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=0 range=main.ds#insertion text="import { $x00 } from \"./library\";\n"
+@completion.item label="$x01" kind=type_alias replace=main.ds#prefix declaration="export type $x01 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=1 range=main.ds#insertion text="import { $x01 } from \"./library\";\n"
+@completion.item label="$x02" kind=type_alias replace=main.ds#prefix declaration="export type $x02 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=2 range=main.ds#insertion text="import { $x02 } from \"./library\";\n"
+@completion.item label="$x03" kind=type_alias replace=main.ds#prefix declaration="export type $x03 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=3 range=main.ds#insertion text="import { $x03 } from \"./library\";\n"
+@completion.item label="$x04" kind=type_alias replace=main.ds#prefix declaration="export type $x04 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=4 range=main.ds#insertion text="import { $x04 } from \"./library\";\n"
+@completion.item label="$x05" kind=type_alias replace=main.ds#prefix declaration="export type $x05 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=5 range=main.ds#insertion text="import { $x05 } from \"./library\";\n"
+@completion.item label="$x06" kind=type_alias replace=main.ds#prefix declaration="export type $x06 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=6 range=main.ds#insertion text="import { $x06 } from \"./library\";\n"
+@completion.item label="$x07" kind=type_alias replace=main.ds#prefix declaration="export type $x07 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=7 range=main.ds#insertion text="import { $x07 } from \"./library\";\n"
+@completion.item label="$x08" kind=type_alias replace=main.ds#prefix declaration="export type $x08 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=8 range=main.ds#insertion text="import { $x08 } from \"./library\";\n"
+@completion.item label="$x09" kind=type_alias replace=main.ds#prefix declaration="export type $x09 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=9 range=main.ds#insertion text="import { $x09 } from \"./library\";\n"
+@completion.item label="$x10" kind=type_alias replace=main.ds#prefix declaration="export type $x10 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=10 range=main.ds#insertion text="import { $x10 } from \"./library\";\n"
+@completion.item label="$x11" kind=type_alias replace=main.ds#prefix declaration="export type $x11 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=11 range=main.ds#insertion text="import { $x11 } from \"./library\";\n"
+@completion.item label="$x12" kind=type_alias replace=main.ds#prefix declaration="export type $x12 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=12 range=main.ds#insertion text="import { $x12 } from \"./library\";\n"
+@completion.item label="$x13" kind=type_alias replace=main.ds#prefix declaration="export type $x13 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=13 range=main.ds#insertion text="import { $x13 } from \"./library\";\n"
+@completion.item label="$x14" kind=type_alias replace=main.ds#prefix declaration="export type $x14 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=14 range=main.ds#insertion text="import { $x14 } from \"./library\";\n"
+@completion.item label="$x15" kind=type_alias replace=main.ds#prefix declaration="export type $x15 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=15 range=main.ds#insertion text="import { $x15 } from \"./library\";\n"
+@completion.item label="$x16" kind=type_alias replace=main.ds#prefix declaration="export type $x16 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=16 range=main.ds#insertion text="import { $x16 } from \"./library\";\n"
+@completion.item label="$x17" kind=type_alias replace=main.ds#prefix declaration="export type $x17 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=17 range=main.ds#insertion text="import { $x17 } from \"./library\";\n"
+@completion.item label="$x18" kind=type_alias replace=main.ds#prefix declaration="export type $x18 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=18 range=main.ds#insertion text="import { $x18 } from \"./library\";\n"
+@completion.item label="$x19" kind=type_alias replace=main.ds#prefix declaration="export type $x19 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=19 range=main.ds#insertion text="import { $x19 } from \"./library\";\n"
+@completion.item label="$x20" kind=type_alias replace=main.ds#prefix declaration="export type $x20 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=20 range=main.ds#insertion text="import { $x20 } from \"./library\";\n"
+@completion.item label="$x21" kind=type_alias replace=main.ds#prefix declaration="export type $x21 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=21 range=main.ds#insertion text="import { $x21 } from \"./library\";\n"
+@completion.item label="$x22" kind=type_alias replace=main.ds#prefix declaration="export type $x22 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=22 range=main.ds#insertion text="import { $x22 } from \"./library\";\n"
+@completion.item label="$x23" kind=type_alias replace=main.ds#prefix declaration="export type $x23 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=23 range=main.ds#insertion text="import { $x23 } from \"./library\";\n"
+@completion.item label="$x24" kind=type_alias replace=main.ds#prefix declaration="export type $x24 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=24 range=main.ds#insertion text="import { $x24 } from \"./library\";\n"
+@completion.item label="$x25" kind=type_alias replace=main.ds#prefix declaration="export type $x25 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=25 range=main.ds#insertion text="import { $x25 } from \"./library\";\n"
+@completion.item label="$x26" kind=type_alias replace=main.ds#prefix declaration="export type $x26 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=26 range=main.ds#insertion text="import { $x26 } from \"./library\";\n"
+@completion.item label="$x27" kind=type_alias replace=main.ds#prefix declaration="export type $x27 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=27 range=main.ds#insertion text="import { $x27 } from \"./library\";\n"
+@completion.item label="$x28" kind=type_alias replace=main.ds#prefix declaration="export type $x28 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=28 range=main.ds#insertion text="import { $x28 } from \"./library\";\n"
+@completion.item label="$x29" kind=type_alias replace=main.ds#prefix declaration="export type $x29 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=29 range=main.ds#insertion text="import { $x29 } from \"./library\";\n"
+@completion.item label="$x30" kind=type_alias replace=main.ds#prefix declaration="export type $x30 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=30 range=main.ds#insertion text="import { $x30 } from \"./library\";\n"
+@completion.item label="$x31" kind=type_alias replace=main.ds#prefix declaration="export type $x31 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=31 range=main.ds#insertion text="import { $x31 } from \"./library\";\n"
+@completion.item label="$x32" kind=type_alias replace=main.ds#prefix declaration="export type $x32 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=32 range=main.ds#insertion text="import { $x32 } from \"./library\";\n"
+@completion.item label="$x33" kind=type_alias replace=main.ds#prefix declaration="export type $x33 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=33 range=main.ds#insertion text="import { $x33 } from \"./library\";\n"
+@completion.item label="$x34" kind=type_alias replace=main.ds#prefix declaration="export type $x34 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=34 range=main.ds#insertion text="import { $x34 } from \"./library\";\n"
+@completion.item label="$x35" kind=type_alias replace=main.ds#prefix declaration="export type $x35 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=35 range=main.ds#insertion text="import { $x35 } from \"./library\";\n"
+@completion.item label="$x36" kind=type_alias replace=main.ds#prefix declaration="export type $x36 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=36 range=main.ds#insertion text="import { $x36 } from \"./library\";\n"
+@completion.item label="$x37" kind=type_alias replace=main.ds#prefix declaration="export type $x37 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=37 range=main.ds#insertion text="import { $x37 } from \"./library\";\n"
+@completion.item label="$x38" kind=type_alias replace=main.ds#prefix declaration="export type $x38 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=38 range=main.ds#insertion text="import { $x38 } from \"./library\";\n"
+@completion.item label="$x39" kind=type_alias replace=main.ds#prefix declaration="export type $x39 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=39 range=main.ds#insertion text="import { $x39 } from \"./library\";\n"
+@completion.item label="$x40" kind=type_alias replace=main.ds#prefix declaration="export type $x40 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=40 range=main.ds#insertion text="import { $x40 } from \"./library\";\n"
+@completion.item label="$x41" kind=type_alias replace=main.ds#prefix declaration="export type $x41 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=41 range=main.ds#insertion text="import { $x41 } from \"./library\";\n"
+@completion.item label="$x42" kind=type_alias replace=main.ds#prefix declaration="export type $x42 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=42 range=main.ds#insertion text="import { $x42 } from \"./library\";\n"
+@completion.item label="$x43" kind=type_alias replace=main.ds#prefix declaration="export type $x43 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=43 range=main.ds#insertion text="import { $x43 } from \"./library\";\n"
+@completion.item label="$x44" kind=type_alias replace=main.ds#prefix declaration="export type $x44 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=44 range=main.ds#insertion text="import { $x44 } from \"./library\";\n"
+@completion.item label="$x45" kind=type_alias replace=main.ds#prefix declaration="export type $x45 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=45 range=main.ds#insertion text="import { $x45 } from \"./library\";\n"
+@completion.item label="$x46" kind=type_alias replace=main.ds#prefix declaration="export type $x46 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=46 range=main.ds#insertion text="import { $x46 } from \"./library\";\n"
+@completion.item label="$x47" kind=type_alias replace=main.ds#prefix declaration="export type $x47 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=47 range=main.ds#insertion text="import { $x47 } from \"./library\";\n"
+@completion.item label="$x48" kind=type_alias replace=main.ds#prefix declaration="export type $x48 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=48 range=main.ds#insertion text="import { $x48 } from \"./library\";\n"
+@completion.item label="$x49" kind=type_alias replace=main.ds#prefix declaration="export type $x49 = int32" description="from ./library" auto_import=true matches=0
+@completion.additional_edit item=49 range=main.ds#insertion text="import { $x49 } from \"./library\";\n"
 ```
 
 ### Preserve an extension for an ambiguous relative path
@@ -1593,12 +1639,12 @@ export type Widget = {
 ```ds main.ds
 
 ^ insertion
-type Alias = Wid;
-             ^^^ prefix
+type Alias = Widget;
+             ^^^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=Widget kind=type_alias replace=main.ds#prefix declaration="export type Widget = { value: string }" description="from ./library" preselect=true auto_import=true matches=0,1,2
+@completion.item label=Widget kind=type_alias replace=main.ds#prefix declaration="export type Widget = { value: string }" description="from ./library" preselect=true auto_import=true matches=0,1,2,3,4,5
 @completion.additional_edit item=0 range=main.ds#insertion text="import { Widget } from \"./library\";\n"
 ```
 
@@ -1629,11 +1675,11 @@ const message = gre;
 An exported overload family produces one completion and one import edit.
 
 ```ds library.ds
-export function parse(value: int32): int32 {
+export function parseFixture(value: int32): int32 {
     return value;
 }
 
-export function parse(value: string): string {
+export function parseFixture(value: string): string {
     return value;
 }
 ```
@@ -1641,13 +1687,13 @@ export function parse(value: string): string {
 ```ds main.ds
 
 ^ insertion
-const value = par;
-              ^^^ prefix
+const value = parseFixtur;
+              ^^^^^^^^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=parse kind=function replace=main.ds#prefix suffix="(value: int32): int32" declaration="export function parse(value: int32): int32" description="from ./library" insert="parse(${1:value})$0" snippet=true preselect=true auto_import=true matches=0,1,2
-@completion.additional_edit item=0 range=main.ds#insertion text="import { parse } from \"./library\";\n"
+@completion.item label=parseFixture kind=function replace=main.ds#prefix suffix="(value: int32): int32" declaration="export function parseFixture(value: int32): int32" description="from ./library" insert="parseFixture(${1:value})$0" snippet=true preselect=true auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10
+@completion.additional_edit item=0 range=main.ds#insertion text="import { parseFixture } from \"./library\";\n"
 ```
 
 ### Omit an import for a visible name
@@ -1723,12 +1769,12 @@ export struct Button {}
 ```ds packages/app/main.ds
 
 ^ insertion
-const value = But;
-              ^^^ prefix
+const value = Button;
+              ^^^^^^ prefix
 ```
 
 ```query completion packages/app/main.ds#prefix@end include_auto_imports=true
-@completion.item label=Button kind=struct replace=packages/app/main.ds#prefix declaration="export struct Button" description="from @acme/ui/button" preselect=true auto_import=true matches=0,1,2
+@completion.item label=Button kind=struct replace=packages/app/main.ds#prefix declaration="export struct Button" description="from @acme/ui/button" preselect=true auto_import=true matches=0,1,2,3,4,5
 @completion.additional_edit item=0 range=packages/app/main.ds#insertion text="import { Button } from \"@acme/ui/button\";\n"
 ```
 
@@ -1788,8 +1834,8 @@ export type ButtonDeclaration = string;
 ```
 
 ```ds packages/app/main.ds
-But
-^^^ prefix
+Button
+^^^^^^ prefix
 ```
 
 ```query completion packages/app/main.ds#prefix@end include_auto_imports=true
@@ -1844,19 +1890,19 @@ A root export produces the dependency package name without a subpath.
 ```
 
 ```ds packages/theme/src/main.ds
-export struct Theme {}
+export struct FixtureTheme {}
 ```
 
 ```ds packages/app/main.ds
 
 ^ insertion
-const value = The;
-              ^^^ prefix
+const value = FixtureThem;
+              ^^^^^^^^^^^ prefix
 ```
 
 ```query completion packages/app/main.ds#prefix@end include_auto_imports=true
-@completion.item label=Theme kind=struct replace=packages/app/main.ds#prefix declaration="export struct Theme" description="from @acme/theme" preselect=true auto_import=true matches=0,1,2
-@completion.additional_edit item=0 range=packages/app/main.ds#insertion text="import { Theme } from \"@acme/theme\";\n"
+@completion.item label=FixtureTheme kind=struct replace=packages/app/main.ds#prefix declaration="export struct FixtureTheme" description="from @acme/theme" preselect=true auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10
+@completion.additional_edit item=0 range=packages/app/main.ds#insertion text="import { FixtureTheme } from \"@acme/theme\";\n"
 ```
 
 ### Add a named binding to an existing import
@@ -1872,12 +1918,12 @@ export function beta(): void {}
 import { alpha } from "./library";
               ^ insertion
 
-const value = bet;
-              ^^^ prefix
+const value = beta;
+              ^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=beta kind=function replace=main.ds#prefix suffix="(): void" declaration="export function beta(): void" description="from ./library" insert="beta()" preselect=true auto_import=true matches=0,1,2
+@completion.item label=beta kind=function replace=main.ds#prefix suffix="(): void" declaration="export function beta(): void" description="from ./library" insert="beta()" preselect=true auto_import=true matches=0,1,2,3
 @completion.additional_edit item=0 range=main.ds#insertion text=", beta"
 ```
 
@@ -1894,12 +1940,12 @@ export function beta(): void {}
 import build from "./library";
             ^ default_end
 
-const value = bet;
-              ^^^ prefix
+const value = beta;
+              ^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=beta kind=function replace=main.ds#prefix suffix="(): void" declaration="export function beta(): void" description="from ./library" insert="beta()" preselect=true auto_import=true matches=0,1,2
+@completion.item label=beta kind=function replace=main.ds#prefix suffix="(): void" declaration="export function beta(): void" description="from ./library" insert="beta()" preselect=true auto_import=true matches=0,1,2,3
 @completion.additional_edit item=0 range=main.ds#default_end text=", { beta }"
 ```
 
@@ -1916,12 +1962,12 @@ export function value(): void {}
 import { value } from "./library";
        ^ insertion
 
-const result = bui;
-               ^^^ prefix
+const result = build;
+               ^^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=build kind=function replace=main.ds#prefix suffix="(): void" declaration="export default function build(): void" description="from ./library" insert="build()" preselect=true auto_import=true matches=0,1,2
+@completion.item label=build kind=function replace=main.ds#prefix suffix="(): void" declaration="export default function build(): void" description="from ./library" insert="build()" preselect=true auto_import=true matches=0,1,2,3,4
 @completion.additional_edit item=0 range=main.ds#insertion text="build, "
 ```
 
@@ -1941,12 +1987,12 @@ export function beta(): void {}
 import { alpha } from "./alpha";
                                 ^ insertion
 
-const value = bet;
-              ^^^ prefix
+const value = beta;
+              ^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=beta kind=function replace=main.ds#prefix suffix="(): void" declaration="export function beta(): void" description="from ./beta" insert="beta()" preselect=true auto_import=true matches=0,1,2
+@completion.item label=beta kind=function replace=main.ds#prefix suffix="(): void" declaration="export function beta(): void" description="from ./beta" insert="beta()" preselect=true auto_import=true matches=0,1,2,3
 @completion.additional_edit item=0 range=main.ds#insertion text="\nimport { beta } from \"./beta\";"
 ```
 
@@ -2014,7 +2060,7 @@ import {} from "./u";
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=user kind=module replace=main.ds#prefix matches=0
+@completion.item label=user kind=module replace=main.ds#prefix preselect=true matches=0
 @completion.item label=utilities/ kind=folder replace=main.ds#prefix matches=0
 ```
 
@@ -2047,13 +2093,14 @@ Statement positions include matching keywords.
 
 ```ds main.ds
 function main(): void {
-    ret
-    ^^^ prefix
+    retur
+    ^^^^^ prefix
 }
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=return kind=keyword replace=main.ds#prefix preselect=true matches=0,1,2
+@completion.item label=return kind=keyword replace=main.ds#prefix preselect=true matches=0,1,2,3,4
+@completion.item label=IteratorReturn kind=struct replace=main.ds#prefix suffix="<R = void>" declaration="export struct IteratorReturn<R = void>" documentation="A completed iterator value." insert="IteratorReturn { value: ${1} }$0" snippet=true matches=3,9,10,11,12
 ```
 
 ### Omit statement keywords from an expression
@@ -2063,12 +2110,12 @@ An expression position returns values rather than unrelated statement forms.
 ```ds main.ds
 const returnValue = 1;
 
-const result = ret;
-               ^^^ prefix
+const result = returnValue;
+               ^^^^^^^^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=returnValue kind=constant replace=main.ds#prefix suffix=": 1" declaration="const returnValue: 1" preselect=true matches=0,1,2
+@completion.item label=returnValue kind=constant replace=main.ds#prefix suffix=": 1" declaration="const returnValue: 1" preselect=true matches=0,1,2,3,4,5,6,7,8,9,10
 ```
 
 ## Primitive Types
@@ -2083,7 +2130,7 @@ declare const value: int3;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=int32 kind=builtin_type replace=main.ds#prefix matches=0,1,2,3
+@completion.item label=int32 kind=builtin_type replace=main.ds#prefix preselect=true matches=0,1,2,3
 @completion.item label=uint32 kind=builtin_type replace=main.ds#prefix matches=1,2,3,4
 ```
 
@@ -2094,23 +2141,23 @@ declare const value: int3;
 Completion reflects the declarations in the selected revision.
 
 ```ds main.ds
-const alpha = 1;
-const result = al;
-               ^^ prefix
+const localRevisionAlpha = 1;
+const result = localRevision;
+               ^^^^^^^^^^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=alpha kind=constant replace=main.ds#prefix suffix=": 1" declaration="const alpha: 1" preselect=true matches=0,1
+@completion.item label=localRevisionAlpha kind=constant replace=main.ds#prefix suffix=": 1" declaration="const localRevisionAlpha: 1" preselect=true matches=0,1,2,3,4,5,6,7,8,9,10,11,12
 ```
 
 ```ds main.ds change
-const alpine = 2;
-const result = al;
-               ^^ prefix
+const localRevisionAlpine = 2;
+const result = localRevision;
+               ^^^^^^^^^^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=alpine kind=constant replace=main.ds#prefix suffix=": 2" declaration="const alpine: 2" preselect=true matches=0,1
+@completion.item label=localRevisionAlpine kind=constant replace=main.ds#prefix suffix=": 2" declaration="const localRevisionAlpine: 2" preselect=true matches=0,1,2,3,4,5,6,7,8,9,10,11,12
 ```
 
 ### Update members after successive source changes
@@ -2255,4 +2302,40 @@ const selected = box.val;
 
 ```query completion main.ds#prefix@end trigger=.
 @completion.none
+```
+
+### Update an auto import after its declaration changes
+
+Auto import completion reads the declaration selected in each revision.
+
+```ds library.ds
+export function greet(name: string): string {
+    return name;
+}
+```
+
+```ds main.ds
+
+^ insertion
+const message = greet;
+                ^^^^^ prefix
+```
+
+```query completion main.ds#prefix@end include_auto_imports=true
+@completion.item label=greet kind=function replace=main.ds#prefix suffix="(name: string): string" declaration="export function greet(name: string): string" description="from ./library" insert="greet(${1:name})$0" snippet=true preselect=true auto_import=true matches=0,1,2,3,4
+@completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
+```
+
+```diff library.ds
+@@ -1,3 +1,3 @@
+-export function greet(name: string): string {
+-    return name;
++export function greet(count: int32): int32 {
++    return count;
+ }
+```
+
+```query completion main.ds#prefix@end include_auto_imports=true
+@completion.item label=greet kind=function replace=main.ds#prefix suffix="(count: int32): int32" declaration="export function greet(count: int32): int32" description="from ./library" insert="greet(${1:count})$0" snippet=true preselect=true auto_import=true matches=0,1,2,3,4
+@completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```
