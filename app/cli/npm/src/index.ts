@@ -128,7 +128,7 @@ function resolveBinaryPath(binaryName: string): string {
 }
 
 /** Run a resolved CLI binary with inherited stdio. */
-function runBinary(binaryName: string): number {
+function runBinary(binaryName: string, args: readonly string[]): number {
     // resolve the binary path and spawn the command
     const binaryPath = resolveBinaryPath(binaryName);
     const launchEnvironment = { ...process.env };
@@ -138,7 +138,7 @@ function runBinary(binaryName: string): number {
         launchEnvironment.DESTACK_MANAGED_BY_NPM = "1";
     }
 
-    const result = spawnSync(binaryPath, process.argv.slice(2), {
+    const result = spawnSync(binaryPath, args, {
         stdio: "inherit",
         env: launchEnvironment,
     });
@@ -164,10 +164,13 @@ function runBinary(binaryName: string): number {
 }
 
 /** Run a binary command and terminate the wrapper process. */
-export function runBinaryCommand(binaryName: string): never {
+export function runBinaryCommand(
+    binaryName: string,
+    args: readonly string[] = process.argv.slice(2),
+): never {
     // run the command and exit with its status code
     try {
-        const exitCode = runBinary(binaryName);
+        const exitCode = runBinary(binaryName, args);
         process.exit(exitCode);
     } catch (error) {
         // print explicit errors and fail loudly

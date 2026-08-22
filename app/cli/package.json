@@ -9,6 +9,9 @@
         "ds": "npm/dist/bin/ds.js",
         "dsc": "npm/dist/bin/dsc.js"
     },
+    "exports": {
+        "./launcher": "./npm/dist/index.js"
+    },
     "files": [
         "npm/dist"
     ],
