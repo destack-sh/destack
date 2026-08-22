@@ -7,7 +7,6 @@ use destack_artifact::{
     DirResolved, IndexKind, ModuleIndex, ProgramIndex, SourceDependencyKey,
 };
 use destack_core::FxIndexMap;
-use destack_dir as dir;
 use destack_repository::{
     ArtifactReader, ProviderContext, ProviderError, ProviderResult, Repository,
 };
@@ -77,11 +76,6 @@ impl Indexer {
             dependencies.require(ArtifactKey::dir_exported(module_id, profile_id));
             dependencies.require(ArtifactKey::dir_resolved(module_id, profile_id));
             self.require_star_exports(context, module_id, profile_id, &mut dependencies)?;
-        }
-        // index authored code structure from the expanded visible tree
-        else if kind == IndexKind::Code {
-            dependencies.require(ArtifactKey::dir_parsed(module_id));
-            dependencies.require(ArtifactKey::dir_expanded(module_id, profile_id));
         }
         // index checked families over the module's declared, elaborated, and checked DIR
         else {
@@ -236,20 +230,13 @@ impl Indexer {
                     module_id, &exported, &resolved, &closure, strings,
                 )?)
             }
-            IndexKind::Code => {
-                let parsed = artifacts.read::<DirParsed>(module_id)?;
-                let expanded = artifacts.read::<DirExpanded>((module_id, profile_id))?;
-                let view =
-                    dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
-
-                ModuleIndex::Code(CodeIndexer::build(view)?)
-            }
             kind => {
                 let checked = artifacts.read::<DirChecked>((module_id, profile_id))?;
                 let module =
                     self.module_index_context(&artifacts, module_id, profile_id, &checked)?;
 
                 match kind {
+                    IndexKind::Code => ModuleIndex::Code(CodeIndexer::build(&module)?),
                     IndexKind::Members => ModuleIndex::Members(MemberIndexer::build(&module)),
                     IndexKind::References => {
                         ModuleIndex::References(ReferenceIndexer::build(&module)?)
@@ -259,7 +246,7 @@ impl Indexer {
                     IndexKind::Decorators => {
                         ModuleIndex::Decorators(DecoratorIndexer::build(&module))
                     }
-                    IndexKind::Symbols | IndexKind::Exports | IndexKind::Code => {
+                    IndexKind::Symbols | IndexKind::Exports => {
                         return Err(ProviderError::internal(format!(
                             "checked module index kind: {kind:?}"
                         ))

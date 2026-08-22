@@ -1086,6 +1086,7 @@ dependencies = [
  "destack_core",
  "destack_dir",
  "destack_repository",
+ "destack_serde",
  "destack_source",
  "rustc-hash 2.1.2",
 ]

@@ -1,14 +1,21 @@
-use std::hash::{Hash, Hasher};
+use std::hash::Hasher;
 
 use destack_core::StableHasher;
 use destack_dir as dir;
+use destack_dir::NodeFold;
 use destack_repository::{ProviderError, ProviderResult};
 
+use super::ModuleIndexContext;
+
+const ERASED_NAME: dir::StringId = dir::StringId(0);
+
 /// Builder for one module code index.
-pub(crate) struct CodeIndexer<'a> {
+pub(crate) struct CodeIndexer<'a, 'context> {
+    /// The checked module being indexed.
+    module: &'a ModuleIndexContext<'context>,
     /// The indexed visible tree.
     view: dir::View<'a>,
-    /// Candidate fingerprints keyed densely by node id.
+    /// Name-insensitive structural fingerprints keyed densely by node id.
     fingerprints: Vec<dir::CodeFingerprint>,
     /// Visible node ids included in the index.
     order: Vec<u32>,
@@ -16,10 +23,14 @@ pub(crate) struct CodeIndexer<'a> {
     pairs: Vec<dir::CodePair>,
 }
 
-impl<'a> CodeIndexer<'a> {
+impl<'a, 'context> CodeIndexer<'a, 'context> {
     /// Build one module code index.
-    pub(crate) fn build(view: dir::View<'a>) -> ProviderResult<dir::CodeIndex> {
+    pub(crate) fn build(
+        module: &'a ModuleIndexContext<'context>,
+    ) -> ProviderResult<dir::CodeIndex> {
+        let view = module.view();
         let mut indexer = Self {
+            module,
             view,
             fingerprints: vec![dir::CodeFingerprint::default(); view.next_global_id() as usize],
             order: view.iter_node_ids().map(|node| node.id).collect(),
@@ -80,58 +91,116 @@ impl<'a> CodeIndexer<'a> {
         let children = self.view.direct_children(node).ok_or_else(|| {
             ProviderError::internal(format!("indexed DIR node {node:?} is not visible"))
         })?;
+        let mut value = self.view.clone_node(node).ok_or_else(|| {
+            ProviderError::internal(format!("indexed DIR node {node:?} is not visible"))
+        })?;
+        self.normalize(node, &mut value)?;
+        value.map_nodes(&mut |_child| Ok::<u32, ProviderError>(0))?;
+
+        // hash the complete authored value without arena-specific child ids
         let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(b"destack.dir.code.v1");
-        hasher.write_u8(node.ty as u8);
-        self.hash_kind(node, &mut hasher);
-        self.hash_scalar(node, &mut hasher);
+        hasher.update_len_prefixed(b"destack.dir.code.v2");
+        destack_serde::hash_into(&value, &mut hasher).map_err(|error| {
+            ProviderError::internal(format!("failed to hash DIR node {node:?}: {error}"))
+        })?;
         hasher.write_usize(children.len());
-        let mut nodes = 1_u32;
+        let mut node_count = 1_u32;
 
         // preserve ordered subtree structure
         for child in children {
             let child = self.fingerprints[child.id as usize];
-            hasher.write_u64(child.value());
+            hasher.write_u128(child.value());
             hasher.write_u32(child.node_count());
-            nodes = nodes.checked_add(child.node_count()).ok_or_else(|| {
+            node_count = node_count.checked_add(child.node_count()).ok_or_else(|| {
                 ProviderError::internal("indexed DIR subtree exceeds u32 node capacity")
             })?;
         }
 
-        Ok(dir::CodeFingerprint::new(hasher.finish_u64(), nodes))
+        Ok(dir::CodeFingerprint::new(hasher.finish_u128(), node_count))
     }
 
-    /// Hash scalar values whose identity materially narrows code candidates.
-    fn hash_scalar(&self, node: dir::LocalNodeIdAny, hasher: &mut StableHasher) {
-        if node.ty != dir::NodeType::Expression {
-            return;
-        }
+    /// Erase authored names whose checked targets determine their identity.
+    fn normalize(
+        &self,
+        node: dir::LocalNodeIdAny,
+        value: &mut dir::NodeValue,
+    ) -> ProviderResult<()> {
+        match value {
+            dir::NodeValue::Expression(value) => {
+                // erase resolved names and checked control labels
+                match value {
+                    dir::Expression::Identifier { name } => {
+                        let global = node.into_global(self.module.module_id());
+                        if self.module.resolutions().name_resolution(global).is_none() {
+                            return Err(ProviderError::internal(format!(
+                                "checked identifier expression {global:?} has no name resolution"
+                            ))
+                            .into());
+                        }
+                        *name = ERASED_NAME;
+                    }
+                    dir::Expression::While { label, .. }
+                    | dir::Expression::ForEach { label, .. }
+                    | dir::Expression::For { label, .. }
+                    | dir::Expression::Loop { label, .. }
+                    | dir::Expression::Break { label, .. }
+                    | dir::Expression::Continue { label } => *label = None,
+                    dir::Expression::Infer { name, .. } => *name = None,
+                    _ => {}
+                }
+            }
+            dir::NodeValue::Pattern(dir::Pattern::Binding { name, .. }) => {
+                *name = ERASED_NAME;
+            }
+            dir::NodeValue::Parameter(value) => match value {
+                dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
+                    *name = ERASED_NAME
+                }
+                _ => {}
+            },
+            dir::NodeValue::GenericParameter(value) => match value {
+                dir::GenericParameter::Type { name, .. }
+                | dir::GenericParameter::VariadicType { name, .. }
+                | dir::GenericParameter::Lifetime { name } => *name = ERASED_NAME,
+                dir::GenericParameter::Error => {}
+            },
+            dir::NodeValue::TypeMappedParameter(value) => {
+                value.name = ERASED_NAME;
+            }
+            dir::NodeValue::Declaration(value) => {
+                // canonicalize declaration names paired through checked bindings
+                if let Some(name) = value.name_mut().and_then(dir::Name::as_string_id_mut) {
+                    *name = ERASED_NAME;
+                }
+            }
+            dir::NodeValue::TypeExpression(value) => {
+                let global = node.into_global(self.module.module_id());
+                let resolution = self.module.resolutions().name_resolution(global);
+                if matches!(value, dir::TypeExpression::Reference { .. }) && resolution.is_none() {
+                    return Err(ProviderError::internal(format!(
+                        "checked type reference {global:?} has no name resolution"
+                    ))
+                    .into());
+                }
 
-        let expression = dir::LocalNodeId::<dir::Expression>::new(node.id);
-
-        // retain literal, operator, member key, and optional access identity
-        match self.view.get(expression) {
-            dir::Expression::Literal(value) => value.hash(hasher),
-            dir::Expression::Unary { operator, .. } => {
-                hasher.update_len_prefixed(operator.text().as_bytes());
-                hasher.write_u8(operator.is_prefix() as u8);
+                // erase resolved type names while retaining literal lifetimes and member keys
+                match value {
+                    dir::TypeExpression::Lifetime { name } if resolution.is_some() => {
+                        *name = ERASED_NAME;
+                    }
+                    dir::TypeExpression::Reference { path, .. } if resolution.is_some() => {
+                        path.segments.clear();
+                    }
+                    dir::TypeExpression::Member { name, .. } if resolution.is_some() => {
+                        *name = ERASED_NAME;
+                    }
+                    _ => {}
+                }
             }
-            dir::Expression::Binary { operator, .. } => {
-                hasher.update_len_prefixed(operator.text().as_bytes())
-            }
-            dir::Expression::Assign { operator, .. } => {
-                hasher.update_len_prefixed(operator.text().as_bytes())
-            }
-            dir::Expression::Member {
-                name, is_optional, ..
-            } => {
-                name.hash(hasher);
-                is_optional.hash(hasher);
-            }
-            dir::Expression::Index { is_optional, .. }
-            | dir::Expression::Call { is_optional, .. } => is_optional.hash(hasher),
             _ => {}
         }
+
+        Ok(())
     }
 
     /// Index adjacent executable children of one sequence owner.
@@ -188,71 +257,5 @@ impl<'a> CodeIndexer<'a> {
             }
             _ => Vec::new(),
         }
-    }
-
-    /// Hash one visible node's concrete authored kind.
-    fn hash_kind(&self, node: dir::LocalNodeIdAny, hasher: &mut StableHasher) {
-        match node.ty {
-            dir::NodeType::Expression => self.hash_typed_kind::<dir::Expression>(node.id, hasher),
-            dir::NodeType::TypeExpression => {
-                self.hash_typed_kind::<dir::TypeExpression>(node.id, hasher)
-            }
-            dir::NodeType::Block => self.hash_typed_kind::<dir::Block>(node.id, hasher),
-            dir::NodeType::Catch => self.hash_typed_kind::<dir::Catch>(node.id, hasher),
-            dir::NodeType::Declaration => self.hash_typed_kind::<dir::Declaration>(node.id, hasher),
-            dir::NodeType::Declarator => self.hash_typed_kind::<dir::Declarator>(node.id, hasher),
-            dir::NodeType::Property => self.hash_typed_kind::<dir::Property>(node.id, hasher),
-            dir::NodeType::TypeMember => self.hash_typed_kind::<dir::TypeMember>(node.id, hasher),
-            dir::NodeType::TypeMappedParameter => {
-                self.hash_typed_kind::<dir::TypeMappedParameter>(node.id, hasher)
-            }
-            dir::NodeType::Member => self.hash_typed_kind::<dir::Member>(node.id, hasher),
-            dir::NodeType::EnumField => self.hash_typed_kind::<dir::EnumField>(node.id, hasher),
-            dir::NodeType::WhereClause => self.hash_typed_kind::<dir::WhereClause>(node.id, hasher),
-            dir::NodeType::DependencyItem => {
-                self.hash_typed_kind::<dir::DependencyItem>(node.id, hasher)
-            }
-            dir::NodeType::GenericParameter => {
-                self.hash_typed_kind::<dir::GenericParameter>(node.id, hasher)
-            }
-            dir::NodeType::Parameter => self.hash_typed_kind::<dir::Parameter>(node.id, hasher),
-            dir::NodeType::GenericArgument => {
-                self.hash_typed_kind::<dir::GenericArgument>(node.id, hasher)
-            }
-            dir::NodeType::TupleElement => {
-                self.hash_typed_kind::<dir::TupleElement>(node.id, hasher)
-            }
-            dir::NodeType::Argument => self.hash_typed_kind::<dir::Argument>(node.id, hasher),
-            dir::NodeType::TreeAttribute => {
-                self.hash_typed_kind::<dir::TreeAttribute>(node.id, hasher)
-            }
-            dir::NodeType::TreeChild => self.hash_typed_kind::<dir::TreeChild>(node.id, hasher),
-            dir::NodeType::MatchArm => self.hash_typed_kind::<dir::MatchArm>(node.id, hasher),
-            dir::NodeType::Pattern => self.hash_typed_kind::<dir::Pattern>(node.id, hasher),
-            dir::NodeType::PatternField => {
-                self.hash_typed_kind::<dir::PatternField>(node.id, hasher)
-            }
-            dir::NodeType::AssignPattern => {
-                self.hash_typed_kind::<dir::AssignPattern>(node.id, hasher)
-            }
-            dir::NodeType::AssignPatternField => {
-                self.hash_typed_kind::<dir::AssignPatternField>(node.id, hasher)
-            }
-            dir::NodeType::Decorator => self.hash_typed_kind::<dir::Decorator>(node.id, hasher),
-            dir::NodeType::SwitchCase => self.hash_typed_kind::<dir::SwitchCase>(node.id, hasher),
-        }
-    }
-
-    /// Hash one typed node's active Rust variant.
-    fn hash_typed_kind<T>(&self, node: u32, hasher: &mut StableHasher)
-    where
-        T: dir::Node,
-        dir::Tree: dir::TreeStore<T>,
-    {
-        let node = dir::LocalNodeId::<T>::new(node);
-        let value = self.view.get(node);
-
-        // retain the active variant within the exact BuildId artifact partition
-        std::mem::discriminant(value).hash(hasher);
     }
 }
