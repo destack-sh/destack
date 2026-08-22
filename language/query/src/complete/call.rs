@@ -170,8 +170,12 @@ impl ModuleQueryContext<'_> {
                 dir::TokenType::OpenParenthesis | dir::TokenType::Comma
             );
             if is_separator
-                && let Some(context) =
-                    self.classify_call_argument_separator(file_id, view, separator.span.start)?
+                && let Some(context) = self.classify_call_argument_separator(
+                    file_id,
+                    view,
+                    separator.span.start,
+                    offset,
+                )?
             {
                 return Ok(Some(context));
             }
@@ -247,7 +251,7 @@ impl ModuleQueryContext<'_> {
         let Some(scope) = self.expression_scope_at_offset(call.id)? else {
             return Ok(None);
         };
-        let expected_type = self.call_argument_type(view, call.id, call.arguments, offset)?;
+        let expected_type = self.expected_argument_type(call.id, call.arguments, offset)?;
 
         Ok(Some(CompletionContext::CallArgument {
             scope,
@@ -261,6 +265,7 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         view: dir::View<'_>,
         separator_position: u32,
+        offset: u32,
     ) -> QueryResult<Option<CompletionContext>> {
         let Some(lookup_position) = separator_position.checked_sub(1) else {
             return Ok(None);
@@ -279,66 +284,63 @@ impl ModuleQueryContext<'_> {
             let Some(scope) = self.expression_scope_at_offset(call.id)? else {
                 continue;
             };
+            let expected_type = self.expected_argument_type(call.id, call.arguments, offset)?;
 
             return Ok(Some(CompletionContext::CallArgument {
                 scope,
-                expected_type: None,
+                expected_type,
             }));
         }
 
         Ok(None)
     }
 
-    /// Return the selected parameter type for the argument under one cursor.
-    fn call_argument_type(
+    /// Return the argument type selected at one cursor position.
+    fn expected_argument_type(
         &self,
-        view: dir::View<'_>,
         expression_id: dir::LocalNodeId<dir::Expression>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
         offset: u32,
     ) -> QueryResult<Option<dir::GlobalTypeId>> {
-        let mut selected_argument = None;
-        for argument_id in arguments.iter().copied() {
-            let span = self.node_span(view, argument_id.into())?;
-            if span.owns_cursor(offset) {
-                selected_argument = Some(argument_id);
-                break;
-            }
-        }
-        let Some(argument_id) = selected_argument else {
-            return Ok(None);
-        };
         let call_id = expression_id.into_global_any(self.module_id());
         let call = self.decisions()?.call_decision(call_id);
         let construct = self.decisions()?.construct_decision(call_id);
+
+        // require one resolution column for this source expression
         if call.is_some() && construct.is_some() {
             return Err(QueryError::conflict(format!(
                 "completion resolution columns: {call_id:?}"
             )));
         }
-        let argument = argument_id.into_global_any(self.module_id());
-        let mut types = call
-            .into_iter()
-            .flat_map(dir::CallDecision::arms)
-            .flat_map(|selection| selection.arguments.iter())
-            .chain(
-                construct
-                    .into_iter()
-                    .flat_map(|selection| selection.arguments.iter()),
-            )
-            .filter(|binding| binding.contains_argument(argument))
-            .map(|binding| binding.argument_type)
-            .collect::<Vec<_>>();
-        if types.is_empty() && call.is_none() && construct.is_none() {
+
+        // unresolved calls have no expected argument type
+        if call.is_none() && construct.is_none() {
             return Ok(None);
         }
+
+        // collect the type selected by every call arm
+        let mut types = Vec::new();
+        for selection in call.into_iter().flat_map(dir::CallDecision::arms) {
+            let Some(parameter) = self.active_parameter(arguments, &selection.arguments, offset)?
+            else {
+                return Ok(None);
+            };
+
+            types.push(selection.arguments[parameter].argument_type);
+        }
+        if let Some(selection) = construct
+            && let Some(parameter) =
+                self.active_parameter(arguments, &selection.arguments, offset)?
+        {
+            types.push(selection.arguments[parameter].argument_type);
+        }
+
+        // retain an expectation only when every selected arm agrees
         types.sort();
         types.dedup();
 
         match types.as_slice() {
-            [] => Err(QueryError::missing(format!(
-                "completion argument binding: {call_id:?}, {argument:?}"
-            ))),
+            [] => Ok(None),
             [type_id] => Ok(Some(*type_id)),
             _ => Ok(None),
         }

@@ -12,7 +12,7 @@ const result = alpha;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=alpha kind=constant replace=main.ds#prefix suffix=": 1" declaration="const alpha: 1" preselect=true matches=0,1,2,3,4
+@completion.item label=alpha kind=constant replace=main.ds#prefix suffix=": 1" declaration="const alpha: 1" matches=0,1,2,3,4
 ```
 
 ### Replace the complete identifier
@@ -27,7 +27,7 @@ const result = alphaWrong;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=alpha kind=constant replace=main.ds#token suffix=": 1" declaration="const alpha: 1" preselect=true matches=0,1,2,3,4
+@completion.item label=alpha kind=constant replace=main.ds#token suffix=": 1" declaration="const alpha: 1" matches=0,1,2,3,4
 ```
 
 ### Exclude a later local declaration
@@ -62,7 +62,7 @@ function read(): string {
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=target kind=constant replace=main.ds#prefix suffix=": string" declaration="const target: string" preselect=true matches=0,1,2,3,4,5
+@completion.item label=target kind=constant replace=main.ds#prefix suffix=": string" declaration="const target: string" matches=0,1,2,3,4,5
 ```
 
 ### Exclude the current destructuring pattern
@@ -76,7 +76,7 @@ const { targetField, source: targetAlias } = target;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=target kind=constant replace=main.ds#prefix suffix=": 1" declaration="const target: 1" preselect=true matches=0,1,2,3,4,5
+@completion.item label=target kind=constant replace=main.ds#prefix suffix=": 1" declaration="const target: 1" matches=0,1,2,3,4,5
 ```
 
 ### Retain an earlier destructuring binding
@@ -90,7 +90,7 @@ const { targetValue = 1, targetField = targetValue } = source;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=targetValue kind=constant replace=main.ds#prefix suffix=": int32" declaration="const targetValue: int32" preselect=true matches=0,1,2,3,4,5,6,7,8,9,10
+@completion.item label=targetValue kind=constant replace=main.ds#prefix suffix=": int32" declaration="const targetValue: int32" matches=0,1,2,3,4,5,6,7,8,9,10
 ```
 
 ### Distinguish a mutable binding
@@ -104,7 +104,7 @@ const result = mutableValue;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=mutableValue kind=variable replace=main.ds#prefix suffix=": int64" declaration="let mutableValue: int64" preselect=true matches=0,1,2,3,4,5,6,7,8,9,10,11
+@completion.item label=mutableValue kind=variable replace=main.ds#prefix suffix=": int64" declaration="let mutableValue: int64" matches=0,1,2,3,4,5,6,7,8,9,10,11
 ```
 
 ### Complete a function parameter
@@ -119,7 +119,7 @@ function calculate(totalValue: int32): int32 {
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=totalValue kind=value_parameter replace=main.ds#prefix suffix=": int32" declaration="totalValue: int32" preselect=true matches=0,1,2,3,4,5
+@completion.item label=totalValue kind=value_parameter replace=main.ds#prefix suffix=": int32" declaration="totalValue: int32" matches=0,1,2,3,4,5
 ```
 
 ### Complete an outer binding
@@ -136,7 +136,7 @@ function read(): int32 {
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=outerValue kind=constant replace=main.ds#prefix suffix=": 1" declaration="const outerValue: 1" preselect=true matches=0,1,2,3,4,5
+@completion.item label=outerValue kind=constant replace=main.ds#prefix suffix=": 1" declaration="const outerValue: 1" matches=0,1,2,3,4,5
 ```
 
 ### Prefer the nearest shadowing declaration
@@ -154,7 +154,7 @@ function read(): int32 {
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=targetValue kind=constant replace=main.ds#prefix suffix=": int32" declaration="const targetValue: int32" preselect=true matches=0,1,2,3,4,5,6
+@completion.item label=targetValue kind=constant replace=main.ds#prefix suffix=": int32" declaration="const targetValue: int32" matches=0,1,2,3,4,5,6
 ```
 
 ### Complete a function call
@@ -178,7 +178,7 @@ const result = formatN;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=formatName kind=function replace=main.ds#prefix suffix="(name: string, width: int32): string" declaration="function formatName(name: string, width: int32): string" documentation="Format one name.\n\n## Parameters\n\n- `name`: The name to format.\n\n- `width`: The requested width.\n\n## Examples\n\n```ds\nformatName(\"Ada\", 8);\n```" insert="formatName(${1:name}, ${2:width})$0" snippet=true preselect=true matches=0,1,2,3,4,5,6
+@completion.item label=formatName kind=function replace=main.ds#prefix suffix="(name: string, width: int32): string" declaration="function formatName(name: string, width: int32): string" documentation="Format one name.\n\n## Parameters\n\n- `name`: The name to format.\n\n- `width`: The requested width.\n\n## Examples\n\n```ds\nformatName(\"Ada\", 8);\n```" insert="formatName(${1:name}, ${2:width})$0" snippet=true matches=0,1,2,3,4,5,6
 ```
 
 ### Complete an imported function alias
@@ -200,7 +200,7 @@ const message = wel;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=welcome kind=function replace=main.ds#prefix suffix="(name: string): string" declaration="export function greet(name: string): string" documentation="Welcome one user." insert="welcome(${1:name})$0" snippet=true preselect=true matches=0,1,2
+@completion.item label=welcome kind=function replace=main.ds#prefix suffix="(name: string): string" declaration="export function greet(name: string): string" documentation="Welcome one user." insert="welcome(${1:name})$0" snippet=true matches=0,1,2
 ```
 
 ### Match a camel-case prefix
@@ -214,7 +214,21 @@ const result = fCV;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=fixtureCurrentValue kind=constant replace=main.ds#prefix suffix=": 1" declaration="const fixtureCurrentValue: 1" preselect=true matches=0,7,14
+@completion.item label=fixtureCurrentValue kind=constant replace=main.ds#prefix suffix=": 1" declaration="const fixtureCurrentValue: 1" matches=0,7,14
+```
+
+### Match a Unicode identifier
+
+Match positions count characters rather than UTF-8 bytes.
+
+```ds main.ds
+const caféValue = 1;
+const result = caféV;
+               ^^^^^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label="caféValue" kind=constant replace=main.ds#prefix suffix=": 1" declaration="const caféValue: 1" matches=0,1,2,3,4
 ```
 
 ### Mark a deprecated declaration
@@ -231,7 +245,7 @@ const result = legacy;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=legacyName kind=function replace=main.ds#prefix suffix="(): void" declaration="function legacyName(): void" documentation="Use currentName." insert="legacyName()" preselect=true deprecated=true matches=0,1,2,3,4,5
+@completion.item label=legacyName kind=function replace=main.ds#prefix suffix="(): void" declaration="function legacyName(): void" documentation="Use currentName." insert="legacyName()" deprecated=true matches=0,1,2,3,4,5
 ```
 
 ## Global Symbols
@@ -246,7 +260,7 @@ const context = currentContex;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=currentContext kind=function replace=main.ds#prefix suffix="(): Context" declaration="export declare function currentContext(): Context" documentation="Return the current execution context." insert="currentContext()" preselect=true matches=0,1,2,3,4,5,6,7,8,9,10,11,12
+@completion.item label=currentContext kind=function replace=main.ds#prefix suffix="(): Context" declaration="export declare function currentContext(): Context" documentation="Return the current execution context." insert="currentContext()" matches=0,1,2,3,4,5,6,7,8,9,10,11,12
 ```
 
 ## Members
@@ -268,7 +282,7 @@ function read(point: Point): int32 {
 ```
 
 ```query completion main.ds#member@end trigger=.
-@completion.item label=x kind=field replace=main.ds#member suffix=": int32" declaration="Point.x: int32" preselect=true matches=0
+@completion.item label=x kind=field replace=main.ds#member suffix=": int32" declaration="Point.x: int32" matches=0
 ```
 
 ### Complete immediately after a dot
@@ -314,7 +328,7 @@ extension<Value, const A: Access = "readonly"> of Box<Value> {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=value kind=field replace=main.ds#prefix suffix=": Value" declaration="Box.value: Value" preselect=true matches=0,1,2
+@completion.item label=value kind=field replace=main.ds#prefix suffix=": Value" declaration="Box.value: Value" matches=0,1,2
 ```
 
 ### Complete a structural field
@@ -329,7 +343,7 @@ const label = point.la;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=label kind=field replace=main.ds#prefix suffix=": string" preselect=true matches=0,1
+@completion.item label=label kind=field replace=main.ds#prefix suffix=": string" matches=0,1
 ```
 
 ### Complete an accessor property
@@ -351,7 +365,7 @@ const current = counter.cur;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=current kind=property replace=main.ds#prefix suffix=": int32" declaration="get Counter.current(): int32" preselect=true matches=0,1,2
+@completion.item label=current kind=property replace=main.ds#prefix suffix=": int32" declaration="get Counter.current(): int32" matches=0,1,2
 ```
 
 ### Complete an inherited interface field
@@ -373,7 +387,7 @@ const name = user.na;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=name kind=field replace=main.ds#prefix suffix=": string" declaration="Named.name: string" preselect=true matches=0,1
+@completion.item label=name kind=field replace=main.ds#prefix suffix=": string" declaration="Named.name: string" matches=0,1
 ```
 
 ### Complete an instance method
@@ -395,7 +409,7 @@ function read(buffer: Buffer): uint8 {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=read kind=method replace=main.ds#prefix suffix="(index: uint64): uint8" declaration="Buffer.read(index: uint64): uint8" documentation="Read one byte." insert="read(${1:index})$0" snippet=true preselect=true matches=0,1
+@completion.item label=read kind=method replace=main.ds#prefix suffix="(index: uint64): uint8" declaration="Buffer.read(index: uint64): uint8" documentation="Read one byte." insert="read(${1:index})$0" snippet=true matches=0,1
 ```
 
 ### Complete an inherited class method
@@ -415,7 +429,7 @@ file.clo;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=close kind=method replace=main.ds#prefix suffix="(): void" declaration="Resource.close(): void" insert="close()" preselect=true matches=0,1,2
+@completion.item label=close kind=method replace=main.ds#prefix suffix="(): void" declaration="Resource.close(): void" insert="close()" matches=0,1,2
 ```
 
 ### Separate static and instance members
@@ -440,7 +454,7 @@ value.cre;
 ```
 
 ```query completion main.ds#static_prefix@end trigger=.
-@completion.item label=create kind=method replace=main.ds#static_prefix suffix="(size: uint64): Buffer" declaration="static Buffer.create(size: uint64): Buffer" insert="create(${1:size})$0" snippet=true preselect=true matches=0,1
+@completion.item label=create kind=method replace=main.ds#static_prefix suffix="(size: uint64): Buffer" declaration="static Buffer.create(size: uint64): Buffer" insert="create(${1:size})$0" snippet=true matches=0,1
 ```
 
 ```query completion main.ds#instance_prefix@end trigger=.
@@ -467,7 +481,7 @@ function calculate(value: Calculator): int32 {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=sum kind=method replace=main.ds#prefix suffix="(left: int32, right: int32): int32" declaration="Calculator.sum(left: int32, right: int32): int32" insert="sum(${1:left}, ${2:right})$0" snippet=true preselect=true matches=0,1
+@completion.item label=sum kind=method replace=main.ds#prefix suffix="(left: int32, right: int32): int32" declaration="Calculator.sum(left: int32, right: int32): int32" insert="sum(${1:left}, ${2:right})$0" snippet=true matches=0,1
 ```
 
 ### Complete an applied extension method
@@ -492,7 +506,7 @@ function read(box: Box<string>): string {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=unwrap kind=method replace=main.ds#prefix suffix="(): string" declaration="Box.unwrap(): Value" insert="unwrap()" preselect=true matches=0,1,2
+@completion.item label=unwrap kind=method replace=main.ds#prefix suffix="(): string" declaration="Box.unwrap(): Value" insert="unwrap()" matches=0,1,2
 ```
 
 ### Complete an applicable blanket extension
@@ -517,7 +531,7 @@ function display(user: User): string {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=displayName kind=method replace=main.ds#prefix suffix="(): string" declaration="displayName(): string" insert="displayName()" preselect=true matches=0,1,2
+@completion.item label=displayName kind=method replace=main.ds#prefix suffix="(): string" declaration="displayName(): string" insert="displayName()" matches=0,1,2
 ```
 
 ### Omit an inapplicable blanket extension
@@ -561,7 +575,7 @@ function read(point: Point | undefined): int32 | undefined {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=x kind=field replace=main.ds#prefix suffix=": int32" declaration="Point.x: int32" preselect=true matches=0
+@completion.item label=x kind=field replace=main.ds#prefix suffix=": int32" declaration="Point.x: int32" matches=0
 ```
 
 ### Complete a generic field
@@ -580,7 +594,7 @@ function read(box: Box<string>): string {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=value kind=field replace=main.ds#prefix suffix=": string" declaration="Box.value: Value" preselect=true matches=0,1,2
+@completion.item label=value kind=field replace=main.ds#prefix suffix=": string" declaration="Box.value: Value" matches=0,1,2
 ```
 
 ### Take a generic method type from a later use
@@ -610,7 +624,7 @@ function read(): void {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=get kind=method replace=main.ds#prefix suffix="(): int32" declaration="Box.get(): Value" insert="get()" preselect=true matches=0,1
+@completion.item label=get kind=method replace=main.ds#prefix suffix="(): int32" declaration="Box.get(): Value" insert="get()" matches=0,1
 ```
 
 ### Complete a constrained parameter member
@@ -629,7 +643,7 @@ function nameOf<Value: Named>(value: Value): string {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=name kind=field replace=main.ds#prefix suffix=": string" declaration="Named.name: string" preselect=true matches=0,1
+@completion.item label=name kind=field replace=main.ds#prefix suffix=": string" declaration="Named.name: string" matches=0,1
 ```
 
 ### Complete a newtype backing member
@@ -646,7 +660,7 @@ function nameOf(user: User): string {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=name kind=field replace=main.ds#prefix suffix=": string" preselect=true matches=0,1
+@completion.item label=name kind=field replace=main.ds#prefix suffix=": string" matches=0,1
 ```
 
 ### Complete primitive extension members
@@ -661,7 +675,7 @@ function isEmpty(value: string): boolean {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=isEmpty kind=property replace=main.ds#prefix suffix=": boolean" declaration="get String.isEmpty(): boolean" documentation="Check if the string is empty." preselect=true matches=0,1,2
+@completion.item label=isEmpty kind=property replace=main.ds#prefix suffix=": boolean" declaration="get String.isEmpty(): boolean" documentation="Check if the string is empty." matches=0,1,2
 @completion.item label=isWellFormed kind=method replace=main.ds#prefix suffix="(): boolean" declaration="String.isWellFormed(): boolean" documentation="Return whether this string is well-formed Unicode." insert="isWellFormed()" matches=0,1,3
 ```
 
@@ -692,7 +706,7 @@ function radius(shape: Circle | Square): float64 {
 ```
 
 ```query completion main.ds#common_prefix@end trigger=.
-@completion.item label=label kind=field replace=main.ds#common_prefix suffix=": string" preselect=true matches=0,1
+@completion.item label=label kind=field replace=main.ds#common_prefix suffix=": string" matches=0,1
 ```
 
 ```query completion main.ds#partial_prefix@end trigger=.
@@ -744,7 +758,7 @@ function identify(value: Named & Identified): int32 {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=id kind=field replace=main.ds#prefix suffix=": int32" declaration="Identified.id: int32" preselect=true matches=0
+@completion.item label=id kind=field replace=main.ds#prefix suffix=": int32" declaration="Identified.id: int32" matches=0
 @completion.item label=into kind=method replace=main.ds#prefix suffix="(): *" declaration="into(): U" documentation="Convert this value through `U.from`." insert="into()" matches=0
 @completion.item label=tryInto kind=method replace=main.ds#prefix suffix="(): Result<*, *.Error>" declaration="tryInto(): Result<U, U.Error>" documentation="Convert this value through `U.tryFrom`." insert="tryInto()" matches=3
 ```
@@ -763,7 +777,7 @@ const width = Buffer.Wi;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=Width kind=associated_const replace=main.ds#prefix suffix=": uint64" declaration="Buffer.Width: uint64" preselect=true matches=0,1
+@completion.item label=Width kind=associated_const replace=main.ds#prefix suffix=": uint64" declaration="Buffer.Width: uint64" matches=0,1
 ```
 
 ### Complete an associated type
@@ -780,7 +794,7 @@ function item<T: Collection>(): T.Ite;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=Item kind=associated_type replace=main.ds#prefix suffix=": Collection.Item" declaration=Collection.Item preselect=true matches=0,1,2
+@completion.item label=Item kind=associated_type replace=main.ds#prefix suffix=": Collection.Item" declaration=Collection.Item matches=0,1,2
 ```
 
 ### Complete a static member through a type alias
@@ -798,7 +812,7 @@ const width = BufferAlias.Wi;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=Width kind=associated_const replace=main.ds#prefix suffix=": uint64" declaration="Buffer.Width: uint64" preselect=true matches=0,1
+@completion.item label=Width kind=associated_const replace=main.ds#prefix suffix=": uint64" declaration="Buffer.Width: uint64" matches=0,1
 ```
 
 ### Complete a namespace member
@@ -817,7 +831,7 @@ library.gr;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" insert="greet()" preselect=true matches=0,1
+@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" insert="greet()" matches=0,1
 ```
 
 ### Complete a namespace type
@@ -836,7 +850,7 @@ declare const packet: library.Pac;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=Packet kind=struct replace=main.ds#prefix declaration="export struct Packet" preselect=true matches=0,1,2
+@completion.item label=Packet kind=struct replace=main.ds#prefix declaration="export struct Packet" matches=0,1,2
 ```
 
 ## Types
@@ -855,7 +869,7 @@ declare const point: FixturePoin;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=FixturePoint kind=struct replace=main.ds#prefix declaration="struct FixturePoint" preselect=true matches=0,1,2,3,4,5,6,7,8,9,10
+@completion.item label=FixturePoint kind=struct replace=main.ds#prefix declaration="struct FixturePoint" matches=0,1,2,3,4,5,6,7,8,9,10
 ```
 
 ### Exclude value-only declarations from a type position
@@ -885,7 +899,7 @@ function identity<Value>(value: Value): Value {
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=Value kind=type_parameter replace=main.ds#prefix declaration=Value preselect=true matches=0,1,2,3,4
+@completion.item label=Value kind=type_parameter replace=main.ds#prefix declaration=Value matches=0,1,2,3,4
 ```
 
 ### Complete a type with an explicit lifetime
@@ -898,7 +912,7 @@ type Alias<const L: Lifetime> = BorrowedFields<unknown, L>;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=BorrowedFields kind=type_alias replace=main.ds#prefix suffix="<T, const L: Lifetime>" declaration="export type BorrowedFields<T, const L: Lifetime> = { [K in keyof T]: WithLifetime<&T[K], L> }" documentation="Rebase each field of `T` into borrowed form." preselect=true matches=0,1,2,3,4,5,6,7,8,9,10,11,12,13
+@completion.item label=BorrowedFields kind=type_alias replace=main.ds#prefix suffix="<T, const L: Lifetime>" declaration="export type BorrowedFields<T, const L: Lifetime> = { [K in keyof T]: WithLifetime<&T[K], L> }" documentation="Rebase each field of `T` into borrowed form." matches=0,1,2,3,4,5,6,7,8,9,10,11,12,13
 @completion.item label=ReadonlyBorrowedFields kind=type_alias replace=main.ds#prefix suffix="<T, const L: Lifetime>" declaration="export type ReadonlyBorrowedFields<T, const L: Lifetime> = { [K in keyof T]: ReadonlyBorrowed<T[K], L> }" documentation="Rebase each field of `T` into readonly borrowed form." matches=8,9,10,11,12,13,14,15,16,17,18,19,20,21
 @completion.item label=ExclusiveBorrowedFields kind=type_alias replace=main.ds#prefix suffix="<T, const L: Lifetime>" declaration="export type ExclusiveBorrowedFields<T, const L: Lifetime> = { [K in keyof T]: ExclusiveBorrowed<T[K], L> }" documentation="Rebase each field of `T` into exclusive borrowed form." matches=9,10,11,12,13,14,15,16,17,18,19,20,21,22
 ```
@@ -923,7 +937,7 @@ declare const packet: Pack;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=Packet kind=struct replace=main.ds#prefix declaration="export struct Packet" preselect=true matches=0,1,2,3
+@completion.item label=Packet kind=struct replace=main.ds#prefix declaration="export struct Packet" matches=0,1,2,3
 ```
 
 ## Enum Members
@@ -943,7 +957,7 @@ const color = Color.R;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=Red kind=enum_member replace=main.ds#prefix suffix=": Color.Red" declaration="Color.Red: Color.Red" preselect=true matches=0
+@completion.item label=Red kind=enum_member replace=main.ds#prefix suffix=": Color.Red" declaration="Color.Red: Color.Red" matches=0
 ```
 
 ### Complete a discriminated union discriminator
@@ -962,7 +976,7 @@ function statusType(status: Status): string {
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=type kind=field replace=main.ds#prefix suffix=": \"ok\" | \"error\"" preselect=true matches=0,1,2,3
+@completion.item label=type kind=field replace=main.ds#prefix suffix=": \"ok\" | \"error\"" matches=0,1,2,3
 ```
 
 ## Constructors
@@ -982,7 +996,7 @@ const widget = new Widget;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=Widget kind=class replace=main.ds#token suffix="(name: string): this" declaration="class Widget" insert="Widget(${1:name})$0" snippet=true preselect=true matches=0,1,2
+@completion.item label=Widget kind=class replace=main.ds#token suffix="(name: string): this" declaration="class Widget" insert="Widget(${1:name})$0" snippet=true matches=0,1,2
 ```
 
 ### Complete a struct expression
@@ -1000,7 +1014,7 @@ const result = FixturePoin;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=FixturePoint kind=struct replace=main.ds#prefix declaration="struct FixturePoint" insert="FixturePoint { x: ${1}, y: ${2} }$0" snippet=true preselect=true matches=0,1,2,3,4,5,6,7,8,9,10
+@completion.item label=FixturePoint kind=struct replace=main.ds#prefix declaration="struct FixturePoint" insert="FixturePoint { x: ${1}, y: ${2} }$0" snippet=true matches=0,1,2,3,4,5,6,7,8,9,10
 ```
 
 ### Complete a newtype constructor
@@ -1015,12 +1029,12 @@ const result = UserI;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=UserId kind=constructor replace=main.ds#prefix suffix="(string): UserId" declaration="newtype UserId = string" insert="UserId(${1})$0" snippet=true preselect=true matches=0,1,2,3,4
+@completion.item label=UserId kind=constructor replace=main.ds#prefix suffix="(string): UserId" declaration="newtype UserId = string" insert="UserId(${1})$0" snippet=true matches=0,1,2,3,4
 ```
 
 ### Complete every newtype constructor once
 
-A selected newtype expands into its constructor overloads with one preselected item.
+A selected newtype expands into its constructor overloads.
 
 ```ds main.ds
 newtype Choice = string | int32;
@@ -1030,7 +1044,7 @@ const result = Choice(1);
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=Choice kind=constructor replace=main.ds#prefix suffix="(string): Choice" declaration="newtype Choice = string | int32" insert="Choice(${1})$0" snippet=true preselect=true matches=0,1,2,3,4,5
+@completion.item label=Choice kind=constructor replace=main.ds#prefix suffix="(string): Choice" declaration="newtype Choice = string | int32" insert="Choice(${1})$0" snippet=true matches=0,1,2,3,4,5
 @completion.item label=Choice kind=constructor replace=main.ds#prefix suffix="(int32): Choice" declaration="newtype Choice = string | int32" insert="Choice(${1})$0" snippet=true matches=0,1,2,3,4,5
 @completion.item label=Choice kind=constructor replace=main.ds#prefix suffix="(string | int32): Choice" declaration="newtype Choice = string | int32" insert="Choice(${1})$0" snippet=true matches=0,1,2,3,4,5
 ```
@@ -1055,7 +1069,7 @@ const rectangle: Rectangle = {
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=height kind=field replace=main.ds#prefix suffix=": int32" declaration="Rectangle.height: int32" insert="height: ${1}" snippet=true preselect=true matches=0,1,2,3,4
+@completion.item label=height kind=field replace=main.ds#prefix suffix=": int32" declaration="Rectangle.height: int32" insert="height: ${1}" snippet=true matches=0,1,2,3,4
 ```
 
 ### Substitute a generic field type
@@ -1074,7 +1088,7 @@ const box: Box<string> = {
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=value kind=field replace=main.ds#prefix suffix=": string" declaration="Box.value: Value" insert="value: ${1}" snippet=true preselect=true matches=0,1,2
+@completion.item label=value kind=field replace=main.ds#prefix suffix=": string" declaration="Box.value: Value" insert="value: ${1}" snippet=true matches=0,1,2
 ```
 
 ### Take a generic field type from a later use
@@ -1099,7 +1113,7 @@ function main(): void {
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=value kind=field replace=main.ds#prefix suffix=": int32" declaration="Box.value: Value" insert="value: ${1}" snippet=true preselect=true matches=0,1,2
+@completion.item label=value kind=field replace=main.ds#prefix suffix=": int32" declaration="Box.value: Value" insert="value: ${1}" snippet=true matches=0,1,2
 ```
 
 ### Complete a nested field
@@ -1124,7 +1138,7 @@ const user: User = {
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=street kind=field replace=main.ds#prefix suffix=": string" declaration="Address.street: string" insert="street: ${1}" snippet=true preselect=true matches=0,1,2
+@completion.item label=street kind=field replace=main.ds#prefix suffix=": string" declaration="Address.street: string" insert="street: ${1}" snippet=true matches=0,1,2
 ```
 
 ### Use object shorthand for a visible field value
@@ -1146,7 +1160,7 @@ const rectangle: Rectangle = {
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=height kind=field replace=main.ds#prefix suffix=": int32" declaration="Rectangle.height: int32" preselect=true matches=0,1,2,3,4
+@completion.item label=height kind=field replace=main.ds#prefix suffix=": int32" declaration="Rectangle.height: int32" matches=0,1,2,3,4
 ```
 
 ### Complete a visible shorthand without a contextual type
@@ -1162,7 +1176,7 @@ const rectangle = {
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=height kind=field replace=main.ds#prefix suffix=": int32" declaration="const height: int32" preselect=true matches=0,1,2,3,4
+@completion.item label=height kind=field replace=main.ds#prefix suffix=": int32" declaration="const height: int32" matches=0,1,2,3,4
 ```
 
 ### Omit a field supplied by a spread
@@ -1234,6 +1248,25 @@ consume(candidate);
 @completion.item label=candidateAlpha kind=constant replace=main.ds#prefix suffix=": string" declaration="const candidateAlpha: string" matches=0,1,2,3,4,5,6,7,8
 ```
 
+### Prefer an exact name over the expected type
+
+Lexical quality precedes type relevance.
+
+```ds main.ds
+function consume(value: int32): void {}
+
+const candidate: string = "";
+const candidateValue: int32 = 1;
+
+consume(candidate);
+        ^^^^^^^^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=candidate kind=constant replace=main.ds#prefix suffix=": string" declaration="const candidate: string" matches=0,1,2,3,4,5,6,7,8
+@completion.item label=candidateValue kind=constant replace=main.ds#prefix suffix=": int32" declaration="const candidateValue: int32" matches=0,1,2,3,4,5,6,7,8
+```
+
 ### Exclude callee parameters
 
 Parameter declarations do not enter the caller's lexical scope.
@@ -1267,7 +1300,7 @@ import { gre } from "./library.ds";
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" preselect=true matches=0,1,2
+@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" matches=0,1,2
 ```
 
 ### Exclude an already imported name
@@ -1285,7 +1318,7 @@ import { greet, gr } from "./library.ds";
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=grow kind=function replace=main.ds#prefix suffix="(): void" declaration="export function grow(): void" preselect=true matches=0,1
+@completion.item label=grow kind=function replace=main.ds#prefix suffix="(): void" declaration="export function grow(): void" matches=0,1
 ```
 
 ### Complete a type declaration in an import
@@ -1306,7 +1339,7 @@ import { Opt } from "./library.ds";
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=Options kind=type_alias replace=main.ds#prefix declaration="export type Options = { enabled: boolean }" preselect=true matches=0,1,2
+@completion.item label=Options kind=type_alias replace=main.ds#prefix declaration="export type Options = { enabled: boolean }" matches=0,1,2
 ```
 
 ### Complete a re-exported name
@@ -1327,7 +1360,7 @@ import { pack } from "./library.ds";
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=packet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function createPacket(): void" preselect=true matches=0,1,2,3
+@completion.item label=packet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function createPacket(): void" matches=0,1,2,3
 ```
 
 ## Auto Imports
@@ -1350,7 +1383,7 @@ function main(): void {
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" description="from ./library" insert="greet()" preselect=true auto_import=true matches=0,1,2
+@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" description="from ./library" insert="greet()" auto_import=true matches=0,1,2
 @completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```
 
@@ -1429,7 +1462,7 @@ function main(): void {
 ```
 
 ```query completion main.ds#prefix@end trigger=incomplete include_auto_imports=true
-@completion.item label=refreshTarget kind=function replace=main.ds#prefix suffix="(): void" declaration="export function refreshTarget(): void" description="from ./library" insert="refreshTarget()" preselect=true auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10,11
+@completion.item label=refreshTarget kind=function replace=main.ds#prefix suffix="(): void" declaration="export function refreshTarget(): void" description="from ./library" insert="refreshTarget()" auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10,11
 @completion.additional_edit item=0 range=main.ds#insertion text="import { refreshTarget } from \"./library\";\n"
 ```
 
@@ -1622,7 +1655,7 @@ gre
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" description="from ./library.ds" insert="greet()" preselect=true auto_import=true matches=0,1,2
+@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" description="from ./library.ds" insert="greet()" auto_import=true matches=0,1,2
 @completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library.ds\";\n"
 ```
 
@@ -1644,7 +1677,7 @@ type Alias = Widget;
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=Widget kind=type_alias replace=main.ds#prefix declaration="export type Widget = { value: string }" description="from ./library" preselect=true auto_import=true matches=0,1,2,3,4,5
+@completion.item label=Widget kind=type_alias replace=main.ds#prefix declaration="export type Widget = { value: string }" description="from ./library" auto_import=true matches=0,1,2,3,4,5
 @completion.additional_edit item=0 range=main.ds#insertion text="import { Widget } from \"./library\";\n"
 ```
 
@@ -1666,7 +1699,7 @@ const message = gre;
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(name: string): string" declaration="export default function greet(name: string): string" description="from ./library" insert="greet(${1:name})$0" snippet=true preselect=true auto_import=true matches=0,1,2
+@completion.item label=greet kind=function replace=main.ds#prefix suffix="(name: string): string" declaration="export default function greet(name: string): string" description="from ./library" insert="greet(${1:name})$0" snippet=true auto_import=true matches=0,1,2
 @completion.additional_edit item=0 range=main.ds#insertion text="import greet from \"./library\";\n"
 ```
 
@@ -1692,7 +1725,7 @@ const value = parseFixtur;
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=parseFixture kind=function replace=main.ds#prefix suffix="(value: int32): int32" declaration="export function parseFixture(value: int32): int32" description="from ./library" insert="parseFixture(${1:value})$0" snippet=true preselect=true auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10
+@completion.item label=parseFixture kind=function replace=main.ds#prefix suffix="(value: int32): int32" declaration="export function parseFixture(value: int32): int32" description="from ./library" insert="parseFixture(${1:value})$0" snippet=true auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10
 @completion.additional_edit item=0 range=main.ds#insertion text="import { parseFixture } from \"./library\";\n"
 ```
 
@@ -1712,7 +1745,7 @@ gre
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="function greet(): void" insert="greet()" preselect=true matches=0,1,2
+@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="function greet(): void" insert="greet()" matches=0,1,2
 ```
 
 ### Auto-import a public package export
@@ -1774,7 +1807,7 @@ const value = Button;
 ```
 
 ```query completion packages/app/main.ds#prefix@end include_auto_imports=true
-@completion.item label=Button kind=struct replace=packages/app/main.ds#prefix declaration="export struct Button" description="from @acme/ui/button" preselect=true auto_import=true matches=0,1,2,3,4,5
+@completion.item label=Button kind=struct replace=packages/app/main.ds#prefix declaration="export struct Button" description="from @acme/ui/button" insert="Button {}" auto_import=true matches=0,1,2,3,4,5
 @completion.additional_edit item=0 range=packages/app/main.ds#insertion text="import { Button } from \"@acme/ui/button\";\n"
 ```
 
@@ -1901,7 +1934,7 @@ const value = FixtureThem;
 ```
 
 ```query completion packages/app/main.ds#prefix@end include_auto_imports=true
-@completion.item label=FixtureTheme kind=struct replace=packages/app/main.ds#prefix declaration="export struct FixtureTheme" description="from @acme/theme" preselect=true auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10
+@completion.item label=FixtureTheme kind=struct replace=packages/app/main.ds#prefix declaration="export struct FixtureTheme" description="from @acme/theme" insert="FixtureTheme {}" auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10
 @completion.additional_edit item=0 range=packages/app/main.ds#insertion text="import { FixtureTheme } from \"@acme/theme\";\n"
 ```
 
@@ -1923,7 +1956,7 @@ const value = beta;
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=beta kind=function replace=main.ds#prefix suffix="(): void" declaration="export function beta(): void" description="from ./library" insert="beta()" preselect=true auto_import=true matches=0,1,2,3
+@completion.item label=beta kind=function replace=main.ds#prefix suffix="(): void" declaration="export function beta(): void" description="from ./library" insert="beta()" auto_import=true matches=0,1,2,3
 @completion.additional_edit item=0 range=main.ds#insertion text=", beta"
 ```
 
@@ -1945,7 +1978,7 @@ const value = beta;
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=beta kind=function replace=main.ds#prefix suffix="(): void" declaration="export function beta(): void" description="from ./library" insert="beta()" preselect=true auto_import=true matches=0,1,2,3
+@completion.item label=beta kind=function replace=main.ds#prefix suffix="(): void" declaration="export function beta(): void" description="from ./library" insert="beta()" auto_import=true matches=0,1,2,3
 @completion.additional_edit item=0 range=main.ds#default_end text=", { beta }"
 ```
 
@@ -1967,7 +2000,7 @@ const result = build;
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=build kind=function replace=main.ds#prefix suffix="(): void" declaration="export default function build(): void" description="from ./library" insert="build()" preselect=true auto_import=true matches=0,1,2,3,4
+@completion.item label=build kind=function replace=main.ds#prefix suffix="(): void" declaration="export default function build(): void" description="from ./library" insert="build()" auto_import=true matches=0,1,2,3,4
 @completion.additional_edit item=0 range=main.ds#insertion text="build, "
 ```
 
@@ -1992,7 +2025,7 @@ const value = beta;
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=beta kind=function replace=main.ds#prefix suffix="(): void" declaration="export function beta(): void" description="from ./beta" insert="beta()" preselect=true auto_import=true matches=0,1,2,3
+@completion.item label=beta kind=function replace=main.ds#prefix suffix="(): void" declaration="export function beta(): void" description="from ./beta" insert="beta()" auto_import=true matches=0,1,2,3
 @completion.additional_edit item=0 range=main.ds#insertion text="\nimport { beta } from \"./beta\";"
 ```
 
@@ -2060,7 +2093,7 @@ import {} from "./u";
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=user kind=module replace=main.ds#prefix preselect=true matches=0
+@completion.item label=user kind=module replace=main.ds#prefix matches=0
 @completion.item label=utilities/ kind=folder replace=main.ds#prefix matches=0
 ```
 
@@ -2082,7 +2115,7 @@ import {} from "./utilities/a";
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=arrays kind=module replace=main.ds#prefix preselect=true matches=0
+@completion.item label=arrays kind=module replace=main.ds#prefix matches=0
 ```
 
 ## Statements
@@ -2099,7 +2132,7 @@ function main(): void {
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=return kind=keyword replace=main.ds#prefix preselect=true matches=0,1,2,3,4
+@completion.item label=return kind=keyword replace=main.ds#prefix matches=0,1,2,3,4
 @completion.item label=IteratorReturn kind=struct replace=main.ds#prefix suffix="<R = void>" declaration="export struct IteratorReturn<R = void>" documentation="A completed iterator value." insert="IteratorReturn { value: ${1} }$0" snippet=true matches=3,9,10,11,12
 ```
 
@@ -2115,7 +2148,7 @@ const result = returnValue;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=returnValue kind=constant replace=main.ds#prefix suffix=": 1" declaration="const returnValue: 1" preselect=true matches=0,1,2,3,4,5,6,7,8,9,10
+@completion.item label=returnValue kind=constant replace=main.ds#prefix suffix=": 1" declaration="const returnValue: 1" matches=0,1,2,3,4,5,6,7,8,9,10
 ```
 
 ## Primitive Types
@@ -2130,7 +2163,7 @@ declare const value: int3;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=int32 kind=builtin_type replace=main.ds#prefix preselect=true matches=0,1,2,3
+@completion.item label=int32 kind=builtin_type replace=main.ds#prefix matches=0,1,2,3
 @completion.item label=uint32 kind=builtin_type replace=main.ds#prefix matches=1,2,3,4
 ```
 
@@ -2147,7 +2180,7 @@ const result = localRevision;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=localRevisionAlpha kind=constant replace=main.ds#prefix suffix=": 1" declaration="const localRevisionAlpha: 1" preselect=true matches=0,1,2,3,4,5,6,7,8,9,10,11,12
+@completion.item label=localRevisionAlpha kind=constant replace=main.ds#prefix suffix=": 1" declaration="const localRevisionAlpha: 1" matches=0,1,2,3,4,5,6,7,8,9,10,11,12
 ```
 
 ```ds main.ds change
@@ -2157,7 +2190,7 @@ const result = localRevision;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=localRevisionAlpine kind=constant replace=main.ds#prefix suffix=": 2" declaration="const localRevisionAlpine: 2" preselect=true matches=0,1,2,3,4,5,6,7,8,9,10,11,12
+@completion.item label=localRevisionAlpine kind=constant replace=main.ds#prefix suffix=": 2" declaration="const localRevisionAlpine: 2" matches=0,1,2,3,4,5,6,7,8,9,10,11,12
 ```
 
 ### Update members after successive source changes
@@ -2175,7 +2208,7 @@ const selected = box.val;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=value kind=field replace=main.ds#prefix suffix=": string" declaration="Box.value: string" preselect=true matches=0,1,2
+@completion.item label=value kind=field replace=main.ds#prefix suffix=": string" declaration="Box.value: string" matches=0,1,2
 ```
 
 ```ds main.ds change
@@ -2189,7 +2222,7 @@ const selected = box.cou;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=count kind=field replace=main.ds#prefix suffix=": int32" declaration="Box.count: int32" preselect=true matches=0,1,2
+@completion.item label=count kind=field replace=main.ds#prefix suffix=": int32" declaration="Box.count: int32" matches=0,1,2
 ```
 
 ```diff main.ds
@@ -2201,7 +2234,7 @@ const selected = box.cou;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=count kind=field replace=main.ds#prefix suffix=": boolean" declaration="Box.count: boolean" preselect=true matches=0,1,2
+@completion.item label=count kind=field replace=main.ds#prefix suffix=": boolean" declaration="Box.count: boolean" matches=0,1,2
 ```
 
 ### Update a newtype constructor after its backing type changes
@@ -2216,7 +2249,7 @@ const result = UserI;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=UserId kind=constructor replace=main.ds#prefix suffix="(string): UserId" declaration="newtype UserId = string" insert="UserId(${1})$0" snippet=true preselect=true matches=0,1,2,3,4
+@completion.item label=UserId kind=constructor replace=main.ds#prefix suffix="(string): UserId" declaration="newtype UserId = string" insert="UserId(${1})$0" snippet=true matches=0,1,2,3,4
 ```
 
 ```diff main.ds
@@ -2226,7 +2259,7 @@ const result = UserI;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=UserId kind=constructor replace=main.ds#prefix suffix="(int32): UserId" declaration="newtype UserId = int32" insert="UserId(${1})$0" snippet=true preselect=true matches=0,1,2,3,4
+@completion.item label=UserId kind=constructor replace=main.ds#prefix suffix="(int32): UserId" declaration="newtype UserId = int32" insert="UserId(${1})$0" snippet=true matches=0,1,2,3,4
 ```
 
 ### Update blanket extension completion after conformance changes
@@ -2250,7 +2283,7 @@ const result = user.dis;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=displayName kind=method replace=main.ds#prefix suffix="(): string" declaration="displayName(): string" insert="displayName()" preselect=true matches=0,1,2
+@completion.item label=displayName kind=method replace=main.ds#prefix suffix="(): string" declaration="displayName(): string" insert="displayName()" matches=0,1,2
 ```
 
 ```diff main.ds
@@ -2270,7 +2303,7 @@ const result = user.dis;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=displayName kind=method replace=main.ds#prefix suffix="(): string" declaration="displayName(): string" insert="displayName()" preselect=true matches=0,1,2
+@completion.item label=displayName kind=method replace=main.ds#prefix suffix="(): string" declaration="displayName(): string" insert="displayName()" matches=0,1,2
 ```
 
 ### Return no members for an unresolved receiver after an edit
@@ -2288,7 +2321,7 @@ const selected = box.val;
 ```
 
 ```query completion main.ds#prefix@end trigger=.
-@completion.item label=value kind=field replace=main.ds#prefix suffix=": string" declaration="Box.value: string" preselect=true matches=0,1,2
+@completion.item label=value kind=field replace=main.ds#prefix suffix=": string" declaration="Box.value: string" matches=0,1,2
 ```
 
 ```diff main.ds
@@ -2322,7 +2355,7 @@ const message = greet;
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(name: string): string" declaration="export function greet(name: string): string" description="from ./library" insert="greet(${1:name})$0" snippet=true preselect=true auto_import=true matches=0,1,2,3,4
+@completion.item label=greet kind=function replace=main.ds#prefix suffix="(name: string): string" declaration="export function greet(name: string): string" description="from ./library" insert="greet(${1:name})$0" snippet=true auto_import=true matches=0,1,2,3,4
 @completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```
 
@@ -2336,6 +2369,6 @@ const message = greet;
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(count: int32): int32" declaration="export function greet(count: int32): int32" description="from ./library" insert="greet(${1:count})$0" snippet=true preselect=true auto_import=true matches=0,1,2,3,4
+@completion.item label=greet kind=function replace=main.ds#prefix suffix="(count: int32): int32" declaration="export function greet(count: int32): int32" description="from ./library" insert="greet(${1:count})$0" snippet=true auto_import=true matches=0,1,2,3,4
 @completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```

@@ -28,6 +28,53 @@ impl ModuleQueryContext<'_> {
         }
     }
 
+    /// Return the active parameter at one cursor position.
+    pub(crate) fn active_parameter(
+        &self,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+        bindings: &[dir::ArgumentBinding],
+        offset: u32,
+    ) -> QueryResult<Option<usize>> {
+        let view = self.view()?;
+
+        // select the binding of an argument under the cursor
+        let mut written = 0;
+        for argument_id in arguments.iter().copied() {
+            let span = self.node_span(view, argument_id.into_any())?;
+            if span.end < offset {
+                written += 1;
+            }
+            if offset < span.start || offset > span.end {
+                continue;
+            }
+
+            let argument = argument_id.into_global_any(self.module_id());
+            let parameter = bindings
+                .iter()
+                .position(|binding| binding.contains_argument(argument));
+
+            return Ok(parameter);
+        }
+
+        let mut slot = 0;
+
+        // select the unwritten parameter slot at the cursor
+        for (parameter, binding) in bindings.iter().enumerate() {
+            match &binding.source {
+                dir::ArgumentSource::Rest { .. } => return Ok(Some(parameter)),
+                dir::ArgumentSource::Provided(_) | dir::ArgumentSource::Omitted => {
+                    if slot == written {
+                        return Ok(Some(parameter));
+                    }
+                    slot += 1;
+                }
+                dir::ArgumentSource::Static(_) | dir::ArgumentSource::Write => {}
+            }
+        }
+
+        Ok(None)
+    }
+
     /// Return the declared parameters for one callable symbol.
     pub(crate) fn callable_parameters(
         &self,

@@ -125,7 +125,7 @@ impl ModuleQueryContext<'_> {
             };
 
             let active_parameter = match bindings {
-                Some(bindings) => self.active_signature_parameter(arguments, bindings, offset)?,
+                Some(bindings) => self.active_parameter(arguments, bindings, offset)?,
                 None => None,
             };
 
@@ -502,66 +502,5 @@ impl ModuleQueryContext<'_> {
             documentation,
             parameters,
         })
-    }
-
-    /// Return the selected parameter at one cursor position.
-    fn active_signature_parameter(
-        &self,
-        arguments: &[dir::LocalNodeId<dir::Argument>],
-        bindings: &[dir::ArgumentBinding],
-        offset: u32,
-    ) -> QueryResult<Option<usize>> {
-        let view = self.view()?;
-
-        // count the arguments before the cursor, and take the binding of the one under it
-        let mut written = 0;
-        for argument_id in arguments.iter().copied() {
-            let span = self.node_span(view, argument_id.into_any())?;
-            if span.end < offset {
-                written += 1;
-            }
-            if offset < span.start || offset > span.end {
-                continue;
-            }
-
-            let global_id = argument_id.into_global_any(self.module_id());
-            let parameter = bindings
-                .iter()
-                .position(|binding| binding.contains_argument(global_id));
-            let Some(parameter) = parameter else {
-                return Ok(None);
-            };
-
-            return Ok(Some(parameter));
-        }
-
-        // select the parameter slot the cursor stands in when no argument is written there
-        self.gap_signature_parameter(bindings, written)
-    }
-
-    /// Return the parameter slot standing after a counted run of written arguments.
-    fn gap_signature_parameter(
-        &self,
-        bindings: &[dir::ArgumentBinding],
-        written: usize,
-    ) -> QueryResult<Option<usize>> {
-        let mut slot = 0;
-        for (parameter, binding) in bindings.iter().enumerate() {
-            match &binding.source {
-                // a rest parameter absorbs every argument from its own slot on
-                dir::ArgumentSource::Rest { .. } => return Ok(Some(parameter)),
-                // positional slots advance one written argument at a time
-                dir::ArgumentSource::Provided(_) | dir::ArgumentSource::Omitted => {
-                    if slot == written {
-                        return Ok(Some(parameter));
-                    }
-                    slot += 1;
-                }
-                // checker-inserted arguments occupy no authored slot
-                dir::ArgumentSource::Static(_) | dir::ArgumentSource::Write => {}
-            }
-        }
-
-        Ok(None)
     }
 }

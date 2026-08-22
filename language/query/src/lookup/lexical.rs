@@ -37,7 +37,7 @@ pub(crate) struct MatchQuality {
     pub(crate) kind: MatchKind,
     /// The ranking score within the tier.
     pub(crate) score: u32,
-    /// The matched byte indices in the candidate.
+    /// The matched character positions in the candidate.
     pub(crate) matched_indices: Vec<usize>,
 }
 
@@ -56,8 +56,6 @@ struct LexicalQuery<'a> {
     candidate: &'a str,
     /// The query text to match.
     query: &'a str,
-    /// The lowercase query used by folded matches.
-    query_lower: String,
 }
 
 impl MatchQuality {
@@ -73,11 +71,7 @@ impl MatchQuality {
 impl<'a> LexicalQuery<'a> {
     /// Create one lexical query.
     fn new(candidate: &'a str, query: &'a str) -> Self {
-        Self {
-            candidate,
-            query,
-            query_lower: query.to_lowercase(),
-        }
+        Self { candidate, query }
     }
 
     /// Score this lexical query.
@@ -101,7 +95,7 @@ impl<'a> LexicalQuery<'a> {
         }
 
         // case insensitive whole
-        if self.candidate.to_lowercase() == self.query_lower {
+        if self.is_equal_folded() {
             let mismatch_count = self.prefix_case_mismatch_count();
 
             return Some(MatchQuality {
@@ -122,7 +116,7 @@ impl<'a> LexicalQuery<'a> {
         }
 
         // case insensitive prefix
-        if self.candidate.to_lowercase().starts_with(&self.query_lower) {
+        if self.starts_with_folded() {
             let mismatch_count = self.prefix_case_mismatch_count();
 
             return Some(MatchQuality {
@@ -173,6 +167,36 @@ impl<'a> LexicalQuery<'a> {
         None
     }
 
+    /// Return whether the candidate and query are equal after lowercase folding.
+    fn is_equal_folded(&self) -> bool {
+        let mut candidate = self.candidate.chars().flat_map(char::to_lowercase);
+        let mut query = self.query.chars().flat_map(char::to_lowercase);
+
+        // compare every folded character
+        loop {
+            match (candidate.next(), query.next()) {
+                (Some(candidate), Some(query)) if candidate == query => {}
+                (None, None) => return true,
+                _ => return false,
+            }
+        }
+    }
+
+    /// Return whether the candidate starts with the query after lowercase folding.
+    fn starts_with_folded(&self) -> bool {
+        let mut candidate = self.candidate.chars().flat_map(char::to_lowercase);
+        let query = self.query.chars().flat_map(char::to_lowercase);
+
+        // compare every folded query character
+        for expected in query {
+            if candidate.next() != Some(expected) {
+                return false;
+            }
+        }
+
+        true
+    }
+
     /// Return one case-mismatch count for the query prefix.
     fn prefix_case_mismatch_count(&self) -> u32 {
         self.candidate
@@ -182,89 +206,106 @@ impl<'a> LexicalQuery<'a> {
             .count() as u32
     }
 
-    /// Return the byte indices for the first `count` candidate characters.
+    /// Return the first `count` candidate character positions.
     fn prefix_indices(&self, count: usize) -> Vec<usize> {
-        self.candidate
-            .char_indices()
-            .take(count)
-            .map(|(index, _)| index)
-            .collect()
+        (0..count).collect()
     }
 
     /// Return one boundary match when the query matches boundary characters.
     fn boundary_match_indices(&self, is_case_sensitive: bool) -> Option<Vec<usize>> {
-        let prefix: Vec<char> = self.query.chars().collect();
-        let mut prefix_index = 0;
+        let mut query = self.query.chars();
+        let mut query_character = query.next();
         let mut matched_indices = Vec::new();
 
-        for (index, character) in self.candidate.char_indices() {
-            if prefix_index >= prefix.len() {
+        // match query characters at successive candidate boundaries
+        for (ordinal, (index, character)) in self.candidate.char_indices().enumerate() {
+            let Some(expected) = query_character else {
                 break;
-            }
+            };
 
-            if !is_boundary(self.candidate, index, character) {
+            if !self.is_boundary(index, character) {
                 continue;
             }
 
-            let query_character = prefix[prefix_index];
             let is_match = if is_case_sensitive {
-                character == query_character
+                character == expected
             } else {
-                chars_equal_fold(character, query_character)
+                character.to_lowercase().eq(expected.to_lowercase())
             };
 
             if !is_match {
                 continue;
             }
 
-            matched_indices.push(index);
-            prefix_index += 1;
+            matched_indices.push(ordinal);
+            query_character = query.next();
         }
 
-        (prefix_index == prefix.len()).then_some(matched_indices)
+        query_character.is_none().then_some(matched_indices)
     }
 
-    /// Return one case-mismatch count across matched byte indices.
+    /// Return whether one character starts a lexical boundary.
+    fn is_boundary(&self, index: usize, character: char) -> bool {
+        if index == 0 || character.is_uppercase() {
+            return true;
+        }
+
+        let Some(previous) = self.candidate[..index].chars().next_back() else {
+            return true;
+        };
+
+        previous == '_'
+            || previous == '-'
+            || (!previous.is_alphanumeric() && character.is_alphanumeric())
+    }
+
+    /// Return one case-mismatch count across matched character positions.
     fn matched_case_mismatch_count(&self, matched_indices: &[usize]) -> u32 {
-        self.query
-            .chars()
-            .zip(matched_indices.iter().copied())
-            .filter_map(|(query_character, index)| {
-                let candidate_character = self.candidate[index..].chars().next()?;
-                Some((candidate_character, query_character))
-            })
-            .filter(|(candidate_character, query_character)| candidate_character != query_character)
-            .count() as u32
+        let mut query = self.query.chars();
+        let mut positions = matched_indices.iter().copied();
+        let mut next_position = positions.next();
+        let mut mismatches = 0;
+
+        // compare only the matched candidate characters
+        for (position, candidate) in self.candidate.chars().enumerate() {
+            if next_position != Some(position) {
+                continue;
+            }
+            let Some(expected) = query.next() else {
+                break;
+            };
+            if candidate != expected {
+                mismatches += 1;
+            }
+            next_position = positions.next();
+        }
+
+        mismatches
     }
 
     /// Return one subsequence match result when every query character appears in order.
     fn subsequence_match(&self) -> Option<SubsequenceMatch> {
-        let query: Vec<char> = self.query.chars().collect();
-        let candidate: Vec<(usize, char)> = self.candidate.char_indices().collect();
         let mut matched_indices = Vec::new();
         let mut first_ordinal = None;
         let mut last_ordinal = 0usize;
         let mut case_mismatches = 0u32;
-        let mut candidate_index = 0usize;
+        let mut candidate = self.candidate.char_indices().enumerate();
 
-        for query_character in query {
+        // match each query character against the remaining candidate
+        for query_character in self.query.chars() {
             let mut found = None;
+            for (ordinal, (_, candidate_character)) in candidate.by_ref() {
+                if candidate_character
+                    .to_lowercase()
+                    .eq(query_character.to_lowercase())
+                {
+                    found = Some((ordinal, candidate_character));
 
-            while candidate_index < candidate.len() {
-                let (byte_index, candidate_character) = candidate[candidate_index];
-                candidate_index += 1;
-
-                let is_match = chars_equal_fold(candidate_character, query_character);
-
-                if !is_match {
-                    continue;
+                    break;
                 }
-
-                found = Some((candidate_index - 1, byte_index, candidate_character));
-                break;
             }
 
-            let (ordinal, byte_index, candidate_character) = found?;
+            let (ordinal, candidate_character) = found?;
 
             if candidate_character != query_character {
                 case_mismatches += 1;
@@ -275,7 +316,7 @@ impl<'a> LexicalQuery<'a> {
             }
 
             last_ordinal = ordinal;
-            matched_indices.push(byte_index);
+            matched_indices.push(ordinal);
         }
 
         let spread = if let Some(first_ordinal) = first_ordinal {
@@ -297,43 +338,9 @@ pub(crate) fn match_quality(candidate: &str, query: &str) -> Option<MatchQuality
     LexicalQuery::new(candidate, query).quality()
 }
 
-/// Return true when two characters match after lowercase folding.
-fn chars_equal_fold(left: char, right: char) -> bool {
-    let mut left = left.to_lowercase();
-    let mut right = right.to_lowercase();
-
-    loop {
-        match (left.next(), right.next()) {
-            (Some(left), Some(right)) if left == right => {}
-            (None, None) => return true,
-            _ => return false,
-        }
-    }
-}
-
-/// Return true when one character starts one lexical boundary.
-fn is_boundary(candidate: &str, index: usize, character: char) -> bool {
-    if index == 0 {
-        return true;
-    }
-
-    if character.is_uppercase() {
-        return true;
-    }
-
-    let previous = candidate[..index].chars().next_back();
-    let Some(previous) = previous else {
-        return true;
-    };
-
-    previous == '_'
-        || previous == '-'
-        || (!previous.is_alphanumeric() && character.is_alphanumeric())
-}
-
 /// One subsequence match result.
 struct SubsequenceMatch {
-    /// The matched byte indices.
+    /// The matched character positions.
     matched_indices: Vec<usize>,
     /// The span between first and last matched character.
     spread: u32,
