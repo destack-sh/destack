@@ -210,6 +210,24 @@ impl DirModule<'_> {
         }
     }
 
+    /// Return one direct block expression's children in execution order.
+    pub(crate) fn block_expressions(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<Vec<dir::GlobalNodeIdAny>> {
+        let dir::Expression::Block(block) = self.view().get(expression) else {
+            return None;
+        };
+
+        Some(
+            self.view()
+                .get(*block)
+                .iter_expressions()
+                .map(|expression| expression.into_global_any(self.id))
+                .collect(),
+        )
+    }
+
     /// Return the value expression when its block performs no preceding work.
     pub(crate) fn sole_value_expression(
         &self,

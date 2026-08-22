@@ -47,53 +47,30 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect only heads of authored if and else-if chains
-    for (expression, node) in view.iter_nodes::<dir::Expression>() {
-        let dir::Expression::If {
-            form: dir::IfForm::If,
-            condition,
-            else_expression,
-            ..
-        } = node
-        else {
-            continue;
-        };
-        if is_else_if(&view, expression) {
+    // inspect only heads of authored if chains
+    for (expression, _) in view.iter_nodes::<dir::Expression>() {
+        if module.is_else_if(expression) {
             continue;
         }
+        let Some(chain) = module.if_chain(expression) else {
+            continue;
+        };
 
         // compare each later expression condition with all earlier branches
         let mut previous = Vec::new();
-        let mut condition = condition.as_expression();
-        let mut next = *else_expression;
-        loop {
-            if let Some(condition) = condition {
-                if is_branch_unreachable(module, &previous, condition)? {
-                    let span = module.source_extent(condition.into_any())?;
-                    let diagnostic = lint.diagnostic(
-                        "else-if condition cannot be reached after earlier branches",
-                        span,
-                    );
-                    output.report(diagnostic);
-                }
-                previous.push(condition);
+        for branch in chain.branches {
+            let Some(condition) = branch.condition.as_expression() else {
+                continue;
+            };
+            if is_branch_unreachable(module, &previous, condition)? {
+                let span = module.source_extent(condition.into_any())?;
+                let diagnostic = lint.diagnostic(
+                    "else-if condition cannot be reached after earlier branches",
+                    span,
+                );
+                output.report(diagnostic);
             }
-
-            // advance through the direct else-if chain
-            let Some(expression) = next else {
-                break;
-            };
-            let dir::Expression::If {
-                form: dir::IfForm::If,
-                condition: following,
-                else_expression,
-                ..
-            } = view.get(expression)
-            else {
-                break;
-            };
-            condition = following.as_expression();
-            next = *else_expression;
+            previous.push(condition);
         }
     }
 
@@ -137,25 +114,6 @@ fn is_branch_unreachable(
     }
 
     Ok(false)
-}
-
-/// Return whether one if expression is the direct else branch of another if.
-fn is_else_if(view: &dir::View<'_>, expression: dir::LocalNodeId<dir::Expression>) -> bool {
-    let Some(parent) = view.get_parent_for(expression) else {
-        return false;
-    };
-    let Ok(parent) = parent.try_into_typed::<dir::Expression>() else {
-        return false;
-    };
-
-    matches!(
-        view.get(parent),
-        dir::Expression::If {
-            form: dir::IfForm::If,
-            else_expression: Some(else_expression),
-            ..
-        } if *else_expression == expression
-    )
 }
 
 #[cfg(test)]

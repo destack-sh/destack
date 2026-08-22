@@ -3,6 +3,24 @@ use destack_repository::ProviderError;
 
 use super::{DirModule, IntegerStep};
 
+/// One conditional branch in an authored if chain.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct IfBranch<'a> {
+    /// The branch condition.
+    pub(crate) condition: &'a dir::Condition,
+    /// The branch body expression.
+    pub(crate) body: dir::LocalNodeId<dir::Expression>,
+}
+
+/// One authored if-else chain.
+#[derive(Debug)]
+pub(crate) struct IfChain<'a> {
+    /// The conditional branches in source order.
+    pub(crate) branches: Vec<IfBranch<'a>>,
+    /// The final else expression.
+    pub(crate) else_body: Option<dir::LocalNodeId<dir::Expression>>,
+}
+
 /// One authored for-of expression.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ForOf<'a> {
@@ -34,6 +52,75 @@ pub(crate) struct CountedIteration {
 }
 
 impl DirModule<'_> {
+    /// Return whether one if expression continues a direct else-if chain.
+    pub(crate) fn is_else_if(&self, expression: dir::LocalNodeId<dir::Expression>) -> bool {
+        // require a direct expression parent
+        let view = self.view();
+        let Some(parent) = view.get_parent_for(expression) else {
+            return false;
+        };
+        let Ok(parent) = parent.try_into_typed::<dir::Expression>() else {
+            return false;
+        };
+
+        matches!(
+            view.get(parent),
+            dir::Expression::If {
+                form: dir::IfForm::If,
+                else_expression: Some(else_expression),
+                ..
+            } if *else_expression == expression
+        )
+    }
+
+    /// Return the conditional branches and final else body of one if chain.
+    pub(crate) fn if_chain(
+        &self,
+        mut expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<IfChain<'_>> {
+        let view = self.view();
+        let mut branches = Vec::new();
+
+        // follow direct else-if expressions in source order
+        let else_body = loop {
+            let dir::Expression::If {
+                form: dir::IfForm::If,
+                condition,
+                then_expression,
+                else_expression,
+                ..
+            } = view.get(expression)
+            else {
+                return None;
+            };
+            branches.push(IfBranch {
+                condition,
+                body: *then_expression,
+            });
+
+            // continue at an else-if or retain the final else body
+            let Some(next) = else_expression else {
+                break None;
+            };
+            if matches!(
+                view.get(*next),
+                dir::Expression::If {
+                    form: dir::IfForm::If,
+                    ..
+                }
+            ) {
+                expression = *next;
+            } else {
+                break Some(*next);
+            }
+        };
+
+        Some(IfChain {
+            branches,
+            else_body,
+        })
+    }
+
     /// Return the coverage proved for one match expression.
     pub(crate) fn match_coverage(
         &self,
