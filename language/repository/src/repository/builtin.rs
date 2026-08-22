@@ -258,6 +258,11 @@ impl EmbeddedBuiltinPackage {
         self.builtin_file_for_path(path).map(BuiltinFile::file_id)
     }
 
+    /// Return one loaded builtin source file by its source URI.
+    pub fn file_for_uri(&self, uri: &Uri) -> Option<&Arc<File>> {
+        self.file_by_id.values().find(|file| &file.uri == uri)
+    }
+
     /// Return builtin modules keyed by module id.
     pub(crate) fn modules(&self) -> impl Iterator<Item = (ModuleId, Arc<Module>)> + '_ {
         self.modules
