@@ -3,7 +3,6 @@ mod check;
 mod clean;
 mod fmt;
 mod info;
-mod init;
 mod input;
 mod lint;
 mod query;
