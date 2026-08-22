@@ -572,7 +572,9 @@ impl Parser {
 
             let is_new_line_boundary =
                 start_range.start < token.span.start && token.token.is_on_new_line();
-            let is_boundary = is_new_line_boundary
+            let is_declaration_boundary = self.peek_declaration_boundary(DeclarationNesting::None);
+            let is_boundary = is_declaration_boundary
+                || is_new_line_boundary
                 || Self::is_statement_stop_token(token_type)
                 || token_type == TokenType::CloseBrace;
             if is_boundary {

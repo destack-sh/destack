@@ -6,6 +6,36 @@ use destack_dir::{
 };
 
 #[test]
+fn test_recover_declaration_after_missing_binding() {
+    for head in ["declare const", "let", "using"] {
+        let source = format!(
+            r#"{head}
+/// Marker documentation.
+@languageItem("memory.Copy") export newtype interface Marker {{}}
+"#
+        );
+        let test = TestParser::new(&source);
+        let mut parser = test.prepare();
+        let expressions = parser.parse_in_place();
+
+        // preserve both root expressions
+        assert_eq!(expressions.len(), 2);
+        assert_node!(parser.tree, expressions[0], Expression::Error);
+
+        // preserve the following declaration annotations
+        assert_node!(parser.tree, expressions[1], Expression::Declaration(declaration) => {
+            assert_node!(parser.tree, *declaration, Declaration::Interface(InterfaceDeclaration { .. }) => {
+                assert_eq!(test.documentation(&parser, *declaration), Some("Marker documentation."));
+                assert_eq!(parser.tree.get_decorators(declaration.id).len(), 1);
+            });
+        });
+
+        // report the missing declarator at the declaration boundary
+        test.assert_errors(&parser, &[(Some(NodeType::Declarator), None, None, "@")]);
+    }
+}
+
+#[test]
 fn test_recover_incomplete_type_before_decorated_declaration() {
     let test = TestParser::new(
         r#"const value:

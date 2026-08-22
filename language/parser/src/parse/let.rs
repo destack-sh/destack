@@ -1,4 +1,6 @@
-use crate::parse::{ExpressionPosition, ExpressionStop, TypePosition, TypeStop};
+use crate::parse::{
+    DeclarationNesting, ExpressionPosition, ExpressionStop, TypePosition, TypeStop,
+};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_dir::{
@@ -93,6 +95,11 @@ impl Parser {
         // using keyword
         self.eat_keyword(Keyword::Using)?;
 
+        // recover the missing binding at the declaration boundary
+        if self.peek_declaration_boundary(DeclarationNesting::None) {
+            return Ok(self.recover_missing_binding(start));
+        }
+
         // parse declarators
         let mut declarators = Vec::new();
         loop {
@@ -181,6 +188,11 @@ impl Parser {
         head: LetHead,
         keyword_range: ByteRange,
     ) -> ParserResult<LocalNodeId<Expression>> {
+        // recover the missing binding at the declaration boundary
+        if self.peek_declaration_boundary(DeclarationNesting::None) {
+            return Ok(self.recover_missing_binding(start));
+        }
+
         let first_declarator = self.parse_declarator(DeclaratorValue::Optional)?;
 
         // let else
@@ -264,6 +276,13 @@ impl Parser {
         self.tree.set_main_range(let_id, keyword_range);
 
         Ok(let_id)
+    }
+
+    /// Recover an absent binding at the next declaration boundary.
+    fn recover_missing_binding(&mut self, start: &ParseStart) -> LocalNodeId<Expression> {
+        self.report_unexpected_here(NodeType::Declarator);
+
+        self.insert_node(Expression::Error, self.range_since(start))
     }
 
     /// Parse a let or const head.
