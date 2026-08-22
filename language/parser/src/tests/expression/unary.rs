@@ -1,7 +1,7 @@
 use crate::tests::TestParser;
 use crate::{ExpressionPosition, ExpressionStop, assert_expression_path, assert_node, assert_path};
 use destack_dir::{
-    BinaryOperator, Expression, Mutability, NodeType, Literal, TokenType, TypeExpression,
+    BinaryOperator, Expression, Literal, Mutability, NodeType, TokenType, TypeExpression,
     UnaryOperator, VarianceBound,
 };
 

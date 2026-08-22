@@ -2,8 +2,8 @@ use crate::{ExpressionPosition, ExpressionStop};
 use destack_dir::{
     Argument, BinaryOperator, CommentKind, ConditionOperand, Declaration, Expression, FloatType,
     FunctionDeclaration, FunctionForm, GenericArgument, GenericParameter, IfForm, IntegerType,
-    Name, NodeType, Parameter, Pattern, Property, ScalarAlias, Literal, TemplateLiteral,
-    TokenType, TreeAttribute, TreeAttributeValue, TreeChild, TypeExpression, TypeLiteral,
+    Literal, Name, NodeType, Parameter, Pattern, Property, ScalarAlias, TemplateLiteral, TokenType,
+    TreeAttribute, TreeAttributeValue, TreeChild, TypeExpression, TypeLiteral,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -18,10 +18,7 @@ fn test_parse_integer_literal() {
     let test = TestParser::new("1 731 0x1234 2n");
     let mut parser = test.prepare();
 
-    assert_eq!(
-        parser.parse_scalar_literal().unwrap(),
-        Literal::Integer(1)
-    );
+    assert_eq!(parser.parse_scalar_literal().unwrap(), Literal::Integer(1));
     assert_eq!(
         parser.parse_scalar_literal().unwrap(),
         Literal::Integer(731)
@@ -30,10 +27,7 @@ fn test_parse_integer_literal() {
         parser.parse_scalar_literal().unwrap(),
         Literal::Integer(0x1234)
     );
-    assert_eq!(
-        parser.parse_scalar_literal().unwrap(),
-        Literal::Bigint(2)
-    );
+    assert_eq!(parser.parse_scalar_literal().unwrap(), Literal::Bigint(2));
 }
 
 /// Parse integer literals with uppercase radix prefixes.
@@ -42,14 +36,8 @@ fn test_parse_integer_literal_uppercase_radix_prefixes() {
     let test = TestParser::new("0B101 0O77 0Xff");
     let mut parser = test.prepare();
 
-    assert_eq!(
-        parser.parse_scalar_literal().unwrap(),
-        Literal::Integer(5)
-    );
-    assert_eq!(
-        parser.parse_scalar_literal().unwrap(),
-        Literal::Integer(63)
-    );
+    assert_eq!(parser.parse_scalar_literal().unwrap(), Literal::Integer(5));
+    assert_eq!(parser.parse_scalar_literal().unwrap(), Literal::Integer(63));
     assert_eq!(
         parser.parse_scalar_literal().unwrap(),
         Literal::Integer(255)
@@ -114,10 +102,7 @@ fn test_parse_float_literal() {
         parser.parse_scalar_literal().unwrap(),
         Literal::Float(1.0e38)
     );
-    assert_eq!(
-        parser.parse_scalar_literal().unwrap(),
-        Literal::Float(1.0)
-    );
+    assert_eq!(parser.parse_scalar_literal().unwrap(), Literal::Float(1.0));
 }
 
 /// Parse true and false literals.

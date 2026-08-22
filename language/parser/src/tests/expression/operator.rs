@@ -5,8 +5,7 @@ use crate::{
 };
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Expression,
-    IfForm, LocalNodeId, PostfixPosition, Literal, TypeExpression, TypeLiteral,
-    UnaryOperator,
+    IfForm, Literal, LocalNodeId, PostfixPosition, TypeExpression, TypeLiteral, UnaryOperator,
 };
 
 /// Assert one assign pattern is an expression path.

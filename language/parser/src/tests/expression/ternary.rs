@@ -5,7 +5,7 @@ use crate::{
 };
 use destack_dir::{
     AssignOperator, BinaryOperator, Block, CommentKind, Declaration, Declarator, ExportKind,
-    Expression, FunctionDeclaration, FunctionForm, IfForm, Name, Pattern, Property, Literal,
+    Expression, FunctionDeclaration, FunctionForm, IfForm, Literal, Name, Pattern, Property,
 };
 
 /// Parse `true ? 1 : 2`.

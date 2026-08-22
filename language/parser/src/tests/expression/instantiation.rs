@@ -5,9 +5,8 @@ use crate::{
     assert_string,
 };
 use destack_dir::{
-    Argument, AssignOperator, BinaryOperator, Declarator, Expression, GenericArgument, Name,
-    Pattern, PostfixPosition, Literal, TypeExpression, TypeLiteral, TypeMember,
-    UnaryOperator,
+    Argument, AssignOperator, BinaryOperator, Declarator, Expression, GenericArgument, Literal,
+    Name, Pattern, PostfixPosition, TypeExpression, TypeLiteral, TypeMember, UnaryOperator,
 };
 
 /// Assert that one instantiation assignment target reports one leaf span.

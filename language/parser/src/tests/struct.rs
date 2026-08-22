@@ -1,6 +1,6 @@
 use destack_dir::{
     ClassDeclaration, CommentKind, Declaration, ExportKind, Expression, GenericParameter,
-    IntegerType, Member, Name, Parameter, PlaceModifier, Literal, StructDeclaration,
+    IntegerType, Literal, Member, Name, Parameter, PlaceModifier, StructDeclaration,
     TypeExpression, TypeLiteral, Visibility, WhereClause,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};

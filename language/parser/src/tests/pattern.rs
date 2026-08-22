@@ -1,6 +1,6 @@
 use destack_dir::{
-    Expression, LocalNodeId, Mutability, Name, Pattern, PatternField, RangeEnd, Literal,
-    TokenType, Tree, TypeExpression,
+    Expression, Literal, LocalNodeId, Mutability, Name, Pattern, PatternField, RangeEnd, TokenType,
+    Tree, TypeExpression,
 };
 
 use crate::{

@@ -6,8 +6,8 @@ use crate::{
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, BinaryOperator, Block, BlockForm, ClassDeclaration,
     CommentKind, Declaration, Declarator, Decorator, DependencyBinding, DependencyItem, ExportKind,
-    Expression, FunctionDeclaration, ImportAttributeClauseKind, Name, Parameter, Pattern, Property,
-    Literal, TypeDeclaration, TypeExpression, TypeLiteral,
+    Expression, FunctionDeclaration, ImportAttributeClauseKind, Literal, Name, Parameter, Pattern,
+    Property, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanType};
 

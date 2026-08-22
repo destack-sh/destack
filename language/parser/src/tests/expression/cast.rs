@@ -5,8 +5,8 @@ use crate::{
 };
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, CommentKind, Declaration,
-    Expression, FunctionDeclaration, FunctionForm, GenericArgument, IfForm, NodeType, Parameter,
-    Literal, TokenType, TypeDeclaration, TypeExpression, TypeLiteral,
+    Expression, FunctionDeclaration, FunctionForm, GenericArgument, IfForm, Literal, NodeType,
+    Parameter, TokenType, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use destack_source::DiagnosticSeverity;
 

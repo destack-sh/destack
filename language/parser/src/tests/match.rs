@@ -1,7 +1,6 @@
 use destack_dir::{
-    BinaryOperator, Block, CommentKind, ConditionOperand, Declarator, Expression, LetKind,
-    MatchArm, Mutability, NodeType, Pattern, PatternField, Literal, SwitchCase,
-    SwitchSelector, TokenType,
+    BinaryOperator, Block, CommentKind, ConditionOperand, Declarator, Expression, LetKind, Literal,
+    MatchArm, Mutability, NodeType, Pattern, PatternField, SwitchCase, SwitchSelector, TokenType,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 

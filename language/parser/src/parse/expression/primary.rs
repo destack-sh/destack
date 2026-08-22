@@ -7,9 +7,9 @@ use crate::parse::{
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 use destack_core::StringId;
 use destack_dir::{
-    BlockContext, Expression, InferForm, Keyword, LocalNodeId, Mutability, NodeType,
-    OperatorPrecedence, Path, RangeEnd, Literal, TokenLiteral, TokenType, TypeExpression,
-    UnaryOperator, VarianceBound,
+    BlockContext, Expression, InferForm, Keyword, Literal, LocalNodeId, Mutability, NodeType,
+    OperatorPrecedence, Path, RangeEnd, TokenLiteral, TokenType, TypeExpression, UnaryOperator,
+    VarianceBound,
 };
 use destack_source::ByteRange;
 use smallvec::{SmallVec, smallvec};
@@ -357,10 +357,7 @@ impl Parser {
             }
             Keyword::Null => {
                 self.bump();
-                Ok(self.insert_node(
-                    Expression::Literal(Literal::Null),
-                    self.range_since(start),
-                ))
+                Ok(self.insert_node(Expression::Literal(Literal::Null), self.range_since(start)))
             }
             Keyword::Undefined => {
                 self.bump();

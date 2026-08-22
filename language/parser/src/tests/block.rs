@@ -4,7 +4,7 @@ use crate::{
 };
 use destack_dir::{
     Block, BlockContext, BlockForm, CommentKind, Declaration, Expression, FunctionDeclaration,
-    FunctionForm, IfForm, LetKind, MatchArm, Name, NodeType, Property, Literal, TokenType,
+    FunctionForm, IfForm, LetKind, Literal, MatchArm, Name, NodeType, Property, TokenType,
     TypeExpression, YieldCardinality,
 };
 

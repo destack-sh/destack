@@ -4,7 +4,7 @@ use crate::{
 };
 use destack_dir::{
     Argument, BinaryOperator, Declaration, Declarator, Expression, FunctionDeclaration, IfForm,
-    LocalNodeId, Parameter, PostfixPosition, Literal, TypeExpression, TypeLiteral,
+    Literal, LocalNodeId, Parameter, PostfixPosition, TypeExpression, TypeLiteral,
 };
 
 /// Assert one direct maybe expression wrapping a call.

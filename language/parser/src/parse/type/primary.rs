@@ -296,18 +296,12 @@ impl Parser {
             TokenType::Add | TokenType::Subtract => {
                 let value = self.parse_signed_numeric_literal()?;
 
-                Ok(self.insert_node(
-                    TypeExpression::Literal { value },
-                    self.range_since(start),
-                ))
+                Ok(self.insert_node(TypeExpression::Literal { value }, self.range_since(start)))
             }
             TokenType::Literal if self.peek_scalar_literal_start() => {
                 let value = self.parse_scalar_literal()?;
 
-                Ok(self.insert_node(
-                    TypeExpression::Literal { value },
-                    self.range_since(start),
-                ))
+                Ok(self.insert_node(TypeExpression::Literal { value }, self.range_since(start)))
             }
             TokenType::Range | TokenType::RangeInclusive => {
                 self.parse_startless_range_type(start, position, stop)

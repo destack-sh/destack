@@ -6,7 +6,7 @@ use crate::lex::decode_html_entity;
 use crate::parse::{RegexFlags, RegexPattern};
 use crate::{Parser, ParserError, ParserResult};
 
-use destack_dir::{NodeType, NumberBase, Literal, TokenLiteral, TokenSpan, TokenType};
+use destack_dir::{Literal, NodeType, NumberBase, TokenLiteral, TokenSpan, TokenType};
 
 /// One integer token body and its lexer classification.
 #[derive(Clone, Copy)]
@@ -325,13 +325,10 @@ impl Parser {
                     Cow::Borrowed(literal_str)
                 };
 
-                content
-                    .parse::<f64>()
-                    .map(Literal::Float)
-                    .map_err(|_| {
-                        ParserError::expected(literal_span.span.range(), TokenType::Literal)
-                            .in_node(NodeType::Expression)
-                    })
+                content.parse::<f64>().map(Literal::Float).map_err(|_| {
+                    ParserError::expected(literal_span.span.range(), TokenType::Literal)
+                        .in_node(NodeType::Expression)
+                })
             }
 
             // html entity character literal

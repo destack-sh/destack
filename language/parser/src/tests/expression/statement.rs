@@ -5,7 +5,7 @@ use crate::{
 };
 use destack_dir::{
     BinaryOperator, Block, Declaration, Declarator, ExportKind, Expression, GenericArgument,
-    Pattern, Literal, TypeDeclaration, TypeExpression, TypeLiteral,
+    Literal, Pattern, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 

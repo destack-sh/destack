@@ -2,7 +2,7 @@ use crate::lex::decode_unicode_escape;
 use crate::parse::{AwaitKeyword, YieldKeyword};
 use crate::{Parser, ParserError, ParserResult};
 use destack_core::StringId;
-use destack_dir::{Keyword, Name, Literal, Token, TokenLiteral, TokenType};
+use destack_dir::{Keyword, Literal, Name, Token, TokenLiteral, TokenType};
 use destack_source::ByteRange;
 use std::str::FromStr;
 

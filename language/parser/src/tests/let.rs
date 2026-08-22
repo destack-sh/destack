@@ -1,8 +1,8 @@
 use crate::{ExpressionPosition, ExpressionStop};
 use destack_dir::{
     Asynchrony, Declaration, Declarator, Expression, FloatType, FunctionDeclaration, FunctionForm,
-    GenericArgument, GenericParameter, IntegerType, LetKind, Name, NodeType, Parameter, Pattern,
-    PatternField, PlaceModifier, Literal, TokenType, TypeExpression, TypeLiteral, TypeMember,
+    GenericArgument, GenericParameter, IntegerType, LetKind, Literal, Name, NodeType, Parameter,
+    Pattern, PatternField, PlaceModifier, TokenType, TypeExpression, TypeLiteral, TypeMember,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 

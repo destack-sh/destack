@@ -5,7 +5,7 @@ use crate::{
     assert_value_expression_path,
 };
 use destack_dir::{
-    Argument, Block, Expression, Name, Parameter, Property, Literal, TypeExpression,
+    Argument, Block, Expression, Literal, Name, Parameter, Property, TypeExpression,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 

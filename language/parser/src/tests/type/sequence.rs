@@ -5,8 +5,8 @@ use crate::{
     assert_path, assert_string,
 };
 use destack_dir::{
-    BinaryOperator, Declaration, Expression, InferForm, NodeType, Literal, TokenType,
-    TupleElement, TupleForm, TypeDeclaration, TypeExpression, TypeLiteral,
+    BinaryOperator, Declaration, Expression, InferForm, Literal, NodeType, TokenType, TupleElement,
+    TupleForm, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 
 /// Parse a repeated Pattern placeholder as one complete tuple element.

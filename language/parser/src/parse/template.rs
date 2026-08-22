@@ -45,10 +45,7 @@ impl Parser {
     }
 
     /// Parse a value-space template with the selected escape rules.
-    fn parse_expression_template(
-        &mut self,
-        is_tagged: bool,
-    ) -> ParserResult<TemplateLiteral> {
+    fn parse_expression_template(&mut self, is_tagged: bool) -> ParserResult<TemplateLiteral> {
         let (chunks, arguments) =
             self.parse_template_chunks(is_tagged, |parser| parser.parse_template_argument())?;
 

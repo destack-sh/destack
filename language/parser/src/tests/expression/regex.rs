@@ -4,7 +4,7 @@ use crate::{
 };
 use destack_dir::{
     Argument, AssignOperator, BinaryOperator, Declaration, Declarator, DependencyItem, Expression,
-    FunctionDeclaration, PostfixPosition, Literal, TemplateLiteral, UnaryOperator,
+    FunctionDeclaration, Literal, PostfixPosition, TemplateLiteral, UnaryOperator,
 };
 
 /// Parse a regex body containing direct non-ASCII source text.

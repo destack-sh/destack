@@ -1,7 +1,7 @@
 use crate::{ExpressionPosition, ExpressionStop};
 use destack_dir::{
     Argument, BinaryOperator, Declaration, Expression, FunctionDeclaration, GenericArgument,
-    InferForm, LocalNodeId, NodeType, PostfixPosition, Literal, TokenType, TypeExpression,
+    InferForm, Literal, LocalNodeId, NodeType, PostfixPosition, TokenType, TypeExpression,
 };
 use std::fmt::Write;
 

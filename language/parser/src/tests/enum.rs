@@ -1,7 +1,6 @@
 use destack_dir::{
     CommentKind, Declaration, Decorator, DecoratorPosition, EnumDeclaration, EnumField, Expression,
-    GenericParameter, NodeType, PlaceModifier, Literal, TokenType, TypeExpression,
-    WhereClause,
+    GenericParameter, Literal, NodeType, PlaceModifier, TokenType, TypeExpression, WhereClause,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 

@@ -3,8 +3,8 @@ use crate::parse::{ExpressionPosition, ExpressionStop, RangedPath};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_dir::{
-    Expression, Keyword, LocalNodeId, Name, NodeType, OperatorPrecedence, Pattern, PatternField,
-    RangeEnd, Literal, TokenType, TypeExpression,
+    Expression, Keyword, Literal, LocalNodeId, Name, NodeType, OperatorPrecedence, Pattern,
+    PatternField, RangeEnd, TokenType, TypeExpression,
 };
 use destack_source::ByteRange;
 

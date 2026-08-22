@@ -2,8 +2,8 @@ use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use crate::{Parser, assert_expression_path, assert_name, assert_node, assert_path, assert_string};
 use destack_dir::{
-    Declaration, Expression, GenericArgument, GenericParameter, LocalNodeId, MappedTypeModifier,
-    Name, NodeType, Parameter, Literal, TypeDeclaration, TypeExpression, TypeLiteral,
+    Declaration, Expression, GenericArgument, GenericParameter, Literal, LocalNodeId,
+    MappedTypeModifier, Name, NodeType, Parameter, TypeDeclaration, TypeExpression, TypeLiteral,
     TypeMember,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};

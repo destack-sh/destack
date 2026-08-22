@@ -5,7 +5,7 @@ use crate::{
 };
 use destack_dir::{
     Argument, Block, Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm,
-    InferForm, Name, NodeType, Pattern, PostfixPosition, Property, Literal, TokenType,
+    InferForm, Literal, Name, NodeType, Pattern, PostfixPosition, Property, TokenType,
     TupleElement, TypeExpression,
 };
 use destack_source::{NodeSpanList, NodeSpanType};

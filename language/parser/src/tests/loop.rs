@@ -1,7 +1,7 @@
 use destack_dir::{
     Argument, Asynchrony, BinaryOperator, BindingKeyword, Block, ConditionOperand, Declarator,
-    Expression, ForEachBinding, ForEachOperator, GenericArgument, Keyword, LetKind, Name, Pattern,
-    PatternField, Literal, TokenType, TypeExpression, TypeLiteral, TypeMember, UnaryOperator,
+    Expression, ForEachBinding, ForEachOperator, GenericArgument, Keyword, LetKind, Literal, Name,
+    Pattern, PatternField, TokenType, TypeExpression, TypeLiteral, TypeMember, UnaryOperator,
     WhileForm,
 };
 

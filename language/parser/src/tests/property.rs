@@ -2,9 +2,9 @@ use crate::tests::{TestParser, block_expression_ids};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, ClassDeclaration,
     CommentKind, Declaration, Expression, FunctionDeclaration, FunctionForm, FunctionRole,
-    GenericArgument, GenericParameter, IntegerType, InterfaceDeclaration, Member,
-    MethodAbstraction, Name, NodeType, Parameter, Property, Literal, TokenType,
-    TypeExpression, TypeLiteral, TypeMember, Visibility,
+    GenericArgument, GenericParameter, IntegerType, InterfaceDeclaration, Literal, Member,
+    MethodAbstraction, Name, NodeType, Parameter, Property, TokenType, TypeExpression, TypeLiteral,
+    TypeMember, Visibility,
 };
 
 use crate::parse::TypeMemberContainerKind;

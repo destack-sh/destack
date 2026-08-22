@@ -4,8 +4,7 @@ use crate::{
     assert_string, assert_value_expression_path,
 };
 use destack_dir::{
-    Argument, CommentKind, Expression, RangeEnd, Literal, TokenType, TypeExpression,
-    TypeLiteral,
+    Argument, CommentKind, Expression, Literal, RangeEnd, TokenType, TypeExpression, TypeLiteral,
 };
 
 #[test]

@@ -2,9 +2,9 @@ use crate::{ExpressionPosition, ExpressionStop, TypePosition, TypeStop};
 use destack_dir::{
     Argument, Asynchrony, BinaryOperator, BlockContext, BlockForm, CommentKind, Declaration,
     Declarator, Expression, FunctionDeclaration, FunctionForm, FunctionPhase, GenericArgument,
-    GenericParameter, IntegerType, Mutability, NodeType, Parameter, Pattern, PatternField,
-    Literal, ThisForm, TokenType, TypeDeclaration, TypeExpression, TypeLiteral,
-    UnaryOperator, VarianceModifier, WhereClause, YieldCardinality,
+    GenericParameter, IntegerType, Literal, Mutability, NodeType, Parameter, Pattern, PatternField,
+    ThisForm, TokenType, TypeDeclaration, TypeExpression, TypeLiteral, UnaryOperator,
+    VarianceModifier, WhereClause, YieldCardinality,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 

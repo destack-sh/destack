@@ -2,7 +2,7 @@ use crate::{ExpressionPosition, ExpressionStop};
 use destack_core::StringId;
 use destack_dir::{
     DependencyBinding, DependencyItem, Expression, ImportAttribute, ImportAttributeClauseKind,
-    ImportAttributeValue, LocalNodeId, Name, Literal,
+    ImportAttributeValue, Literal, LocalNodeId, Name,
 };
 use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 

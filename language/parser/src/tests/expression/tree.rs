@@ -5,7 +5,7 @@ use crate::{
 };
 use destack_dir::{
     Argument, BinaryOperator, Declaration, Expression, FunctionDeclaration, FunctionForm,
-    GenericParameter, IfForm, NodeType, Parameter, Pattern, Literal, TreeAttribute,
+    GenericParameter, IfForm, Literal, NodeType, Parameter, Pattern, TreeAttribute,
     TreeAttributeValue, TreeChild, TypeExpression, TypeLiteral,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};

@@ -6,8 +6,8 @@ use crate::{
 };
 use destack_dir::{
     Argument, BinaryOperator, Block, Declaration, Declarator, Expression, FunctionDeclaration,
-    FunctionForm, GenericParameter, IfForm, IntegerType, MappedTypeModifier, Name, Parameter,
-    Pattern, PatternField, Property, Literal, TokenType, TupleElement, TypeExpression,
+    FunctionForm, GenericParameter, IfForm, IntegerType, Literal, MappedTypeModifier, Name,
+    Parameter, Pattern, PatternField, Property, TokenType, TupleElement, TypeExpression,
     TypeLiteral, TypeMember,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};

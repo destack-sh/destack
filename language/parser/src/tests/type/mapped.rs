@@ -2,7 +2,7 @@ use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
-    Declaration, Expression, GenericArgument, GenericParameter, MappedTypeModifier, Literal,
+    Declaration, Expression, GenericArgument, GenericParameter, Literal, MappedTypeModifier,
     TypeDeclaration, TypeExpression, TypeLiteral, TypeMember,
 };
 
