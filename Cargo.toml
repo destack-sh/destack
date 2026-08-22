@@ -324,6 +324,18 @@ opt-level = 2
 [profile.dev.package.destack_mir]
 opt-level = 2
 
+[profile.dev.package.destack_artifact]
+opt-level = 2
+
+[profile.dev.package.destack_heap]
+opt-level = 2
+
+[profile.dev.package.destack_repository]
+opt-level = 2
+
+[profile.dev.package.destack_source]
+opt-level = 2
+
 [profile.bench]
 opt-level = 2
 codegen-units = 1
