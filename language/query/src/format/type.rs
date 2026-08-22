@@ -235,56 +235,97 @@ impl Formatter<'_, '_, '_> {
     /// Format one borrowed form.
     fn borrowed_form(&self, borrow: dir::BorrowFormId, value: &str) -> QueryResult<String> {
         let borrow = *self.types()?.borrow_form(borrow);
-        let lifetime = self.borrow_lifetime(borrow.lifetime)?;
+        let lifetime = self.borrow_lifetime_prefix(borrow.lifetime)?;
 
-        self.borrow_access(borrow.access, &lifetime, value)
+        self.borrow_access(borrow.access, borrow.lifetime, lifetime.as_deref(), value)
     }
 
-    /// Format one borrow lifetime.
-    fn borrow_lifetime(&self, type_id: dir::GlobalTypeId) -> QueryResult<String> {
+    /// Return the source prefix for one directly representable borrow lifetime.
+    fn borrow_lifetime_prefix(&self, type_id: dir::GlobalTypeId) -> QueryResult<Option<String>> {
         self.program
             .read_type(type_id, |type_value, module| match type_value {
                 dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)) => {
-                    Ok(String::new())
+                    Ok(Some(String::new()))
                 }
                 dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Static)) => {
-                    Ok("'static ".to_string())
+                    Ok(Some("'static ".to_string()))
                 }
                 dir::Type::Parameter(parameter) => {
-                    let lifetime =
-                        Formatter::new(module, self.program).generic_parameter_type(*parameter)?;
-                    if !lifetime.starts_with('\'') {
+                    let formatter = Formatter::new(module, self.program);
+                    let binding = formatter
+                        .module
+                        .generics()?
+                        .get_parameter(parameter.local_id);
+                    if binding.memory_parameter() != Some(dir::MemoryParameter::Lifetime) {
                         return Err(QueryError::invalid(format!("borrow lifetime: {type_id:?}")));
                     }
+                    let lifetime = formatter.generic_parameter_type(*parameter)?;
 
-                    Ok(format!("{lifetime} "))
+                    Ok(lifetime.starts_with('\'').then(|| format!("{lifetime} ")))
                 }
-                _ => Err(QueryError::invalid(format!("borrow lifetime: {type_id:?}"))),
+                _ => Ok(None),
             })
+    }
+
+    /// Format one memory form with its explicit parameter.
+    fn memory_application(
+        &self,
+        item: dir::LanguageItem,
+        value: &str,
+        argument: &str,
+    ) -> QueryResult<String> {
+        let symbol = self
+            .program
+            .environment_bound()?
+            .language
+            .symbol(item)
+            .ok_or(QueryError::missing(format!("{item:?} language item")))?;
+        let name = self.symbol(symbol)?;
+
+        Ok(format!("{name}<{value}, {argument}>"))
     }
 
     /// Apply one borrow access to a borrowed type.
     fn borrow_access(
         &self,
         type_id: dir::GlobalTypeId,
-        lifetime: &str,
+        lifetime_id: dir::GlobalTypeId,
+        lifetime: Option<&str>,
         value: &str,
     ) -> QueryResult<String> {
+        // render a direct borrow or apply its general lifetime parameter
+        let borrowed = match lifetime {
+            Some(lifetime) => format!("&{lifetime}{value}"),
+            None => {
+                let lifetime = self.global_type(lifetime_id)?;
+                let value = format!("&{value}");
+
+                self.memory_application(dir::LanguageItem::WithLifetime, &value, &lifetime)?
+            }
+        };
+
         self.read_type(type_id, |type_value, formatter| {
-            match type_value {
+            match (type_value, lifetime) {
                 // render concrete access with its source modifier
-                dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Mutable)) => {
-                    Ok(format!("&{lifetime}{value}"))
+                (dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Mutable)), _) => {
+                    Ok(borrowed.clone())
                 }
-                dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)) => {
-                    Ok(format!("&{lifetime}readonly {value}"))
-                }
-                dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Exclusive)) => {
-                    Ok(format!("&{lifetime}exclusive {value}"))
+                (
+                    dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)),
+                    Some(lifetime),
+                ) => Ok(format!("&{lifetime}readonly {value}")),
+                (
+                    dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Exclusive)),
+                    Some(lifetime),
+                ) => Ok(format!("&{lifetime}exclusive {value}")),
+                (dir::Type::Memory(dir::MemoryLiteral::Access(_)), None) => {
+                    let access = formatter.local_type(type_value)?;
+
+                    formatter.memory_application(dir::LanguageItem::WithAccess, &borrowed, &access)
                 }
 
-                // retain generic access through its canonical language form
-                dir::Type::Parameter(parameter) => {
+                // render generic access through WithAccess
+                (dir::Type::Parameter(parameter), _) => {
                     let parameter_binding = formatter
                         .module
                         .generics()?
@@ -293,17 +334,8 @@ impl Formatter<'_, '_, '_> {
                         return Err(QueryError::invalid(format!("borrow access: {type_id:?}")));
                     }
 
-                    let borrowed = format!("&{lifetime}{value}");
                     let access = formatter.generic_parameter_type(*parameter)?;
-                    let symbol = formatter
-                        .program
-                        .environment_bound()?
-                        .language
-                        .symbol(dir::LanguageItem::WithAccess)
-                        .ok_or(QueryError::missing("WithAccess language item"))?;
-                    let with_access = formatter.symbol(symbol)?;
-
-                    Ok(format!("{with_access}<{borrowed}, {access}>"))
+                    formatter.memory_application(dir::LanguageItem::WithAccess, &borrowed, &access)
                 }
 
                 // reject invalid checked borrow access
