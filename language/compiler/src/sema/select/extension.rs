@@ -775,8 +775,9 @@ impl BodyState<'_, '_> {
         if excluded.is_none()
             && let Some((question, canonical)) = &asked
         {
-            // evaluate an unanswered question once
-            if !self.check.answers.contains_key(question) {
+            // evaluate an unanswered open question once, isolated from this site's
+            //  inference; ground questions decide in place, which is already isolated
+            if !canonical.holes.is_empty() && !self.check.answers.contains_key(question) {
                 self.check
                     .answers
                     .insert(question.clone(), Answer::Undecided);
@@ -842,6 +843,7 @@ impl BodyState<'_, '_> {
         }
 
         // try each visible implementation declaration
+        let checks_before = self.check.fulfill.checks.count();
         let decision = self.decide_visible_extensions(
             origin,
             relation,
@@ -854,6 +856,21 @@ impl BodyState<'_, '_> {
         self.check.deciding.swap_remove(&active);
 
         let decision = decision?;
+
+        // remember ground decisions, whose operands alone determined them
+        if excluded.is_none()
+            && let Some((question, canonical)) = &asked
+            && canonical.holes.is_empty()
+            && decision.verdict != Verdict::Ambiguous
+        {
+            self.check.remember_answer(
+                question,
+                canonical,
+                checks_before,
+                decision,
+                Answer::Implement,
+            )?;
+        }
 
         Ok(decision.verdict)
     }

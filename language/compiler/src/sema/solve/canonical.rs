@@ -41,8 +41,6 @@ pub(super) struct Renaming {
     pub(super) holes: FxIndexMap<dir::TypeVariableId, dir::HoleIndex>,
     /// The canonical rigid number per generic parameter.
     pub(super) parameters: FxIndexMap<GenericParameterId, dir::RigidIndex>,
-    /// Whether new roots and parameters may still join the numbering.
-    pub(super) may_grow: bool,
     /// Whether answer-owned generics stay raw.
     pub(super) keeps_raw_parameters: bool,
 }
@@ -53,7 +51,6 @@ impl Renaming {
         Self {
             holes: FxIndexMap::default(),
             parameters: FxIndexMap::default(),
-            may_grow: true,
             keeps_raw_parameters: false,
         }
     }
@@ -69,7 +66,6 @@ impl Renaming {
         Self {
             holes,
             parameters: canonical.renaming.clone(),
-            may_grow: true,
             keeps_raw_parameters: true,
         }
     }
@@ -319,36 +315,8 @@ impl CheckState<'_> {
             return Ok(Some(ty));
         }
 
-        // number each free open root
-        if flags.has_variable() {
-            for variable in self.type_variables(ty)? {
-                let root = self.infer.alias_root(variable)?;
-                if renaming.holes.contains_key(&root) {
-                    continue;
-                }
-                if !renaming.may_grow {
-                    return Ok(None);
-                }
-
-                let next = dir::HoleIndex(renaming.holes.len() as u16);
-                renaming.holes.insert(root, next);
-            }
-        }
-
-        // number each named generic parameter
-        if flags.has_parameter() && !renaming.keeps_raw_parameters {
-            for parameter in self.mentioned_parameters(ty)? {
-                if renaming.parameters.contains_key(&parameter) {
-                    continue;
-                }
-                if !renaming.may_grow {
-                    return Ok(None);
-                }
-
-                let next = dir::RigidIndex(renaming.parameters.len() as u16);
-                renaming.parameters.insert(parameter, next);
-            }
-        }
+        // number every free open root and named parameter in one scan
+        self.number_operand_content(ty, renaming)?;
 
         // rename every numbered root and parameter in one fold
         let canonical =
@@ -357,12 +325,64 @@ impl CheckState<'_> {
         Ok(Some(canonical))
     }
 
-    /// Collect the named parameters one type mentions.
-    fn mentioned_parameters(
+    /// Number one operand's open roots and named parameters by first appearance.
+    fn number_operand_content(
         &self,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<SmallVec<[GenericParameterId; 4]>> {
-        let mut parameters = SmallVec::new();
+        renaming: &mut Renaming,
+    ) -> CompilerResult<()> {
+        let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::from_slice(&[id]);
+        let mut visited = FxIndexSet::default();
+        while let Some(id) = pending.pop() {
+            if !visited.insert(id) {
+                continue;
+            }
+            // descend only where numbered content can appear
+            let flags = self.type_flags(id)?;
+            let numbers_parameters = flags.has_parameter() && !renaming.keeps_raw_parameters;
+            if !flags.has_variable() && !numbers_parameters {
+                continue;
+            }
+
+            match self.ty_raw(id)? {
+                // number each free open root, following solved roots inward
+                dir::Type::Variable(variable) => match self.infer.solution(variable)? {
+                    Some(solution) => pending.push(solution),
+                    None => {
+                        let root = self.infer.alias_root(variable)?;
+                        if renaming.holes.contains_key(&root) {
+                            continue;
+                        }
+
+                        let next = dir::HoleIndex(renaming.holes.len() as u16);
+                        renaming.holes.insert(root, next);
+                    }
+                },
+                // number each named generic parameter
+                dir::Type::Parameter(parameter) if !renaming.keeps_raw_parameters => {
+                    if renaming.parameters.contains_key(&parameter) {
+                        continue;
+                    }
+
+                    let next = dir::RigidIndex(renaming.parameters.len() as u16);
+                    renaming.parameters.insert(parameter, next);
+                }
+                // keep answer-owned placeholders and raw parameters verbatim
+                dir::Type::Parameter(_) | dir::Type::Erased(_) => {}
+                // descend into every other type's children
+                ty => self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?,
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Return whether one type mentions any numbered parameter.
+    fn mentions_parameter(
+        &self,
+        id: dir::GlobalTypeId,
+        numbered: &FxIndexMap<GenericParameterId, dir::RigidIndex>,
+    ) -> CompilerResult<bool> {
         let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::from_slice(&[id]);
         let mut visited = FxIndexSet::default();
         while let Some(id) = pending.pop() {
@@ -370,22 +390,18 @@ impl CheckState<'_> {
                 continue;
             }
 
-            let ty = self.ty(id)?;
-            match ty {
-                // collect each named parameter once
-                dir::Type::Parameter(parameter) => {
-                    if !parameters.contains(&parameter) {
-                        parameters.push(parameter);
-                    }
+            match self.ty(id)? {
+                dir::Type::Parameter(parameter) if numbered.contains_key(&parameter) => {
+                    return Ok(true);
                 }
-                // keep answer-owned placeholders verbatim
-                dir::Type::Erased(_) => {}
+                // keep answer-owned placeholders and foreign parameters verbatim
+                dir::Type::Parameter(_) | dir::Type::Erased(_) => {}
                 // descend into every other type's children
-                _ => self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?,
+                ty => self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?,
             }
         }
 
-        Ok(parameters)
+        Ok(false)
     }
 
     /// Intern the bound content one question's renamed parameters assume.
@@ -453,12 +469,8 @@ impl CheckState<'_> {
                 if included[index] {
                     continue;
                 }
-                let left = self.mentioned_parameters(predicate.left)?;
-                let right = self.mentioned_parameters(predicate.right)?;
-                let mentions = left
-                    .iter()
-                    .chain(right.iter())
-                    .any(|parameter| renaming.parameters.contains_key(parameter));
+                let mentions = self.mentions_parameter(predicate.left, &renaming.parameters)?
+                    || self.mentions_parameter(predicate.right, &renaming.parameters)?;
                 if !mentions {
                     continue;
                 }

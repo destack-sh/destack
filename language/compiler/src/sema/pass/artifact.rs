@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactProjectionFingerprint, DirChecked, DirDeclared, DirElaborated};
 use destack_dir as dir;
+use destack_repository::ArtifactAttemptRecorder;
 use destack_source::ModuleId;
 
 use crate::sema::{Answer, Ask, CheckModuleState, CheckState, Relation, Verdict};
@@ -254,27 +255,33 @@ impl CheckState<'_> {
         // store the foreign modules the pass observed
         let references = references.iter().copied().collect::<Vec<_>>();
 
-        let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&(
-            (module, &inherited),
-            &references,
-            &bindings,
-            &decorators,
-            &controls,
-            &types,
-            &statics,
-            &resolutions,
-            &decisions,
-            &generics,
-            &definitions,
-            &members,
-            &coercions,
-            &captures,
-            &flows,
-            &auto,
-        ))
-        .map_err(|error| CompilerError::Internal {
-            message: format!("failed to fingerprint DIR payload for module {module:?}: {error}"),
-        })?;
+        let recorder = self.recorder;
+        let fingerprint =
+            ArtifactAttemptRecorder::breakdown_maybe(recorder, "fingerprint", || {
+                ArtifactProjectionFingerprint::from_serialized_payload(&(
+                    (module, &inherited),
+                    &references,
+                    &bindings,
+                    &decorators,
+                    &controls,
+                    &types,
+                    &statics,
+                    &resolutions,
+                    &decisions,
+                    &generics,
+                    &definitions,
+                    &members,
+                    &coercions,
+                    &captures,
+                    &flows,
+                    &auto,
+                ))
+                .map_err(|error| CompilerError::Internal {
+                    message: format!(
+                        "failed to fingerprint DIR payload for module {module:?}: {error}"
+                    ),
+                })
+            })?;
 
         Ok(DirChecked {
             fingerprint,
