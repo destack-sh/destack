@@ -18,6 +18,16 @@ export type Unsigned<T: Integer> = intrinsic;
 
 /// Methods shared by every builtin integer type.
 export extension<T: Integer> of T {
+    /// Return the least representable value.
+    static minimum(): T {
+        todo("Integer.minimum")
+    }
+
+    /// Return the greatest representable value.
+    static maximum(): T {
+        todo("Integer.maximum")
+    }
+
     /// Return the midpoint rounded toward zero without intermediate overflow.
     midpoint(other: T): T {
         midpoint(this, other)
@@ -49,6 +59,41 @@ export extension<T: Integer> of T {
     /// A zero divisor produces `true` exactly when this value is also zero.
     isMultipleOf(other: T): boolean {
         isMultipleOf(this, other)
+    }
+
+    /// Return a value that represents this value's sign.
+    signum(): T {
+        todo("Integer.signum")
+    }
+
+    /// Return the floor of the logarithm in `base`.
+    integerLog(base: T): uint32 {
+        todo("Integer.integerLog")
+    }
+
+    /// Return the floor of the base-two logarithm.
+    integerLog2(): uint32 {
+        todo("Integer.integerLog2")
+    }
+
+    /// Return the floor of the base-ten logarithm.
+    integerLog10(): uint32 {
+        todo("Integer.integerLog10")
+    }
+
+    /// Return the floor of the logarithm, or `undefined` for an invalid value or base.
+    checkedIntegerLog(base: T): uint32 | undefined {
+        todo("Integer.checkedIntegerLog")
+    }
+
+    /// Return the floor of the base-two logarithm, or `undefined` for an invalid value.
+    checkedIntegerLog2(): uint32 | undefined {
+        todo("Integer.checkedIntegerLog2")
+    }
+
+    /// Return the floor of the base-ten logarithm, or `undefined` for an invalid value.
+    checkedIntegerLog10(): uint32 | undefined {
+        todo("Integer.checkedIntegerLog10")
     }
 
     /// Return the absolute difference between this value and `other`.
