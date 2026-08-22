@@ -5,7 +5,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use destack_artifact::ArtifactKey;
-use destack_session::{ArtifactRunId, SessionEvent, SessionEventHandler};
+use destack_session::{ArtifactRunEvent, ArtifactRunId, SessionEvent, SessionEventHandler};
 use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::console;
@@ -153,9 +153,10 @@ impl ProgressReporter {
         let stop_ticker = self.stop_ticker.clone();
 
         Arc::new(move |event: SessionEvent| match &event {
-            SessionEvent::RunStarted { .. } => {
+            SessionEvent::Run(ArtifactRunEvent::Started { .. }) => {
                 update_status(&status, &state, &label, detailed, started_at);
             }
+            SessionEvent::Run(ArtifactRunEvent::Required { .. }) => {}
             SessionEvent::TaskStarted {
                 run_id,
                 artifact_key,
@@ -201,7 +202,7 @@ impl ProgressReporter {
 
                 update_status(&status, &state, &label, detailed, started_at);
             }
-            SessionEvent::RunFinished { .. } => {
+            SessionEvent::Run(ArtifactRunEvent::Finished { .. }) => {
                 stop_ticker.store(true, Ordering::Relaxed);
                 status.disable_steady_tick();
                 status.finish_and_clear();

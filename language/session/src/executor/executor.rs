@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::{Arc, OnceLock};
 use std::task::{Context, Poll};
 use std::thread::{Builder, JoinHandle, available_parallelism};
 
@@ -10,10 +10,12 @@ use super::run::{ArtifactPriority, ArtifactRun, ArtifactRunGoal, ArtifactRunId, 
 use super::scheduler::Scheduler;
 use super::task::{SessionId, Task};
 use super::worker::Worker;
-use crate::{Session, SessionError, SessionEvent, SessionEventHandler, SessionState};
+use crate::{
+    ArtifactRunEvent, ArtifactRunEventHandler, Session, SessionError, SessionEventHandler,
+    SessionState,
+};
 
 /// Executor shared by repository-specific artifact sessions.
-#[derive(Debug)]
 pub struct Executor {
     /// Shared scheduler for artifact work.
     scheduler: Arc<Scheduler>,
@@ -25,6 +27,23 @@ pub struct Executor {
     next_session_id: AtomicU32,
     /// Monotonic identities for artifact runs.
     next_run_id: AtomicU32,
+    /// Optional handler observing every artifact run.
+    run_event_handler: OnceLock<ArtifactRunEventHandler>,
+}
+
+impl std::fmt::Debug for Executor {
+    /// Format visible executor state.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Executor")
+            .field("execution", &self.execution)
+            .field("worker_count", &self.workers.len())
+            .field(
+                "is_run_event_handler_set",
+                &self.run_event_handler.get().is_some(),
+            )
+            .finish_non_exhaustive()
+    }
 }
 
 impl Executor {
@@ -69,7 +88,20 @@ impl Executor {
             workers,
             next_session_id: AtomicU32::new(1),
             next_run_id: AtomicU32::new(1),
+            run_event_handler: OnceLock::new(),
         }))
+    }
+
+    /// Set the handler that observes subsequent artifact runs.
+    pub fn set_run_event_handler(
+        &self,
+        handler: ArtifactRunEventHandler,
+    ) -> Result<(), SessionError> {
+        self.run_event_handler
+            .set(handler)
+            .map_err(|_| SessionError::Internal {
+                detail: "artifact run event handler is already set".to_string(),
+            })
     }
 
     /// Return the execution capability of this executor.
@@ -163,11 +195,19 @@ impl Executor {
             priority,
             trace.clone(),
             is_trace_owner,
+            self.run_event_handler.get().cloned(),
             event_handler,
         ));
         trace.add_counter("run.roots", artifact_keys.len() as u64);
 
-        state.emit(SessionEvent::RunStarted { run_id });
+        if state.emits_run_events() {
+            state.emit_run(ArtifactRunEvent::Started {
+                run_id,
+                revision,
+                priority,
+                artifact_keys: artifact_keys.to_vec(),
+            });
+        }
 
         // enqueue roots into the shared scheduler
         trace.span("run.enqueue", || {
@@ -263,6 +303,12 @@ impl Executor {
             .map(|artifact_key| Task::new(run.session().id(), run.revision(), artifact_key))
             .collect::<Vec<_>>();
         run.trace().add_counter("roots", tasks.len() as u64);
+        if !artifact_keys.is_empty() && run.emits_run_events() {
+            run.emit_run(ArtifactRunEvent::Required {
+                run_id: run.id(),
+                artifact_keys: artifact_keys.to_vec(),
+            });
+        }
 
         // return immediately when every requested payload is already ready
         if self.roots_satisfy(run.session(), &tasks, ArtifactRunGoal::Ready)? {
@@ -347,7 +393,7 @@ impl Executor {
 
     /// Finish one run when every root already reached a terminal outcome.
     pub(super) fn finish_completed_run(&self, run: &ArtifactRunState) -> bool {
-        let is_complete = run.error().is_some()
+        let is_complete = run.is_aborted()
             || matches!(
                 self.roots_satisfy(run.session(), run.roots(), ArtifactRunGoal::Ready),
                 Ok(true) | Err(SessionError::ArtifactFailed { .. })

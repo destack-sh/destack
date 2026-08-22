@@ -149,7 +149,7 @@ impl Worker {
         let recorder = Arc::new(run.trace().begin(task.key, self.index));
 
         // expose the session task through events
-        run.emit(SessionEvent::TaskStarted {
+        run.emit_task(SessionEvent::TaskStarted {
             run_id: run.id(),
             artifact_key: task.key,
         });
@@ -382,7 +382,7 @@ impl Worker {
     fn finish_ready(&self, run: &ArtifactRunState, task: Task) {
         self.scheduler.mark_done(task);
 
-        run.emit(SessionEvent::TaskFinished {
+        run.emit_task(SessionEvent::TaskFinished {
             run_id: run.id(),
             artifact_key: task.key,
         });
@@ -392,7 +392,7 @@ impl Worker {
     fn finish_failed(&self, run: &ArtifactRunState, task: Task) {
         self.scheduler.mark_done(task);
 
-        run.emit(SessionEvent::TaskFailed {
+        run.emit_task(SessionEvent::TaskFailed {
             run_id: run.id(),
             artifact_key: task.key,
         });
