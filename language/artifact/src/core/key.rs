@@ -125,13 +125,13 @@ pub enum ArtifactKey {
         target: TargetId,
     },
 
-    /// One query index for a module profile.
+    /// One index for a module profile.
     ModuleIndex {
         module: ModuleId,
         profile: ProfileId,
         kind: IndexKind,
     },
-    /// One query index for a program profile.
+    /// One index for a program profile.
     ProgramIndex { profile: ProfileId, kind: IndexKind },
 
     /// Completed lint analysis for one module in one target.

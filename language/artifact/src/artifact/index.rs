@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-/// One persisted module query index.
+/// One persisted module index.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ModuleIndex {
     /// Declared symbols.
@@ -19,6 +19,8 @@ pub enum ModuleIndex {
     Heritage(dir::HeritageIndex),
     /// Decorator applications.
     Decorators(dir::DecoratorIndex),
+    /// Code fingerprints and adjacent pairs.
+    Code(dir::CodeIndex),
 }
 
 impl ModuleIndex {
@@ -32,6 +34,7 @@ impl ModuleIndex {
             Self::Calls(_) => IndexKind::Calls,
             Self::Heritage(_) => IndexKind::Heritage,
             Self::Decorators(_) => IndexKind::Decorators,
+            Self::Code(_) => IndexKind::Code,
         }
     }
 
@@ -45,11 +48,12 @@ impl ModuleIndex {
             Self::Calls(index) => index.finish(),
             Self::Heritage(index) => index.finish(),
             Self::Decorators(index) => index.finish(),
+            Self::Code(index) => index.finish(),
         }
     }
 }
 
-/// One persisted program query index.
+/// One persisted program index.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum ProgramIndex {
     /// Symbol name postings.
@@ -66,6 +70,8 @@ pub enum ProgramIndex {
     Heritage(dir::HeritagePostings),
     /// Decorator name postings.
     Decorators(dir::DecoratorPostings),
+    /// Code fingerprint postings.
+    Code(dir::CodePostings),
 }
 
 impl ProgramIndex {
@@ -79,11 +85,12 @@ impl ProgramIndex {
             Self::Calls(_) => IndexKind::Calls,
             Self::Heritage(_) => IndexKind::Heritage,
             Self::Decorators(_) => IndexKind::Decorators,
+            Self::Code(_) => IndexKind::Code,
         }
     }
 }
 
-/// One query index kind shared by module and program artifacts.
+/// One index kind shared by module and program artifacts.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
@@ -102,11 +109,13 @@ pub enum IndexKind {
     Heritage,
     /// Decorator applications.
     Decorators,
+    /// Code fingerprints.
+    Code,
 }
 
 impl IndexKind {
-    /// All query index kinds in stable order.
-    pub const ALL: [Self; 7] = [
+    /// All index kinds in stable order.
+    pub const ALL: [Self; 8] = [
         Self::Symbols,
         Self::Exports,
         Self::Members,
@@ -114,6 +123,7 @@ impl IndexKind {
         Self::Calls,
         Self::Heritage,
         Self::Decorators,
+        Self::Code,
     ];
     /// Return this kind's stable ordinal.
     pub const fn ordinal(self) -> usize {
@@ -125,6 +135,7 @@ impl IndexKind {
             Self::Calls => 4,
             Self::Heritage => 5,
             Self::Decorators => 6,
+            Self::Code => 7,
         }
     }
 }

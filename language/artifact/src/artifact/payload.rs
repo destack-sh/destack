@@ -62,9 +62,9 @@ pub enum ArtifactPayload {
     MirOptimized(Arc<MirOptimized>),
     /// Whole-program analysis for one profile and target.
     ProgramAnalysis(Arc<ProgramAnalysis>),
-    /// One query index for a module profile.
+    /// One index for a module profile.
     ModuleIndex(Arc<ModuleIndex>),
-    /// One query index for a program profile.
+    /// One index for a program profile.
     ProgramIndex(Arc<ProgramIndex>),
     /// Completed lint analysis for one module in one target.
     ModuleLinted(Arc<ModuleLinted>),
@@ -129,9 +129,9 @@ pub enum ArtifactPayloadRef<'a> {
     MirOptimized(&'a MirOptimized),
     /// Whole-program analysis for one profile and target.
     ProgramAnalysis(&'a ProgramAnalysis),
-    /// One query index for a module profile.
+    /// One index for a module profile.
     ModuleIndex(&'a ModuleIndex),
-    /// One query index for a program profile.
+    /// One index for a program profile.
     ProgramIndex(&'a ProgramIndex),
     /// Completed lint analysis for one module in one target.
     ModuleLinted(&'a ModuleLinted),
