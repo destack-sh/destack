@@ -1,6 +1,6 @@
 //! Service abstraction for language servers.
 
-pub use self::client::{Client, ClientSocket, RequestStream, ResponseSink, progress};
+pub use self::client::{Client, ClientSocket, LogRecord, RequestStream, ResponseSink, progress};
 
 pub use self::pending::Pending;
 pub use self::state::{ServerState, State};
@@ -117,20 +117,26 @@ impl TraceRecord {
 
     /// Render one request-shaped message.
     fn request(namespace: &str, request: &Request, is_verbose: bool) -> Self {
-        let message = match request.id() {
-            Some(request_id) => format!(
-                "event={namespace}.request method={} request_id={request_id}",
-                request.method(),
-            ),
-            None => format!("event={namespace}.notification method={}", request.method(),),
+        let event = match request.id() {
+            Some(_) => format!("{namespace}.request"),
+            None => format!("{namespace}.notification"),
         };
+        let mut record = LogRecord::new(&event).field("method", request.method());
+        if let Some(request_id) = request.id() {
+            record = record.field("request_id", request_id);
+        }
+
+        // retain complete parameters for verbose protocol traces
         let verbose = if is_verbose {
             request.params().map(|params| format!("params={params}"))
         } else {
             None
         };
 
-        Self { message, verbose }
+        Self {
+            message: record.to_string(),
+            verbose,
+        }
     }
 
     /// Render one response-shaped message.
@@ -148,15 +154,16 @@ impl TraceRecord {
             Some(ErrorCode::ContentModified) => "stale",
             Some(_) => "error",
         };
-        let mut message = format!(
-            "event={event} method={method} request_id={} status={status} duration_us={duration_us}",
-            response.id(),
-        );
+        let mut record = LogRecord::new(event)
+            .field("method", method)
+            .field("request_id", response.id())
+            .field("status", status)
+            .field("duration_us", duration_us);
 
         // include exact failures in the compact record
         if let Some(error) = response.error() {
             let reason = error.reason();
-            message.push_str(&format!(" code={} error={reason:?}", error.code));
+            record = record.field("code", error.code).field("error", reason);
         }
 
         // include complete results only in verbose traces
@@ -174,7 +181,10 @@ impl TraceRecord {
             None
         };
 
-        Self { message, verbose }
+        Self {
+            message: record.to_string(),
+            verbose,
+        }
     }
 }
 

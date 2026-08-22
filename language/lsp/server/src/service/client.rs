@@ -1,5 +1,6 @@
 //! Types for sending data to and from the language client.
 
+pub use self::log::LogRecord;
 pub use self::socket::{ClientSocket, RequestStream, ResponseSink};
 
 use std::fmt::{self, Debug, Display, Formatter};
@@ -23,6 +24,7 @@ use crate::jsonrpc::{self, Error, ErrorCode, Id, Request, Response};
 
 pub mod progress;
 
+mod log;
 mod pending;
 mod socket;
 
@@ -128,14 +130,20 @@ impl Client {
     }
 
     /// Report one failed language server operation.
-    pub async fn report_error(&self, operation: &str, error: Error) {
+    pub fn report_error(&self, operation: &str, error: Error) {
         let code = error.code;
         let reason = error.reason();
-        let message = format!(
-            "event=lsp.operation.failed operation={operation} code={code} error={reason:?}"
-        );
+        let record = LogRecord::new("lsp.operation.failed")
+            .field("operation", operation)
+            .field("code", code)
+            .field("error", reason);
 
-        self.log_message(MessageType::ERROR, message).await;
+        self.write_log(MessageType::ERROR, record);
+    }
+
+    /// Write one structured informational log record.
+    pub fn log(&self, record: LogRecord) {
+        self.write_log(MessageType::INFO, record);
     }
 
     /// Send one structured protocol trace record.
@@ -248,12 +256,25 @@ impl Client {
     ///
     /// [`window/logMessage`]: https://microsoft.github.io/language-server-protocol/specification#window_logMessage
     pub async fn log_message<M: Display>(&self, typ: MessageType, message: M) {
+        self.write_log(typ, message);
+    }
+
+    /// Write one log message without stalling protocol work.
+    fn write_log(&self, typ: MessageType, message: impl Display) {
         use destack_lsp_types::notification::LogMessage;
-        self.send_notification_unchecked::<LogMessage>(LogMessageParams {
+        let request = Request::from_notification::<LogMessage>(LogMessageParams {
             typ,
             message: message.to_string(),
-        })
-        .await;
+        });
+        let mut tx = self.inner.tx.clone();
+
+        let error = match tx.try_send(request) {
+            Ok(()) => return,
+            Err(error) if error.is_full() => "queue-full",
+            Err(_) => "client-disconnected",
+        };
+        let record = LogRecord::new("lsp.log.failed").field("error", error);
+        eprintln!("{record}");
     }
 
     /// Asks the client to display a particular resource referenced by a URI in the user interface.
@@ -827,6 +848,17 @@ mod tests {
         });
 
         assert_client_message(|p| async move { p.log_message(typ, msg).await }, expected).await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_log_record() {
+        let record = LogRecord::new("server.started").field("workers", 4);
+        let expected = Request::from_notification::<LogMessage>(LogMessageParams {
+            typ: MessageType::INFO,
+            message: record.to_string(),
+        });
+
+        assert_client_message(|client| async move { client.log(record) }, expected).await;
     }
 
     #[tokio::test(flavor = "current_thread")]

@@ -9,7 +9,9 @@ pub use self::server::LanguageServer;
 pub use self::service::progress::{
     Bounded, Cancellable, NotCancellable, OngoingProgress, Progress, Unbounded,
 };
-pub use self::service::{Client, ClientSocket, ExitedError, LspService, LspServiceBuilder};
+pub use self::service::{
+    Client, ClientSocket, ExitedError, LogRecord, LspService, LspServiceBuilder,
+};
 pub use self::transport::{Loopback, Server};
 pub use self::uri_ext::UriExt;
 
