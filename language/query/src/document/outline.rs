@@ -436,7 +436,7 @@ impl ModuleQueryContext<'_> {
             } => (
                 self.strings().get(*name).to_string(),
                 SymbolKind::AssociatedConst,
-                Some(self.outline_declared_type(*declared_type, member_id.into(), program)?),
+                Some(self.outline_member_type(*declared_type, member_id.into(), program)?),
             ),
             dir::Member::Field {
                 name,
@@ -453,7 +453,7 @@ impl ModuleQueryContext<'_> {
                     SymbolKind::Field
                 };
                 let type_text =
-                    self.outline_declared_type(*declared_type, member_id.into(), program)?;
+                    self.outline_member_type(*declared_type, member_id.into(), program)?;
                 let detail =
                     Formatter::new(self, program).field_type(type_text, *is_static, *is_readonly);
 
@@ -518,7 +518,7 @@ impl ModuleQueryContext<'_> {
             } => {
                 let name = self.outline_member_name(*name);
                 let type_text =
-                    self.outline_declared_type(*declared_type, member_id.into(), program)?;
+                    self.outline_member_type(*declared_type, member_id.into(), program)?;
                 let detail =
                     Formatter::new(self, program).field_type(type_text, *is_static, *is_readonly);
 
@@ -553,7 +553,7 @@ impl ModuleQueryContext<'_> {
             } => (
                 self.strings().get(*name).to_string(),
                 SymbolKind::AssociatedConst,
-                Some(self.outline_declared_type(*declared_type, member_id.into(), program)?),
+                Some(self.outline_member_type(*declared_type, member_id.into(), program)?),
             ),
             dir::TypeMember::CallSignature { .. } => ("call".to_string(), SymbolKind::Method, None),
             dir::TypeMember::ConstructSignature { .. } => {
@@ -625,8 +625,8 @@ impl ModuleQueryContext<'_> {
         Formatter::new(self, program).global_type(type_id)
     }
 
-    /// Return an explicit type annotation or the inferred owner type.
-    fn outline_declared_type(
+    /// Return the type displayed beside one member.
+    fn outline_member_type(
         &self,
         declared_type: Option<dir::LocalNodeId<dir::TypeExpression>>,
         owner_id: dir::LocalNodeIdAny,
@@ -634,7 +634,14 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<String> {
         match declared_type {
             Some(type_id) => self.outline_node_type(type_id.into(), program),
-            None => self.outline_node_type(owner_id, program),
+            None => {
+                let owner = owner_id.into_global(self.module_id());
+                let symbol_id = self
+                    .global_node_symbol(owner_id)?
+                    .ok_or(QueryError::missing(format!("outline symbol: {owner:?}")))?;
+
+                Formatter::new(self, program).symbol_type(symbol_id)
+            }
         }
     }
 }

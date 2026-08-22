@@ -137,16 +137,15 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one template literal type.
     fn template_literal(&self, template: dir::TemplateLiteralType) -> QueryResult<String> {
-        let strings = self.types()?.type_ids(template.strings);
+        let strings = self.types()?.strings(template.strings);
         let spans = self.types()?.type_ids(template.spans);
         if strings.len() != spans.len() + 1 {
             return Err(QueryError::invalid("template literal"));
         }
 
         let mut text = String::from("`");
-        for (index, string_type) in strings.iter().copied().enumerate() {
-            let segment = self.template_segment(string_type)?;
-            text.push_str(&segment);
+        for (index, string_id) in strings.iter().copied().enumerate() {
+            text.push_str(self.module.strings().get(string_id));
 
             if let Some(span_type) = spans.get(index) {
                 text.push_str("${");
@@ -158,22 +157,6 @@ impl Formatter<'_, '_, '_> {
         text.push('`');
 
         Ok(text)
-    }
-
-    /// Format one literal string segment from a template type.
-    fn template_segment(&self, type_id: dir::GlobalTypeId) -> QueryResult<String> {
-        self.program
-            .read_type(type_id, |type_value, module| match type_value {
-                dir::Type::Literal(dir::Literal::String(string_id)) => {
-                    Ok(module.strings().get(*string_id).to_string())
-                }
-                dir::Type::Error => Err(QueryError::missing(format!(
-                    "template segment type: {type_id:?}"
-                ))),
-                _ => Err(QueryError::invalid(format!(
-                    "template segment: {type_id:?}"
-                ))),
-            })
     }
 
     /// Format one type query operand.
