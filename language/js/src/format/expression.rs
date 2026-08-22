@@ -1,7 +1,7 @@
 use crate::tree::Precedence;
 use crate::{
-    ArrayElement, ArrowFunctionBody, Asynchrony, BinaryOperator, Expression, Keyword, LocalNodeId,
-    Literal, UnaryOperator,
+    ArrayElement, ArrowFunctionBody, Asynchrony, BinaryOperator, Expression, Keyword, Literal,
+    LocalNodeId, UnaryOperator,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
