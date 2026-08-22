@@ -1153,6 +1153,23 @@ rpc! {
 
         // workspace features
 
+        /// The [`workspace/textDocumentContent`] request returns the content of one server-owned
+        /// text document.
+        ///
+        /// [`workspace/textDocumentContent`]: https://microsoft.github.io/language-server-protocol/specification#workspace_textDocumentContent
+        ///
+        /// # Compatibility
+        ///
+        /// This request was introduced in specification version 3.18.0.
+        #[rpc(name = "workspace/textDocumentContent")]
+        async fn text_document_content(
+            &self,
+            params: TextDocumentContentParams,
+        ) -> Result<TextDocumentContentResult> {
+            let _ = params;
+            Err(Error::method_not_found())
+        }
+
         /// The [`workspace/symbol`] request is sent from the client to the server to list project-wide
         /// symbols matching the given query string.
         ///
