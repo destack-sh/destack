@@ -32,7 +32,7 @@ pub(in crate::sema) enum OpenBounds {
 /// The polarity-aware outcome of matching one extension implementation.
 #[derive(Debug, Clone)]
 pub(in crate::sema) enum ExtensionMatch {
-    /// The extension applies with this substitution and implementation.
+    /// The extension applies with this substitution and matched interface.
     Matched(Box<TypeSubstitution>, dir::GlobalTypeId),
     /// The match is disproved: no instantiation can ever apply.
     Unmatched,
@@ -747,7 +747,7 @@ impl BodyState<'_, '_> {
             instance = filled_instance;
         }
 
-        // serve a repeated canonical goal from the memo, applying the stored hole solutions
+        // serve a repeated canonical goal from the memo, replaying the winner's header
         let asked = self.check.ask(
             origin,
             Ask::Implementation(relation),
@@ -761,6 +761,17 @@ impl BodyState<'_, '_> {
             let implementation = self
                 .check
                 .instantiate_response(origin, canonical, &response)?;
+
+            // constrain the winner's header where site inference flows through holes
+            if !canonical.holes.is_empty() {
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+                if let Some(target) = implementation.target {
+                    self.constrain_type(origin, cause, Relation::Assignable, receiver, target)?;
+                }
+                if let Some(matched) = implementation.interface {
+                    self.constrain_type(origin, cause, relation, matched, interface_type)?;
+                }
+            }
 
             return Ok(implementation.verdict);
         }
@@ -817,24 +828,21 @@ impl BodyState<'_, '_> {
         self.check.deciding.swap_remove(&active);
 
         // remember decided canonical goals folded over this ask
-        let (decision, winner) = decision?;
+        let decision = decision?;
         if excluded.is_none()
             && let Some((question, canonical)) = &asked
-            && decision != Verdict::Ambiguous
+            && decision.verdict != Verdict::Ambiguous
         {
             self.check.remember_answer(
                 question,
                 canonical,
                 checks_before,
-                Implementation {
-                    verdict: decision,
-                    winner,
-                },
+                decision,
                 Answer::Implement,
             )?;
         }
 
-        Ok(decision)
+        Ok(decision.verdict)
     }
 
     /// Confirm one known extension implementation against a goal.
@@ -896,7 +904,7 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         interface: &dir::GenericApplication,
         excluded: Option<dir::GlobalSymbolId>,
-    ) -> CompilerResult<(Verdict, Option<dir::GlobalSymbolId>)> {
+    ) -> CompilerResult<Implementation> {
         // collect the implementation declarations this module can see
         let extensions =
             self.visible_implementation_extensions(origin, module, receiver, interface.symbol)?;
@@ -961,14 +969,23 @@ impl BodyState<'_, '_> {
                     .solves_variable_before(trail_from, variables);
                 is_unproven |= matches!(matched, ExtensionMatch::Unproven);
                 Ok(match (matched, solves_outer) {
-                    (ExtensionMatch::Matched(..), false) => CandidateOutcome::Accepted(()),
+                    (ExtensionMatch::Matched(substitution, matched_interface), false) => {
+                        let target = state.substitute_type(*target_type, &substitution)?;
+
+                        CandidateOutcome::Accepted((target, matched_interface))
+                    }
                     _ => CandidateOutcome::Rejected(()),
                 })
             })?;
 
             // coherence leaves one applicable implementation per concrete receiver
-            if matched.is_some() {
-                return Ok((Verdict::Holds, Some(*extension_symbol)));
+            if let Some((target, matched_interface)) = matched {
+                return Ok(Implementation {
+                    verdict: Verdict::Holds,
+                    winner: Some(*extension_symbol),
+                    target: Some(target),
+                    interface: Some(matched_interface),
+                });
             }
 
             // hold a match that solves outer variables until one candidate stands alone
@@ -994,24 +1011,40 @@ impl BodyState<'_, '_> {
                     OpenBounds::Probe,
                 )?;
                 Ok(match matched {
-                    ExtensionMatch::Matched(..) => CandidateOutcome::Accepted(()),
+                    ExtensionMatch::Matched(substitution, matched_interface) => {
+                        let target = state.substitute_type(*target_type, &substitution)?;
+
+                        CandidateOutcome::Accepted((target, matched_interface))
+                    }
                     ExtensionMatch::Unmatched | ExtensionMatch::Unproven => {
                         CandidateOutcome::Rejected(())
                     }
                 })
             })?;
 
-            if matched.is_some() {
-                return Ok((Verdict::Holds, Some(*extension_symbol)));
+            if let Some((target, matched_interface)) = matched {
+                return Ok(Implementation {
+                    verdict: Verdict::Holds,
+                    winner: Some(*extension_symbol),
+                    target: Some(target),
+                    interface: Some(matched_interface),
+                });
             }
         }
 
         // fail only on disproof: unproven candidates keep the goal open
-        if speculative.is_empty() && !is_unproven {
-            Ok((Verdict::Fails, None))
+        let verdict = if speculative.is_empty() && !is_unproven {
+            Verdict::Fails
         } else {
-            Ok((Verdict::Ambiguous, None))
-        }
+            Verdict::Ambiguous
+        };
+
+        Ok(Implementation {
+            verdict,
+            winner: None,
+            target: None,
+            interface: None,
+        })
     }
 
     /// Return whether one declaration's conformances reach a requested interface.

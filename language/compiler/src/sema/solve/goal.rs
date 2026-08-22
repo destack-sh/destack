@@ -97,13 +97,17 @@ pub(in crate::sema) enum Answer {
     Selection(Arc<Response<Selected>>),
 }
 
-/// One decided extension-implementation verdict with its winner.
+/// One decided extension-implementation verdict with its winner's match.
 #[derive(Debug, Clone, Copy)]
 pub(in crate::sema) struct Implementation {
     /// The decided verdict.
     pub(in crate::sema) verdict: Verdict,
     /// The winning implementation, absent on disproof.
     pub(in crate::sema) winner: Option<dir::GlobalSymbolId>,
+    /// The winner's substituted target, constrained by each ask site's receiver.
+    pub(in crate::sema) target: Option<dir::GlobalTypeId>,
+    /// The winner's matched interface application, related to each ask site's request.
+    pub(in crate::sema) interface: Option<dir::GlobalTypeId>,
 }
 
 /// One matched extension with the arguments its template deduces.
@@ -201,8 +205,15 @@ impl dir::TypeFold for Implementation {
     /// Map every type this verdict carries.
     fn map_types<E>(
         &mut self,
-        _map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
+        map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
     ) -> Result<(), E> {
+        if let Some(target) = &mut self.target {
+            *target = map(*target)?;
+        }
+        if let Some(interface) = &mut self.interface {
+            *interface = map(*interface)?;
+        }
+
         Ok(())
     }
 }

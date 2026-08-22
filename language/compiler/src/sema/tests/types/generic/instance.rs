@@ -353,3 +353,88 @@ const origin = Point { x: 0 };
 "#,
     );
 }
+
+/// Structurally identical calls instantiate their generics identically across bodies.
+#[test]
+fn test_identical_calls_instantiate_identically_across_bodies() {
+    let session = TestSession::single(
+        r#"
+import * as assert from "destack:assert";
+
+function checkLeft(value: int32): void {
+    assert.assertEqual(value, 1);
+    assert.assertEqual(value, 2);
+}
+
+function checkRight(input: int32): void {
+    assert.assertEqual(input, 1);
+    assert.assertEqual(input, 2);
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import * as assert from "destack:assert";
+
+function checkLeft(value: int32): void {
+    assert.assertEqual<int32, int32>(value as &'frame readonly int32, 1 as &'frame readonly int32);
+    assert.assertEqual<int32, int32>(value as &'frame readonly int32, 2 as &'frame readonly int32);
+}
+
+function checkRight(input: int32): void {
+    assert.assertEqual<int32, int32>(input as &'frame readonly int32, 1 as &'frame readonly int32);
+    assert.assertEqual<int32, int32>(input as &'frame readonly int32, 2 as &'frame readonly int32);
+}
+
+=== dir ===
+import * as assert from "destack:assert";
+
+function checkLeft(value: int32): void {
+/// @type.symbol symbol=checkLeft type=(int32) => void
+/// @type.symbol symbol=checkLeft.value source="value: int32" type=int32
+
+    assert.assertEqual(value, 1);
+    /// @resolution.name source=assert.assertEqual target=assert.assert.assertEqual
+    /// @resolution.call source="assert.assertEqual(value, 1)" parameters=(&'frame readonly int32, &'frame readonly int32, assert.assert.AssertionMessage | undefined) arguments=(provided(value) as &'frame readonly int32, provided(1) as &'frame readonly int32, omitted as assert.assert.AssertionMessage | undefined) return=void kind=symbol target=assert.assert.assertEqual instance="assert.assert.assertEqual<int32, int32>"
+    /// @generic.instantiation id="assert.assert.assertEqual<int32, int32>" template=assert.assert.assertEqual arguments=(int32, int32)
+    /// @resolution.name source=value target=checkLeft.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=checkLeft.value
+
+    assert.assertEqual(value, 2);
+    /// @resolution.name source=assert.assertEqual target=assert.assert.assertEqual
+    /// @resolution.call source="assert.assertEqual(value, 2)" parameters=(&'frame readonly int32, &'frame readonly int32, assert.assert.AssertionMessage | undefined) arguments=(provided(value) as &'frame readonly int32, provided(2) as &'frame readonly int32, omitted as assert.assert.AssertionMessage | undefined) return=void kind=symbol target=assert.assert.assertEqual instance="assert.assert.assertEqual<int32, int32>"
+    /// @resolution.name source=value target=checkLeft.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=checkLeft.value
+
+}
+
+function checkRight(input: int32): void {
+/// @type.symbol symbol=checkRight type=(int32) => void
+/// @type.symbol symbol=checkRight.input source="input: int32" type=int32
+
+    assert.assertEqual(input, 1);
+    /// @resolution.name source=assert.assertEqual target=assert.assert.assertEqual
+    /// @resolution.call source="assert.assertEqual(input, 1)" parameters=(&'frame readonly int32, &'frame readonly int32, assert.assert.AssertionMessage | undefined) arguments=(provided(input) as &'frame readonly int32, provided(1) as &'frame readonly int32, omitted as assert.assert.AssertionMessage | undefined) return=void kind=symbol target=assert.assert.assertEqual instance="assert.assert.assertEqual<int32, int32>"
+    /// @resolution.name source=input target=checkRight.input
+    /// @resolution.place source=input placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=input root=checkRight.input
+
+    assert.assertEqual(input, 2);
+    /// @resolution.name source=assert.assertEqual target=assert.assert.assertEqual
+    /// @resolution.call source="assert.assertEqual(input, 2)" parameters=(&'frame readonly int32, &'frame readonly int32, assert.assert.AssertionMessage | undefined) arguments=(provided(input) as &'frame readonly int32, provided(2) as &'frame readonly int32, omitted as assert.assert.AssertionMessage | undefined) return=void kind=symbol target=assert.assert.assertEqual instance="assert.assert.assertEqual<int32, int32>"
+    /// @resolution.name source=input target=checkRight.input
+    /// @resolution.place source=input placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=input root=checkRight.input
+
+}
+"#,
+        r#"
+"#,
+    );
+}

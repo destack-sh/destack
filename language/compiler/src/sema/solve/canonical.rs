@@ -219,8 +219,8 @@ impl CheckState<'_> {
         let premise = if !flags.has_parameter() && !flags.has_this() && !is_bounded {
             Premise::Free
         }
-        // refuse assumed operands outside a checking pass
-        else if !self.is_checking() {
+        // refuse assumed operands while declaring, whose templates are still forming
+        else if self.is_declaration() {
             return Ok((None, false));
         }
         // scope operands that mention this, which carry no hole content
