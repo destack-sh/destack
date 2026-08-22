@@ -72,7 +72,7 @@ impl CheckState<'_> {
         // walk and type each root in source order
         let mut walk = WalkState::new(module, tree, self);
         for root in &expanded.roots {
-            walk.with_scope(|walk| {
+            walk.with_body_scope(|walk| {
                 walk.check.induce_signature_lifetimes()?;
 
                 // register root decorators and gate absent roots
@@ -96,7 +96,7 @@ impl CheckState<'_> {
             if let Some(function) = function {
                 next_body += 1;
                 walk.check
-                    .with_scope(|check| function.check(check, InferMode::Regular, None))?;
+                    .with_body_scope(|check| function.check(check, InferMode::Regular, None))?;
                 walk.flush_flows()?;
 
                 continue;
@@ -107,7 +107,7 @@ impl CheckState<'_> {
                 break;
             };
             next_block += 1;
-            walk.check.with_scope(|check| {
+            walk.check.with_body_scope(|check| {
                 let site = check.visit_site(block)?;
                 let mut body = check.body();
                 body.attempt_node(site, PlaceUse::Read, None)

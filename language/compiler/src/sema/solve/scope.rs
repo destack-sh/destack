@@ -26,6 +26,18 @@ impl WalkState<'_, '_> {
 
         Ok(value)
     }
+
+    /// Run one closure as one body's inference scope, settling its variables fully after.
+    pub(in crate::sema) fn with_body_scope<T>(
+        &mut self,
+        scoped: impl FnOnce(&mut Self) -> CompilerResult<T>,
+    ) -> CompilerResult<T> {
+        let mark = self.check.open_scope();
+        let value = scoped(self)?;
+        self.check.close_body_scope(mark)?;
+
+        Ok(value)
+    }
 }
 
 /// The state one inference scope opened with.
@@ -116,6 +128,31 @@ impl CheckState<'_> {
 
             break;
         }
+
+        Ok(())
+    }
+
+    /// Run one closure as one body's inference scope, settling its variables fully after.
+    pub(in crate::sema) fn with_body_scope<T>(
+        &mut self,
+        scoped: impl FnOnce(&mut Self) -> CompilerResult<T>,
+    ) -> CompilerResult<T> {
+        let mark = self.open_scope();
+        let value = scoped(self)?;
+        self.close_body_scope(mark)?;
+
+        Ok(value)
+    }
+
+    /// Close one body scope, resolving every variable it opened.
+    fn close_body_scope(&mut self, mark: ScopeMark) -> CompilerResult<()> {
+        self.fulfill_scope(mark.scope, Settle::Bounded)?;
+
+        // resolve the body's own roots to their final forms
+        while self.resolve_scope(mark.scope, FallbackStage::Final)? {
+            self.fulfill_scope(mark.scope, Settle::Bounded)?;
+        }
+        self.infer.scope_depth -= 1;
 
         Ok(())
     }
