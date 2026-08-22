@@ -70,6 +70,189 @@ const count = pair.count();
     );
 }
 
+/// Extend a tuple whose elements are the extension's own parameters, instantiated per receiver.
+#[test]
+fn test_extend_a_generic_tuple_over_its_element_parameters() {
+    let session = TestSession::single(
+        r#"
+extension<First: Copy, Second: Copy> of (First, Second) {
+    swap(): (Second, First) {
+        return (this[1], this[0]);
+    }
+}
+
+declare const pair: (int32, boolean);
+
+const swapped = pair.swap();
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+extension<First: Copy, Second: Copy> of (First, Second) {
+    swap(): (Second, First) {
+        return (this[1], this[0]);
+    }
+}
+
+declare const pair: (int32, boolean);
+
+const swapped: (boolean, int32) = pair.swap<int32, boolean>();
+
+=== dir ===
+extension<First: Copy, Second: Copy> of (First, Second) {
+/// @generic.template symbol=<module>#2 parameters=(First: Copy, Second: Copy)
+/// @definition.extension symbol=<module>#2 form=local target=(First, Second)
+/// @definition.method symbol=swap slot=swap type=<swap.'a>(this: &swap.'a readonly this) => (Second, First)
+/// @type.symbol symbol=First source="First: Copy" type=First
+/// @resolution.name source=Copy target=memory.capability.Copy
+/// @type.symbol symbol=Second source="Second: Copy" type=Second
+/// @resolution.name source=Copy target=memory.capability.Copy
+/// @resolution.name source=First target=First
+/// @resolution.name source=Second target=Second
+
+    swap(): (Second, First) {
+    /// @generic.template symbol=swap parent=template#0 parameters=('a)
+    /// @type.symbol symbol=swap type=<swap.'a>(this: &swap.'a readonly this) => (Second, First)
+    /// @resolution.name source=Second target=Second
+    /// @resolution.name source=First target=First
+
+        return (this[1], this[0]);
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&swap.'a readonly (First, Second)
+        /// @resolution.place source=this placement="local" lifetime=swap.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this[1] placement="local" lifetime=swap.'a access="readonly"
+        /// @resolution.access source=this[1] root=this keys=[1]
+        /// @resolution.subscript source=this[1] type=Second kind=member target="receiver=&swap.'a readonly (First, Second), target=field(receiver=(First, Second), target=1, type=Second), type=Second"
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&swap.'a readonly (First, Second)
+        /// @resolution.place source=this placement="local" lifetime=swap.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this[0] placement="local" lifetime=swap.'a access="readonly"
+        /// @resolution.access source=this[0] root=this keys=[0]
+        /// @resolution.subscript source=this[0] type=First kind=member target="receiver=&swap.'a readonly (First, Second), target=field(receiver=(First, Second), target=0, type=First), type=First"
+
+    }
+}
+
+declare const pair: (int32, boolean);
+/// @type.symbol symbol=pair source=pair type=(int32, boolean)
+/// @resolution.pattern source=pair kind=binding target=pair
+
+const swapped = pair.swap();
+/// @type.symbol symbol=swapped source=swapped type=(boolean, int32)
+/// @resolution.pattern source=swapped kind=binding target=swapped
+/// @resolution.name source=pair target=pair
+/// @resolution.member source=pair.swap receiver=(int32, boolean) type=<swap.'a>(this: &swap.'a readonly (int32, boolean)) => (boolean, int32) kind=symbol target_receiver=(int32, boolean) target=swap
+/// @resolution.call source=pair.swap() parameters=() return=(boolean, int32) kind=symbol target=swap receiver=(int32, boolean) adjustments=(borrow(&'static readonly (int32, boolean))) instance="(First, Second).<extension#1>.swap"
+/// @resolution.place source=pair placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=pair root=pair
+/// @generic.instantiation id="swap<int32, boolean>" template=swap arguments=(int32, boolean)
+"#,
+        r#"
+
+"#,
+    );
+}
+
+/// Select a repeated-parameter tuple extension only where the elements unify.
+#[test]
+fn test_reject_a_generic_tuple_extension_on_unequal_elements() {
+    let session = TestSession::single(
+        r#"
+extension<T: Copy> of (T, T) {
+    head(): T {
+        return this[0];
+    }
+}
+
+declare const same: (int32, int32);
+declare const mixed: (int32, string);
+
+const first = same.head();
+const missing = mixed.head();
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+extension<T: Copy> of (T, T) {
+    head(): T {
+        return this[0];
+    }
+}
+
+declare const same: (int32, int32);
+declare const mixed: (int32, string);
+
+const first: int32 = same.head<int32>();
+const missing = mixed.head();
+
+=== dir ===
+extension<T: Copy> of (T, T) {
+/// @generic.template symbol=<module>#2 parameters=(T: Copy)
+/// @definition.extension symbol=<module>#2 form=local target=(T, T)
+/// @definition.method symbol=head slot=head type=<head.'a>(this: &head.'a readonly this) => T
+/// @type.symbol symbol=T source="T: Copy" type=T
+/// @resolution.name source=Copy target=memory.capability.Copy
+/// @resolution.name source=T target=T
+/// @resolution.name source=T target=T
+
+    head(): T {
+    /// @generic.template symbol=head parent=template#0 parameters=('a)
+    /// @type.symbol symbol=head type=<head.'a>(this: &head.'a readonly this) => T
+    /// @resolution.name source=T target=T
+
+        return this[0];
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&head.'a readonly (T, T)
+        /// @resolution.place source=this placement="local" lifetime=head.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this[0] placement="local" lifetime=head.'a access="readonly"
+        /// @resolution.access source=this[0] root=this keys=[0]
+        /// @resolution.subscript source=this[0] type=T kind=member target="receiver=&head.'a readonly (T, T), target=field(receiver=(T, T), target=0, type=T), type=T"
+
+    }
+}
+
+declare const same: (int32, int32);
+/// @type.symbol symbol=same source=same type=(int32, int32)
+/// @resolution.pattern source=same kind=binding target=same
+
+declare const mixed: (int32, string);
+/// @type.symbol symbol=mixed source=mixed type=(int32, string)
+/// @resolution.pattern source=mixed kind=binding target=mixed
+
+const first = same.head();
+/// @type.symbol symbol=first source=first type=int32
+/// @resolution.pattern source=first kind=binding target=first
+/// @resolution.name source=same target=same
+/// @resolution.member source=same.head receiver=(int32, int32) type=<head.'a>(this: &head.'a readonly (int32, int32)) => int32 kind=symbol target_receiver=(int32, int32) target=head
+/// @resolution.call source=same.head() parameters=() return=int32 kind=symbol target=head receiver=(int32, int32) adjustments=(borrow(&'static readonly (int32, int32))) instance="(T, T).<extension#1>.head"
+/// @resolution.place source=same placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=same root=same
+/// @generic.instantiation id=head<int32> template=head arguments=(int32)
+
+const missing = mixed.head();
+/// @type.symbol symbol=missing source=missing type=<error>
+/// @resolution.pattern source=missing kind=binding target=missing
+/// @resolution.name source=mixed target=mixed
+/// @resolution.place source=mixed placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=mixed root=mixed
+/// @resolution.rejected source=mixed.head
+/// @resolution.rejected source=mixed.head()
+"#,
+        r#"
+/// @diagnostic.error id=missing-member message="member 'head' does not exist on type '(int32, string)'"
+/// @diagnostic.label line=12 column=23 span="head" line_source="const missing = mixed.head();"
+"#,
+    );
+}
+
 #[test]
 fn test_extend_a_fixed_array_at_its_language_item() {
     let session = TestSession::single(

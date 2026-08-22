@@ -2703,3 +2703,132 @@ const sound = hush(Bell {});
 "#,
     );
 }
+
+/// Implement an interface over a generic tuple target and satisfy a bound through it.
+#[test]
+fn test_implement_an_interface_over_a_generic_tuple_target() {
+    let session = TestSession::single(
+        r#"
+interface Sized {
+    size(): isize;
+}
+
+extension<First: Copy, Second: Copy> of (First, Second) implements Sized {
+    size(): isize {
+        return 2;
+    }
+}
+
+function measure<T: Sized>(value: T): isize {
+    return value.size();
+}
+
+declare const pair: (int32, boolean);
+
+const direct = pair.size();
+const bounded = measure(pair);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Sized {
+    size(): isize;
+}
+
+extension<First: Copy, Second: Copy> of (First, Second) implements Sized {
+    size(): isize {
+        return 2;
+    }
+}
+
+function measure<T: Sized>(value: T): isize {
+    return value.size();
+}
+
+declare const pair: (int32, boolean);
+
+const direct: isize = pair.size<int32, boolean>();
+const bounded: isize = measure<(int32, boolean)>(pair);
+
+=== dir ===
+interface Sized {
+/// @type.symbol symbol=Sized type=Sized
+/// @definition.interface symbol=Sized
+/// @definition.method symbol=Sized.size source="size(): isize" slot=size type=(this: this) => isize
+
+    size(): isize;
+    /// @type.symbol symbol=Sized.size source="size(): isize" type=(this: this) => isize
+
+}
+
+extension<First: Copy, Second: Copy> of (First, Second) implements Sized {
+/// @generic.template symbol=<module>#2 parameters=(First: Copy, Second: Copy)
+/// @definition.extension symbol=<module>#2 form=local target=(First, Second)
+/// @definition.implements symbol=<module>#2 source=Sized target=Sized
+/// @definition.method symbol=size slot=size type=<size.'a>(this: &size.'a readonly this) => isize
+/// @definition.conformance symbol=<module>#2 member=size requirement=Sized.size
+/// @type.symbol symbol=First source="First: Copy" type=First
+/// @resolution.name source=Copy target=memory.capability.Copy
+/// @type.symbol symbol=Second source="Second: Copy" type=Second
+/// @resolution.name source=Copy target=memory.capability.Copy
+/// @resolution.name source=First target=First
+/// @resolution.name source=Second target=Second
+/// @resolution.name source=Sized target=Sized
+
+    size(): isize {
+    /// @generic.template symbol=size parent=template#1 parameters=('a)
+    /// @type.symbol symbol=size type=<size.'a>(this: &size.'a readonly this) => isize
+
+        return 2;
+    }
+}
+
+function measure<T: Sized>(value: T): isize {
+/// @generic.template symbol=measure parameters=(T: Sized)
+/// @type.symbol symbol=measure type=<T: Sized>(T) => isize
+/// @type.symbol symbol=measure.T source="T: Sized" type=T
+/// @resolution.name source=Sized target=Sized
+/// @type.symbol symbol=measure.value source="value: T" type=T
+/// @resolution.name source=T target=measure.T
+
+    return value.size();
+    /// @resolution.name source=value target=measure.value
+    /// @resolution.member source=value.size receiver=T type=(this: T) => isize kind=symbol target_receiver=T target=Sized.size
+    /// @resolution.call source=value.size() parameters=() return=isize kind=symbol target=Sized.size receiver=T
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=measure.value
+
+}
+
+declare const pair: (int32, boolean);
+/// @type.symbol symbol=pair source=pair type=(int32, boolean)
+/// @resolution.pattern source=pair kind=binding target=pair
+
+const direct = pair.size();
+/// @type.symbol symbol=direct source=direct type=isize
+/// @resolution.pattern source=direct kind=binding target=direct
+/// @resolution.name source=pair target=pair
+/// @resolution.member source=pair.size receiver=(int32, boolean) type=<size.'a>(this: &size.'a readonly (int32, boolean)) => isize kind=symbol target_receiver=(int32, boolean) target=size
+/// @resolution.call source=pair.size() parameters=() return=isize kind=symbol target=size receiver=(int32, boolean) adjustments=(borrow(&'static readonly (int32, boolean))) instance="(First, Second).<extension#1>.size"
+/// @resolution.place source=pair placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=pair root=pair
+/// @generic.instantiation id="size<int32, boolean>" template=size arguments=(int32, boolean)
+
+const bounded = measure(pair);
+/// @type.symbol symbol=bounded source=bounded type=isize
+/// @resolution.pattern source=bounded kind=binding target=bounded
+/// @resolution.name source=measure target=measure
+/// @resolution.call source=measure(pair) parameters=((int32, boolean)) arguments=(provided(pair) as (int32, boolean)) return=isize kind=symbol target=measure instance="measure<(int32, boolean)>"
+/// @generic.instantiation id="measure<(int32, boolean)>" template=measure arguments=((int32, boolean))
+/// @resolution.name source=pair target=pair
+/// @resolution.place source=pair placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=pair root=pair
+"#,
+        r#"
+"#,
+    );
+}
