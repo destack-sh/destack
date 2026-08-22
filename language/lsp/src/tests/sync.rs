@@ -153,16 +153,26 @@ async fn test_query_successive_typed_revisions() {
         .await;
 }
 
-/// Query incomplete binding revisions before a decorated declaration.
+/// Query incomplete binding revisions before a language item.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn test_query_incomplete_binding_before_decorator() {
+async fn test_query_incomplete_binding_before_language_item() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../library");
     let root = fs::canonicalize(root).unwrap();
     let path = root.join("src/memory/capability.ds");
     let library = fs::read_to_string(&path).unwrap();
-    let source = format!("\n{library}");
+
+    // insert an editable line before the Copy language item
+    let language_item = "@languageItem(\"memory.Copy\")";
+    let language_item_offset = library.find(language_item).unwrap();
+    let insertion_line = library[..language_item_offset]
+        .bytes()
+        .filter(|byte| *byte == b'\n')
+        .count() as u32;
+    let source = library.replacen(language_item, &format!("\n{language_item}"), 1);
+
+    // open the authored Builtin Package
     let document = TestDocument::from(path.as_path());
-    let mut server = TestServer::new("incomplete-binding-before-decorator");
+    let mut server = TestServer::new("incomplete-binding-before-language-item");
     server
         .initialize_workspace(&root, lsp::ClientCapabilities::default(), None)
         .await
@@ -170,34 +180,34 @@ async fn test_query_incomplete_binding_before_decorator() {
     server.initialized().await;
     server.open(&document, 1, &source).await;
     let (version, cursor) = server
-        .type_text(&document, 1, position(0, 0), "declare const x")
+        .type_text(&document, 1, position(insertion_line, 0), "declare const")
         .await;
 
-    // query the untyped binding revision
-    server
-        .request::<lsp::request::DocumentSymbolRequest>(document.outline())
-        .await
-        .unwrap();
-
-    // query the missing annotation revision before its decorated neighbor
-    let (version, cursor) = server.type_text(&document, version, cursor, ":").await;
+    // query the incomplete declaration revision
     server
         .request::<lsp::request::SemanticTokensFullRequest>(document.semantic_tokens())
         .await
         .unwrap();
     server
-        .request::<lsp::request::InlayHintRequest>(document.inlay_hints(range(
-            0,
-            0,
-            0,
-            cursor.character,
-        )))
-        .await
-        .unwrap();
+        .assert_diagnostics(
+            &document,
+            version,
+            vec![lsp::Diagnostic {
+                range: range(insertion_line + 1, 0, insertion_line + 1, 1),
+                severity: Some(lsp::DiagnosticSeverity::ERROR),
+                code: Some(lsp::NumberOrString::String(
+                    "expected-declarator".to_string(),
+                )),
+                source: Some("destack".to_string()),
+                message: "expected declarator".to_string(),
+                ..lsp::Diagnostic::default()
+            }],
+        )
+        .await;
 
-    // complete the binding
+    // complete the declaration
     let (version, cursor) = server
-        .type_text(&document, version, cursor, " Clone;")
+        .type_text(&document, version, cursor, " x: Clone;")
         .await;
 
     // query the complete revision
@@ -207,9 +217,9 @@ async fn test_query_incomplete_binding_before_decorator() {
         .unwrap();
     server
         .request::<lsp::request::InlayHintRequest>(document.inlay_hints(range(
+            insertion_line,
             0,
-            0,
-            0,
+            insertion_line,
             cursor.character,
         )))
         .await
@@ -219,7 +229,7 @@ async fn test_query_incomplete_binding_before_decorator() {
         .await
         .unwrap();
 
-    // require successful diagnostics for the final source
+    // clear diagnostics after completing the declaration
     server
         .assert_diagnostics(&document, version, Vec::new())
         .await;
