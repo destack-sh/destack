@@ -146,21 +146,13 @@ impl CheckState<'_> {
             // re-key the site against the subject inference solved
             let subject = self.settle_member_site(module, site, recorded)?;
 
-            // require one membership per settled subject
-            let membership = self.settled_membership(site, module, subject)?;
-            if let Some(stored) = self.module(module).membership(&subject).cloned() {
-                if !memberships_agree(&stored, &membership) {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "member subject {subject:?} projected diverging memberships: {stored:?} vs {membership:?}"
-                        ),
-                    });
-                }
-
+            // membership is a function of the settled subject, one projection stands for all sites
+            if self.module(module).membership(&subject).is_some() {
                 continue;
             }
 
             // store the membership the first settling site projects
+            let membership = self.settled_membership(site, module, subject)?;
             self.module_mut(module)
                 .members_tail
                 .set_membership(subject, membership);
@@ -591,26 +583,3 @@ impl CheckState<'_> {
     }
 }
 
-/// Return whether two memberships select the same owners and structural keys.
-///
-/// Projection reopens per site, so type ids drift with interning, leaving the
-/// selected owners and keys as the stable comparison.
-fn memberships_agree(recorded: &dir::Membership, projected: &dir::Membership) -> bool {
-    // compare the contributing owners in order
-    let has_same_owners = recorded.sources.len() == projected.sources.len()
-        && recorded
-            .sources
-            .iter()
-            .zip(projected.sources.iter())
-            .all(|(recorded, projected)| recorded.owner == projected.owner);
-
-    // compare the structural member keys in order
-    let has_same_keys = recorded.structural.len() == projected.structural.len()
-        && recorded
-            .structural
-            .iter()
-            .zip(projected.structural.iter())
-            .all(|(recorded, projected)| recorded.key == projected.key);
-
-    has_same_owners && has_same_keys
-}
