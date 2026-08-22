@@ -81,7 +81,7 @@ impl ModuleQueryContext<'_> {
         let mut is_documentation_in_items = false;
         for symbol in symbols {
             let module = program.module(symbol.module_id)?;
-            let declaration = Formatter::new(&module, program).symbol_signature(symbol)?;
+            let declaration = Formatter::new(&module, program).symbol_declaration(symbol)?;
             let item_documentation = program.symbol_documentation(symbol)?;
             let target = module.declaration_target(program, symbol)?;
 

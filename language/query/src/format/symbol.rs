@@ -110,6 +110,38 @@ impl Formatter<'_, '_, '_> {
         Ok(segments.join("."))
     }
 
+    /// Format one symbol declaration with its attached decorators.
+    pub(crate) fn symbol_declaration(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
+        let signature = self.symbol_signature(symbol_id)?;
+        let module = self.program.module(symbol_id.module_id)?;
+        let symbol = module.bindings()?.get_symbol(symbol_id.local_id);
+        let Some(declaration) = symbol.declaration else {
+            return Ok(signature);
+        };
+
+        // read decorators attached to the authored declaration
+        let view = module.view()?;
+        let decorators = view.get_decorators_any(declaration.local_id);
+        if decorators.is_empty() {
+            return Ok(signature);
+        }
+
+        // render decorators in source order above the compact signature
+        let mut text = String::new();
+        for decorator in decorators {
+            let span = module.node_span(view, decorator.into())?;
+            let decorator = module.source_text(span)?;
+            if !text.is_empty() {
+                text.push('\n');
+            }
+            text.push_str(decorator.trim());
+        }
+        text.push('\n');
+        text.push_str(&signature);
+
+        Ok(text)
+    }
+
     /// Format one symbol from its exact declaration.
     pub(crate) fn symbol_signature(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
         let module = self.program.module(symbol_id.module_id)?;

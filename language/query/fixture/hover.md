@@ -683,6 +683,25 @@ const used = builtinValue;
 
 ## Decorators
 
+### Include decorators attached to a declaration
+
+A hovered symbol shows its declaration decorators in source order.
+
+```ds main.ds
+newtype marker = (string,);
+
+@marker("service")
+interface Service {}
+          ^^^^^^^ definition
+
+declare const service: Service;
+                       ^^^^^^^ reference
+```
+
+```query hover main.ds#reference
+@hover.item index=0 declaration="@marker(\"service\")\ninterface Service" location=main.ds:4:1-4:21 selection=main.ds#definition range=main.ds#reference
+```
+
 ### Hover over a decorator reference
 
 A decorator target reports its newtype declaration.
@@ -712,7 +731,7 @@ newtype Marker = string;
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 declaration="export newtype languageItem = (string,) | ()" documentation="Compiler language item marker." location=destack://decorator/intrinsic:7:1-7:45 selection=destack://decorator/intrinsic:7:16-7:28 range=main.ds#reference
+@hover.item index=0 declaration="@languageItem(\"decorator.languageItem\")\nexport newtype languageItem = (string,) | ()" documentation="Compiler language item marker." location=destack://decorator/intrinsic:7:1-7:45 selection=destack://decorator/intrinsic:7:16-7:28 range=main.ds#reference
 ```
 
 ## Empty Results
