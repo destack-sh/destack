@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, Node, NodeType};
+use crate::{Expression, LocalNodeId, Node, NodeFold, NodeType};
 
 /// The position of one decorator relative to its owner.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -21,7 +21,7 @@ pub enum DecoratorPosition {
 }
 
 /// A decorator attached to an owner node.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct Decorator {
     /// The decorator expression.
     pub expression: LocalNodeId<Expression>,

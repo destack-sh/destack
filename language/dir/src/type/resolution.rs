@@ -7,13 +7,13 @@ use crate::{
     AdjustedReceiver, ArgumentBinding, ArgumentSource, BinaryOperator, ClassConstructor,
     DynamicDispatch, Expression, GenericArgumentBinding, GlobalNodeId, GlobalNodeIdAny,
     GlobalSymbolId, GlobalTypeId, MemberReceiver, MemberSpace, Predicate, Projection,
-    ProjectionResolution, ScalarFamily, ScalarFamilySet, Selection, StaticKey, StringId, TypeFold,
-    UnaryOperator, WalkSelections,
+    ProjectionResolution, ScalarFamily, ScalarFamilySet, Selection, SelectionVisit, StaticKey,
+    StringId, TypeFold, UnaryOperator,
 };
 
 /// One operation or the operations selected for every runtime union arm.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub enum OperationResolution<T> {
     /// One statically selected operation.
@@ -105,7 +105,7 @@ impl NameResolution {
 /// user.name
 /// ```
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct FieldResolution {
     /// The runtime receiver used to access the field.
@@ -124,7 +124,7 @@ pub struct FieldResolution {
 /// record[field]
 /// ```
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct IndexResolution {
     /// The receiver that exposes the selected storage.
@@ -137,7 +137,7 @@ pub struct IndexResolution {
 
 /// Structural storage selected by one computed index.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub enum IndexTarget {
     /// One index signature selected by its position in the receiver shape.
@@ -166,7 +166,7 @@ pub enum IndexTarget {
     Deserialize,
     Reflect,
     TypeFold,
-    WalkSelections,
+    SelectionVisit,
 )]
 pub enum FieldTarget {
     /// Structurally declared field.
@@ -217,7 +217,7 @@ impl FieldTarget {
 /// Mode.Write // variant: Write, key: Write
 /// ```
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct VariantCase {
     /// The selected enum symbol.
@@ -236,7 +236,7 @@ pub struct VariantCase {
 /// tuple[0]       // receiver: tuple, target: the selected element
 /// ```
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct MemberAccess {
     /// The use-site receiver type before implicit adjustments.
@@ -314,7 +314,7 @@ impl OperationResolution<MemberAccess> {
 
 /// Member target selected at a usage site.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub enum MemberTarget {
     /// Compiler-defined stored projection selected by this member access.
@@ -446,7 +446,7 @@ impl MemberTarget {
 /// // applied to the Array<int32> receiver
 /// ```
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct MemberCandidate {
     /// The receiver that selects this candidate.
@@ -470,7 +470,7 @@ pub struct MemberCandidate {
 /// print("hi")    // parameters: (string), return: void
 /// ```
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct Call {
     /// The selected callable target.
@@ -572,7 +572,7 @@ impl OperationResolution<Call> {
 
 /// Callable target selected for one call.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub enum CallableTarget {
     /// Function-typed runtime expression.
@@ -642,7 +642,7 @@ impl CallableTarget {
 
 /// Function value selected at a declaration or member reference.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct FunctionValue {
     /// The selected runtime callable.
@@ -676,7 +676,7 @@ pub type FunctionDecision = OperationResolution<FunctionValue>;
     Deserialize,
     Reflect,
     TypeFold,
-    WalkSelections,
+    SelectionVisit,
 )]
 pub enum FunctionDispatch {
     /// Direct call to the selected function.
@@ -700,7 +700,7 @@ pub enum FunctionDispatch {
     Deserialize,
     Reflect,
     TypeFold,
-    WalkSelections,
+    SelectionVisit,
 )]
 pub enum DynamicFunction {
     /// Declared method or property accessor.
@@ -723,7 +723,7 @@ pub enum DynamicFunction {
 /// const { [key]: value } = object;
 /// ```
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct Subscript {
     /// The selected subscript target.
@@ -809,7 +809,7 @@ impl From<MemberDecision> for SubscriptDecision {
 
 /// Target selected by one subscript.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub enum SubscriptTarget {
     /// Structural tuple, field, or index-signature selection.
@@ -822,7 +822,7 @@ pub enum SubscriptTarget {
 
 /// One selected `Index.index` call and its bracket projection.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct IndexRead {
     /// The selected protocol call.
@@ -835,7 +835,7 @@ pub struct IndexRead {
 
 /// Dereference selected by one projection or place.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct Dereference {
     /// The value receiving the dereference operation.
@@ -861,7 +861,7 @@ impl OperationResolution<Dereference> {
 
 /// Target selected by one dereference.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub enum DereferenceTarget {
     /// Direct dereference of a physical reference or pointer form.
@@ -878,7 +878,7 @@ pub enum DereferenceTarget {
 /// left == right // Call, when selected through PartialEqual.equal
 /// ```
 #[derive(
-    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub enum OperatorApplication {
     /// One selected unary operator application.
@@ -906,7 +906,7 @@ pub type OperatorDecision = OperationResolution<OperatorApplication>;
 
 /// Implementation selected for one operator application.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub enum OperatorTarget<T> {
     /// Compiler-defined operation over checked operands.
@@ -917,7 +917,7 @@ pub enum OperatorTarget<T> {
 
 /// One operand accepted by a builtin operator.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct BuiltinOperand {
     /// The expression supplying the operand value.
@@ -1130,7 +1130,7 @@ impl OperationResolution<OperatorApplication> {
     Deserialize,
     Reflect,
     TypeFold,
-    WalkSelections,
+    SelectionVisit,
 )]
 pub struct PlaceResolution {
     /// The selected storage placement term.
@@ -1149,7 +1149,7 @@ pub struct PlaceResolution {
 /// object.field += next
 /// values[index] = next
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct AssignmentDecision {
     /// The expression node designating the assignment target.
     pub target: GlobalNodeIdAny,
@@ -1161,7 +1161,7 @@ pub struct AssignmentDecision {
 
 /// Read selected for one place expression.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub enum ReadResolution {
     /// Local value binding.
@@ -1203,7 +1203,7 @@ impl ReadResolution {
 
 /// Write selected for one place expression.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub enum WriteResolution {
     /// Local value binding.
@@ -1251,7 +1251,7 @@ impl WriteResolution {
 /// value instanceof User
 /// "name" in value
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub enum GuardDecision {
     /// `is` guard, like `value is T`.
     ///
@@ -1295,7 +1295,7 @@ impl GuardDecision {
 ///     value.length;
 /// }
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct IsGuardDecision {
     /// The tested value type.
     pub value_type: GlobalTypeId,
@@ -1313,7 +1313,7 @@ pub struct IsGuardDecision {
 ///     value.name;
 /// }
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct InstanceOfGuardDecision {
     /// The tested value type.
     pub value_type: GlobalTypeId,
@@ -1333,7 +1333,7 @@ pub struct InstanceOfGuardDecision {
 ///     value.name;
 /// }
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct InGuardDecision {
     /// The tested key type.
     pub key_type: GlobalTypeId,
@@ -1350,7 +1350,7 @@ pub struct InGuardDecision {
 /// values.push(1) // `push#1` applied to the Array<int32> receiver
 /// ```
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct FunctionTarget {
     /// The receiver selected for a method call.
@@ -1368,7 +1368,7 @@ pub struct FunctionTarget {
 /// new User(name)
 /// UserId(raw)
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct ConstructDecision {
     /// The selected construct target.
     pub target: ConstructTarget,
@@ -1460,8 +1460,8 @@ impl ConstructTarget {
     }
 }
 
-impl WalkSelections for ConstructTarget {
-    fn for_each_selection(&self, visit: &mut dyn FnMut(&Selection)) {
+impl SelectionVisit for ConstructTarget {
+    fn visit_selections(&self, visit: &mut dyn FnMut(&Selection)) {
         match self {
             // visit the class, then its declared constructor under the same arguments
             Self::Class {
@@ -1479,7 +1479,7 @@ impl WalkSelections for ConstructTarget {
             // visit the newtype declaration
             Self::Newtype { selection, .. } => visit(selection),
             // visit the selections the erased dispatch carries
-            Self::Dynamic { dispatch, .. } => dispatch.for_each_selection(visit),
+            Self::Dynamic { dispatch, .. } => dispatch.visit_selections(visit),
         }
     }
 }
@@ -1498,7 +1498,7 @@ impl WalkSelections for ConstructTarget {
 /// Point { x, y }            // Destructure
 /// "yes" | "no"              // Or
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub enum PatternDecision {
     /// Pattern that accepts the input without binding, like `_`.
     ///
@@ -1574,7 +1574,7 @@ pub enum PatternDecision {
 /// match value { name @ "ready" => name }
 /// ```
 #[derive(
-    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct PatternBindingResolution {
     /// The bound symbol, when the binding has a user-visible name.
@@ -1590,7 +1590,7 @@ pub struct PatternBindingResolution {
 /// const value! = maybe;
 /// ```
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct PatternMustResolution {
     /// The nested pattern that must match.
@@ -1606,7 +1606,7 @@ pub struct PatternMustResolution {
 /// const { name = "anonymous" } = user;
 /// ```
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct PatternDefaultResolution {
     /// The nested pattern.
@@ -1621,7 +1621,7 @@ pub struct PatternDefaultResolution {
 /// ```ds
 /// match value { "ready" => true }
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct PatternPredicateResolution {
     /// The executable predicate.
     pub predicate: Predicate,
@@ -1633,7 +1633,7 @@ pub struct PatternPredicateResolution {
 /// ```ds
 /// match box { *Point { x, y } => x + y }
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct PatternProjectionResolution {
     /// The selected projection.
     pub projection: ProjectionResolution,
@@ -1650,7 +1650,7 @@ pub struct PatternProjectionResolution {
 /// const Point { x, y } = point;
 /// const [head, ...tail] = values;
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub enum PatternDestructureResolution {
     /// Tuple-shaped destructuring, like `(x, y)`.
     ///
@@ -1688,7 +1688,7 @@ pub enum PatternDestructureResolution {
 /// ```ds
 /// const (count, label) = pair;
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct PatternTupleDestructureResolution {
     /// The tuple fields in source order.
     pub fields: Vec<PatternFieldResolution>,
@@ -1700,7 +1700,7 @@ pub struct PatternTupleDestructureResolution {
 /// ```ds
 /// const { name, age } = user;
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct PatternObjectDestructureResolution {
     /// The object fields in source order.
     pub fields: Vec<PatternFieldResolution>,
@@ -1714,7 +1714,7 @@ pub struct PatternObjectDestructureResolution {
 /// ```ds
 /// const Point { x, y } = point;
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct PatternNominalDestructureResolution {
     /// The selected nominal declaration and its generic arguments.
     pub selection: Selection,
@@ -1730,7 +1730,7 @@ pub struct PatternNominalDestructureResolution {
 /// ```ds
 /// const [head, ...tail] = values;
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct PatternSequenceDestructureResolution {
     /// The arity requirement introduced by the pattern.
     pub arity: PatternSequenceArity,
@@ -1748,7 +1748,7 @@ pub struct PatternSequenceDestructureResolution {
 /// const [head, ...tail] = values; // minimum: 1, maximum: none
 /// ```
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct PatternSequenceArity {
     /// The minimum accepted source length.
@@ -1764,7 +1764,7 @@ pub struct PatternSequenceArity {
 /// match mode { Mode.Read => read() }
 /// match mode { Mode.Write => write() }
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct PatternVariantResolution {
     /// The selected variant case.
     pub case: VariantCase,
@@ -1779,7 +1779,7 @@ pub struct PatternVariantResolution {
 /// match value { "yes" | "no" => true }
 /// ```
 #[derive(
-    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct PatternOrResolution {
     /// The branch pattern nodes.
@@ -1793,7 +1793,7 @@ pub struct PatternOrResolution {
 /// const { name } = user;
 /// const [head] = values;
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct PatternFieldResolution {
     /// The source node that introduces the field.
     pub source: GlobalNodeIdAny,
@@ -1804,7 +1804,7 @@ pub struct PatternFieldResolution {
 }
 
 /// Assignment target meaning selected during checking.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub enum AssignPatternDecision {
     /// Direct writable place target, like `value` or `object.field`.
     Place,
@@ -1820,7 +1820,7 @@ pub enum AssignPatternDecision {
 
 /// Defaulted assignment target selected during checking.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct AssignPatternDefaultResolution {
     /// The nested assignment target.
@@ -1830,7 +1830,7 @@ pub struct AssignPatternDefaultResolution {
 }
 
 /// Ordered assignment destructuring selected during checking.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct AssignPatternSequenceResolution {
     /// The sequence arity required by the assignment target.
     pub arity: PatternSequenceArity,
@@ -1841,14 +1841,14 @@ pub struct AssignPatternSequenceResolution {
 }
 
 /// Tuple assignment destructuring selected during checking.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct AssignPatternTupleResolution {
     /// The projected tuple fields in source order.
     pub fields: Vec<AssignPatternFieldResolution>,
 }
 
 /// Object assignment destructuring selected during checking.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct AssignPatternObjectResolution {
     /// The named fields in source order.
     pub fields: Vec<AssignPatternFieldResolution>,
@@ -1857,7 +1857,7 @@ pub struct AssignPatternObjectResolution {
 }
 
 /// One destructured assignment field.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct AssignPatternFieldResolution {
     /// The source node that introduces the field.
     pub source: GlobalNodeIdAny,
@@ -1868,7 +1868,7 @@ pub struct AssignPatternFieldResolution {
 }
 
 /// Rest field selected by one assignment destructuring pattern.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct AssignPatternRestResolution {
     /// The source node that introduces the rest field.
     pub source: GlobalNodeIdAny,
@@ -1879,7 +1879,7 @@ pub struct AssignPatternRestResolution {
 }
 
 /// The checked resolution of one tree literal.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct TreeDecision {
     /// The builder type constructing this literal.
     pub builder: GlobalTypeId,
@@ -1894,7 +1894,7 @@ pub struct TreeDecision {
 }
 
 /// The resolved target of one tree literal.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub enum TreeTarget {
     /// A lowercase tag built through the builder's element static.
     Element {
@@ -1918,7 +1918,7 @@ pub enum TreeTarget {
 }
 
 /// The resolved invocation of one tree component.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub enum TreeInvocation {
     /// A callable component invoked with its props row.
     Call(CallDecision),
@@ -1932,7 +1932,7 @@ pub enum TreeInvocation {
 }
 
 /// One checked attribute of a resolved tree literal.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub struct TreeAttributeBinding {
     /// The attribute key.
     pub key: StringId,
@@ -1945,7 +1945,7 @@ pub struct TreeAttributeBinding {
 }
 
 /// One checked child of a resolved tree literal.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, WalkSelections)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
 pub enum TreeChildBinding {
     /// A raw text child typed as a string literal.
     Text {

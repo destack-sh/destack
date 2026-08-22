@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, Node, NodeType, Pattern, TypeExpression};
+use crate::{Expression, LocalNodeId, Node, NodeFold, NodeType, Pattern, TypeExpression};
 
 /// A single variable declarator within a let or const statement.
 /// Each declarator has its own pattern, optional type, and optional initializer.
@@ -14,7 +14,7 @@ use crate::{Expression, LocalNodeId, Node, NodeType, Pattern, TypeExpression};
 /// x: int32 = 1  // binding with type and value
 /// (a, b) = tuple  // destructuring pattern
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct Declarator {
     /// The pattern to bind (can be a simple identifier or destructuring pattern).
     pub pattern: LocalNodeId<Pattern>,

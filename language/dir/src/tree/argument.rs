@@ -2,12 +2,12 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, LocalNodeId, Node, NodeType, Pattern, StaticKey, StringId, SymbolKind,
+    Expression, LocalNodeId, Node, NodeFold, NodeType, Pattern, StaticKey, StringId, SymbolKind,
     TypeExpression, VarianceModifier,
 };
 
 /// A declared generic parameter in source.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum GenericParameter {
     /// Type parameter.
     Type {
@@ -62,7 +62,7 @@ impl GenericParameter {
 }
 
 /// A parameter to a callable construct.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum Parameter {
     /// Named scalar parameter.
     Named {
@@ -152,7 +152,7 @@ impl Parameter {
 }
 
 /// A generic argument in static argument position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum GenericArgument {
     /// Type generic argument.
     Type { value: LocalNodeId<TypeExpression> },
@@ -177,7 +177,7 @@ impl Node for GenericArgument {
 }
 
 /// One tuple type element.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum TupleElement {
     /// One non-spread tuple element.
     Element {
@@ -200,7 +200,7 @@ impl Node for TupleElement {
 }
 
 /// An argument to a call, sequence literal, or template interpolation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum Argument {
     /// Positional argument.
     Positional { value: LocalNodeId<Expression> },

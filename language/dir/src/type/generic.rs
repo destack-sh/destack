@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem, LocalNodeIdAny, LocalScopeId,
-    Selection, StringId, TypeFold, VarianceModifier, WalkSelections, WhereRelation,
+    Selection, SelectionVisit, StringId, TypeFold, VarianceModifier, WhereRelation,
 };
 
 /// Unique identifier for generic templates.
@@ -464,7 +464,7 @@ impl GenericArgumentBinding {
 
 /// One selected parameter bound to its runtime argument source.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct ArgumentBinding {
     /// The complete parameter type after static substitutions.
@@ -488,7 +488,7 @@ impl ArgumentBinding {
 
 /// Source argument bound to one selected parameter slot.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub enum ArgumentSource {
     /// One source argument was supplied.

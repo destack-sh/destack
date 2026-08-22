@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Expression, FunctionSignature, GenericParameter, Keyword, LocalNodeId, MemberSpace, Mutability,
-    Name, Node, NodeType, ScopeKind, StaticKey, StringId, SymbolKind, TypeExpression, Visibility,
-    WhereClause,
+    Name, Node, NodeFold, NodeType, ScopeKind, StaticKey, StringId, SymbolKind, TypeExpression,
+    Visibility, WhereClause,
 };
 
 /// Variance annotation for generic parameters.
@@ -115,7 +115,7 @@ impl MethodAbstraction {
 }
 
 /// A property of an object-like literal.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum Property {
     /// Named field.
     Field {
@@ -199,7 +199,7 @@ impl Property {
 }
 
 /// A member of a declaration body.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum Member {
     /// Associated type alias.
     AssociatedType {

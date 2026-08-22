@@ -5,13 +5,13 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
     Declarator, DependencyItem, ExportKind, GenericArgument, ImportAttributeClause, InferForm,
-    Keyword, Literal, LocalNodeId, MatchArm, Mutability, Node, NodeType, OperatorPrecedence,
-    Pattern, PlaceModifier, Property, RangeEnd, StaticKey, SwitchCase, TemplateLiteral,
-    TreeAttribute, TreeChild, TypeExpression, UnaryOperator,
+    Keyword, Literal, LocalNodeId, MatchArm, Mutability, Node, NodeFold, NodeType,
+    OperatorPrecedence, Pattern, PlaceModifier, Property, RangeEnd, StaticKey, SwitchCase,
+    TemplateLiteral, TreeAttribute, TreeChild, TypeExpression, UnaryOperator,
 };
 
 /// A catch branch.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct Catch {
     /// The optional catch pattern.
     pub pattern: Option<LocalNodeId<Pattern>>,
@@ -26,7 +26,7 @@ impl Node for Catch {
 }
 
 /// One source expression.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum Expression {
     /// Declaration (with a name or anonymous).
     Declaration(LocalNodeId<Declaration>),
@@ -788,6 +788,18 @@ impl Expression {
         self.as_scalar()?.as_boolean()
     }
 
+    /// Return whether this expression introduces a control target.
+    pub fn is_control_target(&self) -> bool {
+        matches!(
+            self,
+            Self::While { .. }
+                | Self::ForEach { .. }
+                | Self::For { .. }
+                | Self::Loop { .. }
+                | Self::Switch { .. }
+        )
+    }
+
     /// Return the label declared by this control target.
     pub fn control_label(&self) -> Option<StringId> {
         match self {
@@ -1126,7 +1138,7 @@ pub enum IfForm {
 }
 
 /// A left-to-right condition.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct Condition {
     /// The operands joined by short-circuiting `&&`.
     pub operands: Vec<ConditionOperand>,
@@ -1204,7 +1216,7 @@ impl Condition {
 }
 
 /// One operand in a condition.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum ConditionOperand {
     /// A regular condition expression.
     Expression { condition: LocalNodeId<Expression> },
@@ -1247,7 +1259,7 @@ pub enum BindingKeyword {
 }
 
 /// The binding in a for each expression.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum ForEachBinding {
     /// Regular pattern binding.
     Pattern {
@@ -1290,7 +1302,7 @@ pub enum WhereRelation {
 /// Self: geom.Mesh<T>
 /// BaseOf<T>: Copy
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct WhereClause {
     /// The relation between the two operands.
     pub relation: WhereRelation,

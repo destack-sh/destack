@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Access, Call, CallDecision, Dereference, DereferenceResolution, FieldResolution, GlobalTypeId,
-    Literal, MemberAccess, MemberDecision, OperationResolution, Selection, StaticKey, Subscript,
-    SubscriptDecision, TypeFold, WalkSelections,
+    Literal, MemberAccess, MemberDecision, OperationResolution, Selection, SelectionVisit,
+    StaticKey, Subscript, SubscriptDecision, TypeFold,
 };
 
 /// Value projection selected during checking.
@@ -28,7 +28,7 @@ use crate::{
 /// *box                  // Dereference
 /// ```
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub enum Projection {
     /// Produce `undefined` for one statically absent destructuring field.
@@ -191,7 +191,7 @@ pub enum Projection {
 
 /// One source property value encoded by a union arm.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct DiscriminantCase {
     /// The physical union arm selected by this value.
@@ -311,7 +311,7 @@ impl From<MemberDecision> for ProjectionResolution {
 
 /// One source field used to materialize an object rest value.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, WalkSelections,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
 )]
 pub struct ObjectRestField {
     /// The materialized field key.

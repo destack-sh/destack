@@ -2,7 +2,9 @@ use destack_core::StringId;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType, RangeEnd, TypeExpression};
+use crate::{
+    Expression, LocalNodeId, Mutability, Name, Node, NodeFold, NodeType, RangeEnd, TypeExpression,
+};
 
 /// A Pattern is a pattern to match something and unwrap it.
 /// Guards are handled only by match arms.
@@ -22,7 +24,7 @@ use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType, RangeEnd,
 /// geom.Mesh<2, float32> { vertices: [2, ...] }
 /// { a: 2 }
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum Pattern {
     /// Wildcard scalar pattern (`_`).
     Wildcard,
@@ -102,7 +104,7 @@ impl Node for Pattern {
 /// ... // unbound rest
 /// ...rest // bound rest
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum PatternField {
     /// Named field, maybe shorthand and maybe with a nested pattern.
     Named {
@@ -130,7 +132,7 @@ impl Node for PatternField {
 }
 
 /// One assignment left hand side.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum AssignPattern {
     /// Writable place target like `x`, `obj.x`, or `obj[key]`.
     Place { expression: LocalNodeId<Expression> },
@@ -158,7 +160,7 @@ impl Node for AssignPattern {
 }
 
 /// One field in a destructuring assignment target.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum AssignPatternField {
     /// Named field like `{ x }` or `{ x: y }`.
     Named {

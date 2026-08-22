@@ -1,4 +1,4 @@
-use destack_core::FNV_PRIME_64;
+use destack_core::FNV_PRIME_128;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -7,11 +7,11 @@ use crate::Postings;
 /// Code fingerprints and adjacent pairs in one module.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct CodeIndex {
-    /// Candidate fingerprints keyed densely by visible node id.
+    /// Name-insensitive structural fingerprints keyed densely by visible node id.
     fingerprints: Vec<CodeFingerprint>,
-    /// Visible node ids ordered by candidate fingerprint.
+    /// Visible node ids ordered by name-insensitive structural fingerprint.
     order: Vec<u32>,
-    /// Adjacent node pairs ordered by candidate fingerprint.
+    /// Adjacent node pairs ordered by name-insensitive structural fingerprint.
     pairs: Vec<CodePair>,
 }
 
@@ -50,14 +50,14 @@ impl CodeIndex {
         self.pairs.dedup();
     }
 
-    /// Return one visible node's candidate fingerprint.
+    /// Return one visible node's name-insensitive structural fingerprint.
     pub fn fingerprint(&self, node: u32) -> Option<CodeFingerprint> {
         let fingerprint = *self.fingerprints.get(node as usize)?;
 
         (fingerprint.node_count != 0).then_some(fingerprint)
     }
 
-    /// Iterate visible node ids carrying one candidate fingerprint.
+    /// Iterate visible node ids carrying one name-insensitive structural fingerprint.
     pub fn nodes(&self, fingerprint: CodeFingerprint) -> impl Iterator<Item = u32> + '_ {
         let start = self
             .order
@@ -69,7 +69,7 @@ impl CodeIndex {
         self.order[start..end].iter().copied()
     }
 
-    /// Iterate adjacent pairs carrying one candidate fingerprint.
+    /// Iterate adjacent pairs carrying one name-insensitive structural fingerprint.
     pub fn pairs(&self, fingerprint: CodeFingerprint) -> impl Iterator<Item = CodePair> + '_ {
         let start = self
             .pairs
@@ -121,7 +121,7 @@ impl CodePostings {
     }
 }
 
-/// One stable candidate fingerprint for a visible DIR region.
+/// One stable name-insensitive structural fingerprint for a visible DIR region.
 #[derive(
     Debug,
     Clone,
@@ -138,7 +138,7 @@ impl CodePostings {
 )]
 pub struct CodeFingerprint {
     /// The stable hash value.
-    value: u64,
+    value: u128,
     /// The number of visible nodes represented.
     node_count: u32,
     /// The number of concatenated code regions represented.
@@ -146,8 +146,8 @@ pub struct CodeFingerprint {
 }
 
 impl CodeFingerprint {
-    /// Create a candidate fingerprint for one visible code region.
-    pub const fn new(value: u64, node_count: u32) -> Self {
+    /// Create a name-insensitive structural fingerprint for one visible code region.
+    pub const fn new(value: u128, node_count: u32) -> Self {
         Self {
             value,
             node_count,
@@ -156,7 +156,7 @@ impl CodeFingerprint {
     }
 
     /// Return the stable hash value.
-    pub const fn value(self) -> u64 {
+    pub const fn value(self) -> u128 {
         self.value
     }
 
@@ -170,7 +170,7 @@ impl CodeFingerprint {
         self.region_count
     }
 
-    /// Concatenate fingerprints using the 64-bit FNV prime as the rolling multiplier.
+    /// Concatenate fingerprints using the 128-bit FNV prime as the rolling multiplier.
     pub fn concatenate(fingerprints: impl IntoIterator<Item = Self>) -> Option<Self> {
         let mut fingerprints = fingerprints.into_iter();
         let mut combined = fingerprints
@@ -187,7 +187,7 @@ impl CodeFingerprint {
             let region_count = combined
                 .region_count
                 .checked_add(fingerprint.region_count)?;
-            let shift = FNV_PRIME_64.wrapping_pow(fingerprint.region_count);
+            let shift = FNV_PRIME_128.wrapping_pow(fingerprint.region_count);
             let value = combined
                 .value
                 .wrapping_mul(shift)
@@ -206,7 +206,7 @@ impl CodeFingerprint {
 /// One adjacent visible node pair indexed as a code region.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct CodePair {
-    /// The combined candidate fingerprint.
+    /// The combined name-insensitive structural fingerprint.
     pub fingerprint: CodeFingerprint,
     /// The first visible node id.
     pub first: u32,

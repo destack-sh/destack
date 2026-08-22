@@ -1,10 +1,12 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Block, Condition, Expression, LocalNodeId, LocalNodeIdAny, Node, NodeType, Pattern};
+use crate::{
+    Block, Condition, Expression, LocalNodeId, LocalNodeIdAny, Node, NodeFold, NodeType, Pattern,
+};
 
 /// One arm of a match expression.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum MatchArm {
     /// An arm with an expression body.
     Expression {
@@ -64,7 +66,7 @@ pub enum SwitchSelector {
 }
 
 /// One case of a switch statement.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct SwitchCase {
     /// The case selector.
     pub selector: SwitchSelector,

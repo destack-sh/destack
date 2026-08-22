@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Asynchrony, ConstructorType, FunctionRole, FunctionTypeExpression, GenericParameter,
-    LocalNodeId, Parameter, TypeExpression, WhereClause,
+    LocalNodeId, NodeFold, Parameter, TypeExpression, WhereClause,
 };
 
 /// The source form of a function.
@@ -34,7 +34,7 @@ pub enum ThisForm {
 }
 
 /// The signature of a function.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct FunctionSignature {
     /// The asynchrony of the function.
     pub asynchrony: Asynchrony,

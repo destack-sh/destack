@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, Node, NodeType};
+use crate::{Expression, LocalNodeId, Node, NodeFold, NodeType};
 
 /// The structural form of a block.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -32,7 +32,7 @@ pub enum BlockContext {
 ///     y = 2
 /// }
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct Block {
     /// The block context.
     pub context: BlockContext,

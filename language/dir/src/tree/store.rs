@@ -1,8 +1,12 @@
+use destack_serde::Reflect;
+use serde::{Deserialize, Serialize};
+
 use crate::{
     Argument, AssignPattern, AssignPatternField, Block, Catch, Declaration, Declarator, Decorator,
-    DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, MatchArm, Member,
-    Node, Parameter, Pattern, PatternField, Property, SwitchCase, Tree, TreeAttribute, TreeChild,
-    TupleElement, TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
+    DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId,
+    LocalNodeIdAny, MatchArm, Member, Node, NodeFold, NodeType, Parameter, Pattern, PatternField,
+    Property, SwitchCase, Tree, TreeAttribute, TreeChild, TupleElement, TypeExpression,
+    TypeMappedParameter, TypeMember, View, WhereClause,
 };
 
 /// Map node types to arenas.
@@ -17,34 +21,58 @@ pub trait TreeStore<T: Node> {
     fn get_mut(tree: &mut Tree, idx: u32) -> &mut T;
 }
 
-macro_rules! impl_tree_store {
-    ($ty:ty, $field:ident) => {
-        impl TreeStore<$ty> for Tree {
-            #[inline]
-            fn allocate(tree: &mut Tree, node: $ty) -> u32 {
-                tree.$field.allocate(node)
-            }
+macro_rules! tree_nodes {
+    ( $( $ty:ident => $field:ident ),+ $(,)? ) => {
+        /// One owned DIR node value.
+        #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
+        pub enum NodeValue {
+            $(
+                #[doc = concat!("One `", stringify!($ty), "` node.")]
+                $ty($ty),
+            )*
+        }
 
-            #[inline]
-            fn get(tree: &Tree, idx: u32) -> &$ty {
-                tree.$field.get(idx)
-            }
+        impl View<'_> {
+            /// Clone one visible node into an erased value.
+            pub fn clone_node(&self, node: LocalNodeIdAny) -> Option<NodeValue> {
+                if !self.is_visible(node) {
+                    return None;
+                }
 
-            #[inline]
-            fn get_mut(tree: &mut Tree, idx: u32) -> &mut $ty {
-                tree.$field.get_mut(idx)
+                Some(match node.ty {
+                    $(
+                        NodeType::$ty => {
+                            let node = LocalNodeId::<$ty>::new(node.id);
+
+                            NodeValue::$ty(self.get(node).clone())
+                        }
+                    )*
+                })
             }
         }
+
+        $(
+            impl TreeStore<$ty> for Tree {
+                #[inline]
+                fn allocate(tree: &mut Tree, node: $ty) -> u32 {
+                    tree.$field.allocate(node)
+                }
+
+                #[inline]
+                fn get(tree: &Tree, idx: u32) -> &$ty {
+                    tree.$field.get(idx)
+                }
+
+                #[inline]
+                fn get_mut(tree: &mut Tree, idx: u32) -> &mut $ty {
+                    tree.$field.get_mut(idx)
+                }
+            }
+        )*
     };
 }
 
-macro_rules! impl_tree_stores {
-    ( $( $ty:ty => $field:ident ),+ $(,)? ) => {
-        $( impl_tree_store!($ty, $field); )*
-    };
-}
-
-impl_tree_stores! {
+tree_nodes! {
     Expression => expressions,
     TypeExpression => type_expressions,
     Block => blocks,

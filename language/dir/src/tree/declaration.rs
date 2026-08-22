@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ExportKind, Expression, FunctionSignature, GenericParameter, Keyword, LocalNodeId, Member,
-    Mutability, Name, Node, NodeType, ScopeKind, Space, SymbolKind, SymbolRole, TypeExpression,
-    TypeMember, WhereClause,
+    Mutability, Name, Node, NodeFold, NodeType, ScopeKind, Space, SymbolKind, SymbolRole,
+    TypeExpression, TypeMember, WhereClause,
 };
 
 /// Explicit source placement modifier.
@@ -35,7 +35,7 @@ impl PlaceModifier {
 }
 
 /// A global declaration block.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct GlobalDeclaration {
     /// The expressions inside the global body.
     pub expressions: Vec<LocalNodeId<Expression>>,
@@ -44,14 +44,14 @@ pub struct GlobalDeclaration {
 }
 
 /// A module declaration block.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct ModuleDeclaration {
     /// The expressions inside the module body.
     pub expressions: Vec<LocalNodeId<Expression>>,
 }
 
 /// A type declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct TypeDeclaration {
     /// The declared name.
     pub name: Name,
@@ -74,7 +74,7 @@ pub struct TypeDeclaration {
 }
 
 /// A struct declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct StructDeclaration {
     /// The declared name.
     pub name: Name,
@@ -95,7 +95,7 @@ pub struct StructDeclaration {
 }
 
 /// A class declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct ClassDeclaration {
     /// The declared name.
     pub name: Option<Name>,
@@ -122,7 +122,7 @@ pub struct ClassDeclaration {
 }
 
 /// An enum declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct EnumDeclaration {
     /// The declared name.
     pub name: Option<Name>,
@@ -145,7 +145,7 @@ pub struct EnumDeclaration {
 }
 
 /// An interface declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct InterfaceDeclaration {
     /// The declared name.
     pub name: Option<Name>,
@@ -168,7 +168,7 @@ pub struct InterfaceDeclaration {
 }
 
 /// An extension declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct ExtensionDeclaration {
     /// The declared name.
     pub name: Option<Name>,
@@ -189,7 +189,7 @@ pub struct ExtensionDeclaration {
 }
 
 /// A function declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct FunctionDeclaration {
     /// The declared name.
     pub name: Option<Name>,
@@ -204,7 +204,7 @@ pub struct FunctionDeclaration {
 }
 
 /// Declaration introduces a type or such into a scope.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum Declaration {
     /// Global declaration block.
     Global(GlobalDeclaration),
@@ -345,6 +345,21 @@ impl Declaration {
         }
     }
 
+    /// Return the mutable declaration name.
+    #[inline]
+    pub fn name_mut(&mut self) -> Option<&mut Name> {
+        match self {
+            Declaration::Global(_) | Declaration::Module(_) => None,
+            Declaration::Type(declaration) => Some(&mut declaration.name),
+            Declaration::Struct(declaration) => Some(&mut declaration.name),
+            Declaration::Class(declaration) => declaration.name.as_mut(),
+            Declaration::Enum(declaration) => declaration.name.as_mut(),
+            Declaration::Interface(declaration) => declaration.name.as_mut(),
+            Declaration::Extension(declaration) => declaration.name.as_mut(),
+            Declaration::Function(declaration) => declaration.name.as_mut(),
+        }
+    }
+
     /// Return the declaration kind name for display.
     #[inline]
     pub fn kind_name(&self) -> &'static str {
@@ -448,7 +463,7 @@ impl Declaration {
 }
 
 /// An enum field.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct EnumField {
     /// The name of the enum field.
     pub name: Name,

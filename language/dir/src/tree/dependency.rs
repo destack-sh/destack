@@ -3,7 +3,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ExportKey, ExportSelector, Expression, LocalNodeId, Name, Node, NodeType, StaticKey, SymbolKind,
+    ExportKey, ExportSelector, Expression, LocalNodeId, Name, Node, NodeFold, NodeType, StaticKey,
+    SymbolKind,
 };
 
 /// How one dependency item binds into the local module.
@@ -27,7 +28,7 @@ pub enum ExportKind {
 }
 
 /// A dependency item imports or exports one binding from a target.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum DependencyItem {
     /// One valid dependency binding.
     ///

@@ -50,87 +50,87 @@ impl TypeFold for Selection {
     }
 }
 
-/// Walk every selection one checked value records.
-pub trait WalkSelections {
+/// Visit every selection one checked value records.
+pub trait SelectionVisit {
     /// Visit every selection this value records.
-    fn for_each_selection(&self, visit: &mut dyn FnMut(&Selection));
+    fn visit_selections(&self, visit: &mut dyn FnMut(&Selection));
 }
 
-impl WalkSelections for Selection {
-    fn for_each_selection(&self, visit: &mut dyn FnMut(&Selection)) {
+impl SelectionVisit for Selection {
+    fn visit_selections(&self, visit: &mut dyn FnMut(&Selection)) {
         visit(self);
     }
 }
 
-impl<T: WalkSelections> WalkSelections for Option<T> {
-    fn for_each_selection(&self, visit: &mut dyn FnMut(&Selection)) {
+impl<T: SelectionVisit> SelectionVisit for Option<T> {
+    fn visit_selections(&self, visit: &mut dyn FnMut(&Selection)) {
         if let Some(value) = self {
-            value.for_each_selection(visit);
+            value.visit_selections(visit);
         }
     }
 }
 
-impl<T: WalkSelections> WalkSelections for Box<T> {
-    fn for_each_selection(&self, visit: &mut dyn FnMut(&Selection)) {
-        self.as_ref().for_each_selection(visit);
+impl<T: SelectionVisit> SelectionVisit for Box<T> {
+    fn visit_selections(&self, visit: &mut dyn FnMut(&Selection)) {
+        self.as_ref().visit_selections(visit);
     }
 }
 
-impl<T: WalkSelections> WalkSelections for Vec<T> {
-    fn for_each_selection(&self, visit: &mut dyn FnMut(&Selection)) {
+impl<T: SelectionVisit> SelectionVisit for Vec<T> {
+    fn visit_selections(&self, visit: &mut dyn FnMut(&Selection)) {
         for value in self {
-            value.for_each_selection(visit);
+            value.visit_selections(visit);
         }
     }
 }
 
-impl<T: WalkSelections, const N: usize> WalkSelections for [T; N] {
-    fn for_each_selection(&self, visit: &mut dyn FnMut(&Selection)) {
+impl<T: SelectionVisit, const N: usize> SelectionVisit for [T; N] {
+    fn visit_selections(&self, visit: &mut dyn FnMut(&Selection)) {
         for value in self {
-            value.for_each_selection(visit);
+            value.visit_selections(visit);
         }
     }
 }
 
-impl<A: Array> WalkSelections for SmallVec<A>
+impl<A: Array> SelectionVisit for SmallVec<A>
 where
-    A::Item: WalkSelections,
+    A::Item: SelectionVisit,
 {
-    fn for_each_selection(&self, visit: &mut dyn FnMut(&Selection)) {
+    fn visit_selections(&self, visit: &mut dyn FnMut(&Selection)) {
         for value in self {
-            value.for_each_selection(visit);
+            value.visit_selections(visit);
         }
     }
 }
 
-impl<A: WalkSelections, B: WalkSelections> WalkSelections for (A, B) {
-    fn for_each_selection(&self, visit: &mut dyn FnMut(&Selection)) {
-        self.0.for_each_selection(visit);
-        self.1.for_each_selection(visit);
+impl<A: SelectionVisit, B: SelectionVisit> SelectionVisit for (A, B) {
+    fn visit_selections(&self, visit: &mut dyn FnMut(&Selection)) {
+        self.0.visit_selections(visit);
+        self.1.visit_selections(visit);
     }
 }
 
-impl<T: Node> WalkSelections for GlobalNodeId<T> {
-    fn for_each_selection(&self, _visit: &mut dyn FnMut(&Selection)) {}
+impl<T: Node> SelectionVisit for GlobalNodeId<T> {
+    fn visit_selections(&self, _visit: &mut dyn FnMut(&Selection)) {}
 }
 
-impl<T: Node> WalkSelections for LocalNodeId<T> {
-    fn for_each_selection(&self, _visit: &mut dyn FnMut(&Selection)) {}
+impl<T: Node> SelectionVisit for LocalNodeId<T> {
+    fn visit_selections(&self, _visit: &mut dyn FnMut(&Selection)) {}
 }
 
-/// Declare the values one selection walk passes over.
-macro_rules! selection_walk_leaves {
+/// Declare the values one selection visit passes over.
+macro_rules! selection_visit_leaves {
     ($($ty:ty),* $(,)?) => {
         $(
-            impl WalkSelections for $ty {
-                fn for_each_selection(&self, _visit: &mut dyn FnMut(&Selection)) {}
+            impl SelectionVisit for $ty {
+                fn visit_selections(&self, _visit: &mut dyn FnMut(&Selection)) {}
             }
         )*
     };
 }
 
 // scalars, identifiers, types, bindings, and checked tags record no selection
-selection_walk_leaves!(
+selection_visit_leaves!(
     bool,
     u32,
     u64,

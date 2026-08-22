@@ -10,7 +10,7 @@ mod table;
 mod tree;
 mod r#type;
 
-pub use destack_dir_macros::{TypeFold, WalkSelections};
+pub use destack_dir_macros::{NodeFold, SelectionVisit, TypeFold};
 pub use index::*;
 pub use schema::*;
 pub use source::*;

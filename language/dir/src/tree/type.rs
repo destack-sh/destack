@@ -3,13 +3,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Expression, FunctionSignature, GenericArgument, GenericParameter, Literal, LocalNodeId,
-    MemberSlot, MemberSpace, Mutability, Name, Node, NodeType, Parameter, Path, RangeEnd,
+    MemberSlot, MemberSpace, Mutability, Name, Node, NodeFold, NodeType, Parameter, Path, RangeEnd,
     ScopeKind, StaticKey, StringId, SymbolKind, ThisForm, TupleElement, TupleForm, TypeLiteral,
     VarianceBound, WhereClause,
 };
 
 /// One type-surface member.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum TypeMember {
     /// Named field.
     Field {
@@ -223,7 +223,7 @@ impl TypeMember {
 }
 
 /// A mapped type parameter.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct TypeMappedParameter {
     /// The parameter name.
     pub name: StringId,
@@ -267,7 +267,7 @@ impl MappedTypeModifier {
 }
 
 /// One function type expression in type space.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct FunctionTypeExpression {
     /// The generic parameters of the function type.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
@@ -291,7 +291,7 @@ impl FunctionTypeExpression {
 }
 
 /// One constructor type in type space.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub struct ConstructorType {
     /// The generic parameters of the constructor type.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
@@ -322,7 +322,7 @@ pub enum InferForm {
 }
 
 /// A type-space expression.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum TypeExpression {
     /// Scalar literal type.
     ///

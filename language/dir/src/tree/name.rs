@@ -15,6 +15,24 @@ pub enum Name {
 }
 
 impl Name {
+    /// Return the string identifier when this name is textual.
+    #[inline]
+    pub fn as_string_id(&self) -> Option<StringId> {
+        match self {
+            Name::Identifier(id) | Name::String(id) => Some(*id),
+            Name::Index(_) => None,
+        }
+    }
+
+    /// Return the mutable string identifier when this name is textual.
+    #[inline]
+    pub fn as_string_id_mut(&mut self) -> Option<&mut StringId> {
+        match self {
+            Name::Identifier(id) | Name::String(id) => Some(id),
+            Name::Index(_) => None,
+        }
+    }
+
     /// Return the string identifier.
     #[inline]
     pub fn string(&self) -> StringId {

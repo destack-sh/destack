@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use destack_core::StringPool;
 
 use crate::{
-    Argument, Expression, FloatType, IntegerType, LanguageItem, LocalNodeId, Name, Node, NodeType,
-    PrimitiveType, RangeType, ScalarAlias, ScalarDomain, StringId, Type,
+    Argument, Expression, FloatType, IntegerType, LanguageItem, LocalNodeId, Name, Node, NodeFold,
+    NodeType, PrimitiveType, RangeType, ScalarAlias, ScalarDomain, StringId, Type,
 };
 
 /// A Literal is literal scalar value.
@@ -277,7 +277,7 @@ impl Literal {
 }
 
 /// A tree tag attribute.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum TreeAttribute {
     /// Named attribute with an optional value.
     Named {
@@ -295,7 +295,7 @@ impl Node for TreeAttribute {
 }
 
 /// The value form of a tree tag attribute.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum TreeAttributeValue {
     /// Quoted string attribute value.
     String(StringId),
@@ -325,7 +325,7 @@ impl TreeAttributeValue {
 }
 
 /// A tree child.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum TreeChild {
     /// Raw tree text.
     Text { value: StringId },
@@ -435,7 +435,7 @@ impl Hash for Literal {
 /// sql`${stmt}`
 /// sql.expr`SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum TemplateLiteral {
     /// Template string value.
     String { chunk: TemplateChunk },
