@@ -153,15 +153,16 @@ async fn test_query_successive_typed_revisions() {
         .await;
 }
 
-/// Query successive editor revisions of the authored Builtin Package.
+/// Query incomplete binding revisions before a decorated declaration.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn test_query_authored_builtin_while_typing() {
+async fn test_query_incomplete_binding_before_decorator() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../library");
     let root = fs::canonicalize(root).unwrap();
-    let path = root.join("src/fs/fs.ds");
-    let source = fs::read_to_string(&path).unwrap();
+    let path = root.join("src/memory/capability.ds");
+    let library = fs::read_to_string(&path).unwrap();
+    let source = format!("\n{library}");
     let document = TestDocument::from(path.as_path());
-    let mut server = TestServer::new("authored-builtin-typing");
+    let mut server = TestServer::new("incomplete-binding-before-decorator");
     server
         .initialize_workspace(&root, lsp::ClientCapabilities::default(), None)
         .await
@@ -172,31 +173,34 @@ async fn test_query_authored_builtin_while_typing() {
         .type_text(&document, 1, position(0, 0), "declare const x")
         .await;
 
-    // overlap authored Builtin Package queries with the completing revisions
-    let outline = server
-        .start_request::<lsp::request::DocumentSymbolRequest>(document.outline())
-        .await;
-    let hints = server
-        .start_request::<lsp::request::InlayHintRequest>(document.inlay_hints(range(
+    // query the untyped binding revision
+    server
+        .request::<lsp::request::DocumentSymbolRequest>(document.outline())
+        .await
+        .unwrap();
+
+    // query the missing annotation revision before its decorated neighbor
+    let (version, cursor) = server.type_text(&document, version, cursor, ":").await;
+    server
+        .request::<lsp::request::SemanticTokensFullRequest>(document.semantic_tokens())
+        .await
+        .unwrap();
+    server
+        .request::<lsp::request::InlayHintRequest>(document.inlay_hints(range(
             0,
             0,
             0,
             cursor.character,
         )))
-        .await;
-    let tokens = server
-        .start_request::<lsp::request::SemanticTokensFullRequest>(document.semantic_tokens())
-        .await;
+        .await
+        .unwrap();
+
+    // complete the binding
     let (version, cursor) = server
-        .type_text(&document, version, cursor, ": Clone;")
+        .type_text(&document, version, cursor, " Clone;")
         .await;
 
-    // accept completed results and explicit supersession
-    outline.wait_or_content_modified().await;
-    hints.wait_or_content_modified().await;
-    tokens.wait_or_content_modified().await;
-
-    // query the final authored Builtin Package revision
+    // query the complete revision
     server
         .request::<lsp::request::DocumentSymbolRequest>(document.outline())
         .await
@@ -219,6 +223,30 @@ async fn test_query_authored_builtin_while_typing() {
     server
         .assert_diagnostics(&document, version, Vec::new())
         .await;
+
+    // request member completion on the declared value
+    let (_version, cursor) = server.type_text(&document, version, cursor, "\nx.").await;
+    server
+        .request::<lsp::request::Completion>(document.completion(cursor))
+        .await
+        .unwrap();
+    server
+        .request::<lsp::request::DocumentSymbolRequest>(document.outline())
+        .await
+        .unwrap();
+    server
+        .request::<lsp::request::SemanticTokensFullRequest>(document.semantic_tokens())
+        .await
+        .unwrap();
+    server
+        .request::<lsp::request::InlayHintRequest>(document.inlay_hints(range(
+            0,
+            0,
+            cursor.line,
+            cursor.character,
+        )))
+        .await
+        .unwrap();
 }
 
 /// Apply one ordered batch of ranged edits using UTF-16 source positions.
