@@ -9,6 +9,46 @@ const DISCARDING_ADAPTER_METHODS: &[&str] = &["take", "takeWhile", "drop", "drop
 const PREDICATE_SELECTOR_METHODS: &[&str] = &["find"];
 const ARGUMENTLESS_SELECTOR_METHODS: &[&str] = &["first", "last"];
 
+declare_lint! {
+    /// Delay iterator cloning until after operations that discard elements.
+    pub ITER_OVEREAGER_CLONED {
+        id: "iter-overeager-cloned",
+        summary: "Delay iterator cloning until after operations that discard elements",
+        explanation: r#"
+Cloning iterator values before filtering or selection may clone values that the operation discards.
+Instead, you SHOULD apply `cloned` after filtering or limiting adapters and clone only values returned by terminal selectors.
+"#,
+        example: {
+            reported: r#"
+import { Iterator } from "destack:iter";
+
+struct Label {
+    values: ^int32[];
+}
+
+function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
+    return values.cloned().take(count);
+}
+"#,
+            accepted: r#"
+import { Iterator } from "destack:iter";
+
+struct Label {
+    values: ^int32[];
+}
+
+function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
+    return values.take(count).cloned();
+}
+"#,
+        },
+        category: Performance,
+        level: Warning,
+        fixable: Suggestion,
+        check: DirModule(check),
+    }
+}
+
 /// One iterator operation after which cloning can be delayed.
 #[derive(Debug, Clone, Copy)]
 enum DiscardingOperation {
@@ -97,46 +137,6 @@ impl DiscardingOperation {
         };
 
         Some(*value)
-    }
-}
-
-declare_lint! {
-    /// Delay iterator cloning until after operations that discard elements.
-    pub ITER_OVEREAGER_CLONED {
-        id: "iter-overeager-cloned",
-        summary: "Delay iterator cloning until after operations that discard elements",
-        explanation: r#"
-Cloning iterator values before filtering or selection may clone values that the operation discards.
-Instead, you SHOULD apply `cloned` after filtering or limiting adapters and clone only values returned by terminal selectors.
-"#,
-        example: {
-            reported: r#"
-import { Iterator } from "destack:iter";
-
-struct Label {
-    values: ^int32[];
-}
-
-function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
-    return values.cloned().take(count);
-}
-"#,
-            accepted: r#"
-import { Iterator } from "destack:iter";
-
-struct Label {
-    values: ^int32[];
-}
-
-function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
-    return values.take(count).cloned();
-}
-"#,
-        },
-        category: Performance,
-        level: Warning,
-        fixable: Suggestion,
-        check: DirModule(check),
     }
 }
 

@@ -5,6 +5,34 @@ use destack_source::{DiagnosticSuggestion, FilePatch};
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
+declare_lint! {
+    /// Prefer positive conditions when both branches are present.
+    pub NO_NEGATED_CONDITION {
+        id: "no-negated-condition",
+        summary: "Prefer positive conditions when both branches are present",
+        explanation: r#"
+A negated condition assigns the positive case to the second of two explicit branches.
+Instead, you SHOULD remove the negation and exchange the branches.
+"#,
+        example: {
+            reported: r#"
+function status(isReady: boolean): string {
+    return !isReady ? "waiting" : "ready";
+}
+"#,
+            accepted: r#"
+function status(isReady: boolean): string {
+    return isReady ? "ready" : "waiting";
+}
+"#,
+        },
+        category: Style,
+        level: Warning,
+        fixable: Automatic,
+        check: DirModule(check),
+    }
+}
+
 /// One authored negation that can be stated positively.
 #[derive(Debug, Clone, Copy)]
 enum Negation {
@@ -39,34 +67,6 @@ impl Negation {
         };
 
         Ok(Some(negation))
-    }
-}
-
-declare_lint! {
-    /// Prefer positive conditions when both branches are present.
-    pub NO_NEGATED_CONDITION {
-        id: "no-negated-condition",
-        summary: "Prefer positive conditions when both branches are present",
-        explanation: r#"
-A negated condition assigns the positive case to the second of two explicit branches.
-Instead, you SHOULD remove the negation and exchange the branches.
-"#,
-        example: {
-            reported: r#"
-function status(isReady: boolean): string {
-    return !isReady ? "waiting" : "ready";
-}
-"#,
-            accepted: r#"
-function status(isReady: boolean): string {
-    return isReady ? "ready" : "waiting";
-}
-"#,
-        },
-        category: Style,
-        level: Warning,
-        fixable: Automatic,
-        check: DirModule(check),
     }
 }
 

@@ -6,32 +6,6 @@ use destack_source::Patch;
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
-declare_lint! {
-    /// Disallow numeric literals that approximate well-known constants.
-    pub NO_APPROX_CONSTANT {
-        id: "no-approx-constant",
-        summary: "Disallow numeric literals that approximate well-known constants",
-        explanation: r#"
-A decimal approximation can contain fewer significant digits than the corresponding standard-library constant.
-Instead, you SHOULD use the corresponding `Math` member.
-"#,
-        example: {
-            reported: r#"
-declare const radius: number;
-const circumference = 2.0 * 3.14 * radius;
-"#,
-            accepted: r#"
-declare const radius: number;
-const circumference = 2.0 * Math.PI * radius;
-"#,
-        },
-        category: Correctness,
-        level: Warning,
-        fixable: Suggestion,
-        check: DirModule(check),
-    }
-}
-
 const KNOWN_CONSTANTS: [KnownConstant; 8] = [
     KnownConstant {
         value: consts::E,
@@ -74,6 +48,32 @@ const KNOWN_CONSTANTS: [KnownConstant; 8] = [
         minimum_digits: 5,
     },
 ];
+
+declare_lint! {
+    /// Disallow numeric literals that approximate well-known constants.
+    pub NO_APPROX_CONSTANT {
+        id: "no-approx-constant",
+        summary: "Disallow numeric literals that approximate well-known constants",
+        explanation: r#"
+A decimal approximation can contain fewer significant digits than the corresponding standard-library constant.
+Instead, you SHOULD use the corresponding `Math` member.
+"#,
+        example: {
+            reported: r#"
+declare const radius: number;
+const circumference = 2.0 * 3.14 * radius;
+"#,
+            accepted: r#"
+declare const radius: number;
+const circumference = 2.0 * Math.PI * radius;
+"#,
+        },
+        category: Correctness,
+        level: Warning,
+        fixable: Suggestion,
+        check: DirModule(check),
+    }
+}
 
 /// One canonical mathematical constant recognized from decimal literals.
 #[derive(Debug, Clone, Copy)]

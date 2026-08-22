@@ -6,20 +6,6 @@ use destack_source::Span;
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
-/// One name that repeats its owner.
-struct OwnerRepetition {
-    /// The repeated name span.
-    span: Span,
-    /// The repeated declaration name.
-    name: String,
-    /// The repeated owner name.
-    owner: String,
-    /// The removable authored segment.
-    repeated: String,
-    /// The declaration kind.
-    noun: &'static str,
-}
-
 declare_lint! {
     /// Disallow names that repeat their type or module owner.
     pub REDUNDANT_OWNER_NAME {
@@ -50,6 +36,20 @@ enum Color {
         fixable: None,
         check: DirModule(check),
     }
+}
+
+/// One name that repeats its owner.
+struct OwnerRepetition {
+    /// The repeated name span.
+    span: Span,
+    /// The repeated declaration name.
+    name: String,
+    /// The repeated owner name.
+    owner: String,
+    /// The removable authored segment.
+    repeated: String,
+    /// The declaration kind.
+    noun: &'static str,
 }
 
 /// Report declarations and members repeating their nearest named owner.

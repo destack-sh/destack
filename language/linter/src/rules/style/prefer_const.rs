@@ -6,18 +6,6 @@ use destack_source::{NodeSpanRegion, Patch};
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
-/// One mutable binding declared by a let expression.
-struct LetBinding {
-    /// The let expression that owns the binding.
-    declaration: dir::LocalNodeId<dir::Expression>,
-    /// The node that introduces the binding.
-    node: dir::LocalNodeIdAny,
-    /// The checked binding symbol.
-    symbol: dir::LocalSymbolId,
-    /// Whether the declarator initializes the binding.
-    is_initialized: bool,
-}
-
 declare_lint! {
     /// Require const for bindings never reassigned after initialization.
     pub PREFER_CONST {
@@ -48,6 +36,18 @@ function identity(value: int32): int32 {
         fixable: Automatic,
         check: DirModule(check),
     }
+}
+
+/// One mutable binding declared by a let expression.
+struct LetBinding {
+    /// The let expression that owns the binding.
+    declaration: dir::LocalNodeId<dir::Expression>,
+    /// The node that introduces the binding.
+    node: dir::LocalNodeIdAny,
+    /// The checked binding symbol.
+    symbol: dir::LocalSymbolId,
+    /// Whether the declarator initializes the binding.
+    is_initialized: bool,
 }
 
 /// Report mutable bindings whose storage does not require further writes.
