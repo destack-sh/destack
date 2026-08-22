@@ -104,9 +104,7 @@ impl CheckState<'_> {
         }
 
         // describe each grown root so replay sites reopen equal variables
-        let Some(holes) = self.hole_contents(&mut renaming, canonical.holes.len(), false)? else {
-            return Ok(None);
-        };
+        let holes = self.hole_contents(&mut renaming, canonical.holes.len())?;
 
         Ok(Some(Response {
             value,
@@ -130,21 +128,8 @@ impl CheckState<'_> {
             live_holes.push(self.allocate_variable_of(origin, hole.kind, hole.role));
         }
 
-        // complete each reopened hole with its recorded default
-        let mut memo = FxIndexMap::default();
-        for (hole, variable) in response
-            .holes
-            .iter()
-            .zip(&live_holes[canonical.holes.len()..])
-        {
-            if let Some(default) = hole.default {
-                let default =
-                    self.instantiate_response_type(default, &live_holes, canonical, &mut memo)?;
-                self.set_variable_default(*variable, default);
-            }
-        }
-
         // bind what the decision solved of the ask's own holes
+        let mut memo = FxIndexMap::default();
         for (root, solution) in canonical.holes.iter().zip(&response.solutions) {
             let Some(solution) = solution else {
                 continue;
@@ -196,7 +181,8 @@ impl CheckState<'_> {
     }
 
     /// Reopen one carried type when it reaches a hole or renamed parameter.
-    fn instantiate_response_type(
+    /// The live holes list the ask's roots first, then the reopened answer roots.
+    pub(in crate::sema) fn instantiate_response_type(
         &mut self,
         ty: dir::GlobalTypeId,
         live_holes: &[dir::TypeVariableId],

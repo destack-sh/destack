@@ -663,6 +663,10 @@ impl CheckState<'_> {
             if !visited.insert(id) {
                 continue;
             }
+            // skip closed subtrees, which carry no variable to collect
+            if !self.type_flags(id)?.has_variable() {
+                continue;
+            }
 
             let ty = self.ty_raw(id)?;
 

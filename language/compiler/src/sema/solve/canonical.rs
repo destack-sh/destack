@@ -5,8 +5,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Ask, BoundSet, BoundSetId, BoundSide, Callee, CheckState, GenericParameterId, Hole, Origin,
-    Premise, PremiseParameter, Question, TypeBound, VariableRole,
+    Ask, BoundSet, BoundSetId, Callee, CheckState, GenericParameterId, Hole, Origin, Premise,
+    PremiseParameter, Question,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -23,6 +23,15 @@ pub(in crate::sema) struct Canonical {
     pub(in crate::sema) parameters: SmallVec<[dir::GlobalTypeId; 4]>,
     /// The assumptions the renamed parameters decide under.
     pub(in crate::sema) premise: Premise,
+}
+
+/// One memoized canonical form with the hole state it was folded under.
+#[derive(Debug, Clone)]
+pub(in crate::sema) struct CanonicalEntry {
+    /// The memoized canonical form, absent for refused settled pairs.
+    canonical: Option<Arc<Canonical>>,
+    /// The open roots the fold numbered, invalidating the entry when one closes.
+    holes: SmallVec<[dir::TypeVariableId; 4]>,
 }
 
 /// The renaming one canonicalization threads through its folds.
@@ -142,24 +151,49 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
-        // serve the memo for settled pairs
-        let scope = if is_settled && (flags.has_parameter() || flags.has_this()) {
+        // serve the memo while every hole still carries the folded state
+        let scope = if flags.has_parameter() || flags.has_this() {
             self.assuming_scope(origin)?
         } else {
             None
         };
         let key = (resolved, scope);
-        if is_settled && let Some(cached) = self.canonicals.get(&key) {
-            return Ok(cached.clone());
+        if let Some(entry) = self.canonicals.get(&key)
+            && self.is_entry_live(entry)?
+        {
+            return Ok(entry.canonical.clone());
         }
 
         let (canonical, cacheable) = self.canonicalize_operands(origin, &resolved)?;
         let canonical = canonical.map(Arc::new);
-        if is_settled && cacheable {
-            self.canonicals.insert(key, canonical.clone());
+
+        // memoize settled forms freely and open forms with their numbered roots
+        if cacheable && (is_settled || canonical.is_some()) {
+            let holes = match &canonical {
+                Some(canonical) => canonical.holes.clone(),
+                None => SmallVec::new(),
+            };
+            self.canonicals.insert(
+                key,
+                CanonicalEntry {
+                    canonical: canonical.clone(),
+                    holes,
+                },
+            );
         }
 
         Ok(canonical)
+    }
+
+    /// Return whether one memoized canonical form still matches its holes' state.
+    fn is_entry_live(&self, entry: &CanonicalEntry) -> CompilerResult<bool> {
+        for root in &entry.holes {
+            if !self.infer.variable(*root)?.state.is_open() {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
     }
 
     /// Canonicalize one operand list so equal questions look equal.
@@ -204,11 +238,8 @@ impl CheckState<'_> {
             canonical_operands.push(operand);
         }
 
-        // fold the numbered holes' carried bound content into the premise
-        let Some(holes) = self.hole_contents(&mut renaming, 0, true)? else {
-            return Ok((None, true));
-        };
-        let is_bounded = holes.iter().any(Hole::is_bound);
+        // number the holes bare, keeping kinds and roles while live bounds stay out
+        let holes = self.hole_contents(&mut renaming, 0)?;
         flags |= if renaming.parameters.is_empty() {
             dir::TypeFlags::EMPTY
         } else {
@@ -216,7 +247,7 @@ impl CheckState<'_> {
         };
 
         // decide settled operands freely
-        let premise = if !flags.has_parameter() && !flags.has_this() && !is_bounded {
+        let premise = if !flags.has_parameter() && !flags.has_this() && holes.is_empty() {
             Premise::Free
         }
         // refuse assumed operands while declaring, whose templates are still forming
@@ -225,13 +256,9 @@ impl CheckState<'_> {
         }
         // scope operands that mention this, which carry no hole content
         else if flags.has_this() {
-            if is_bounded {
-                return Ok((None, true));
-            }
-
             Premise::Scope(self.assuming_scope(origin)?)
         }
-        // intern the bounds the renamed parameters assume
+        // intern the assumed parameter bounds with the numbered holes' shapes
         else {
             let parameters = if renaming.parameters.is_empty() {
                 Some(Premise::Bounds(BoundSetId(
@@ -241,7 +268,7 @@ impl CheckState<'_> {
                 self.intern_premise(origin, &mut renaming)?
             };
             match parameters {
-                // extend the interned bound set with the numbered hole content
+                // extend the interned bound set with the numbered hole shapes
                 Some(Premise::Bounds(index)) => {
                     let mut content = self
                         .bound_sets
@@ -254,10 +281,6 @@ impl CheckState<'_> {
                     let (combined, _) = self.bound_sets.insert_full(content);
 
                     Premise::Bounds(BoundSetId(combined as u32))
-                }
-                // refuse a bounded ask no interned premise can carry
-                Some(Premise::Free | Premise::Scope(_)) | None if is_bounded => {
-                    return Ok((None, true));
                 }
                 // fall back to the assuming template
                 Some(Premise::Free | Premise::Scope(_)) | None => {
@@ -314,10 +337,7 @@ impl CheckState<'_> {
 
         // number each named generic parameter
         if flags.has_parameter() && !renaming.keeps_raw_parameters {
-            let Some(parameters) = self.mentioned_parameters(ty)? else {
-                return Ok(None);
-            };
-            for parameter in parameters {
+            for parameter in self.mentioned_parameters(ty)? {
                 if renaming.parameters.contains_key(&parameter) {
                     continue;
                 }
@@ -341,7 +361,7 @@ impl CheckState<'_> {
     fn mentioned_parameters(
         &self,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<SmallVec<[GenericParameterId; 4]>>> {
+    ) -> CompilerResult<SmallVec<[GenericParameterId; 4]>> {
         let mut parameters = SmallVec::new();
         let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::from_slice(&[id]);
         let mut visited = FxIndexSet::default();
@@ -358,14 +378,14 @@ impl CheckState<'_> {
                         parameters.push(parameter);
                     }
                 }
-                // refuse a type carrying an answer-owned generic
-                dir::Type::Erased(_) => return Ok(None),
+                // keep answer-owned placeholders verbatim
+                dir::Type::Erased(_) => {}
                 // descend into every other type's children
                 _ => self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?,
             }
         }
 
-        Ok(Some(parameters))
+        Ok(parameters)
     }
 
     /// Intern the bound content one question's renamed parameters assume.
@@ -433,12 +453,8 @@ impl CheckState<'_> {
                 if included[index] {
                     continue;
                 }
-                let Some(left) = self.mentioned_parameters(predicate.left)? else {
-                    return Ok(None);
-                };
-                let Some(right) = self.mentioned_parameters(predicate.right)? else {
-                    return Ok(None);
-                };
+                let left = self.mentioned_parameters(predicate.left)?;
+                let right = self.mentioned_parameters(predicate.right)?;
                 let mentions = left
                     .iter()
                     .chain(right.iter())
@@ -507,12 +523,11 @@ impl CheckState<'_> {
         &mut self,
         renaming: &mut Renaming,
         from: usize,
-        bounds: bool,
-    ) -> CompilerResult<Option<SmallVec<[Hole; 2]>>> {
+    ) -> CompilerResult<SmallVec<[Hole; 2]>> {
         let mut holes = SmallVec::new();
         let mut next = from;
         while next < renaming.holes.len() {
-            // pull each numbered hole's carried content once
+            // pull each numbered hole's carried shape once
             let Some((root, _)) = renaming.holes.get_index(next) else {
                 return Err(CompilerError::Internal {
                     message: format!("renamed hole {next} left the numbering"),
@@ -521,76 +536,12 @@ impl CheckState<'_> {
             let root = *root;
             next += 1;
 
-            // keep memory roots bare, refusing unsettled constraint ids
-            let role = self.infer.variable_role(root)?;
-            let is_bare = !bounds
-                || match role {
-                    // memory content re-derives per site under verify
-                    VariableRole::Memory { constraint, .. } => {
-                        if let Some(constraint) = constraint {
-                            let flags = self.type_flags(constraint)?;
-                            if flags.has_variable() || flags.has_parameter() || flags.has_this() {
-                                return Ok(None);
-                            }
-                        }
-
-                        true
-                    }
-                    // memory parameters carry their bounds at their site
-                    VariableRole::Instantiation { parameter } => self
-                        .generic_parameter(parameter)
-                        .is_some_and(|binding| binding.memory_parameter().is_some()),
-                    // every other root carries its live bounds
-                    _ => false,
-                };
-            if is_bare {
-                holes.push(Hole {
-                    lower: SmallVec::new(),
-                    upper: SmallVec::new(),
-                    default: None,
-                    kind: self.infer.variable(root)?.kind,
-                    role,
-                });
-
-                continue;
-            }
-
-            // fold each side's live bounds before renaming reaches more holes
-            let declared = self.infer.variables.variable_default(root);
-            let mut sides = [SmallVec::new(), SmallVec::new()];
-            for (side, folded) in [BoundSide::Lower, BoundSide::Upper]
-                .into_iter()
-                .zip(&mut sides)
-            {
-                let bounds: SmallVec<[TypeBound; 2]> =
-                    self.infer.variables.side_bounds(root, side)?.collect();
-                for bound in bounds {
-                    let Some(ty) = self.canonical_operand(bound.ty, renaming)? else {
-                        return Ok(None);
-                    };
-                    folded.push((bound.relation, ty));
-                }
-            }
-            let [lower, upper] = sides;
-
-            // fold the declared default the root solves toward
-            let default = match declared {
-                Some(default) => match self.canonical_operand(default, renaming)? {
-                    Some(default) => Some(default),
-                    None => return Ok(None),
-                },
-                None => None,
-            };
-
             holes.push(Hole {
-                lower,
-                upper,
-                default,
                 kind: self.infer.variable(root)?.kind,
-                role,
+                role: self.infer.variable_role(root)?,
             });
         }
 
-        Ok(Some(holes))
+        Ok(holes)
     }
 }

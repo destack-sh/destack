@@ -36,6 +36,8 @@ pub(in crate::sema) struct CheckCounters {
     pub(in crate::sema) member_derivations: u64,
     /// Member lookups refusing canonical form.
     pub(in crate::sema) member_refusals: u64,
+    /// Member collections closed coinductively.
+    pub(in crate::sema) extension_reentries: u64,
 }
 
 /// Derived size counters for one checked module.

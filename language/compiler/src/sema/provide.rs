@@ -374,6 +374,9 @@ impl Compiler {
         context.emit_counter("check.interns", counters.interns);
         context.emit_counter("check.reduces", counters.reduces);
         context.emit_counter("check.instantiations", counters.instantiations);
+        context.emit_counter("check.member_derivations", counters.member_derivations);
+        context.emit_counter("check.member_replays", counters.member_replays);
+        context.emit_counter("check.member_refusals", counters.member_refusals);
 
         // emit the stats sidecar when the options ask for it
         if options.emit_stats {

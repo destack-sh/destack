@@ -93,6 +93,8 @@ pub(in crate::sema) enum Answer {
     Member(Arc<Response<MemberLookup>>),
     /// The selected union arm by target position, exact or converted, or its failure.
     Arm(Result<(u16, bool), CheckFailure>),
+    /// The evaluation stayed undecided, so sites decide in place.
+    Undecided,
     /// The callable decision one canonical operand list selected.
     Selection(Arc<Response<Selected>>),
 }
@@ -182,23 +184,10 @@ pub(in crate::sema) struct BoundSet {
 /// One numbered open root's carried content, shared by asks and answers.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(in crate::sema) struct Hole {
-    /// The canonical lower bounds with their relations.
-    pub(in crate::sema) lower: SmallVec<[(Relation, dir::GlobalTypeId); 2]>,
-    /// The canonical upper bounds with their relations.
-    pub(in crate::sema) upper: SmallVec<[(Relation, dir::GlobalTypeId); 2]>,
-    /// The canonical declared default.
-    pub(in crate::sema) default: Option<dir::GlobalTypeId>,
     /// What the root ranges over.
     pub(in crate::sema) kind: VariableKind,
     /// The special role the root carries.
     pub(in crate::sema) role: VariableRole,
-}
-
-impl Hole {
-    /// Return whether this hole carries any bound or default.
-    pub(super) fn is_bound(&self) -> bool {
-        !self.lower.is_empty() || !self.upper.is_empty() || self.default.is_some()
-    }
 }
 
 impl dir::TypeFold for Implementation {

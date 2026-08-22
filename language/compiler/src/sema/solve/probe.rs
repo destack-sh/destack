@@ -82,6 +82,18 @@ impl BodyState<'_, '_> {
         self.check.finish_probe(mark, outcome)
     }
 
+    /// Evaluate one closure under a rollback, keeping only its returned value.
+    pub(in crate::sema) fn evaluate_discarding<T>(
+        &mut self,
+        evaluate: impl FnOnce(&mut Self) -> CompilerResult<T>,
+    ) -> CompilerResult<T> {
+        let mark = self.check.open_probe();
+        let value = evaluate(self);
+        self.check.end_probe(mark)?;
+
+        value
+    }
+
     /// Probe one deduction under a rollback, keeping only its refused value.
     pub(in crate::sema) fn probe_deduction<R>(
         &mut self,

@@ -2099,7 +2099,7 @@ impl BodyState<'_, '_> {
         for extension in extensions {
             let matched = self
                 .extension_subject_candidates(
-                    origin, module, root, subject, subject, extension, space, None,
+                    origin, module, subject, subject, extension, space, None,
                 )?
                 // a re-entered extension adds no keys at its own fixed point
                 .unwrap_or_default();

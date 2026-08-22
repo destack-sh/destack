@@ -13,7 +13,7 @@ use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Answer, BoundSet, Canonical, Cause, CauseId, CheckCounters, CheckModuleState, CheckTrace,
+    Answer, BoundSet, CanonicalEntry, Cause, CauseId, CheckCounters, CheckModuleState, CheckTrace,
     DecoratorApplication, ExternalModuleTable, FlowBranch, FlowState, Fulfillment, FunctionBody,
     GenericParameterId, HeritageReach, InducedParameterSite, InferContext, Origin, OriginId,
     Premise, Question, Relation, VarianceForm, VarianceState, should_stream_check_events,
@@ -158,10 +158,8 @@ pub(in crate::sema) struct CheckState<'a> {
     /// Decided answers per canonical question, replayed on later asks.
     pub(in crate::sema) answers: FxIndexMap<Question, Answer>,
     /// Canonical operand pairs per interned operands and assuming scope.
-    pub(in crate::sema) canonicals: FxIndexMap<
-        ([dir::GlobalTypeId; 2], Option<dir::GlobalGenericTemplateId>),
-        Option<Arc<Canonical>>,
-    >,
+    pub(in crate::sema) canonicals:
+        FxIndexMap<([dir::GlobalTypeId; 2], Option<dir::GlobalGenericTemplateId>), CanonicalEntry>,
     /// Interned assumed bound sets, shared by questions with equal content.
     pub(in crate::sema) bound_sets: FxIndexSet<BoundSet>,
     /// Assumed bound content per scope and numbered parameter list.

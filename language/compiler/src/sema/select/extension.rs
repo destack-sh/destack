@@ -4,10 +4,10 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Answer, Ask, BodyState, CandidateOutcome, Cause, CauseKind, CheckOutcome, DeclaredMember,
-    ExtensionSource, GenericParameterId, GenericTemplateId, Implementation, LookupReceiver,
-    MemberCandidate, MemberLookup, Origin, ReceiverSteps, Relation, RelationCheck, Settle,
-    TypeArgumentInference, TypeSubstitution, VariableRole, Verdict,
+    Answer, Ask, BodyState, CandidateOutcome, Canonical, Cause, CauseKind, CheckOutcome,
+    DeclaredMember, ExtensionSource, GenericParameterId, GenericTemplateId, Implementation,
+    LookupReceiver, MemberCandidate, MemberLookup, Origin, Question, ReceiverSteps, Relation,
+    RelationCheck, Settle, TypeArgumentInference, TypeSubstitution, VariableRole, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -67,7 +67,6 @@ impl BodyState<'_, '_> {
             let Some(matched) = self.extension_subject_candidates(
                 origin,
                 module,
-                root,
                 receiver,
                 subject,
                 extension,
@@ -99,7 +98,7 @@ impl BodyState<'_, '_> {
         Ok(MemberLookup::from_candidates(candidates))
     }
 
-    /// Decide every extension matching one settled subject pair with its deduced arguments.
+    /// Decide every extension matching one subject pair with its deduced arguments.
     pub(in crate::sema) fn decided_extension_sources(
         &mut self,
         origin: Origin,
@@ -108,9 +107,7 @@ impl BodyState<'_, '_> {
         subject: dir::GlobalTypeId,
         root: dir::TypeRoot,
     ) -> CompilerResult<Vec<ExtensionSource>> {
-        let canonical = self
-            .check
-            .canonicalize(origin, [receiver, subject], false)?;
+        let canonical = self.check.canonicalize(origin, [receiver, subject], true)?;
         let question = match &canonical {
             Some(canonical) => Some(
                 self.check
@@ -134,76 +131,10 @@ impl BodyState<'_, '_> {
         let extensions = self.reachable_extensions(origin, module, receiver, subject, root)?;
         let mut sources = Vec::new();
         for extension in extensions {
-            // admit the present extensions visible from the asking module
-            if self.is_absent_symbol(extension) || !self.extension_is_visible(extension, module)? {
-                continue;
-            }
-
-            // replay the extension's own canonical decision
-            let extension_question = match &canonical {
-                Some(canonical) => Some(
-                    self.check
-                        .question(Ask::Extension { extension }, canonical)?,
-                ),
-                None => None,
-            };
-            if let Some(extension_question) = &extension_question
-                && let Some(canonical) = &canonical
-                && let Some(Answer::Extension(stored)) =
-                    self.check.answers.get(extension_question).cloned()
-            {
-                if let Some(response) = stored {
-                    let arguments = self
-                        .check
-                        .instantiate_response(origin, canonical, &response)?;
-                    sources.push(ExtensionSource {
-                        extension,
-                        arguments,
-                    });
-                }
-
-                continue;
-            }
-
-            // decide the match live
-            let checks_before = self.check.fulfill.checks.count();
-            let arguments =
-                self.match_extension_arguments(origin, module, receiver, subject, extension)?;
-
-            // remember the deduction folded canonical over its ask
-            match &arguments {
-                Some(arguments) => {
-                    if let (Some(extension_question), Some(canonical)) =
-                        (&extension_question, &canonical)
-                    {
-                        self.check.remember_answer(
-                            extension_question,
-                            canonical,
-                            checks_before,
-                            arguments.clone(),
-                            |response| Answer::Extension(Some(response)),
-                        )?;
-                    }
-                }
-                // remember a refusal taken outside re-entrant collection
-                None if self.check.extending.is_empty() => {
-                    if let Some(extension_question) = extension_question
-                        && !self.check.answers.contains_key(&extension_question)
-                    {
-                        self.check
-                            .answers
-                            .insert(extension_question, Answer::Extension(None));
-                    }
-                }
-                // leave a refusal reached under a cycle guard undecided
-                None => {}
-            }
-
-            if let Some(arguments) = arguments {
-                sources.push(ExtensionSource {
-                    extension,
-                    arguments,
-                });
+            let source =
+                self.decided_extension_source(origin, module, receiver, subject, extension)?;
+            if let Some(source) = source {
+                sources.push(source);
             }
         }
 
@@ -221,7 +152,7 @@ impl BodyState<'_, '_> {
         Ok(sources)
     }
 
-    /// Match one extension against a settled subject pair, deducing its template arguments.
+    /// Match one extension against a subject pair, deducing its template arguments.
     fn match_extension_arguments(
         &mut self,
         origin: Origin,
@@ -693,6 +624,93 @@ impl BodyState<'_, '_> {
         Ok(symbols)
     }
 
+    /// Decide one extension's argument match for a subject, replaying its canonical answer.
+    fn decided_extension_source(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        receiver: dir::GlobalTypeId,
+        subject: dir::GlobalTypeId,
+        extension: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<ExtensionSource>> {
+        // admit the present extensions visible from the asking module
+        if self.is_absent_symbol(extension) || !self.extension_is_visible(extension, module)? {
+            return Ok(None);
+        }
+
+        // replay the extension's own canonical decision
+        let canonical = self.check.canonicalize(origin, [receiver, subject], true)?;
+        let canonical = canonical.as_deref();
+        let extension_question = match canonical {
+            Some(canonical) => Some(
+                self.check
+                    .question(Ask::Extension { extension }, canonical)?,
+            ),
+            None => None,
+        };
+        if let Some(extension_question) = &extension_question
+            && let Some(canonical) = canonical
+            && let Some(Answer::Extension(stored)) =
+                self.check.answers.get(extension_question).cloned()
+        {
+            return match stored {
+                Some(response) => {
+                    let arguments = self
+                        .check
+                        .instantiate_response(origin, canonical, &response)?;
+
+                    Ok(Some(ExtensionSource {
+                        extension,
+                        arguments,
+                    }))
+                }
+                None => Ok(None),
+            };
+        }
+
+        // decide the match live
+        let checks_before = self.check.fulfill.checks.count();
+        let reentries_before = self.check.counters.extension_reentries;
+        let arguments =
+            self.match_extension_arguments(origin, module, receiver, subject, extension);
+        let arguments = arguments?;
+        let is_definitive = self.check.counters.extension_reentries == reentries_before;
+
+        // remember the deduction folded canonical over its ask
+        match &arguments {
+            Some(arguments) => {
+                if let (Some(extension_question), Some(canonical)) =
+                    (&extension_question, canonical)
+                {
+                    self.check.remember_answer(
+                        extension_question,
+                        canonical,
+                        checks_before,
+                        arguments.clone(),
+                        |response| Answer::Extension(Some(response)),
+                    )?;
+                }
+            }
+            // remember a refusal decided without a truncated collection
+            None if is_definitive => {
+                if let Some(extension_question) = extension_question
+                    && !self.check.answers.contains_key(&extension_question)
+                {
+                    self.check
+                        .answers
+                        .insert(extension_question, Answer::Extension(None));
+                }
+            }
+            // leave a refusal reached under a cycle guard undecided
+            None => {}
+        }
+
+        Ok(arguments.map(|arguments| ExtensionSource {
+            extension,
+            arguments,
+        }))
+    }
+
     /// Collect the declared members of one extension matching a selection key.
     pub(in crate::sema) fn matching_extension_members(
         &mut self,
@@ -747,7 +765,7 @@ impl BodyState<'_, '_> {
             instance = filled_instance;
         }
 
-        // serve a repeated canonical goal from the memo, replaying the winner's header
+        // serve a repeated canonical goal from the memo, evaluating it on first ask
         let asked = self.check.ask(
             origin,
             Ask::Implementation(relation),
@@ -756,24 +774,33 @@ impl BodyState<'_, '_> {
         )?;
         if excluded.is_none()
             && let Some((question, canonical)) = &asked
-            && let Some(Answer::Implement(response)) = self.check.answers.get(question).cloned()
         {
-            let implementation = self
-                .check
-                .instantiate_response(origin, canonical, &response)?;
-
-            // constrain the winner's header where site inference flows through holes
-            if !canonical.holes.is_empty() {
-                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                if let Some(target) = implementation.target {
-                    self.constrain_type(origin, cause, Relation::Assignable, receiver, target)?;
-                }
-                if let Some(matched) = implementation.interface {
-                    self.constrain_type(origin, cause, relation, matched, interface_type)?;
-                }
+            // evaluate an unanswered question once
+            if !self.check.answers.contains_key(question) {
+                self.check
+                    .answers
+                    .insert(question.clone(), Answer::Undecided);
+                self.evaluate_implementation(origin, relation, question, canonical)?;
             }
 
-            return Ok(implementation.verdict);
+            if let Some(Answer::Implement(response)) = self.check.answers.get(question).cloned() {
+                let implementation = self
+                    .check
+                    .instantiate_response(origin, canonical, &response)?;
+
+                // constrain this site's operands by the winner's target and interface
+                if !canonical.holes.is_empty() {
+                    let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+                    if let Some(target) = implementation.target {
+                        self.constrain_type(origin, cause, Relation::Assignable, receiver, target)?;
+                    }
+                    if let Some(matched) = implementation.interface {
+                        self.constrain_type(origin, cause, relation, matched, interface_type)?;
+                    }
+                }
+
+                return Ok(implementation.verdict);
+            }
         }
 
         // replay the winner the receiver's owning module already decided
@@ -815,7 +842,6 @@ impl BodyState<'_, '_> {
         }
 
         // try each visible implementation declaration
-        let checks_before = self.check.fulfill.checks.count();
         let decision = self.decide_visible_extensions(
             origin,
             relation,
@@ -827,22 +853,93 @@ impl BodyState<'_, '_> {
         );
         self.check.deciding.swap_remove(&active);
 
-        // remember decided canonical goals folded over this ask
         let decision = decision?;
-        if excluded.is_none()
-            && let Some((question, canonical)) = &asked
-            && decision.verdict != Verdict::Ambiguous
-        {
-            self.check.remember_answer(
-                question,
-                canonical,
-                checks_before,
-                decision,
-                Answer::Implement,
-            )?;
-        }
 
         Ok(decision.verdict)
+    }
+
+    /// Decide one canonical question against fresh roots, remembering its answer.
+    fn evaluate_implementation(
+        &mut self,
+        origin: Origin,
+        relation: Relation,
+        question: &Question,
+        canonical: &Canonical,
+    ) -> CompilerResult<()> {
+        let module = self.check.module_id;
+        self.evaluate_discarding(|state| {
+            let [asked_receiver, asked_interface] = canonical.operands[..] else {
+                return Err(CompilerError::Internal {
+                    message: "an implementation question lost its operand pair".to_string(),
+                });
+            };
+
+            // reopen each ask hole as one fresh root
+            let mut fresh = SmallVec::<[dir::TypeVariableId; 4]>::new();
+            for root in &canonical.holes {
+                let kind = state.check.infer.variable(*root)?.kind;
+                let role = state.check.infer.variable_role(*root)?;
+                fresh.push(state.check.allocate_variable_of(origin, kind, role));
+            }
+
+            // instantiate the canonical operands at the fresh roots
+            let mut memo = FxIndexMap::default();
+            let receiver = state.check.instantiate_response_type(
+                asked_receiver,
+                &fresh,
+                canonical,
+                &mut memo,
+            )?;
+            let interface_type = state.check.instantiate_response_type(
+                asked_interface,
+                &fresh,
+                canonical,
+                &mut memo,
+            )?;
+            let (instance_module, instance) = state.nominal_application(interface_type)?;
+
+            // decide against the isolated instantiation, holding the cycle mark
+            let checks_before = state.check.fulfill.checks.count();
+            let failures_before = state.check.fulfill.failures.len();
+            let active = (relation, receiver, interface_type);
+            if !state.check.deciding.insert(active) {
+                return Ok(());
+            }
+            let decision = state.decide_visible_extensions(
+                origin,
+                relation,
+                module,
+                instance_module,
+                receiver,
+                &instance,
+                None,
+            );
+            state.check.deciding.swap_remove(&active);
+            let decision = decision?;
+
+            // remember decided answers whose evaluation reported no failure
+            if decision.verdict != Verdict::Ambiguous
+                && state.check.fulfill.failures.len() == failures_before
+            {
+                let evaluated = Canonical {
+                    operands: canonical.operands.clone(),
+                    holes: fresh,
+                    renaming: canonical.renaming.clone(),
+                    parameters: canonical.parameters.clone(),
+                    premise: canonical.premise,
+                };
+                state.check.answers.swap_remove(question);
+                state.check.remember_answer(
+                    question,
+                    &evaluated,
+                    checks_before,
+                    decision,
+                    Answer::Implement,
+                )?;
+            }
+
+            Ok(())
+        })
     }
 
     /// Confirm one known extension implementation against a goal.
@@ -1765,7 +1862,6 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        root: dir::TypeRoot,
         receiver: dir::GlobalTypeId,
         subject: dir::GlobalTypeId,
         extension_symbol: dir::GlobalSymbolId,
@@ -1796,6 +1892,8 @@ impl BodyState<'_, '_> {
 
         // close recursive lookups of this extension coinductively, leaving them undecided
         if !self.check.extending.insert((extension_symbol, subject)) {
+            self.check.counters.extension_reentries += 1;
+
             return Ok(None);
         }
 
@@ -1803,7 +1901,6 @@ impl BodyState<'_, '_> {
         let result = self.collect_extension_candidates(
             origin,
             module,
-            root,
             receiver,
             subject,
             extension_symbol,
@@ -1822,7 +1919,6 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        root: dir::TypeRoot,
         receiver: dir::GlobalTypeId,
         subject: dir::GlobalTypeId,
         extension_symbol: dir::GlobalSymbolId,
@@ -1916,11 +2012,9 @@ impl BodyState<'_, '_> {
             return Ok(Vec::new());
         }
 
-        // read the decided arguments for this extension
-        let sources = self.decided_extension_sources(origin, module, receiver, subject, root)?;
-        let Some(source) = sources
-            .into_iter()
-            .find(|source| source.extension == extension_symbol)
+        // read the decided arguments for this extension alone
+        let Some(source) =
+            self.decided_extension_source(origin, module, receiver, subject, extension_symbol)?
         else {
             return Ok(Vec::new());
         };
