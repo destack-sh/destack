@@ -160,7 +160,7 @@ impl DiagnosticPublisher {
         file_ids.remove(&diagnostics.file.id);
 
         // load cross-file labels from the same semantic revision
-        let mut documents = DocumentSet::new();
+        let mut documents = DocumentSet::new(self.workspace.root());
         documents.insert(diagnostics.file.clone())?;
         if file_ids.is_empty() {
             return Ok(documents);

@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_lsp_server::{UriExt, jsonrpc};
@@ -121,6 +121,20 @@ impl Document {
         };
 
         Ok(uri)
+    }
+
+    /// Return this document's path for editor display.
+    pub(crate) fn display_path(&self, root: &Path) -> String {
+        let uri = &self.file.uri;
+
+        // retain virtual URIs and physical paths outside the workspace
+        let path = uri.to_path();
+        let path = path.and_then(|path| path.strip_prefix(root).ok());
+        let Some(path) = path else {
+            return uri.to_string();
+        };
+
+        path.to_string_lossy().replace('\\', "/")
     }
 
     /// Decode an LSP position into a byte offset.
@@ -259,14 +273,17 @@ impl Document {
 
 /// Source documents loaded from one workspace revision.
 pub(crate) struct DocumentSet {
+    /// The workspace root used to load the documents.
+    pub(super) root: PathBuf,
     /// Documents keyed by source file id.
     documents: HashMap<FileId, Document>,
 }
 
 impl DocumentSet {
     /// Create an empty document set.
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(root: &Path) -> Self {
         Self {
+            root: root.to_path_buf(),
             documents: HashMap::new(),
         }
     }
@@ -281,7 +298,7 @@ impl DocumentSet {
         requested.sort_unstable();
         requested.dedup();
         if requested.is_empty() {
-            return Ok(Self::new());
+            return Ok(Self::new(workspace.root()));
         }
 
         // load every document in one workspace request
@@ -296,7 +313,7 @@ impl DocumentSet {
                 )));
             }
         }
-        let mut documents = Self::new();
+        let mut documents = Self::new(workspace.root());
         for file in loaded {
             documents.insert(file)?;
         }

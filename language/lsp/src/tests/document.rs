@@ -615,10 +615,10 @@ export declare function value(): int32;
     let params = document.hover(position(0, 1));
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
-            "`destack://decorator/intrinsic.ds:17:16`\n\n\
-             ```ds\nexport newtype languageItem = (string,) | ()\n```\n\n\
-             Compiler language item marker.\n\n\
-             ```\n@languageItem(\"memory.Unique\")\nexport newtype Unique<T> = intrinsic;\n```",
+            "`destack://decorator/intrinsic.ds:7:16`\n\n\
+             ```ds\n@languageItem(\"decorator.languageItem\")\n\
+             export newtype languageItem = (string,) | ()\n```\n\n\
+             Compiler language item marker.",
         )),
         range: Some(range(0, 1, 0, 13)),
     };
@@ -629,10 +629,10 @@ export declare function value(): int32;
     let params = document.hover(position(3, 1));
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
-            "`destack://decorator/intrinsic.ds:8:16`\n\n\
-             ```ds\nexport newtype intrinsic = (string,) | ()\n```\n\n\
-             Compiler intrinsic marker.\n\n\
-             ```\n@intrinsic\ndeclare function typeOf<T>(value: T): Type<T>;\n```",
+            "`destack://decorator/intrinsic.ds:3:16`\n\n\
+             ```ds\n@languageItem(\"decorator.intrinsic\")\n\
+             export newtype intrinsic = (string,) | ()\n```\n\n\
+             Compiler intrinsic marker.",
         )),
         range: Some(range(3, 1, 3, 10)),
     };
@@ -642,12 +642,46 @@ export declare function value(): int32;
 
     // retain the ordinary declaration identity of an intrinsic function
     let params = document.hover(position(4, 25));
-    let location = format!("{}:5:25", document.uri().as_str());
     let expected = lsp::Hover {
-        contents: lsp::HoverContents::Markup(markdown(format!(
-            "`{location}`\n\n```ds\nexport declare function value(): int32\n```"
-        ))),
+        contents: lsp::HoverContents::Markup(markdown(
+            "`main.ds:5:25`\n\n\
+             ```ds\n@intrinsic(\"test.value\")\n\
+             export declare function value(): int32\n```",
+        )),
         range: Some(range(4, 24, 4, 29)),
+    };
+    server
+        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .await;
+}
+
+/// Render declaration decorators and workspace-relative hover locations.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_render_hover_declaration() {
+    let source = r#"newtype marker = (string,);
+
+/// Provide one service.
+@marker("service")
+export interface Service {}
+
+declare const service: Service;
+"#;
+    let (mut server, document) = TestServer::open_workspace(
+        "render-hover-declaration",
+        &[("src/main.ds", source)],
+        "src/main.ds",
+    )
+    .await;
+
+    // render the complete declaration and its workspace location
+    let params = document.hover(position(6, 24));
+    let expected = lsp::Hover {
+        contents: lsp::HoverContents::Markup(markdown(
+            "`src/main.ds:5:18`\n\n\
+             ```ds\n@marker(\"service\")\nexport interface Service\n```\n\n\
+             Provide one service.",
+        )),
+        range: Some(range(6, 23, 6, 30)),
     };
     server
         .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))

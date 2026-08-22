@@ -25,11 +25,9 @@ async fn test_open_nested_package() {
     server.open(&document, 1, &source).await;
     let params = document.hover(position(0, 16));
     let expected = lsp::Hover {
-        contents: lsp::HoverContents::Markup(markdown(format!(
-            "**Signature**\n\n```ds\nexport function answer(): float64\n```\n\n\
-             **Location**\n\n`{}:1:17`",
-            document.uri().as_str()
-        ))),
+        contents: lsp::HoverContents::Markup(markdown(
+            "`main.ds:1:17`\n\n```ds\nexport function answer(): float64\n```",
+        )),
         range: Some(range(0, 16, 0, 22)),
     };
     server
@@ -76,11 +74,9 @@ async fn test_publish_latest_document_revision() {
     // query the same current revision
     let params = document.hover(position(0, 16));
     let expected = lsp::Hover {
-        contents: lsp::HoverContents::Markup(markdown(format!(
-            "**Signature**\n\n```ds\nexport function answer(): float64\n```\n\n\
-             **Location**\n\n`{}:1:17`",
-            document.uri().as_str()
-        ))),
+        contents: lsp::HoverContents::Markup(markdown(
+            "`main.ds:1:17`\n\n```ds\nexport function answer(): float64\n```",
+        )),
         range: Some(range(0, 16, 0, 22)),
     };
     server
@@ -270,11 +266,9 @@ async fn test_apply_incremental_document_changes() {
     // observe the renamed parameter through a semantic query
     let params = document.hover(position(0, 16));
     let expected = lsp::Hover {
-        contents: lsp::HoverContents::Markup(markdown(format!(
-            "**Signature**\n\n```ds\nexport function choose(input: string): string\n```\n\n\
-             **Location**\n\n`{}:1:17`",
-            document.uri().as_str()
-        ))),
+        contents: lsp::HoverContents::Markup(markdown(
+            "`main.ds:1:17`\n\n```ds\nexport function choose(input: string): string\n```",
+        )),
         range: Some(range(0, 16, 0, 22)),
     };
     server
@@ -356,11 +350,9 @@ async fn test_restore_file_after_closing_document() {
     server.open(&document, 1, &opened).await;
     let params = document.hover(position(0, 16));
     let expected = lsp::Hover {
-        contents: lsp::HoverContents::Markup(markdown(format!(
-            "**Signature**\n\n```ds\nexport function answer(): boolean\n```\n\n\
-             **Location**\n\n`{}:1:17`",
-            document.uri().as_str()
-        ))),
+        contents: lsp::HoverContents::Markup(markdown(
+            "`main.ds:1:17`\n\n```ds\nexport function answer(): boolean\n```",
+        )),
         range: Some(range(0, 16, 0, 22)),
     };
     server
@@ -371,11 +363,9 @@ async fn test_restore_file_after_closing_document() {
     server.close(&document).await;
     let params = document.hover(position(0, 16));
     let expected = lsp::Hover {
-        contents: lsp::HoverContents::Markup(markdown(format!(
-            "**Signature**\n\n```ds\nexport function answer(): float64\n```\n\n\
-             **Location**\n\n`{}:1:17`",
-            document.uri().as_str()
-        ))),
+        contents: lsp::HoverContents::Markup(markdown(
+            "`main.ds:1:17`\n\n```ds\nexport function answer(): float64\n```",
+        )),
         range: Some(range(0, 16, 0, 22)),
     };
     server
@@ -406,11 +396,9 @@ async fn test_save_document_contents() {
     server.close(&document).await;
     let params = document.hover(position(0, 16));
     let expected = lsp::Hover {
-        contents: lsp::HoverContents::Markup(markdown(format!(
-            "**Signature**\n\n```ds\nexport function answer(): string\n```\n\n\
-             **Location**\n\n`{}:1:17`",
-            document.uri().as_str()
-        ))),
+        contents: lsp::HoverContents::Markup(markdown(
+            "`main.ds:1:17`\n\n```ds\nexport function answer(): string\n```",
+        )),
         range: Some(range(0, 16, 0, 22)),
     };
     server
@@ -450,11 +438,9 @@ async fn test_retain_project_for_open_document() {
     // continue serving the open document from its retained project
     let params = document.hover(position(0, 16));
     let expected = lsp::Hover {
-        contents: lsp::HoverContents::Markup(markdown(format!(
-            "**Signature**\n\n```ds\nexport function answer(): float64\n```\n\n\
-             **Location**\n\n`{}:1:17`",
-            document.uri().as_str()
-        ))),
+        contents: lsp::HoverContents::Markup(markdown(
+            "`main.ds:1:17`\n\n```ds\nexport function answer(): float64\n```",
+        )),
         range: Some(range(0, 16, 0, 22)),
     };
     server
