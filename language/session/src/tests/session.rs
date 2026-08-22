@@ -276,7 +276,7 @@ fn test_provide_same_artifact_across_sessions() {
     assert_eq!(first_version, second_version);
 }
 
-/// Lowering stops on a module whose checking reported errors, while query indexes still derive.
+/// Lowering stops on a module whose checking reported errors, while indexes still derive.
 #[test]
 fn test_poison_lowering_of_a_module_with_check_errors() {
     let files = [

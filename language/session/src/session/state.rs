@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use destack_artifact::ArtifactOutcome;
 use destack_compiler::Compiler;
+use destack_index::Indexer;
 use destack_linter::Linter;
-use destack_query::Indexer;
 use destack_repository::Repository;
 
 use crate::executor::{SessionId, Task};
