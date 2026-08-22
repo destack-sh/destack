@@ -138,6 +138,18 @@ impl DirModule<'_> {
         self.decisions.access_resolution(global)
     }
 
+    /// Return whether two nodes select the same checked storage.
+    pub(crate) fn is_same_access(
+        &self,
+        left: dir::LocalNodeIdAny,
+        right: dir::LocalNodeIdAny,
+    ) -> bool {
+        let left = self.decisions.access_resolution(left.into_global(self.id));
+        let right = self.decisions.access_resolution(right.into_global(self.id));
+
+        left.is_some() && left == right
+    }
+
     /// Return the recorded uses of one stable access and its projections within a node.
     pub(crate) fn access_uses_within(
         &self,
