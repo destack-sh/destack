@@ -392,8 +392,13 @@ impl BodyState<'_, '_> {
                 projected_value,
                 pattern.into_global_any(module),
             )?;
+
+            // project the field's access from the pattern's own access
+            let source = field.into_global_any(module);
+            self.commit_projected_access(source, node.into_any(), key)?;
+
             projected.push(dir::AssignPatternFieldResolution {
-                source: field.into_global_any(module),
+                source,
                 projection,
                 pattern: Some(pattern.into_global_any(module)),
             });

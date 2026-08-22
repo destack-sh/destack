@@ -78,6 +78,7 @@ declare const values: [int32; 1];
 [value = fallback] = values;
 /// @type.node source="[value = fallback] = values" type=FixedArray<int32, 1>
 /// @resolution.pattern.assign source=[value = fallback] kind=sequence element=int32 arity=1 fields=(value)
+/// @resolution.access source=[value = fallback] root=values
 /// @generic.instantiation id="collections.fixed-array.index#1<int32, 1, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(int32, 1, "exclusive")
 /// @generic.instance id="collections.fixed-array.index#1<int32, 1, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(int32, 1, "exclusive")
 /// @generic.instance id="memory.type.WithAccess<&'frame FixedArray<int32, 1>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame FixedArray<int32, 1>, "exclusive")

@@ -385,3 +385,68 @@ const value = sink.value;
 "#,
     );
 }
+
+/// Destructured assignment fields record the projected source access.
+#[test]
+fn test_destructured_field_records_source_access() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    x: int32;
+}
+
+function retain(point: Point): void {
+    ({ x: point.x } = point);
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Point {
+    x: int32;
+}
+
+function retain(point: Point): void {
+    ({ x: point.x } = point);
+}
+
+=== dir ===
+struct Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+
+    x: int32;
+    /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
+}
+
+function retain(point: Point): void {
+/// @type.symbol symbol=retain type=(Point) => void
+/// @type.symbol symbol=retain.point source="point: Point" type=Point
+/// @resolution.name source=Point target=Point
+
+    ({ x: point.x } = point);
+    /// @resolution.pattern.assign source={ x: point.x } kind=object fields={ Point.x: point.x }
+    /// @resolution.access source={ x: point.x } root=retain.point
+    /// @resolution.access source="x: point.x" root=retain.point keys=[x]
+    /// @resolution.name source=point target=retain.point
+    /// @resolution.place source=point placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=point root=retain.point
+    /// @resolution.pattern.assign source=point.x kind=place
+    /// @resolution.access source=point.x root=retain.point keys=[x]
+    /// @resolution.assignment source=point.x write="receiver=Point, target=field(receiver=Point, target=Point.x, type=int32), type=int32" type=int32
+    /// @resolution.name source=point target=retain.point
+    /// @resolution.place source=point placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=point root=retain.point
+
+}
+"#,
+        r#"
+"#,
+    );
+}

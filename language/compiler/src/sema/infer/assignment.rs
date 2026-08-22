@@ -77,6 +77,18 @@ impl BodyState<'_, '_> {
 
         // select destructuring patterns against the inferred right value
         if !matches!(pattern, dir::AssignPattern::Place { .. }) {
+            // read the right value's own access
+            let access = self
+                .module(module)
+                .decisions
+                .access_resolution(right_node)
+                .cloned();
+
+            // carry it onto the pattern so its field projections root from there
+            if let Some(access) = access {
+                self.commit_access(left_node.into_any(), access.path().clone())?;
+            }
+
             let selected = self.select_assign_pattern(
                 left_node,
                 site.flow,
