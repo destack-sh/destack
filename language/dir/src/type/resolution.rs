@@ -1045,6 +1045,23 @@ impl OperatorApplication {
 }
 
 impl OperationResolution<OperatorApplication> {
+    /// Return the deduplicated declaration symbols selected across arms.
+    pub fn target_symbols(&self) -> Vec<GlobalSymbolId> {
+        // collect declaration backed operator targets
+        let mut symbols = self
+            .arms()
+            .iter()
+            .filter_map(OperatorApplication::call)
+            .filter_map(|call| call.target.symbol())
+            .collect::<Vec<_>>();
+
+        // order and deduplicate selected symbols
+        symbols.sort();
+        symbols.dedup();
+
+        symbols
+    }
+
     /// Return whether check selected compiler-defined behavior.
     pub fn is_builtin(&self) -> bool {
         match self {
