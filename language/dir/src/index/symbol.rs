@@ -17,27 +17,6 @@ pub struct SymbolPostings {
     pub names: Postings<String>,
 }
 
-/// One indexed declared symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct SymbolEntry {
-    /// The display name.
-    pub name: String,
-    /// The symbol kind.
-    pub kind: SymbolKind,
-    /// The declaration member kind when present.
-    pub member_kind: Option<MemberKind>,
-    /// The symbol id.
-    pub symbol: GlobalSymbolId,
-    /// The source range.
-    pub span: Span,
-    /// The declaration name range.
-    pub selection: Span,
-    /// The containing declaration display name.
-    pub container: Option<String>,
-    /// The binding mutability when this is a value binding.
-    pub mutability: Option<Mutability>,
-}
-
 impl SymbolIndex {
     /// Create a symbol index from entries.
     pub fn new(entries: Vec<SymbolEntry>) -> Self {
@@ -81,6 +60,27 @@ impl SymbolPostings {
             index.entries().iter().map(|entry| entry.name.clone()),
         );
     }
+}
+
+/// One indexed declared symbol.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct SymbolEntry {
+    /// The display name.
+    pub name: String,
+    /// The symbol kind.
+    pub kind: SymbolKind,
+    /// The declaration member kind when present.
+    pub member_kind: Option<MemberKind>,
+    /// The symbol id.
+    pub symbol: GlobalSymbolId,
+    /// The source range.
+    pub span: Span,
+    /// The declaration name range.
+    pub selection: Span,
+    /// The containing declaration display name.
+    pub container: Option<String>,
+    /// The binding mutability when this is a value binding.
+    pub mutability: Option<Mutability>,
 }
 
 impl SymbolEntry {

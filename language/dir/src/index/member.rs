@@ -24,26 +24,6 @@ pub struct MemberPostings {
     pub implementations: Postings<GlobalSymbolId>,
 }
 
-/// One symbol-backed member declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct MemberEntry {
-    /// The source node that declares the member.
-    pub source: GlobalNodeIdAny,
-    /// The symbol whose definition contains the member.
-    pub declaring: GlobalSymbolId,
-    /// The member symbol.
-    pub symbol: GlobalSymbolId,
-}
-
-/// One exact member implementation edge.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct MemberImplementation {
-    /// The declared member requirement.
-    pub declaration: GlobalSymbolId,
-    /// The member satisfying the declaration.
-    pub implementation: GlobalSymbolId,
-}
-
 impl MemberIndex {
     /// Create a member index from declarations and implementation edges.
     pub fn new(entries: Vec<MemberEntry>, implementations: Vec<MemberImplementation>) -> Self {
@@ -189,4 +169,24 @@ impl MemberPostings {
                 .map(|implementation| implementation.implementation),
         );
     }
+}
+
+/// One symbol-backed member declaration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct MemberEntry {
+    /// The source node that declares the member.
+    pub source: GlobalNodeIdAny,
+    /// The symbol whose definition contains the member.
+    pub declaring: GlobalSymbolId,
+    /// The member symbol.
+    pub symbol: GlobalSymbolId,
+}
+
+/// One exact member implementation edge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct MemberImplementation {
+    /// The declared member requirement.
+    pub declaration: GlobalSymbolId,
+    /// The member satisfying the declaration.
+    pub implementation: GlobalSymbolId,
 }

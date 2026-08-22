@@ -16,19 +16,6 @@ pub struct DecoratorPostings {
     pub names: Postings<String>,
 }
 
-/// One indexed decorator application.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct DecoratorEntry {
-    /// The decorator name when syntactically known.
-    pub name: Option<String>,
-    /// The decorator node.
-    pub decorator: GlobalNodeId<Decorator>,
-    /// The decorated owner node.
-    pub owner: GlobalNodeIdAny,
-    /// The resolved decorator declaration.
-    pub target: DecoratorTarget,
-}
-
 impl DecoratorIndex {
     /// Create a decorator index from entries.
     pub fn new(entries: Vec<DecoratorEntry>) -> Self {
@@ -82,6 +69,19 @@ impl DecoratorPostings {
                 .filter_map(|entry| entry.name.clone()),
         );
     }
+}
+
+/// One indexed decorator application.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct DecoratorEntry {
+    /// The decorator name when syntactically known.
+    pub name: Option<String>,
+    /// The decorator node.
+    pub decorator: GlobalNodeId<Decorator>,
+    /// The decorated owner node.
+    pub owner: GlobalNodeIdAny,
+    /// The resolved decorator declaration.
+    pub target: DecoratorTarget,
 }
 
 impl DecoratorEntry {

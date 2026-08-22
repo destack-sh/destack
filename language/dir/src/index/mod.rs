@@ -1,4 +1,5 @@
 mod call;
+mod code;
 mod decorator;
 mod export;
 mod heritage;
@@ -8,6 +9,7 @@ mod reference;
 mod symbol;
 
 pub use call::*;
+pub use code::*;
 pub use decorator::*;
 pub use export::*;
 pub use heritage::*;
