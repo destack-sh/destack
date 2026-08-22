@@ -1,4 +1,4 @@
-use crate::{GlobalSymbolId, MemberKind, Mutability, Postings, SymbolKind};
+use crate::{GlobalSymbolId, LocalNodeIdAny, MemberKind, Mutability, Postings, SymbolKind};
 use destack_serde::Reflect;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
@@ -36,6 +36,11 @@ impl SymbolIndex {
     pub fn entries(&self) -> &[SymbolEntry] {
         &self.entries
     }
+
+    /// Return the entry for one exact symbol.
+    pub fn entry(&self, symbol: GlobalSymbolId) -> Option<&SymbolEntry> {
+        self.entries.iter().find(|entry| entry.symbol == symbol)
+    }
 }
 
 impl SymbolPostings {
@@ -71,6 +76,8 @@ pub struct SymbolEntry {
     pub kind: SymbolKind,
     /// The declaration member kind when present.
     pub member_kind: Option<MemberKind>,
+    /// The declaring node.
+    pub declaration: LocalNodeIdAny,
     /// The symbol id.
     pub symbol: GlobalSymbolId,
     /// The source range.
@@ -90,6 +97,7 @@ impl SymbolEntry {
             self.name.as_str(),
             self.kind,
             self.member_kind,
+            self.declaration,
             self.symbol.module_id,
             self.span.file,
             self.span.start,
@@ -102,6 +110,7 @@ impl SymbolEntry {
             other.name.as_str(),
             other.kind,
             other.member_kind,
+            other.declaration,
             other.symbol.module_id,
             other.span.file,
             other.span.start,

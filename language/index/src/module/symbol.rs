@@ -127,6 +127,7 @@ impl<'a> SymbolIndexer<'a> {
             name,
             kind: symbol.kind,
             member_kind,
+            declaration: source.local_id,
             symbol: global_symbol,
             span,
             selection,
