@@ -5,6 +5,7 @@ import { Dereference } from "destack:ops";
 import { Atomic } from "./atomic.ds";
 
 /// Mutual exclusion lock.
+@languageItem("sync.Mutex")
 export shared class Mutex<T> {
     /// The lock state.
     state: Atomic<uint32> = Atomic.new(0);

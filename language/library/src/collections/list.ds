@@ -28,6 +28,7 @@ struct LinkedListNode<T> {
 }
 
 /// A linked list.
+@languageItem("collections.LinkedList")
 export class LinkedList<T> {
     /// The first node key.
     private head: LinkedListNodeKey | undefined = undefined;

@@ -22,6 +22,7 @@ export struct Attribute {
 }
 
 /// Runtime schema refinement.
+@languageItem("schema.Refinement")
 export newtype interface Refinement<T> {
     /// Return validation issues for `value`.
     issues(value: T): [Issue];
@@ -67,6 +68,7 @@ export struct RefinementConstraint<T> {
 }
 
 /// Schema constraint.
+@languageItem("schema.Constraint")
 export newtype Constraint<T> =
     | LengthConstraint
     | RangeConstraint<T>

@@ -4,9 +4,11 @@ import { Direction } from "destack:topology";
 import { Attempt } from "../binding/attempt.ds";
 
 /// Stable error code used by simulation faults.
+@languageItem("simulation.fault.ErrorCode")
 export newtype ErrorCode = string;
 
 /// Error payload for operation and randomness faults.
+@languageItem("simulation.fault.Error")
 export struct Error {
     /// Stable error code.
     code: ErrorCode;
@@ -17,6 +19,7 @@ export struct Error {
 }
 
 /// Delay jitter distribution.
+@languageItem("simulation.fault.JitterDistribution")
 export enum JitterDistribution {
     /// Uniform random jitter.
     Uniform = 1,
@@ -63,9 +66,11 @@ export struct OperationDelay {
 }
 
 /// Operation fault.
+@languageItem("simulation.fault.OperationFault")
 export newtype OperationFault = OperationError | OperationTimeout | OperationDelay;
 
 /// Resource class for capacity and quota faults.
+@languageItem("simulation.fault.Resource")
 export enum Resource {
     /// Memory budget.
     Memory = 1,
@@ -96,6 +101,7 @@ export enum Resource {
 }
 
 /// Resource limit value with explicit units.
+@languageItem("simulation.fault.ResourceLimitValue")
 export newtype ResourceLimitValue =
     | {
           /// Limit discriminator.
@@ -143,9 +149,11 @@ export struct ResourceLimit {
 }
 
 /// Resource fault.
+@languageItem("simulation.fault.ResourceFault")
 export newtype ResourceFault = ResourcePressure | ResourceLimit;
 
 /// Data corruption mode for payload faults.
+@languageItem("simulation.fault.CorruptionMode")
 export enum CorruptionMode {
     /// Flip one random bit in the payload.
     BitFlip = 1,
@@ -158,6 +166,7 @@ export enum CorruptionMode {
 }
 
 /// Storage corruption target.
+@languageItem("simulation.fault.CorruptionTarget")
 export enum CorruptionTarget {
     /// Stored payload bytes.
     Data = 1,
@@ -170,6 +179,7 @@ export enum CorruptionTarget {
 }
 
 /// Storage ordering fault.
+@languageItem("simulation.fault.OrderFault")
 export enum OrderFault {
     /// Persist writes in an order different from issue order.
     ReorderPersist = 1,
@@ -180,6 +190,7 @@ export enum OrderFault {
 }
 
 /// Storage durability fault.
+@languageItem("simulation.fault.DurabilityFault")
 export enum DurabilityFault {
     /// Acknowledge writes before durability barriers complete.
     AckWithoutSync = 1,
@@ -194,6 +205,7 @@ export enum DurabilityFault {
 }
 
 /// Storage consistency fault.
+@languageItem("simulation.fault.ConsistencyFault")
 export enum ConsistencyFault {
     /// Return an old value from storage.
     StaleRead = 1,
@@ -246,6 +258,7 @@ export struct StorageConsistency {
 }
 
 /// Storage fault.
+@languageItem("simulation.fault.StorageFault")
 export newtype StorageFault =
     | StorageCorrupt
     | StorageOrder
@@ -253,6 +266,7 @@ export newtype StorageFault =
     | StorageConsistency;
 
 /// Transport limit mode for delivery-shaped faults.
+@languageItem("simulation.fault.TransportLimitMode")
 export newtype TransportLimitMode =
     | {
           /// Limit discriminator.
@@ -368,6 +382,7 @@ export struct TransportLimit {
 }
 
 /// Transport fault.
+@languageItem("simulation.fault.TransportFault")
 export newtype TransportFault =
     | TransportDelay
     | TransportDrop
@@ -425,6 +440,7 @@ export struct ClockJitter {
 }
 
 /// Clock fault.
+@languageItem("simulation.fault.ClockFault")
 export newtype ClockFault = ClockJump | ClockDrift | ClockFreeze | ClockResolution | ClockJitter;
 
 /// Random-source error fault.
@@ -460,6 +476,7 @@ export struct RandomBias {
 }
 
 /// Random fault.
+@languageItem("simulation.fault.RandomFault")
 export newtype RandomFault = RandomError | RandomRepeat | RandomZero | RandomBias;
 
 /// Lifecycle crash fault.
@@ -495,6 +512,7 @@ export struct LifecycleReboot {
 }
 
 /// Lifecycle fault.
+@languageItem("simulation.fault.LifecycleFault")
 export newtype LifecycleFault =
     | LifecycleCrash
     | LifecyclePause
@@ -502,6 +520,7 @@ export newtype LifecycleFault =
     | LifecycleReboot;
 
 /// User-defined simulation fault.
+@languageItem("simulation.fault.CustomFault")
 export struct CustomFault {
     /// Fault discriminator.
     kind: "custom";
@@ -512,6 +531,7 @@ export struct CustomFault {
 }
 
 /// Simulation fault payload.
+@languageItem("simulation.fault.Fault")
 export newtype Fault =
     | OperationFault
     | ResourceFault
@@ -523,6 +543,7 @@ export newtype Fault =
     | CustomFault;
 
 /// Fault accepted by a scenario rule.
+@languageItem("simulation.fault.TriggeredFault")
 export struct TriggeredFault {
     /// Rule identifier that emitted this fault.
     ruleId: string;
@@ -533,6 +554,7 @@ export struct TriggeredFault {
 }
 
 /// Triggered fault set for one simulated attempt.
+@languageItem("simulation.fault.FaultSet")
 export class FaultSet {
     /// Triggered faults.
     readonly faults: [TriggeredFault];

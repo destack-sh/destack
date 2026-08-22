@@ -1,4 +1,5 @@
 /// Well-known derive considered automatically for nominal declarations.
+@languageItem("module.Derive")
 export type Derive =
     | "Compare"
     | "Copy"
@@ -13,6 +14,7 @@ export type Derive =
     | "Serialize";
 
 /// Static configuration for one source module.
+@languageItem("module.Module")
 export interface Module {
     /// Auto-derives considered for nominal declarations in this module.
     readonly derive?: readonly Derive[];

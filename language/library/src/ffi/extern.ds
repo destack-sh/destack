@@ -11,4 +11,5 @@ export type ExternOptions = {
 };
 
 /// Extern decorator payload.
+@languageItem("ffi.Extern")
 export type Extern = Abi | ExternOptions;

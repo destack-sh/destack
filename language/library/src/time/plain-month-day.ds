@@ -24,6 +24,7 @@ export type PlainMonthDayLike = {
 };
 
 /// Temporal plain month-day.
+@languageItem("time.PlainMonthDay")
 export class PlainMonthDay {
     /// Create a plain month-day.
     static from(

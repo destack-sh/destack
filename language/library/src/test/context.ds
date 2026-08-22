@@ -17,6 +17,7 @@ export type FailureCleanup = Function<
 >;
 
 /// Test output sink.
+@languageItem("test.Output")
 export newtype interface Output {
     /// Write one output line.
     line(value: string): void;
@@ -26,6 +27,7 @@ export newtype interface Output {
 }
 
 /// State shared by suite and case callbacks.
+@languageItem("test.Context")
 export newtype interface Context {
     /// Test run identifier.
     readonly runId: RunId;
@@ -41,6 +43,7 @@ export newtype interface Context {
 }
 
 /// State provided to one test case.
+@languageItem("test.CaseContext")
 export newtype interface CaseContext extends Context {
     /// Test case identifier.
     readonly caseId: CaseId;
@@ -62,6 +65,7 @@ export newtype interface CaseContext extends Context {
 }
 
 /// State provided to one test suite.
+@languageItem("test.SuiteContext")
 export newtype interface SuiteContext extends Context {
     /// Test suite identifier.
     readonly suiteId: SuiteId;

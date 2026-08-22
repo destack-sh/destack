@@ -47,6 +47,7 @@ export type PlainDateTimeLike = {
 };
 
 /// Temporal plain date-time.
+@languageItem("time.PlainDateTime")
 export class PlainDateTime {
     /// Create a plain date-time.
     static from(

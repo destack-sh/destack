@@ -99,6 +99,7 @@ export newtype interface TableSuite<T> {
 }
 
 /// Registered test suite.
+@languageItem("test.Suite")
 export struct Suite {
     /// Stable suite identifier.
     id: SuiteId;

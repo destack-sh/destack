@@ -6,9 +6,11 @@ import { ResourceId } from "./resource.ds";
 import { WorldHandle } from "./world.ds";
 
 /// Runtime observation handle.
+@languageItem("runtime.ObservationHandle")
 export newtype ObservationHandle = ResourceId;
 
 /// Observation event class.
+@languageItem("runtime.ObservationEventKind")
 export enum ObservationEventKind {
     /// Trace-adjacent event.
     Trace = 1,
@@ -41,6 +43,7 @@ export struct ObservationOptions {
 }
 
 /// One observation record.
+@languageItem("runtime.ObservationRecord")
 export struct ObservationRecord {
     /// Observation class.
     kind: ObservationEventKind;

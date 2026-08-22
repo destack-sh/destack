@@ -1,6 +1,7 @@
 import { Drop } from "destack:memory";
 
 /// Shared cancellation request.
+@languageItem("async.AbortSignal")
 export local newtype interface AbortSignal {
     /// Return whether cancellation was requested.
     get aborted(): boolean;
@@ -13,6 +14,7 @@ export local newtype interface AbortSignal {
 }
 
 /// Controller that aborts one signal.
+@languageItem("async.AbortController")
 export local class AbortController {
     /// The controlled state.
     private state: AbortState;

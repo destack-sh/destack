@@ -3,6 +3,7 @@ import { todo } from "destack:error";
 import { Bytes } from "./bytes.ds";
 
 /// Sequential byte reader over in-memory bytes.
+@languageItem("bytes.ByteReader")
 export class ByteReader {
     /// The source bytes.
     bytes: Bytes;

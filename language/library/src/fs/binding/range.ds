@@ -1,7 +1,9 @@
 /// File offset in bytes.
+@languageItem("fs.binding.FileOffset")
 export newtype FileOffset = int64;
 
 /// File size in bytes.
+@languageItem("fs.binding.FileSize")
 export newtype FileSize = uint64;
 
 /// File byte range.

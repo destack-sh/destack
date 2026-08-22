@@ -4,6 +4,7 @@ import { WorldHandle } from "destack:runtime";
 import { EdgeId, EdgeKind, EdgeKindRecord, EdgeRecord, EdgeSelector } from "../edge.ds";
 
 /// Topology edge binding family.
+@languageItem("topology.binding.TopologyEdgeBinding")
 export interface TopologyEdgeBinding {
     /// Define one runtime topology edge kind.
     @binding("destack.topology.edge.kind.define", {

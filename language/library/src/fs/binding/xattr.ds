@@ -4,6 +4,7 @@ import { FileHandle } from "destack:fs/binding";
 import { Entry } from "./entry.ds";
 
 /// Extended attribute creation flags.
+@languageItem("fs.binding.XattrFlags")
 export newtype XattrFlags = uint32;
 
 /// Create an attribute and fail if it already exists.
@@ -31,9 +32,11 @@ export struct XattrTargetFile {
 }
 
 /// Target for extended attribute operations.
+@languageItem("fs.binding.XattrTarget")
 export newtype XattrTarget = XattrTargetEntry | XattrTargetFile;
 
 /// Filesystem extended attribute binding family.
+@languageItem("fs.binding.XattrBinding")
 export interface XattrBinding {
     /// Read one extended attribute into an output buffer.
     @binding("destack.fs.xattr.read", {

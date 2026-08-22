@@ -2,6 +2,7 @@ import { IoError } from "destack:error";
 import { SeekFrom } from "destack:sync";
 
 /// Asynchronous seekable byte stream.
+@languageItem("async.AsyncSeeker")
 export interface AsyncSeeker {
     /// Seek to a new stream position.
     seek(from: SeekFrom): Task<Result<uint64, IoError>>;

@@ -1,7 +1,9 @@
 /// Topology label map.
+@languageItem("topology.LabelSet")
 export type LabelSet = { readonly [key: string]: string };
 
 /// Topology label selector.
+@languageItem("topology.LabelSelector")
 export struct LabelSelector {
     /// Label key to match.
     key: string;

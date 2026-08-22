@@ -6,15 +6,19 @@ import { Compare, Equal, Hash, Hasher, Ordering } from "destack:ops";
 import { OsString, OsStringBuilder, OsStringDecodeError, OsStringSlice } from "destack:string";
 
 /// Borrowed platform path.
+@languageItem("fs.PathSlice")
 export newtype PathSlice = OsStringSlice;
 
 /// Immutable owned platform path.
+@languageItem("fs.Path")
 export newtype Path = OsString;
 
 /// Mutable platform path builder.
+@languageItem("fs.PathBuilder")
 export newtype PathBuilder = OsStringBuilder;
 
 /// One lexical path component.
+@languageItem("fs.PathComponent")
 export newtype PathComponent<'a> =
     | PathPrefixComponent<'a>
     | PathRootComponent
@@ -62,6 +66,7 @@ export struct PathNormalComponent<'a> {
 }
 
 /// Parsed Windows path prefix.
+@languageItem("fs.WindowsPathPrefix")
 export newtype WindowsPathPrefix<'a> =
     | WindowsPathVerbatimPrefix<'a>
     | WindowsPathVerbatimUncPrefix<'a>

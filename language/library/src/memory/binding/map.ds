@@ -4,6 +4,7 @@ import { FileHandle } from "destack:fs/binding";
 import { MemoryProtection, VirtualMemoryRange } from "./virtual.ds";
 
 /// File mapping visibility.
+@languageItem("memory.binding.MappedMemoryVisibility")
 export enum MappedMemoryVisibility {
     /// Share writes with the backing object.
     Shared = 1,
@@ -12,9 +13,11 @@ export enum MappedMemoryVisibility {
 }
 
 /// Flags for file and anonymous memory mappings.
+@languageItem("memory.binding.MappedMemoryFlags")
 export newtype MappedMemoryFlags = uint32;
 
 /// Flags for flushing mapped memory.
+@languageItem("memory.binding.MappedMemorySyncFlags")
 export newtype MappedMemorySyncFlags = uint32;
 
 /// No mapped memory flags.
@@ -39,6 +42,7 @@ export const MAPPED_MEMORY_SYNC_INVALIDATE: MappedMemorySyncFlags = MappedMemory
 export const MAPPED_MEMORY_SYNC_WAIT: MappedMemorySyncFlags = MappedMemorySyncFlags(0x4);
 
 /// Map binding family.
+@languageItem("memory.binding.MemoryMapBinding")
 export interface MemoryMapBinding {
     /// Map a file backed memory range.
     @binding("destack.memory.map.file", {

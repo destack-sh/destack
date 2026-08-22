@@ -23,15 +23,19 @@ import {
 import { LabelSet } from "./label.ds";
 
 /// Registered topology entity reference.
+@languageItem("topology.EntityRef")
 export newtype EntityRef = EntityId;
 
 /// Registered topology edge reference.
+@languageItem("topology.EdgeRef")
 export newtype EdgeRef = EdgeId;
 
 /// Entity or edge topology record.
+@languageItem("topology.Record")
 export newtype Record = EntityRecord | EdgeRecord;
 
 /// Runtime topology graph.
+@languageItem("topology.Topology")
 export class Topology {
     /// World handle.
     world: WorldHandle;

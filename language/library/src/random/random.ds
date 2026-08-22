@@ -5,9 +5,11 @@ import * as runtime from "destack:runtime";
 import { random } from "./binding/random.ds";
 
 /// Deterministic random stream seed.
+@languageItem("random.RandomSeed")
 export type RandomSeed = runtime.RandomSeed;
 
 /// Deterministic random generator.
+@languageItem("random.Random")
 export class Random {
     /// The runtime stream handle.
     handle: runtime.RandomHandle;

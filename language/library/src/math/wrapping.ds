@@ -4,6 +4,7 @@ import { Arithmetic } from "./arithmetic.ds";
 import { Integer } from "./integer.ds";
 
 /// Integer with modular arithmetic operators.
+@languageItem("math.Wrapping")
 export newtype Wrapping<T: Integer> = T;
 
 export extension<T: Integer> of Wrapping<T> implements Add<Wrapping<T>> {

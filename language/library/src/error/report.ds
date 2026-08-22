@@ -4,6 +4,7 @@ import { Error } from "./error.ds";
 import { todo } from "./panic.ds";
 
 /// Erased error value for application boundaries.
+@languageItem("error.Report")
 export struct Report {
     /// The erased error.
     error: Dynamic<Error>;

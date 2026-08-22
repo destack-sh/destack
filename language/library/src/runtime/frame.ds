@@ -4,12 +4,15 @@ import { HostError } from "destack:error/host";
 import { WorkerId, WorldViewHandle } from "./world.ds";
 
 /// Runtime frame identifier.
+@languageItem("runtime.FrameId")
 export newtype FrameId = uint64;
 
 /// Runtime frame state identifier.
+@languageItem("runtime.FrameStateId")
 export newtype FrameStateId = uint32;
 
 /// Runtime frame kind.
+@languageItem("runtime.FrameKind")
 export enum FrameKind {
     /// VM frame.
     Vm = 1,
@@ -20,6 +23,7 @@ export enum FrameKind {
 }
 
 /// Runtime frame.
+@languageItem("runtime.Frame")
 export struct Frame {
     /// Frame identifier.
     id: FrameId;
@@ -40,9 +44,11 @@ export struct FramePage {
 }
 
 /// Runtime frame slot identifier.
+@languageItem("runtime.FrameSlotId")
 export newtype FrameSlotId = uint32;
 
 /// Runtime frame slot.
+@languageItem("runtime.FrameSlot")
 export struct FrameSlot {
     /// Slot identifier.
     id: FrameSlotId;
@@ -61,6 +67,7 @@ export struct FrameSlotPage {
 }
 
 /// Runtime frame slot value.
+@languageItem("runtime.FrameValue")
 export struct FrameValue {
     /// Slot identifier.
     slot: FrameSlotId;

@@ -1,6 +1,7 @@
 import { ArtifactId } from "./artifact.ds";
 
 /// Snapshot update mode.
+@languageItem("test.SnapshotMode")
 export enum SnapshotMode {
     /// Compare against existing snapshots.
     Read = 1,
@@ -13,12 +14,14 @@ export enum SnapshotMode {
 }
 
 /// Snapshot assertion options.
+@languageItem("test.SnapshotOptions")
 export struct SnapshotOptions {
     /// Snapshot update mode.
     mode?: SnapshotMode;
 }
 
 /// Recorded snapshot value.
+@languageItem("test.Snapshot")
 export struct Snapshot<T = unknown> {
     /// Snapshot name.
     name: string;
@@ -31,6 +34,7 @@ export struct Snapshot<T = unknown> {
 }
 
 /// Snapshot comparison change.
+@languageItem("test.SnapshotChange")
 export struct SnapshotChange<T = unknown> {
     /// Snapshot name.
     name: string;

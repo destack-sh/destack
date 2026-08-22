@@ -5,6 +5,7 @@ import { Dereference } from "destack:ops";
 import { Task } from "./task.ds";
 
 /// Asynchronous mutual exclusion lock.
+@languageItem("async.AsyncMutex")
 export local class AsyncMutex<T> {
     /// The protected value.
     value: T;

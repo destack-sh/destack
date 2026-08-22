@@ -11,6 +11,7 @@ export type Argument<T> = Body<T> | Options;
 export type SuiteArgument = SuiteBody | Options;
 
 /// Registered fuzz case.
+@languageItem("fuzz.Case")
 export struct Case<T> {
     /// Case name.
     name: string;
@@ -23,6 +24,7 @@ export struct Case<T> {
 }
 
 /// Registered fuzz suite.
+@languageItem("fuzz.Suite")
 export struct Suite {
     /// Suite name.
     name: string;

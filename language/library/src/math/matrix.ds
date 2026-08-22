@@ -5,6 +5,7 @@ import { Vector2, Vector3, Vector4 } from "./linear.ds";
 import { Numeric } from "./numeric.ds";
 
 /// Two-by-two matrix in row-major field order.
+@languageItem("math.Matrix2")
 export struct Matrix2<T: Numeric> {
     /// First row, first column.
     m00: T;
@@ -20,6 +21,7 @@ export struct Matrix2<T: Numeric> {
 }
 
 /// Three-by-three matrix in row-major field order.
+@languageItem("math.Matrix3")
 export struct Matrix3<T: Numeric> {
     /// First row.
     x: Vector3<T>;
@@ -32,6 +34,7 @@ export struct Matrix3<T: Numeric> {
 }
 
 /// Four-by-four matrix in row-major field order.
+@languageItem("math.Matrix4")
 export struct Matrix4<T: Numeric> {
     /// First row.
     x: Vector4<T>;

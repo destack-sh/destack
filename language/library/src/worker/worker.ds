@@ -4,6 +4,7 @@ import { SharedSafe } from "destack:memory";
 import { WorkerHandle, WorkerId } from "destack:runtime/world";
 
 /// Isolated worker.
+@languageItem("worker.Worker")
 export class Worker<T, R> {
     /// Opaque runtime worker handle.
     private handle: WorkerHandle;
@@ -37,6 +38,7 @@ export class Worker<T, R> {
 }
 
 /// Pool of homogeneous workers.
+@languageItem("worker.WorkerPool")
 export local class WorkerPool<T, R> {
     /// The workers in this pool.
     workers: Worker<T, R>[] = [];
@@ -53,12 +55,14 @@ export local class WorkerPool<T, R> {
 }
 
 /// Worker exit status observed by the supervising parent.
+@languageItem("worker.WorkerExit")
 export newtype WorkerExit =
     | { kind: "completed" }
     | { kind: "terminated" }
     | { kind: "panicked"; panic: shared readonly Panic };
 
 /// Worker request failure.
+@languageItem("worker.WorkerError")
 export newtype WorkerError =
     | { kind: "terminated" }
     | { kind: "panicked"; panic: shared readonly Panic };

@@ -6,6 +6,7 @@ import { Vector3 } from "./linear.ds";
 import { Matrix3 } from "./matrix.ds";
 
 /// Quaternion rotation value.
+@languageItem("math.Quaternion")
 export struct Quaternion<T: Float> {
     /// The vector x component.
     x: T;

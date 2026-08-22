@@ -5,6 +5,7 @@ import { ResourceId } from "./resource.ds";
 import { WorkerId, WorldViewHandle } from "./world.ds";
 
 /// Heap usage for one worker.
+@languageItem("runtime.HeapSummary")
 export struct HeapSummary {
     /// Total heap bytes.
     heapBytes: uint64;
@@ -15,9 +16,11 @@ export struct HeapSummary {
 }
 
 /// Runtime heap object identifier.
+@languageItem("runtime.HeapObjectId")
 export newtype HeapObjectId = uint64;
 
 /// Runtime heap object.
+@languageItem("runtime.HeapObject")
 export struct HeapObject {
     /// Object identifier.
     id: HeapObjectId;
@@ -28,6 +31,7 @@ export struct HeapObject {
 }
 
 /// Runtime heap object edge.
+@languageItem("runtime.HeapEdge")
 export struct HeapEdge {
     /// Source object.
     from: HeapObjectId;

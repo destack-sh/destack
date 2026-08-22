@@ -89,4 +89,5 @@ export declare function strideOf<T: Concrete>(): usize;
 export declare function layoutOf<T: Concrete>(): Layout;
 
 /// One reflected static property key.
+@languageItem("reflect.StaticKey")
 export newtype StaticKey = intrinsic;

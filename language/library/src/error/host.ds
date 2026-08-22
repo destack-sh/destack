@@ -3,6 +3,7 @@ import { MaybeOwned } from "destack:memory";
 import { Error } from "./error.ds";
 
 /// Error code returned by host bindings.
+@languageItem("error.HostErrorCode")
 export enum HostErrorCode {
     /// Unclassified invalid argument.
     InvalidArgument = 1000,
@@ -266,6 +267,7 @@ export struct HostSystemSourceOther {
 }
 
 /// Host-level system source metadata.
+@languageItem("error.HostSystemSource")
 export newtype HostSystemSource =
     | HostSystemSourceErrno
     | HostSystemSourceWinsock
@@ -291,6 +293,7 @@ export struct HostPathPayloadUtf16 {
 }
 
 /// Path payload attached to an error context.
+@languageItem("error.HostPathPayload")
 export newtype HostPathPayload = HostPathPayloadBytes | HostPathPayloadUtf16;
 
 /// Generic host-error context payload.
@@ -472,6 +475,7 @@ export struct HostErrorContextIoDriver {
 }
 
 /// Typed context for host error metadata.
+@languageItem("error.HostErrorContext")
 export newtype HostErrorContext =
     | HostErrorContextGeneric
     | HostErrorContextIo
@@ -489,6 +493,7 @@ export newtype HostErrorContext =
     | HostErrorContextIoDriver;
 
 /// Error returned by host bindings.
+@languageItem("error.HostError")
 export newtype HostError = {
     code: HostErrorCode;
     op?: string;

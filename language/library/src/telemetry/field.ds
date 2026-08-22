@@ -1,5 +1,7 @@
 /// Telemetry field value.
+@languageItem("telemetry.FieldValue")
 export type FieldValue = null | boolean | number | string | bigint | [FieldValue] | Fields;
 
 /// Telemetry field bag.
+@languageItem("telemetry.Fields")
 export type Fields = { readonly [key: string]: FieldValue };

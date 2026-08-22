@@ -2,9 +2,11 @@ import { HostError } from "destack:error/host";
 import { ResourceId } from "destack:runtime/resource";
 
 /// Handle for one network watch stream.
+@languageItem("net.binding.NetworkWatchHandle")
 export newtype NetworkWatchHandle = ResourceId;
 
 /// Network connectivity class.
+@languageItem("net.binding.NetworkConnectivityKind")
 export enum NetworkConnectivityKind {
     /// No active network route.
     None = 1,
@@ -25,6 +27,7 @@ export enum NetworkConnectivityKind {
 }
 
 /// Cellular radio generation class.
+@languageItem("net.binding.NetworkCellularGeneration")
 export enum NetworkCellularGeneration {
     /// Generation is unknown.
     Unknown = 1,
@@ -71,6 +74,7 @@ export struct NetworkConnectivityEvent {
 }
 
 /// Network connectivity binding family.
+@languageItem("net.binding.NetConnectivityBinding")
 export interface NetConnectivityBinding {
     /// Read network connectivity.
     @binding("destack.net.connectivity.read", {

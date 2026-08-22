@@ -16,6 +16,7 @@ export struct Mount {
 }
 
 /// Filesystem mount binding family.
+@languageItem("fs.binding.MountBinding")
 export interface MountBinding {
     /// List filesystem mounts.
     @binding("destack.fs.mount.list", {

@@ -5,6 +5,7 @@ import { Dereference } from "destack:ops";
 import { Task } from "./task.ds";
 
 /// Asynchronous reader-writer lock.
+@languageItem("async.AsyncRwLock")
 export local class AsyncRwLock<T> {
     /// The protected value.
     value: T;

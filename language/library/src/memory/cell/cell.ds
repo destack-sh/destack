@@ -29,6 +29,7 @@ export extension<T> of UnsafeCell<T> {
 }
 
 /// Interior mutable storage for copyable values.
+@languageItem("memory.Cell")
 export struct Cell<T> {
     /// The stored value storage.
     storage: UnsafeCell<T>;

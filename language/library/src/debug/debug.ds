@@ -7,15 +7,19 @@ import { BranchId, Moment } from "destack:runtime/lineage";
 import { WorkerId, WorldHandle, WorldViewHandle } from "destack:runtime/world";
 
 /// Runtime debug scope identifier.
+@languageItem("debug.ScopeId")
 export newtype ScopeId = uint32;
 
 /// Runtime debug binding identifier.
+@languageItem("debug.BindingId")
 export newtype BindingId = uint32;
 
 /// Runtime inline frame identifier.
+@languageItem("debug.InlineFrameId")
 export newtype InlineFrameId = uint32;
 
 /// Runtime execution point inside one frame.
+@languageItem("debug.ExecutionPoint")
 export struct ExecutionPoint {
     /// Worker stopped at this point.
     worker: WorkerId;
@@ -26,6 +30,7 @@ export struct ExecutionPoint {
 }
 
 /// Source-level projection for one execution point.
+@languageItem("debug.Point")
 export struct Point {
     /// Execution coordinate.
     execution: ExecutionPoint;
@@ -38,6 +43,7 @@ export struct Point {
 }
 
 /// Debugger stop reason.
+@languageItem("debug.StopReason")
 export enum StopReason {
     /// Execution is paused explicitly.
     Pause = 1,
@@ -56,6 +62,7 @@ export enum StopReason {
 }
 
 /// Debugger stop state.
+@languageItem("debug.Stop")
 export struct Stop {
     /// World history coordinate.
     moment: Moment;
@@ -68,6 +75,7 @@ export struct Stop {
 }
 
 /// Debugger step mode.
+@languageItem("debug.StepMode")
 export enum StepMode {
     /// Step by one lowered program point.
     Instruction = 1,
@@ -84,6 +92,7 @@ export enum StepMode {
 }
 
 /// Debugger step options.
+@languageItem("debug.StepOptions")
 export struct StepOptions {
     /// Step mode.
     mode: StepMode;
@@ -92,6 +101,7 @@ export struct StepOptions {
 }
 
 /// Source-level debug scope.
+@languageItem("debug.Scope")
 export struct Scope {
     /// Scope identifier.
     id: ScopeId;
@@ -102,6 +112,7 @@ export struct Scope {
 }
 
 /// Debug binding kind.
+@languageItem("debug.BindingKind")
 export enum BindingKind {
     /// Function parameter binding.
     Parameter = 1,
@@ -114,6 +125,7 @@ export enum BindingKind {
 }
 
 /// Source-level debug binding.
+@languageItem("debug.Binding")
 export struct Binding {
     /// Binding identifier.
     id: BindingId;
@@ -126,6 +138,7 @@ export struct Binding {
 }
 
 /// Debug slot binding value.
+@languageItem("debug.ValueSlot")
 export struct ValueSlot {
     /// Value discriminator.
     kind: "slot";
@@ -134,6 +147,7 @@ export struct ValueSlot {
 }
 
 /// Debug byte binding value.
+@languageItem("debug.ValueBytes")
 export struct ValueBytes {
     /// Value discriminator.
     kind: "bytes";
@@ -142,21 +156,25 @@ export struct ValueBytes {
 }
 
 /// Optimized-out debug binding value.
+@languageItem("debug.ValueOptimizedOut")
 export struct ValueOptimizedOut {
     /// Value discriminator.
     kind: "optimizedOut";
 }
 
 /// Unavailable debug binding value.
+@languageItem("debug.ValueUnavailable")
 export struct ValueUnavailable {
     /// Value discriminator.
     kind: "unavailable";
 }
 
 /// Debug binding value.
+@languageItem("debug.Value")
 export newtype Value = ValueSlot | ValueBytes | ValueOptimizedOut | ValueUnavailable;
 
 /// Debug scope list page.
+@languageItem("debug.ScopePage")
 export struct ScopePage {
     /// Scope records in this page.
     scopes: Scope[];
@@ -165,6 +183,7 @@ export struct ScopePage {
 }
 
 /// Debug binding list page.
+@languageItem("debug.BindingPage")
 export struct BindingPage {
     /// Binding records in this page.
     bindings: Binding[];
@@ -173,6 +192,7 @@ export struct BindingPage {
 }
 
 /// Debugger for one world.
+@languageItem("debug.Debugger")
 export class Debugger {
     /// World controlled by this debugger.
     readonly world: WorldHandle;

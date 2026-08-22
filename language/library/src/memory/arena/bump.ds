@@ -5,6 +5,7 @@ import { MaybeUninit } from "../init.ds";
 import { Space } from "../place.ds";
 
 /// Typed bump arena in space `S`.
+@languageItem("memory.arena.Bump")
 export struct Bump<const S: Space = "local"> {
     /// The reserved storage bytes.
     storage: ^[MaybeUninit<uint8>];

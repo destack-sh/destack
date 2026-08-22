@@ -11,18 +11,21 @@ import {
 } from "destack:net/binding";
 
 /// Owned stream socket.
+@languageItem("net.Connection")
 export struct Connection {
     /// Host socket handle.
     handle: SocketHandle;
 }
 
 /// Owned stream listener.
+@languageItem("net.Listener")
 export struct Listener {
     /// Host listener socket handle.
     handle: SocketHandle;
 }
 
 /// Owned datagram socket.
+@languageItem("net.DatagramSocket")
 export struct DatagramSocket {
     /// Host socket handle.
     handle: SocketHandle;

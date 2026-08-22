@@ -3,6 +3,7 @@ import { Error, Result, todo } from "destack:error";
 import { MaybeOwned } from "destack:memory";
 
 /// Byte decoding failure.
+@languageItem("string.Utf8DecodeError")
 export struct Utf8DecodeError {
     /// The error discriminator.
     kind: "invalidUtf8" = "invalidUtf8";

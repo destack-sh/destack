@@ -6,6 +6,7 @@ import { AllocationError, Clone, Default, MaybeOwned, MaybeUninit } from "destac
 import { Compare, Equal, Hash, Hasher, Ordering } from "destack:ops";
 
 /// Borrowed platform-native string in its opaque encoded representation.
+@languageItem("string.OsStringSlice")
 @repr("transparent")
 export struct OsStringSlice {
     /// The opaque encoded bytes.
@@ -13,12 +14,14 @@ export struct OsStringSlice {
 }
 
 /// Immutable owned platform-native string.
+@languageItem("string.OsString")
 export class OsString {
     /// The opaque encoded bytes.
     private bytes: ^[uint8] = Slice.new();
 }
 
 /// Mutable platform-native string builder.
+@languageItem("string.OsStringBuilder")
 export class OsStringBuilder {
     /// The opaque encoded byte storage.
     private storage: ^[MaybeUninit<uint8>] = Slice.new();
@@ -31,6 +34,7 @@ export class OsStringBuilder {
 }
 
 /// Failure to decode a native string as Unicode text.
+@languageItem("string.OsStringDecodeError")
 export struct OsStringDecodeError {
     /// The error discriminator.
     kind: "invalidUnicode" = "invalidUnicode";
@@ -40,6 +44,7 @@ export struct OsStringDecodeError {
 }
 
 /// Failure to consume a native string as Unicode text.
+@languageItem("string.OsStringIntoStringError")
 export struct OsStringIntoStringError {
     /// The error discriminator.
     kind: "invalidUnicode" = "invalidUnicode";

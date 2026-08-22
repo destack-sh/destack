@@ -6,9 +6,11 @@ import { ResourceId } from "destack:runtime/resource";
 import { SocketFamily } from "./address.ds";
 
 /// Handle for a packet capture or injection endpoint.
+@languageItem("net.binding.PacketHandle")
 export newtype PacketHandle = ResourceId;
 
 /// Network packet backend selector.
+@languageItem("net.binding.NetworkPacketBackend")
 export enum NetworkPacketBackend {
     /// Select the best backend for the current host.
     Auto = 0,
@@ -21,6 +23,7 @@ export enum NetworkPacketBackend {
 }
 
 /// Network packet backend features.
+@languageItem("net.binding.NetworkPacketBackendFeatures")
 export newtype NetworkPacketBackendFeatures = uint64;
 
 /// Backend supports packet capture.
@@ -60,6 +63,7 @@ export struct NetworkPacketBackendStatus {
 }
 
 /// Network packet timestamp clock domain.
+@languageItem("net.binding.NetworkPacketTimestampClock")
 export enum NetworkPacketTimestampClock {
     /// No packet timestamp is present.
     None = 0,
@@ -110,6 +114,7 @@ export struct NetworkPacketStats {
 }
 
 /// Network packet fanout mode.
+@languageItem("net.binding.NetworkPacketFanoutMode")
 export enum NetworkPacketFanoutMode {
     /// Hash packets across sockets.
     Hash = 0,
@@ -150,6 +155,7 @@ export struct NetworkPacketRingOptions {
 }
 
 /// Raw socket and packet binding family.
+@languageItem("net.binding.NetRawBinding")
 export interface NetRawBinding {
     /// List host packet backends.
     @binding("destack.net.raw.packetBackends", {

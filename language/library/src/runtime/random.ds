@@ -4,9 +4,11 @@ import { ResourceId } from "./resource.ds";
 import { WorldHandle } from "./world.ds";
 
 /// Deterministic random stream handle.
+@languageItem("runtime.RandomHandle")
 export newtype RandomHandle = ResourceId;
 
 /// Deterministic random stream seed.
+@languageItem("runtime.RandomSeed")
 export struct RandomSeed {
     /// Seed bytes.
     bytes: [uint8];

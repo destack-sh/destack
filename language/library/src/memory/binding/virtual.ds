@@ -9,9 +9,11 @@ export struct VirtualMemoryRange {
 }
 
 /// Bitmask of virtual memory protection permissions.
+@languageItem("memory.binding.MemoryProtection")
 export newtype MemoryProtection = uint32;
 
 /// Flags for virtual memory reservation operations.
+@languageItem("memory.binding.VirtualMemoryReserveFlags")
 export newtype VirtualMemoryReserveFlags = uint32;
 
 /// No protection bits.
@@ -39,6 +41,7 @@ export const VIRTUAL_MEMORY_RESERVE_NO_RESERVE: VirtualMemoryReserveFlags =
     VirtualMemoryReserveFlags(0x2);
 
 /// Virtual binding family.
+@languageItem("memory.binding.MemoryVirtualBinding")
 export interface MemoryVirtualBinding {
     /// Reserve one virtual memory range.
     @binding("destack.memory.virtual.reserve", {

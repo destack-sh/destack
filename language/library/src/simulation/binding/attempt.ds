@@ -1,6 +1,7 @@
 import { LabelSet } from "destack:topology";
 
 /// Binding attempt event.
+@languageItem("simulation.binding.EventKind")
 export enum EventKind {
     /// Before invoking one binding implementation.
     BindingBefore = 1,
@@ -21,9 +22,11 @@ export enum EventKind {
 }
 
 /// Stable identifier for one binding call.
+@languageItem("simulation.binding.CallId")
 export newtype CallId = uint64;
 
 /// Attempt observed by a simulated binding implementation.
+@languageItem("simulation.binding.Attempt")
 export struct Attempt {
     /// Event kind.
     event: EventKind;

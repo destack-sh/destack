@@ -29,6 +29,7 @@ export type PlainYearMonthLike = {
 };
 
 /// Temporal plain year-month.
+@languageItem("time.PlainYearMonth")
 export class PlainYearMonth {
     /// Create a plain year-month.
     static from(

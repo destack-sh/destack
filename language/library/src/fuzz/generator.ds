@@ -26,6 +26,7 @@ export struct Weight<T> {
 }
 
 /// Value generator.
+@languageItem("fuzz.Generator")
 export class Generator<T> {
     /// Generate boolean values.
     static bool(): Generator<boolean> {

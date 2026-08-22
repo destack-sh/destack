@@ -36,6 +36,7 @@ export local struct ConcurrentMapEntry<K, V> {
 }
 
 /// A sharded concurrent hash map.
+@languageItem("collections.ConcurrentMap")
 export shared class ConcurrentMap<K, V> {
     /// The map shards.
     private shards: Array<RwLock<Map<K, V>>> = [];

@@ -4,6 +4,7 @@ import { RevisionId } from "./lineage.ds";
 import { WorldHandle } from "./world.ds";
 
 /// Runtime control event kind.
+@languageItem("runtime.ControlEventKind")
 export enum ControlEventKind {
     /// The runtime paused execution.
     Paused = 1,
@@ -16,6 +17,7 @@ export enum ControlEventKind {
 }
 
 /// Runtime control event.
+@languageItem("runtime.ControlEvent")
 export struct ControlEvent {
     /// Event kind.
     kind: ControlEventKind;

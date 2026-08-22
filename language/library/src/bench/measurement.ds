@@ -3,9 +3,11 @@ import { todo } from "destack:error";
 import { Duration } from "destack:time";
 
 /// Benchmark unit label.
+@languageItem("bench.Unit")
 export newtype Unit = string;
 
 /// Recorded benchmark measurement.
+@languageItem("bench.Measurement")
 export struct Measurement {
     /// Measurement name.
     name: string;
@@ -27,6 +29,7 @@ export struct Measurement {
 }
 
 /// Benchmark sample series.
+@languageItem("bench.Samples")
 export struct Samples {
     /// Recorded measurements.
     measurements: [Measurement];
@@ -54,6 +57,7 @@ export struct Samples {
 }
 
 /// Benchmark measurement helper.
+@languageItem("bench.Measure")
 export class Measure {
     /// Measurement name.
     readonly name: string;

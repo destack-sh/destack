@@ -39,6 +39,7 @@ export type ZonedDateTimeLike = PlainDateTimeLike & {
 };
 
 /// Temporal zoned date-time.
+@languageItem("time.ZonedDateTime")
 export class ZonedDateTime {
     /// Create a zoned date-time.
     static from(

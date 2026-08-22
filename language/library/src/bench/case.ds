@@ -11,6 +11,7 @@ export type Argument = Body | Options | Duration;
 export type SuiteArgument = SuiteBody | Options;
 
 /// Registered benchmark case.
+@languageItem("bench.Case")
 export struct Case {
     /// Case name.
     name: string;
@@ -20,6 +21,7 @@ export struct Case {
 }
 
 /// Registered benchmark suite.
+@languageItem("bench.Suite")
 export struct Suite {
     /// Suite name.
     name: string;

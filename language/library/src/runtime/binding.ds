@@ -1,6 +1,7 @@
 import { RuntimeAction } from "./action.ds";
 
 /// Actions that touch host-provided facilities.
+@languageItem("runtime.HostAction")
 export type HostAction =
     | "host.console.write"
     | "host.fs.link"
@@ -46,6 +47,7 @@ export type HostAction =
     | "host.time.timer";
 
 /// Host backend availability status.
+@languageItem("runtime.HostBackendStatus")
 export enum HostBackendStatus {
     /// The backend integration is available on the current host.
     Available = 0,
@@ -58,9 +60,11 @@ export enum HostBackendStatus {
 }
 
 /// Actions for binding policy and sandboxing.
+@languageItem("runtime.Action")
 export type Action = HostAction | RuntimeAction;
 
 /// Platform tags accepted by runtime bindings.
+@languageItem("runtime.PlatformTag")
 export type PlatformTag =
     | "windows"
     | "macos"
@@ -77,12 +81,15 @@ export type PlatformTag =
     | "hermit";
 
 /// Platform family selectors accepted by runtime bindings.
+@languageItem("runtime.PlatformFamilyTag")
 export type PlatformFamilyTag = "windows" | "unix" | "wasm";
 
 /// Host tags accepted by runtime bindings.
+@languageItem("runtime.HostTag")
 export type HostTag = "native" | "browser" | "wasi" | "emscripten" | "freestanding";
 
 /// Binding implementation owner.
+@languageItem("runtime.BindingProvider")
 export type BindingProvider = "host" | "runtime";
 
 /// Options for runtime bindings.

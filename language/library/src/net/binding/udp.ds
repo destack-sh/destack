@@ -26,6 +26,7 @@ export struct MulticastInterfaceIndex {
 }
 
 /// Multicast interface selector.
+@languageItem("net.binding.MulticastInterface")
 export newtype MulticastInterface =
     | MulticastInterfaceAny
     | MulticastInterfaceAddress
@@ -50,6 +51,7 @@ export struct SourceMulticastGroup {
 }
 
 /// UDP multicast option key.
+@languageItem("net.binding.MulticastOption")
 export enum MulticastOption {
     /// Multicast loopback.
     Loopback = 1,
@@ -84,12 +86,14 @@ export struct MulticastOptionInterface {
 }
 
 /// UDP multicast option value.
+@languageItem("net.binding.MulticastOptionValue")
 export newtype MulticastOptionValue =
     | MulticastOptionLoopback
     | MulticastOptionHopLimit
     | MulticastOptionInterface;
 
 /// UDP binding family.
+@languageItem("net.binding.NetUdpBinding")
 export interface NetUdpBinding {
     /// Join one multicast group.
     @binding("destack.net.udp.joinMulticast", {

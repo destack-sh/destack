@@ -5,6 +5,7 @@ import { Attribute, Constraint } from "./constraint.ds";
 import { Issue, ValidationError } from "./error.ds";
 
 /// Schema graph node kind.
+@languageItem("schema.SchemaKind")
 export enum SchemaKind {
     /// Type literal.
     TypeLiteral = 1,
@@ -75,6 +76,7 @@ export enum SchemaKind {
 }
 
 /// Schema field.
+@languageItem("schema.SchemaField")
 export struct SchemaField {
     /// Field key.
     key: reflect.StaticKey;
@@ -96,6 +98,7 @@ export struct SchemaField {
 }
 
 /// Schema element.
+@languageItem("schema.SchemaElement")
 export struct SchemaElement {
     /// Optional element label.
     label?: string;
@@ -120,6 +123,7 @@ export struct SchemaElement {
 }
 
 /// Schema definition.
+@languageItem("schema.SchemaDefinition")
 export struct SchemaDefinition<T> {
     /// Schema kind.
     kind: SchemaKind;
@@ -177,6 +181,7 @@ export struct SchemaDefinition<T> {
 }
 
 /// Runtime schema graph for `T`.
+@languageItem("schema.Schema")
 export class Schema<T> {
     /// Schema graph definition.
     readonly definition: SchemaDefinition<T>;

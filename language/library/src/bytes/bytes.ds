@@ -2,9 +2,11 @@ import { todo } from "destack:error";
 import { Iterator } from "destack:iter";
 
 /// Immutable byte sequence.
+@languageItem("bytes.Bytes")
 export type Bytes = readonly [uint8];
 
 /// Byte order for numeric encoding.
+@languageItem("bytes.ByteOrder")
 export type ByteOrder = "bigEndian" | "littleEndian";
 
 /// Read one unsigned 16-bit integer.

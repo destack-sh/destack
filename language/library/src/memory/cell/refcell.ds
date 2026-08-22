@@ -6,6 +6,7 @@ import { Dispose } from "../dispose.ds";
 import { Cell, UnsafeCell } from "./cell.ds";
 
 /// Runtime-checked interior mutable storage.
+@languageItem("memory.cell.RefCell")
 export struct RefCell<T> {
     /// The active borrow state.
     state: Cell<int32>;

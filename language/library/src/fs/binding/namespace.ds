@@ -18,12 +18,15 @@ export const RENAME_WHITEOUT: RenameFlags = RenameFlags(0x4);
 export const LINK_FOLLOW: LinkFlags = LinkFlags(0x1);
 
 /// Rename operation flags.
+@languageItem("fs.binding.RenameFlags")
 export newtype RenameFlags = uint32;
 
 /// Link operation flags.
+@languageItem("fs.binding.LinkFlags")
 export newtype LinkFlags = uint32;
 
 /// Symlink target type hint.
+@languageItem("fs.binding.SymlinkKind")
 export enum SymlinkKind {
     /// Let the runtime infer the target type.
     Auto = 0,
@@ -34,6 +37,7 @@ export enum SymlinkKind {
 }
 
 /// Node device identifier.
+@languageItem("fs.binding.NodeDevice")
 export newtype NodeDevice = uint64;
 
 /// Host filesystem node creation options.
@@ -45,6 +49,7 @@ export struct NodeOptions {
 }
 
 /// Filesystem namespace binding family.
+@languageItem("fs.binding.NamespaceBinding")
 export interface NamespaceBinding {
     /// Rename or exchange one filesystem entry.
     @binding("destack.fs.namespace.rename", {

@@ -18,6 +18,7 @@ export type LogOptions<'a> = {
 };
 
 /// Structured logger.
+@languageItem("telemetry.Logger")
 export class Logger {
     /// Logger name.
     readonly name: string;

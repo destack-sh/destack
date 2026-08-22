@@ -6,6 +6,7 @@ import { AllocationError, Default, MaybeUninit } from "destack:memory";
 import { StringSlice } from "./slice.ds";
 
 /// Mutable string builder with growable backing storage.
+@languageItem("string.StringBuilder")
 export class StringBuilder {
     /// The owned UTF-16 code units.
     private codeUnits: ^[MaybeUninit<uint16>] = Slice.new();

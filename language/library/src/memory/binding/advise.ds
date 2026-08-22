@@ -3,6 +3,7 @@ import { HostError } from "destack:error/host";
 import { VirtualMemoryRange } from "./virtual.ds";
 
 /// Memory access pattern advice selector.
+@languageItem("memory.binding.MemoryAdvice")
 export enum MemoryAdvice {
     /// No special access pattern.
     Normal = 0,
@@ -17,6 +18,7 @@ export enum MemoryAdvice {
 }
 
 /// Advise binding family.
+@languageItem("memory.binding.MemoryAdviseBinding")
 export interface MemoryAdviseBinding {
     /// Apply memory access advice.
     @binding("destack.memory.advise", {

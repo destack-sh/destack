@@ -31,7 +31,9 @@ export struct EdgeOptions<T = unknown> {
 }
 
 /// Mark a declaration as a topology entity.
+@languageItem("topology.entity")
 export newtype entity<T = unknown> = EntityOptions<T>;
 
 /// Mark a declaration as a topology edge.
+@languageItem("topology.edge")
 export newtype edge<T = unknown> = EdgeOptions<T>;

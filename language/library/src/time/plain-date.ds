@@ -44,6 +44,7 @@ export type PlainDateLike = {
 };
 
 /// Temporal plain date.
+@languageItem("time.PlainDate")
 export class PlainDate {
     /// Create a plain date.
     static from(item: PlainDate | PlainDateLike | string, options?: AssignmentOptions): PlainDate {

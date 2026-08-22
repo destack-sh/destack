@@ -11,6 +11,7 @@ export struct VirtualMemoryLayout {
 }
 
 /// Layout binding family.
+@languageItem("memory.binding.MemoryLayoutBinding")
 export interface MemoryLayoutBinding {
     /// Read virtual memory layout constraints.
     @binding("destack.memory.layout.read", {

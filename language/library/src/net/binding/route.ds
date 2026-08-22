@@ -12,6 +12,7 @@ export struct IpPrefix {
 }
 
 /// Network route entry kind.
+@languageItem("net.binding.NetworkRouteKind")
 export enum NetworkRouteKind {
     /// Unicast route.
     Unicast = 1,
@@ -42,6 +43,7 @@ export struct NetworkRouteEntry {
 }
 
 /// Network route binding family.
+@languageItem("net.binding.NetRouteBinding")
 export interface NetRouteBinding {
     /// List route table entries.
     @binding("destack.net.route.list", {

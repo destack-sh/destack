@@ -7,6 +7,7 @@ export type RegExpGroups = {
 };
 
 /// Half-open match span in UTF-16 code units.
+@languageItem("regexp.RegExpSpan")
 export struct RegExpSpan {
     /// The inclusive start index.
     start: number;
@@ -21,6 +22,7 @@ export type RegExpIndexGroups = {
 };
 
 /// Match spans produced by the `d` flag.
+@languageItem("regexp.RegExpIndices")
 export struct RegExpIndices {
     /// The full match span.
     match: RegExpSpan;
@@ -33,6 +35,7 @@ export struct RegExpIndices {
 }
 
 /// One regular expression match.
+@languageItem("regexp.RegExpMatch")
 export struct RegExpMatch {
     /// The full matched text.
     text: string;

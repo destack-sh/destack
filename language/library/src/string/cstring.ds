@@ -8,6 +8,7 @@ import { Compare, Equal, Hash, Hasher, Ordering } from "destack:ops";
 import { Utf8DecodeError } from "./utf8.ds";
 
 /// Borrowed bytes terminated by exactly one zero byte with no interior zero bytes.
+@languageItem("string.CStringSlice")
 @repr("transparent")
 export struct CStringSlice {
     /// The validated bytes including their final zero byte.
@@ -15,12 +16,14 @@ export struct CStringSlice {
 }
 
 /// Owned bytes terminated by exactly one zero byte with no interior zero bytes.
+@languageItem("string.CString")
 export class CString {
     /// The bytes including the final zero byte.
     private bytes: ^[uint8] = Slice.new();
 }
 
 /// An interior zero byte in a C string source.
+@languageItem("string.InteriorNulError")
 export struct InteriorNulError {
     /// The error discriminator.
     kind: "interiorNul" = "interiorNul";
@@ -30,6 +33,7 @@ export struct InteriorNulError {
 }
 
 /// A byte sequence without its required final zero byte.
+@languageItem("string.MissingNulError")
 export struct MissingNulError {
     /// The error discriminator.
     kind: "missingNul" = "missingNul";
@@ -39,9 +43,11 @@ export struct MissingNulError {
 }
 
 /// Failure to construct a valid C string.
+@languageItem("string.CStringError")
 export newtype CStringError = InteriorNulError | MissingNulError;
 
 /// Failure to consume a C string as UTF-8 text.
+@languageItem("string.CStringIntoStringError")
 export struct CStringIntoStringError {
     /// The error discriminator.
     kind: "invalidUtf8" = "invalidUtf8";

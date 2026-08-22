@@ -1,4 +1,5 @@
 /// Socket address family.
+@languageItem("net.binding.SocketFamily")
 export enum SocketFamily {
     /// No address family preference.
     Unspecified = 0,
@@ -41,6 +42,7 @@ export struct IpAddressIpv6 {
 }
 
 /// IP address payload.
+@languageItem("net.binding.IpAddress")
 export newtype IpAddress = IpAddressIpv4 | IpAddressIpv6;
 
 /// IP socket endpoint.
@@ -74,6 +76,7 @@ export struct UnixAddressUnnamed {
 }
 
 /// Unix domain socket address payload.
+@languageItem("net.binding.UnixAddress")
 export newtype UnixAddress = UnixAddressPath | UnixAddressAbstract | UnixAddressUnnamed;
 
 /// Raw socket address payload for host-specific address families.
@@ -109,4 +112,5 @@ export struct SocketAddressRaw {
 }
 
 /// Socket address payload.
+@languageItem("net.binding.SocketAddress")
 export newtype SocketAddress = SocketAddressIp | SocketAddressUnix | SocketAddressRaw;

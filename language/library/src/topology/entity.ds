@@ -1,12 +1,15 @@
 import { LabelSelector, LabelSet } from "./label.ds";
 
 /// Topology entity identifier.
+@languageItem("topology.EntityId")
 export newtype EntityId = string;
 
 /// Topology entity kind.
+@languageItem("topology.EntityKind")
 export newtype EntityKind = string;
 
 /// Topology entity-kind record.
+@languageItem("topology.EntityKindRecord")
 export struct EntityKindRecord {
     /// Entity kind.
     kind: EntityKind;
@@ -15,6 +18,7 @@ export struct EntityKindRecord {
 }
 
 /// Concrete topology entity record.
+@languageItem("topology.EntityRecord")
 export struct EntityRecord {
     /// Entity identifier.
     id: EntityId;
@@ -73,6 +77,7 @@ export struct EntityChooseOne {
 }
 
 /// Topology entity selector.
+@languageItem("topology.EntitySelector")
 export newtype EntitySelector =
     | EntityAny
     | EntityById
@@ -82,6 +87,7 @@ export newtype EntitySelector =
     | EntityChooseOne;
 
 /// Programmable entity projection.
+@languageItem("topology.Entity")
 export newtype interface Entity {
     /// Entity kind for this projected value.
     type Kind: EntityKind;

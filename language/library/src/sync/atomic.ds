@@ -3,6 +3,7 @@ import { Integer } from "destack:math";
 import { Concrete, Copy, SharedSafe } from "destack:memory";
 
 /// Memory reordering constraint for atomic operations.
+@languageItem("sync.MemoryOrdering")
 export enum MemoryOrdering {
     /// Atomicity without synchronization ordering.
     Relaxed,
@@ -17,6 +18,7 @@ export enum MemoryOrdering {
 }
 
 /// Execution scope for atomic operations.
+@languageItem("sync.AtomicScope")
 export enum AtomicScope {
     /// Single invocation or thread scope.
     Invocation,
@@ -37,6 +39,7 @@ export enum AtomicScope {
 }
 
 /// Memory scope for atomic operations.
+@languageItem("sync.MemoryScope")
 export enum MemoryScope {
     /// Single invocation or thread scope.
     Invocation,
@@ -57,6 +60,7 @@ export enum MemoryScope {
 }
 
 /// Effect regions participating in an atomic operation.
+@languageItem("sync.MemoryRegionSet")
 export enum MemoryRegionSet {
     /// No memory locations.
     None = 0,
@@ -83,6 +87,7 @@ export enum MemoryRegionSet {
 }
 
 /// Result of waiting on an atomic value.
+@languageItem("sync.AtomicWaitResult")
 export type AtomicWaitResult = "notEqual" | "timedOut" | "woken";
 
 /// Values supported by atomic storage.

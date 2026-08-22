@@ -1,6 +1,7 @@
 import { LabelSelector } from "destack:topology";
 
 /// Binding selector for simulated binding calls.
+@languageItem("simulation.binding.Selector")
 export struct Selector {
     /// Optional binding module name.
     module?: string;

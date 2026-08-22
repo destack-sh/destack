@@ -3,9 +3,11 @@ import * as test from "destack:test";
 import { Sample } from "./sample.ds";
 
 /// Stable fuzz corpus identifier.
+@languageItem("fuzz.CorpusId")
 export newtype CorpusId = string;
 
 /// Saved fuzz corpus entry.
+@languageItem("fuzz.CorpusEntry")
 export struct CorpusEntry<T> {
     /// Entry value.
     value: T;
@@ -18,6 +20,7 @@ export struct CorpusEntry<T> {
 }
 
 /// Minimal failing fuzz example.
+@languageItem("fuzz.Counterexample")
 export struct Counterexample<T> {
     /// Failing value.
     value: T;
@@ -33,6 +36,7 @@ export struct Counterexample<T> {
 }
 
 /// Persisted fuzz corpus.
+@languageItem("fuzz.Corpus")
 export struct Corpus<T> {
     /// Corpus identifier when persisted.
     id?: CorpusId;

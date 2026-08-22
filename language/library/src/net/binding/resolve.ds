@@ -5,6 +5,7 @@ import { IpAddress, IpEndpoint, SocketAddress, SocketFamily } from "./address.ds
 import { SocketProtocol, SocketType } from "./socket.ds";
 
 /// Address lookup flags.
+@languageItem("net.binding.AddressLookupFlags")
 export newtype AddressLookupFlags = uint32;
 
 /// Return socket addresses that can be used for bind.
@@ -47,6 +48,7 @@ export struct AddressLookupResult {
 }
 
 /// DNS record type number.
+@languageItem("net.binding.DnsRecordType")
 export newtype DnsRecordType = uint16;
 
 /// IPv4 address record.
@@ -247,6 +249,7 @@ export struct DnsRecordRaw {
 }
 
 /// DNS record payload.
+@languageItem("net.binding.DnsRecord")
 export newtype DnsRecord =
     | DnsRecordAddress
     | DnsRecordName
@@ -259,6 +262,7 @@ export newtype DnsRecord =
     | DnsRecordRaw;
 
 /// Reverse lookup flags.
+@languageItem("net.binding.ReverseAddressLookupFlags")
 export newtype ReverseAddressLookupFlags = uint32;
 
 /// Return numeric host results.
@@ -278,6 +282,7 @@ export struct ReverseAddressLookupResult {
 }
 
 /// Name resolution binding family.
+@languageItem("net.binding.NetResolveBinding")
 export interface NetResolveBinding {
     /// Resolve a host and service through host address lookup.
     @binding("destack.net.resolve.lookup", {

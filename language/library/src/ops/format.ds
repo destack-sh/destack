@@ -16,6 +16,7 @@ export newtype interface Debug {
 }
 
 /// Interface for infallible conversion to owned text.
+@languageItem("ops.ToString")
 export newtype interface ToString {
     /// Return the owned string representation.
     toString(&readonly this): ^string;

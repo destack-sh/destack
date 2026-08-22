@@ -10,6 +10,7 @@ export type Argument = Body | Options;
 export type SuiteArgument = SuiteBody | Options;
 
 /// Registered simulation case.
+@languageItem("simulation.Case")
 export struct Case {
     /// Case name.
     name: string;
@@ -19,6 +20,7 @@ export struct Case {
 }
 
 /// Registered simulation suite.
+@languageItem("simulation.Suite")
 export struct Suite {
     /// Suite name.
     name: string;

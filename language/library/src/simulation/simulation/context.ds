@@ -12,6 +12,7 @@ import { Trigger } from "../scenario/trigger.ds";
 import { Simulation } from "./simulation.ds";
 
 /// Simulation callback context.
+@languageItem("simulation.Context")
 export newtype interface Context extends test.CaseContext {
     /// Active simulation.
     readonly simulation: Simulation;

@@ -5,6 +5,7 @@ import { Atomic } from "destack:sync";
 import { Task } from "./task.ds";
 
 /// Asynchronous counting semaphore.
+@languageItem("async.AsyncSemaphore")
 export local class AsyncSemaphore {
     /// The available permit count.
     state: Atomic<isize>;

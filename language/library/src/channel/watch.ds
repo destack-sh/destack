@@ -26,6 +26,7 @@ export extension<T> of WatchRef<T> implements Dispose, Dereference<"readonly"> {
 }
 
 /// Sender for the latest watched value.
+@languageItem("channel.watch.WatchSender")
 export interface WatchSender<T> {
     /// Replace the watched value.
     send(value: ^T): Result<void, SendError<T>>;
@@ -41,6 +42,7 @@ export interface WatchSender<T> {
 }
 
 /// Receiver for the latest watched value.
+@languageItem("channel.watch.WatchReceiver")
 export interface WatchReceiver<T> {
     /// Borrow the latest value as a stable snapshot.
     borrow(): WatchRef<T>;

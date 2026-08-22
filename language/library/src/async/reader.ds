@@ -1,6 +1,7 @@
 import { IoError } from "destack:error";
 
 /// Asynchronous byte reader.
+@languageItem("async.AsyncReader")
 export interface AsyncReader {
     /// Read bytes into `buffer`.
     read(buffer: &exclusive [uint8]): Task<Result<usize, IoError>>;

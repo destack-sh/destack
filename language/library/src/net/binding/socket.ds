@@ -4,9 +4,11 @@ import { ResourceId, TransferredHandle } from "destack:runtime/resource";
 import { SocketAddress, SocketFamily } from "./address.ds";
 
 /// Handle for a network socket.
+@languageItem("net.binding.SocketHandle")
 export newtype SocketHandle = ResourceId;
 
 /// Socket type.
+@languageItem("net.binding.SocketType")
 export enum SocketType {
     /// Stream-oriented socket.
     Stream = 1,
@@ -19,9 +21,11 @@ export enum SocketType {
 }
 
 /// Socket protocol number.
+@languageItem("net.binding.SocketProtocol")
 export newtype SocketProtocol = int32;
 
 /// Socket creation flags.
+@languageItem("net.binding.SocketFlags")
 export newtype SocketFlags = uint32;
 
 /// Create the socket in nonblocking mode.
@@ -43,6 +47,7 @@ export struct SocketOpenOptions {
 }
 
 /// Socket accept flags.
+@languageItem("net.binding.SocketAcceptFlags")
 export newtype SocketAcceptFlags = uint32;
 
 /// Accept the socket in nonblocking mode.
@@ -52,6 +57,7 @@ export const SOCKET_ACCEPT_NONBLOCK: SocketAcceptFlags = SocketAcceptFlags(0x1);
 export const SOCKET_ACCEPT_CLOEXEC: SocketAcceptFlags = SocketAcceptFlags(0x2);
 
 /// Message flags for send and receive operations.
+@languageItem("net.binding.SocketMessageFlags")
 export newtype SocketMessageFlags = uint32;
 
 /// Read without consuming queued data.
@@ -67,6 +73,7 @@ export const SOCKET_MESSAGE_DONT_ROUTE: SocketMessageFlags = SocketMessageFlags(
 export const SOCKET_MESSAGE_WAIT_ALL: SocketMessageFlags = SocketMessageFlags(0x8);
 
 /// Shutdown mode for sockets.
+@languageItem("net.binding.SocketShutdown")
 export enum SocketShutdown {
     /// Shut down reads.
     Read = 0,
@@ -177,6 +184,7 @@ export struct SocketSendBatchEntry {
 }
 
 /// Socket binding family.
+@languageItem("net.binding.NetSocketBinding")
 export interface NetSocketBinding {
     /// Create a socket.
     @binding("destack.net.socket.open", {

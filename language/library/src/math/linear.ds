@@ -4,6 +4,7 @@ import { Add, Divide, Multiply, Negate, Subtract } from "destack:ops";
 import { Numeric } from "./numeric.ds";
 
 /// Two-dimensional vector.
+@languageItem("math.Vector2")
 export struct Vector2<T: Numeric> {
     /// The x component.
     x: T;
@@ -13,6 +14,7 @@ export struct Vector2<T: Numeric> {
 }
 
 /// Three-dimensional vector.
+@languageItem("math.Vector3")
 export struct Vector3<T: Numeric> {
     /// The x component.
     x: T;
@@ -25,6 +27,7 @@ export struct Vector3<T: Numeric> {
 }
 
 /// Four-dimensional vector.
+@languageItem("math.Vector4")
 export struct Vector4<T: Numeric> {
     /// The x component.
     x: T;

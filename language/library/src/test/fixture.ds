@@ -13,6 +13,7 @@ export type FixtureResult<T> =
     | (T extends Copy ? Promise<T | Result<T, Dynamic<Error>>> : never);
 
 /// State provided while creating one fixture.
+@languageItem("test.FixtureContext")
 export newtype interface FixtureContext {
     /// Run one cleanup after this fixture expires.
     onCleanup(cleanup: Cleanup): void;

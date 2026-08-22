@@ -4,6 +4,7 @@ import { Error } from "./error.ds";
 import { todo } from "./panic.ds";
 
 /// Portable I/O error category.
+@languageItem("error.IoErrorKind")
 export enum IoErrorKind {
     /// The requested entity does not exist.
     NotFound,
@@ -50,6 +51,7 @@ export enum IoErrorKind {
 }
 
 /// Portable I/O failure.
+@languageItem("error.IoError")
 export struct IoError {
     /// The failure kind.
     kind: IoErrorKind;
@@ -77,6 +79,7 @@ export extension of IoError implements Error {
 }
 
 /// I/O failure attached to a path operation.
+@languageItem("error.PathError")
 export struct PathError {
     /// Operation being performed.
     operation: string;

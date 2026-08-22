@@ -3,6 +3,7 @@ import { todo } from "destack:error";
 import { MutexGuard } from "./mutex.ds";
 
 /// Condition variable paired with a mutex.
+@languageItem("sync.Condvar")
 export shared class Condvar {
     /// Create a condition variable.
     constructor() {

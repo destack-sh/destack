@@ -6,6 +6,7 @@ import { JSON } from "./json.ds";
 import { Json } from "./value.ds";
 
 /// JSON encoder.
+@languageItem("json.JsonSerializer")
 export class JsonSerializer implements Serializer {
     /// The encoding error type.
     type Error = JsonError;
@@ -54,6 +55,7 @@ export class JsonSerializer implements Serializer {
 }
 
 /// JSON decoder.
+@languageItem("json.JsonDeserializer")
 export class JsonDeserializer implements Deserializer {
     /// The decoding error type.
     type Error = JsonError;

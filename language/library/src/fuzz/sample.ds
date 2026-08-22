@@ -4,6 +4,7 @@ import { RandomSeed } from "destack:runtime";
 export type Seed = RandomSeed;
 
 /// Generated sample metadata.
+@languageItem("fuzz.Sample")
 export struct Sample {
     /// Seed that produced this sample.
     seed: Seed;

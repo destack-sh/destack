@@ -1,6 +1,7 @@
 import { Fields } from "./field.ds";
 
 /// Metric instrument kind.
+@languageItem("telemetry.InstrumentKind")
 export enum InstrumentKind {
     /// Monotonic counter.
     Counter = 1,
@@ -13,6 +14,7 @@ export enum InstrumentKind {
 }
 
 /// Metric entry.
+@languageItem("telemetry.MetricEntry")
 export struct MetricEntry<'a> {
     /// Instrument kind.
     kind: InstrumentKind;
@@ -31,12 +33,15 @@ export struct MetricEntry<'a> {
 }
 
 /// Distributed trace identifier.
+@languageItem("telemetry.TraceId")
 export newtype TraceId = uint128;
 
 /// Span identifier inside one trace.
+@languageItem("telemetry.SpanId")
 export newtype SpanId = uint64;
 
 /// Span relationship and transport kind.
+@languageItem("telemetry.SpanKind")
 export enum SpanKind {
     /// Internal work inside one runtime.
     Internal = 1,
@@ -51,6 +56,7 @@ export enum SpanKind {
 }
 
 /// Span completion status.
+@languageItem("telemetry.SpanStatus")
 export enum SpanStatus {
     /// No explicit status has been set.
     Unset = 1,
@@ -61,6 +67,7 @@ export enum SpanStatus {
 }
 
 /// Trace identity for one active span.
+@languageItem("telemetry.SpanContext")
 export struct SpanContext {
     /// Trace containing this span.
     traceId: TraceId;
@@ -73,6 +80,7 @@ export struct SpanContext {
 }
 
 /// Span start options.
+@languageItem("telemetry.SpanOptions")
 export struct SpanOptions {
     /// Span kind.
     kind?: SpanKind | undefined;
@@ -85,6 +93,7 @@ export struct SpanOptions {
 }
 
 /// Trace event kind.
+@languageItem("telemetry.TraceEventKind")
 export enum TraceEventKind {
     /// Span start.
     Start = 1,
@@ -99,6 +108,7 @@ export enum TraceEventKind {
 }
 
 /// Trace event entry.
+@languageItem("telemetry.TraceEntry")
 export struct TraceEntry<'a> {
     /// Event kind.
     kind: TraceEventKind;
@@ -132,6 +142,7 @@ export struct TraceEntry<'a> {
 }
 
 /// Log severity.
+@languageItem("telemetry.Level")
 export enum Level {
     /// Highly detailed diagnostic event.
     Trace = 1,
@@ -148,6 +159,7 @@ export enum Level {
 }
 
 /// Structured log entry.
+@languageItem("telemetry.LogEntry")
 export struct LogEntry<'a> {
     /// Log severity.
     level: Level;

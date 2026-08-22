@@ -15,6 +15,7 @@ export interface ConsoleOptions {
 }
 
 /// Debugging console.
+@languageItem("console.Console")
 export class Console {
     /// Create a console from output streams.
     constructor(options?: ConsoleOptions) {

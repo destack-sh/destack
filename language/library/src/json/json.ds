@@ -20,6 +20,7 @@ export type JsonReviver = (
 export type JsonReplacer = (key: string, value: Json) => Json | undefined;
 
 /// JavaScript-shaped JSON API.
+@languageItem("json.JSON")
 export class JSON {
     /// Parse JSON text.
     static parse(text: string, reviver?: JsonReviver): Result<Json, JsonError> {

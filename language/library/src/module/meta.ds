@@ -1,6 +1,7 @@
 import { Derive } from "./config.ds";
 
 /// Target operating system.
+@languageItem("module.Platform")
 export type Platform =
     | "unknown"
     | "windows"
@@ -19,18 +20,23 @@ export type Platform =
     | "none";
 
 /// Runtime selected for the build.
+@languageItem("module.Runtime")
 export type Runtime = "destack" | "js";
 
 /// Build artifact kind.
+@languageItem("module.Output")
 export type Output = "bundle" | "program";
 
 /// Package release stage.
+@languageItem("module.Stage")
 export type Stage = "experimental" | "alpha" | "beta" | "stable";
 
 /// Host environment providing imports and ambient effects.
+@languageItem("module.Host")
 export type Host = "native" | "browser" | "wasi" | "emscripten" | "freestanding";
 
 /// Coarse target family metadata.
+@languageItem("module.TargetFamily")
 export type TargetFamily =
     | "web"
     | "windows"
@@ -41,6 +47,7 @@ export type TargetFamily =
     | "other";
 
 /// Structured target metadata.
+@languageItem("module.ImportMetaTarget")
 export interface ImportMetaTarget {
     /// Coarse target family.
     readonly family: TargetFamily;

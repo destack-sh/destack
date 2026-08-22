@@ -5,9 +5,11 @@ import { ImageId } from "./lineage.ds";
 import { WorldHandle } from "./world.ds";
 
 /// Serialized snapshot identifier.
+@languageItem("runtime.SnapshotId")
 export newtype SnapshotId = uint64;
 
 /// Snapshot export format.
+@languageItem("runtime.SnapshotFormat")
 export enum SnapshotFormat {
     /// Fast local image export with runtime-specific backing.
     Fast = 1,
@@ -16,6 +18,7 @@ export enum SnapshotFormat {
 }
 
 /// Snapshot state.
+@languageItem("runtime.Snapshot")
 export struct Snapshot {
     /// Snapshot identifier.
     id: SnapshotId;

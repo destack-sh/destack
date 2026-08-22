@@ -5,6 +5,7 @@ import { Access, MaybeUninit, WithAccess } from "destack:memory";
 import { Bytes } from "./bytes.ds";
 
 /// Growable byte buffer.
+@languageItem("bytes.ByteBuffer")
 export class ByteBuffer {
     /// The owned byte storage.
     storage: ^[MaybeUninit<uint8>] = Slice.new();

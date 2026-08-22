@@ -271,6 +271,7 @@ local struct TaskTaken {
 ///
 /// Asynchronous disposal waits for every child before it completes. Cancellation requests are
 /// delivered cooperatively at cancellable asynchronous operations.
+@languageItem("async.TaskScope")
 export local struct TaskScope implements AsyncDispose, Drop {
     /// Opaque task scope identity.
     private handle: uint64;

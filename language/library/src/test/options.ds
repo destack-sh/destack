@@ -3,6 +3,7 @@ import { Label } from "destack:runtime";
 import { Duration } from "destack:time";
 
 /// Test case execution kind.
+@languageItem("test.CaseKind")
 export enum CaseKind {
     /// Ordinary example-based check.
     Example = 1,
@@ -15,6 +16,7 @@ export enum CaseKind {
 }
 
 /// Execution isolation using a pooled Worker, fresh Runtime, or fresh World.
+@languageItem("test.Isolation")
 export type Isolation = "worker" | "runtime" | "world";
 
 /// Retry policy for one test.
@@ -27,6 +29,7 @@ export type RetryOptions = {
 };
 
 /// Test registration options.
+@languageItem("test.Options")
 export type Options = {
     /// Focus this registration.
     only?: boolean;

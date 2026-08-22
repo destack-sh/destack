@@ -35,6 +35,7 @@ export type DurationLike = {
 };
 
 /// Temporal duration.
+@languageItem("time.Duration")
 export class Duration {
     /// Create a duration from another duration, a field bag, or a string.
     static from(item: Duration | DurationLike | string): Duration {

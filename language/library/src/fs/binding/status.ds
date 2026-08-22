@@ -5,6 +5,7 @@ import { Entry } from "./entry.ds";
 import { FileSize } from "./range.ds";
 
 /// File permission mode bits.
+@languageItem("fs.binding.FileMode")
 export newtype FileMode = uint32;
 
 /// File type bits mask.
@@ -59,6 +60,7 @@ export const FILE_MODE_OTHER_WRITE: FileMode = FileMode(0x0002);
 export const FILE_MODE_OTHER_EXECUTE: FileMode = FileMode(0x0001);
 
 /// File timestamp in nanoseconds since the Unix epoch.
+@languageItem("fs.binding.FileTime")
 export newtype FileTime = int64;
 
 /// Access and modification timestamps.
@@ -70,6 +72,7 @@ export struct FileTimes {
 }
 
 /// Windows file security identifier bytes.
+@languageItem("fs.binding.FilePrincipalSid")
 export newtype FilePrincipalSid = [uint8];
 
 /// Unix file owner principal.
@@ -89,6 +92,7 @@ export struct FilePrincipalWindows {
 }
 
 /// File owner principal.
+@languageItem("fs.binding.FilePrincipal")
 export newtype FilePrincipal = FilePrincipalUnix | FilePrincipalWindows;
 
 /// File owner assignment.
@@ -100,6 +104,7 @@ export struct FileOwner {
 }
 
 /// File status field mask.
+@languageItem("fs.binding.FileStatusMask")
 export newtype FileStatusMask = uint32;
 
 /// Request device identifier.
@@ -148,6 +153,7 @@ export const FILE_STATUS_BASIC: FileStatusMask = FileStatusMask(0x07ff);
 export const FILE_STATUS_ALL: FileStatusMask = FileStatusMask(0x1fff);
 
 /// File status flags.
+@languageItem("fs.binding.FileStatusFlags")
 export newtype FileStatusFlags = uint32;
 
 /// Do not force attribute synchronization.
@@ -204,6 +210,7 @@ export struct FileStatus {
 }
 
 /// Filesystem status binding family.
+@languageItem("fs.binding.StatusBinding")
 export interface StatusBinding {
     /// Read status for a filesystem entry.
     @binding("destack.fs.status.entry", {

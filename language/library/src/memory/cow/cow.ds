@@ -21,6 +21,7 @@ export struct CowOwned<T> {
 }
 
 /// Copy-on-write value.
+@languageItem("memory.Cow")
 export newtype Cow<'a, T> = CowBorrowed<&'a readonly T> | CowOwned<^T>;
 
 /// Readonly borrowed or owned value.

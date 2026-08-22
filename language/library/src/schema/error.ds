@@ -8,6 +8,7 @@ export type PathSegment = string | usize;
 export type Path = [PathSegment];
 
 /// Schema issue code.
+@languageItem("schema.IssueCode")
 export enum IssueCode {
     /// Value has the wrong type.
     InvalidType = 1,
@@ -24,6 +25,7 @@ export enum IssueCode {
 }
 
 /// Schema validation issue.
+@languageItem("schema.Issue")
 export struct Issue {
     /// Path to the failing value.
     path: Path;
@@ -42,6 +44,7 @@ export struct Issue {
 }
 
 /// Schema validation error.
+@languageItem("schema.ValidationError")
 export struct ValidationError {
     /// Validation issues.
     issues: [Issue];

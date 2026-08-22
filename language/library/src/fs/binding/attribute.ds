@@ -5,6 +5,7 @@ import { Entry } from "./entry.ds";
 import { FileMode, FileOwner, FileTimes } from "./status.ds";
 
 /// Access check bitset.
+@languageItem("fs.binding.FileAccessMask")
 export newtype FileAccessMask = uint32;
 
 /// Check only for entry existence.
@@ -20,6 +21,7 @@ export const FILE_ACCESS_WRITE: FileAccessMask = FileAccessMask(0x2);
 export const FILE_ACCESS_READ: FileAccessMask = FileAccessMask(0x4);
 
 /// Filesystem attribute binding family.
+@languageItem("fs.binding.AttributeBinding")
 export interface AttributeBinding {
     /// Check access to a filesystem entry.
     @binding("destack.fs.attribute.checkAccess", {

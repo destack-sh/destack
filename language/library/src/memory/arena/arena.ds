@@ -7,6 +7,7 @@ import { Space } from "../place.ds";
 import { Bump } from "./bump.ds";
 
 /// Typed arena for values with a shared lifetime.
+@languageItem("memory.arena.Arena")
 export struct Arena<in out T, const L: Lifetime, const S: Space = "local"> {
     /// The backing bump allocator.
     bump: Bump<S>;

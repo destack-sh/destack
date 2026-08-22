@@ -8,6 +8,7 @@ import { RangeBounds } from "destack:range";
 import { SortedMap } from "./sorted-map.ds";
 
 /// A compact sorted set.
+@languageItem("collections.SortedSet")
 export class SortedSet<T> {
     /// The backing sorted map.
     private map: SortedMap<T, void> = SortedMap.new();

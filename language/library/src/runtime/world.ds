@@ -6,24 +6,31 @@ import { BranchId, RevisionId } from "./lineage.ds";
 import { ResourceId } from "./resource.ds";
 
 /// Live world control handle.
+@languageItem("runtime.WorldHandle")
 export newtype WorldHandle = ResourceId;
 
 /// Live runtime control handle.
+@languageItem("runtime.RuntimeHandle")
 export newtype RuntimeHandle = ResourceId;
 
 /// Live worker control handle.
+@languageItem("runtime.WorkerHandle")
 export newtype WorkerHandle = ResourceId;
 
 /// Runtime identifier in one world.
+@languageItem("runtime.RuntimeId")
 export newtype RuntimeId = uint64;
 
 /// Worker identifier in one world.
+@languageItem("runtime.WorkerId")
 export newtype WorkerId = uint64;
 
 /// Pinned world view handle.
+@languageItem("runtime.WorldViewHandle")
 export newtype WorldViewHandle = ResourceId;
 
 /// Engine selection for one world.
+@languageItem("runtime.Engine")
 export enum Engine {
     /// VM-backed execution.
     Vm = 1,
@@ -32,6 +39,7 @@ export enum Engine {
 }
 
 /// Execution selection for one world.
+@languageItem("runtime.Execution")
 export enum Execution {
     /// Strict execution with complete runtime mediation.
     Strict = 1,
@@ -44,6 +52,7 @@ export enum Execution {
 }
 
 /// Worker executor selection.
+@languageItem("runtime.WorkerExecutor")
 export enum WorkerExecutor {
     /// Let the runtime choose the executor.
     Managed = 1,
@@ -52,6 +61,7 @@ export enum WorkerExecutor {
 }
 
 /// Tick result for one world advance.
+@languageItem("runtime.TickResult")
 export enum TickResult {
     /// No progress was possible.
     Idle = 1,
@@ -92,6 +102,7 @@ export struct WorkerCreateOptions {
 }
 
 /// Live world.
+@languageItem("runtime.World")
 export class World {
     /// World handle.
     handle: WorldHandle;
@@ -119,6 +130,7 @@ export class World {
 }
 
 /// Live runtime.
+@languageItem("runtime.Runtime")
 export class Runtime {
     /// Runtime handle.
     handle: RuntimeHandle;
@@ -141,6 +153,7 @@ export class Runtime {
 }
 
 /// Live worker.
+@languageItem("runtime.Worker")
 export class Worker {
     /// Worker handle.
     handle: WorkerHandle;

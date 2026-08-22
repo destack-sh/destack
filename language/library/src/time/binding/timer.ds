@@ -4,9 +4,11 @@ import { ResourceId } from "destack:runtime/resource";
 import { Clock, Duration, Timestamp } from "./clock.ds";
 
 /// Handle for a scheduled timer.
+@languageItem("time.binding.TimerHandle")
 export newtype TimerHandle = ResourceId;
 
 /// Timer firing mode.
+@languageItem("time.binding.TimerMode")
 export enum TimerMode {
     /// Fire once.
     Once = 1,
@@ -42,6 +44,7 @@ export struct TimerSchedule {
 }
 
 /// Timer binding family.
+@languageItem("time.binding.TimeTimerBinding")
 export interface TimeTimerBinding {
     /// Open one timer resource.
     @binding("destack.time.timer.open", {

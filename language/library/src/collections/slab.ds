@@ -7,6 +7,7 @@ import { Index, IndexSet } from "destack:ops";
 import { Array } from "./array.ds";
 
 /// Key for one live slab entry.
+@languageItem("collections.SlabKey")
 export newtype SlabKey = {
     /// The slot index.
     index: uint32;
@@ -31,6 +32,7 @@ struct SlabSlot<T> {
 }
 
 /// A generational slab with stable keys and reusable slots.
+@languageItem("collections.Slab")
 export struct Slab<T> {
     /// The slot storage.
     private slots: Array<SlabSlot<T>>;

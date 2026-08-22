@@ -1,7 +1,9 @@
 /// Opaque identity for a runtime stack frame.
+@languageItem("error.StackFrameId")
 export newtype StackFrameId = uint64;
 
 /// Source location for a stack frame.
+@languageItem("error.SourceLocation")
 export type SourceLocation = {
     /// Source file or URL.
     file?: ^string;
@@ -14,6 +16,7 @@ export type SourceLocation = {
 };
 
 /// One frame in a stack trace.
+@languageItem("error.StackFrame")
 export type StackFrame = {
     /// Runtime frame identity, when debug metadata is available.
     id?: StackFrameId;
@@ -38,6 +41,7 @@ export type StackFrame = {
 };
 
 /// Structured stack trace.
+@languageItem("error.StackTrace")
 export type StackTrace = ^[StackFrame];
 
 /// Stack trace capture options.

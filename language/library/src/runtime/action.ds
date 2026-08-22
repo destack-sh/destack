@@ -1,4 +1,5 @@
 /// Actions that touch runtime-owned facilities.
+@languageItem("runtime.RuntimeAction")
 export type RuntimeAction =
     | "runtime.branch.control"
     | "runtime.branch.read"

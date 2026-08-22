@@ -1,2 +1,3 @@
 /// ABI accepted by externally linked declarations.
+@languageItem("ffi.Abi")
 export type Abi = "C" | "system" | "wasm" | "wasm-component";

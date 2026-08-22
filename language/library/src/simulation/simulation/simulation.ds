@@ -8,6 +8,7 @@ import { Scenario } from "../scenario/scenario.ds";
 import { Options } from "./options.ds";
 
 /// Managed simulation environment.
+@languageItem("simulation.Simulation")
 export class Simulation {
     /// Simulation world.
     readonly world: runtime.World;

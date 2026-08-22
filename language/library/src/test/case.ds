@@ -259,6 +259,7 @@ export newtype interface TableTest<T, TestValues, ModuleValues, WorkerValues> {
 }
 
 /// Registered test case.
+@languageItem("test.Case")
 export struct Case {
     /// Stable case identifier.
     id: CaseId;

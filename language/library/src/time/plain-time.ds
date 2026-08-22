@@ -29,6 +29,7 @@ export type PlainTimeLike = {
 };
 
 /// Temporal plain time.
+@languageItem("time.PlainTime")
 export class PlainTime {
     /// Create a plain time.
     static from(item: PlainTime | PlainTimeLike | string, options?: AssignmentOptions): PlainTime {

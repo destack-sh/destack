@@ -6,9 +6,11 @@ import { ResourceId } from "./resource.ds";
 import { WorldHandle } from "./world.ds";
 
 /// Runtime trace cursor handle.
+@languageItem("runtime.TraceCursorHandle")
 export newtype TraceCursorHandle = ResourceId;
 
 /// Trace event class.
+@languageItem("runtime.TraceEventKind")
 export enum TraceEventKind {
     /// Runtime entropy or nondeterministic decision.
     Entropy = 1,
@@ -21,6 +23,7 @@ export enum TraceEventKind {
 }
 
 /// Trace state for one world.
+@languageItem("runtime.Trace")
 export struct Trace {
     /// Active branch.
     branch: BranchId;
@@ -35,6 +38,7 @@ export struct TraceCursorOptions {
 }
 
 /// One trace record.
+@languageItem("runtime.TraceRecord")
 export struct TraceRecord {
     /// Event sequence number.
     sequence: TraceSequence;

@@ -1,4 +1,5 @@
 /// Shared host output buffer containing one or more paths.
+@languageItem("fs.binding.PathBuffer")
 export newtype PathBuffer = PathByteBuffer | PathUtf16Buffer;
 
 /// Byte-oriented host path output buffer.

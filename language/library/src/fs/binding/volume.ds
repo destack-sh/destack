@@ -4,9 +4,11 @@ import { FileHandle } from "destack:fs/binding";
 import { Entry } from "./entry.ds";
 
 /// Volume mount flags.
+@languageItem("fs.binding.FileVolumeFlags")
 export newtype FileVolumeFlags = uint64;
 
 /// Volume status field mask.
+@languageItem("fs.binding.FileVolumeMask")
 export newtype FileVolumeMask = uint32;
 
 /// Request transfer size fields.
@@ -57,6 +59,7 @@ export struct FileVolumeStatus {
 }
 
 /// Filesystem volume binding family.
+@languageItem("fs.binding.VolumeBinding")
 export interface VolumeBinding {
     /// Read status for the volume containing an entry.
     @binding("destack.fs.volume.entry", {

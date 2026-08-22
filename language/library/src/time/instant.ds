@@ -13,6 +13,7 @@ import { ComparisonResult, LocalesArgument } from "./unit.ds";
 import { TimeZoneLike, ZonedDateTime } from "./zoned-date-time.ds";
 
 /// Temporal instant.
+@languageItem("time.Instant")
 export class Instant {
     /// Create an instant from epoch milliseconds.
     static fromEpochMilliseconds(epochMilliseconds: number): Instant {

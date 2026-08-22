@@ -4,6 +4,7 @@ import { Dispose } from "destack:memory";
 import { Atomic } from "./atomic.ds";
 
 /// Counting semaphore.
+@languageItem("sync.Semaphore")
 export shared class Semaphore {
     /// The available permit count.
     state: Atomic<isize>;

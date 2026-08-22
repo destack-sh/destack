@@ -4,6 +4,7 @@ import { WorldHandle } from "destack:runtime";
 import { EntityId, EntityKind, EntityKindRecord, EntityRecord, EntitySelector } from "../entity.ds";
 
 /// Topology entity binding family.
+@languageItem("topology.binding.TopologyEntityBinding")
 export interface TopologyEntityBinding {
     /// Define one runtime topology entity kind.
     @binding("destack.topology.entity.kind.define", {

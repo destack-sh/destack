@@ -4,6 +4,7 @@ import { Json } from "destack:json";
 import { ArtifactId } from "./artifact.ds";
 
 /// Test issue kind.
+@languageItem("test.IssueKind")
 export enum IssueKind {
     /// Assertion failed.
     Assertion = 1,
@@ -26,6 +27,7 @@ export enum IssueKind {
 }
 
 /// Structured issue found during a test run.
+@languageItem("test.Issue")
 export struct Issue {
     /// Issue kind.
     kind: IssueKind;

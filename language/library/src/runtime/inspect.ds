@@ -42,6 +42,7 @@ export struct ResourceFilter {
 }
 
 /// Event loop state for one worker.
+@languageItem("runtime.EventLoop")
 export struct EventLoop {
     /// Ready task count.
     taskCount: uint32;
@@ -56,6 +57,7 @@ export struct EventLoop {
 }
 
 /// Engine view kind for one worker.
+@languageItem("runtime.EngineViewKind")
 export enum EngineViewKind {
     /// VM isolate-backed execution.
     Isolate = 1,
@@ -64,6 +66,7 @@ export enum EngineViewKind {
 }
 
 /// Engine state for one worker.
+@languageItem("runtime.EngineView")
 export struct EngineView {
     /// Engine implementation kind.
     kind: EngineViewKind;

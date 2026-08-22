@@ -1,17 +1,22 @@
 import { Array } from "destack:collections";
 /// Runtime entity identifier.
+@languageItem("runtime.EntityId")
 export newtype EntityId = string;
 
 /// Runtime edge identifier.
+@languageItem("runtime.EdgeId")
 export newtype EdgeId = string;
 
 /// Runtime entity kind.
+@languageItem("runtime.EntityKind")
 export newtype EntityKind = string;
 
 /// Runtime edge kind.
+@languageItem("runtime.EdgeKind")
 export newtype EdgeKind = string;
 
 /// Entity or edge label.
+@languageItem("runtime.Label")
 export struct Label {
     /// Label key.
     key: string;
@@ -20,6 +25,7 @@ export struct Label {
 }
 
 /// Label selector clause.
+@languageItem("runtime.LabelSelector")
 export struct LabelSelector {
     /// Label key to match.
     key: string;
@@ -28,6 +34,7 @@ export struct LabelSelector {
 }
 
 /// Entity selector.
+@languageItem("runtime.EntitySelector")
 export type EntitySelector =
     | {
           /// Match all entities.
@@ -59,6 +66,7 @@ export type EntitySelector =
       };
 
 /// Edge selector.
+@languageItem("runtime.EdgeSelector")
 export type EdgeSelector =
     | {
           /// Match all edges.
@@ -118,6 +126,7 @@ export struct EdgeFilter {
 }
 
 /// Runtime entity.
+@languageItem("runtime.Entity")
 export struct Entity {
     /// Entity identifier.
     id: EntityId;
@@ -138,6 +147,7 @@ export struct EntityPage {
 }
 
 /// Runtime edge.
+@languageItem("runtime.Edge")
 export struct Edge {
     /// Edge identifier.
     id: EdgeId;

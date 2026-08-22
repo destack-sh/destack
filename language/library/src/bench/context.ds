@@ -4,6 +4,7 @@ import * as test from "destack:test";
 import { Measure, Measurement } from "./measurement.ds";
 
 /// Benchmark callback context.
+@languageItem("bench.Context")
 export newtype interface Context extends test.CaseContext {
     /// Create one named measurement helper.
     measure(name: string): Measure;

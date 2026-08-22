@@ -5,21 +5,27 @@ import { Label, LabelSelector } from "./entity.ds";
 import { WorldHandle } from "./world.ds";
 
 /// Branch identifier in one world lineage.
+@languageItem("runtime.BranchId")
 export newtype BranchId = uint64;
 
 /// Revision identifier in one world lineage.
+@languageItem("runtime.RevisionId")
 export newtype RevisionId = uint64;
 
 /// Checkpoint identifier in one world lineage.
+@languageItem("runtime.CheckpointId")
 export newtype CheckpointId = uint64;
 
 /// Materialized image identifier.
+@languageItem("runtime.ImageId")
 export newtype ImageId = uint64;
 
 /// Monotonic trace sequence number.
+@languageItem("runtime.TraceSequence")
 export newtype TraceSequence = uint64;
 
 /// Precise history coordinate in one world.
+@languageItem("runtime.Moment")
 export struct Moment {
     /// Branch containing this history coordinate.
     branch: BranchId;
@@ -28,6 +34,7 @@ export struct Moment {
 }
 
 /// Branch state.
+@languageItem("runtime.Branch")
 export struct Branch {
     /// Branch identifier.
     id: BranchId;
@@ -40,6 +47,7 @@ export struct Branch {
 }
 
 /// Revision state.
+@languageItem("runtime.Revision")
 export struct Revision {
     /// Revision identifier.
     id: RevisionId;
@@ -54,6 +62,7 @@ export struct Revision {
 }
 
 /// Checkpoint state.
+@languageItem("runtime.Checkpoint")
 export struct Checkpoint {
     /// Checkpoint identifier.
     id: CheckpointId;
@@ -66,6 +75,7 @@ export struct Checkpoint {
 }
 
 /// Image state.
+@languageItem("runtime.Image")
 export struct Image {
     /// Image identifier.
     id: ImageId;

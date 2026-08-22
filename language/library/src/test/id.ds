@@ -1,8 +1,11 @@
 /// Stable test case identifier.
+@languageItem("test.CaseId")
 export newtype CaseId = string;
 
 /// Stable test suite identifier.
+@languageItem("test.SuiteId")
 export newtype SuiteId = string;
 
 /// Stable test run identifier.
+@languageItem("test.RunId")
 export newtype RunId = string;

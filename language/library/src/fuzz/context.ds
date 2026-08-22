@@ -3,6 +3,7 @@ import * as test from "destack:test";
 import { Sample } from "./sample.ds";
 
 /// Fuzz callback context.
+@languageItem("fuzz.Context")
 export newtype interface Context extends test.CaseContext {
     /// Generated sample metadata.
     readonly sample: Sample;

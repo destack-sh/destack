@@ -13,6 +13,7 @@ export local struct ConcurrentSetRead<T> {
 }
 
 /// A sharded concurrent hash set.
+@languageItem("collections.ConcurrentSet")
 export shared class ConcurrentSet<T> {
     /// The backing concurrent map.
     private map: ConcurrentMap<T, void> = ConcurrentMap.new();

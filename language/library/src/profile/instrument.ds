@@ -2,12 +2,15 @@
 export type SampleValue = boolean | number | bigint;
 
 /// Profile counter instrument.
+@languageItem("profile.Counter")
 export newtype Counter = intrinsic;
 
 /// Profile sampler instrument.
+@languageItem("profile.Sampler")
 export newtype Sampler = intrinsic;
 
 /// Profile unit label.
+@languageItem("profile.Unit")
 export newtype Unit = string;
 
 /// Profile instrument options.

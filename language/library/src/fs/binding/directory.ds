@@ -6,9 +6,11 @@ import { PathBuffer, PathSpan } from "./path.ds";
 import { FileMode } from "./status.ds";
 
 /// Handle for an open directory.
+@languageItem("fs.binding.DirectoryHandle")
 export newtype DirectoryHandle = ResourceId;
 
 /// File type for directory entries.
+@languageItem("fs.binding.DirectoryEntryKind")
 export enum DirectoryEntryKind {
     /// An unknown file type.
     Unknown = 0,
@@ -49,6 +51,7 @@ export struct DirectoryBatch {
 }
 
 /// Filesystem directory binding family.
+@languageItem("fs.binding.DirectoryBinding")
 export interface DirectoryBinding {
     /// Create one directory entry.
     @binding("destack.fs.directory.create", {

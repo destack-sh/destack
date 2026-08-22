@@ -6,9 +6,11 @@ import { EdgeSelector, EntitySelector, Label, LabelSelector } from "./entity.ds"
 import { WorldHandle } from "./world.ds";
 
 /// Runtime policy rule cursor.
+@languageItem("runtime.PolicyRuleCursor")
 export newtype PolicyRuleCursor = uint64;
 
 /// Runtime policy decision.
+@languageItem("runtime.PolicyDecision")
 export enum PolicyDecision {
     /// Allow matching operations.
     Allow = 1,
@@ -17,9 +19,11 @@ export enum PolicyDecision {
 }
 
 /// Runtime execution-mode selector.
+@languageItem("runtime.ExecutionSelector")
 export type ExecutionSelector = "strict" | "fast" | "record" | "replay";
 
 /// Runtime condition selector.
+@languageItem("runtime.ConditionSelector")
 export struct ConditionSelector {
     /// Exact values that must be active.
     includes?: [string];
@@ -28,6 +32,7 @@ export struct ConditionSelector {
 }
 
 /// Runtime identity selector.
+@languageItem("runtime.IdentitySelector")
 export struct IdentitySelector {
     /// Optional exact name selector.
     name?: string;
@@ -36,6 +41,7 @@ export struct IdentitySelector {
 }
 
 /// Runtime policy subject selector.
+@languageItem("runtime.SubjectSelector")
 export struct SubjectSelector {
     /// Optional package selector.
     package?: string;
@@ -60,6 +66,7 @@ export struct SubjectSelector {
 }
 
 /// Runtime policy action selector.
+@languageItem("runtime.ActionSelector")
 export struct ActionSelector {
     /// Optional binding-name glob.
     binding?: string;
@@ -82,6 +89,7 @@ export struct ActionSelector {
 }
 
 /// Runtime policy target selector.
+@languageItem("runtime.TargetSelector")
 export newtype TargetSelector =
     | {
           /// Match any target.
@@ -101,6 +109,7 @@ export newtype TargetSelector =
       };
 
 /// Runtime policy rule.
+@languageItem("runtime.PolicyRule")
 export struct PolicyRule {
     /// Subject selector.
     subject: SubjectSelector;
@@ -123,6 +132,7 @@ export struct PolicyRulePage {
 }
 
 /// Runtime policy query.
+@languageItem("runtime.PolicyQuery")
 export struct PolicyQuery {
     /// Subject selector.
     subject: SubjectSelector;

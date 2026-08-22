@@ -6,6 +6,7 @@ import { FaultSet } from "../fault/fault.ds";
 import { Rule, RuleId } from "./rule.ds";
 
 /// Stable scenario identifier.
+@languageItem("simulation.scenario.ScenarioId")
 export newtype ScenarioId = uint64;
 
 /// Scenario construction options.
@@ -21,6 +22,7 @@ export struct ScenarioOptions {
 }
 
 /// Active simulation scenario.
+@languageItem("simulation.scenario.Scenario")
 export class Scenario {
     /// Stable scenario identifier.
     readonly id: ScenarioId;

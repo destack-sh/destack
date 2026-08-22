@@ -1,10 +1,12 @@
 /// Continuing `Try` branch.
+@languageItem("ops.Continue")
 export struct Continue<C> {
     kind: "continue" = "continue";
     value: C;
 }
 
 /// Breaking `Try` branch.
+@languageItem("ops.Break")
 export struct Break<B> {
     kind: "break" = "break";
     residual: B;

@@ -5,6 +5,7 @@ export type JsonObject = { readonly [key: string]: Json };
 export type JsonArray = readonly Json[];
 
 /// JSON value.
+@languageItem("json.Json")
 export newtype Json =
     | { kind: "null" }
     | { kind: "boolean"; value: boolean }

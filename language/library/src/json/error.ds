@@ -2,6 +2,7 @@ import { Error } from "destack:error";
 import { MaybeOwned } from "destack:memory";
 
 /// JSON error category.
+@languageItem("json.JsonErrorKind")
 export enum JsonErrorKind {
     /// The input is not valid JSON.
     Syntax,
@@ -21,6 +22,7 @@ export enum JsonErrorKind {
 export type JsonPathSegment = string | usize;
 
 /// JSON parse, stringify, encode, or decode error.
+@languageItem("json.JsonError")
 export struct JsonError {
     /// The error category.
     kind: JsonErrorKind;

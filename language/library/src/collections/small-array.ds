@@ -11,6 +11,7 @@ import { Sequence } from "./sequence.ds";
 import { Slice } from "./slice.ds";
 
 /// A growable contiguous array with inline storage.
+@languageItem("collections.SmallArray")
 export struct SmallArray<T, const N: usize> {
     /// The inline storage.
     private inlineStorage: FixedArray<MaybeUninit<T>, N>;

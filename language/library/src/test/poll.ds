@@ -26,6 +26,7 @@ export type PollOptions = {
 export type Poll<T> = () => PollResult<T>;
 
 /// Asynchronous assertions over a repeated observation.
+@languageItem("test.PollingExpectation")
 export struct PollingExpectation<T> {
     /// The repeated observation.
     private poll: Poll<T>;

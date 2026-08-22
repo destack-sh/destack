@@ -8,6 +8,7 @@ import { Sequence } from "./sequence.ds";
 import { Slice } from "./slice.ds";
 
 /// A compact double-ended queue.
+@languageItem("collections.Deque")
 export class Deque<T> {
     /// The ring storage.
     private storage: ^[MaybeUninit<T>] = Slice.new();

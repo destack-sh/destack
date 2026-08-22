@@ -53,6 +53,7 @@ struct SortedMapNode<K, V> {
 }
 
 /// A compact sorted map.
+@languageItem("collections.SortedMap")
 export class SortedMap<K, V> {
     /// The root node key.
     private root: SortedMapNodeKey | undefined = undefined;

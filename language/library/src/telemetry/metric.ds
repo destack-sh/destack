@@ -5,12 +5,14 @@ import { Fields } from "./field.ds";
 import { InstrumentKind, MetricEntry } from "./record.ds";
 
 /// Metric entry sink.
+@languageItem("telemetry.MetricSink")
 export newtype interface MetricSink {
     /// Write one metric entry.
     write(&readonly this, entry: &readonly MetricEntry): void;
 }
 
 /// Monotonic metric counter.
+@languageItem("telemetry.Counter")
 export class Counter {
     /// Counter name.
     readonly name: string;
@@ -43,6 +45,7 @@ export class Counter {
 }
 
 /// Non-monotonic metric counter.
+@languageItem("telemetry.UpDownCounter")
 export class UpDownCounter {
     /// Counter name.
     readonly name: string;
@@ -75,6 +78,7 @@ export class UpDownCounter {
 }
 
 /// Instantaneous metric gauge.
+@languageItem("telemetry.Gauge")
 export class Gauge {
     /// Gauge name.
     readonly name: string;
@@ -107,6 +111,7 @@ export class Gauge {
 }
 
 /// Distribution metric histogram.
+@languageItem("telemetry.Histogram")
 export class Histogram {
     /// Histogram name.
     readonly name: string;
@@ -139,6 +144,7 @@ export class Histogram {
 }
 
 /// Metric meter.
+@languageItem("telemetry.Meter")
 export class Meter {
     /// Optional sink for these metric instruments.
     private sink: readonly MetricSink | undefined;

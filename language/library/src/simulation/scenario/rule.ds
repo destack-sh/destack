@@ -5,9 +5,11 @@ import { Fault } from "../fault/fault.ds";
 import { Trigger } from "./trigger.ds";
 
 /// Stable scenario rule identifier.
+@languageItem("simulation.scenario.RuleId")
 export newtype RuleId = string;
 
 /// Selector accepted by one scenario rule.
+@languageItem("simulation.scenario.Selector")
 export type Selector =
     | {
           /// Match one binding selector.
@@ -29,6 +31,7 @@ export type Selector =
       };
 
 /// Scenario rule definition.
+@languageItem("simulation.scenario.Rule")
 export struct Rule {
     /// Stable rule identifier.
     id: RuleId;
