@@ -94,7 +94,7 @@ impl<'a, 'context> CodeIndexer<'a, 'context> {
         let mut value = self.view.clone_node(node).ok_or_else(|| {
             ProviderError::internal(format!("indexed DIR node {node:?} is not visible"))
         })?;
-        self.normalize(node, &mut value)?;
+        self.normalize(node, &mut value);
         value.map_nodes(&mut |_child| Ok::<u32, ProviderError>(0))?;
 
         // hash the complete authored value without arena-specific child ids
@@ -120,24 +120,16 @@ impl<'a, 'context> CodeIndexer<'a, 'context> {
     }
 
     /// Erase authored names whose checked targets determine their identity.
-    fn normalize(
-        &self,
-        node: dir::LocalNodeIdAny,
-        value: &mut dir::NodeValue,
-    ) -> ProviderResult<()> {
+    fn normalize(&self, node: dir::LocalNodeIdAny, value: &mut dir::NodeValue) {
         match value {
             dir::NodeValue::Expression(value) => {
                 // erase resolved names and checked control labels
                 match value {
                     dir::Expression::Identifier { name } => {
                         let global = node.into_global(self.module.module_id());
-                        if self.module.resolutions().name_resolution(global).is_none() {
-                            return Err(ProviderError::internal(format!(
-                                "checked identifier expression {global:?} has no name resolution"
-                            ))
-                            .into());
+                        if self.has_resolved_name(global) {
+                            *name = ERASED_NAME;
                         }
-                        *name = ERASED_NAME;
                     }
                     dir::Expression::While { label, .. }
                     | dir::Expression::ForEach { label, .. }
@@ -175,23 +167,17 @@ impl<'a, 'context> CodeIndexer<'a, 'context> {
             }
             dir::NodeValue::TypeExpression(value) => {
                 let global = node.into_global(self.module.module_id());
-                let resolution = self.module.resolutions().name_resolution(global);
-                if matches!(value, dir::TypeExpression::Reference { .. }) && resolution.is_none() {
-                    return Err(ProviderError::internal(format!(
-                        "checked type reference {global:?} has no name resolution"
-                    ))
-                    .into());
-                }
+                let is_resolved = self.has_resolved_name(global);
 
                 // erase resolved type names while retaining literal lifetimes and member keys
                 match value {
-                    dir::TypeExpression::Lifetime { name } if resolution.is_some() => {
+                    dir::TypeExpression::Lifetime { name } if is_resolved => {
                         *name = ERASED_NAME;
                     }
-                    dir::TypeExpression::Reference { path, .. } if resolution.is_some() => {
+                    dir::TypeExpression::Reference { path, .. } if is_resolved => {
                         path.segments.clear();
                     }
-                    dir::TypeExpression::Member { name, .. } if resolution.is_some() => {
+                    dir::TypeExpression::Member { name, .. } if is_resolved => {
                         *name = ERASED_NAME;
                     }
                     _ => {}
@@ -199,8 +185,22 @@ impl<'a, 'context> CodeIndexer<'a, 'context> {
             }
             _ => {}
         }
+    }
 
-        Ok(())
+    /// Return whether one authored name resolves to a declaration or namespace.
+    fn has_resolved_name(&self, node: dir::GlobalNodeIdAny) -> bool {
+        if self.module.resolutions().name_resolution(node).is_some() {
+            return true;
+        }
+
+        matches!(
+            self.module.resolved().references.get(node),
+            Some(
+                dir::Reference::Bound(_)
+                    | dir::Reference::Namespace { .. }
+                    | dir::Reference::Projected { .. }
+            )
+        )
     }
 
     /// Index adjacent executable children of one sequence owner.
