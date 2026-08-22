@@ -61,8 +61,9 @@ pub struct EnvironmentDeclared {
     pub extensions_by_root: IndexMap<TypeRoot, Vec<GlobalSymbolId>>,
     /// Blanket extension declarations over open parameter targets.
     pub blanket_extensions: Vec<GlobalSymbolId>,
-    /// Implementing declarations keyed by their implemented interface.
-    pub implementations_by_interface: IndexMap<GlobalSymbolId, Vec<GlobalSymbolId>>,
+    /// Implementing declarations keyed by their implemented interface, with their target roots.
+    pub implementations_by_interface:
+        IndexMap<GlobalSymbolId, Vec<(GlobalSymbolId, Option<TypeRoot>)>>,
 }
 
 impl EnvironmentBound {

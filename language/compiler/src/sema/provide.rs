@@ -482,7 +482,11 @@ impl Compiler {
                     }
                 }
 
-                // index implementing declarations by their interface
+                // index implementing declarations by their interface and target root
+                let root = match definition {
+                    dir::Definition::Extension(extension) => extension.target.root(),
+                    _ => Some(dir::TypeRoot::Declaration(symbol)),
+                };
                 for implementation in definition.implementations() {
                     let interface = implementation.interface;
                     let Some(dir::Type::Application(instance)) =
@@ -494,7 +498,7 @@ impl Compiler {
                         .implementations_by_interface
                         .entry(instance.symbol)
                         .or_default()
-                        .push(symbol);
+                        .push((symbol, root));
                 }
             }
         }

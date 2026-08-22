@@ -1465,7 +1465,7 @@ impl BodyState<'_, '_> {
         if let Some(environment) = &self.check.environment_declared
             && let Some(implementors) = environment.implementations_by_interface.get(&interface)
         {
-            candidates.extend(implementors.iter().copied());
+            candidates.extend(implementors.iter().map(|(symbol, _)| *symbol));
         }
         candidates.extend(
             self.check
@@ -1524,19 +1524,26 @@ impl BodyState<'_, '_> {
         // collect the extensions in scope for the receiver's own head
         let mut symbols = self.collect_implementation_extensions(origin, module, receiver)?;
 
-        // admit the implicit implementors of the interface
+        // admit the implicit implementors of the interface rooted like the receiver
+        let receiver_root = self.receiver_root_symbol(origin, receiver)?;
         if let Some(environment) = &self.check.environment_declared
             && let Some(implementors) = environment.implementations_by_interface.get(&interface)
         {
-            for symbol in implementors.clone() {
-                if !symbols.contains(&symbol) {
+            for (symbol, root) in implementors.clone() {
+                let is_rooted_alike = match (root, receiver_root) {
+                    (Some(dir::TypeRoot::Declaration(root)), Some(receiver_root)) => {
+                        root == receiver_root
+                    }
+                    (Some(_), Some(_)) => false,
+                    _ => true,
+                };
+                if is_rooted_alike && !symbols.contains(&symbol) {
                     symbols.push(symbol);
                 }
             }
         }
 
         // admit the program's implementors rooted like the receiver, and every blanket
-        let receiver_root = self.receiver_root_symbol(origin, receiver)?;
         for (symbol, root) in self.check.program_implementations(interface)? {
             let is_rooted_alike = match (root, receiver_root) {
                 (Some(root), Some(receiver_root)) => root == receiver_root,

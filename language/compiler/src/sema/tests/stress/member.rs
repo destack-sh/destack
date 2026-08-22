@@ -30,11 +30,11 @@ check.stats.bindings.replayed=1003
 check.stats.members.derived=4
 check.stats.members.replayed=3996
 check.stats.members.refused=0
-check.stats.probes.total=6624
+check.stats.probes.total=2620
 check.stats.probes.selections=0
 check.stats.probes.extensions=342
 check.stats.instantiations=173
-check.stats.interns=19958
+check.stats.interns=15954
 check.stats.reduces=29096
 "#,
     );
