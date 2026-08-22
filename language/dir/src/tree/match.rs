@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Block, Condition, Expression, LocalNodeId, Node, NodeType, Pattern};
+use crate::{Block, Condition, Expression, LocalNodeId, LocalNodeIdAny, Node, NodeType, Pattern};
 
 /// One arm of a match expression.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -38,6 +38,14 @@ impl MatchArm {
     pub fn guard(&self) -> Option<&Condition> {
         match self {
             Self::Expression { guard, .. } | Self::Block { guard, .. } => guard.as_ref(),
+        }
+    }
+
+    /// Return the arm body.
+    pub fn body(&self) -> LocalNodeIdAny {
+        match self {
+            Self::Expression { body, .. } => body.into_any(),
+            Self::Block { body, .. } => body.into_any(),
         }
     }
 }

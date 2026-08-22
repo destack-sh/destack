@@ -1,3 +1,5 @@
+use smallvec::SmallVec;
+
 use crate::{
     Argument, AssignPattern, AssignPatternField, Block, Catch, Declaration, Declarator, Decorator,
     DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId,
@@ -247,7 +249,7 @@ pub trait NodeVisitor {
 #[derive(Default)]
 pub(crate) struct DirectChildCollector {
     /// The node ids collected during the current walk.
-    node_ids: Vec<u32>,
+    node_ids: SmallVec<[u32; 8]>,
     /// The visitor options.
     options: NodeVisitorOptions,
 }

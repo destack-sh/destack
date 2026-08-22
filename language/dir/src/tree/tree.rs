@@ -1174,7 +1174,9 @@ impl Tree {
 mod tests {
     use destack_source::{FileId, ModuleId, PackageId, Span};
 
-    use crate::{Decorator, DecoratorPosition, Expression, Patch, Tree, TypeExpression, View};
+    use crate::{
+        BinaryOperator, Decorator, DecoratorPosition, Expression, Patch, Tree, TypeExpression, View,
+    };
 
     fn test_module_id() -> ModuleId {
         ModuleId::new(PackageId::new(1), 1)
@@ -1229,6 +1231,54 @@ mod tests {
         assert!(matches!(nodes[0].1, Expression::Debugger));
         assert_eq!(nodes[1].0, introduced);
         assert!(matches!(nodes[1].1, Expression::Debugger));
+    }
+
+    /// Return visible direct children in structural order across replacements.
+    #[test]
+    fn test_return_visible_direct_children() {
+        let mut tree = Tree::new(test_module_id());
+        let left = tree.insert(Expression::Error, test_span(0));
+        let right = tree.insert(Expression::Debugger, test_span(1));
+        let root = tree.insert(
+            Expression::Binary {
+                left,
+                operator: BinaryOperator::Add,
+                right,
+            },
+            test_span(2),
+        );
+        tree.index_parents(&[root]);
+
+        // retain direct source order in the parsed tree
+        let view = View::new(&tree);
+        assert_eq!(
+            view.direct_children(root.into_any()),
+            Some(smallvec::smallvec![left.into_any(), right.into_any()])
+        );
+
+        // resolve the same structural query through a visible replacement
+        let mut patch = Patch::new(&tree, "test");
+        let replacement_left = patch.tree.insert(Expression::Error, test_span(3));
+        let replacement_right = patch.tree.insert(Expression::Debugger, test_span(4));
+        let replacement = patch.tree.insert(
+            Expression::Binary {
+                left: replacement_left,
+                operator: BinaryOperator::Add,
+                right: replacement_right,
+            },
+            test_span(5),
+        );
+        patch.tree.index_parents(&[replacement]);
+        patch.replace(root.into_any(), replacement.into_any());
+        let patches = [patch];
+        let view = View::with_patches(&tree, &patches);
+        assert_eq!(
+            view.direct_children(root.into_any()),
+            Some(smallvec::smallvec![
+                replacement_left.into_any(),
+                replacement_right.into_any()
+            ])
+        );
     }
 
     #[test]

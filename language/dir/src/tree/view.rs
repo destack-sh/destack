@@ -5,8 +5,8 @@ use destack_source::{FileId, NodeSpanType, Span};
 use smallvec::SmallVec;
 
 use crate::{
-    Decorator, Documentation, Expression, LocalNodeId, LocalNodeIdAny, Node, NodeType, Patch, Path,
-    Tree, TreeStore,
+    Decorator, DirectChildCollector, Documentation, Expression, LocalNodeId, LocalNodeIdAny, Node,
+    NodeType, Patch, Path, Tree, TreeStore,
 };
 
 /// A borrowed DIR tree with ordered structural patches.
@@ -182,6 +182,29 @@ impl<'a> View<'a> {
     /// Get the visible parent for one typed node id.
     pub fn get_parent_for<T: Node>(&self, node_id: LocalNodeId<T>) -> Option<LocalNodeIdAny> {
         self.get_parent_any(node_id.into_any())
+    }
+
+    /// Return one visible node's direct children in structural order.
+    pub fn direct_children(
+        &self,
+        node_id: LocalNodeIdAny,
+    ) -> Option<SmallVec<[LocalNodeIdAny; 8]>> {
+        // collect direct children from visible storage
+        let (tree, visible_id) = self.visible_node(node_id)?;
+        let mut collector = DirectChildCollector::default();
+
+        // retain visible children while preserving their structural source ids
+        let children = collector
+            .collect(tree, visible_id)
+            .iter()
+            .filter_map(|child| {
+                let child = self.node_id_any(*child);
+
+                self.is_visible(child).then_some(child)
+            })
+            .collect();
+
+        Some(children)
     }
 
     /// Return whether one node sits inside another's subtree.
@@ -476,16 +499,22 @@ impl<'a> View<'a> {
 
     /// Resolve one node id to its visible storage tree and node id.
     fn visible_node(&self, node_id: LocalNodeIdAny) -> Option<(&'a Tree, LocalNodeIdAny)> {
+        // resolve the final visible identity
         let node_id = self.resolve_replacement(node_id)?;
 
+        // reject detached base nodes
         if self.tree.has_node_id(node_id.id) && self.tree.is_detached(node_id.id) {
             return None;
         }
 
+        // select the newest patch that owns the node
         for patch in self.patches().rev() {
+            // skip unrelated patches
             if !patch.has_node(node_id) {
                 continue;
             }
+
+            // reject detached or unindexed patch nodes
             if patch.tree.is_detached(node_id.id) || !patch.tree.parents().contains(node_id.id) {
                 return None;
             }
@@ -493,6 +522,7 @@ impl<'a> View<'a> {
             return Some((&patch.tree, node_id));
         }
 
+        // fall back to indexed base storage
         let is_indexed =
             self.tree.has_node_id(node_id.id) && self.tree.parents().contains(node_id.id);
 
