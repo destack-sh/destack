@@ -428,10 +428,9 @@ impl Matcher<'_, '_> {
                 dir::Expression::Identifier { name: pattern },
                 dir::Expression::Identifier { name: candidate },
             ) => Ok(pattern == candidate),
-            (
-                dir::Expression::Literal(pattern),
-                dir::Expression::Literal(candidate),
-            ) => Ok(pattern == candidate),
+            (dir::Expression::Literal(pattern), dir::Expression::Literal(candidate)) => {
+                Ok(pattern == candidate)
+            }
             (dir::Expression::This, dir::Expression::This)
             | (dir::Expression::Super, dir::Expression::Super)
             | (dir::Expression::ImportMeta, dir::Expression::ImportMeta)

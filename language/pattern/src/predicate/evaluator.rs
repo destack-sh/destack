@@ -251,12 +251,8 @@ impl<'a> Evaluator<'a> {
     fn scalar_order(left: dir::Literal, right: dir::Literal) -> Option<Ordering> {
         match (left, right) {
             (dir::Literal::Integer(left), dir::Literal::Integer(right))
-            | (dir::Literal::Bigint(left), dir::Literal::Bigint(right)) => {
-                Some(left.cmp(&right))
-            }
-            (dir::Literal::Float(left), dir::Literal::Float(right)) => {
-                left.partial_cmp(&right)
-            }
+            | (dir::Literal::Bigint(left), dir::Literal::Bigint(right)) => Some(left.cmp(&right)),
+            (dir::Literal::Float(left), dir::Literal::Float(right)) => left.partial_cmp(&right),
             (dir::Literal::Character(left), dir::Literal::Character(right)) => {
                 Some(left.cmp(&right))
             }
