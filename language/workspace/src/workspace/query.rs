@@ -5,7 +5,7 @@ use destack_artifact::ArtifactKey;
 use destack_query::{Module, QueryError, QueryPosition, QueryRange, QueryRequest, QueryResponse};
 use destack_repository::{ProviderError, Revision, Trace};
 use destack_serde::Reflect;
-use destack_session::{ArtifactPriority, ArtifactRun};
+use destack_session::{ArtifactPriority, ArtifactRun, ArtifactRunId};
 use destack_source::{File, ProfileId, Span};
 use serde::{Deserialize, Serialize};
 
@@ -140,6 +140,16 @@ impl QueryRun {
     /// Return this query operation trace.
     pub fn trace(&self) -> Arc<Trace> {
         self.trace.clone()
+    }
+
+    /// Return the artifact run providing lazy query reads.
+    pub fn artifact_run_id(&self) -> ArtifactRunId {
+        self.artifacts.id()
+    }
+
+    /// Return the artifact run completing diagnostic roots when present.
+    pub fn diagnostic_run_id(&self) -> Option<ArtifactRunId> {
+        self.diagnostics.as_ref().map(ArtifactRun::id)
     }
 
     /// Wait for ready artifacts and execute the exact query.

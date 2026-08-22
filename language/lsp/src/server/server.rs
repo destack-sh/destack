@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use std::iter;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
+use std::time::Instant;
 
-use destack_lsp_server::{Client, LanguageServer, LspService, Server, UriExt, jsonrpc};
+use destack_lsp_server::{Client, LanguageServer, LogRecord, LspService, Server, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
 use destack_repository::{Revision, Trace, TraceReport, TraceView};
@@ -169,7 +170,29 @@ impl DestackLanguageServer {
     ) -> jsonrpc::Result<RunQueryResponse> {
         let revision = run.revision();
         let trace = run.trace();
+        let artifact_run_id = run.artifact_run_id();
+        let diagnostic_run_id = run.diagnostic_run_id();
+        let mut record = LogRecord::new("query.started")
+            .field("method", method.name())
+            .field("revision", revision)
+            .field("run_id", artifact_run_id);
+        if let Some(diagnostic_run_id) = diagnostic_run_id {
+            record = record.field("diagnostic_run_id", diagnostic_run_id);
+        }
+        self.client.log(record);
+
+        // execute and report the exact query operation
+        let started = Instant::now();
         let response = run.wait().await;
+        let status = if response.is_ok() { "ok" } else { "error" };
+        self.client.log(
+            LogRecord::new("query.finished")
+                .field("method", method.name())
+                .field("revision", revision)
+                .field("run_id", artifact_run_id)
+                .field("status", status)
+                .field("duration_us", started.elapsed().as_micros()),
+        );
         self.report_query_trace(workspace.as_ref(), revision, method, trace)
             .await?;
         let response = response.map_err(workspace_error)?;
@@ -199,11 +222,11 @@ impl DestackLanguageServer {
         let snapshot = workspace
             .snapshot_trace(revision, trace.as_ref(), TraceView::Detailed)
             .map_err(internal_error)?;
-        let message = format!(
-            "event=query.finished method={} revision={revision} duration_us={}",
-            method.name(),
-            snapshot.total_micros,
-        );
+        let message = LogRecord::new("query.trace")
+            .field("method", method.name())
+            .field("revision", revision)
+            .field("duration_us", snapshot.total_micros)
+            .to_string();
 
         // render the complete artifact report in the explicit verbose field
         let verbose = Some(
@@ -252,7 +275,33 @@ impl DestackLanguageServer {
         run: DiagnosticRun,
     ) -> jsonrpc::Result<(Revision, Vec<FileDiagnostics>)> {
         let revision = run.revision();
+        let artifact_run_id = run.artifact_run_id();
+        let mut record = LogRecord::new("diagnostics.started")
+            .field("mode", "pull")
+            .field("revision", revision);
+        if let Some(artifact_run_id) = artifact_run_id {
+            record = record.field("run_id", artifact_run_id);
+        }
+        self.client.log(record);
+
+        // complete and report the exact diagnostic operation
+        let started = Instant::now();
         let outcome = run.wait().await;
+        let files = outcome.diagnostics.len();
+        let failures = outcome.failures.len();
+        let status = if failures == 0 { "ok" } else { "error" };
+        let mut record = LogRecord::new("diagnostics.finished")
+            .field("mode", "pull")
+            .field("revision", revision);
+        if let Some(artifact_run_id) = artifact_run_id {
+            record = record.field("run_id", artifact_run_id);
+        }
+        let record = record
+            .field("status", status)
+            .field("files", files)
+            .field("failures", failures)
+            .field("duration_us", started.elapsed().as_micros());
+        self.client.log(record);
 
         // reject the workspace when it changed while diagnostics were running
         let current = self.session()?.workspace_revision(workspace.as_ref())?;
@@ -263,8 +312,7 @@ impl DestackLanguageServer {
         // report run failures without discarding completed diagnostics
         for failure in outcome.failures {
             self.client
-                .report_error("diagnostics.read", workspace_error(failure))
-                .await;
+                .report_error("diagnostics.read", workspace_error(failure));
         }
 
         Ok((revision, outcome.diagnostics))
@@ -358,9 +406,18 @@ impl DestackLanguageServer {
         let uri = params.text_document.uri;
         let version = params.text_document.version;
         let content = params.text_document.text;
+        let started = Instant::now();
         let workspace = self
             .session()?
             .open_document(&path, uri, version, content)?;
+        let revision = self.session()?.workspace_revision(workspace.as_ref())?;
+        self.client.log(
+            LogRecord::new("document.opened")
+                .field("path", path.display())
+                .field("version", version)
+                .field("revision", revision)
+                .field("duration_us", started.elapsed().as_micros()),
+        );
 
         self.schedule_diagnostics(workspace)
     }
@@ -382,14 +439,25 @@ impl DestackLanguageServer {
             .ok_or_else(|| jsonrpc::Error::invalid_params("document URI is not a file URI"))?;
         let uri = params.text_document.uri;
         let version = params.text_document.version;
+        let change_count = params.content_changes.len();
         let changes = params
             .content_changes
             .into_iter()
             .map(IntoSource::into_source)
             .collect::<Vec<_>>();
+        let started = Instant::now();
         let workspace = self
             .session()?
             .change_document(&path, &uri, version, &changes)?;
+        let revision = self.session()?.workspace_revision(workspace.as_ref())?;
+        self.client.log(
+            LogRecord::new("document.changed")
+                .field("path", path.display())
+                .field("version", version)
+                .field("revision", revision)
+                .field("changes", change_count)
+                .field("duration_us", started.elapsed().as_micros()),
+        );
 
         self.schedule_diagnostics(workspace)
     }
@@ -402,7 +470,15 @@ impl DestackLanguageServer {
             .to_file_path()
             .map(|path| path.into_owned())
             .ok_or_else(|| jsonrpc::Error::invalid_params("document URI is not a file URI"))?;
+        let started = Instant::now();
         let workspace = self.session()?.save_document(&path, params.text)?;
+        let revision = self.session()?.workspace_revision(workspace.as_ref())?;
+        self.client.log(
+            LogRecord::new("document.saved")
+                .field("path", path.display())
+                .field("revision", revision)
+                .field("duration_us", started.elapsed().as_micros()),
+        );
 
         self.schedule_diagnostics(workspace)
     }
@@ -415,7 +491,14 @@ impl DestackLanguageServer {
             .to_file_path()
             .map(|path| path.into_owned())
             .ok_or_else(|| jsonrpc::Error::invalid_params("document URI is not a file URI"))?;
+        let started = Instant::now();
         let (workspace, removed) = self.session()?.close_document(&path)?;
+        self.client.log(
+            LogRecord::new("document.closed")
+                .field("path", path.display())
+                .field("removed_projects", removed.len())
+                .field("duration_us", started.elapsed().as_micros()),
+        );
 
         // clear projects released with the final open document
         if !removed.is_empty() {
@@ -482,6 +565,7 @@ impl DestackLanguageServer {
         &self,
         params: lsp::DidChangeWatchedFilesParams,
     ) -> jsonrpc::Result<()> {
+        let file_count = params.changes.len();
         let mut paths = Vec::with_capacity(params.changes.len());
         for change in params.changes {
             let path = change
@@ -495,10 +579,18 @@ impl DestackLanguageServer {
         }
 
         // reconcile exact physical paths and schedule changed editor branches
+        let started = Instant::now();
         let workspaces = self.session()?.reconcile(paths)?;
+        let project_count = workspaces.len();
         for workspace in workspaces {
             self.schedule_diagnostics(workspace)?;
         }
+        self.client.log(
+            LogRecord::new("files.changed")
+                .field("files", file_count)
+                .field("projects", project_count)
+                .field("duration_us", started.elapsed().as_micros()),
+        );
 
         Ok(())
     }
@@ -568,14 +660,47 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::InitializeParams,
     ) -> jsonrpc::Result<lsp::InitializeResult> {
         self.client.set_trace(params.trace.unwrap_or_default());
+        let workspace_folders = params.workspace_folders.as_ref().map_or(0, Vec::len);
+        self.client.log(
+            LogRecord::new("server.initialize.started")
+                .field("workspace_folders", workspace_folders),
+        );
 
         // build the complete initialized session
-        let session = ServerSession::open(&params)?;
+        let started = Instant::now();
+        let session = match ServerSession::open(&params, self.client.clone()) {
+            Ok(session) => session,
+            Err(error) => {
+                self.client.log(
+                    LogRecord::new("server.initialize.finished")
+                        .field("status", "error")
+                        .field("duration_us", started.elapsed().as_micros()),
+                );
+
+                return Err(error);
+            }
+        };
+        let projects = session.workspaces().len();
+        let workers = session.worker_count();
         let supports_code_lenses = session.client_capabilities.supports_code_lenses();
         let supports_pull_diagnostics = session.client_capabilities.supports_pull_diagnostics;
-        self.session
-            .set(session)
-            .map_err(|_| internal_error("language server initialized more than once"))?;
+        if self.session.set(session).is_err() {
+            let error = internal_error("language server initialized more than once");
+            self.client.log(
+                LogRecord::new("server.initialize.finished")
+                    .field("status", "error")
+                    .field("duration_us", started.elapsed().as_micros()),
+            );
+
+            return Err(error);
+        }
+        self.client.log(
+            LogRecord::new("server.initialize.finished")
+                .field("status", "ok")
+                .field("projects", projects)
+                .field("workers", workers)
+                .field("duration_us", started.elapsed().as_micros()),
+        );
 
         // build file operation filters for root notifications
         let file_operation_filters = Self::file_operation_filters();
@@ -710,24 +835,41 @@ impl LanguageServer for DestackLanguageServer {
     }
 
     async fn initialized(&self, _: lsp::InitializedParams) {
+        let started = Instant::now();
+        let mut failure_count = 0;
+        self.client
+            .log(LogRecord::new("server.initialized.started"));
         let capabilities = match self.client_capabilities() {
             Ok(capabilities) => capabilities,
             Err(error) => {
-                self.client
-                    .report_error("client_capabilities.read", error)
-                    .await;
+                self.client.report_error("client_capabilities.read", error);
+                self.client.log(
+                    LogRecord::new("server.initialized.finished")
+                        .field("status", "error")
+                        .field("failures", 1)
+                        .field("duration_us", started.elapsed().as_micros()),
+                );
 
                 return;
             }
         };
 
         // register watched files when the client supports dynamic registration
-        if capabilities.supports_dynamic_file_watching
-            && let Err(error) = self.register_file_watchers().await
-        {
-            self.client
-                .report_error("file_watchers.register", error)
-                .await;
+        if capabilities.supports_dynamic_file_watching {
+            let watch_started = Instant::now();
+            match self.register_file_watchers().await {
+                Ok(()) => {
+                    self.client.log(
+                        LogRecord::new("files.watch.registered")
+                            .field("patterns", format!("{TRACKED_FILE_GLOBS:?}"))
+                            .field("duration_us", watch_started.elapsed().as_micros()),
+                    );
+                }
+                Err(error) => {
+                    self.client.report_error("file_watchers.register", error);
+                    failure_count += 1;
+                }
+            }
         }
 
         // request settings when the client supports workspace configuration
@@ -737,9 +879,19 @@ impl LanguageServer for DestackLanguageServer {
                 Err(error) => Err(error),
             };
             if let Err(error) = result {
-                self.client.report_error("configuration.load", error).await;
+                self.client.report_error("configuration.load", error);
+                failure_count += 1;
             }
         }
+
+        // report the initialization outcome
+        let status = if failure_count == 0 { "ok" } else { "error" };
+        self.client.log(
+            LogRecord::new("server.initialized.finished")
+                .field("status", status)
+                .field("failures", failure_count)
+                .field("duration_us", started.elapsed().as_micros()),
+        );
     }
 
     async fn set_trace(&self, params: lsp::SetTraceParams) {
@@ -748,11 +900,13 @@ impl LanguageServer for DestackLanguageServer {
 
     async fn did_change_configuration(&self, _: lsp::DidChangeConfigurationParams) {
         if let Err(error) = self.change_configuration().await {
-            self.client.report_error("configuration.apply", error).await;
+            self.client.report_error("configuration.apply", error);
         }
     }
 
     async fn shutdown(&self) -> jsonrpc::Result<()> {
+        self.client.log(LogRecord::new("server.shutdown"));
+
         Ok(())
     }
 
@@ -762,41 +916,37 @@ impl LanguageServer for DestackLanguageServer {
 
     async fn did_open(&self, params: lsp::DidOpenTextDocumentParams) {
         if let Err(error) = self.open_document(params).await {
-            self.client.report_error("document.open", error).await;
+            self.client.report_error("document.open", error);
         }
     }
 
     async fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
         if let Err(error) = self.change_document(params).await {
-            self.client.report_error("document.change", error).await;
+            self.client.report_error("document.change", error);
         }
     }
 
     async fn did_save(&self, params: lsp::DidSaveTextDocumentParams) {
         if let Err(error) = self.save_document(params).await {
-            self.client.report_error("document.save", error).await;
+            self.client.report_error("document.save", error);
         }
     }
 
     async fn did_close(&self, params: lsp::DidCloseTextDocumentParams) {
         if let Err(error) = self.close_document(params).await {
-            self.client.report_error("document.close", error).await;
+            self.client.report_error("document.close", error);
         }
     }
 
     async fn did_change_workspace_folders(&self, params: lsp::DidChangeWorkspaceFoldersParams) {
         if let Err(error) = self.change_workspace_folders(params).await {
-            self.client
-                .report_error("workspace_folders.change", error)
-                .await;
+            self.client.report_error("workspace_folders.change", error);
         }
     }
 
     async fn did_change_watched_files(&self, params: lsp::DidChangeWatchedFilesParams) {
         if let Err(error) = self.change_watched_files(params).await {
-            self.client
-                .report_error("watched_files.reconcile", error)
-                .await;
+            self.client.report_error("watched_files.reconcile", error);
         }
     }
 
@@ -884,8 +1034,7 @@ impl LanguageServer for DestackLanguageServer {
                 .await;
             if let Err(error) = result {
                 self.client
-                    .report_error("renamed_file_diagnostics.clear", error)
-                    .await;
+                    .report_error("renamed_file_diagnostics.clear", error);
             }
         }
     }
@@ -895,8 +1044,7 @@ impl LanguageServer for DestackLanguageServer {
             let result = self.clear_deleted_file_diagnostics(&file.uri).await;
             if let Err(error) = result {
                 self.client
-                    .report_error("deleted_file_diagnostics.clear", error)
-                    .await;
+                    .report_error("deleted_file_diagnostics.clear", error);
             }
         }
     }

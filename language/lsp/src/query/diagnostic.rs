@@ -4,10 +4,10 @@ use std::iter;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use destack_core::StableHasher;
-use destack_lsp_server::{Client, jsonrpc};
+use destack_lsp_server::{Client, LogRecord, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_source::{
     Diagnostic, DiagnosticLabel, DiagnosticReference, DiagnosticSeverity, DiagnosticTag,
@@ -364,18 +364,45 @@ impl PullDiagnostics {
             return;
         }
 
+        let cancelled_client = client.clone();
         let task = tokio::spawn(async move {
+            // report the scheduled refresh before its debounce delay
+            client.log(
+                LogRecord::new("diagnostics.scheduled")
+                    .field("mode", "pull")
+                    .field("delay_ms", DIAGNOSTIC_DELAY.as_millis()),
+            );
             tokio::time::sleep(DIAGNOSTIC_DELAY).await;
-            if let Err(error) = client.workspace_diagnostic_refresh().await {
-                client
-                    .report_error("diagnostics.refresh", internal_error(error))
-                    .await;
-            }
+
+            // request fresh diagnostics from the client
+            client.log(LogRecord::new("diagnostics.refresh.started").field("mode", "pull"));
+            let started = Instant::now();
+            let status = match client.workspace_diagnostic_refresh().await {
+                Ok(()) => "ok",
+                Err(error) => {
+                    client.report_error("diagnostics.refresh", internal_error(error));
+
+                    "error"
+                }
+            };
+
+            // report the completed refresh request
+            client.log(
+                LogRecord::new("diagnostics.refresh.finished")
+                    .field("mode", "pull")
+                    .field("status", status)
+                    .field("duration_us", started.elapsed().as_micros()),
+            );
         });
 
         // replace the superseded refresh
         if let Some(previous) = self.task.lock().replace(task) {
             previous.abort();
+            cancelled_client.log(
+                LogRecord::new("diagnostics.cancelled")
+                    .field("mode", "pull")
+                    .field("reason", "superseded"),
+            );
         }
     }
 }
@@ -413,17 +440,25 @@ impl PushDiagnostics {
         let tasks = self.tasks.clone();
         let published = self.published.clone();
         let task_root = root.clone();
+        let cancelled_client = client.clone();
         let handle = tokio::spawn(async move {
+            // report the scheduled publication before its debounce delay
+            client.log(
+                LogRecord::new("diagnostics.scheduled")
+                    .field("mode", "push")
+                    .field("task_id", id)
+                    .field("root", task_root.display())
+                    .field("delay_ms", DIAGNOSTIC_DELAY.as_millis()),
+            );
             tokio::time::sleep(DIAGNOSTIC_DELAY).await;
 
             // schedule diagnostic artifacts after the debounce interval
+            let started = Instant::now();
             let revision = { projects.read().revision(workspace.root()) };
             let revision = match revision {
                 Some(Ok(revision)) => revision,
                 Some(Err(error)) => {
-                    client
-                        .report_error("diagnostics.revision.read", error)
-                        .await;
+                    client.report_error("diagnostics.revision.read", error);
 
                     return;
                 }
@@ -432,17 +467,26 @@ impl PushDiagnostics {
             let run = match workspace.start_diagnostics(revision, DiagnosticsRequest::All) {
                 Ok(run) => run,
                 Err(error) => {
-                    client
-                        .report_error("diagnostics.schedule", workspace_error(error))
-                        .await;
+                    client.report_error("diagnostics.schedule", workspace_error(error));
 
                     return;
                 }
             };
             let revision = run.revision();
+            let artifact_run_id = run.artifact_run_id();
+            let mut record = LogRecord::new("diagnostics.started")
+                .field("mode", "push")
+                .field("task_id", id)
+                .field("revision", revision);
+            if let Some(artifact_run_id) = artifact_run_id {
+                record = record.field("run_id", artifact_run_id);
+            }
+            client.log(record);
 
             // wait cooperatively for the scheduled diagnostics
             let outcome = run.wait().await;
+            let files = outcome.diagnostics.len();
+            let failures = outcome.failures.len();
 
             // reject a publication replaced by a newer task
             let is_current = tasks
@@ -459,9 +503,7 @@ impl PushDiagnostics {
                 Ok(Some(documents)) => documents,
                 Ok(None) => return,
                 Err(error) => {
-                    client
-                        .report_error("diagnostics.revision.read", error)
-                        .await;
+                    client.report_error("diagnostics.revision.read", error);
 
                     return;
                 }
@@ -474,10 +516,12 @@ impl PushDiagnostics {
                 .get(&task_root)
                 .cloned()
                 .unwrap_or_default();
-            let current = match publisher.publish(outcome.diagnostics, &previous).await {
+            let current = publisher.publish(outcome.diagnostics, &previous).await;
+            let is_publication_failed = current.is_err();
+            let current = match current {
                 Ok(current) => Some(current),
                 Err(error) => {
-                    client.report_error("diagnostics.publish", error).await;
+                    client.report_error("diagnostics.publish", error);
 
                     None
                 }
@@ -497,11 +541,29 @@ impl PushDiagnostics {
                 published.lock().insert(task_root, current);
             }
 
+            // report artifact and publication failures together
+            let status = if failures == 0 && !is_publication_failed {
+                "ok"
+            } else {
+                "error"
+            };
+            let mut record = LogRecord::new("diagnostics.finished")
+                .field("mode", "push")
+                .field("task_id", id)
+                .field("revision", revision);
+            if let Some(artifact_run_id) = artifact_run_id {
+                record = record.field("run_id", artifact_run_id);
+            }
+            let record = record
+                .field("status", status)
+                .field("files", files)
+                .field("failures", failures)
+                .field("duration_us", started.elapsed().as_micros());
+            client.log(record);
+
             // report run failures after publishing every completed diagnostic
             for failure in outcome.failures {
-                client
-                    .report_error("diagnostics.read", workspace_error(failure))
-                    .await;
+                client.report_error("diagnostics.read", workspace_error(failure));
             }
         });
         let previous = self
@@ -512,13 +574,26 @@ impl PushDiagnostics {
         // abort the superseded debounce or artifact wait
         if let Some(previous) = previous {
             previous.handle.abort();
+            cancelled_client.log(
+                LogRecord::new("diagnostics.cancelled")
+                    .field("mode", "push")
+                    .field("task_id", previous.id)
+                    .field("reason", "superseded"),
+            );
         }
     }
 
     /// Cancel one root and clear every diagnostic it published.
     async fn remove_root(&self, root: &Path, client: &Client) {
-        if let Some(task) = self.tasks.lock().remove(root) {
+        let task = { self.tasks.lock().remove(root) };
+        if let Some(task) = task {
             task.handle.abort();
+            client.log(
+                LogRecord::new("diagnostics.cancelled")
+                    .field("mode", "push")
+                    .field("task_id", task.id)
+                    .field("reason", "root-removed"),
+            );
         }
         let published = self.published.lock().remove(root).unwrap_or_default();
 

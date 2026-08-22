@@ -6,6 +6,7 @@ use std::time::Duration;
 use destack_lsp_server::jsonrpc::{self, Id};
 use destack_lsp_server::{ClientSocket, ExitedError, LspService};
 use destack_lsp_types as lsp;
+use destack_lsp_types::notification::Notification;
 use destack_source::TemporaryPhysicalFileSystem;
 use futures::{FutureExt, SinkExt, StreamExt};
 use serde_json::{Value, from_value, to_value};
@@ -433,10 +434,13 @@ impl TestServer {
 
     /// Require the server to have sent no further protocol message.
     pub(super) fn assert_no_message(&mut self) {
-        match self.socket.next().now_or_never() {
-            None => {}
-            Some(Some(message)) => panic!("unexpected server message: {message:?}"),
-            Some(None) => panic!("client socket closed"),
+        loop {
+            match self.socket.next().now_or_never() {
+                None => return,
+                Some(Some(message)) if Self::is_log_record(&message) => {}
+                Some(Some(message)) => panic!("unexpected server message: {message:?}"),
+                Some(None) => panic!("client socket closed"),
+            }
         }
     }
 
@@ -485,10 +489,29 @@ impl TestServer {
 
     /// Receive one server initiated protocol message.
     async fn receive(&mut self) -> jsonrpc::Request {
-        tokio::time::timeout(CLIENT_MESSAGE_TIMEOUT, self.socket.next())
-            .await
-            .unwrap()
-            .unwrap()
+        loop {
+            let message = tokio::time::timeout(CLIENT_MESSAGE_TIMEOUT, self.socket.next())
+                .await
+                .unwrap()
+                .unwrap();
+            if !Self::is_log_record(&message) {
+                return message;
+            }
+        }
+    }
+
+    /// Return whether one message is a structured informational log record.
+    fn is_log_record(message: &jsonrpc::Request) -> bool {
+        if message.method() != lsp::notification::LogMessage::METHOD {
+            return false;
+        }
+        let params = message
+            .params()
+            .cloned()
+            .unwrap_or_else(|| panic!("{} omitted its parameters", message.method()));
+        let params = from_value::<lsp::LogMessageParams>(params).unwrap();
+
+        params.typ == lsp::MessageType::INFO && params.message.starts_with("event=")
     }
 }
 

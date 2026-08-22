@@ -6,7 +6,7 @@ use destack_artifact::ArtifactKey;
 use destack_query::Module;
 use destack_repository::Revision;
 use destack_serde::Reflect;
-use destack_session::{ArtifactPriority, ArtifactRun};
+use destack_session::{ArtifactPriority, ArtifactRun, ArtifactRunId};
 use destack_source::{Diagnostic, File, FileId};
 use serde::{Deserialize, Serialize};
 
@@ -102,6 +102,11 @@ impl DiagnosticRun {
     /// Return the exact workspace revision pinned by this diagnostic run.
     pub fn revision(&self) -> Revision {
         self.revision
+    }
+
+    /// Return the artifact run providing diagnostics when scheduled.
+    pub fn artifact_run_id(&self) -> Option<ArtifactRunId> {
+        self.read.as_ref().map(|read| read.artifact_run.id())
     }
 
     /// Complete the scheduled read and return its diagnostics and failures.

@@ -4,11 +4,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_lsp_server::{Client, UriExt, jsonrpc};
+use destack_lsp_server::{Client, LogRecord, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
 use destack_repository::{Execution, Revision, SourceRoot};
-use destack_session::Executor;
+use destack_session::{ArtifactRunEvent, ArtifactRunEventHandler, Executor};
 use destack_source::{FileSystem, PhysicalFileSystem, TextChange};
 use destack_workspace::Workspace;
 use parking_lot::RwLock;
@@ -17,6 +17,9 @@ use serde_json::from_value;
 
 use super::{Project, ProjectSet, internal_error};
 use crate::query::DiagnosticDelivery;
+
+/// Maximum artifact keys rendered in one run log record.
+const ARTIFACT_LOG_LIMIT: usize = 12;
 
 /// State installed after one language server initialization.
 #[derive(Debug)]
@@ -37,7 +40,7 @@ pub(super) struct ServerSession {
 
 impl ServerSession {
     /// Open one initialized language server session.
-    pub(super) fn open(params: &lsp::InitializeParams) -> jsonrpc::Result<Self> {
+    pub(super) fn open(params: &lsp::InitializeParams, client: Client) -> jsonrpc::Result<Self> {
         let mut folders = Self::editor_folders(params)?;
         if folders.is_empty() {
             folders.push(Self::initial_path(params)?);
@@ -45,6 +48,10 @@ impl ServerSession {
 
         let file_system = Arc::new(PhysicalFileSystem::new());
         let executor = Executor::new(Execution::Threaded, Executor::default_worker_count())
+            .map_err(internal_error)?;
+        let artifact_logger = ArtifactLogger { client };
+        executor
+            .set_run_event_handler(artifact_logger.into_handler())
             .map_err(internal_error)?;
         let client_capabilities = ClientCapabilities::try_from(params)?;
         let diagnostics = if client_capabilities.supports_pull_diagnostics {
@@ -254,6 +261,11 @@ impl ServerSession {
         self.projects.read().workspaces()
     }
 
+    /// Return the artifact workers available to this server session.
+    pub(super) fn worker_count(&self) -> usize {
+        self.executor.worker_count()
+    }
+
     /// Return one opened workspace's current editor revision.
     pub(super) fn workspace_revision(&self, workspace: &Workspace) -> jsonrpc::Result<Revision> {
         let projects = self.projects.read();
@@ -373,6 +385,76 @@ impl ServerSession {
         }
 
         Self::canonicalize(path)
+    }
+}
+
+/// Structured LSP output for artifact executor runs.
+struct ArtifactLogger {
+    /// Client receiving artifact records.
+    client: Client,
+}
+
+impl ArtifactLogger {
+    /// Convert this logger into an executor event handler.
+    fn into_handler(self) -> ArtifactRunEventHandler {
+        Arc::new(move |event| self.write(event))
+    }
+
+    /// Write one artifact event.
+    fn write(&self, event: ArtifactRunEvent) {
+        let record = match event {
+            ArtifactRunEvent::Started {
+                run_id,
+                revision,
+                priority,
+                artifact_keys,
+            } => {
+                let shown = artifact_keys.len().min(ARTIFACT_LOG_LIMIT);
+                let omitted = artifact_keys.len() - shown;
+
+                LogRecord::new("artifact.run.started")
+                    .field("run_id", run_id)
+                    .field("revision", revision)
+                    .field("priority", priority)
+                    .field("roots", artifact_keys.len())
+                    .field("artifacts", format!("{:?}", &artifact_keys[..shown]))
+                    .field("omitted", omitted)
+            }
+            ArtifactRunEvent::Required {
+                run_id,
+                artifact_keys,
+            } => {
+                let shown = artifact_keys.len().min(ARTIFACT_LOG_LIMIT);
+                let omitted = artifact_keys.len() - shown;
+
+                LogRecord::new("artifact.run.required")
+                    .field("run_id", run_id)
+                    .field("roots", artifact_keys.len())
+                    .field("artifacts", format!("{:?}", &artifact_keys[..shown]))
+                    .field("omitted", omitted)
+            }
+            ArtifactRunEvent::Finished {
+                run_id,
+                is_cancelled,
+                is_aborted,
+                elapsed,
+            } => {
+                let status = if is_cancelled {
+                    "cancelled"
+                } else if is_aborted {
+                    "error"
+                } else {
+                    "ok"
+                };
+
+                LogRecord::new("artifact.run.finished")
+                    .field("run_id", run_id)
+                    .field("status", status)
+                    .field("duration_us", elapsed.as_micros())
+            }
+        };
+
+        self.client.log(record);
     }
 }
 
