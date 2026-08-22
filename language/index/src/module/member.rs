@@ -3,7 +3,7 @@ use destack_dir as dir;
 use super::context::ModuleIndexContext;
 
 /// Builder for one member index from checked DIR.
-pub(in crate::index) struct MemberIndexer<'context, 'index> {
+pub(crate) struct MemberIndexer<'context, 'index> {
     /// The indexed module context.
     module: &'context ModuleIndexContext<'index>,
     /// The collected member declarations.
@@ -12,9 +12,7 @@ pub(in crate::index) struct MemberIndexer<'context, 'index> {
 
 impl<'context, 'index> MemberIndexer<'context, 'index> {
     /// Build the member index.
-    pub(in crate::index) fn build(
-        module: &'context ModuleIndexContext<'index>,
-    ) -> dir::MemberIndex {
+    pub(crate) fn build(module: &'context ModuleIndexContext<'index>) -> dir::MemberIndex {
         let mut indexer = Self {
             module,
             entries: Vec::new(),

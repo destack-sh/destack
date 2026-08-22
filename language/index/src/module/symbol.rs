@@ -7,7 +7,7 @@ use destack_repository::{ProviderError, ProviderResult};
 use destack_source::{ModuleId, SourceIndex};
 
 /// Builder for one module symbol index.
-pub(in crate::index) struct SymbolIndexer<'a> {
+pub(crate) struct SymbolIndexer<'a> {
     /// The indexed module id.
     module_id: ModuleId,
     /// The visible expanded tree.
@@ -26,7 +26,7 @@ pub(in crate::index) struct SymbolIndexer<'a> {
 
 impl<'a> SymbolIndexer<'a> {
     /// Build the symbol index from expanded declarations.
-    pub(in crate::index) fn build(
+    pub(crate) fn build(
         parsed: &'a DirParsed,
         bound: &DirBound,
         expanded: &'a DirExpanded,

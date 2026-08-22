@@ -1079,6 +1079,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_index"
+version = "0.55.4"
+dependencies = [
+ "destack_artifact",
+ "destack_core",
+ "destack_dir",
+ "destack_repository",
+ "destack_source",
+ "rustc-hash 2.1.2",
+]
+
+[[package]]
 name = "destack_js"
 version = "0.55.4"
 dependencies = [

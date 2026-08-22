@@ -1,0 +1,26 @@
+[package]
+name = "destack_index"
+description = "Destack Index"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+# language
+destack_artifact = { workspace = true }
+destack_core = { workspace = true }
+destack_dir = { workspace = true }
+destack_source = { workspace = true }
+destack_repository = { path = "../repository", default-features = false }
+
+# general
+rustc-hash = { workspace = true }
+
+[lints]
+workspace = true

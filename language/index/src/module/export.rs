@@ -7,7 +7,7 @@ use destack_repository::{ProviderError, ProviderResult};
 use destack_source::ModuleId;
 
 /// Builder for one module export index.
-pub(in crate::index) struct ExportIndexer<'a> {
+pub(crate) struct ExportIndexer<'a> {
     /// The indexed module id.
     module_id: ModuleId,
     /// The exported declarations.
@@ -24,7 +24,7 @@ pub(in crate::index) struct ExportIndexer<'a> {
 
 impl<'a> ExportIndexer<'a> {
     /// Build the export index from resolved exports.
-    pub(in crate::index) fn build(
+    pub(crate) fn build(
         module_id: ModuleId,
         exported: &'a DirExported,
         resolved: &'a DirResolved,

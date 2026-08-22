@@ -8,7 +8,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use super::context::ModuleIndexContext;
 
 /// Builder for one reference index from recorded resolutions.
-pub(in crate::index) struct ReferenceIndexer<'context, 'index> {
+pub(crate) struct ReferenceIndexer<'context, 'index> {
     /// The indexed module context.
     module: &'context ModuleIndexContext<'index>,
     /// References keyed by their selected target.
@@ -23,7 +23,7 @@ pub(in crate::index) struct ReferenceIndexer<'context, 'index> {
 
 impl<'context, 'index> ReferenceIndexer<'context, 'index> {
     /// Build the reference index.
-    pub(in crate::index) fn build(
+    pub(crate) fn build(
         module: &'context ModuleIndexContext<'index>,
     ) -> ProviderResult<dir::ReferenceIndex> {
         let mut indexer = Self {

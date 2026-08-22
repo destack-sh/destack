@@ -7,18 +7,19 @@ use destack_artifact::{
     DirResolved, IndexKind, ModuleIndex, ProgramIndex, SourceDependencyKey,
 };
 use destack_core::FxIndexMap;
+use destack_dir as dir;
 use destack_repository::{
     ArtifactReader, ProviderContext, ProviderError, ProviderResult, Repository,
 };
 use destack_source::{ModuleId, ProfileId};
 
-use super::module::{
-    CallIndexer, DecoratorIndexer, ExportIndexer, HeritageIndexer, MemberIndexer,
+use crate::module::{
+    CallIndexer, CodeIndexer, DecoratorIndexer, ExportIndexer, HeritageIndexer, MemberIndexer,
     ModuleIndexContext, ReferenceIndexer, SymbolIndexer,
 };
-use super::program::ProgramIndexer;
+use crate::program::ProgramIndexer;
 
-/// Provider that builds query index artifacts for one repository.
+/// Provider that builds index artifacts for one repository.
 #[derive(Debug, Clone)]
 pub struct Indexer {
     /// The repository being indexed.
@@ -76,6 +77,11 @@ impl Indexer {
             dependencies.require(ArtifactKey::dir_exported(module_id, profile_id));
             dependencies.require(ArtifactKey::dir_resolved(module_id, profile_id));
             self.require_star_exports(context, module_id, profile_id, &mut dependencies)?;
+        }
+        // index authored code structure from the expanded visible tree
+        else if kind == IndexKind::Code {
+            dependencies.require(ArtifactKey::dir_parsed(module_id));
+            dependencies.require(ArtifactKey::dir_expanded(module_id, profile_id));
         }
         // index checked families over the module's declared, elaborated, and checked DIR
         else {
@@ -186,7 +192,7 @@ impl Indexer {
         let revision = context.revision();
         let artifacts = ArtifactReader::new(self.repository(), revision).restrict(
             context.artifact_dependencies().ok_or_else(|| {
-                ProviderError::internal("program index provider has no frozen dependencies")
+                ProviderError::internal("module index provider has no frozen dependencies")
             })?,
         );
 
@@ -230,6 +236,14 @@ impl Indexer {
                     module_id, &exported, &resolved, &closure, strings,
                 )?)
             }
+            IndexKind::Code => {
+                let parsed = artifacts.read::<DirParsed>(module_id)?;
+                let expanded = artifacts.read::<DirExpanded>((module_id, profile_id))?;
+                let view =
+                    dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+
+                ModuleIndex::Code(CodeIndexer::build(view)?)
+            }
             kind => {
                 let checked = artifacts.read::<DirChecked>((module_id, profile_id))?;
                 let module =
@@ -245,7 +259,7 @@ impl Indexer {
                     IndexKind::Decorators => {
                         ModuleIndex::Decorators(DecoratorIndexer::build(&module))
                     }
-                    IndexKind::Symbols | IndexKind::Exports => {
+                    IndexKind::Symbols | IndexKind::Exports | IndexKind::Code => {
                         return Err(ProviderError::internal(format!(
                             "checked module index kind: {kind:?}"
                         ))

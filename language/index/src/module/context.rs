@@ -10,7 +10,7 @@ use destack_source::{ModuleId, SourceIndex};
 
 /// DIR artifacts shared by module index builders.
 #[derive(Debug)]
-pub(in crate::index) struct ModuleIndexContext<'a> {
+pub(crate) struct ModuleIndexContext<'a> {
     /// The parsed module DIR.
     parsed: Arc<DirParsed>,
     /// The expanded module DIR.
@@ -39,7 +39,7 @@ pub(in crate::index) struct ModuleIndexContext<'a> {
 
 impl<'a> ModuleIndexContext<'a> {
     /// Build module index read state from exact DIR artifacts.
-    pub(in crate::index) fn new(
+    pub(crate) fn new(
         strings: &'a StringPool,
         module_id: ModuleId,
         parsed: Arc<DirParsed>,

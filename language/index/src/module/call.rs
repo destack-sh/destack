@@ -5,7 +5,7 @@ use destack_source::Span;
 use super::context::ModuleIndexContext;
 
 /// Builder for one call index from checked DIR.
-pub(in crate::index) struct CallIndexer<'context, 'index> {
+pub(crate) struct CallIndexer<'context, 'index> {
     /// The indexed module context.
     module: &'context ModuleIndexContext<'index>,
     /// The collected index entries.
@@ -14,7 +14,7 @@ pub(in crate::index) struct CallIndexer<'context, 'index> {
 
 impl<'context, 'index> CallIndexer<'context, 'index> {
     /// Build the call index.
-    pub(in crate::index) fn build(
+    pub(crate) fn build(
         module: &'context ModuleIndexContext<'index>,
     ) -> ProviderResult<dir::CallIndex> {
         let mut indexer = Self {

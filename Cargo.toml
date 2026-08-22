@@ -32,6 +32,7 @@ members = [
 	"language/fir",
 	"language/formatter",
 	"language/heap",
+	"language/index",
 	"language/json",
 	"language/js",
 	"language/linter",
@@ -88,6 +89,7 @@ destack_program = { path = "language/program" }
 destack_fir = { path = "language/fir" }
 destack_formatter = { path = "language/formatter" }
 destack_heap = { path = "language/heap" }
+destack_index = { path = "language/index" }
 destack_json = { path = "language/json" }
 destack_js = { path = "language/js" }
 destack_linter = { path = "language/linter" }

@@ -4,7 +4,7 @@ use destack_repository::{ProviderError, ProviderResult};
 use super::context::ModuleIndexContext;
 
 /// Builder for one heritage index from checked DIR.
-pub(in crate::index) struct HeritageIndexer<'context, 'index> {
+pub(crate) struct HeritageIndexer<'context, 'index> {
     /// The indexed module context.
     module: &'context ModuleIndexContext<'index>,
     /// The collected index entries.
@@ -13,7 +13,7 @@ pub(in crate::index) struct HeritageIndexer<'context, 'index> {
 
 impl<'context, 'index> HeritageIndexer<'context, 'index> {
     /// Build the heritage index.
-    pub(in crate::index) fn build(
+    pub(crate) fn build(
         module: &'context ModuleIndexContext<'index>,
     ) -> ProviderResult<dir::HeritageIndex> {
         let mut indexer = Self {

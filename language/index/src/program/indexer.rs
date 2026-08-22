@@ -3,14 +3,14 @@ use destack_dir as dir;
 use destack_repository::{ProviderError, ProviderResult};
 
 /// Builder for one program index from matching module indexes.
-pub(in crate::index) struct ProgramIndexer<'a> {
+pub(crate) struct ProgramIndexer<'a> {
     /// The current module indexes.
-    pub(in crate::index) modules: Vec<&'a ModuleIndex>,
+    pub(crate) modules: Vec<&'a ModuleIndex>,
 }
 
 impl ProgramIndexer<'_> {
     /// Build one program index.
-    pub(in crate::index) fn build(&self, kind: IndexKind) -> ProviderResult<ProgramIndex> {
+    pub(crate) fn build(&self, kind: IndexKind) -> ProviderResult<ProgramIndex> {
         let index = match kind {
             IndexKind::Symbols => ProgramIndex::Symbols(dir::SymbolPostings::build(
                 &self.indexes(kind, |module| match module {
@@ -56,13 +56,21 @@ impl ProgramIndexer<'_> {
                     _ => None,
                 })?,
             )),
+            IndexKind::Code => {
+                ProgramIndex::Code(dir::CodePostings::build(&self.indexes(kind, |module| {
+                    match module {
+                        ModuleIndex::Code(index) => Some(index),
+                        _ => None,
+                    }
+                })?))
+            }
         };
 
         Ok(index)
     }
 
     /// Update one program index from changed module indexes.
-    pub(in crate::index) fn update(
+    pub(crate) fn update(
         mut index: ProgramIndex,
         modules: &[(u32, &ModuleIndex)],
     ) -> ProviderResult<ProgramIndex> {
@@ -87,6 +95,9 @@ impl ProgramIndexer<'_> {
                     postings.update(*ordinal, index);
                 }
                 (ProgramIndex::Decorators(postings), ModuleIndex::Decorators(index)) => {
+                    postings.update(*ordinal, index);
+                }
+                (ProgramIndex::Code(postings), ModuleIndex::Code(index)) => {
                     postings.update(*ordinal, index);
                 }
                 (program, module) => {
