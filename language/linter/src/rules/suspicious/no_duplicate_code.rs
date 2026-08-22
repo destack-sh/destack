@@ -538,6 +538,55 @@ warning[no-duplicate-code]: callable repeats an earlier implementation
         );
     }
 
+    /// Report substantial functions that call through the same imported namespace.
+    #[test]
+    fn test_reports_namespace_calls() {
+        let session = TestSession::dir(
+            &NO_DUPLICATE_CODE,
+            r#"
+import * as assert from "destack:assert";
+
+function checkLeft(value: int32): void {
+    assert.assertEqual(value, 1);
+    assert.assertEqual(value, 2);
+}
+
+function checkRight(input: int32): void {
+    assert.assertEqual(input, 1);
+    assert.assertEqual(input, 2);
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-duplicate-code]: callable repeats an earlier implementation
+  ──▶ main.ds:8:41
+   │
+ 1 │ import * as assert from "destack:assert";
+ 2 │
+ 3 │ function checkLeft(value: int32): void {
+   │                                        - earlier implementation
+ 4 │     assert.assertEqual(value, 1);
+   │     -----------------------------
+ 5 │     assert.assertEqual(value, 2);
+   │     -----------------------------
+ 6 │ }
+   │ -
+ 7 │
+ 8 │ function checkRight(input: int32): void {
+   │                                         ^ repeated implementation
+ 9 │     assert.assertEqual(input, 1);
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+10 │     assert.assertEqual(input, 2);
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+11 │ }
+   │ ^
+   │
+"#,
+        );
+    }
+
     /// Report a maximal repeated statement section within one callable.
     #[test]
     fn test_reports_repeated_statement_section() {

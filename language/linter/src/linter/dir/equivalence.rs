@@ -250,6 +250,13 @@ impl<'a> AlphaComparison<'a> {
             return Ok(false);
         }
 
+        // compare resolved declaration and namespace references
+        let left_reference = self.left.resolved.references.get(left_global);
+        let right_reference = self.right.resolved.references.get(right_global);
+        if !self.references_match(left_reference, right_reference) {
+            return Ok(false);
+        }
+
         // compare control transfers by their corresponding checked target
         let left_transfer = self.left.decisions.transfer_decision(left_global);
         let right_transfer = self.right.decisions.transfer_decision(right_global);
@@ -403,6 +410,59 @@ impl<'a> AlphaComparison<'a> {
     /// Compare two selected symbols under the active binding bijection.
     fn symbols_match(&self, left: dir::GlobalSymbolId, right: dir::GlobalSymbolId) -> bool {
         self.symbols.matches_or_equal(left, right)
+    }
+
+    /// Compare two resolved source references under the active binding bijection.
+    fn references_match(
+        &self,
+        left: Option<&dir::Reference>,
+        right: Option<&dir::Reference>,
+    ) -> bool {
+        match (left, right) {
+            (Some(dir::Reference::Bound(left)), Some(dir::Reference::Bound(right))) => {
+                self.symbol_lists_match(left, right)
+            }
+            (
+                Some(dir::Reference::Namespace { module: left, .. }),
+                Some(dir::Reference::Namespace { module: right, .. }),
+            ) => left == right,
+            (
+                Some(dir::Reference::Projected {
+                    base: left_base,
+                    from: left_from,
+                }),
+                Some(dir::Reference::Projected {
+                    base: right_base,
+                    from: right_from,
+                }),
+            ) => left_from == right_from && self.reference_targets_match(*left_base, *right_base),
+            (Some(dir::Reference::Ambiguous(left)), Some(dir::Reference::Ambiguous(right))) => {
+                left.len() == right.len()
+                    && left
+                        .iter()
+                        .zip(right)
+                        .all(|(left, right)| self.reference_targets_match(*left, *right))
+            }
+            (Some(dir::Reference::Missing), Some(dir::Reference::Missing)) | (None, None) => true,
+            _ => false,
+        }
+    }
+
+    /// Compare two scalar source-reference targets under the active binding bijection.
+    fn reference_targets_match(
+        &self,
+        left: dir::ReferenceTarget,
+        right: dir::ReferenceTarget,
+    ) -> bool {
+        match (left, right) {
+            (dir::ReferenceTarget::Symbol(left), dir::ReferenceTarget::Symbol(right)) => {
+                self.symbols_match(left, right)
+            }
+            (dir::ReferenceTarget::Namespace(left), dir::ReferenceTarget::Namespace(right)) => {
+                left == right
+            }
+            _ => false,
+        }
     }
 }
 
