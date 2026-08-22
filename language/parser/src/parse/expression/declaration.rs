@@ -290,6 +290,60 @@ impl Parser {
 }
 
 impl TokenProbe<'_> {
+    /// Advance through declaration decorators and modifiers and return whether it is exported.
+    pub(in crate::parse) fn scan_declaration_prefixes(&mut self) -> Option<bool> {
+        let mut is_exported = false;
+
+        // scan prefixes owned by the outer expression
+        if !self.scan_decorators() {
+            return None;
+        }
+
+        // scan prefixes owned by the declaration
+        if !self.scan_declaration_header(&mut is_exported) {
+            return None;
+        }
+        if !self.scan_decorators() {
+            return None;
+        }
+        if !self.scan_declaration_header(&mut is_exported) {
+            return None;
+        }
+
+        Some(is_exported)
+    }
+
+    /// Advance through one declaration header.
+    fn scan_declaration_header(&mut self, is_exported: &mut bool) -> bool {
+        while let Some(keyword) = self.peek_keyword() {
+            let is_newline_allowed = keyword == Keyword::Export;
+
+            // scan one recognized modifier
+            match keyword {
+                Keyword::Export => {
+                    self.bump();
+                    *is_exported = true;
+                    if self.peek_keyword() == Some(Keyword::Default) {
+                        self.bump();
+                    }
+                }
+                Keyword::Declare
+                | Keyword::Abstract
+                | Keyword::Final
+                | Keyword::Local
+                | Keyword::Shared => self.bump(),
+                _ => break,
+            }
+
+            // non-export modifiers bind to the declaration on the same line
+            if !is_newline_allowed && self.peek_token().is_on_new_line() {
+                return false;
+            }
+        }
+
+        true
+    }
+
     /// Return whether a const keyword heads a declaration.
     fn scan_const_declaration(&mut self, is_statement: bool) -> bool {
         self.bump();

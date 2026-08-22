@@ -1,5 +1,6 @@
+use crate::parse::lookahead::DelimiterDepth;
 use crate::parse::{ExpressionPosition, ExpressionStop};
-use crate::{Parser, ParserResult};
+use crate::{Parser, ParserResult, TokenProbe};
 use destack_dir::{
     Decorator, DecoratorPosition, Expression, LocalNodeId, OperatorPrecedence, TokenType,
 };
@@ -87,5 +88,78 @@ impl Parser {
             .unwrap_or_else(|| self.tree.get_range(expression));
         self.tree.set_main_range(decorator, main_span);
         Ok(decorator)
+    }
+}
+
+impl TokenProbe<'_> {
+    /// Advance past decorator targets and their applications.
+    pub(in crate::parse) fn scan_decorators(&mut self) -> bool {
+        while self.peek_token_type() == TokenType::At {
+            self.bump();
+
+            // scan the decorator target
+            if self.peek_token_type() == TokenType::Identifier {
+                self.bump();
+            } else if !self
+                .scan_delimiter_group(TokenType::OpenParenthesis, TokenType::CloseParenthesis)
+            {
+                return false;
+            }
+
+            loop {
+                let token = self.peek_token();
+                let token_type = token.ty();
+
+                // stop before the decorated owner
+                if token.is_on_new_line() && token_type != TokenType::Dot {
+                    break;
+                }
+
+                // scan named member access
+                if token_type == TokenType::Dot {
+                    self.bump();
+                    if self.peek_token_type() != TokenType::Identifier {
+                        return false;
+                    }
+                    self.bump();
+
+                    continue;
+                }
+
+                // scan one decorator application
+                if token_type == TokenType::OpenParenthesis {
+                    if !self.scan_delimiter_group(
+                        TokenType::OpenParenthesis,
+                        TokenType::CloseParenthesis,
+                    ) {
+                        return false;
+                    }
+
+                    continue;
+                }
+
+                // scan a balanced generic postfix
+                if matches!(token_type, TokenType::LessThan | TokenType::ShiftLeft) {
+                    let mut delimiters = DelimiterDepth::type_expression();
+                    loop {
+                        let token_type = self.peek_token_type();
+                        if token_type == TokenType::End || !delimiters.advance(token_type) {
+                            return false;
+                        }
+
+                        self.bump();
+                        if delimiters.is_top_level() {
+                            break;
+                        }
+                    }
+
+                    continue;
+                }
+
+                break;
+            }
+        }
+
+        true
     }
 }

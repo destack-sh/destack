@@ -1,6 +1,6 @@
 use crate::lex::{InvalidEscape, cook};
 use crate::parse::error::ParserResultExt;
-use crate::parse::{DeclarationHeader, ExpressionPosition, ExpressionStop};
+use crate::parse::{DeclarationHeader, DeclarationNesting, ExpressionPosition, ExpressionStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_dir::{
@@ -110,6 +110,7 @@ impl Parser {
         // collect fields and associated members
         let mut fields: Vec<LocalNodeId<EnumField>> = Vec::new();
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
+        let mut is_previous_item_damaged = false;
 
         while self.has_more_tokens() {
             let token_type = self.peek_token_type();
@@ -120,7 +121,21 @@ impl Parser {
             }
             // consume any stop
             else if Self::is_any_stop_token(token_type) {
+                if token_type == TokenType::Semicolon
+                    && is_previous_item_damaged
+                    && self.peek_semicolon_declaration_boundary(DeclarationNesting::Member)
+                {
+                    break;
+                }
+
                 self.eat_any_stop()?;
+                is_previous_item_damaged = false;
+            }
+            // release a declaration after a damaged item
+            else if is_previous_item_damaged
+                && self.peek_declaration_boundary(DeclarationNesting::Member)
+            {
+                break;
             }
             // parse documentation, decorators and one field or member
             else {
@@ -135,16 +150,22 @@ impl Parser {
                     break;
                 }
 
+                let error_count = self.errors.len();
+
                 // enum field
                 if self.peek_enum_field() {
                     let field = self.parse_enum_field().in_node(NodeType::EnumField)?;
                     self.attach_documentation(field, documentation);
                     self.attach_decorators(field.id, decorators);
                     fields.push(field);
+                    is_previous_item_damaged = self.errors.len() > error_count;
                 }
                 // associated member
                 else {
                     let member_id = self.parse_member_or_recover();
+                    is_previous_item_damaged = self.errors.len() > error_count
+                        || matches!(self.tree.get(member_id), Member::Error);
+
                     if !matches!(self.tree.get(member_id), Member::Error) {
                         self.attach_documentation(member_id, documentation);
                     }

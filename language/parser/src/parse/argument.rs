@@ -1,4 +1,4 @@
-use crate::parse::{ExpressionPosition, ExpressionStop};
+use crate::parse::{DeclarationNesting, ExpressionPosition, ExpressionStop};
 use destack_dir::{Argument, Expression, LocalNodeId, NodeType, TokenType};
 
 use crate::{Parser, ParserError, ParserResult};
@@ -149,6 +149,13 @@ impl Parser {
 
         while self.has_more_tokens() {
             if self.peek_is(terminator) {
+                break;
+            }
+
+            // release exported declarations from incomplete statement calls
+            if position.is_in_statement()
+                && self.peek_declaration_boundary(DeclarationNesting::Expression)
+            {
                 break;
             }
 

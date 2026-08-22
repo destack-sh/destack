@@ -276,7 +276,11 @@ impl Parser {
             {
                 self.recover_missing_type_expression_here(NodeType::GenericParameter)
             } else {
-                self.parse_parameter_type(TypeStop::ANGLE_CLOSE)?
+                self.parse_type_or_recover_missing(
+                    TypePosition::Type,
+                    TypeStop::ANGLE_CLOSE,
+                    NodeType::GenericParameter,
+                )?
             };
             (Some(declared_type), Some(self.range_since(&type_start)))
         } else {
@@ -297,13 +301,18 @@ impl Parser {
             }
             // classify the default by its own shape, like a generic argument
             else if self.peek_generic_argument_type() {
-                self.parse_parameter_type(TypeStop::ANGLE_CLOSE)?
+                self.parse_type_or_recover_missing(
+                    TypePosition::Type,
+                    TypeStop::ANGLE_CLOSE,
+                    NodeType::GenericParameter,
+                )?
             }
             // every other default parses in value space and wraps as a static value type
             else {
                 let expression = self.parse_parameter_default(
                     ExpressionPosition::Value,
                     ExpressionStop::ANGLE_CLOSE,
+                    NodeType::GenericParameter,
                 )?;
 
                 self.insert_static_value_type(expression, &default_start)

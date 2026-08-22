@@ -58,6 +58,6 @@ pub(crate) use function::{AwaitKeyword, FunctionKeywords, FunctionModifiers, Yie
 pub use parser::*;
 pub(crate) use path::RangedPath;
 pub(crate) use probe::TokenProbe;
-pub(crate) use recovery::RecoveryPoint;
+pub(crate) use recovery::DeclarationNesting;
 pub(crate) use regex::{RegexFlags, RegexPattern};
 pub(crate) use r#type::{TypeMemberContainerKind, TypePosition, TypeStop};

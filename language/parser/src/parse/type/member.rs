@@ -5,7 +5,9 @@ use destack_dir::{
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
 use crate::parse::member::Method;
-use crate::parse::{BindingModifiers, FunctionModifiers, RecoveryPoint, TypePosition, TypeStop};
+use crate::parse::{
+    BindingModifiers, DeclarationNesting, FunctionModifiers, TypePosition, TypeStop,
+};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 /// The kind of type member container being parsed.
@@ -677,8 +679,12 @@ impl Parser {
         container_kind: TypeMemberContainerKind,
     ) -> ParserResult<Vec<LocalNodeId<TypeMember>>> {
         let mut members: Vec<LocalNodeId<TypeMember>> = Vec::new();
-        let mut previous_member_had_error = false;
-        let recovery_point = RecoveryPoint::TypeMemberDeclaration(container_kind);
+        let mut is_previous_member_damaged = false;
+        let declaration_nesting = if container_kind.allows_associated_members() {
+            DeclarationNesting::Member
+        } else {
+            DeclarationNesting::None
+        };
 
         while self.has_more_tokens() {
             let token_type = self.peek_token_type();
@@ -690,30 +696,34 @@ impl Parser {
             // skip item separators
             else if token_type == TokenType::Comma {
                 self.eat_token(TokenType::Comma)?;
-                previous_member_had_error = false;
+                is_previous_member_damaged = false;
 
                 continue;
             }
             // let a damaged member release the next declaration
             else if token_type == TokenType::Semicolon {
-                if previous_member_had_error && self.peek_semicolon_recovery_point(recovery_point) {
+                if is_previous_member_damaged
+                    && self.peek_semicolon_declaration_boundary(declaration_nesting)
+                {
                     break;
                 }
 
                 self.eat_any_stop()?;
-                previous_member_had_error = false;
+                is_previous_member_damaged = false;
 
                 continue;
             }
             // skip statement separators
             else if Self::is_any_stop_token(token_type) {
                 self.eat_any_stop()?;
-                previous_member_had_error = false;
+                is_previous_member_damaged = false;
 
                 continue;
             }
             // let a damaged nested body release the next declaration
-            else if previous_member_had_error && self.peek_recovery_point(recovery_point) {
+            else if is_previous_member_damaged
+                && self.peek_declaration_boundary(declaration_nesting)
+            {
                 break;
             }
 
@@ -736,7 +746,7 @@ impl Parser {
 
             let error_count = self.errors.len();
             let member_id = self.parse_type_member_or_recover(container_kind);
-            previous_member_had_error = self.errors.len() > error_count
+            is_previous_member_damaged = self.errors.len() > error_count
                 || matches!(self.tree.get(member_id), TypeMember::Error);
 
             if !matches!(self.tree.get(member_id), TypeMember::Error) {

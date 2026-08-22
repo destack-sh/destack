@@ -6,8 +6,8 @@ use destack_dir::{
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 use crate::parse::{
-    BindingModifiers, BindingPosition, ExpressionPosition, ExpressionStop, FunctionModifiers,
-    TypePosition, TypeStop,
+    BindingModifiers, BindingPosition, DeclarationNesting, ExpressionPosition, ExpressionStop,
+    FunctionModifiers, TypePosition, TypeStop,
 };
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
@@ -722,11 +722,11 @@ impl Parser {
             // default
             let default = if self.peek_is(TokenType::Assign) {
                 self.bump();
-                let default = if self.peek_is(TokenType::CloseBrace) || self.peek_any_stop() {
-                    self.recover_missing_expression_here(NodeType::Member)
-                } else {
-                    self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())?
-                };
+                let default = self.parse_expression_or_recover_missing(
+                    ExpressionPosition::Value,
+                    ExpressionStop::default(),
+                    NodeType::Member,
+                )?;
                 Some(default)
             } else {
                 None
@@ -801,6 +801,8 @@ impl Parser {
     /// Parse members (class/struct/interface/extension body).
     pub(crate) fn parse_members(&mut self) -> ParserResult<Vec<LocalNodeId<Member>>> {
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
+        let mut is_previous_member_damaged = false;
+
         while self.has_more_tokens() {
             // read the current token once per iteration
             let token_type = self.peek_token_type();
@@ -814,8 +816,23 @@ impl Parser {
                 if token_type == TokenType::Comma {
                     return Err(ParserError::unexpected(self.peek_token_span()));
                 }
+                if token_type == TokenType::Semicolon
+                    && is_previous_member_damaged
+                    && self.peek_semicolon_declaration_boundary(DeclarationNesting::Member)
+                {
+                    break;
+                }
+
                 self.eat_any_stop()?;
+                is_previous_member_damaged = false;
+
                 continue;
+            }
+            // release a declaration after a damaged member
+            else if is_previous_member_damaged
+                && self.peek_declaration_boundary(DeclarationNesting::Member)
+            {
+                break;
             }
             // parse documentation, decorators and one member
             else {
@@ -835,7 +852,11 @@ impl Parser {
                     break;
                 }
 
+                let error_count = self.errors.len();
                 let member_id = self.parse_member_or_recover();
+                is_previous_member_damaged = self.errors.len() > error_count
+                    || matches!(self.tree.get(member_id), Member::Error);
+
                 if !matches!(self.tree.get(member_id), Member::Error) {
                     self.attach_documentation(member_id, documentation);
                 }

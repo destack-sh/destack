@@ -1,5 +1,8 @@
 use crate::parse::error::ParserResultExt;
-use crate::parse::{DeclarationHeader, ExpressionPosition, ExpressionStop, TypePosition, TypeStop};
+use crate::parse::{
+    DeclarationHeader, DeclarationNesting, ExpressionPosition, ExpressionStop, TypePosition,
+    TypeStop,
+};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_core::StringId;
@@ -511,6 +514,13 @@ impl Parser {
         &mut self,
         function: &mut Function,
     ) -> ParserResult<()> {
+        // recover an absent parameter list before the next declaration
+        if self.peek_declaration_boundary(DeclarationNesting::None) {
+            self.report_expected_here(TokenType::OpenParenthesis, NodeType::Declaration);
+
+            return Ok(());
+        }
+
         // parse the parameter list
         let start = self.mark_parse_start();
         self.eat_token(TokenType::OpenParenthesis)?;

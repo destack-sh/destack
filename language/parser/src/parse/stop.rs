@@ -1,4 +1,4 @@
-use crate::parse::RecoveryPoint;
+use crate::parse::DeclarationNesting;
 use crate::{Parser, ParserError, ParserResult};
 use destack_dir::TokenType;
 
@@ -48,6 +48,7 @@ impl Parser {
     pub(crate) fn peek_expression_slot_boundary(&self) -> bool {
         Self::is_expression_slot_boundary_token(self.peek_token_type())
             || self.peek_is(TokenType::Colon)
+            || self.peek_declaration_boundary(DeclarationNesting::Expression)
     }
 
     /// Return true when a close delimiter can recover a missing token here.
@@ -86,7 +87,7 @@ impl Parser {
     #[inline]
     pub(crate) fn peek_type_expression_recovery_boundary(&self) -> bool {
         Self::is_type_expression_boundary_token(self.peek_token_type())
-            || self.peek_recovery_point(RecoveryPoint::TypeExpressionDeclaration)
+            || self.peek_declaration_boundary(DeclarationNesting::None)
     }
 
     /// Return true when the next token is a statement stop.

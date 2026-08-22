@@ -1,118 +1,129 @@
 use crate::parse::lookahead::DelimiterDepth;
 use crate::parse::{
-    ExpressionPosition, ExpressionStop, TokenMode, TypeMemberContainerKind, TypePosition, TypeStop,
+    DECLARATION_START_TOKENS, ExpressionPosition, ExpressionStop, TokenMode, TypePosition, TypeStop,
 };
-use crate::{ParseStart, Parser, ParserError, ParserResult};
+use crate::{ParseStart, Parser, ParserError, ParserResult, TokenProbe};
 use destack_dir::{
     Expression, Keyword, LocalNodeId, NodeType, TokenSpan, TokenType, TreeAttribute, TreeChild,
     TypeExpression,
 };
 use destack_source::ByteRange;
 
-/// A source point where parsing can resume after damaged syntax.
+/// The declaration form allowed to remain inside the current parser container.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum RecoveryPoint {
-    /// A declaration.
-    Declaration,
-    /// An outer declaration after a damaged type expression.
-    TypeExpressionDeclaration,
-    /// An outer declaration after a damaged type member.
-    TypeMemberDeclaration(TypeMemberContainerKind),
+pub(crate) enum DeclarationNesting {
+    /// No declaration may remain nested.
+    None,
+    /// An unexported declaration may remain as an expression.
+    Expression,
+    /// An associated declaration may remain as a member.
+    Member,
 }
 
-impl RecoveryPoint {
-    /// Return whether one keyword can start this recovery point.
-    fn accepts_keyword(self, keyword: Keyword) -> bool {
-        match self {
-            Self::Declaration => {
-                keyword == Keyword::Export || Self::is_declaration_keyword(keyword)
-            }
-            Self::TypeExpressionDeclaration => {
-                keyword == Keyword::Export
-                    || keyword == Keyword::Type
-                    || keyword == Keyword::Newtype
-                    || Self::is_outer_declaration_keyword(keyword)
-            }
-            Self::TypeMemberDeclaration(container_kind) => {
-                keyword == Keyword::Export
-                    || keyword == Keyword::Newtype
-                    || (!container_kind.allows_associated_members() && keyword == Keyword::Type)
-                    || Self::is_outer_declaration_keyword(keyword)
-            }
+impl DeclarationNesting {
+    /// Return whether a line-leading token probe starts a declaration boundary.
+    fn matches(self, probe: &mut TokenProbe<'_>) -> bool {
+        // scan declaration prefixes without consuming parser state
+        let Some(is_exported) = probe.scan_declaration_prefixes() else {
+            return false;
+        };
+        if self == Self::Expression && !is_exported {
+            return false;
         }
-    }
 
-    /// Return whether one keyword can modify this recovery point.
-    fn accepts_modifier(self, keyword: Keyword) -> bool {
-        match self {
-            Self::TypeExpressionDeclaration | Self::TypeMemberDeclaration(_) => {
-                Self::is_declaration_modifier_keyword(keyword)
+        // recognize ambient global blocks
+        if probe.peek_identifier_is("global") {
+            probe.bump();
+
+            return probe.peek_token_type() == TokenType::OpenBrace;
+        }
+
+        let Some(keyword) = probe.peek_keyword() else {
+            return false;
+        };
+        if !self.is_boundary_keyword(keyword) {
+            return false;
+        }
+
+        // classify the declaration noun and its required continuation
+        probe.bump();
+        match keyword {
+            Keyword::Async => {
+                let is_function = probe.peek_keyword() == Some(Keyword::Function)
+                    && !probe.peek_token().is_on_new_line();
+                if !is_function {
+                    return false;
+                }
+                probe.bump();
+
+                Self::scan_function_name(probe)
+            }
+            Keyword::Function => Self::scan_function_name(probe),
+            Keyword::Struct | Keyword::Enum | Keyword::Interface => matches!(
+                probe.peek_token_type(),
+                TokenType::Identifier | TokenType::Literal | TokenType::OpenBrace
+            ),
+            Keyword::Class => {
+                matches!(
+                    probe.peek_token_type(),
+                    TokenType::Identifier | TokenType::Literal | TokenType::OpenBrace
+                ) || probe.peek_keyword() == Some(Keyword::Extends)
+            }
+            Keyword::Extension => {
+                probe.peek_keyword() == Some(Keyword::Of)
+                    || matches!(
+                        probe.peek_token_type(),
+                        TokenType::Identifier | TokenType::LessThan | TokenType::ShiftLeft
+                    )
+            }
+            Keyword::Newtype => {
+                probe.peek_keyword() == Some(Keyword::Interface)
+                    || probe.peek_token_type() == TokenType::Identifier
+            }
+            Keyword::Type | Keyword::Readonly => probe.peek_token_type() == TokenType::Identifier,
+            Keyword::Const => {
+                probe.peek_keyword() == Some(Keyword::Function)
+                    || DECLARATION_START_TOKENS.contains(&probe.peek_token_type())
+            }
+            Keyword::Let | Keyword::Using => {
+                DECLARATION_START_TOKENS.contains(&probe.peek_token_type())
             }
             _ => false,
         }
     }
 
-    /// Return whether one following token is valid after this recovery point head.
-    fn accepts_following_token(self, token_type: TokenType) -> bool {
+    /// Advance past one function name.
+    fn scan_function_name(probe: &mut TokenProbe<'_>) -> bool {
+        if probe.peek_token_type() == TokenType::Multiply {
+            probe.bump();
+        }
+
+        probe.peek_token_type() == TokenType::Identifier
+    }
+
+    /// Return whether one keyword starts a declaration boundary under this nesting.
+    fn is_boundary_keyword(self, keyword: Keyword) -> bool {
         match self {
-            Self::TypeExpressionDeclaration => {
-                Self::is_declaration_keyword_follow_token(token_type)
+            Self::None | Self::Expression => {
+                Self::is_member_boundary_keyword(keyword)
+                    || matches!(keyword, Keyword::Type | Keyword::Readonly | Keyword::Const)
             }
-            _ => true,
+            Self::Member => Self::is_member_boundary_keyword(keyword),
         }
     }
 
-    /// Return whether one token can follow a recovered declaration keyword.
-    fn is_declaration_keyword_follow_token(token_type: TokenType) -> bool {
-        matches!(token_type, TokenType::Identifier | TokenType::At)
-    }
-
-    /// Return whether one keyword starts a recoverable declaration.
-    fn is_declaration_keyword(keyword: Keyword) -> bool {
+    /// Return whether one keyword starts a declaration outside a member list.
+    fn is_member_boundary_keyword(keyword: Keyword) -> bool {
         matches!(
             keyword,
             Keyword::Struct
                 | Keyword::Class
                 | Keyword::Enum
                 | Keyword::Function
-                | Keyword::Extension
-                | Keyword::Interface
-                | Keyword::Type
-                | Keyword::Newtype
-                | Keyword::Const
-                | Keyword::Readonly
-                | Keyword::Let
-                | Keyword::Using
-        ) || Self::is_declaration_modifier_keyword(keyword)
-    }
-
-    /// Return whether one keyword can modify a recoverable declaration.
-    fn is_declaration_modifier_keyword(keyword: Keyword) -> bool {
-        matches!(
-            keyword,
-            Keyword::Declare
-                | Keyword::Abstract
-                | Keyword::Final
-                | Keyword::Override
-                | Keyword::Public
-                | Keyword::Protected
-                | Keyword::Private
                 | Keyword::Async
-        )
-    }
-
-    /// Return whether one keyword starts an outer declaration.
-    fn is_outer_declaration_keyword(keyword: Keyword) -> bool {
-        matches!(
-            keyword,
-            Keyword::Struct
-                | Keyword::Class
-                | Keyword::Enum
-                | Keyword::Function
                 | Keyword::Extension
                 | Keyword::Interface
                 | Keyword::Newtype
-                | Keyword::Const
                 | Keyword::Let
                 | Keyword::Using
         )
@@ -120,81 +131,29 @@ impl RecoveryPoint {
 }
 
 impl Parser {
-    /// Return whether the current semicolon precedes one recovery point.
-    pub(crate) fn peek_semicolon_recovery_point(&self, point: RecoveryPoint) -> bool {
-        if !self.peek_is(TokenType::Semicolon) {
+    /// Return whether the current semicolon precedes a declaration boundary.
+    pub(crate) fn peek_semicolon_declaration_boundary(&self, nesting: DeclarationNesting) -> bool {
+        let mut probe = self.cursor.probe(&self.file);
+        if probe.peek_token_type() != TokenType::Semicolon {
+            return false;
+        }
+        probe.bump();
+        if !probe.peek_token().is_on_new_line() {
             return false;
         }
 
-        let next = self.peek_next_token();
-        let following_token_type = self.peek_token_type_at(2);
-
-        // require the recovery point to start after a line boundary
-        if !next.is_on_new_line() {
-            return false;
-        }
-
-        // stay in the current item when the next token still binds to it
-        if Self::token_continues_current_recovery_item(following_token_type) {
-            return false;
-        }
-
-        // keep contextual recovery on a real declaration shaped head
-        if !point.accepts_following_token(following_token_type) {
-            return false;
-        }
-
-        self.peek_keyword_at(1)
-            .is_some_and(|keyword| point.accepts_keyword(keyword))
+        nesting.matches(&mut probe)
     }
 
-    /// Return whether the current token starts one recovery point.
-    pub(crate) fn peek_recovery_point(&self, point: RecoveryPoint) -> bool {
-        let Some(keyword) = self.peek_keyword() else {
-            return false;
-        };
-
-        let following_token_type = self.peek_token_type_at(1);
-
-        // require recovery heads to begin a logical line
+    /// Return whether the current token starts a declaration boundary.
+    pub(crate) fn peek_declaration_boundary(&self, nesting: DeclarationNesting) -> bool {
         if !self.peek_is_on_new_line() {
             return false;
         }
 
-        // stay in the current item when the next token still binds to it
-        if Self::token_continues_current_recovery_item(following_token_type) {
-            return false;
-        }
+        let mut probe = self.cursor.probe(&self.file);
 
-        // keep contextual recovery on a real declaration shaped head
-        if !point.accepts_following_token(following_token_type) {
-            return false;
-        }
-
-        // accept direct recovery keywords
-        if point.accepts_keyword(keyword) {
-            return true;
-        }
-
-        self.peek_recovery_keyword_after_modifier(point, keyword)
-    }
-
-    /// Return whether one modifier is followed by a recovery keyword.
-    fn peek_recovery_keyword_after_modifier(&self, point: RecoveryPoint, keyword: Keyword) -> bool {
-        if !point.accepts_modifier(keyword) {
-            return false;
-        }
-
-        self.peek_keyword_at(1)
-            .is_some_and(|keyword| point.accepts_keyword(keyword))
-    }
-
-    /// Return whether one following token keeps the current item ambiguous.
-    fn token_continues_current_recovery_item(token_type: TokenType) -> bool {
-        matches!(
-            token_type,
-            TokenType::Colon | TokenType::Maybe | TokenType::OpenParenthesis
-        )
+        nesting.matches(&mut probe)
     }
 
     /// Insert one missing expression node at the current cursor position.
@@ -520,7 +479,7 @@ impl Parser {
     /// Return whether type parsing can recover one missing close token here.
     fn is_type_token_recovery_boundary(&self, token_type: TokenType) -> bool {
         Self::is_type_container_boundary_token(token_type)
-            || self.peek_recovery_point(RecoveryPoint::TypeExpressionDeclaration)
+            || self.peek_declaration_boundary(DeclarationNesting::None)
     }
 
     /// Recover until the expected token.

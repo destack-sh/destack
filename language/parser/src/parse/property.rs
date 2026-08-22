@@ -6,7 +6,7 @@ use destack_dir::{
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 use crate::parse::member::{MemberHead, Method};
-use crate::parse::{BindingPosition, RecoveryPoint};
+use crate::parse::{BindingPosition, DeclarationNesting};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 #[allow(clippy::type_complexity)]
@@ -84,7 +84,7 @@ impl Parser {
 
             // stop at declaration recovery boundaries
             if token_type == TokenType::Semicolon {
-                if self.peek_semicolon_recovery_point(RecoveryPoint::Declaration) {
+                if self.peek_semicolon_declaration_boundary(DeclarationNesting::None) {
                     break;
                 }
 

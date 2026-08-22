@@ -1,12 +1,12 @@
 use crate::parse::error::ParserResultExt;
 use destack_dir::{
     Expression, Keyword, LocalNodeId, NodeType, Parameter, Pattern, StringId, ThisForm, TokenType,
-    TypeExpression,
 };
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 use crate::parse::{
-    AwaitKeyword, BindingPosition, ExpressionPosition, ExpressionStop, TypePosition, TypeStop,
+    AwaitKeyword, BindingPosition, DeclarationNesting, ExpressionPosition, ExpressionStop,
+    TypePosition, TypeStop,
 };
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
@@ -61,6 +61,11 @@ impl Parser {
             return false;
         }
 
+        // release declarations from the incomplete parameter list
+        if self.peek_declaration_boundary(DeclarationNesting::None) {
+            return true;
+        }
+
         // parameter heads win when followed by a parameter continuation
         if matches!(
             self.peek_next_token_type(),
@@ -73,45 +78,25 @@ impl Parser {
             return false;
         }
 
-        // statement keywords
+        // control statements
         let Some(keyword) = self.peek_keyword() else {
             return false;
         };
 
         matches!(
             keyword,
-            Keyword::Abstract
-                | Keyword::Break
-                | Keyword::Class
-                | Keyword::Const
+            Keyword::Break
                 | Keyword::Continue
                 | Keyword::Do
-                | Keyword::Enum
-                | Keyword::Export
-                | Keyword::Extension
                 | Keyword::For
-                | Keyword::Function
                 | Keyword::If
                 | Keyword::Import
-                | Keyword::Interface
-                | Keyword::Let
                 | Keyword::Match
                 | Keyword::Return
                 | Keyword::Switch
-                | Keyword::Type
                 | Keyword::Try
-                | Keyword::Using
                 | Keyword::While
         )
-    }
-
-    /// Parse a parameter type annotation expression.
-    #[inline]
-    pub(crate) fn parse_parameter_type(
-        &mut self,
-        stops: TypeStop,
-    ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        self.parse_type(TypePosition::Type, stops)
     }
 
     /// Parse a parameter default value expression.
@@ -120,12 +105,13 @@ impl Parser {
         &mut self,
         position: ExpressionPosition,
         stops: ExpressionStop,
+        owner: NodeType,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let mut keywords = self.keywords;
         keywords.await_keyword = AwaitKeyword::Forbidden;
 
         self.with_keywords(keywords, |parser| {
-            parser.parse_expression(position.nested(), stops)
+            parser.parse_expression_or_recover_missing(position.nested(), stops, owner)
         })
     }
 
@@ -198,7 +184,11 @@ impl Parser {
                 {
                     self.recover_missing_type_expression_here(NodeType::Parameter)
                 } else {
-                    self.parse_parameter_type(TypeStop::default())?
+                    self.parse_type_or_recover_missing(
+                        TypePosition::Type,
+                        TypeStop::default(),
+                        NodeType::Parameter,
+                    )?
                 };
                 let type_range = self.range_since(&type_start);
                 (Some(declared_type), Some(type_range))
@@ -220,16 +210,13 @@ impl Parser {
                 self.bump();
 
                 // value
-                let value = if self.peek_is(TokenType::Comma)
-                    || self.peek_is(TokenType::CloseParenthesis)
-                    || self.peek_type_angle_close()
-                    || self.peek_is(TokenType::End)
-                {
-                    self.recover_missing_expression_here(NodeType::Parameter)
-                } else {
-                    self.parse_parameter_default(position, ExpressionStop::default())
-                        .in_node(NodeType::Parameter)?
-                };
+                let value = self
+                    .parse_parameter_default(
+                        position,
+                        ExpressionStop::default(),
+                        NodeType::Parameter,
+                    )
+                    .in_node(NodeType::Parameter)?;
 
                 // named with default
                 match binding {
@@ -314,7 +301,11 @@ impl Parser {
         };
 
         let this_id = self.strings.intern("this");
-        let declared_type = self.parse_parameter_type(TypeStop::default())?;
+        let declared_type = self.parse_type_or_recover_missing(
+            TypePosition::Type,
+            TypeStop::default(),
+            NodeType::Parameter,
+        )?;
         let parameter_id = self.insert_node(
             Parameter::Named {
                 name: this_id,
