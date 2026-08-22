@@ -10,7 +10,7 @@ impl CheckState<'_> {
     pub(in crate::sema) fn run_check(&mut self) -> CompilerResult<()> {
         let recorder = self.recorder;
         self.with_scope(|state| {
-            ArtifactAttemptRecorder::breakdown_maybe(recorder, "walk", || state.walk())?;
+            ArtifactAttemptRecorder::breakdown_maybe(recorder, "walk", || state.walk_bodies())?;
             state.induce_signature_lifetimes()?;
             state.apply_capture_directives()?;
             ArtifactAttemptRecorder::breakdown_maybe(recorder, "decorators", || {

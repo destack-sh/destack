@@ -516,25 +516,31 @@ impl<'a> CheckState<'a> {
         }
     }
 
-    /// Walk the loaded module.
-    pub(in crate::sema) fn walk(&mut self) -> CompilerResult<()> {
+    /// Walk the loaded module's declarations for the declare pass.
+    pub(in crate::sema) fn walk_declarations(&mut self) -> CompilerResult<()> {
         let module = self.module_id;
 
         // import external declared modules
         self.import_external_modules()?;
-
-        // checking walks bodies against the declared entries
-        if self.is_checking() {
-            self.canonicalize_declared_types()?;
-
-            return self.walk_module_bodies(module);
-        }
 
         // declare template identities before walking their bounds
         self.declare_module_templates(module)?;
         self.walk_module_templates(module)?;
 
         self.walk_module(module)
+    }
+
+    /// Walk the loaded module's bodies against the declared entries for the check pass.
+    pub(in crate::sema) fn walk_bodies(&mut self) -> CompilerResult<()> {
+        let module = self.module_id;
+
+        // import external declared modules
+        self.import_external_modules()?;
+
+        // canonicalize this module's declared types once against its imports
+        self.canonicalize_declared_types()?;
+
+        self.walk_module_bodies(module)
     }
 
     /// Return one language symbol resolved for one module.
