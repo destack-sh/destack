@@ -220,7 +220,7 @@ export extension<T: Copy> of Array<T> implements Iterable<T>, Sequence {
     }
 
     /// Call `visit` for each copied element and discard its result.
-    forEach<R>(visit: (value: T, index: isize) => R): void {
+    forEach<R>(visit: (value: T, index: isize, array: Array<T>) => R): void {
         todo("Array.forEach");
     }
 }
@@ -347,7 +347,13 @@ export extension<T, 'a, const A: Access> of Borrowed<Array<T>, 'a, A>
     }
 
     /// Call `visit` for each borrowed element and discard its result.
-    forEach<R>(visit: (value: Borrowed<T, 'a, "readonly">, index: isize) => R): void {
+    forEach<R>(
+        visit: (
+            value: Borrowed<T, 'a, "readonly">,
+            index: isize,
+            array: Borrowed<Array<T>, 'a, "readonly">,
+        ) => R,
+    ): void {
         todo("Array.forEach");
     }
 }

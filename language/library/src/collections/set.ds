@@ -66,8 +66,8 @@ export extension<T: Hash> of Set<T> implements Iterable<T> where T: Copy, T: Equ
         todo("Set.entries")
     }
 
-    /// Call `visit` for each copied value.
-    forEach(visit: (value: T, set: Set<T>) => void): void {
+    /// Call `visit` for each copied value and discard its result.
+    forEach<R>(visit: (value: T, set: Set<T>) => R): void {
         todo("Set.forEach");
     }
 }
@@ -102,9 +102,9 @@ export extension<T: Hash, 'a> of Borrowed<Set<T>, 'a, "readonly">
         todo("Set.entries")
     }
 
-    /// Call `visit` for each borrowed value.
-    forEach(
-        visit: (value: Borrowed<T, 'a, "readonly">, set: Borrowed<Set<T>, 'a, "readonly">) => void,
+    /// Call `visit` for each borrowed value and discard its result.
+    forEach<R>(
+        visit: (value: Borrowed<T, 'a, "readonly">, set: Borrowed<Set<T>, 'a, "readonly">) => R,
     ): void {
         todo("Set.forEach");
     }

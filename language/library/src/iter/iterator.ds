@@ -147,8 +147,8 @@ export newtype interface Iterator<T> {
         this.collect<^T[]>()
     }
 
-    /// Consume every yielded value with `visit`.
-    forEach(this, visit: (value: T, index: isize) => void): void {
+    /// Consume every yielded value with `visit` and discard its result.
+    forEach<R>(this, visit: (value: T, index: isize) => R): void {
         todo("Iterator.forEach");
     }
 

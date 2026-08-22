@@ -71,8 +71,8 @@ export extension<K: Hash, V> of Map<K, V>
         todo("Map.entries")
     }
 
-    /// Call `visit` for each copied entry.
-    forEach(visit: (value: V, key: K, map: Map<K, V>) => void): void {
+    /// Call `visit` for each copied entry and discard its result.
+    forEach<R>(visit: (value: V, key: K, map: Map<K, V>) => R): void {
         todo("Map.forEach");
     }
 }
@@ -133,13 +133,13 @@ export extension<K: Hash, V, 'a, const A: Access> of Borrowed<Map<K, V>, 'a, A>
         todo("Map.getEntry")
     }
 
-    /// Call `visit` for each borrowed entry.
-    forEach(
+    /// Call `visit` for each borrowed entry and discard its result.
+    forEach<R>(
         visit: (
             value: Borrowed<V, 'a, "readonly">,
             key: Borrowed<K, 'a, "readonly">,
             map: Borrowed<Map<K, V>, 'a, "readonly">,
-        ) => void,
+        ) => R,
     ): void {
         todo("Map.forEach");
     }
