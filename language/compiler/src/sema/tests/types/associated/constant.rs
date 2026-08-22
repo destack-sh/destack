@@ -1,5 +1,128 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Infer associated constant types from transcribable literal values.
+#[test]
+fn test_infer_literal_associated_constants() {
+    let session = TestSession::single(
+        r#"
+class Class {
+    const Value = 1;
+}
+
+interface Interface {
+    const Value = 1;
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_statics(),
+        r#"
+=== annotated ===
+class Class {
+    const Value = 1;
+}
+
+interface Interface {
+    const Value = 1;
+}
+
+=== dir ===
+class Class {
+/// @type.symbol symbol=Class type=Class
+/// @static.symbol symbol=Class value=Class
+/// @definition.class symbol=Class
+/// @definition.associated.const symbol=Class.Value source="const Value = 1" key=Value type=1
+
+    const Value = 1;
+    /// @type.symbol symbol=Class.Value source="const Value = 1" type=1
+    /// @static.symbol symbol=Class.Value source="const Value = 1" value=1
+
+}
+
+interface Interface {
+/// @type.symbol symbol=Interface type=Interface
+/// @definition.interface symbol=Interface
+/// @definition.associated.const symbol=Interface.Value source="const Value = 1" key=Value type=1
+
+    const Value = 1;
+    /// @type.symbol symbol=Interface.Value source="const Value = 1" type=1
+    /// @static.symbol symbol=Interface.Value source="const Value = 1" value=1
+
+}
+"#,
+    );
+}
+
+/// Report associated constant types that cannot be transcribed.
+#[test]
+fn test_report_untranscribable_associated_constants() {
+    let session = TestSession::single(
+        r#"
+class Class {
+    const Value;
+    const Computed = 1 + 2;
+}
+
+interface Interface {
+    const Value;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_statics(),
+        r#"
+=== annotated ===
+class Class {
+    const Value;
+    const Computed = 1 + 2;
+}
+
+interface Interface {
+    const Value;
+}
+
+=== dir ===
+class Class {
+/// @type.symbol symbol=Class type=Class
+/// @static.symbol symbol=Class value=Class
+/// @definition.class symbol=Class
+/// @definition.associated.const symbol=Class.Computed source="const Computed = 1 + 2" key=Computed type=<error>
+/// @definition.associated.const symbol=Class.Value source="const Value" key=Value type=<error>
+
+    const Value;
+    /// @type.symbol symbol=Class.Value source="const Value" type=<error>
+
+    const Computed = 1 + 2;
+    /// @type.symbol symbol=Class.Computed source="const Computed = 1 + 2" type=<error>
+    /// @static.symbol symbol=Class.Computed source="const Computed = 1 + 2" value="1 + 2"
+
+}
+
+interface Interface {
+/// @type.symbol symbol=Interface type=Interface
+/// @definition.interface symbol=Interface
+/// @definition.associated.const symbol=Interface.Value source="const Value" key=Value type=<error>
+
+    const Value;
+    /// @type.symbol symbol=Interface.Value source="const Value" type=<error>
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=missing-type-annotation message="missing type annotation"
+/// @diagnostic.label line=3 column=11 span="Value" line_source="const Value;"
+/// @diagnostic.error id=missing-type-annotation message="missing type annotation"
+/// @diagnostic.label line=4 column=11 span="Computed" line_source="const Computed = 1 + 2;"
+/// @diagnostic.error id=missing-type-annotation message="missing type annotation"
+/// @diagnostic.label line=8 column=11 span="Value" line_source="const Value;"
+"#,
+    );
+}
+
 #[test]
 fn test_associated_constant_uses_static_type_argument() {
     let session = TestSession::single(

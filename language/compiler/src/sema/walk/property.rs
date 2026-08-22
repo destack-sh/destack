@@ -247,62 +247,7 @@ impl WalkState<'_, '_> {
                 declared_type,
                 value,
                 ..
-            } => {
-                let (name, declared_type, value) = (*name, *declared_type, *value);
-
-                if value.is_some() && declared_type.is_none() {
-                    self.check
-                        .report_missing_type_annotation(self.module, id.into_any());
-                }
-
-                // walk the declared type
-                let declared = declared_type
-                    .map(|declared_type| self.walk_type_expression(declared_type))
-                    .transpose()?;
-
-                // the value is a static written form checked against the type
-                let written = value
-                    .map(|value| self.walk_static_term(value))
-                    .transpose()?;
-
-                let symbol = self.declared_symbol(id.into_any());
-                if let Some(symbol) = symbol {
-                    let ty = match declared {
-                        Some(declared) => declared,
-                        None => self.symbol_type_slot(symbol)?,
-                    };
-                    self.bind_symbol_type(symbol, ty)?;
-
-                    if let Some(written) = written {
-                        // the written value constraints into the declared type
-                        let origin = Origin::Node(
-                            id.into_global_any(self.module),
-                            self.flow().template_scope(),
-                        );
-                        self.relate_type(
-                            origin,
-                            CauseKind::Initializer { annotation: None },
-                            Relation::Assignable,
-                            written,
-                            ty,
-                        )?;
-                        self.commit_static_value(symbol, written)?;
-                    }
-                }
-
-                let (Some(symbol), Some(_)) = (symbol, declared) else {
-                    return Ok(None);
-                };
-
-                Ok(Some(dir::DefinitionMember::AssociatedConst(
-                    dir::AssociatedConstDefinition {
-                        symbol,
-                        source: id.into_global_any(self.module),
-                        key: dir::StaticKey::Name(name),
-                        value: None,
-                    },
-                )))
-            }
+            } => self.walk_associated_constant(id.into_any(), *name, *declared_type, *value),
             // field: T = value
             dir::Member::Field {
                 name,
@@ -884,57 +829,76 @@ impl WalkState<'_, '_> {
                 declared_type,
                 value,
                 ..
-            } => {
-                let (name, declared_type, value) = (*name, *declared_type, *value);
-
-                if value.is_some() && declared_type.is_none() {
-                    self.check
-                        .report_missing_type_annotation(self.module, id.into_any());
-                }
-
-                let declared = declared_type
-                    .map(|declared_type| self.walk_type_expression(declared_type))
-                    .transpose()?;
-                let written = value
-                    .map(|value| self.walk_static_term(value))
-                    .transpose()?;
-
-                let symbol = self.declared_symbol(id.into_any());
-                if let Some(symbol) = symbol {
-                    if let Some(declared) = declared {
-                        self.bind_symbol_type(symbol, declared)?;
-                    }
-                    if let Some(written) = written {
-                        if let Some(declared) = declared {
-                            let origin = Origin::Node(source, self.flow().template_scope());
-                            self.relate_type(
-                                origin,
-                                CauseKind::Initializer { annotation: None },
-                                Relation::Assignable,
-                                written,
-                                declared,
-                            )?;
-                        }
-                        self.commit_static_value(symbol, written)?;
-                    }
-                }
-
-                let (Some(symbol), Some(_)) = (symbol, declared) else {
-                    return Ok(None);
-                };
-
-                Ok(Some(dir::DefinitionMember::AssociatedConst(
-                    dir::AssociatedConstDefinition {
-                        symbol,
-                        source,
-                        key: dir::StaticKey::Name(name),
-                        value: None,
-                    },
-                )))
-            }
+            } => self.walk_associated_constant(id.into_any(), *name, *declared_type, *value),
             // ignore damaged nodes
             dir::TypeMember::Error => Ok(None),
         }
+    }
+
+    /// Walk one associated constant.
+    fn walk_associated_constant(
+        &mut self,
+        id: dir::LocalNodeIdAny,
+        name: dir::StringId,
+        declared_type: Option<dir::LocalNodeId<dir::TypeExpression>>,
+        value: Option<dir::LocalNodeId<dir::Expression>>,
+    ) -> CompilerResult<Option<dir::DefinitionMember>> {
+        let source = id.into_global(self.module);
+
+        // type the annotation and static value
+        let declared = declared_type
+            .map(|declared_type| self.walk_type_expression(declared_type))
+            .transpose()?;
+        let written = value
+            .map(|value| self.walk_static_term(value))
+            .transpose()?;
+        let is_transcribable =
+            value.is_some_and(|value| self.check.is_transcribable_literal(self.module, value));
+
+        // transcribe the member type from its annotation or literal value
+        let ty = match (declared, written) {
+            (Some(declared), _) => declared,
+            (None, Some(written)) if is_transcribable => written,
+            (None, _) => {
+                self.check.report_missing_type_annotation(self.module, id);
+
+                self.intern_type(dir::Type::Error)?
+            }
+        };
+
+        // resolve and type the member symbol
+        let Some(symbol) = self.declared_symbol(id) else {
+            return Err(CompilerError::Internal {
+                message: format!("associated constant {id:?} has no declaration symbol"),
+            });
+        };
+        self.bind_symbol_type(symbol, ty)?;
+
+        // check annotated values and retain every written value
+        if let Some(written) = written {
+            if let Some(declared) = declared {
+                let annotation = declared_type.map(|id| id.into_global_any(self.module));
+                let origin = Origin::Node(source, self.flow().template_scope());
+                self.relate_type(
+                    origin,
+                    CauseKind::Initializer { annotation },
+                    Relation::Assignable,
+                    written,
+                    declared,
+                )?;
+            }
+
+            self.commit_static_value(symbol, written)?;
+        }
+
+        Ok(Some(dir::DefinitionMember::AssociatedConst(
+            dir::AssociatedConstDefinition {
+                symbol,
+                source,
+                key: dir::StaticKey::Name(name),
+                value: None,
+            },
+        )))
     }
 
     /// Return the lexical receiver visible inside one method body.
