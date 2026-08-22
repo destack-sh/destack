@@ -20,6 +20,7 @@ mod parser;
 mod path;
 mod pattern;
 mod property;
+mod recovery;
 mod r#struct;
 mod trivia;
 mod r#try;
