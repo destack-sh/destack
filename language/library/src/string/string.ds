@@ -67,7 +67,7 @@ export extension of String implements Default {
     }
 }
 
-export extension of string implements Add<string>, Equal<string>, Hash {
+export extension of string implements Add<string>, Equal<string>, Equal<StringSlice>, Hash {
     /// The concatenated string type.
     type Output = ^string;
 
@@ -79,6 +79,11 @@ export extension of string implements Add<string>, Equal<string>, Hash {
     /// Check if the string is empty.
     get isEmpty(&readonly this): boolean {
         todo("String.isEmpty")
+    }
+
+    /// Return whether this string equals `other`.
+    equal(&readonly this, other: &readonly StringSlice): boolean {
+        todo("String.equalSlice")
     }
 
     /// Return a one-code-unit string at the given UTF-16 index, or undefined out of bounds.

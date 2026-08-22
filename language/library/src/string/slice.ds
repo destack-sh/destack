@@ -6,7 +6,7 @@ import { Equal, Hash, Hasher } from "destack:ops";
 @languageItem("string.StringSlice")
 export newtype StringSlice = [uint16];
 
-export extension of StringSlice implements ToOwned, Equal<StringSlice>, Hash {
+export extension of StringSlice implements ToOwned, Equal<StringSlice>, Equal<string>, Hash {
     /// The owned value type.
     type Owned = ^string;
 
@@ -43,6 +43,11 @@ export extension of StringSlice implements ToOwned, Equal<StringSlice>, Hash {
     /// Return whether this string slice equals `other`.
     equal(&readonly this, other: &readonly StringSlice): boolean {
         todo("StringSlice.equal")
+    }
+
+    /// Return whether this string slice equals `other`.
+    equal(&readonly this, other: &readonly string): boolean {
+        todo("StringSlice.equalString")
     }
 
     /// Add this string slice to `state`.
