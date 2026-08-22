@@ -6,43 +6,43 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Disallow Promise.resolve calls that preserve the same Promise.
-    pub NO_USELESS_PROMISE_RESOLVE {
-        id: "no-useless-promise-resolve",
-        summary: "Disallow Promise.resolve calls that preserve the same Promise",
+    /// Disallow Promise.race over one Promise.
+    pub NO_SINGLE_PROMISE_RACE {
+        id: "no-single-promise-race",
+        summary: "Disallow Promise.race over one Promise",
         explanation: r#"
-`Promise.resolve` returns its argument unchanged when that argument is already a Promise.
-Instead, you SHOULD use the existing Promise directly.
+Racing one Promise cannot select among competing asynchronous work and often indicates a missing Promise.
+Instead, you SHOULD use the existing Promise directly when no second input is intended.
 "#,
         example: {
             reported: r#"
 import { Promise } from "destack:async";
 
-function retain(value: Promise<int32>): Promise<int32> {
-    return Promise.resolve(value);
+function first(value: Promise<int32>): Promise<int32> {
+    return Promise.race([value]);
 }
 "#,
             accepted: r#"
 import { Promise } from "destack:async";
 
-function retain(value: Promise<int32>): Promise<int32> {
+function first(value: Promise<int32>): Promise<int32> {
     return value;
 }
 "#,
         },
         category: Suspicious,
         level: Warning,
-        fixable: Automatic,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }
 
-/// Report Promise.resolve calls receiving an existing Promise.
+/// Report Promise.race calls containing one existing Promise.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect canonical Promise.resolve calls
+    // inspect canonical Promise.race calls
     for expression in module.call_expressions() {
         let expression = expression?;
         let Some(call) = module.member_call(expression) else {
@@ -50,26 +50,35 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
         if call.is_optional()
             || module.language_member(expression)?
-                != Some(dir::LanguageItem::Promise.member("resolve"))
+                != Some(dir::LanguageItem::Promise.member("race"))
         {
             continue;
         }
         let [argument] = call.arguments else {
             continue;
         };
-        let dir::Argument::Positional { value } = view.get(*argument) else {
+        let dir::Argument::Positional { value: values } = view.get(*argument) else {
+            continue;
+        };
+        let dir::Expression::ArrayExpression { elements } = view.get(*values) else {
+            continue;
+        };
+        let [element] = elements.as_slice() else {
+            continue;
+        };
+        let dir::Argument::Positional { value } = view.get(*element) else {
             continue;
         };
 
-        // require the resolved value itself to be a Promise
-        let value_type = module.adjusted_type_id(value.into_any())?;
+        // require the sole value itself to be a Promise
+        let value_type = module.node_type_id(value.into_any())?;
         if module.dir.representation_item(value_type)? != Some(dir::LanguageItem::Promise) {
             continue;
         }
 
-        // replace the wrapper while retaining the argument
+        // replace the race with its sole Promise
         let span = module.source_extent(expression.into_any())?;
-        let mut diagnostic = lint.diagnostic("Promise.resolve receives a Promise", span);
+        let mut diagnostic = lint.diagnostic("Promise.race contains one Promise", span);
         if let Some(suggestion) = suggestion(module, lint, expression, *value)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
@@ -92,10 +101,10 @@ fn suggestion(
         return Ok(None);
     }
 
-    // retain the existing Promise expression
+    // retain the sole Promise expression
     let value = module.expression_source(value, dir::OperatorPrecedence::Postfix)?;
     let patch = Patch::replace(extent, value);
-    let suggestion = lint.fix("use the existing Promise", patch)?;
+    let suggestion = lint.suggestion("use the existing Promise", patch)?;
 
     Ok(Some(suggestion))
 }
@@ -105,51 +114,56 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Replace Promise.resolve around an existing Promise.
+    /// Replace Promise.race around one Promise.
     #[test]
-    fn test_replaces_existing_promise() {
-        TestSession::assert_example(&NO_USELESS_PROMISE_RESOLVE);
+    fn test_replaces_single_promise_race() {
+        TestSession::assert_example(&NO_SINGLE_PROMISE_RACE);
     }
 
-    /// Replace Promise.resolve around an aliased Promise type.
+    /// Accept Promise.race over multiple Promises.
     #[test]
-    fn test_replaces_aliased_promise() {
+    fn test_accepts_multiple_promises() {
         let session = TestSession::dir(
-            &NO_USELESS_PROMISE_RESOLVE,
+            &NO_SINGLE_PROMISE_RACE,
             r#"
 import { Promise } from "destack:async";
 
-type Pending = Promise<int32>;
-
-function retain(value: Pending): Promise<int32> {
-    return Promise.resolve(value);
+function first(left: Promise<int32>, right: Promise<int32>): Promise<int32> {
+    return Promise.race([left, right]);
 }
 "#,
         );
 
-        session.assert_fixes(
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept Promise.all because it preserves aggregate result shape.
+    #[test]
+    fn test_accepts_single_promise_all() {
+        let session = TestSession::dir(
+            &NO_SINGLE_PROMISE_RACE,
             r#"
 import { Promise } from "destack:async";
 
-type Pending = Promise<int32>;
-
-function retain(value: Pending): Promise<int32> {
-    return value;
+function gather(value: Promise<int32>): Promise<int32[]> {
+    return Promise.all([value]);
 }
 "#,
         );
+
+        session.assert_no_diagnostics();
     }
 
-    /// Accept Promise.resolve around a plain value.
+    /// Accept Promise.race over one plain value because it creates a Promise.
     #[test]
-    fn test_accepts_plain_value() {
+    fn test_accepts_single_plain_value() {
         let session = TestSession::dir(
-            &NO_USELESS_PROMISE_RESOLVE,
+            &NO_SINGLE_PROMISE_RACE,
             r#"
 import { Promise } from "destack:async";
 
-function resolve(value: int32): Promise<int32> {
-    return Promise.resolve(value);
+function first(value: int32): Promise<int32> {
+    return Promise.race([value]);
 }
 "#,
         );
