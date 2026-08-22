@@ -1600,7 +1600,7 @@ impl TestSession {
                     .expect("test external elaborated artifact should exist");
                 let checked = self.dir_checked_module(module_id, entry.profile);
                 let generics = checked.generic_table(&declared, &elaborated);
-                let definitions = checked.definition_table(&elaborated);
+                let definitions = checked.definition_table(&declared, &elaborated);
                 let types = checked.type_table(&bound, &expanded, &declared, &elaborated);
                 let statics = checked.static_table(&bound, &expanded, &declared, &elaborated);
 

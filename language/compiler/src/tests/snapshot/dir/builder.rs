@@ -291,7 +291,7 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         if selection.uses_type_labels() {
             self.generics = Some(checked.generic_table(declared, elaborated));
-            self.definitions = Some(checked.definition_table(elaborated));
+            self.definitions = Some(checked.definition_table(declared, elaborated));
 
             let types = checked.type_table(bound, expanded, declared, elaborated);
             let statics = checked.static_table(bound, expanded, declared, elaborated);
@@ -376,7 +376,7 @@ impl<'a> DirSnapshotBuilder<'a> {
         // label rows through the whole stack, up to and including the materialized tail
         if selection.uses_type_labels() {
             self.generics = Some(materialized.generic_table(declared, elaborated, checked));
-            self.definitions = Some(materialized.definition_table(elaborated, checked));
+            self.definitions = Some(materialized.definition_table(declared, elaborated, checked));
 
             let types = materialized.type_table(bound, expanded, declared, elaborated, checked);
             let statics = checked.static_table(bound, expanded, declared, elaborated);

@@ -1646,8 +1646,8 @@ impl BodyState<'_, '_> {
 
             return module
                 .members
-                .as_ref()
-                .and_then(|base| base.bindings(symbol, space))
+                .iter()
+                .find_map(|base| base.bindings(symbol, space))
                 .map(<[dir::MemberBinding]>::to_vec);
         }
 

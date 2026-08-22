@@ -58,7 +58,7 @@ pub(in crate::sema) struct CheckModuleState {
     /// The committed definitions this pass shadows.
     pub(in crate::sema) definitions: Vec<Arc<dir::DefinitionSegment>>,
     /// The committed member entries this pass shadows.
-    pub(in crate::sema) members: Option<Arc<dir::MemberSegment>>,
+    pub(in crate::sema) members: Vec<Arc<dir::MemberSegment>>,
 
     // open tails this pass writes over the committed bases
     /// Open inference types layered over the committed base.
@@ -218,21 +218,20 @@ impl CheckModuleState {
 
         // shadow the committed definitions and member entries, which key by symbol and site
         let mut definitions = Vec::new();
+        let mut members = Vec::new();
         if let Some(checked) = &checked {
             definitions.push(checked.definitions.clone());
+            members.push(checked.members.clone());
         }
-        match (&elaborated, &declared) {
-            (Some(elaborated), _) => definitions.push(elaborated.definitions.clone()),
-            (None, Some(declared)) => definitions.push(declared.definitions.clone()),
-            (None, None) => {}
+        if let Some(elaborated) = &elaborated {
+            definitions.push(elaborated.definitions.clone());
+            members.push(elaborated.members.clone());
+        }
+        if let Some(declared) = &declared {
+            definitions.push(declared.definitions.clone());
+            members.push(declared.members.clone());
         }
         let definitions_tail = dir::DefinitionSegment::new(module.id);
-        let members = match (&checked, &elaborated, &declared) {
-            (Some(checked), _, _) => Some(Arc::clone(&checked.members)),
-            (None, Some(elaborated), _) => Some(Arc::clone(&elaborated.members)),
-            (None, None, Some(declared)) => Some(Arc::clone(&declared.members)),
-            (None, None, None) => None,
-        };
         let members_tail = dir::MemberSegment::new(module.id);
 
         // open the remaining segments and this module's diagnostic controls
@@ -345,8 +344,8 @@ impl CheckModuleState {
         }
 
         self.members
-            .as_ref()
-            .and_then(|base| base.membership(subject))
+            .iter()
+            .find_map(|base| base.membership(subject))
     }
 
     /// Return the cumulative binding table visible to check.
@@ -540,95 +539,28 @@ impl CheckModuleState {
     ) -> Option<dir::MemberSubject> {
         self.members_tail
             .subject(site)
-            .or_else(|| self.members.as_ref().and_then(|base| base.subject(site)))
+            .or_else(|| self.members.iter().find_map(|base| base.subject(site)))
     }
 
-    /// Iterate member subjects with pass entries shadowing the committed base.
+    /// Iterate member subjects with pass entries shadowing the committed bases.
     pub(in crate::sema) fn iter_member_subjects(
         &self,
     ) -> impl Iterator<Item = (dir::MemberSite, dir::MemberSubject)> + '_ {
-        // drop the base entries this pass reselected
+        // drop the base entries a newer segment reselected
         let shadowed = self
             .members
             .iter()
-            .flat_map(|base| base.iter_subjects())
-            .filter(|(site, _)| self.members_tail.subject(*site).is_none());
+            .enumerate()
+            .flat_map(|(depth, base)| base.iter_subjects().map(move |entry| (depth, entry)))
+            .filter(|(depth, (site, _))| {
+                self.members_tail.subject(*site).is_none()
+                    && !self.members[..*depth]
+                        .iter()
+                        .any(|newer| newer.subject(*site).is_some())
+            })
+            .map(|(_, entry)| entry);
 
         shadowed.chain(self.members_tail.iter_subjects())
-    }
-
-    /// Merge the committed base and the pass tail into one settled member segment.
-    pub(in crate::sema) fn merged_members(&mut self) -> dir::MemberSegment {
-        // take this pass's tail out of the module state
-        let module = self.members_tail.module_id;
-        let tail = std::mem::replace(&mut self.members_tail, dir::MemberSegment::new(module));
-        let Some(base) = self.members.take() else {
-            return tail;
-        };
-
-        // carry unshadowed base entries beneath the pass entries
-        let mut merged = dir::MemberSegment::new(tail.module_id);
-        for (site, subject) in base.iter_subjects() {
-            if tail.subject(site).is_none() {
-                merged.record_subject(site, subject);
-            }
-        }
-        for (owner, space, bindings) in base.iter_bindings() {
-            merged.set_bindings(owner, space, bindings.to_vec());
-        }
-        for (subject, membership) in base.iter_memberships() {
-            merged.set_membership(*subject, membership.clone());
-        }
-
-        // layer the pass entries over them
-        for (site, subject) in tail.iter_subjects() {
-            merged.record_subject(site, subject);
-        }
-        for (owner, space, bindings) in tail.iter_bindings() {
-            merged.set_bindings(owner, space, bindings.to_vec());
-        }
-        for (subject, membership) in tail.iter_memberships() {
-            merged.set_membership(*subject, membership.clone());
-        }
-
-        merged
-    }
-
-    /// Merge the committed base and the pass tail into one settled definition segment.
-    pub(in crate::sema) fn merged_definitions(&mut self) -> dir::DefinitionSegment {
-        // take this pass's tail out of the module state
-        let module = self.definitions_tail.module_id;
-        let tail = std::mem::replace(
-            &mut self.definitions_tail,
-            dir::DefinitionSegment::new(module),
-        );
-        let bases = std::mem::take(&mut self.definitions);
-        if bases.is_empty() {
-            return tail;
-        }
-
-        // carry unshadowed base definitions beneath the pass entries, newest base first
-        let mut merged = dir::DefinitionSegment::new(tail.module_id);
-        for (depth, base) in bases.iter().enumerate() {
-            for (symbol, definition) in base.iter_definitions() {
-                let is_shadowed = tail.definition(symbol).is_some()
-                    || bases[..depth]
-                        .iter()
-                        .any(|newer| newer.definition(symbol).is_some());
-                if !is_shadowed && let Some(source) = base.definition_source_maybe(symbol) {
-                    merged.insert_definition(symbol, source, definition.clone());
-                }
-            }
-        }
-
-        // layer the pass entries over them
-        for (symbol, definition) in tail.iter_definitions() {
-            if let Some(source) = tail.definition_source_maybe(symbol) {
-                merged.insert_definition(symbol, source, definition.clone());
-            }
-        }
-
-        merged
     }
 }
 

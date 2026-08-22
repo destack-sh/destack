@@ -25,14 +25,14 @@ impl CheckState<'_> {
             });
         }
 
-        let definitions = self.module.merged_definitions();
-        let members = self.module.merged_members();
         let types = self.module.types_tail.finish();
         let CheckModuleState {
             bindings_tail: bindings,
             decorators_tail: decorators,
             statics_tail: statics,
             generics_tail: generics,
+            definitions_tail: definitions,
+            members_tail: members,
             resolutions,
             decisions,
             flows,
@@ -86,8 +86,14 @@ impl CheckState<'_> {
         // persist the implementation winners this pass decided
         self.record_selected_implementations(module)?;
 
-        let definitions = self.module.merged_definitions();
-        let members = self.module.merged_members();
+        // mix the declared fingerprint so base changes reach this identity
+        let inherited = self
+            .module
+            .declared
+            .as_ref()
+            .map(|declared| declared.fingerprint);
+        let definitions = self.module.definitions_tail;
+        let members = self.module.members_tail;
         let bindings = self.module.bindings_tail;
         let types = self.module.types_tail.finish();
         let auto = self.module.auto;
@@ -103,7 +109,7 @@ impl CheckState<'_> {
         let references = self.module.references.iter().copied().collect::<Vec<_>>();
 
         let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&(
-            module,
+            (module, &inherited),
             &references,
             &bindings,
             &types,
@@ -219,9 +225,13 @@ impl CheckState<'_> {
     }
 
     /// Convert solved state into one checked DIR module.
-    pub(in crate::sema) fn into_checked(mut self, module: ModuleId) -> CompilerResult<DirChecked> {
-        let definitions = self.module.merged_definitions();
-        let members = self.module.merged_members();
+    pub(in crate::sema) fn into_checked(self, module: ModuleId) -> CompilerResult<DirChecked> {
+        // mix the elaborated fingerprint so base changes reach this identity
+        let inherited = self
+            .module
+            .elaborated
+            .as_ref()
+            .map(|elaborated| elaborated.fingerprint);
         let types = self.module.types_tail.finish();
         let CheckModuleState {
             bindings_tail: bindings,
@@ -231,6 +241,8 @@ impl CheckState<'_> {
             resolutions,
             decisions,
             generics_tail: generics,
+            definitions_tail: definitions,
+            members_tail: members,
             coercions,
             captures,
             flows,
@@ -243,7 +255,7 @@ impl CheckState<'_> {
         let references = references.iter().copied().collect::<Vec<_>>();
 
         let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&(
-            module,
+            (module, &inherited),
             &references,
             &bindings,
             &decorators,

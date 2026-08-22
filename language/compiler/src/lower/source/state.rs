@@ -58,7 +58,7 @@ impl LowerModuleState {
             decisions: materialized.decision_table(declared, elaborated, checked),
             bindings: checked.binding_table(bound, expanded, declared, elaborated),
             coercions: materialized.coercion_table(checked),
-            definitions: materialized.definition_table(elaborated, checked),
+            definitions: materialized.definition_table(declared, elaborated, checked),
             statics: checked.static_table(bound, expanded, declared, elaborated),
             generics: materialized.generic_table(declared, elaborated, checked),
             decorators: checked.decorator_table(elaborated),

@@ -647,7 +647,7 @@ impl<'a> Dir<'a> {
             .read::<DirElaborated>((module, self.profile))?;
         let checked = self.artifacts.read::<DirChecked>((module, self.profile))?;
         let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
-        let definitions = checked.definition_table(&elaborated);
+        let definitions = checked.definition_table(&declared, &elaborated);
 
         read(&bindings, &definitions)
     }

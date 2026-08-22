@@ -77,7 +77,7 @@ impl<'a> Module<'a> {
         let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
         let types = checked.type_table(&bound, &expanded, &declared, &elaborated);
         let generics = checked.generic_table(&declared, &elaborated);
-        let definitions = checked.definition_table(&elaborated);
+        let definitions = checked.definition_table(&declared, &elaborated);
 
         Ok(Self {
             repository,

@@ -341,7 +341,7 @@ impl DirModuleStorage {
         let resolutions = checked.resolution_table(&declared, &elaborated);
         let decisions = checked.decision_table(&declared, &elaborated);
         let generics = checked.generic_table(&declared, &elaborated);
-        let definitions = checked.definition_table(&elaborated);
+        let definitions = checked.definition_table(&declared, &elaborated);
         let coercions = checked.coercion_table();
         let captures = checked.capture_table();
         let flows = checked.flow_table(&declared, &elaborated);

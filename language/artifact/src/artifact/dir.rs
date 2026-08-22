@@ -380,9 +380,9 @@ pub struct DirElaborated {
 }
 
 impl DirElaborated {
-    /// Return the elaborated member table.
-    pub fn member_table(&self) -> dir::MemberTable<'static> {
-        dir::MemberTable::from_segment(self.members.clone())
+    /// Return the cumulative member table for elaborated DIR.
+    pub fn member_table(&self, declared: &DirDeclared) -> dir::MemberTable<'static> {
+        dir::MemberTable::from_segments(vec![declared.members.clone(), self.members.clone()])
     }
 
     /// Return the cumulative binding table for elaborated DIR.
@@ -425,9 +425,12 @@ impl DirElaborated {
         dir::GenericTable::from_segments(vec![declared.generics.clone(), self.generics.clone()])
     }
 
-    /// Return the elaborated definition table.
-    pub fn definition_table(&self) -> dir::DefinitionTable<'static> {
-        dir::DefinitionTable::from_segment(self.definitions.clone())
+    /// Return the cumulative definition table for elaborated DIR.
+    pub fn definition_table(&self, declared: &DirDeclared) -> dir::DefinitionTable<'static> {
+        dir::DefinitionTable::from_segments(vec![
+            declared.definitions.clone(),
+            self.definitions.clone(),
+        ])
     }
 
     /// Return the cumulative static table for elaborated DIR.
@@ -490,16 +493,29 @@ impl DirChecked {
     }
 
     /// Return the cumulative definition table for checked DIR.
-    pub fn definition_table(&self, elaborated: &DirElaborated) -> dir::DefinitionTable<'static> {
+    pub fn definition_table(
+        &self,
+        declared: &DirDeclared,
+        elaborated: &DirElaborated,
+    ) -> dir::DefinitionTable<'static> {
         dir::DefinitionTable::from_segments(vec![
+            declared.definitions.clone(),
             elaborated.definitions.clone(),
             self.definitions.clone(),
         ])
     }
 
-    /// Return the checked member table over the elaborated owner bindings.
-    pub fn member_table(&self, elaborated: &DirElaborated) -> dir::MemberTable<'static> {
-        dir::MemberTable::from_segments(vec![elaborated.members.clone(), self.members.clone()])
+    /// Return the cumulative member table for checked DIR.
+    pub fn member_table(
+        &self,
+        declared: &DirDeclared,
+        elaborated: &DirElaborated,
+    ) -> dir::MemberTable<'static> {
+        dir::MemberTable::from_segments(vec![
+            declared.members.clone(),
+            elaborated.members.clone(),
+            self.members.clone(),
+        ])
     }
 
     /// Return the cumulative binding table for checked DIR.
@@ -681,10 +697,12 @@ impl DirMaterialized {
     /// Return the cumulative definition table for materialized DIR.
     pub fn definition_table(
         &self,
+        declared: &DirDeclared,
         elaborated: &DirElaborated,
         checked: &DirChecked,
     ) -> dir::DefinitionTable<'static> {
         dir::DefinitionTable::from_segments(vec![
+            declared.definitions.clone(),
             elaborated.definitions.clone(),
             checked.definitions.clone(),
             self.definitions.clone(),
