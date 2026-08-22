@@ -8,9 +8,8 @@ use smallvec::SmallVec;
 
 use crate::{
     AutoInterface, EnumBackingType, EnumVariantValue, FunctionRole, GlobalNodeIdAny,
-    GlobalStaticId, GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberKind,
-    MemberSlot, MemberSpace, MethodAbstraction, PrimitiveType, SegmentView, Space, StaticKey,
-    TypeFold,
+    GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberKind, MemberSlot,
+    MemberSpace, MethodAbstraction, PrimitiveType, SegmentView, Space, StaticKey, TypeFold,
 };
 
 /// Cumulative declaration definitions for one DIR module.
@@ -857,8 +856,6 @@ pub struct AssociatedConstDefinition {
     pub source: GlobalNodeIdAny,
     /// The associated const key.
     pub key: StaticKey,
-    /// The checked static value.
-    pub value: Option<GlobalStaticId>,
 }
 
 /// One declared enum variant.
@@ -973,15 +970,6 @@ impl DefinitionMember {
             || matches!(self, Self::IndexSignature(index) if index.is_optional)
     }
 
-    /// Return whether this member carries a default implementation.
-    pub fn is_default(&self) -> bool {
-        match self {
-            Self::Method(method) => method.implementation == MethodImplementation::Default,
-            Self::AssociatedType(associated) => associated.value.is_some(),
-            _ => false,
-        }
-    }
-
     /// Return the source node declaring this member.
     pub fn source(&self) -> GlobalNodeIdAny {
         match self {
@@ -1056,20 +1044,6 @@ impl DefinitionMember {
             Self::AssociatedConst(associated) => Some(associated.key),
             Self::EnumVariant(variant) => Some(variant.key),
             Self::CallSignature(_) | Self::ConstructSignature(_) | Self::IndexSignature(_) => None,
-        }
-    }
-
-    /// Return the committed static value when the member carries one.
-    pub fn static_value(&self) -> Option<GlobalStaticId> {
-        match self {
-            Self::AssociatedConst(associated) => associated.value,
-            Self::Field(_)
-            | Self::Method(_)
-            | Self::AssociatedType(_)
-            | Self::EnumVariant(_)
-            | Self::CallSignature(_)
-            | Self::ConstructSignature(_)
-            | Self::IndexSignature(_) => None,
         }
     }
 
