@@ -180,6 +180,32 @@ impl BodyState<'_, '_> {
                     let source_site = self.visit_site(source)?;
                     let spread = self.infer_node_type(source_site, PlaceUse::Read)?;
 
+                    // defer the literal until an open spread source solves
+                    if let Some(variable) = self.root_variable(spread)? {
+                        let hole = self.defer_selection(site, variable)?;
+
+                        return Ok(ValueCheck {
+                            source: hole,
+                            stored: hole,
+                            outcome: CheckOutcome::Holds,
+                            target: target.unwrap_or(hole),
+                        });
+                    }
+
+                    // poison the literal when its spread source already reported an error
+                    if self.any_error_operand(&[spread])? {
+                        let source = self.poison_node(node.into_any())?;
+                        let target = target.unwrap_or(source);
+
+                        return Ok(ValueCheck {
+                            source,
+                            stored: source,
+                            outcome: CheckOutcome::Fails(CheckFailure::Reported),
+                            target,
+                        });
+                    }
+
+                    // reject a source that carries no object fields
                     let Some(spread_fields) = self.spread_fields(origin, module, spread)? else {
                         let anchored = self.origin_at(origin, source)?;
                         self.report_spread_not_object(anchored, spread)?;
@@ -294,6 +320,7 @@ impl BodyState<'_, '_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Vec<dir::TypeProperty>>> {
         // require a settled spread source before merging its fields
+        let ty = self.shallow_resolve(ty)?;
         if let Some(variable) = self.root_variable(ty)? {
             return Err(CompilerError::Internal {
                 message: format!("spread source {ty:?} has open variable {variable:?}"),

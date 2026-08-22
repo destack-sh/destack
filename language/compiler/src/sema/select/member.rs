@@ -1276,7 +1276,9 @@ impl BodyState<'_, '_> {
 
         // unknown receivers defer selection until their value settles
         if let Some(stalled_on) = self.check.root_variable(written_receiver)? {
-            return self.defer_selection(site, stalled_on);
+            self.defer_selection(site, stalled_on)?;
+
+            return Ok(());
         }
 
         // strip the nullish arms the access reads through
@@ -1421,19 +1423,26 @@ impl BodyState<'_, '_> {
         false
     }
 
-    /// Defer one selection until the stalled variable solves, committing an open hole.
-    pub(super) fn defer_selection(
+    /// Defer one selection until the stalled variable solves, returning the committed open hole.
+    pub(in crate::sema) fn defer_selection(
         &mut self,
         site: FlowSite,
         stalled_on: dir::TypeVariableId,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         // commit an open hole so enclosing checks proceed
         let node = site.node;
-        if self.committed_node_type(node).is_none() {
-            let variable = self.allocate_variable(site.origin(), VariableRole::Regular);
-            let hole = self.variable_type(variable)?;
-            self.commit_node_type(node, hole)?;
-        }
+        let hole = match self.committed_node_type(node) {
+            // reuse the hole this node already committed
+            Some(hole) => hole,
+            // allocate one for a node that has none
+            None => {
+                let variable = self.allocate_variable(site.origin(), VariableRole::Regular);
+                let hole = self.variable_type(variable)?;
+                self.commit_node_type(node, hole)?;
+
+                hole
+            }
+        };
 
         // re-select once the stalled variable solves
         self.check.register_check(Check::Selection(SelectionCheck {
@@ -1442,7 +1451,7 @@ impl BodyState<'_, '_> {
             stalled_on: Some(stalled_on),
         }))?;
 
-        Ok(())
+        Ok(hole)
     }
 
     /// Reject one member access with a diagnostic.
@@ -1495,6 +1504,9 @@ impl BodyState<'_, '_> {
         if !self.receiver_projects_readonly(receiver)? {
             return Ok(ty);
         }
+
+        // read the projected field through its solution
+        let ty = self.shallow_resolve(ty)?;
         if matches!(self.ty(ty)?, dir::Type::Form(form) if form.form == dir::Form::Readonly) {
             return Ok(ty);
         }

@@ -175,7 +175,10 @@ impl BodyState<'_, '_> {
                     let Some(projection) =
                         self.object_rest_projection(rest_origin, module, owner, &projected_keys)?
                     else {
-                        self.report_spread_not_object(rest_origin, owner)?;
+                        // stay silent when the owner already reported an error
+                        if !self.any_error_operand(&[owner])? {
+                            self.report_spread_not_object(rest_origin, owner)?;
+                        }
 
                         continue;
                     };
@@ -328,7 +331,10 @@ impl BodyState<'_, '_> {
                     let Some(projection) =
                         self.object_rest_projection(rest_origin, module, owner, &projected_keys)?
                     else {
-                        self.report_spread_not_object(rest_origin, owner)?;
+                        // stay silent when the owner already reported an error
+                        if !self.any_error_operand(&[owner])? {
+                            self.report_spread_not_object(rest_origin, owner)?;
+                        }
 
                         return Ok(None);
                     };

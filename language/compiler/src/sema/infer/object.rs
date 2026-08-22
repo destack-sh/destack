@@ -4,8 +4,9 @@ use indexmap::IndexMap;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, Cause, CauseKind, CheckAttempt, CheckFailure, CheckOutcome, Expectation, FlowSite,
-    InferMode, MemberRole, Origin, PlaceUse, Relation, ValueCheck, ValueUse, Verdict, WalkState,
+    BodyState, Cause, CauseKind, Check, CheckAttempt, CheckFailure, CheckOutcome, Expectation,
+    FlowSite, InferMode, MemberRole, NodeCheck, Origin, PlaceUse, Relation, ValueCheck, ValueUse,
+    Verdict, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -87,6 +88,16 @@ impl BodyState<'_, '_> {
                     let source_site = self.visit_site(source)?;
                     let spread = self.infer_node(source_site, PlaceUse::Read, mode)?;
                     let spread = self.flow_type_at(source_site, spread)?;
+
+                    // defer the literal until an open spread source solves
+                    if let Some(variable) = self.root_variable(spread)? {
+                        return self.defer_selection(site, variable);
+                    }
+
+                    // poison the literal when its spread source already reported an error
+                    if self.any_error_operand(&[spread])? {
+                        return self.poison_node(node.into_any());
+                    }
 
                     // reject a source that carries no object fields
                     let Some(spread_fields) =
@@ -275,6 +286,30 @@ impl BodyState<'_, '_> {
                     let source_site = self.visit_site(source)?;
                     let spread = self.infer_node(source_site, PlaceUse::Read, expectation.mode)?;
                     let spread = self.flow_type_at(source_site, spread)?;
+
+                    // check the literal once an open spread source solves
+                    if let Some(variable) = self.root_variable(spread)? {
+                        self.check.register_check_stalled(
+                            Check::Node(NodeCheck { site, expectation }),
+                            &[variable],
+                        )?;
+
+                        return Ok(CheckAttempt::Checked(ValueCheck {
+                            source: target,
+                            stored: target,
+                            outcome: CheckOutcome::Holds,
+                            target,
+                        }));
+                    }
+
+                    // poison the literal when its spread source already reported an error
+                    if self.any_error_operand(&[spread])? {
+                        self.poison_node(node.into_any())?;
+
+                        return Ok(CheckAttempt::NotApplicable);
+                    }
+
+                    // reject a source that carries no object fields
                     let spread_origin = Origin::Node(source, site.scope);
                     let Some(spread_fields) =
                         self.spread_fields(spread_origin, node.module_id, spread)?

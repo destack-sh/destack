@@ -1118,3 +1118,103 @@ const handlers: Handlers = {
 "#,
     );
 }
+
+/// Spread a generic reduce accumulator typed through the callback's contextual signature.
+#[test]
+fn test_spread_the_accumulator_of_a_generic_reduce() {
+    let session = TestSession::single(
+        r#"
+function retain(source: boolean[]): { active: boolean } {
+    return source.reduce<{ active: boolean }>(
+        (output, value) => ({ ...output, active: value }),
+        { active: false },
+    );
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function retain(source: boolean[]): { active: boolean } {
+    return source.reduce<{ active: boolean }>(
+        (output: { active: boolean }, value: boolean): { active: boolean } => ({
+            ...output,
+            active: value,
+        }),
+        { active: false },
+    );
+}
+
+=== dir ===
+function retain(source: boolean[]): { active: boolean } {
+/// @type.symbol symbol=retain type=(boolean[]) => { active: boolean }
+/// @type.symbol symbol=retain.source source="source: boolean[]" type=boolean[]
+
+    return source.reduce<{ active: boolean }>(
+    /// @resolution.name source=source target=retain.source
+    /// @resolution.member source=source.reduce receiver=boolean[] type=<collections.array.reduce.U#2>(this: boolean[], Function<(collections.array.reduce.U#2, boolean, isize), collections.array.reduce.U#2>, collections.array.reduce.U#2) => collections.array.reduce.U#2 kind=symbol target_receiver=boolean[] target=collections.array.reduce#2
+    /// @resolution.call parameters=(Function<({ active: boolean }, boolean, isize), { active: boolean }>, { active: boolean }) arguments=(provided((output, value) => ({ ...output, active: value })) as Function<({ active: boolean }, boolean, isize), { active: boolean }>, provided({ active: false }) as { active: boolean }) return={ active: boolean } kind=symbol target=collections.array.reduce#2 receiver=boolean[] instance="Array<boolean>.<extension#3>.reduce#2<{ active: boolean }>"
+    /// @resolution.place source=source placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=source root=retain.source
+    /// @generic.instantiation id="collections.array.reduce#2<boolean, { active: boolean }>" template=collections.array.reduce#2 arguments=(boolean, { active: boolean })
+    /// @generic.instantiation id=collections.array.reduce#2<boolean> template=collections.array.reduce#2 arguments=(boolean)
+
+        (output, value) => ({ ...output, active: value }),
+        /// @type.symbol symbol=retain.symbol7 source=(output, value) => ({ ...output, active: value }) type=Function<({ active: boolean }, boolean), { active: boolean }>
+        /// @type.symbol symbol=retain.symbol7.output source=output type={ active: boolean }
+        /// @type.symbol symbol=retain.symbol7.value source=value type=boolean
+        /// @resolution.name source=output target=retain.symbol7.output
+        /// @resolution.access source=output root=retain.symbol7.output
+        /// @resolution.name source=value target=retain.symbol7.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=retain.symbol7.value
+
+        { active: false },
+    );
+}
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Spread an unannotated closure parameter whose type stays open.
+#[test]
+fn test_spread_an_open_closure_parameter() {
+    let session = TestSession::single(
+        r#"
+const merge = (input) => ({ ...input, active: true });
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const merge = (input) => ({ ...input, active: true });
+
+=== dir ===
+const merge = (input) => ({ ...input, active: true });
+/// @type.symbol symbol=merge source=merge type=Function<(<error>,), <error>>
+/// @resolution.pattern source=merge kind=binding target=merge
+/// @type.symbol symbol=symbol1 source=(input) => ({ ...input, active: true }) type=Function<(<error>,), <error>>
+/// @type.symbol symbol=symbol1.input source=input type=<error>
+/// @resolution.poisoned source={ ...input, active: true }
+/// @resolution.name source=input target=symbol1.input
+/// @resolution.access source=input root=symbol1.input
+"#,
+        r#"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.label line=2 column=15 span="(input) => ({ ...input, active: true })" line_source="const merge = (input) => ({ ...input, active: true });"
+/// @diagnostic.related line=2 column=27 span="{ ...input, active: true }" line_source="const merge = (input) => ({ ...input, active: true });" message="'_' flows into it here"
+/// @diagnostic.help message="annotate the type explicitly"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.label line=2 column=16 span="input" line_source="const merge = (input) => ({ ...input, active: true });"
+/// @diagnostic.help message="annotate the type explicitly"
+"#,
+    );
+}
