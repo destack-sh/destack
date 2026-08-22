@@ -253,8 +253,6 @@ pub(in crate::sema) struct DeclaredMember {
     pub(in crate::sema) space: dir::MemberSpace,
     /// The member type when the declaration has one.
     pub(in crate::sema) ty: Option<dir::GlobalTypeId>,
-    /// The member static value when it carries one.
-    pub(in crate::sema) value: Option<dir::GlobalStaticId>,
     /// How the member behaves at a use site.
     pub(in crate::sema) role: MemberRole,
     /// The member kind.
@@ -518,7 +516,6 @@ impl DeclaredMember {
             key,
             space: member.space(),
             ty: member.value_type(),
-            value: member.static_value(),
             role,
             kind: member.kind(),
             is_writable: member.is_writable(),

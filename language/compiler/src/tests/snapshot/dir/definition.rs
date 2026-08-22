@@ -456,21 +456,17 @@ fn add_associated_type(
 fn add_associated_const(
     builder: &mut DirSnapshotBuilder<'_>,
     owner: dir::GlobalSymbolId,
-    value: &dir::AssociatedConstDefinition,
+    constant: &dir::AssociatedConstDefinition,
 ) {
     let row = SnapshotRow::new(
         builder.anchor_symbol(owner),
         "definition",
         "associated.const",
     )
-    .field("symbol", builder.symbol_path_label(value.symbol))
-    .optional_field("source", builder.node_source(value.source))
-    .field("key", builder.static_key(value.key))
-    .type_field("type", builder.global_symbol_type_label(value.symbol))
-    .optional_field(
-        "value",
-        value.value.map(|value| builder.global_static_label(value)),
-    );
+    .field("symbol", builder.symbol_path_label(constant.symbol))
+    .optional_field("source", builder.node_source(constant.source))
+    .field("key", builder.static_key(constant.key))
+    .type_field("type", builder.global_symbol_type_label(constant.symbol));
 
     builder.push(row);
 }

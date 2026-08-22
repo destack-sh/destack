@@ -1815,7 +1815,14 @@ impl BodyState<'_, '_> {
             else {
                 continue;
             };
-            let Some(dir::Definition::Interface(definition)) = self.definition(interface.symbol)?
+
+            // load the interface declaration
+            if !self.check.is_loaded_module(interface.symbol.module_id) {
+                self.check
+                    .import_external_module(interface.symbol.module_id)?;
+            }
+            let Some(dir::Definition::Interface(definition)) =
+                self.check.definition_maybe(interface.symbol)
             else {
                 continue;
             };
@@ -1823,7 +1830,7 @@ impl BodyState<'_, '_> {
             // take each default member whose key the extension left open
             let first_default = members.len();
             for member in &definition.members {
-                if member.space() != space || !member.is_default() {
+                if member.space() != space || !self.check.definition_member_has_default(member) {
                     continue;
                 }
                 if let Some(key) = key
@@ -2106,7 +2113,7 @@ impl BodyState<'_, '_> {
                 callable,
                 is_optional: member.is_optional,
                 generic_arguments,
-                value: member.value,
+                value: None,
                 value_type: written,
                 receiver: LookupReceiver::Direct(ReceiverSteps::new()),
                 bounds: Vec::new(),

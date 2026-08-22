@@ -1193,7 +1193,7 @@ impl BodyState<'_, '_> {
                 callable,
                 is_optional: member.is_optional,
                 generic_arguments,
-                value: member.value,
+                value: None,
                 value_type: written,
                 receiver: LookupReceiver::Direct(ReceiverSteps::new()),
                 bounds: Vec::new(),
@@ -1390,16 +1390,8 @@ impl BodyState<'_, '_> {
                 }
 
                 // conformance levels serve their default members only
-                if is_conformance {
-                    let has_default = match &member {
-                        dir::DefinitionMember::AssociatedType(associated) => {
-                            associated.value.is_some()
-                        }
-                        other => other.is_default(),
-                    };
-                    if !has_default {
-                        continue;
-                    }
+                if is_conformance && !self.check.definition_member_has_default(member) {
+                    continue;
                 }
 
                 let Some(declared) = self.declared_member(member)? else {
@@ -1838,7 +1830,7 @@ impl BodyState<'_, '_> {
                 callable,
                 is_optional: member.is_optional,
                 generic_arguments,
-                value: member.value,
+                value: None,
                 value_type: written,
                 receiver: LookupReceiver::Direct(ReceiverSteps::new()),
                 bounds: Vec::new(),

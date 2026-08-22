@@ -896,7 +896,6 @@ impl WalkState<'_, '_> {
                 symbol,
                 source,
                 key: dir::StaticKey::Name(name),
-                value: None,
             },
         )))
     }

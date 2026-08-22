@@ -243,3 +243,53 @@ function readHeader<T: RegisterBlock<const Width = 16>>(block: T): [uint8; 16] {
 "#,
     );
 }
+
+/// Use an interface associated constant default for an extension conformance.
+#[test]
+fn test_use_associated_constant_default_for_extension_conformance() {
+    let session = TestSession::single(
+        r#"
+interface Shape {
+    const Rank: usize = 2;
+}
+
+struct Matrix {}
+
+extension of Matrix implements Shape {}
+"#,
+    );
+
+    session.assert_dir("main.ds", DirRows::checked().with_statics(), r#"
+=== annotated ===
+interface Shape {
+    const Rank: usize = 2;
+}
+
+struct Matrix {}
+
+extension of Matrix implements Shape {}
+
+=== dir ===
+interface Shape {
+/// @type.symbol symbol=Shape type=Shape
+/// @definition.interface symbol=Shape
+/// @definition.associated.const symbol=Shape.Rank source="const Rank: usize = 2" key=Rank type=usize
+
+    const Rank: usize = 2;
+    /// @type.symbol symbol=Shape.Rank source="const Rank: usize = 2" type=usize
+    /// @static.symbol symbol=Shape.Rank source="const Rank: usize = 2" value=2
+
+}
+
+struct Matrix {}
+/// @type.symbol symbol=Matrix source="struct Matrix {}" type=Matrix
+/// @definition.struct symbol=Matrix source="struct Matrix {}"
+
+extension of Matrix implements Shape {}
+/// @definition.extension symbol=<module>#2 source="extension of Matrix implements Shape {}" form=local target=Matrix
+/// @definition.implements symbol=<module>#2 source=Shape target=Shape
+/// @definition.conformance symbol=<module>#2 member=Shape.Rank requirement=Shape.Rank
+/// @resolution.name source=Matrix target=Matrix
+/// @resolution.name source=Shape target=Shape
+"#);
+}

@@ -786,13 +786,12 @@ impl CheckState<'_> {
                 ),
             })?;
 
-            // bind associated types by constraint and treat a written value as a default
-            let (declared, has_default) = match &member {
-                dir::DefinitionMember::AssociatedType(associated) => {
-                    (associated.constraint, associated.value.is_some())
-                }
-                _ => (self.definition_member_type(&member)?, member.is_default()),
+            // bind associated types by constraint
+            let declared = match &member {
+                dir::DefinitionMember::AssociatedType(associated) => associated.constraint,
+                _ => self.definition_member_type(&member)?,
             };
+            let has_default = self.definition_member_has_default(&member);
 
             // apply the interface arguments to the declared type
             let ty = match declared {

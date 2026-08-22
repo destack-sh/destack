@@ -1198,6 +1198,37 @@ impl CheckState<'_> {
         Ok(member.value_type())
     }
 
+    /// Return whether one definition member supplies a default.
+    pub(in crate::sema) fn definition_member_has_default(
+        &self,
+        member: &dir::DefinitionMember,
+    ) -> bool {
+        match member {
+            dir::DefinitionMember::Method(method) => {
+                method.implementation == dir::MethodImplementation::Default
+            }
+            dir::DefinitionMember::AssociatedType(associated) => associated.value.is_some(),
+            dir::DefinitionMember::AssociatedConst(associated) => {
+                self.symbol_has_static_value(associated.symbol)
+            }
+            dir::DefinitionMember::Field(_)
+            | dir::DefinitionMember::EnumVariant(_)
+            | dir::DefinitionMember::CallSignature(_)
+            | dir::DefinitionMember::ConstructSignature(_)
+            | dir::DefinitionMember::IndexSignature(_) => false,
+        }
+    }
+
+    /// Return whether one symbol has an inferred or written static value.
+    fn symbol_has_static_value(&self, symbol: dir::GlobalSymbolId) -> bool {
+        let has_inferred_value = self
+            .module_maybe(symbol.module_id)
+            .is_some_and(|module| module.static_values.contains_key(&symbol));
+        let has_static_id = self.symbol_static_id(symbol).is_some();
+
+        has_inferred_value || has_static_id
+    }
+
     /// Return one symbol's settled static id, if declared.
     pub(in crate::sema) fn symbol_static_id(
         &self,
