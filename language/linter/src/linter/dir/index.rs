@@ -59,10 +59,7 @@ impl<'a> Dir<'a> {
         })
     }
 
-    /// Return whether two checked types share one content.
-    ///
-    /// The walk looks through interning identity on the nominal, scalar, union, tuple,
-    /// and form heads, leaving every other pair unequal.
+    /// Return whether two checked types have equal structural content.
     pub fn types_match(
         &self,
         left: dir::GlobalTypeId,
@@ -125,6 +122,24 @@ impl<'a> Dir<'a> {
                     depth,
                 )
             }
+            // match separately interned function signatures by runtime shape
+            (dir::Type::FunctionSignature(_), dir::Type::FunctionSignature(_)) => {
+                self.function_signatures_match(left, right, depth)
+            }
+            // match fat callable values by signature and invocation multiplicity
+            (dir::Type::Function(left_function), dir::Type::Function(right_function)) => {
+                Ok(left_function.multiplicity == right_function.multiplicity
+                    && self.types_match_bounded(
+                        left_function.signature,
+                        right_function.signature,
+                        depth,
+                    )?)
+            }
+            // match thin callable values by signature
+            (
+                dir::Type::FunctionPointer(left_function),
+                dir::Type::FunctionPointer(right_function),
+            ) => self.types_match_bounded(left_function.signature, right_function.signature, depth),
             // match a memory form by kind and value
             (dir::Type::Form(left_form), dir::Type::Form(right_form)) => Ok(left_form.form
                 == right_form.form
@@ -174,6 +189,58 @@ impl<'a> Dir<'a> {
         // require every element pair to match
         for (left, right) in left_elements.into_iter().zip(right_elements) {
             if !self.types_match_bounded(left, right, depth)? {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
+    /// Return whether two separately interned function signatures have the same runtime shape.
+    fn function_signatures_match(
+        &self,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+        depth: usize,
+    ) -> Result<bool, ProviderError> {
+        let left_signature = self.signature_type(left)?;
+        let right_signature = self.signature_type(right)?;
+
+        // compare callable roles
+        if left_signature.asynchrony != right_signature.asynchrony
+            || left_signature.template != right_signature.template
+            || left_signature.is_generator != right_signature.is_generator
+            || left_signature.is_construct != right_signature.is_construct
+        {
+            return Ok(false);
+        }
+
+        // compare optional receiver and return types
+        for (left, right) in [
+            (
+                left_signature.this_parameter,
+                right_signature.this_parameter,
+            ),
+            (left_signature.return_type, right_signature.return_type),
+        ] {
+            match (left, right) {
+                (Some(left), Some(right)) if self.types_match_bounded(left, right, depth)? => {}
+                (None, None) => {}
+                _ => return Ok(false),
+            }
+        }
+
+        // compare parameter roles and types while ignoring authored names
+        let left_parameters = self.signature_parameters(left)?;
+        let right_parameters = self.signature_parameters(right)?;
+        if left_parameters.len() != right_parameters.len() {
+            return Ok(false);
+        }
+        for (left, right) in left_parameters.into_iter().zip(right_parameters) {
+            if left.is_optional != right.is_optional
+                || left.is_rest != right.is_rest
+                || !self.types_match_bounded(left.ty, right.ty, depth)?
+            {
                 return Ok(false);
             }
         }

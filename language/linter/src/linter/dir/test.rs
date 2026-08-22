@@ -178,26 +178,15 @@ impl DirModule<'_> {
         let dir::Expression::ObjectExpression { properties } = self.view().get(options) else {
             return None;
         };
-        let expected = dir::StringId::for_text(name);
+        let key = dir::StaticKey::Name(dir::StringId::for_text(name));
+        let field = self.direct_field(properties, key)?;
 
-        // use the final matching field and require the literal enabled value
-        for property in properties.iter().rev() {
-            let (property_name, value) = match self.view().get(*property) {
-                dir::Property::Field { name, value, .. } => (name, value),
-                dir::Property::Spread { .. } => return None,
-                dir::Property::Method { .. } | dir::Property::Error => continue,
-            };
-            if dir::StaticKey::from(*property_name) != dir::StaticKey::Name(expected) {
-                continue;
-            }
-            if self.view().get(*value).as_scalar() != Some(dir::Literal::Boolean(true)) {
-                return None;
-            }
-
-            return Some((*property, *value));
+        // require the literal enabled value
+        if self.view().get(field.1).as_scalar() != Some(dir::Literal::Boolean(true)) {
+            return None;
         }
 
-        None
+        Some(field)
     }
 
     /// Return one canonical test hook call.

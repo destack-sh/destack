@@ -646,6 +646,68 @@ warning[no-duplicate-code]: statement sequence repeats earlier code
         );
     }
 
+    /// Report substantial functions repeated across reachable modules.
+    #[test]
+    fn test_reports_across_modules() {
+        let session = TestSession::dir_files(
+            &NO_DUPLICATE_CODE,
+            "main.ds",
+            r#"
+import "./worker.ds";
+
+function normalizeLeft(value: int32): int32 {
+    const incremented = value + 1;
+    const doubled = incremented * 2;
+    return doubled - 3;
+}
+"#,
+            &[(
+                "worker.ds",
+                r#"
+function normalizeRight(input: int32): int32 {
+    const added = input + 1;
+    const scaled = added * 2;
+    return scaled - 3;
+}
+"#,
+            )],
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-duplicate-code]: callable repeats an earlier implementation
+ ──▶ worker.ds:1:46
+  │
+1 │ function normalizeRight(input: int32): int32 {
+  │                                              ^ repeated implementation
+2 │     const added = input + 1;
+  │     ^^^^^^^^^^^^^^^^^^^^^^^^
+3 │     const scaled = added * 2;
+  │     ^^^^^^^^^^^^^^^^^^^^^^^^^
+4 │     return scaled - 3;
+  │     ^^^^^^^^^^^^^^^^^^
+5 │ }
+  │ ^
+  │
+
+ ──▶ main.ds:3:45
+  │
+2 │
+3 │ function normalizeLeft(value: int32): int32 {
+  │                                             - earlier implementation
+4 │     const incremented = value + 1;
+  │     ------------------------------
+5 │     const doubled = incremented * 2;
+  │     --------------------------------
+6 │     return doubled - 3;
+  │     -------------------
+7 │ }
+  │ -
+  │
+"#,
+        );
+    }
+
     /// Accept similar sections that read distinct bindings declared outside them.
     #[test]
     fn test_accepts_sections_with_different_free_bindings() {

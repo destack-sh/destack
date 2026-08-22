@@ -135,6 +135,7 @@ impl TestSession {
                 lint,
                 example.path(),
                 example.source(),
+                &[],
                 |module, profile, _| ArtifactKey::dir_checked(module, profile),
             );
             checked.assert_no_diagnostics();
@@ -148,12 +149,26 @@ impl TestSession {
 
     /// Run one isolated checked DIR lint fixture at one source path.
     pub(crate) fn dir_path(lint: &'static Lint, path: &str, source: &str) -> Self {
-        Self::source(lint, path, source, |module, profile, target| {
-            match lint.check.scope() {
+        Self::dir_files(lint, path, source, &[])
+    }
+
+    /// Run one checked DIR lint fixture with additional source files.
+    pub(crate) fn dir_files(
+        lint: &'static Lint,
+        path: &str,
+        source: &str,
+        additional_sources: &[(&str, &str)],
+    ) -> Self {
+        Self::source(
+            lint,
+            path,
+            source,
+            additional_sources,
+            |module, profile, target| match lint.check.scope() {
                 LintScope::Module => ArtifactKey::module_linted(module, profile, target),
                 LintScope::Program => ArtifactKey::program_linted(profile, target),
-            }
-        })
+            },
+        )
     }
 
     /// Run one source fixture through the selected artifact.
@@ -161,6 +176,7 @@ impl TestSession {
         lint: &'static Lint,
         path: &str,
         source: &str,
+        additional_sources: &[(&str, &str)],
         artifact: impl FnOnce(ModuleId, ProfileId, TargetId) -> ArtifactKey,
     ) -> Self {
         let (repository, base) = shared_repository();
@@ -171,10 +187,20 @@ impl TestSession {
         let source = repository
             .put_blob(trim_source_frame(source).as_bytes())
             .expect("lint source Blob should store");
-        let edits = [
+        let mut edits = vec![
             Edit::add_file("destack.json", configuration),
             Edit::add_file(path, source),
         ];
+
+        // add the remaining fixture files
+        for (additional_path, additional_source) in additional_sources {
+            let source = repository
+                .put_blob(trim_source_frame(additional_source).as_bytes())
+                .expect("additional lint source Blob should store");
+            edits.push(Edit::add_file(*additional_path, source));
+        }
+
+        // commit and retain the complete fixture revision
         let revision = repository
             .edit(base.revision(), edits)
             .expect("lint test revision should commit")
@@ -211,6 +237,8 @@ impl TestSession {
 
             panic!("lint test artifact failed: {error}\n\n{diagnostics}");
         }
+
+        // collect the emitted diagnostics and entry source
         let diagnostics = repository
             .diagnostics_for_keys(revision, &[key])
             .expect("lint test diagnostics should be readable");
