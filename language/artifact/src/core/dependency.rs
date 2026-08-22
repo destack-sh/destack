@@ -382,7 +382,11 @@ impl ArtifactDependency {
         key: ArtifactProjectionKey,
         fingerprint: ArtifactProjectionFingerprint,
     ) -> Self {
-        Self::Projection(ArtifactProjectionDependency::new(artifact, key, fingerprint))
+        Self::Projection(ArtifactProjectionDependency::new(
+            artifact,
+            key,
+            fingerprint,
+        ))
     }
 
     /// Return the depended-on artifact key, excluding primitive sources.
