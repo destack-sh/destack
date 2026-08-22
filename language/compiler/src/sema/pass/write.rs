@@ -582,4 +582,3 @@ impl CheckState<'_> {
         Ok(constants)
     }
 }
-

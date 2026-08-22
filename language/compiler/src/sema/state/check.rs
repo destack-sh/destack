@@ -1180,6 +1180,24 @@ impl CheckState<'_> {
         )
     }
 
+    /// Read the tuple element types, or none when an optional or rest element breaks positions.
+    pub(in crate::sema) fn tuple_element_types(
+        &self,
+        value: dir::GlobalTypeId,
+        list: dir::TypeListId,
+    ) -> CompilerResult<Option<SmallVec<[dir::GlobalTypeId; 4]>>> {
+        let mut types = SmallVec::new();
+        for element in self.tuple_elements(value.module_id, list)? {
+            if element.is_optional || element.is_rest {
+                return Ok(None);
+            }
+
+            types.push(element.ty);
+        }
+
+        Ok(Some(types))
+    }
+
     /// Return one function parameter list owned by a module.
     pub(in crate::sema) fn signature_parameters(
         &self,

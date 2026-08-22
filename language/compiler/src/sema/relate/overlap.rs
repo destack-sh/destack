@@ -205,6 +205,32 @@ impl CheckState<'_> {
                 )
             }
 
+            // tuples share an inhabitant only when every element pair does
+            (dir::Type::Tuple(source_tuple), dir::Type::Tuple(target_tuple)) => {
+                // read both element lists, keeping irregular shapes conservative
+                let source_elements = self.tuple_element_types(source, source_tuple.elements)?;
+                let target_elements = self.tuple_element_types(target, target_tuple.elements)?;
+                let (Some(source_elements), Some(target_elements)) =
+                    (source_elements, target_elements)
+                else {
+                    return Ok(true);
+                };
+
+                // distinct arities never share a value
+                if source_elements.len() != target_elements.len() {
+                    return Ok(false);
+                }
+
+                // every element position must keep a shared inhabitant
+                for (source, target) in source_elements.iter().zip(target_elements.iter()) {
+                    if !self.type_overlap(origin, *source, *target, active)? {
+                        return Ok(false);
+                    }
+                }
+
+                Ok(true)
+            }
+
             // structural and indeterminate composites may share inhabitants
             _ => Ok(true),
         }

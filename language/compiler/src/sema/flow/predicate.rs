@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use crate::sema::{
     Check, CheckState, FlowPointChange, FlowPredicate, FlowSite, NarrowingCheck, Origin, Relation,
@@ -504,6 +505,25 @@ impl CheckState<'_> {
                     }))?;
 
                     Ok(Some(ty))
+                }
+                // tuple destructures accept the tuple of their fields' accepted subsets
+                dir::PatternDestructureResolution::Tuple(tuple) => {
+                    let mut elements = SmallVec::<[dir::TypeElement; 4]>::new();
+                    for field in &tuple.fields {
+                        let accepted = match field.pattern {
+                            Some(pattern) => self.pattern_node_predicate_target(origin, pattern)?,
+                            None => None,
+                        };
+
+                        // widen a field without its own subset to its whole projected element
+                        let ty = match accepted {
+                            Some(ty) => ty,
+                            None => field.projection.ty(),
+                        };
+                        elements.push(dir::TypeElement::new(ty));
+                    }
+
+                    Ok(Some(self.intern_tuple(&elements)?))
                 }
                 _ => Ok(None),
             },

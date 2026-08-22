@@ -7,6 +7,27 @@ use crate::sema::{
 };
 use crate::{CompilerError, CompilerResult};
 
+/// One coverage case a splittable value domain decomposes into.
+#[derive(Debug, Clone, Copy)]
+enum CoverageCase {
+    /// The case covers one whole type.
+    Type(dir::GlobalTypeId),
+    /// The case covers one variant discriminant.
+    Discriminant(dir::Literal),
+}
+
+/// One arm's remaining pattern fields over the coverage columns.
+type CoverageArm = SmallVec<[CoverageField; 4]>;
+
+/// One field position within a coverage arm.
+#[derive(Debug, Clone, Copy)]
+enum CoverageField {
+    /// The field is one pattern node.
+    Pattern(dir::GlobalNodeId<dir::Pattern>),
+    /// The field covers any value.
+    Wildcard,
+}
+
 /// Scalar interval coverage represented by one pattern.
 #[derive(Debug, Clone, PartialEq)]
 enum IntervalCoverage {
@@ -88,10 +109,10 @@ impl CheckState<'_> {
             return Ok(true);
         }
 
-        // cover variant domains case by case
+        // cover variant domains case by case, arms sharing a case covering its payload jointly
         if let Some(domain) = self.variant_discriminant_domain(value)? {
             for discriminant in domain {
-                if !self.decide_patterns_cover_variant_case(patterns, discriminant)? {
+                if !self.decide_variant_case_cover(origin, patterns, discriminant)? {
                     return Ok(false);
                 }
             }
@@ -116,7 +137,255 @@ impl CheckState<'_> {
             return self.decide_patterns_cover_range(patterns, &domain);
         }
 
+        // cover tuple domains by specializing pattern arms per element case
+        if let dir::Type::Tuple(tuple) = self.ty(value)?
+            && let Some(elements) = self.tuple_element_types(value, tuple.elements)?
+        {
+            let Some(arms) = self.tuple_coverage_arms(origin, patterns, value, &elements)? else {
+                return Ok(true);
+            };
+
+            return self.decide_arms_cover(origin, arms, &elements);
+        }
+
         self.decide_patterns_cover_value(origin, patterns, value)
+    }
+
+    /// Build the coverage arms over one tuple's elements, or none when a pattern covers the tuple.
+    fn tuple_coverage_arms(
+        &mut self,
+        origin: Origin,
+        patterns: &[dir::GlobalNodeId<dir::Pattern>],
+        value: dir::GlobalTypeId,
+        elements: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Option<Vec<CoverageArm>>> {
+        let mut arms = Vec::new();
+        for pattern in patterns {
+            // take a matching-width tuple pattern's fields as one arm
+            if let Some(arm) = self.nested_coverage_arm(*pattern, elements.len())? {
+                arms.push(arm);
+
+                continue;
+            }
+
+            // accept the whole domain from one covering pattern
+            if self.decide_pattern_node_covers(origin, *pattern, value)? {
+                return Ok(None);
+            }
+        }
+
+        Ok(Some(arms))
+    }
+
+    /// Build one coverage arm from a tuple pattern of one width, or none for other pattern shapes.
+    fn nested_coverage_arm(
+        &mut self,
+        pattern: dir::GlobalNodeId<dir::Pattern>,
+        width: usize,
+    ) -> CompilerResult<Option<CoverageArm>> {
+        let module = pattern.module_id;
+        let fields = match self.module(module).view().get(pattern.local_id) {
+            dir::Pattern::Tuple { fields } if fields.len() == width => Some(fields.clone()),
+            _ => None,
+        };
+
+        match fields {
+            Some(fields) => self.coverage_arm(module, &fields),
+            None => Ok(None),
+        }
+    }
+
+    /// Build one coverage arm from tuple pattern fields, or none when a rest field breaks positions.
+    fn coverage_arm(
+        &mut self,
+        module: ModuleId,
+        fields: &[dir::LocalNodeId<dir::PatternField>],
+    ) -> CompilerResult<Option<CoverageArm>> {
+        let mut arm = CoverageArm::new();
+        for field in fields {
+            match self.module(module).view().get(*field) {
+                // positional and named fields contribute their inner pattern
+                dir::PatternField::Positional { pattern } => {
+                    arm.push(CoverageField::Pattern(pattern.into_global(module)));
+                }
+                dir::PatternField::Named {
+                    pattern: Some(pattern),
+                    ..
+                } => {
+                    arm.push(CoverageField::Pattern(pattern.into_global(module)));
+                }
+                // bare names and elisions cover their position
+                dir::PatternField::Named { pattern: None, .. } | dir::PatternField::Elision => {
+                    arm.push(CoverageField::Wildcard);
+                }
+                // rest and computed fields break positional coverage
+                dir::PatternField::Rest { .. } | dir::PatternField::Computed { .. } => {
+                    return Ok(None);
+                }
+            }
+        }
+
+        Ok(Some(arm))
+    }
+
+    /// Decide whether one arm field covers one head case, wildcards covering every case.
+    fn decide_field_covers_case(
+        &mut self,
+        origin: Origin,
+        field: CoverageField,
+        case: CoverageCase,
+    ) -> CompilerResult<bool> {
+        match (field, case) {
+            (CoverageField::Wildcard, _) => Ok(true),
+            (CoverageField::Pattern(pattern), CoverageCase::Type(ty)) => {
+                self.decide_pattern_node_covers(origin, pattern, ty)
+            }
+            (CoverageField::Pattern(pattern), CoverageCase::Discriminant(literal)) => {
+                self.decide_pattern_covers_variant_case(pattern, literal)
+            }
+        }
+    }
+
+    /// Decide whether the arms cover every combination over the remaining columns.
+    fn decide_arms_cover(
+        &mut self,
+        origin: Origin,
+        arms: Vec<CoverageArm>,
+        columns: &[dir::GlobalTypeId],
+    ) -> CompilerResult<bool> {
+        // cover an exhausted column list with any surviving arm
+        let Some((&head, rest)) = columns.split_first() else {
+            return Ok(!arms.is_empty());
+        };
+
+        // cover every head case through its specialized arms
+        for case in self.coverage_cases(origin, head)? {
+            let Some((specialized, columns)) = self.specialize_arms(origin, &arms, case, rest)?
+            else {
+                return Ok(false);
+            };
+
+            if !self.decide_arms_cover(origin, specialized, &columns)? {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
+    /// Specialize the arms against one head case, or none when the case escapes every arm.
+    fn specialize_arms(
+        &mut self,
+        origin: Origin,
+        arms: &[CoverageArm],
+        case: CoverageCase,
+        rest: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Option<(Vec<CoverageArm>, Vec<dir::GlobalTypeId>)>> {
+        // expand a tuple-typed case's elements into the column list
+        let expanded = match case {
+            CoverageCase::Type(ty) => match self.ty(ty)? {
+                dir::Type::Tuple(tuple) => self.tuple_element_types(ty, tuple.elements)?,
+                _ => None,
+            },
+            CoverageCase::Discriminant(_) => None,
+        };
+
+        // put the expanded elements ahead of the remaining columns
+        let columns = match &expanded {
+            Some(elements) => elements.iter().chain(rest.iter()).copied().collect(),
+            None => rest.to_vec(),
+        };
+
+        // specialize each arm against the case
+        let mut specialized = Vec::new();
+        for arm in arms {
+            let Some((&field, tail)) = arm.split_first() else {
+                return Err(CompilerError::Internal {
+                    message: "coverage arm is shorter than its column list".to_string(),
+                });
+            };
+
+            // refine an expanded case through the arm's own nested tuple pattern
+            if let Some(elements) = &expanded
+                && let CoverageField::Pattern(pattern) = field
+                && let Some(nested) = self.nested_coverage_arm(pattern, elements.len())?
+            {
+                let mut arm = nested;
+                arm.extend(tail.iter().copied());
+                specialized.push(arm);
+
+                continue;
+            }
+
+            // drop arms whose head field escapes the case, wildcards cover every case
+            if !self.decide_field_covers_case(origin, field, case)? {
+                continue;
+            }
+
+            // widen the covering field over the expanded columns
+            if let Some(elements) = &expanded {
+                let mut arm: CoverageArm =
+                    std::iter::repeat_n(CoverageField::Wildcard, elements.len()).collect();
+                arm.extend(tail.iter().copied());
+                specialized.push(arm);
+            }
+            // keep the arm on its tail alone
+            else {
+                specialized.push(SmallVec::from_slice(tail));
+            }
+        }
+
+        if specialized.is_empty() {
+            return Ok(None);
+        }
+
+        Ok(Some((specialized, columns)))
+    }
+
+    /// Decompose one value into its coverage cases, an indivisible type staying one case.
+    fn coverage_cases(
+        &mut self,
+        origin: Origin,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<SmallVec<[CoverageCase; 4]>> {
+        let value = self.strip_form(origin, value)?;
+
+        // decompose newtypes through their backing
+        if self.variant_discriminant_domain(value)?.is_none()
+            && let Some(instance) = self.decompose_newtype(origin, value)?
+        {
+            return self.coverage_cases(origin, instance.backing);
+        }
+
+        // flatten union elements into their own cases
+        if let dir::Type::Union(union) = self.ty(value)? {
+            let elements: SmallVec<[_; 4]> =
+                SmallVec::from_slice(self.type_ids(value.module_id, union.elements)?);
+            let mut cases = SmallVec::new();
+            for element in elements {
+                cases.extend(self.coverage_cases(origin, element)?);
+            }
+
+            return Ok(cases);
+        }
+
+        // split variant domains by discriminant
+        if let Some(domain) = self.variant_discriminant_domain(value)? {
+            return Ok(domain.into_iter().map(CoverageCase::Discriminant).collect());
+        }
+
+        // split finite scalar domains by literal
+        if let Some(domain) = self.ty(value)?.finite_literals() {
+            let mut cases = SmallVec::new();
+            for literal in domain {
+                let element = self.intern_type(dir::Type::Literal(literal))?;
+                cases.push(CoverageCase::Type(element));
+            }
+
+            return Ok(cases);
+        }
+
+        Ok(SmallVec::from_elem(CoverageCase::Type(value), 1))
     }
 
     /// Return one uncovered value for a failed coverage check.
@@ -189,7 +458,81 @@ impl CheckState<'_> {
             return Ok(UncoveredValue::Type(range));
         }
 
+        // name one uncovered tuple element combination
+        if let dir::Type::Tuple(tuple) = self.ty(value)?
+            && let Some(elements) = self.tuple_element_types(value, tuple.elements)?
+        {
+            let form = tuple.form;
+            if let Some(arms) = self.tuple_coverage_arms(origin, patterns, value, &elements)?
+                && let Some(witness) = self.uncovered_arms_witness(origin, arms, &elements)?
+            {
+                // intern the witness combination as one tuple type
+                let elements = witness
+                    .into_iter()
+                    .map(dir::TypeElement::new)
+                    .collect::<SmallVec<[_; 4]>>();
+                let elements = self.intern_elements(&elements)?;
+                let witness =
+                    self.intern_type(dir::Type::Tuple(dir::TupleType { form, elements }))?;
+
+                return Ok(UncoveredValue::Type(witness));
+            }
+        }
+
         Ok(UncoveredValue::Type(value))
+    }
+
+    /// Return one uncovered element combination, or none when the arms cover every combination.
+    fn uncovered_arms_witness(
+        &mut self,
+        origin: Origin,
+        arms: Vec<CoverageArm>,
+        columns: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Option<Vec<dir::GlobalTypeId>>> {
+        // report an exhausted column list only without surviving arms
+        let Some((&head, rest)) = columns.split_first() else {
+            return Ok(arms.is_empty().then(Vec::new));
+        };
+
+        // walk the head cases in order, naming the first failing path
+        for case in self.coverage_cases(origin, head)? {
+            let case_type = match case {
+                CoverageCase::Type(ty) => ty,
+                CoverageCase::Discriminant(literal) => {
+                    self.intern_type(dir::Type::Literal(literal))?
+                }
+            };
+
+            // keep each arm whose head field covers the case
+            let mut specialized = Vec::new();
+            for arm in &arms {
+                let Some((&field, tail)) = arm.split_first() else {
+                    return Err(CompilerError::Internal {
+                        message: "coverage arm is shorter than its column list".to_string(),
+                    });
+                };
+                if self.decide_field_covers_case(origin, field, case)? {
+                    specialized.push(SmallVec::from_slice(tail));
+                }
+            }
+
+            // leave the remaining columns whole under an escaping case
+            let tail = if specialized.is_empty() {
+                Some(rest.to_vec())
+            } else {
+                self.uncovered_arms_witness(origin, specialized, rest)?
+            };
+
+            // compose the witness from this case and the failing tail
+            if let Some(tail) = tail {
+                let mut witness = vec![case_type];
+                witness.extend(tail);
+
+                return Ok(Some(witness));
+            }
+        }
+
+        Ok(None)
     }
 
     /// Decide whether one pattern covers every value in one type.
@@ -216,6 +559,95 @@ impl CheckState<'_> {
         }
 
         Ok(false)
+    }
+
+    /// Decide whether the patterns jointly cover one variant case and its payload.
+    fn decide_variant_case_cover(
+        &mut self,
+        origin: Origin,
+        patterns: &[dir::GlobalNodeId<dir::Pattern>],
+        discriminant: dir::Literal,
+    ) -> CompilerResult<bool> {
+        // collect payload arms from the arms selecting this discriminant
+        let mut arms = Vec::new();
+        let mut payload = None;
+        let mut selects = false;
+        for pattern in patterns {
+            if !self.decide_pattern_covers_variant_case(*pattern, discriminant)? {
+                continue;
+            }
+            selects = true;
+
+            // accept the whole case from an arm without payload destructuring
+            let Some((fields, projected)) = self.variant_payload_fields(*pattern)? else {
+                return Ok(true);
+            };
+
+            // keep the arm's own field cover when its shapes build no arm
+            let Some(arm) = self.coverage_arm(pattern.module_id, &fields)? else {
+                if let Some(projected) = projected
+                    && self.decide_fields_cover(origin, pattern.module_id, &fields, projected)?
+                {
+                    return Ok(true);
+                }
+
+                continue;
+            };
+            payload = payload.or(projected);
+            arms.push(arm);
+        }
+
+        // settle a payloadless case by any selecting arm
+        let Some(payload) = payload else {
+            return Ok(selects);
+        };
+        if arms.is_empty() {
+            return Ok(false);
+        }
+
+        // cover the payload columns jointly, single payloads standing as one column
+        let columns = match self.ty(payload)? {
+            dir::Type::Tuple(tuple) => self.tuple_element_types(payload, tuple.elements)?,
+            _ => Some(SmallVec::from_elem(payload, 1)),
+        };
+        let Some(columns) = columns else {
+            return Ok(false);
+        };
+
+        self.decide_arms_cover(origin, arms, &columns)
+    }
+
+    /// Return one variant arm's payload fields and projection, or none without destructuring.
+    fn variant_payload_fields(
+        &mut self,
+        pattern: dir::GlobalNodeId<dir::Pattern>,
+    ) -> CompilerResult<
+        Option<(
+            Vec<dir::LocalNodeId<dir::PatternField>>,
+            Option<dir::GlobalTypeId>,
+        )>,
+    > {
+        // only variant decisions with destructuring fields carry payload arms
+        let Some(dir::Decision::Pattern(dir::PatternDecision::Variant(resolution))) =
+            self.decision(pattern.into_any()).cloned()
+        else {
+            return Ok(None);
+        };
+        let module = pattern.module_id;
+        let fields = match self.module(module).view().get(pattern.local_id) {
+            dir::Pattern::NominalTuple { fields, .. } => fields.clone(),
+            _ => return Ok(None),
+        };
+        if fields.is_empty() {
+            return Ok(None);
+        }
+        let projected = resolution
+            .predicate
+            .projection
+            .as_ref()
+            .map(|projection| projection.ty());
+
+        Ok(Some((fields, projected)))
     }
 
     /// Decide whether any pattern alternative covers one variant discriminant.
