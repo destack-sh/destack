@@ -3,6 +3,15 @@ use destack_repository::ProviderError;
 
 use super::DirModule;
 
+/// One builtin integer comparison with its constant on the right.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct IntegerComparison {
+    /// The nonconstant expression.
+    pub(crate) value: dir::LocalNodeId<dir::Expression>,
+    /// The normalized comparison operator.
+    pub(crate) operator: dir::BinaryOperator,
+}
+
 /// One builtin integral expression offset by exactly one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum IntegerStep {
@@ -13,6 +22,74 @@ pub(crate) enum IntegerStep {
 }
 
 impl DirModule<'_> {
+    /// Return one builtin integer comparison against an exact constant.
+    pub(crate) fn integer_comparison(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        constant: i64,
+    ) -> Result<Option<IntegerComparison>, ProviderError> {
+        let Some((operator, [left, right])) = self.builtin_binary(expression)? else {
+            return Ok(None);
+        };
+        let Some(swapped) = operator.swapped() else {
+            return Ok(None);
+        };
+        let left_constant = self.integral_constant(left.source.local_id)? == Some(constant);
+        let right_constant = self.integral_constant(right.source.local_id)? == Some(constant);
+
+        // normalize the sole matching constant onto the right
+        let comparison = match (left_constant, right_constant) {
+            (false, true) => IntegerComparison {
+                value: left.source.local_id,
+                operator,
+            },
+            (true, false) => IntegerComparison {
+                value: right.source.local_id,
+                operator: swapped,
+            },
+            _ => return Ok(None),
+        };
+
+        Ok(Some(comparison))
+    }
+
+    /// Return the authored integral value carried by one represented newtype construction.
+    pub(crate) fn newtype_integral(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        item: dir::LanguageItem,
+    ) -> Result<Option<(i64, dir::LocalNodeId<dir::Expression>)>, ProviderError> {
+        let dir::Expression::Call {
+            left,
+            generic_arguments,
+            arguments,
+            is_optional: false,
+            ..
+        } = self.view().get(expression)
+        else {
+            return Ok(None);
+        };
+        if !generic_arguments.is_empty() || self.language_item(*left)? != Some(item) {
+            return Ok(None);
+        }
+        if self.representation_item(expression.into_any())? != Some(item) {
+            return Err(ProviderError::internal(format!(
+                "language item constructor {item:?} has another checked representation"
+            )));
+        }
+        let [argument] = arguments.as_slice() else {
+            return Ok(None);
+        };
+        let Some(value) = self.view().get(*argument).value() else {
+            return Ok(None);
+        };
+        let Some(number) = self.integral_constant(value)? else {
+            return Ok(None);
+        };
+
+        Ok(Some((number, value)))
+    }
+
     /// Return the concrete primitive type selected for one checked node.
     pub fn primitive_type(
         &self,

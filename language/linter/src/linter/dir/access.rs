@@ -4,6 +4,41 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
+    /// Return the receiver whose stored member or element one checked assignment writes.
+    pub(crate) fn stored_write_receiver(
+        &self,
+        target: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<dir::LocalNodeId<dir::Expression>>, ProviderError> {
+        let global = target.into_global_any(self.id);
+        let resolution = self.decisions.assignment_decision(global).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "checked assignment target {global:?} has no assignment decision"
+            ))
+        })?;
+
+        // require a member or element backed by stored state
+        let is_stored = match &resolution.write {
+            dir::WriteResolution::Member(member) => member.is_stored(),
+            dir::WriteResolution::Subscript(subscript) => subscript.is_stored(),
+            dir::WriteResolution::Binding { .. } | dir::WriteResolution::Dereference(_) => false,
+        };
+        if !is_stored {
+            return Ok(None);
+        }
+
+        // return the receiver that carries the selected state
+        let receiver = match self.view().get(target) {
+            dir::Expression::Member { left, .. } | dir::Expression::Index { left, .. } => *left,
+            _ => {
+                return Err(ProviderError::internal(format!(
+                    "stored assignment target {global:?} is not a member or index expression"
+                )));
+            }
+        };
+
+        Ok(Some(receiver))
+    }
+
     /// Return whether retained uses of one binding accept a readonly borrowed value.
     pub(crate) fn binding_accepts_readonly_borrow(
         &self,

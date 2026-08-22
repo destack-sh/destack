@@ -4,6 +4,35 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
+    /// Return the final direct field with one static key.
+    pub(crate) fn direct_field(
+        &self,
+        properties: &[dir::LocalNodeId<dir::Property>],
+        key: dir::StaticKey,
+    ) -> Option<(
+        dir::LocalNodeId<dir::Property>,
+        dir::LocalNodeId<dir::Expression>,
+    )> {
+        // select the final field unless a later spread can replace it
+        for property_id in properties.iter().rev() {
+            let property = self.view().get(*property_id);
+            match property {
+                dir::Property::Field { name, value, .. } if dir::StaticKey::from(*name) == key => {
+                    return Some((*property_id, *value));
+                }
+                dir::Property::Spread { .. } => return None,
+                dir::Property::Method { .. }
+                    if property.slot() == Some(dir::MemberSlot::Key(key)) =>
+                {
+                    return None;
+                }
+                _ => {}
+            }
+        }
+
+        None
+    }
+
     /// Return the ordered operands of one checked builtin short-circuit chain.
     pub(crate) fn short_circuit_operands(
         &self,
