@@ -176,12 +176,13 @@ impl CompletionCollector<'_, '_, '_> {
         &self,
         literal: dir::LocalNodeId<dir::Expression>,
         scope: dir::LocalScope,
+        prefix: &str,
     ) -> QueryResult<Vec<CompletionCandidate>> {
         let node = literal.into_global_any(self.module.module_id());
 
         // remove fields already supplied by this literal
         let supplied = self.object_keys(literal)?;
-        let mut shorthands = self.visible_value_bindings(scope)?;
+        let mut shorthands = self.visible_value_bindings(scope, prefix)?;
         for key in &supplied {
             shorthands.shift_remove(key);
         }
@@ -201,8 +202,8 @@ impl CompletionCollector<'_, '_, '_> {
 
         // overlay missing contextual fields onto visible shorthands
         let mut results = Vec::new();
-        if let Some(expected) = expected {
-            for entry in &expected {
+        if let Some(expected) = expected.as_ref() {
+            for entry in expected {
                 let member = &entry.binding;
                 // require construction fields
                 if member.kind != dir::MemberKind::Field {
@@ -232,7 +233,7 @@ impl CompletionCollector<'_, '_, '_> {
                 .with_object_field(site, member.key)
                 .with_type_id(member.access.store());
                 let completion = match member.declarations.as_slice() {
-                    [declaration] => self.collect_declaration(completion, declaration.symbol)?,
+                    [declaration] => completion.with_symbol(declaration.symbol),
                     _ => completion,
                 };
 
@@ -245,15 +246,18 @@ impl CompletionCollector<'_, '_, '_> {
             }
         }
 
-        // build the remaining shorthand fields
-        for (key, symbol) in shorthands {
-            let dir::StaticKey::Name(name) = key else {
-                continue;
-            };
-            let label = self.module.strings().get(name).to_string();
-            let completion =
-                CompletionCandidate::new(label, CompletionItemKind::Field, CompletionOrigin::Local);
-            results.push(self.collect_symbol(completion, symbol)?);
+        // build shorthand fields when no contextual field set constrains the literal
+        if expected.is_none() {
+            for (key, binding) in shorthands {
+                let dir::StaticKey::Name(name) = key else {
+                    continue;
+                };
+                let label = self.module.strings().get(name).to_string();
+                let completion =
+                    CompletionCandidate::new(label, CompletionItemKind::Field, binding.origin)
+                        .with_symbol(binding.symbol);
+                results.push(completion);
+            }
         }
 
         Ok(results)

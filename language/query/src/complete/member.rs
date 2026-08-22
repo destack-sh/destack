@@ -33,7 +33,7 @@ impl CompletionCollector<'_, '_, '_> {
                     .with_type_id(type_id);
             let completion = match member.read_declaration() {
                 Some(declaration) => {
-                    let completion = self.collect_declaration(completion, declaration.symbol)?;
+                    let completion = completion.with_symbol(declaration.symbol);
                     if completion.kind.is_callable() {
                         completion.with_call()
                     } else {

@@ -5,11 +5,14 @@ use destack_serde::Reflect;
 use destack_source::{Patch, Span};
 use serde::{Deserialize, Serialize};
 
-use crate::complete::{CompletionCollector, CompletionCursor, rank_completions};
+use crate::complete::{CompletionCollector, CompletionCursor};
 use crate::source::ImportBinding;
 use crate::{
     ImportOrder, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
 };
+
+/// Maximum completion items returned in one response.
+pub(crate) const MAX_COMPLETION_ITEMS: usize = 100;
 
 /// Kind of completion item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -228,17 +231,41 @@ impl ModuleQueryContext<'_> {
             token.as_ref(),
             request.include_auto_imports,
         )?;
-        let is_incomplete = completions.is_incomplete;
-        let completions = rank_completions(completions.items, &context, token.as_ref());
+        let completions = completions.rank(&context, token.as_ref());
+        let mut is_incomplete = completions.is_incomplete;
 
         // resolve only candidates returned to the editor
         let replacement_start = token.as_ref().map_or(offset, |token| token.start);
         let replacement_end = token.as_ref().map_or(offset, |token| token.end);
         let replacement = Span::new(file_id, replacement_start, replacement_end);
-        let mut items = Vec::with_capacity(completions.len());
-        for completion in completions {
-            let completion = collector.resolve(completion)?;
-            items.push(completion.into_item(replacement)?);
+        let capacity = completions.items.len().min(MAX_COMPLETION_ITEMS);
+        let mut items = Vec::with_capacity(capacity);
+        let mut expanded = Vec::new();
+        let mut has_preselected = false;
+        'candidates: for completion in completions.items {
+            if items.len() == MAX_COMPLETION_ITEMS {
+                is_incomplete = true;
+
+                break;
+            }
+            collector.expand(completion, &mut expanded)?;
+
+            for completion in expanded.drain(..) {
+                if items.len() == MAX_COMPLETION_ITEMS {
+                    is_incomplete = true;
+
+                    break 'candidates;
+                }
+
+                // retain one preselected result after candidate expansion
+                let mut completion = completion;
+                if completion.preselect {
+                    completion.preselect = !has_preselected;
+                    has_preselected = true;
+                }
+
+                items.push(collector.resolve(completion, replacement)?);
+            }
         }
 
         Ok(CompletionResponse {
@@ -265,8 +292,21 @@ pub(crate) enum CompletionOrigin {
     Member,
 }
 
+impl CompletionOrigin {
+    /// Return the ranking order for this completion origin.
+    pub(crate) fn order(self) -> u8 {
+        match self {
+            Self::Contextual => 0,
+            Self::Member | Self::Local => 1,
+            Self::Builtin => 2,
+            Self::AutoImport => 3,
+            Self::Keyword => 4,
+        }
+    }
+}
+
 /// One completion candidate before ranking and source edit construction.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct CompletionCandidate {
     /// The label shown in the completion list.
     pub(crate) label: String,
@@ -300,31 +340,19 @@ pub(crate) struct CompletionCandidate {
     pub(crate) type_id: Option<dir::GlobalTypeId>,
     /// The target declaration carried by this candidate.
     symbol: Option<dir::GlobalSymbolId>,
-    /// The specialized resolution selected for this candidate.
-    resolution: CompletionResolution,
+    /// The constructor family expanded after ranking.
+    constructors: Option<ConstructorFamily>,
+    /// The member completion deferred until after ranking.
+    member: Option<CompletionMember>,
+    /// The import inserted with this candidate.
+    import: Option<CompletionImport>,
 }
 
-/// Specialized work deferred until one completion candidate survives ranking.
-#[derive(Debug)]
-pub(crate) enum CompletionResolution {
-    /// No specialized resolution.
-    None,
-    /// One struct expression.
-    Struct,
-    /// One class constructor overload.
-    ClassConstructor {
-        /// The selected constructor type.
-        type_id: dir::GlobalTypeId,
-        /// The selected constructor declaration when one exists.
-        call_symbol: Option<dir::GlobalSymbolId>,
-    },
-    /// One newtype constructor overload.
-    NewtypeConstructor {
-        /// The selected constructor type.
-        type_id: dir::GlobalTypeId,
-    },
+/// One member completion resolved after candidate ranking.
+#[derive(Debug, Clone)]
+pub(crate) enum CompletionMember {
     /// One exact member binding.
-    Member {
+    Access {
         /// The DIR member lookup site.
         site: dir::MemberSite,
         /// The selected member key.
@@ -337,26 +365,51 @@ pub(crate) enum CompletionResolution {
         /// The selected field key.
         key: dir::StaticKey,
     },
-    /// One declaration imported through an exact module specifier.
-    AutoImport {
-        /// The binding inserted into the current module.
-        binding: ImportBinding,
-        /// The module specifier inserted into the current module.
-        specifier: String,
-    },
+}
+
+/// One constructor family expanded after candidate ranking.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum ConstructorFamily {
+    /// The constructors declared by one class.
+    Class,
+    /// The constructors declared by one newtype.
+    Newtype,
 }
 
 /// The insertion produced by one completion candidate.
-#[derive(Debug)]
-enum CompletionInsertion {
+#[derive(Debug, Clone)]
+pub(crate) enum CompletionInsertion {
     /// Insert the candidate label.
     Label,
     /// Resolve a call after ranking.
     Call,
+    /// Resolve one struct expression after ranking.
+    StructExpression,
+    /// Resolve one class constructor overload after ranking.
+    ClassConstructor {
+        /// The selected constructor type.
+        type_id: dir::GlobalTypeId,
+        /// The selected constructor declaration when one exists.
+        call_symbol: Option<dir::GlobalSymbolId>,
+    },
+    /// Resolve one newtype constructor overload after ranking.
+    NewtypeConstructor {
+        /// The selected constructor type.
+        type_id: dir::GlobalTypeId,
+    },
     /// Insert exact text.
     Text(String),
     /// Insert an editor snippet.
     Snippet(String),
+}
+
+/// One import inserted with a completion candidate.
+#[derive(Debug, Clone)]
+pub(crate) struct CompletionImport {
+    /// The binding inserted into the current module.
+    pub(crate) binding: ImportBinding,
+    /// The module specifier inserted into the current module.
+    pub(crate) specifier: String,
 }
 
 /// Completion candidates and whether collection was truncated.
@@ -391,7 +444,9 @@ impl CompletionCandidate {
             import_order: None,
             type_id: None,
             symbol: None,
-            resolution: CompletionResolution::None,
+            constructors: None,
+            member: None,
+            import: None,
         }
     }
 
@@ -400,11 +455,6 @@ impl CompletionCandidate {
         self.insertion = CompletionInsertion::Call;
 
         self
-    }
-
-    /// Return whether this candidate still needs call rendering.
-    pub(crate) fn is_call(&self) -> bool {
-        matches!(self.insertion, CompletionInsertion::Call)
     }
 
     /// Set the exact suffix shown after the label.
@@ -459,24 +509,28 @@ impl CompletionCandidate {
     /// Set the stable ordering text.
     pub(crate) fn with_ordering_text(mut self, text: impl Into<String>) -> Self {
         self.ordering_text = Some(text.into());
+
         self
     }
 
     /// Mark this item as deprecated.
     pub(crate) fn with_deprecated(mut self) -> Self {
         self.is_deprecated = true;
+
         self
     }
 
     /// Set the structured import sort key.
     pub(crate) fn with_import_order(mut self, order: ImportOrder) -> Self {
         self.import_order = Some(order);
+
         self
     }
 
     /// Set the exact value type.
     pub(crate) fn with_type_id(mut self, type_id: dir::GlobalTypeId) -> Self {
         self.type_id = Some(type_id);
+
         self
     }
 
@@ -487,29 +541,37 @@ impl CompletionCandidate {
         self
     }
 
-    /// Bind this candidate to one exact member lookup.
+    /// Set one exact member lookup.
     pub(crate) fn with_member(mut self, site: dir::MemberSite, key: dir::StaticKey) -> Self {
-        self.resolution = CompletionResolution::Member { site, key };
+        self.member = Some(CompletionMember::Access { site, key });
 
         self
     }
 
-    /// Bind this candidate to one contextual object field.
+    /// Set one contextual object field lookup.
     pub(crate) fn with_object_field(mut self, site: dir::MemberSite, key: dir::StaticKey) -> Self {
-        self.resolution = CompletionResolution::ObjectField { site, key };
+        self.member = Some(CompletionMember::ObjectField { site, key });
 
         self
     }
 
-    /// Bind this candidate to one struct expression.
+    /// Set struct expression insertion.
     pub(crate) fn with_struct(mut self, symbol: dir::GlobalSymbolId) -> Self {
         self.symbol = Some(symbol);
-        self.resolution = CompletionResolution::Struct;
+        self.insertion = CompletionInsertion::StructExpression;
 
         self
     }
 
-    /// Bind this candidate to one class constructor overload.
+    /// Set class constructor expansion.
+    pub(crate) fn with_class_constructors(mut self, symbol: dir::GlobalSymbolId) -> Self {
+        self.symbol = Some(symbol);
+        self.constructors = Some(ConstructorFamily::Class);
+
+        self
+    }
+
+    /// Set one class constructor overload.
     pub(crate) fn with_class_constructor(
         mut self,
         symbol: dir::GlobalSymbolId,
@@ -517,7 +579,7 @@ impl CompletionCandidate {
         call_symbol: Option<dir::GlobalSymbolId>,
     ) -> Self {
         self.symbol = Some(symbol);
-        self.resolution = CompletionResolution::ClassConstructor {
+        self.insertion = CompletionInsertion::ClassConstructor {
             type_id,
             call_symbol,
         };
@@ -525,28 +587,51 @@ impl CompletionCandidate {
         self
     }
 
-    /// Bind this candidate to one newtype constructor overload.
+    /// Set newtype constructor expansion.
+    pub(crate) fn with_newtype_constructors(mut self, symbol: dir::GlobalSymbolId) -> Self {
+        self.symbol = Some(symbol);
+        self.constructors = Some(ConstructorFamily::Newtype);
+
+        self
+    }
+
+    /// Set one newtype constructor overload.
     pub(crate) fn with_newtype_constructor(
         mut self,
         symbol: dir::GlobalSymbolId,
         type_id: dir::GlobalTypeId,
     ) -> Self {
         self.symbol = Some(symbol);
-        self.resolution = CompletionResolution::NewtypeConstructor { type_id };
+        self.insertion = CompletionInsertion::NewtypeConstructor { type_id };
 
         self
     }
 
-    /// Bind this candidate to one exact auto import.
-    pub(crate) fn with_auto_import(mut self, binding: ImportBinding, specifier: String) -> Self {
-        self.resolution = CompletionResolution::AutoImport { binding, specifier };
+    /// Set one exact import.
+    pub(crate) fn with_import(mut self, binding: ImportBinding, specifier: String) -> Self {
+        self.import = Some(CompletionImport { binding, specifier });
 
         self
     }
 
-    /// Take the specialized resolution selected for this candidate.
-    pub(crate) fn take_resolution(&mut self) -> CompletionResolution {
-        mem::replace(&mut self.resolution, CompletionResolution::None)
+    /// Take the constructor family selected for this candidate.
+    pub(crate) fn take_constructors(&mut self) -> Option<ConstructorFamily> {
+        self.constructors.take()
+    }
+
+    /// Take the member completion selected for this candidate.
+    pub(crate) fn take_member(&mut self) -> Option<CompletionMember> {
+        self.member.take()
+    }
+
+    /// Take the insertion selected for this candidate.
+    pub(crate) fn take_insertion(&mut self) -> CompletionInsertion {
+        mem::replace(&mut self.insertion, CompletionInsertion::Label)
+    }
+
+    /// Take the import inserted with this candidate.
+    pub(crate) fn take_import(&mut self) -> Option<CompletionImport> {
+        self.import.take()
     }
 
     /// Return the target declaration carried by this candidate.
@@ -562,15 +647,16 @@ impl CompletionCandidate {
     }
 
     /// Build the public completion item for one exact replacement range.
-    fn into_item(self, span: Span) -> QueryResult<CompletionItem> {
+    pub(crate) fn into_item(self, span: Span) -> QueryResult<CompletionItem> {
         let (new_text, is_snippet) = match self.insertion {
             CompletionInsertion::Label => (self.label.clone(), false),
             CompletionInsertion::Text(text) => (text, false),
             CompletionInsertion::Snippet(text) => (text, true),
-            CompletionInsertion::Call => {
-                return Err(QueryError::invalid(
-                    "completion call insertion was not rendered",
-                ));
+            CompletionInsertion::Call
+            | CompletionInsertion::StructExpression
+            | CompletionInsertion::ClassConstructor { .. }
+            | CompletionInsertion::NewtypeConstructor { .. } => {
+                return Err(QueryError::invalid("completion insertion was not rendered"));
             }
         };
 

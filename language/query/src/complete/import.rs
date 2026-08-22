@@ -1,6 +1,7 @@
 use std::collections::hash_map::Entry;
 
 use destack_artifact::PackageDependency;
+use destack_core::StringId;
 use destack_dir as dir;
 use destack_repository::RepositoryError;
 use destack_source::{FileId, ModuleId, Span};
@@ -14,7 +15,7 @@ use crate::{
 };
 
 use super::builtin::length_ordering_text;
-use super::{CompletionCollector, CompletionContext};
+use super::{AutoImportContext, CompletionCollector, CompletionContext};
 
 // auto import completion thresholds
 const AUTO_IMPORT_MIN_PREFIX: usize = 2;
@@ -247,7 +248,7 @@ impl CompletionCollector<'_, '_, '_> {
                 if kind.is_callable() {
                     completion = completion.with_call();
                 }
-                completion = self.collect_symbol(completion, symbol)?;
+                completion = completion.with_symbol(symbol);
             }
 
             results.push(completion);
@@ -260,10 +261,8 @@ impl CompletionCollector<'_, '_, '_> {
     pub(super) fn collect_auto_imports(
         &self,
         prefix: &str,
-        symbol_use: SymbolUse,
-        scope: dir::LocalScope,
+        context: AutoImportContext,
         allow_short_prefix: bool,
-        is_constructable_only: bool,
     ) -> QueryResult<CompletionCandidates> {
         if prefix.is_empty() {
             return Ok(CompletionCandidates {
@@ -281,7 +280,8 @@ impl CompletionCollector<'_, '_, '_> {
 
         // collect unresolved exports and import paths before reading declaration DIR
         let current_module_id = self.module.module_id();
-        let visible_names = self.collect_visible_names(scope, symbol_use)?;
+        let visible_names =
+            self.collect_visible_names(context.scope, context.symbol_use, prefix)?;
         let mut candidates = Vec::new();
         let mut import_paths = FxHashMap::default();
         let exports = self
@@ -289,7 +289,8 @@ impl CompletionCollector<'_, '_, '_> {
             .search_export_candidates(prefix, Some(current_module_id))?;
 
         for export in exports {
-            if visible_names.contains(export.binding.name()) {
+            let name = StringId::for_text(export.binding.name());
+            if visible_names.contains(&name) {
                 continue;
             }
 
@@ -335,12 +336,12 @@ impl CompletionCollector<'_, '_, '_> {
         // resolve declarations until the result limit is filled
         'candidate: for candidate in candidates {
             for declaration in candidate.export.resolve_declarations(self.program)? {
-                if !symbol_use.accepts_export(declaration) {
+                if !context.symbol_use.accepts_export(declaration) {
                     continue;
                 }
 
                 let kind = declaration.completion_kind(self.program)?;
-                if is_constructable_only && !kind.is_constructable() {
+                if context.is_constructable_only && !kind.is_constructable() {
                     continue;
                 }
 
@@ -358,7 +359,7 @@ impl CompletionCollector<'_, '_, '_> {
                     break 'candidate;
                 }
 
-                items.push(self.resolve_auto_import(candidate, declaration, kind)?);
+                items.push(self.resolve_auto_import(candidate, declaration, kind, context)?);
 
                 continue 'candidate;
             }
@@ -375,19 +376,18 @@ impl CompletionCollector<'_, '_, '_> {
         &self,
         scope: dir::LocalScope,
         symbol_use: SymbolUse,
-    ) -> QueryResult<FxHashSet<String>> {
-        let symbols = self.module.bindings()?;
-
+        prefix: &str,
+    ) -> QueryResult<FxHashSet<StringId>> {
         let mut names = FxHashSet::default();
-        for visible in symbols
-            .visible_bindings(scope)
-            .filter(|binding| symbol_use.accepts_symbol_kind(binding.symbol.kind))
+        for key in self
+            .visible_bindings(scope, symbol_use, prefix)?
+            .into_keys()
         {
-            let dir::StaticKey::Name(name_id) = visible.key else {
+            let dir::StaticKey::Name(name) = key else {
                 continue;
             };
 
-            names.insert(self.module.strings().get(name_id).to_string());
+            names.insert(name);
         }
 
         Ok(names)
@@ -399,24 +399,48 @@ impl CompletionCollector<'_, '_, '_> {
         candidate: AutoImportCandidate,
         declaration: ExportDeclaration,
         kind: CompletionItemKind,
+        context: AutoImportContext,
     ) -> QueryResult<CompletionCandidate> {
         let name = candidate.export.binding.name();
         let import_order = ImportOrder::new(candidate.path_order, &candidate.specifier, name);
         let description = format!("from {}", candidate.specifier);
-        let completion = CompletionCandidate::new(name, kind, CompletionOrigin::AutoImport)
-            .with_description(description)
-            .with_import_order(import_order)
-            .with_auto_import(candidate.export.binding, candidate.specifier);
+
+        // use the same item kind as the matching local completion
+        let completion_kind =
+            if context.symbol_use == SymbolUse::Value && kind == CompletionItemKind::Newtype {
+                CompletionItemKind::Constructor
+            } else {
+                kind
+            };
+        let completion =
+            CompletionCandidate::new(name, completion_kind, CompletionOrigin::AutoImport)
+                .with_description(description)
+                .with_import_order(import_order)
+                .with_import(candidate.export.binding, candidate.specifier);
 
         match declaration {
             ExportDeclaration::Symbol { symbol, .. } => {
-                let completion = if kind.is_callable() {
-                    completion.with_call()
-                } else {
-                    completion
-                };
+                let completion = completion.with_symbol(symbol);
 
-                self.collect_symbol(completion, symbol)
+                // select the insertion used by the matching local declaration
+                let completion =
+                    if context.is_constructable_only && kind == CompletionItemKind::Class {
+                        completion.with_class_constructors(symbol)
+                    } else if context.symbol_use == SymbolUse::Value
+                        && kind == CompletionItemKind::Struct
+                    {
+                        completion.with_struct(symbol)
+                    } else if context.symbol_use == SymbolUse::Value
+                        && kind == CompletionItemKind::Newtype
+                    {
+                        completion.with_newtype_constructors(symbol)
+                    } else if kind.is_callable() {
+                        completion.with_call()
+                    } else {
+                        completion
+                    };
+
+                Ok(completion)
             }
             ExportDeclaration::Namespace { .. } => Ok(completion),
         }
@@ -448,9 +472,7 @@ impl CompletionCollector<'_, '_, '_> {
             let kind = declaration.completion_kind(self.program)?;
             let completion = CompletionCandidate::new(name, kind, CompletionOrigin::Contextual);
             let completion = match declaration {
-                ExportDeclaration::Symbol { symbol, .. } => {
-                    self.collect_symbol(completion, symbol)?
-                }
+                ExportDeclaration::Symbol { symbol, .. } => completion.with_symbol(symbol),
                 ExportDeclaration::Namespace { .. } => completion,
             };
 

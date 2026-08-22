@@ -15,4 +15,3 @@ mod symbol;
 
 pub(crate) use collector::*;
 pub(crate) use context::*;
-pub(crate) use rank::*;

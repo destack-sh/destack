@@ -1,8 +1,12 @@
 use destack_dir as dir;
+use destack_source::Span;
 
 use super::CompletionCollector;
 use super::call::CallSnippet;
-use crate::{CompletionCandidate, CompletionResolution, Formatter, QueryError, QueryResult};
+use crate::{
+    CompletionCandidate, CompletionInsertion, CompletionItem, CompletionMember, ConstructorFamily,
+    Formatter, QueryError, QueryResult,
+};
 
 impl CompletionCollector<'_, '_, '_> {
     /// Render the call insertion for one callable symbol.
@@ -29,27 +33,26 @@ impl CompletionCollector<'_, '_, '_> {
         Ok(completion)
     }
 
-    /// Collect one symbol candidate and its ranking fields.
-    pub(super) fn collect_symbol(
+    /// Resolve one candidate's declaration and value type.
+    fn resolve_symbol(
         &self,
-        completion: CompletionCandidate,
-        symbol_id: dir::GlobalSymbolId,
+        mut completion: CompletionCandidate,
+        symbol: dir::GlobalSymbolId,
     ) -> QueryResult<CompletionCandidate> {
-        let mut completion = self.collect_declaration(completion, symbol_id)?;
-        let symbol_id = completion.symbol().ok_or(QueryError::invalid(
-            "completion candidate has no declaration",
-        ))?;
+        // read declaration modifiers
+        if self.program.symbol_is_deprecated(symbol)? {
+            completion = completion.with_deprecated();
+        }
 
         // read the declaration's value type
-        if completion.kind.has_value_suffix() {
-            let module = self.program.module(symbol_id.module_id)?;
-            let type_id =
-                module
-                    .types()?
-                    .get_symbol_type_id(symbol_id)
-                    .ok_or(QueryError::missing(format!(
-                        "completion symbol type: {symbol_id:?}"
-                    )))?;
+        if completion.type_id.is_none() && completion.kind.has_value_suffix() {
+            let module = self.program.module(symbol.module_id)?;
+            let type_id = module
+                .types()?
+                .get_symbol_type_id(symbol)
+                .ok_or(QueryError::missing(format!(
+                    "completion symbol type: {symbol:?}"
+                )))?;
 
             completion = completion.with_type_id(type_id);
         }
@@ -57,20 +60,27 @@ impl CompletionCollector<'_, '_, '_> {
         Ok(completion)
     }
 
-    /// Collect the target declaration and modifiers behind one candidate.
-    pub(super) fn collect_declaration(
+    /// Resolve the value type needed to rank one candidate.
+    pub(super) fn resolve_type(
         &self,
-        mut completion: CompletionCandidate,
-        symbol_id: dir::GlobalSymbolId,
-    ) -> QueryResult<CompletionCandidate> {
-        let symbol_id = self.symbol_target(symbol_id)?;
-
-        // mark deprecated declarations
-        if self.program.symbol_is_deprecated(symbol_id)? {
-            completion = completion.with_deprecated();
+        completion: &CompletionCandidate,
+    ) -> QueryResult<Option<dir::GlobalTypeId>> {
+        if completion.type_id.is_some() || !completion.kind.has_value_suffix() {
+            return Ok(completion.type_id);
         }
+        let symbol = completion.symbol().ok_or(QueryError::invalid(
+            "completion value has no declaration or type",
+        ))?;
 
-        Ok(completion.with_symbol(symbol_id))
+        let module = self.program.module(symbol.module_id)?;
+        let type_id = module
+            .types()?
+            .get_symbol_type_id(symbol)
+            .ok_or(QueryError::missing(format!(
+                "completion symbol type: {symbol:?}"
+            )))?;
+
+        Ok(Some(type_id))
     }
 
     /// Return the target declaration for one completion symbol.
@@ -85,26 +95,85 @@ impl CompletionCollector<'_, '_, '_> {
             )))
     }
 
+    /// Expand one ranked candidate into its constructor overloads when required.
+    pub(crate) fn expand(
+        &self,
+        mut completion: CompletionCandidate,
+        expanded: &mut Vec<CompletionCandidate>,
+    ) -> QueryResult<()> {
+        match completion.take_constructors() {
+            Some(ConstructorFamily::Class) => {
+                let symbol = completion
+                    .symbol()
+                    .ok_or(QueryError::invalid("class completion has no declaration"))?;
+
+                self.expand_class_constructors(completion, symbol, expanded)?;
+            }
+            Some(ConstructorFamily::Newtype) => {
+                let symbol = completion
+                    .symbol()
+                    .ok_or(QueryError::invalid("newtype completion has no declaration"))?;
+
+                self.expand_newtype_constructors(completion, symbol, expanded)?;
+            }
+            None => expanded.push(completion),
+        }
+
+        Ok(())
+    }
+
     /// Resolve one ranked completion candidate.
     pub(crate) fn resolve(
         &self,
         mut completion: CompletionCandidate,
-    ) -> QueryResult<CompletionCandidate> {
-        // perform specialized work only after ranking
-        match completion.take_resolution() {
-            CompletionResolution::Member { site, key } => {
+        replacement: Span,
+    ) -> QueryResult<CompletionItem> {
+        // read the selected declaration once
+        if let Some(symbol) = completion.symbol() {
+            completion = self.resolve_symbol(completion, symbol)?;
+        }
+
+        // resolve the selected member completion
+        match completion.take_member() {
+            Some(CompletionMember::Access { site, key }) => {
                 completion = self.resolve_member(completion, site, key)?;
             }
-            CompletionResolution::ObjectField { site, key } => {
+            Some(CompletionMember::ObjectField { site, key }) => {
                 completion = self.resolve_object_field(completion, site, key)?;
             }
-            CompletionResolution::Struct => {
+            None => {}
+        }
+
+        // build an import edit when this candidate needs one
+        if let Some(import) = completion.take_import() {
+            let edits =
+                self.module
+                    .build_import_edits(self.file_id, &import.binding, &import.specifier)?;
+            if edits.is_empty() {
+                return Err(QueryError::invalid(format!(
+                    "auto import produces no edit: {}, {:?}",
+                    import.specifier, import.binding
+                )));
+            }
+            completion = completion.with_additional_edits(edits);
+        }
+
+        // render the insertion selected before ranking
+        match completion.take_insertion() {
+            CompletionInsertion::Label => {}
+            CompletionInsertion::Call => {
+                let symbol = completion
+                    .symbol()
+                    .ok_or(QueryError::invalid("call completion has no declaration"))?;
+                completion = self.render_call(completion, symbol)?;
+            }
+            CompletionInsertion::StructExpression => {
                 let symbol = completion
                     .symbol()
                     .ok_or(QueryError::invalid("struct completion has no declaration"))?;
                 completion = self.resolve_struct(completion, symbol)?;
             }
-            CompletionResolution::ClassConstructor {
+            CompletionInsertion::ClassConstructor {
                 type_id,
                 call_symbol,
             } => {
@@ -114,32 +183,18 @@ impl CompletionCollector<'_, '_, '_> {
                 completion =
                     self.resolve_class_constructor(completion, symbol, type_id, call_symbol)?;
             }
-            CompletionResolution::NewtypeConstructor { type_id } => {
+            CompletionInsertion::NewtypeConstructor { type_id } => {
                 let symbol = completion.symbol().ok_or(QueryError::invalid(
                     "newtype constructor completion has no declaration",
                 ))?;
                 completion = self.resolve_newtype_constructor(completion, symbol, type_id)?;
             }
-            CompletionResolution::AutoImport { binding, specifier } => {
-                let edits = self
-                    .module
-                    .build_import_edits(self.file_id, &binding, &specifier)?;
-                if edits.is_empty() {
-                    return Err(QueryError::invalid(format!(
-                        "auto import produces no edit: {specifier}, {binding:?}"
-                    )));
-                }
-                completion = completion.with_additional_edits(edits);
+            CompletionInsertion::Text(text) => {
+                completion = completion.with_insert_text(text);
             }
-            CompletionResolution::None => {}
-        }
-
-        // render callable insertion text
-        if completion.is_call() {
-            let symbol = completion
-                .symbol()
-                .ok_or(QueryError::invalid("call completion has no declaration"))?;
-            completion = self.render_call(completion, symbol)?;
+            CompletionInsertion::Snippet(text) => {
+                completion = completion.with_snippet(text);
+            }
         }
 
         // render declaration text, label suffix, and documentation
@@ -154,15 +209,15 @@ impl CompletionCollector<'_, '_, '_> {
                     "completion value type: {symbol:?}"
                 )))?;
 
-                // skip poisoned value types
-                let is_poisoned = matches!(
+                // omit suffixes for error types
+                let is_error = matches!(
                     self.program
                         .module(type_id.module_id)?
                         .types()?
                         .get_type(type_id.local_id),
-                    destack_dir::Type::Error
+                    dir::Type::Error
                 );
-                if !is_poisoned {
+                if !is_error {
                     let suffix = if completion.kind.is_callable() {
                         let parameter_names = self.program.symbol_parameter_names(symbol)?.ok_or(
                             QueryError::missing(format!("completion parameters: {symbol:?}")),
@@ -195,13 +250,13 @@ impl CompletionCollector<'_, '_, '_> {
                     .module(type_id.module_id)?
                     .types()?
                     .get_type(type_id.local_id),
-                destack_dir::Type::Error
+                dir::Type::Error
             )
         {
             let type_text = Formatter::new(self.module, self.program).global_type(type_id)?;
             completion = completion.with_label_suffix(format!(": {type_text}"));
         }
 
-        Ok(completion)
+        completion.into_item(replacement)
     }
 }

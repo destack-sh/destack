@@ -1,13 +1,13 @@
 use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_source::FileId;
-use rustc_hash::FxHashSet;
 
 use super::builtin::{keyword_completions, primitive_type_completions};
-use super::{AutoImportSearch, CompletionContext, CompletionReceiver, CursorToken};
+use super::{CompletionContext, CompletionReceiver, CursorToken};
 use crate::{
     CompletionCandidate, CompletionCandidates, CompletionItemKind, CompletionOrigin,
-    CompletionTrigger, ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult, SymbolUse,
+    CompletionTrigger, ModuleQueryContext, ProgramQueryContext, QueryResult, SymbolUse,
+    match_quality,
 };
 
 /// Collects completion candidates at one module position.
@@ -20,6 +20,17 @@ pub(crate) struct CompletionCollector<'owner, 'module, 'program> {
     pub(super) file_id: FileId,
     /// The pattern being initialized at the cursor.
     initializing_pattern: Option<dir::LocalNodeId<dir::Pattern>>,
+}
+
+/// One binding visible to completion at the cursor.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct VisibleBinding {
+    /// The declaration selected by the binding.
+    pub(super) symbol: dir::GlobalSymbolId,
+    /// The completion item kind.
+    pub(super) kind: CompletionItemKind,
+    /// The binding origin used for ranking.
+    pub(super) origin: CompletionOrigin,
 }
 
 impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
@@ -38,7 +49,7 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
         }
     }
 
-    /// Collect the raw completion candidates for one context.
+    /// Collect completion candidates for one context.
     pub(crate) fn collect(
         &self,
         trigger: CompletionTrigger,
@@ -46,7 +57,7 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
         token: Option<&CursorToken>,
         include_auto_imports: bool,
     ) -> QueryResult<CompletionCandidates> {
-        // collect completion inputs once
+        // derive prefix rules from the request
         let prefix = token.map_or("", |token| token.text.as_str());
         let allow_short_prefix = matches!(
             trigger,
@@ -61,19 +72,27 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
             CompletionContext::MemberAccess {
                 receiver: CompletionReceiver::Namespace { module_id },
             } => self.collect_namespace_members(*module_id)?,
-            CompletionContext::TypePosition { scope } => self.collect_types(*scope)?,
-            CompletionContext::ValuePosition { scope } => self.collect_values(*scope, false)?,
-            CompletionContext::StatementPosition { scope } => {
-                self.collect_values(*scope, matches!(trigger, CompletionTrigger::Invoked))?
+            CompletionContext::TypePosition { scope } => self.collect_types(*scope, prefix)?,
+            CompletionContext::ValuePosition { scope } => {
+                self.collect_values(*scope, prefix, false)?
             }
+            CompletionContext::StatementPosition { scope } => self.collect_values(
+                *scope,
+                prefix,
+                matches!(trigger, CompletionTrigger::Invoked),
+            )?,
             CompletionContext::ObjectLiteralKey { literal, scope } => {
-                self.collect_object_literal(*literal, *scope)?
+                self.collect_object_literal(*literal, *scope, prefix)?
             }
             CompletionContext::ObjectLiteralValue { scope } => {
-                self.collect_values(*scope, false)?
+                self.collect_values(*scope, prefix, false)?
             }
-            CompletionContext::CallArgument { scope, .. } => self.collect_values(*scope, false)?,
-            CompletionContext::NewExpression { scope } => self.collect_new_expression(*scope)?,
+            CompletionContext::CallArgument { scope, .. } => {
+                self.collect_values(*scope, prefix, false)?
+            }
+            CompletionContext::NewExpression { scope } => {
+                self.collect_new_expression(*scope, prefix)?
+            }
             CompletionContext::ImportPath { partial_path } => {
                 self.collect_import_paths(partial_path)?
             }
@@ -86,17 +105,19 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
 
         let mut is_incomplete = false;
 
-        // layer in auto imports when this context supports them
-        if include_auto_imports && let Some(auto_import) = context.auto_import_search() {
-            let auto_imports = self.collect_auto_imports(
-                prefix,
-                auto_import.symbol_use,
-                auto_import.scope,
-                allow_short_prefix,
-                auto_import.is_constructable_only,
-            )?;
+        // add auto imports when this context supports them
+        if include_auto_imports && let Some(auto_import) = context.auto_import_context() {
+            let auto_imports =
+                self.collect_auto_imports(prefix, auto_import, allow_short_prefix)?;
             items.extend(auto_imports.items);
             is_incomplete = auto_imports.is_incomplete;
+        }
+
+        // resolve value types required by call argument ranking
+        if context.expected_type().is_some() {
+            for completion in &mut items {
+                completion.type_id = self.resolve_type(completion)?;
+            }
         }
 
         Ok(CompletionCandidates {
@@ -106,34 +127,23 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
     }
 
     /// Collect types in type position.
-    fn collect_types(&self, scope: dir::LocalScope) -> QueryResult<Vec<CompletionCandidate>> {
-        let symbols = self.module.bindings()?;
-
+    fn collect_types(
+        &self,
+        scope: dir::LocalScope,
+        prefix: &str,
+    ) -> QueryResult<Vec<CompletionCandidate>> {
         let mut results = Vec::new();
-        let mut seen_names = FxHashSet::default();
 
         // collect visible type names first
-        for visible in symbols
-            .visible_bindings(scope)
-            .filter(|binding| SymbolUse::Type.accepts_symbol_kind(binding.symbol.kind))
-        {
-            let dir::StaticKey::Name(name_id) = visible.key else {
+        for (key, binding) in self.visible_bindings(scope, SymbolUse::Type, prefix)? {
+            let dir::StaticKey::Name(name_id) = key else {
                 continue;
             };
 
             let name = self.module.strings().get(name_id).to_string();
-            if !seen_names.insert(name.clone()) {
-                continue;
-            }
+            let completion = CompletionCandidate::new(name, binding.kind, binding.origin);
 
-            let kind = self.completion_symbol_kind(visible.symbol_id)?;
-            let completion = CompletionCandidate::new(name, kind, CompletionOrigin::Local);
-            let symbol_id = dir::GlobalSymbolId {
-                module_id: self.module.module_id(),
-                local_id: visible.symbol_id,
-            };
-
-            results.push(self.collect_symbol(completion, symbol_id)?);
+            results.push(completion.with_symbol(binding.symbol));
         }
 
         // primitive types are always available
@@ -142,61 +152,131 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
         Ok(results)
     }
 
-    /// Return the exact completion kind for one visible symbol.
-    fn completion_symbol_kind(
+    /// Resolve one visible binding to its target declaration and completion kind.
+    fn resolve_binding(
         &self,
-        symbol_id: dir::LocalSymbolId,
-    ) -> QueryResult<CompletionItemKind> {
-        let global_id = dir::GlobalSymbolId {
-            module_id: self.module.module_id(),
-            local_id: symbol_id,
-        };
-        let Some(target_id) = self.program.symbol_target(global_id)? else {
-            return Err(QueryError::missing(format!(
-                "completion declaration: {global_id:?}"
-            )));
-        };
-        let target_module = self.program.module(target_id.module_id)?;
-        let symbols = target_module.bindings()?;
-        let symbol = symbols.get_symbol(target_id.local_id);
+        symbol: dir::GlobalSymbolId,
+        binding: &dir::Symbol,
+        origin: CompletionOrigin,
+    ) -> QueryResult<VisibleBinding> {
+        let is_alias = matches!(
+            binding.kind,
+            dir::SymbolKind::Import | dir::SymbolKind::ExportAlias
+        );
+        let (symbol, kind) = if is_alias {
+            let symbol = self.symbol_target(symbol)?;
+            let module = self.program.module(symbol.module_id)?;
+            let binding = module.bindings()?.get_symbol(symbol.local_id);
 
-        Ok(symbol.into())
+            (symbol, binding.into())
+        } else {
+            (symbol, binding.into())
+        };
+
+        Ok(VisibleBinding {
+            symbol,
+            kind,
+            origin,
+        })
     }
 
-    /// Return visible value bindings by lexical precedence.
-    pub(super) fn visible_value_bindings(
+    /// Return visible lexical, profile, and language bindings by precedence.
+    pub(super) fn visible_bindings(
         &self,
         scope: dir::LocalScope,
-    ) -> QueryResult<FxIndexMap<dir::StaticKey, dir::GlobalSymbolId>> {
+        symbol_use: SymbolUse,
+        prefix: &str,
+    ) -> QueryResult<FxIndexMap<dir::StaticKey, VisibleBinding>> {
         let module_id = self.module.module_id();
         let bindings = self.module.bindings()?;
         let view = self.module.view()?;
-        let mut values = FxIndexMap::default();
+        let mut visible = FxIndexMap::default();
 
-        // collect the nearest value for each static name
-        for visible in bindings
+        // collect lexical bindings from nearest to farthest
+        for binding in bindings
             .visible_bindings(scope)
-            .filter(|binding| SymbolUse::Value.accepts_symbol_kind(binding.symbol.kind))
+            .filter(|binding| symbol_use.accepts_symbol_kind(binding.symbol.kind))
         {
-            if self.is_initializing_binding(visible.symbol, view) {
+            if self.is_initializing_binding(binding.symbol, view) {
                 continue;
             }
-
-            let dir::StaticKey::Name(_) = visible.key else {
+            let dir::StaticKey::Name(name) = binding.key else {
                 continue;
             };
-            if values.contains_key(&visible.key) {
+            if match_quality(self.module.strings().get(name), prefix).is_none() {
                 continue;
             }
-
-            let symbol = dir::GlobalSymbolId {
-                module_id,
-                local_id: visible.symbol_id,
-            };
-            values.insert(visible.key, symbol);
+            let symbol = binding.symbol_id.into_global(module_id);
+            let completion =
+                self.resolve_binding(symbol, binding.symbol, CompletionOrigin::Local)?;
+            visible.entry(binding.key).or_insert(completion);
         }
 
-        Ok(values)
+        let environment = self.program.environment_bound()?;
+
+        // add unambiguous profile globals not shadowed lexically
+        for (key, resolutions) in &environment.global_resolutions_by_key {
+            if visible.contains_key(key) {
+                continue;
+            }
+            let dir::StaticKey::Name(name) = key else {
+                continue;
+            };
+            if match_quality(self.module.strings().get(*name), prefix).is_none() {
+                continue;
+            }
+            let [resolution] = resolutions.as_slice() else {
+                continue;
+            };
+            let Some(symbols) = resolution.target.symbol_ids() else {
+                continue;
+            };
+
+            // select the first declaration accepted by the requested namespace
+            for symbol in symbols {
+                let module = self.program.module(symbol.module_id)?;
+                let binding = module.bindings()?.get_symbol(symbol.local_id);
+                if symbol_use.accepts_symbol_kind(binding.kind) {
+                    let completion =
+                        self.resolve_binding(*symbol, binding, CompletionOrigin::Builtin)?;
+                    visible.insert(*key, completion);
+
+                    break;
+                }
+            }
+        }
+
+        // add language globals not shadowed by lexical or profile bindings
+        let language = &environment.language;
+        for (name, symbol) in &language.symbols {
+            let key = dir::StaticKey::Name(*name);
+            if match_quality(self.module.strings().get(*name), prefix).is_none() {
+                continue;
+            }
+            if visible.contains_key(&key)
+                || environment.global_resolutions_by_key.contains_key(&key)
+            {
+                continue;
+            }
+            let module = self.program.module(symbol.module_id)?;
+            let binding = module.bindings()?.get_symbol(symbol.local_id);
+            if symbol_use.accepts_symbol_kind(binding.kind) {
+                let completion =
+                    self.resolve_binding(*symbol, binding, CompletionOrigin::Builtin)?;
+                visible.insert(key, completion);
+            }
+        }
+
+        Ok(visible)
+    }
+
+    /// Return visible value bindings by precedence.
+    pub(super) fn visible_value_bindings(
+        &self,
+        scope: dir::LocalScope,
+        prefix: &str,
+    ) -> QueryResult<FxIndexMap<dir::StaticKey, VisibleBinding>> {
+        self.visible_bindings(scope, SymbolUse::Value, prefix)
     }
 
     /// Return whether one symbol belongs to the pattern currently being initialized.
@@ -221,36 +301,47 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
     fn collect_values(
         &self,
         scope: dir::LocalScope,
+        prefix: &str,
         include_keywords: bool,
     ) -> QueryResult<Vec<CompletionCandidate>> {
         let mut results = Vec::new();
 
         // build one completion per visible value
-        for (key, symbol) in self.visible_value_bindings(scope)? {
+        for (key, binding) in self.visible_value_bindings(scope, prefix)? {
             let dir::StaticKey::Name(name) = key else {
                 continue;
             };
             let name = self.module.strings().get(name).to_string();
-            let kind = self.completion_symbol_kind(symbol.local_id)?;
 
-            // expand declarations with specialized constructor forms
-            if kind == CompletionItemKind::Struct {
-                results.push(self.collect_struct(&name, symbol)?);
+            // defer constructor details until after ranking
+            if binding.kind == CompletionItemKind::Struct {
+                let completion =
+                    CompletionCandidate::new(&name, CompletionItemKind::Struct, binding.origin)
+                        .with_struct(binding.symbol);
+                results.push(completion);
+
                 continue;
             }
-            if kind == CompletionItemKind::Newtype {
-                results.extend(self.collect_newtype(&name, symbol)?);
+            if binding.kind == CompletionItemKind::Newtype {
+                let completion = CompletionCandidate::new(
+                    &name,
+                    CompletionItemKind::Constructor,
+                    binding.origin,
+                )
+                .with_newtype_constructors(binding.symbol);
+                results.push(completion);
+
                 continue;
             }
 
             // build the ordinary value candidate
-            let completion = CompletionCandidate::new(&name, kind, CompletionOrigin::Local);
-            let completion = if kind.is_callable() {
+            let completion = CompletionCandidate::new(&name, binding.kind, binding.origin);
+            let completion = if binding.kind.is_callable() {
                 completion.with_call()
             } else {
                 completion
             };
-            results.push(self.collect_symbol(completion, symbol)?);
+            results.push(completion.with_symbol(binding.symbol));
         }
 
         // statement contexts can opt into keyword completions as well
@@ -265,66 +356,35 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
     fn collect_new_expression(
         &self,
         scope: dir::LocalScope,
+        prefix: &str,
     ) -> QueryResult<Vec<CompletionCandidate>> {
-        let symbols = self.module.bindings()?;
-
         let mut results = Vec::new();
-        let mut seen = FxHashSet::default();
 
         // collect visible constructable names from the active scope
-        for visible in symbols.visible_bindings(scope) {
-            let dir::StaticKey::Name(name_id) = visible.key else {
+        for (key, binding) in self.visible_bindings(scope, SymbolUse::Value, prefix)? {
+            let dir::StaticKey::Name(name_id) = key else {
                 continue;
             };
 
             let name = self.module.strings().get(name_id).to_string();
-            if !seen.insert(name.clone()) {
+            if !matches!(
+                binding.kind,
+                CompletionItemKind::Class | CompletionItemKind::Struct
+            ) {
                 continue;
             }
-
-            let kind = self.completion_symbol_kind(visible.symbol_id)?;
-            if !matches!(kind, CompletionItemKind::Class | CompletionItemKind::Struct) {
-                continue;
-            }
-            let symbol_id = dir::GlobalSymbolId {
-                module_id: self.module.module_id(),
-                local_id: visible.symbol_id,
-            };
-            if kind == CompletionItemKind::Class {
-                results.extend(self.collect_class(&name, symbol_id)?);
+            if binding.kind == CompletionItemKind::Class {
+                let completion =
+                    CompletionCandidate::new(name, CompletionItemKind::Class, binding.origin)
+                        .with_class_constructors(binding.symbol);
+                results.push(completion);
             } else {
-                let completion = CompletionCandidate::new(name, kind, CompletionOrigin::Local);
-                results.push(self.collect_symbol(completion, symbol_id)?);
+                let completion = CompletionCandidate::new(name, binding.kind, binding.origin)
+                    .with_symbol(binding.symbol);
+                results.push(completion);
             }
         }
 
         Ok(results)
-    }
-}
-
-impl CompletionContext {
-    /// Return the auto import search selected by this completion context.
-    fn auto_import_search(&self) -> Option<AutoImportSearch> {
-        match self {
-            CompletionContext::ValuePosition { scope }
-            | CompletionContext::StatementPosition { scope }
-            | CompletionContext::ObjectLiteralValue { scope }
-            | CompletionContext::CallArgument { scope, .. } => Some(AutoImportSearch {
-                symbol_use: SymbolUse::Value,
-                scope: *scope,
-                is_constructable_only: false,
-            }),
-            CompletionContext::TypePosition { scope } => Some(AutoImportSearch {
-                symbol_use: SymbolUse::Type,
-                scope: *scope,
-                is_constructable_only: false,
-            }),
-            CompletionContext::NewExpression { scope } => Some(AutoImportSearch {
-                symbol_use: SymbolUse::Value,
-                scope: *scope,
-                is_constructable_only: true,
-            }),
-            _ => None,
-        }
     }
 }

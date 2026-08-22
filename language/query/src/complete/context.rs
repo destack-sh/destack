@@ -102,14 +102,50 @@ pub(crate) struct CompletionCursor {
     pub(crate) token: Option<CursorToken>,
 }
 
-/// Auto import search selected by one completion context.
-pub(crate) struct AutoImportSearch {
+/// The constraints for auto-import completion.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct AutoImportContext {
     /// The symbol namespace accepted by this position.
     pub(crate) symbol_use: SymbolUse,
     /// The lexical scope used to exclude visible names.
     pub(crate) scope: dir::LocalScope,
     /// Whether candidates must be constructable.
     pub(crate) is_constructable_only: bool,
+}
+
+impl CompletionContext {
+    /// Return the expected value type when this position has one.
+    pub(crate) fn expected_type(&self) -> Option<dir::GlobalTypeId> {
+        match self {
+            Self::CallArgument { expected_type, .. } => *expected_type,
+            _ => None,
+        }
+    }
+
+    /// Return the auto-import constraints for this completion context.
+    pub(crate) fn auto_import_context(&self) -> Option<AutoImportContext> {
+        match self {
+            Self::ValuePosition { scope }
+            | Self::StatementPosition { scope }
+            | Self::ObjectLiteralValue { scope }
+            | Self::CallArgument { scope, .. } => Some(AutoImportContext {
+                symbol_use: SymbolUse::Value,
+                scope: *scope,
+                is_constructable_only: false,
+            }),
+            Self::TypePosition { scope } => Some(AutoImportContext {
+                symbol_use: SymbolUse::Type,
+                scope: *scope,
+                is_constructable_only: false,
+            }),
+            Self::NewExpression { scope } => Some(AutoImportContext {
+                symbol_use: SymbolUse::Value,
+                scope: *scope,
+                is_constructable_only: true,
+            }),
+            _ => None,
+        }
+    }
 }
 
 impl ModuleQueryContext<'_> {

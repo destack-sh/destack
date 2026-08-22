@@ -2,18 +2,16 @@ use destack_dir as dir;
 
 use super::CompletionCollector;
 use super::call::CallSnippet;
-use crate::{
-    CompletionCandidate, CompletionItemKind, CompletionOrigin, Formatter, QueryError, QueryResult,
-};
+use crate::{CompletionCandidate, Formatter, QueryError, QueryResult};
 
 impl CompletionCollector<'_, '_, '_> {
-    /// Collect one candidate per class constructor overload.
-    pub(super) fn collect_class(
+    /// Expand one ranked class into its constructor overloads.
+    pub(super) fn expand_class_constructors(
         &self,
-        name: &str,
+        completion: CompletionCandidate,
         symbol: dir::GlobalSymbolId,
-    ) -> QueryResult<Vec<CompletionCandidate>> {
-        let symbol = self.symbol_target(symbol)?;
+        expanded: &mut Vec<CompletionCandidate>,
+    ) -> QueryResult<()> {
         let module = self.program.module(symbol.module_id)?;
         let definition = module
             .definitions()?
@@ -31,21 +29,19 @@ impl CompletionCollector<'_, '_, '_> {
                 "completion class constructor: {symbol:?}"
             )));
         }
-        let mut completions = Vec::with_capacity(definition.constructors.len());
+        expanded.reserve(definition.constructors.len());
 
         // retain constructor identity for each overload
         for constructor in &definition.constructors {
-            let completion =
-                CompletionCandidate::new(name, CompletionItemKind::Class, CompletionOrigin::Local)
-                    .with_class_constructor(
-                        symbol,
-                        constructor.ty,
-                        constructor.constructor.call_symbol(),
-                    );
-            completions.push(self.collect_symbol(completion, symbol)?);
+            let completion = completion.clone().with_class_constructor(
+                symbol,
+                constructor.ty,
+                constructor.constructor.call_symbol(),
+            );
+            expanded.push(completion);
         }
 
-        Ok(completions)
+        Ok(())
     }
 
     /// Resolve one class constructor overload.
@@ -78,20 +74,6 @@ impl CompletionCollector<'_, '_, '_> {
         } else {
             Ok(completion.with_insert_text(snippet.text))
         }
-    }
-
-    /// Collect one struct expression candidate.
-    pub(super) fn collect_struct(
-        &self,
-        name: &str,
-        symbol: dir::GlobalSymbolId,
-    ) -> QueryResult<CompletionCandidate> {
-        let symbol = self.symbol_target(symbol)?;
-        let completion =
-            CompletionCandidate::new(name, CompletionItemKind::Struct, CompletionOrigin::Local)
-                .with_struct(symbol);
-
-        self.collect_symbol(completion, symbol)
     }
 
     /// Resolve one struct expression candidate.
@@ -155,13 +137,13 @@ impl CompletionCollector<'_, '_, '_> {
         }
     }
 
-    /// Collect one candidate per newtype constructor overload.
-    pub(super) fn collect_newtype(
+    /// Expand one ranked newtype into its constructor overloads.
+    pub(super) fn expand_newtype_constructors(
         &self,
-        name: &str,
+        completion: CompletionCandidate,
         symbol: dir::GlobalSymbolId,
-    ) -> QueryResult<Vec<CompletionCandidate>> {
-        let symbol = self.symbol_target(symbol)?;
+        expanded: &mut Vec<CompletionCandidate>,
+    ) -> QueryResult<()> {
         let module = self.program.module(symbol.module_id)?;
         let definition = module
             .definitions()?
@@ -174,20 +156,17 @@ impl CompletionCollector<'_, '_, '_> {
                 "completion newtype definition: {symbol:?}"
             )));
         };
-        let mut completions = Vec::with_capacity(definition.constructors.len());
+        expanded.reserve(definition.constructors.len());
 
         // retain constructor identity for each overload
         for constructor in &definition.constructors {
-            let completion = CompletionCandidate::new(
-                name,
-                CompletionItemKind::Constructor,
-                CompletionOrigin::Local,
-            )
-            .with_newtype_constructor(symbol, constructor.ty);
-            completions.push(self.collect_symbol(completion, symbol)?);
+            let completion = completion
+                .clone()
+                .with_newtype_constructor(symbol, constructor.ty);
+            expanded.push(completion);
         }
 
-        Ok(completions)
+        Ok(())
     }
 
     /// Resolve one newtype constructor overload.
