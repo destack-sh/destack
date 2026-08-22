@@ -2,6 +2,7 @@ mod access;
 mod callable;
 mod comment;
 mod control;
+mod equivalence;
 mod expression;
 mod index;
 mod language;

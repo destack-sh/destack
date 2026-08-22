@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey,
-    DiagnosticControlIndex, DirChecked, EnvironmentBound, ProgramLinted,
+    DiagnosticControlIndex, DirChecked, EnvironmentBound, IndexKind, ProgramLinted,
 };
 use destack_core::FxIndexSet;
 use destack_repository::{
@@ -173,6 +173,9 @@ impl Linter {
             }
 
             self.require_dir_modules(revision, &modules, profile, &mut dependencies)?;
+            for module in modules {
+                dependencies.require(ArtifactKey::module_index(module, profile, IndexKind::Code));
+            }
         }
 
         // require verified MIR and program analysis for MIR program lints

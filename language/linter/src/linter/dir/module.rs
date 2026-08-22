@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported,
-    DirParsed, DirResolved,
+    DirParsed, DirResolved, IndexKind, ModuleIndex,
 };
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, Module, ProfileId, ProviderError, Repository, Revision};
@@ -53,6 +53,8 @@ pub struct DirModule<'a> {
     pub captures: &'a dir::CaptureTable<'static>,
     /// The flow conclusion table.
     pub flows: &'a dir::FlowTable<'static>,
+    /// The code fingerprint index.
+    code: &'a ModuleIndex,
     /// The top-level expression roots.
     pub roots: &'a [dir::LocalNodeId<dir::Expression>],
     /// The stable module node.
@@ -102,6 +104,8 @@ pub(super) struct DirModuleStorage {
     captures: dir::CaptureTable<'static>,
     /// The flow conclusion table.
     flows: dir::FlowTable<'static>,
+    /// The code fingerprint index.
+    code: Arc<ModuleIndex>,
     /// The top-level expression roots.
     roots: Vec<dir::LocalNodeId<dir::Expression>>,
     /// The stable module node.
@@ -134,6 +138,7 @@ impl<'a> DirModule<'a> {
             coercions: &storage.coercions,
             captures: &storage.captures,
             flows: &storage.flows,
+            code: &storage.code,
             roots: &storage.roots,
             module_node: storage.module_node,
             namespace_scope: storage.namespace_scope,
@@ -222,6 +227,27 @@ impl<'a> DirModule<'a> {
 
         Ok(type_id)
     }
+
+    /// Return the code fingerprint index.
+    fn code(&self) -> Result<&dir::CodeIndex, ProviderError> {
+        match self.code {
+            ModuleIndex::Code(index) => Ok(index),
+            index => Err(ProviderError::internal(format!(
+                "loaded code artifact has {:?} index",
+                index.kind()
+            ))),
+        }
+    }
+
+    /// Return one visible node's name-insensitive structural fingerprint.
+    pub(crate) fn code_fingerprint(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Result<dir::CodeFingerprint, ProviderError> {
+        self.code()?.fingerprint(node.id).ok_or_else(|| {
+            ProviderError::internal(format!("visible DIR node {node:?} has no code fingerprint"))
+        })
+    }
 }
 
 impl DirModuleStorage {
@@ -243,6 +269,13 @@ impl DirModuleStorage {
         let expanded = artifacts.read::<DirExpanded>((module_id, profile))?;
         let exported = artifacts.read::<DirExported>((module_id, profile))?;
         let checked = artifacts.read::<DirChecked>((module_id, profile))?;
+        let code = artifacts.read::<ModuleIndex>((module_id, profile, IndexKind::Code))?;
+        if !matches!(code.as_ref(), ModuleIndex::Code(_)) {
+            return Err(ProviderError::internal(format!(
+                "module {module_id:?} code artifact has {:?} index",
+                code.kind()
+            )));
+        }
         let declared = artifacts.read::<DirDeclared>((module_id, profile))?;
         let elaborated = artifacts.read::<DirElaborated>((module_id, profile))?;
         let expected_files = module
@@ -315,6 +348,7 @@ impl DirModuleStorage {
             coercions,
             captures,
             flows,
+            code,
             roots,
             module_node,
             namespace_scope,

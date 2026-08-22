@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, DiagnosticControlIndex, DirChecked,
-    EnvironmentBound, ModuleLinted,
+    EnvironmentBound, IndexKind, ModuleLinted,
 };
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
 use destack_source::{ModuleId, TargetId};
@@ -39,6 +39,7 @@ impl Linter {
         // require this module's checked DIR
         if lints.has_dir_modules() {
             dependencies.require(ArtifactKey::environment_bound(profile));
+            dependencies.require(ArtifactKey::module_index(module, profile, IndexKind::Code));
             self.require_dir_modules(revision, &[module], profile, &mut dependencies)?;
         }
 
