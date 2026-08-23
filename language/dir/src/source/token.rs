@@ -581,6 +581,19 @@ impl TryFrom<u8> for TokenType {
 }
 
 impl TokenType {
+    /// Return whether this token contains an authored literal value.
+    #[inline]
+    pub const fn is_literal(self) -> bool {
+        matches!(
+            self,
+            Self::Literal
+                | Self::TemplateStringStart
+                | Self::TemplateStringMiddle
+                | Self::TemplateStringEnd
+                | Self::TemplateString
+        )
+    }
+
     /// Return whether this token type is semantic source content.
     #[inline]
     pub const fn is_semantic(self) -> bool {
