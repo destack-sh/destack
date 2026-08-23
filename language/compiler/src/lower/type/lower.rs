@@ -325,6 +325,38 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             }
             // lower never without a value
             dir::Type::Never => Ok(self.tree.intern_type(mir::Type::Never)),
+            // represent a proof-bearing intersection by its one value operand
+            dir::Type::Intersection(intersection) => {
+                let elements = self
+                    .lowerer
+                    .types(id.module_id)?
+                    .type_ids(intersection.elements)
+                    .to_vec();
+
+                // split interface constraints from the value they constrain
+                let mut value = None;
+                for element in elements {
+                    if self.lowerer.is_interface_operand(element)? {
+                        continue;
+                    }
+                    if let Some(kept) = value.replace(element) {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "an unreduced value intersection {id:?}: {:?} and {:?}",
+                                self.lowerer.ty(kept),
+                                self.lowerer.ty(element)
+                            ),
+                        });
+                    }
+                }
+
+                match value {
+                    // the value operand carries the whole representation
+                    Some(element) => self.lower(element),
+                    // an interface conjunction erases behind the dynamic carrier
+                    None => self.lower_dynamic(id),
+                }
+            }
             other => {
                 // lower reference primitives through their representation classes
                 if let Some(item) = ModuleLowerer::representation_item(&other) {

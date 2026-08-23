@@ -92,6 +92,24 @@ impl ModuleLowerer<'_> {
             })
     }
 
+    /// Return whether one intersection operand names an interface constraint.
+    pub(in crate::lower) fn is_interface_operand(
+        &self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let dir::Type::Application(instance) = self.ty(id)? else {
+            return Ok(false);
+        };
+        let symbol = instance.symbol;
+        let kind = self
+            .state(symbol.module_id)?
+            .bindings
+            .get_symbol(symbol.local_id)
+            .kind;
+
+        Ok(kind.is_interface())
+    }
+
     /// Return the definition of one symbol in its owning module.
     pub(in crate::lower) fn definition(
         &self,

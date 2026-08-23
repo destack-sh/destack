@@ -9,7 +9,7 @@ impl TypeLowerer<'_, '_> {
     /// Lower one anonymous object type to its struct storage.
     pub(in crate::lower) fn lower_object_struct(
         &mut self,
-        shape: &dir::ShapeType,
+        shape: &dir::ObjectType,
         module: ModuleId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         let fields = self.object_fields(shape, module)?;
@@ -23,7 +23,7 @@ impl TypeLowerer<'_, '_> {
     /// Define one declared object type into its reserved alias identity.
     pub(in crate::lower) fn define_object_struct(
         &mut self,
-        shape: &dir::ShapeType,
+        shape: &dir::ObjectType,
         module: ModuleId,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<()> {
@@ -42,7 +42,7 @@ impl TypeLowerer<'_, '_> {
     /// Lower each written property into a named field.
     fn object_fields(
         &mut self,
-        shape: &dir::ShapeType,
+        shape: &dir::ObjectType,
         module: ModuleId,
     ) -> CompilerResult<Vec<mir::LocalNodeId<mir::Field>>> {
         let properties = self

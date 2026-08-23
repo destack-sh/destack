@@ -102,3 +102,33 @@ fn test_report_module_check_timing() {
         session.print_trace("library-check", 400);
     }
 }
+
+/// Print one library module's lowered MIR for inspection.
+#[test]
+#[ignore = "MIR dump probe"]
+fn test_dump_module_mir() {
+    let path = std::env::var("DESTACK_DUMP_MODULE").expect("set DESTACK_DUMP_MODULE");
+    let session = TestSession::builder().cold().build();
+    let repository = session.repository();
+    let package = repository.embedded_builtin();
+    let package_id = package.package_id();
+    let target = TargetId::new(package_id, "default");
+    let profile = repository
+        .profile_for_target(session.revision(), target)
+        .expect("builtin library target profile should resolve")
+        .id();
+
+    let mut matched = false;
+    for file in package.files() {
+        if file.path != path {
+            continue;
+        }
+        matched = true;
+        let key = ArtifactKey::mir_lowered(file.module_id(package_id), profile, target);
+        match session.require_all([key]) {
+            Ok(()) => println!("{}", session.render_mir_snapshot(key)),
+            Err(_) => println!("{}", session.render_terminal_diagnostics_for(&[key])),
+        }
+    }
+    assert!(matched, "no builtin module at path {path}");
+}
