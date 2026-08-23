@@ -146,7 +146,7 @@ impl CheckState<'_> {
 
             // reuse a parameter opened earlier at this typing position
             let origin_id = self.infer.intern_origin(origin);
-            if !self.is_settling
+            if !self.is_writeback
                 && let Some(existing) = self.infer.instantiation(origin_id, parameter)
             {
                 let argument = self.variable_type(existing)?;
@@ -160,7 +160,7 @@ impl CheckState<'_> {
                 self.allocate_variable(origin, VariableRole::Instantiation { parameter });
 
             // record the instantiation while the site claims its typing position
-            if !self.is_settling {
+            if !self.is_writeback {
                 self.infer
                     .record_instantiation(origin_id, parameter, variable);
             }

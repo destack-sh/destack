@@ -221,7 +221,7 @@ impl CheckState<'_> {
         self.write_back()?;
 
         // settle every member site this pass recorded before the artifact publishes it
-        self.settle_member_subjects(module)?;
+        self.resolve_member_subjects(module)?;
         let diagnostics = self.collect_diagnostics()?;
 
         Ok((self.into_elaborated(module)?, diagnostics))

@@ -123,7 +123,7 @@ channel.send(message);
 }
 
 #[test]
-fn test_owned_form_static_call_selects_the_value_form_sibling() {
+fn test_reject_duplicate_static_between_value_and_owned_form_extensions() {
     let session = TestSession::single(
         r#"
 struct Pack<T> {
@@ -154,13 +154,13 @@ struct Pack<out T> {
 }
 
 export extension<T: Compare<T>> of Pack<T> {
-    static from(values: Iterable<T>): ^Pack<T> {
+    static from(values: Iterable<T>): Pack<T> {
         todo("Pack.from" as string | undefined)
     }
 }
 
 export extension<T: Compare<T>> of ^Pack<T> {
-    static from(values: Iterable<T>): ^Pack<T> {
+    static from(values: Iterable<T>): Pack<T> {
         Pack.from<T>(values)
     }
 }
@@ -182,7 +182,7 @@ struct Pack<T> {
 export extension<T: Compare<T>> of Pack<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2: Compare<T#2>)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#2>
-/// @definition.method symbol=from#1 slot=from static=true type=(Iterable<T#2>) => Owned<Pack<T#2>>
+/// @definition.method symbol=from#1 slot=from static=true type=(Iterable<T#2>) => Pack<T#2>
 /// @type.symbol symbol=T#1 source="T: Compare<T>" type=T#2
 /// @resolution.name source=Compare target=ops.comparison.Compare
 /// @resolution.name source=T target=T#1
@@ -190,7 +190,7 @@ export extension<T: Compare<T>> of Pack<T> {
 /// @resolution.name source=T target=T#1
 
     static from(values: Iterable<T>): ^Pack<T> {
-    /// @type.symbol symbol=from#1 type=(Iterable<T#2>) => Owned<Pack<T#2>>
+    /// @type.symbol symbol=from#1 type=(Iterable<T#2>) => Pack<T#2>
     /// @type.symbol symbol=from.values#1 source="values: Iterable<T>" type=Iterable<T#2>
     /// @resolution.name source=Iterable target=iter.iterator.Iterable
     /// @resolution.name source=T target=T#1
@@ -209,8 +209,8 @@ export extension<T: Compare<T>> of Pack<T> {
 
 export extension<T: Compare<T>> of ^Pack<T> {
 /// @generic.template symbol=<module>#3 parameters=(T#3: Compare<T#3>)
-/// @definition.extension symbol=<module>#3 form=exported target=Owned<Pack<T#3>>
-/// @definition.method symbol=from#2 slot=from static=true type=(Iterable<T#3>) => Owned<Pack<T#3>>
+/// @definition.extension symbol=<module>#3 form=exported target=Pack<T#3>
+/// @definition.method symbol=from#2 slot=from static=true type=(Iterable<T#3>) => Pack<T#3>
 /// @type.symbol symbol=T#2 source="T: Compare<T>" type=T#3
 /// @resolution.name source=Compare target=ops.comparison.Compare
 /// @resolution.name source=T target=T#2
@@ -218,7 +218,7 @@ export extension<T: Compare<T>> of ^Pack<T> {
 /// @resolution.name source=T target=T#2
 
     static from(values: Iterable<T>): ^Pack<T> {
-    /// @type.symbol symbol=from#2 type=(Iterable<T#3>) => Owned<Pack<T#3>>
+    /// @type.symbol symbol=from#2 type=(Iterable<T#3>) => Pack<T#3>
     /// @type.symbol symbol=from.values#2 source="values: Iterable<T>" type=Iterable<T#3>
     /// @resolution.name source=Iterable target=iter.iterator.Iterable
     /// @resolution.name source=T target=T#2
@@ -227,11 +227,11 @@ export extension<T: Compare<T>> of ^Pack<T> {
 
         Pack.from(values)
         /// @type.node source=Pack type=Pack
-        /// @type.node source=Pack.from type=(Iterable<T#2>) => Owned<Pack<T#2>>
-        /// @type.node source=Pack.from(values) type=Owned<Pack<T#3>>
+        /// @type.node source=Pack.from type=(Iterable<T#2>) => Pack<T#2>
+        /// @type.node source=Pack.from(values) type=Pack<T#3>
         /// @resolution.name source=Pack target=Pack
-        /// @resolution.member source=Pack.from receiver=Pack type=(Iterable<T#2>) => Owned<Pack<T#2>> kind=symbol target_receiver=Pack target=from#1
-        /// @resolution.call source=Pack.from(values) parameters=(Iterable<T#3>) arguments=(provided(values) as Iterable<T#3>) return=Owned<Pack<T#3>> kind=symbol target=from#1 instance=Pack<T#3>.<extension#1>.from#1
+        /// @resolution.member source=Pack.from receiver=Pack type=(Iterable<T#2>) => Pack<T#2> kind=symbol target_receiver=Pack target=from#1
+        /// @resolution.call source=Pack.from(values) parameters=(Iterable<T#3>) arguments=(provided(values) as Iterable<T#3>) return=Pack<T#3> kind=symbol target=from#1 instance=Pack<T#3>.<extension#1>.from#1
         /// @generic.instantiation id=from#1<T#3> template=from#1 arguments=(T#3) owner=from#2
         /// @type.node source=values type=Iterable<T#3>
         /// @resolution.name source=values target=from.values#2
@@ -242,7 +242,10 @@ export extension<T: Compare<T>> of ^Pack<T> {
 }
 "#,
         r#"
-
+/// @diagnostic.error id=ambiguous-member message="member 'from' is ambiguous"
+/// @diagnostic.label line=14 column=14 span="from" line_source="Pack.from(values)"
+/// @diagnostic.error id=duplicate-member message="member 'from' is already declared for 'Pack<T>' by another visible extension"
+/// @diagnostic.label line=13 column=12 span="from" line_source="static from(values: Iterable<T>): ^Pack<T> {"
 "#,
     );
 }

@@ -9,7 +9,7 @@ use crate::{CompilerError, CompilerResult};
 impl CheckState<'_> {
     /// Write one solved module into its checked DIR segments.
     pub(in crate::sema) fn write_module(&mut self, module: ModuleId) -> CompilerResult<()> {
-        // resolve the literal value each symbol settled on
+        // collect the literal value each symbol resolved to
         let symbol_literals = self.static_symbol_literals(module)?;
 
         // write symbol values as final statics
@@ -83,9 +83,9 @@ impl CheckState<'_> {
         // write closure capture frames and bindings
         self.write_captures(module)?;
 
-        // settle every member site this pass recorded, then store what they select
+        // resolve every member site this pass recorded, then store what they select
         if self.is_declaration() {
-            self.settle_member_subjects(module)?;
+            self.resolve_member_subjects(module)?;
         } else {
             let recorder = self.recorder;
             ArtifactAttemptRecorder::breakdown_maybe(recorder, "write.members", || {
@@ -150,13 +150,13 @@ impl CheckState<'_> {
         Ok(constants)
     }
 
-    /// Re-key every recorded member site on the subject inference settled on.
-    pub(in crate::sema) fn settle_member_subjects(
+    /// Re-key every recorded member site on its resolved subject.
+    pub(in crate::sema) fn resolve_member_subjects(
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<()> {
         for (site, recorded) in self.recorded_member_sites(module) {
-            self.settle_member_site(module, site, recorded)?;
+            self.resolve_member_site(module, site, recorded)?;
         }
 
         Ok(())
@@ -172,14 +172,14 @@ impl CheckState<'_> {
             .collect::<Vec<_>>()
     }
 
-    /// Re-key one recorded member site on the subject inference settled on.
-    fn settle_member_site(
+    /// Re-key one recorded member site on its resolved subject.
+    fn resolve_member_site(
         &mut self,
         module: ModuleId,
         site: dir::MemberSite,
         recorded: dir::MemberSubject,
     ) -> CompilerResult<dir::MemberSubject> {
-        let subject = self.settle_member_subject(recorded)?;
+        let subject = self.resolve_member_subject(recorded)?;
         if subject != recorded {
             self.module_mut(module)
                 .members_tail
@@ -189,19 +189,19 @@ impl CheckState<'_> {
         Ok(subject)
     }
 
-    /// Store the membership each settled subject selects.
+    /// Store the membership each resolved subject selects.
     fn write_member_bindings(&mut self, module: ModuleId) -> CompilerResult<()> {
         for (site, recorded) in self.recorded_member_sites(module) {
             // re-key the site against the subject inference solved
-            let subject = self.settle_member_site(module, site, recorded)?;
+            let subject = self.resolve_member_site(module, site, recorded)?;
 
-            // membership is a function of the settled subject, one projection stands for all sites
+            // membership is a function of the resolved subject, one projection stands for all sites
             if self.module(module).membership(&subject).is_some() {
                 continue;
             }
 
-            // store the membership the first settling site projects
-            let membership = self.settled_membership(site, module, subject)?;
+            // store the membership the first resolving site projects
+            let membership = self.resolved_membership(site, module, subject)?;
             self.module_mut(module)
                 .members_tail
                 .set_membership(subject, membership);
@@ -210,21 +210,21 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Project one settled subject's membership, settling the types its bindings carry.
-    fn settled_membership(
+    /// Project one resolved subject's membership, resolving the types its bindings carry.
+    fn resolved_membership(
         &mut self,
         site: dir::MemberSite,
         module: ModuleId,
         subject: dir::MemberSubject,
     ) -> CompilerResult<dir::Membership> {
-        // project the membership under the settling flag
+        // project the membership under the writeback flag
         let origin = Origin::Node(site.node(), subject.scope);
-        self.is_settling = true;
+        self.is_writeback = true;
         let membership = self.project_membership(origin, module, subject);
-        self.is_settling = false;
+        self.is_writeback = false;
         let mut membership = membership?;
 
-        // settle the open types a structural binding still carries
+        // resolve the open types a structural binding still carries
         for binding in &mut membership.structural {
             binding.map_types(&mut |ty| {
                 if !self.type_flags(ty)?.has_variable() {
@@ -258,7 +258,7 @@ impl CheckState<'_> {
         Ok(id)
     }
 
-    /// Project the membership one settled subject selects.
+    /// Project the membership one resolved subject selects.
     ///
     /// NOTE #Incomplete: extension members compose into the structural bindings
     /// until candidates carry their deduced arguments, where stage two references
@@ -474,7 +474,7 @@ impl CheckState<'_> {
         site: dir::MemberSite,
         key: dir::StaticKey,
     ) -> CompilerResult<Option<dir::NameResolution>> {
-        // read the membership the site's settled subject stored
+        // read the membership the site's resolved subject stored
         let Some(subject) = self.module(module).member_subject(site) else {
             return Ok(None);
         };
@@ -542,8 +542,8 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Re-derive one member lookup subject over the types inference settled on.
-    fn settle_member_subject(
+    /// Re-derive one member lookup subject over its resolved types.
+    fn resolve_member_subject(
         &mut self,
         subject: dir::MemberSubject,
     ) -> CompilerResult<dir::MemberSubject> {
@@ -572,7 +572,7 @@ impl CheckState<'_> {
             .map(|(symbol, value)| (*symbol, *value))
             .collect::<Vec<_>>();
 
-        // keep the symbols whose value settled on a scalar literal
+        // keep the symbols whose value resolved to a scalar literal
         let mut literals = Vec::new();
         for (symbol, value) in static_values {
             let value = self.shallow_resolve(value)?;
