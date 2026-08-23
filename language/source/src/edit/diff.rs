@@ -263,11 +263,13 @@ fn print_context_line(output: &mut String, line_no: usize, line: &str, options: 
         line.to_string()
     };
 
-    // dim gutter for context lines
-    output.push_str(&format!(
-        "{} {display}",
-        dim(options, &format!(" {line_no:>4}│"))
-    ));
+    // write the gutter and optional content
+    let gutter = dim(options, &format!(" {line_no:>4}│"));
+    output.push_str(&gutter);
+    if !display.is_empty() {
+        output.push(' ');
+        output.push_str(&display);
+    }
     output.push('\n');
 }
 
@@ -288,11 +290,13 @@ fn print_removal_line(output: &mut String, line_no: usize, line: &str, options: 
         line.to_string()
     };
 
-    output.push_str(&format!(
-        "{} {}",
-        color_text(options, Color::BrightRed, &format!("-{line_no:>4}│")),
-        color_text(options, Color::Red, &display)
-    ));
+    // write the gutter and optional content
+    let gutter = color_text(options, Color::BrightRed, &format!("-{line_no:>4}│"));
+    output.push_str(&gutter);
+    if !display.is_empty() {
+        output.push(' ');
+        output.push_str(&color_text(options, Color::Red, &display));
+    }
     output.push('\n');
 }
 
@@ -304,11 +308,13 @@ fn print_addition_line(output: &mut String, line_no: usize, line: &str, options:
         line.to_string()
     };
 
-    output.push_str(&format!(
-        "{} {}",
-        color_text(options, Color::BrightGreen, &format!("+{line_no:>4}│")),
-        color_text(options, Color::Green, &display)
-    ));
+    // write the gutter and optional content
+    let gutter = color_text(options, Color::BrightGreen, &format!("+{line_no:>4}│"));
+    output.push_str(&gutter);
+    if !display.is_empty() {
+        output.push(' ');
+        output.push_str(&color_text(options, Color::Green, &display));
+    }
     output.push('\n');
 }
 
