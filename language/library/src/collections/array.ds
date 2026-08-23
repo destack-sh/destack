@@ -199,9 +199,19 @@ export extension<T: Copy> of Array<T> implements Iterable<T>, Sequence {
         todo("Array.every")
     }
 
+    /// Sort this array by its natural order.
+    sort(): this where T: Compare<T> {
+        todo("Array.sort")
+    }
+
     /// Sort this array with copied values.
     sort(compare: (left: T, right: T) => Ordering): this {
         todo("Array.sort")
+    }
+
+    /// Return a naturally sorted clone.
+    toSorted(): ^Array<T> where T: Compare<T> {
+        todo("Array.toSorted")
     }
 
     /// Return a clone sorted with copied values.

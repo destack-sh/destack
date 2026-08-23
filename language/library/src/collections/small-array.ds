@@ -2,7 +2,7 @@ import { As, Borrow, From } from "destack:convert";
 import { panic, todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Access, Borrowed, Copy, Default, MaybeUninit, WithAccess } from "destack:memory";
-import { Index, IndexSet, Ordering } from "destack:ops";
+import { Compare, Index, IndexSet, Ordering } from "destack:ops";
 import { Bound, RangeBounds } from "destack:range";
 
 import { Array } from "./array.ds";
@@ -257,15 +257,25 @@ export extension<T, const N: usize> of SmallArray<T, N>
         todo("SmallArray.reverse")
     }
 
-    /// Sort this array in place.
-    sort(&exclusive this, compare?: (left: &readonly T, right: &readonly T) => Ordering): this {
+    /// Sort this array by its natural order.
+    sort(&exclusive this): this where T: Compare<T> {
         todo("SmallArray.sort")
     }
 
-    /// Sort this array without preserving the order of equal elements.
+    /// Sort this array with borrowed values.
+    sort(&exclusive this, compare: (left: &readonly T, right: &readonly T) => Ordering): this {
+        todo("SmallArray.sort")
+    }
+
+    /// Sort this array by its natural order without preserving equal-element order.
+    sortUnstable(&exclusive this): this where T: Compare<T> {
+        todo("SmallArray.sortUnstable")
+    }
+
+    /// Sort this array without preserving equal-element order.
     sortUnstable(
         &exclusive this,
-        compare?: (left: &readonly T, right: &readonly T) => Ordering,
+        compare: (left: &readonly T, right: &readonly T) => Ordering,
     ): this {
         todo("SmallArray.sortUnstable")
     }

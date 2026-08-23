@@ -64,7 +64,7 @@ export extension<T: Float> of T {
 
     /// Return the cube root.
     cbrt(): T {
-        todo("Float.cbrt")
+        cbrt(this)
     }
 
     /// Return the absolute value.
@@ -139,7 +139,7 @@ export extension<T: Float> of T {
 
     /// Return the natural exponential minus one.
     expm1(): T {
-        this.exp() - 1
+        expm1(this)
     }
 
     /// Return the base-2 exponential.
@@ -154,7 +154,7 @@ export extension<T: Float> of T {
 
     /// Return the natural logarithm of one plus this value.
     log1p(): T {
-        (1 + this).log()
+        log1p(this)
     }
 
     /// Return the base-2 logarithm.
@@ -252,6 +252,10 @@ declare function isInfinite<T: Float>(value: T): boolean;
 @intrinsic("math.float.sqrt")
 declare function sqrt<T: Float>(value: T): T;
 
+/// Compute a floating-point cube root.
+@intrinsic("math.float.cbrt")
+declare function cbrt<T: Float>(value: T): T;
+
 /// Compute a floating-point absolute value.
 @intrinsic("math.float.abs")
 declare function abs<T: Float>(value: T): T;
@@ -284,6 +288,10 @@ declare function atan<T: Float>(value: T): T;
 @intrinsic("math.float.exp")
 declare function exp<T: Float>(value: T): T;
 
+/// Compute a floating-point natural exponential minus one.
+@intrinsic("math.float.expm1")
+declare function expm1<T: Float>(value: T): T;
+
 /// Compute a floating-point base-2 exponential.
 @intrinsic("math.float.exp2")
 declare function exp2<T: Float>(value: T): T;
@@ -291,6 +299,10 @@ declare function exp2<T: Float>(value: T): T;
 /// Compute a floating-point natural logarithm.
 @intrinsic("math.float.log")
 declare function log<T: Float>(value: T): T;
+
+/// Compute a floating-point natural logarithm after adding one.
+@intrinsic("math.float.log1p")
+declare function log1p<T: Float>(value: T): T;
 
 /// Compute a floating-point base-2 logarithm.
 @intrinsic("math.float.log2")
