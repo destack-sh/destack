@@ -141,6 +141,9 @@ pub enum Intrinsic {
     /// Square root.
     /// `(T) => T`
     Sqrt,
+    /// Cube root.
+    /// `(T) => T`
+    Cbrt,
     /// Absolute value.
     /// `(T) => T`
     Abs,
@@ -186,12 +189,18 @@ pub enum Intrinsic {
     /// e^x (natural exponential).
     /// `(T) => T`
     Exp,
+    /// e^x minus one.
+    /// `(T) => T`
+    Expm1,
     /// 2^x.
     /// `(T) => T`
     Exp2,
     /// Natural logarithm (ln).
     /// `(T) => T`
     Log,
+    /// Natural logarithm of one plus x.
+    /// `(T) => T`
+    Log1p,
     /// Base-2 logarithm.
     /// `(T) => T`
     Log2,
@@ -290,6 +299,7 @@ impl Intrinsic {
 
             // float
             Intrinsic::Sqrt => "math.float.sqrt",
+            Intrinsic::Cbrt => "math.float.cbrt",
             Intrinsic::Abs => "math.float.abs",
             Intrinsic::IsFinite => "math.float.isFinite",
             Intrinsic::IsInfinite => "math.float.isInfinite",
@@ -305,8 +315,10 @@ impl Intrinsic {
             Intrinsic::Atan => "math.float.atan",
             Intrinsic::Atan2 => "math.float.atan2",
             Intrinsic::Exp => "math.float.exp",
+            Intrinsic::Expm1 => "math.float.expm1",
             Intrinsic::Exp2 => "math.float.exp2",
             Intrinsic::Log => "math.float.log",
+            Intrinsic::Log1p => "math.float.log1p",
             Intrinsic::Log2 => "math.float.log2",
             Intrinsic::Log10 => "math.float.log10",
             Intrinsic::Pow => "math.float.pow",
@@ -356,6 +368,7 @@ impl Intrinsic {
                 | Intrinsic::PointerByteOffsetFrom
                 | Intrinsic::RawEq
                 | Intrinsic::Sqrt
+                | Intrinsic::Cbrt
                 | Intrinsic::Abs
                 | Intrinsic::IsFinite
                 | Intrinsic::IsInfinite
@@ -371,8 +384,10 @@ impl Intrinsic {
                 | Intrinsic::Atan
                 | Intrinsic::Atan2
                 | Intrinsic::Exp
+                | Intrinsic::Expm1
                 | Intrinsic::Exp2
                 | Intrinsic::Log
+                | Intrinsic::Log1p
                 | Intrinsic::Log2
                 | Intrinsic::Log10
                 | Intrinsic::Pow
@@ -456,6 +471,7 @@ impl FromStr for Intrinsic {
             "memory.manuallyDrop.asExclusive" => Ok(Intrinsic::Transmute),
             "memory.raw.eq" => Ok(Intrinsic::RawEq),
             "math.float.sqrt" => Ok(Intrinsic::Sqrt),
+            "math.float.cbrt" => Ok(Intrinsic::Cbrt),
             "math.float.abs" => Ok(Intrinsic::Abs),
             "math.float.isFinite" => Ok(Intrinsic::IsFinite),
             "math.float.isInfinite" => Ok(Intrinsic::IsInfinite),
@@ -471,8 +487,10 @@ impl FromStr for Intrinsic {
             "math.float.atan" => Ok(Intrinsic::Atan),
             "math.float.atan2" => Ok(Intrinsic::Atan2),
             "math.float.exp" => Ok(Intrinsic::Exp),
+            "math.float.expm1" => Ok(Intrinsic::Expm1),
             "math.float.exp2" => Ok(Intrinsic::Exp2),
             "math.float.log" => Ok(Intrinsic::Log),
+            "math.float.log1p" => Ok(Intrinsic::Log1p),
             "math.float.log2" => Ok(Intrinsic::Log2),
             "math.float.log10" => Ok(Intrinsic::Log10),
             "math.float.pow" => Ok(Intrinsic::Pow),
@@ -507,6 +525,7 @@ impl Intrinsic {
             | Intrinsic::Transmute
             | Intrinsic::SpaceCast
             | Intrinsic::Sqrt
+            | Intrinsic::Cbrt
             | Intrinsic::Abs
             | Intrinsic::IsFinite
             | Intrinsic::IsInfinite
@@ -517,8 +536,10 @@ impl Intrinsic {
             | Intrinsic::Acos
             | Intrinsic::Atan
             | Intrinsic::Exp
+            | Intrinsic::Expm1
             | Intrinsic::Exp2
             | Intrinsic::Log
+            | Intrinsic::Log1p
             | Intrinsic::Log2
             | Intrinsic::Log10
             | Intrinsic::Floor

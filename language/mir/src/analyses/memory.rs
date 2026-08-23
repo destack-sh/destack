@@ -1717,6 +1717,7 @@ impl<'a> MemoryAccessCollector<'a> {
 
             // float math
             mir::Intrinsic::Sqrt
+            | mir::Intrinsic::Cbrt
             | mir::Intrinsic::Abs
             | mir::Intrinsic::IsFinite
             | mir::Intrinsic::IsInfinite
@@ -1732,8 +1733,10 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Intrinsic::Atan
             | mir::Intrinsic::Atan2
             | mir::Intrinsic::Exp
+            | mir::Intrinsic::Expm1
             | mir::Intrinsic::Exp2
             | mir::Intrinsic::Log
+            | mir::Intrinsic::Log1p
             | mir::Intrinsic::Log2
             | mir::Intrinsic::Log10
             | mir::Intrinsic::Pow

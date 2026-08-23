@@ -468,6 +468,7 @@ pub fn fold_intrinsic(
     // fold float unary intrinsics
     let folded_float_unary = match intrinsic {
         mir::Intrinsic::Sqrt => fold_float_unary(first, |value| value.sqrt()),
+        mir::Intrinsic::Cbrt => fold_float_unary(first, |value| value.cbrt()),
         mir::Intrinsic::Abs => fold_float_unary(first, |value| value.abs()),
         mir::Intrinsic::Sin => fold_float_unary(first, |value| value.sin()),
         mir::Intrinsic::Cos => fold_float_unary(first, |value| value.cos()),
@@ -476,8 +477,10 @@ pub fn fold_intrinsic(
         mir::Intrinsic::Acos => fold_float_unary(first, |value| value.acos()),
         mir::Intrinsic::Atan => fold_float_unary(first, |value| value.atan()),
         mir::Intrinsic::Exp => fold_float_unary(first, |value| value.exp()),
+        mir::Intrinsic::Expm1 => fold_float_unary(first, |value| value.exp_m1()),
         mir::Intrinsic::Exp2 => fold_float_unary(first, |value| value.exp2()),
         mir::Intrinsic::Log => fold_float_unary(first, |value| value.ln()),
+        mir::Intrinsic::Log1p => fold_float_unary(first, |value| value.ln_1p()),
         mir::Intrinsic::Log2 => fold_float_unary(first, |value| value.log2()),
         mir::Intrinsic::Log10 => fold_float_unary(first, |value| value.log10()),
         mir::Intrinsic::Floor => fold_float_unary(first, |value| value.floor()),
