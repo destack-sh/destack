@@ -61,7 +61,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether one type reaches a computation needing evaluation.
-    pub(in crate::sema) fn type_reaches_computation(
+    pub(in crate::sema) fn has_reachable_computation(
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
@@ -78,7 +78,7 @@ impl CheckState<'_> {
                     return Ok(true);
                 }
                 dir::Type::Application(application)
-                    if self.alias_computes(application.symbol)? =>
+                    if self.is_computed_alias(application.symbol)? =>
                 {
                     return Ok(true);
                 }
@@ -172,7 +172,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether one type mentions a non-lifetime parameter.
-    fn type_has_open_parameter(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+    fn has_open_parameter(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
         let mut pending = vec![ty];
         let mut visited = FxIndexSet::default();
         while let Some(id) = pending.pop() {
@@ -230,7 +230,7 @@ impl CheckState<'_> {
             if flags.has_variable() || flags.has_this() {
                 return Ok(());
             }
-            if flags.has_parameter() && self.type_has_open_parameter(argument)? {
+            if flags.has_parameter() && self.has_open_parameter(argument)? {
                 return Ok(());
             }
 
@@ -292,7 +292,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Close one instance: admit its template's instantiations and ground its rows.
+    /// Close one instance: admit its template's instantiations and resolve its rows.
     fn materialize_instance(
         &mut self,
         instance: dir::LocalInstanceId,
@@ -489,12 +489,12 @@ impl CheckState<'_> {
         }
 
         let substituted = self.substitute_type(ty, substitution)?;
-        let resolved = match self.type_reaches_computation(substituted)? {
+        let resolved = match self.has_reachable_computation(substituted)? {
             true => self.evaluate_type(origin, substituted)?,
             false => substituted,
         };
 
-        // admit the concrete applications the grounded type reaches
+        // admit the concrete applications the closed type reaches
         let source = match origin {
             Origin::Node(node, _) => node,
             _ => return Ok(resolved),
@@ -737,7 +737,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Substitute one template type, recording the materialized type it becomes.
+    /// Substitute one template type, committing the materialized type it becomes.
     fn materialize_instance_type(
         &mut self,
         instance: dir::LocalInstanceId,
@@ -753,9 +753,9 @@ impl CheckState<'_> {
             return Ok(ty);
         }
 
-        // record the materialized type wherever the instance moves the written one
+        // commit the materialized type wherever the instance moves the written one
         let substituted = self.substitute_type(ty, substitution)?;
-        let resolved = match self.type_reaches_computation(substituted)? {
+        let resolved = match self.has_reachable_computation(substituted)? {
             true => self.evaluate_type(origin, substituted)?,
             false => substituted,
         };
@@ -766,7 +766,7 @@ impl CheckState<'_> {
                 .bind_instance_type(instance, ty, resolved, is_evaluated);
         }
 
-        // admit the concrete applications the grounded type reaches
+        // admit the concrete applications the closed type reaches
         let source = match origin {
             Origin::Node(node, _) => node,
             _ => return Ok(resolved),

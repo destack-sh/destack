@@ -167,7 +167,7 @@ impl BodyState<'_, '_> {
             .map_or_else(|| resolution.write.ty(), dir::ReadResolution::ty);
         let source = resolution.target;
         self.commit_decision(source, dir::Decision::Assignment(Box::new(resolution)))?;
-        self.record_access_use(source, dir::BindingUse::WRITE);
+        self.commit_access_use(source, dir::BindingUse::WRITE);
         self.commit_node_type(source, source_type)?;
 
         // require the written place to be writable
@@ -187,7 +187,7 @@ impl BodyState<'_, '_> {
     }
 
     /// Return whether one pattern destructures its input.
-    pub(in crate::sema) fn pattern_destructures(pattern: &dir::Pattern) -> bool {
+    pub(in crate::sema) fn is_destructuring_pattern(pattern: &dir::Pattern) -> bool {
         !matches!(
             pattern,
             dir::Pattern::Wildcard | dir::Pattern::Binding { .. }
@@ -195,7 +195,7 @@ impl BodyState<'_, '_> {
     }
 
     /// Return whether one assignment pattern destructures its input.
-    pub(in crate::sema) fn assign_pattern_destructures(pattern: &dir::AssignPattern) -> bool {
+    pub(in crate::sema) fn is_destructuring_assign_pattern(pattern: &dir::AssignPattern) -> bool {
         !matches!(pattern, dir::AssignPattern::Place { .. })
     }
 
@@ -212,7 +212,7 @@ impl BodyState<'_, '_> {
 
         // reduce inputs only for patterns that inspect their value
         let pattern = self.module(module).view().get(node.local_id).clone();
-        let needs_reduced_input = Self::pattern_destructures(&pattern);
+        let needs_reduced_input = Self::is_destructuring_pattern(&pattern);
         let input = if needs_reduced_input {
             self.check.normalize(origin, input)?
         } else {
@@ -255,7 +255,7 @@ impl BodyState<'_, '_> {
                 let (pattern, value) = (*pattern, *value);
 
                 // transcribe the written input while declaring, infer the default while checking
-                let input = if self.is_declaration() {
+                let input = if self.is_declaring() {
                     input
                 } else {
                     let value_node = value.into_global_any(module);
@@ -459,8 +459,8 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Reject one pattern whose tag is not nominal.
-    pub(in crate::sema) fn reject_pattern(
+    /// Report one pattern whose tag is not nominal, committing the rejection.
+    pub(in crate::sema) fn report_rejected_pattern(
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
@@ -509,7 +509,7 @@ impl BodyState<'_, '_> {
         node: dir::LocalNodeId<dir::Pattern>,
     ) -> CompilerResult<()> {
         if let Some(symbol) = self.module(module).declaration_symbol(node.into_any()) {
-            self.bind_symbol_type(symbol, error)?;
+            self.commit_symbol_type(symbol, error)?;
         }
 
         // recurse into the nested patterns each shape holds
@@ -572,7 +572,7 @@ impl BodyState<'_, '_> {
         field: dir::LocalNodeId<dir::PatternField>,
     ) -> CompilerResult<()> {
         if let Some(symbol) = self.module(module).declaration_symbol(field.into_any()) {
-            self.bind_symbol_type(symbol, error)?;
+            self.commit_symbol_type(symbol, error)?;
         }
 
         // recurse into the nested pattern each field shape holds

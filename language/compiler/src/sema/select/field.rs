@@ -7,7 +7,7 @@ use crate::sema::BodyState;
 
 impl BodyState<'_, '_> {
     /// Return whether one pattern field list uses rest fields correctly.
-    pub(in crate::sema) fn check_pattern_rest_fields(
+    pub(in crate::sema) fn report_pattern_rest_fields(
         &mut self,
         module: ModuleId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
@@ -24,11 +24,11 @@ impl BodyState<'_, '_> {
             })
             .collect::<SmallVec<[_; 8]>>();
 
-        self.check_rest_fields(module, fields)
+        self.report_rest_fields(module, fields)
     }
 
     /// Return whether one assignment pattern field list uses rest fields correctly.
-    pub(in crate::sema) fn check_assign_pattern_rest_fields(
+    pub(in crate::sema) fn report_assign_rest_fields(
         &mut self,
         module: ModuleId,
         fields: &[dir::LocalNodeId<dir::AssignPatternField>],
@@ -45,11 +45,11 @@ impl BodyState<'_, '_> {
             })
             .collect::<SmallVec<[_; 8]>>();
 
-        self.check_rest_fields(module, fields)
+        self.report_rest_fields(module, fields)
     }
 
-    /// Check static keys in one object pattern field list.
-    pub(in crate::sema) fn check_pattern_field_keys(
+    /// Report every repeated key in one pattern field list.
+    pub(in crate::sema) fn report_duplicate_pattern_fields(
         &mut self,
         module: ModuleId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
@@ -59,11 +59,11 @@ impl BodyState<'_, '_> {
             .map(|field| self.pattern_field_key(module, *field))
             .collect::<CompilerResult<Vec<_>>>()?;
 
-        self.check_field_keys(module, keys.into_iter().flatten())
+        self.report_duplicate_field_keys(module, keys.into_iter().flatten())
     }
 
-    /// Check static keys in one object assignment pattern field list.
-    pub(in crate::sema) fn check_assign_pattern_field_keys(
+    /// Report every repeated key in one assignment pattern field list.
+    pub(in crate::sema) fn report_duplicate_assign_fields(
         &mut self,
         module: ModuleId,
         fields: &[dir::LocalNodeId<dir::AssignPatternField>],
@@ -73,18 +73,18 @@ impl BodyState<'_, '_> {
             .map(|field| self.assign_pattern_field_key(module, *field))
             .collect::<CompilerResult<Vec<_>>>()?;
 
-        self.check_field_keys(module, keys.into_iter().flatten())
+        self.report_duplicate_field_keys(module, keys.into_iter().flatten())
     }
 
-    /// Check direct binding names in one pattern field list.
-    pub(in crate::sema) fn check_pattern_bindings(
+    /// Report every repeated binding name in one pattern field list.
+    pub(in crate::sema) fn report_duplicate_pattern_bindings(
         &mut self,
         module: ModuleId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<()> {
         let mut names = SmallVec::<[(dir::StringId, dir::LocalNodeIdAny); 8]>::new();
         for field in fields {
-            self.check_pattern_field_bindings(module, *field, &mut names)?;
+            self.report_duplicate_field_binding(module, *field, &mut names)?;
         }
 
         Ok(())
@@ -128,8 +128,27 @@ impl BodyState<'_, '_> {
         Ok(key)
     }
 
-    /// Check binding names introduced directly by one pattern field.
-    fn check_pattern_field_bindings(
+    /// Report every repeated key in one field key stream.
+    fn report_duplicate_field_keys<I>(&mut self, module: ModuleId, keys: I) -> CompilerResult<()>
+    where
+        I: IntoIterator<Item = (dir::LocalNodeIdAny, dir::StaticKey)>,
+    {
+        // report every repeated field at its repeated key
+        let mut seen = SmallVec::<[(dir::StaticKey, dir::LocalNodeIdAny); 8]>::new();
+        for (source, key) in keys {
+            if let Some((_, first)) = seen.iter().find(|(existing, _)| *existing == key) {
+                let key = self.format_static_key(&key);
+                self.report_duplicate_pattern_field(module, source, *first, key);
+            } else {
+                seen.push((key, source));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Report every repeated binding name introduced directly by one pattern field.
+    fn report_duplicate_field_binding(
         &mut self,
         module: ModuleId,
         field: dir::LocalNodeId<dir::PatternField>,
@@ -145,7 +164,7 @@ impl BodyState<'_, '_> {
                 ..
             } => {
                 if let dir::Name::Identifier(name) | dir::Name::String(name) = name {
-                    self.check_pattern_binding_name(module, name, source, names)?;
+                    self.report_duplicate_binding_name(module, name, source, names)?;
                 }
 
                 Ok(())
@@ -158,13 +177,13 @@ impl BodyState<'_, '_> {
             }
             | dir::PatternField::Computed { pattern, .. }
             | dir::PatternField::Positional { pattern } => {
-                self.check_pattern_binding(module, pattern, names)
+                self.report_duplicate_bindings(module, pattern, names)
             }
 
             // rest fields only introduce names through an explicit nested pattern
             dir::PatternField::Rest { pattern } => {
                 if let Some(pattern) = pattern {
-                    self.check_pattern_binding(module, pattern, names)?;
+                    self.report_duplicate_bindings(module, pattern, names)?;
                 }
 
                 Ok(())
@@ -175,27 +194,8 @@ impl BodyState<'_, '_> {
         }
     }
 
-    /// Check one object field key stream for duplicate keys.
-    fn check_field_keys<I>(&mut self, module: ModuleId, keys: I) -> CompilerResult<()>
-    where
-        I: IntoIterator<Item = (dir::LocalNodeIdAny, dir::StaticKey)>,
-    {
-        let mut seen = SmallVec::<[(dir::StaticKey, dir::LocalNodeIdAny); 8]>::new();
-        for (source, key) in keys {
-            // report every repeated field at its repeated key
-            if let Some((_, first)) = seen.iter().find(|(existing, _)| *existing == key) {
-                let key = self.format_static_key(&key);
-                self.report_duplicate_pattern_field(module, source, *first, key);
-            } else {
-                seen.push((key, source));
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Check one direct binding name.
-    fn check_pattern_binding_name(
+    /// Report one binding name already introduced by this field list.
+    fn report_duplicate_binding_name(
         &mut self,
         module: ModuleId,
         name: dir::StringId,
@@ -213,8 +213,8 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Check binding names introduced by one direct field pattern.
-    fn check_pattern_binding(
+    /// Report every repeated binding name introduced by one field pattern.
+    fn report_duplicate_bindings(
         &mut self,
         module: ModuleId,
         pattern: dir::LocalNodeId<dir::Pattern>,
@@ -225,9 +225,9 @@ impl BodyState<'_, '_> {
         match pattern {
             // leaf bindings introduce one name into the current field list
             dir::Pattern::Binding { name, pattern } => {
-                self.check_pattern_binding_name(module, name, source, names)?;
+                self.report_duplicate_binding_name(module, name, source, names)?;
                 if let Some(pattern) = pattern {
-                    self.check_pattern_binding(module, pattern, names)?;
+                    self.report_duplicate_bindings(module, pattern, names)?;
                 }
             }
 
@@ -236,10 +236,10 @@ impl BodyState<'_, '_> {
             | dir::Pattern::BorrowOf { right: pattern, .. }
             | dir::Pattern::MoveOf { right: pattern, .. }
             | dir::Pattern::DereferenceOf { right: pattern } => {
-                self.check_pattern_binding(module, pattern, names)?;
+                self.report_duplicate_bindings(module, pattern, names)?;
             }
             dir::Pattern::Default { pattern, .. } => {
-                self.check_pattern_binding(module, pattern, names)?;
+                self.report_duplicate_bindings(module, pattern, names)?;
             }
 
             // nested destructures own their own immediate binding checks
@@ -258,10 +258,11 @@ impl BodyState<'_, '_> {
     }
 
     /// Return whether one field list uses rest fields correctly.
-    fn check_rest_fields<I>(&mut self, module: ModuleId, fields: I) -> bool
+    fn report_rest_fields<I>(&mut self, module: ModuleId, fields: I) -> bool
     where
         I: IntoIterator<Item = (dir::LocalNodeIdAny, bool)>,
     {
+        // locate the rest fields among the written positions
         let fields = fields.into_iter().collect::<SmallVec<[_; 8]>>();
         let rest_fields = fields
             .iter()

@@ -22,7 +22,7 @@ impl CheckState<'_> {
         module: ModuleId,
     ) -> CompilerResult<()> {
         // bind nominal references before templates can read them
-        self.bind_module_reference_types(module)?;
+        self.commit_module_reference_types(module)?;
 
         self.visit_module_templates(module, TemplatePass::Declare)
     }
@@ -241,7 +241,7 @@ impl CheckState<'_> {
             .zip(arguments.iter().copied())
             .enumerate()
         {
-            self.check_argument_cardinality(source, index, scope, parameter, argument)?;
+            self.report_argument_cardinality(source, index, scope, parameter, argument)?;
 
             let Some(constraint) = self
                 .generic_parameter(parameter)
@@ -295,8 +295,8 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Return one written application's generic argument node by position.
-    fn check_argument_cardinality(
+    /// Report one written argument the declaration's exact value slot rejects.
+    fn report_argument_cardinality(
         &mut self,
         source: dir::GlobalNodeIdAny,
         index: usize,
@@ -304,7 +304,7 @@ impl CheckState<'_> {
         parameter: dir::GlobalGenericParameterId,
         argument: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        if self.recorded_cardinality(parameter).is_none() {
+        if self.resolved_cardinality(parameter).is_none() {
             return Ok(());
         }
 
@@ -312,14 +312,14 @@ impl CheckState<'_> {
             .written_generic_argument(source, index)
             .unwrap_or(source);
         let origin = Origin::Node(argument_source, scope);
-        if !self.type_satisfies_one_cardinality(origin, argument)? {
+        if !self.has_one_cardinality(origin, argument)? {
             self.report_argument_not_exact_value(argument_source, argument, parameter)?;
         }
 
         Ok(())
     }
 
-    /// Require one exact value where the declaration consumes the slot.
+    /// Return one written application's generic argument node by position.
     fn written_generic_argument(
         &self,
         source: dir::GlobalNodeIdAny,

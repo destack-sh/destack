@@ -91,8 +91,8 @@ impl BodyState<'_, '_> {
         )?;
         let interface = protocol.instance(self.check, origin.module())?;
         let interface = self.check.intern_type(dir::Type::Application(interface))?;
-        let implements = self.evaluate_relation(origin, Relation::Satisfies, target, interface)?
-            != Verdict::Fails;
+        let implements =
+            self.decide_relation(origin, Relation::Satisfies, target, interface)? != Verdict::Fails;
 
         Ok(implements.then_some(target))
     }
@@ -151,7 +151,7 @@ impl BodyState<'_, '_> {
                     });
                     child_types.push(ty);
                 }
-                // spread children splat statically sized tuple operands
+                // spread children expand statically sized tuple operands
                 dir::TreeChild::Spread { value } => {
                     let child_site = self.visit_site(value.into_global_any(module))?;
                     let ty = self.infer_node_type(child_site, PlaceUse::Read)?;
@@ -285,7 +285,7 @@ impl BodyState<'_, '_> {
                 target: tags.ty,
             }))?;
         let accepted = self
-            .evaluate_relation(origin, Relation::Satisfies, tag_type, rows)?
+            .decide_relation(origin, Relation::Satisfies, tag_type, rows)?
             .holds();
         if !accepted {
             self.check
@@ -427,7 +427,7 @@ impl BodyState<'_, '_> {
 
                         // spread members outside the row pass through unchecked
                         if !self
-                            .evaluate_relation(origin, Relation::Satisfies, key_type, keys)?
+                            .decide_relation(origin, Relation::Satisfies, key_type, keys)?
                             .holds()
                         {
                             continue;
@@ -445,7 +445,7 @@ impl BodyState<'_, '_> {
                 }
                 dir::TreeAttribute::Error => {
                     return Err(CompilerError::Internal {
-                        message: "checked DIR retained a malformed tree attribute".to_string(),
+                        message: "checked DIR kept a malformed tree attribute".to_string(),
                     });
                 }
             }
@@ -488,7 +488,7 @@ impl BodyState<'_, '_> {
 
         // reject attributes outside the declared row
         if !self
-            .evaluate_relation(origin, Relation::Satisfies, key_type, keys)?
+            .decide_relation(origin, Relation::Satisfies, key_type, keys)?
             .holds()
         {
             self.check
@@ -533,7 +533,7 @@ impl BodyState<'_, '_> {
         let outcome =
             self.check_type_constraint(origin, cause, Relation::Assignable, value, property)?;
         if let CheckOutcome::Fails(failure) = outcome {
-            self.check.record_failure(FailedCheck {
+            self.check.push_failure(FailedCheck {
                 cause,
                 relation: Relation::Assignable,
                 use_: Some(ValueUse::Store),
@@ -627,7 +627,7 @@ impl BodyState<'_, '_> {
         };
 
         // select the call carrying the checked props row
-        let selection = self.attempt_callable(
+        let selection = self.probe_callable(
             origin,
             callee,
             None,
@@ -751,7 +751,7 @@ impl BodyState<'_, '_> {
         };
 
         // construct the instance carrying the checked props row
-        let selection = self.attempt_construct(
+        let selection = self.probe_construct(
             origin,
             symbol.module_id,
             &instance,
@@ -898,7 +898,7 @@ impl BodyState<'_, '_> {
         }))
     }
 
-    /// Select one builder static and record the tree resolution.
+    /// Select one builder static and commit the tree resolution.
     fn select_tree_call(
         &mut self,
         site: FlowSite,
@@ -937,7 +937,7 @@ impl BodyState<'_, '_> {
             });
         };
 
-        // record the resolved literal for lowering
+        // commit the resolved literal for lowering
         let return_type = call.return_type;
         let target = match tag {
             Some(tag) => dir::TreeTarget::Element {

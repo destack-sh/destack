@@ -252,7 +252,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
 
         // open the enclosing template only when this signature has induced parameters
-        if !self.signature_contains_induced_parameter(this_parameter, parameters, return_type)? {
+        if !self.has_induced_parameter(this_parameter, parameters, return_type)? {
             return Ok(None);
         }
 
@@ -262,7 +262,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     }
 
     /// Return whether one signature contains an induced memory parameter.
-    fn signature_contains_induced_parameter(
+    fn has_induced_parameter(
         &mut self,
         this_parameter: Option<dir::GlobalTypeId>,
         parameters: &[dir::FunctionParameterType],
@@ -716,7 +716,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // bind named parameters through the same path as their node type
         if let Some(symbol) = self.declared_symbol(id.into_any()) {
-            self.bind_symbol_type(symbol, binding)?;
+            self.commit_symbol_type(symbol, binding)?;
         }
 
         Ok(Some(ty))

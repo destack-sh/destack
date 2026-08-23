@@ -139,7 +139,7 @@ impl FunctionBody {
             self.receiver,
         );
         for entry in &self.entries {
-            state.check.mark_bindings_assigned(*entry);
+            state.check.assign_bindings(*entry);
         }
 
         // check the body under its generic template scope

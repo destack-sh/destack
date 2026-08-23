@@ -47,8 +47,8 @@ impl BodyState<'_, '_> {
         Ok(kind)
     }
 
-    /// Record the widening one fresh literal node takes to its stored type.
-    fn record_widening(&mut self, value: Value, target: dir::GlobalTypeId) -> CompilerResult<()> {
+    /// Commit the widening one fresh literal node takes to its stored type.
+    fn commit_widening(&mut self, value: Value, target: dir::GlobalTypeId) -> CompilerResult<()> {
         if let Some(node) = value.node
             && target != value.ty
         {
@@ -80,13 +80,13 @@ impl BodyState<'_, '_> {
             Some(fallback) => self.intern_type(fallback)?,
             None => self.widen_type(value.ty)?,
         };
-        self.record_widening(value, widened)?;
+        self.commit_widening(value, widened)?;
 
         Ok(widened)
     }
 
-    /// Bind one fresh value to a binding slot.
-    pub(in crate::sema) fn bind_fresh(
+    /// Widen one fresh value into its binding slot.
+    pub(in crate::sema) fn widen_fresh_slot(
         &mut self,
         slot: dir::TypeVariableId,
         value: Value,
@@ -98,7 +98,7 @@ impl BodyState<'_, '_> {
         // a value outside the numeric families widens to its base type
         let Some(kind) = self.fresh_numeric_kind(value.ty)? else {
             let widened = self.widen_type(value.ty)?;
-            self.record_widening(value, widened)?;
+            self.commit_widening(value, widened)?;
 
             return Ok(widened);
         };
@@ -106,7 +106,7 @@ impl BodyState<'_, '_> {
         // join the slot's own family and take its type
         self.join_variable_kind(slot, kind)?;
         let ty = self.variable_type(slot)?;
-        self.record_widening(value, ty)?;
+        self.commit_widening(value, ty)?;
 
         Ok(ty)
     }
@@ -121,7 +121,7 @@ impl BodyState<'_, '_> {
             return Ok(value.ty);
         }
 
-        // one literal node opens one variable, however often its conversion replays
+        // one literal node opens one variable, however often its conversion reruns
         if let Some(Some(widened)) = value
             .node
             .and_then(|node| self.check.fresh_nodes.get(&node))
@@ -132,13 +132,13 @@ impl BodyState<'_, '_> {
         // a numeric family opens a variable, every other literal widens to its base type
         let widened = match self.fresh_numeric_kind(value.ty)? {
             Some(kind) => {
-                let variable = self.allocate_variable_of(origin, kind, VariableRole::Regular);
+                let variable = self.open_variable_of(origin, kind, VariableRole::Regular);
                 self.variable_type(variable)?
             }
             None => self.widen_type(value.ty)?,
         };
 
-        // remember the node's variable for the replays that follow
+        // remember the node's variable for the reruns that follow
         if let Some(node) = value.node {
             self.check.fresh_nodes.insert(node, Some(widened));
         }
@@ -197,7 +197,7 @@ impl BodyState<'_, '_> {
         };
 
         Ok(self
-            .open_variable(destination)?
+            .open_root(destination)?
             .is_some()
             .then_some(destination))
     }
@@ -238,7 +238,7 @@ impl BodyState<'_, '_> {
                     && let Some(head) = self.signature_head(ty)?
                     && let Some(return_type) = head.return_type
                 {
-                    keeps |= self.exposes_type(return_type, binding.ty)?;
+                    keeps |= self.has_exposed_type(return_type, binding.ty)?;
                 }
                 keeps
             }

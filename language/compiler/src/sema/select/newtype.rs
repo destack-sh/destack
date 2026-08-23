@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Answer, BodyState, CallableArgument, Callee, CandidateOutcome, CheckState, Expectation, Origin,
-    Selected, SignatureMatch, SignatureRejection, SignatureSelection, TypeSubstitution, ValueUse,
-    Verdict,
+    Answer, BodyState, CallableArgument, Callee, CandidateOutcome, CheckState, Dispatch,
+    Expectation, Origin, SignatureMatch, SignatureRejection, SignatureSelection, TypeSubstitution,
+    ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -59,7 +59,7 @@ pub(in crate::sema) enum NewtypeRejection {
     Ambiguous,
 }
 
-/// One decided newtype backing, replayed across construction sites.
+/// One decided newtype backing, instantiated across construction sites.
 #[derive(Debug, Clone)]
 pub(in crate::sema) struct NewtypeInstance {
     /// The decided backing without per-site coercions.
@@ -100,11 +100,11 @@ impl BodyState<'_, '_> {
         use_: ValueUse,
     ) -> CompilerResult<NewtypeMatch> {
         let module = origin.module();
-        self.register_argument_function_values(module, argument_nodes)?;
+        self.commit_argument_function_values(module, argument_nodes)?;
         let arguments = self.callable_arguments(module, argument_nodes, use_)?;
 
-        // ask the canonical construction question once per equal ask
-        let question = match arguments
+        // ask the canonical construction goal once per equal ask
+        let goal = match arguments
             .iter()
             .map(|argument| argument.ty)
             .collect::<Option<SmallVec<[_; 8]>>>()
@@ -114,7 +114,7 @@ impl BodyState<'_, '_> {
                 operands.extend(type_arguments.iter().copied());
                 operands.extend(argument_types);
 
-                self.check.selection_question(
+                self.check.selection_goal(
                     origin,
                     Callee::Newtype(symbol, overload),
                     expectation.map(|expectation| expectation.target),
@@ -124,21 +124,21 @@ impl BodyState<'_, '_> {
             None => None,
         };
 
-        // replay the decided answer at this site's live roots
-        if let Some((asked, canonical)) = &question
-            && let Some(Answer::Selection(response)) = self.check.answers.get(asked).cloned()
+        // instantiate the decided answer at this site's live roots
+        if let Some((goal, canonical)) = &goal
+            && let Some(Answer::Selection(response)) = self.check.answers.get(goal).cloned()
         {
             let mark = self.check.infer.mark(&mut self.check.fulfill);
-            let replayed = match self
+            let instantiated = match self
                 .check
                 .instantiate_response(origin, canonical, &response)?
             {
-                Selected::Newtype(instance) => {
+                Dispatch::Newtype(instance) => {
                     self.apply_newtype_instance(origin, instance.selection, &arguments)?
                 }
                 _ => None,
             };
-            match replayed {
+            match instantiated {
                 Some(signature) => {
                     self.check.infer.commit(mark, &mut self.check.fulfill);
 
@@ -192,7 +192,7 @@ impl BodyState<'_, '_> {
                 selected_candidate = Some(candidate);
                 break;
             }
-            let (verdict, rejection) = self.probe_candidate_describing(
+            let (verdict, rejection) = self.probe_candidate_with_note(
                 |state| {
                     let outcome = state.match_newtype_candidate(
                         origin,
@@ -206,7 +206,7 @@ impl BodyState<'_, '_> {
                 |state, rejection| {
                     state
                         .check
-                        .describe_signature_rejection(module, candidate.signature, rejection)
+                        .format_signature_rejection(module, candidate.signature, rejection)
                 },
             )?;
             match verdict {
@@ -223,7 +223,7 @@ impl BodyState<'_, '_> {
                         break;
                     }
                 }
-                // an undecided alternative settles ordered asks and blocks unambiguous ones
+                // an undecided alternative resolves ordered goals and blocks unambiguous ones
                 Verdict::Ambiguous => {
                     if overload == NewtypeOverload::Unambiguous {
                         return Ok(NewtypeMatch::Rejected(NewtypeRejection::Ambiguous));
@@ -332,17 +332,17 @@ impl BodyState<'_, '_> {
             None => NewtypeMatch::Selected(signature),
         };
 
-        // remember the decision folded canonical over its ask
+        // commit the decision folded canonical over its goal
         if let NewtypeMatch::Selected(signature) = &matched
-            && let Some((asked, canonical)) = &question
+            && let Some((goal, canonical)) = &goal
         {
             let mut stored = signature.clone();
             stored.signature.coercions = SmallVec::new();
-            self.check.remember_answer(
-                asked,
+            self.check.commit_answer(
+                goal,
                 canonical,
                 checks_before,
-                Selected::Newtype(NewtypeInstance { selection: stored }),
+                Dispatch::Newtype(NewtypeInstance { selection: stored }),
                 Answer::Selection,
             )?;
         }
@@ -386,7 +386,7 @@ impl BodyState<'_, '_> {
         Ok(Some(instance))
     }
 
-    /// Derive and record one newtype's constructable backing alternatives.
+    /// Derive and commit one newtype's constructable backing alternatives.
     pub(in crate::sema) fn derive_newtype_constructors(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -548,13 +548,13 @@ impl BodyState<'_, '_> {
 }
 
 impl CheckState<'_> {
-    /// Record each declared newtype's constructor entries.
+    /// Commit each declared newtype's constructor entries.
     pub(in crate::sema) fn derive_module_constructors(
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<()> {
         // declarations leave derived entries to their checking pass
-        if self.is_declaration() {
+        if self.is_declaring() {
             return Ok(());
         }
 

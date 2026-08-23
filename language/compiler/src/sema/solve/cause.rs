@@ -6,7 +6,7 @@ use crate::sema::{Origin, Variance};
 /// One interned reason a constraint exists.
 ///
 /// Causes form a tree from each constraint back to the written syntax that
-/// demanded it, so any failure explains itself by walking its chain.
+/// required it, so any failure traces itself by walking its chain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::sema) struct Cause {
     /// The source this constraint anchors to.

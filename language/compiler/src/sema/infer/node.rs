@@ -163,7 +163,7 @@ impl BodyState<'_, '_> {
 
         // retain a failed confirmed value check at its authored cause
         if let CheckOutcome::Fails(failure) = conversion.outcome {
-            self.check.record_failure(FailedCheck {
+            self.check.push_failure(FailedCheck {
                 cause: expectation.cause,
                 relation: expectation.relation,
                 use_: Some(expectation.use_),
@@ -194,7 +194,7 @@ impl BodyState<'_, '_> {
         // preserve target-directed failures without attempting conversion
         if let CheckOutcome::Fails(failure) = check.outcome {
             let source = check.source;
-            self.check.record_failure(FailedCheck {
+            self.check.push_failure(FailedCheck {
                 cause: expectation.cause,
                 relation: expectation.relation,
                 use_: Some(expectation.use_),
@@ -223,10 +223,10 @@ impl BodyState<'_, '_> {
 
         // barrier targets check once their variables close, after the body
         if let Some(no_infer) = self.no_infer_target(expectation.target)? {
-            let open = self.open_type_variables([no_infer])?;
+            let open = self.collect_open_variables([no_infer])?;
             if !open.is_empty() {
                 self.check
-                    .register_check_stalled(Check::Node(NodeCheck { site, expectation }), &open)?;
+                    .queue_check_stalled(Check::Node(NodeCheck { site, expectation }), &open)?;
 
                 return Ok(ValueCheck {
                     source: expectation.target,
@@ -253,15 +253,13 @@ impl BodyState<'_, '_> {
                     .view()
                     .get(node.into_typed::<dir::Pattern>().local_id)
                     .clone();
-                let open = match Self::pattern_destructures(&pattern) {
-                    true => self.open_type_variables([target])?,
+                let open = match Self::is_destructuring_pattern(&pattern) {
+                    true => self.collect_open_variables([target])?,
                     false => Default::default(),
                 };
                 if !open.is_empty() {
-                    self.check.register_check_stalled(
-                        Check::Node(NodeCheck { site, expectation }),
-                        &open,
-                    )?;
+                    self.check
+                        .queue_check_stalled(Check::Node(NodeCheck { site, expectation }), &open)?;
 
                     return Ok(ValueCheck {
                         source: target,
@@ -286,15 +284,13 @@ impl BodyState<'_, '_> {
                     .view()
                     .get(node.into_typed::<dir::AssignPattern>().local_id)
                     .clone();
-                let open = match Self::assign_pattern_destructures(&pattern) {
-                    true => self.open_type_variables([target])?,
+                let open = match Self::is_destructuring_assign_pattern(&pattern) {
+                    true => self.collect_open_variables([target])?,
                     false => Default::default(),
                 };
                 if !open.is_empty() {
-                    self.check.register_check_stalled(
-                        Check::Node(NodeCheck { site, expectation }),
-                        &open,
-                    )?;
+                    self.check
+                        .queue_check_stalled(Check::Node(NodeCheck { site, expectation }), &open)?;
 
                     return Ok(ValueCheck {
                         source: target,
@@ -324,7 +320,11 @@ impl BodyState<'_, '_> {
                 outcome: CheckOutcome::Holds,
                 target,
             },
-            other => return self.reject_untyped_node("check", node, other),
+            other => {
+                return Err(CompilerError::Internal {
+                    message: format!("cannot check {other:?} node {node:?}"),
+                });
+            }
         };
         check.source = self.flow_type_at(site, check.source)?;
 
@@ -364,7 +364,11 @@ impl BodyState<'_, '_> {
                 self.infer_block(site, node.into_typed().local_id)?;
             }
             dir::NodeType::TypeExpression => {}
-            other => return self.reject_untyped_node("infer", node, other),
+            other => {
+                return Err(CompilerError::Internal {
+                    message: format!("cannot infer {other:?} node {node:?}"),
+                });
+            }
         }
 
         let Some(ty) = self.node_types.get(&node) else {
@@ -390,17 +394,5 @@ impl BodyState<'_, '_> {
         self.commit_expression_place(site, ty)?;
 
         Ok(ty)
-    }
-
-    /// Reject inference on a node kind that never has a checked type.
-    fn reject_untyped_node<T>(
-        &self,
-        verb: &'static str,
-        node: dir::GlobalNodeIdAny,
-        kind: dir::NodeType,
-    ) -> CompilerResult<T> {
-        Err(CompilerError::Internal {
-            message: format!("cannot {verb} {kind:?} node {node:?}"),
-        })
     }
 }

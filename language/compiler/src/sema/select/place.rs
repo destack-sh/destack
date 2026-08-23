@@ -46,7 +46,7 @@ impl BodyState<'_, '_> {
         })
     }
 
-    /// Record the addressable storage designated by one checked expression.
+    /// Commit the addressable storage designated by one checked expression.
     pub(in crate::sema) fn commit_expression_place(
         &mut self,
         site: FlowSite,
@@ -139,10 +139,7 @@ impl BodyState<'_, '_> {
         };
 
         // body places come from binding symbols
-        if self
-            .symbol_kind_maybe(symbol)?
-            .is_none_or(|kind| !kind.is_binding())
-        {
+        if self.symbol_kind(symbol).map(|kind| !kind.is_binding())? {
             return Ok(None);
         }
 
@@ -402,9 +399,10 @@ impl BodyState<'_, '_> {
                     ty: receiver,
                     ..receiver_value
                 };
-                let space = self.member_receiver_space(receiver_node, receiver)?;
+                // the receiver split its nullish arms above, leaving nothing for the subject to reject
                 let key = dir::StaticKey::Name(name);
-                let subject = dir::MemberSubject::new(receiver, receiver, space);
+                let (subject, _) =
+                    self.resolve_member_subject(origin, receiver_node, receiver, receiver)?;
                 let lookup = self.probe_member(
                     origin,
                     module,
@@ -432,7 +430,7 @@ impl BodyState<'_, '_> {
                     initializes,
                 )?;
 
-                // record the stored member path
+                // commit the stored member path
                 if let Some(key) = stored_key {
                     self.commit_projected_access(source, receiver_node, key)?;
                 }
@@ -482,7 +480,7 @@ impl BodyState<'_, '_> {
                 if !self.check_subscript_key(index_site, index, selection.key_types())? {
                     return Ok(None);
                 }
-                let writes_storage = selection.writes_storage();
+                let is_stored_write = selection.is_stored_write();
                 let Some((read, write)) = selection.into_place() else {
                     return Ok(None);
                 };
@@ -497,8 +495,8 @@ impl BodyState<'_, '_> {
                     initializes,
                 )?;
 
-                // record the stored subscript path
-                if writes_storage && let Some(key) = index_key {
+                // commit the stored subscript path
+                if is_stored_write && let Some(key) = index_key {
                     self.commit_projected_access(source, receiver_node, key)?;
                 }
 
@@ -544,9 +542,9 @@ impl BodyState<'_, '_> {
                     PlaceUse::Write | PlaceUse::Read => None,
                 };
 
-                // record the exclusive access a write through the pointer demands
+                // write the exclusive access a write through the pointer requires
                 let is_aliased = self.type_is_aliased(origin, receiver)?;
-                self.record_required_access(receiver_node, dir::Access::Exclusive, is_aliased);
+                self.commit_required_access(receiver_node, dir::Access::Exclusive, is_aliased);
                 let write = dir::WriteResolution::Dereference(write);
 
                 Ok(Some(AssignmentSelection {
@@ -661,7 +659,7 @@ impl BodyState<'_, '_> {
 
                 Ok(Some(MemberAssignmentSelection { read, write }))
             }
-            MemberLookup::Missing | MemberLookup::Undecided => Ok(None),
+            MemberLookup::Missing | MemberLookup::Ambiguous => Ok(None),
         }
     }
 
@@ -812,7 +810,7 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         place: dir::PlaceResolution,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if use_ == PlaceUse::Read || !self.access_is_readonly(place.access)? {
+        if use_ == PlaceUse::Read || !self.is_readonly_access(place.access)? {
             return Ok(receiver);
         }
 
@@ -848,7 +846,7 @@ impl BodyState<'_, '_> {
                     return Ok(None);
                 };
 
-                // decide the place name and record its capture
+                // decide the place name and commit its capture
                 if self
                     .resolutions(source.module_id)
                     .name_resolution(source)
@@ -869,7 +867,7 @@ impl BodyState<'_, '_> {
                     ty,
                 };
 
-                // record the binding path
+                // commit the binding path
                 self.commit_access(source, dir::AccessPath::symbol(*symbol))?;
 
                 Ok(Some(AssignmentSelection {
@@ -892,7 +890,7 @@ impl BodyState<'_, '_> {
                 Ok(None)
             }
             Some(dir::Reference::Missing) | None => {
-                self.reject_unresolved_reference(source.module_id, source.local_id, path);
+                self.report_unresolved_reference(source.module_id, source.local_id, path);
                 self.commit_error_node(source)?;
 
                 Ok(None)

@@ -13,10 +13,11 @@ use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Answer, BoundSet, CanonicalEntry, Cause, CauseId, CheckCounters, CheckModuleState, CheckTrace,
-    DecoratorApplication, ExternalModuleTable, FlowBranch, FlowState, Fulfillment, FunctionBody,
-    GenericParameterId, HeritageReach, InducedParameterSite, InferContext, Origin, OriginId,
-    Premise, Question, Relation, VarianceForm, VarianceState, should_stream_check_events,
+    Answer, BoundSet, CanonicalEntry, CanonicalGoal, Cause, CauseId, CheckCounters,
+    CheckModuleState, CheckTrace, DecoratorApplication, ExternalModuleTable, FlowBranch, FlowState,
+    Fulfillment, FunctionBody, GenericParameterId, HeritageReach, InducedParameterSite,
+    InferContext, Origin, OriginId, Premise, Relation, VarianceForm, VarianceState,
+    is_check_event_streaming,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -29,7 +30,7 @@ pub(in crate::sema) enum Pass {
     Elaborate,
     /// Infer the module's bodies.
     Check,
-    /// Close the module's instances and evaluate settled types.
+    /// Close the module's instances and evaluate their resolved types.
     Materialize,
 }
 
@@ -139,31 +140,61 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) environment_declared: Option<Arc<EnvironmentDeclared>>,
     /// The ambient environment captured by the current revision.
     pub(in crate::sema) environment: Arc<Environment>,
-
-    // module
     /// The module being declared or checked.
     pub(in crate::sema) module_id: ModuleId,
-    /// The module's working state.
-    pub(in crate::sema) module: CheckModuleState,
     /// The pass this state solves.
     pub(in crate::sema) pass: Pass,
-
-    // externals
+    /// The module's working state.
+    pub(in crate::sema) module: CheckModuleState,
     /// Loaded external module states keyed by module id.
     pub(in crate::sema) external_modules: ExternalModuleTable,
     /// Resolved import targets of external modules read for alias hops.
-    pub(in crate::sema) external_resolved: FxIndexMap<ModuleId, Arc<DirResolved>>,
+    pub(in crate::sema) external_resolutions: FxIndexMap<ModuleId, Arc<DirResolved>>,
 
-    // canonical questions
-    /// Decided answers per canonical question, replayed on later asks.
-    pub(in crate::sema) answers: FxIndexMap<Question, Answer>,
+    // solver
+    /// The module's transient inference state.
+    pub(in crate::sema) infer: InferContext,
+    /// The fulfillment queue driving pending work to verdicts.
+    pub(in crate::sema) fulfill: Fulfillment,
+    /// Flow cursor state for the pass's single body traversal.
+    pub(in crate::sema) flow: FlowState,
+    /// Named function bodies keyed by their declaration symbol.
+    pub(in crate::sema) functions: FxIndexMap<dir::GlobalSymbolId, FunctionBody>,
+    /// Lambda bodies keyed by their value expression.
+    pub(in crate::sema) lambdas: FxIndexMap<dir::GlobalNodeIdAny, FunctionBody>,
+    /// Member block bodies discovered while checking, in discovery order.
+    pub(in crate::sema) blocks: Vec<dir::GlobalNodeIdAny>,
+    /// Resolved decorators in module walk order.
+    pub(in crate::sema) decorators: Vec<DecoratorApplication>,
+    /// Declaration types scanned for induced memory variables.
+    pub(in crate::sema) induced_sites: Vec<InducedParameterSite>,
+    /// Induced parameters already rebound to their sites this run.
+    pub(in crate::sema) claimed_induced: FxIndexSet<GenericParameterId>,
+    /// Declarations already walked, when canonicalized or in root order.
+    pub(in crate::sema) walked_declarations: FxIndexSet<dir::GlobalNodeIdAny>,
+    /// The authored decorators this pass's walk already visited.
+    pub(in crate::sema) walked_decorators: FxIndexSet<dir::LocalNodeId<dir::Decorator>>,
+    /// Declarations currently walking, innermost last.
+    pub(in crate::sema) walking_declarations: Vec<dir::GlobalNodeIdAny>,
+    /// Active derivability goals closed coinductively on re-entry.
+    pub(in crate::sema) deriving: FxIndexSet<(dir::GlobalTypeId, dir::AutoInterface)>,
+    /// Active extension member lookups closed coinductively on re-entry.
+    pub(in crate::sema) extending: FxIndexSet<(dir::GlobalSymbolId, dir::GlobalTypeId)>,
+    /// Extension applicability goals currently deciding.
+    pub(in crate::sema) deciding: FxIndexSet<(Relation, dir::GlobalTypeId, dir::GlobalTypeId)>,
+    /// Conditional reductions nested on the stack.
+    pub(in crate::sema) instantiation_depth: u32,
+
+    // memos
+    /// Decided answers per canonical goal, instantiated on later goals.
+    pub(in crate::sema) answers: FxIndexMap<CanonicalGoal, Answer>,
     /// Canonical operand pairs per interned operands and assuming scope.
-    pub(in crate::sema) canonicals:
+    pub(in crate::sema) canonical_entries:
         FxIndexMap<([dir::GlobalTypeId; 2], Option<dir::GlobalGenericTemplateId>), CanonicalEntry>,
-    /// Interned assumed bound sets, shared by questions with equal content.
+    /// Interned assumed bound sets, shared by goals with equal content.
     pub(in crate::sema) bound_sets: FxIndexSet<BoundSet>,
     /// Assumed bound content per scope and numbered parameter list.
-    pub(in crate::sema) premise_contents: FxIndexMap<
+    pub(in crate::sema) premises: FxIndexMap<
         (
             Option<dir::GlobalGenericTemplateId>,
             SmallVec<[GenericParameterId; 4]>,
@@ -173,42 +204,38 @@ pub(in crate::sema) struct CheckState<'a> {
     /// Assuming templates per declared scope.
     pub(in crate::sema) assuming_scopes:
         FxIndexMap<Option<dir::GlobalGenericTemplateId>, Option<dir::GlobalGenericTemplateId>>,
-
-    // graph memos
     /// Normalized heads per canonical type and assuming template.
     pub(in crate::sema) normalizations:
         FxIndexMap<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>), dir::GlobalTypeId>,
     /// Barrier-erased forms of closed contextual targets.
     pub(in crate::sema) erasures: FxIndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
-    /// Extension symbols visible per looking module and target head.
-    pub(in crate::sema) extension_sets:
-        FxIndexMap<(ModuleId, dir::TypeRoot), SmallVec<[dir::GlobalSymbolId; 4]>>,
-    /// Member keys each blanket extension can expose.
-    pub(in crate::sema) blanket_keys: FxIndexMap<dir::GlobalSymbolId, FxIndexSet<dir::StaticKey>>,
-    /// Interface requirements each extension implements, keyed by member key.
-    pub(in crate::sema) requirement_interfaces:
-        FxIndexMap<dir::GlobalSymbolId, FxIndexMap<dir::StaticKey, dir::GlobalSymbolId>>,
-    /// Visible implementations per interface, each with its extension target root.
-    pub(in crate::sema) visible_implementations: FxIndexMap<
-        (ModuleId, dir::GlobalSymbolId),
-        SmallVec<[(dir::GlobalSymbolId, Option<dir::TypeRoot>); 4]>,
+    /// Substituted graphs per closed template type and substitution content.
+    pub(in crate::sema) substitutions: FxIndexMap<
+        (dir::GlobalTypeId, Option<dir::GlobalTypeId>, u64),
+        (
+            SmallVec<[dir::GenericArgumentBinding; 4]>,
+            dir::GlobalTypeId,
+        ),
     >,
+    /// Memoized scalar families per closed type, none standing for a non-scalar.
+    pub(in crate::sema) scalar_families:
+        FxIndexMap<dir::GlobalTypeId, Option<dir::ScalarFamilySet>>,
+    /// Memoized aliasing per closed type.
+    pub(in crate::sema) aliasing: FxIndexMap<dir::GlobalTypeId, bool>,
+    /// Storable representations proved this pass.
+    pub(in crate::sema) storables:
+        FxIndexSet<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>)>,
+    /// Derived parameter variances per handle form, with in-flight marks.
+    pub(in crate::sema) variances:
+        FxIndexMap<(dir::GlobalGenericParameterId, VarianceForm), VarianceState>,
     /// Written-syntax ranks per generic parameter.
     pub(in crate::sema) argument_ranks:
         FxIndexMap<GenericParameterId, (usize, Option<dir::GlobalGenericTemplateId>, usize)>,
-    /// Scalar families per settled ground type.
-    pub(in crate::sema) scalar_families:
-        FxIndexMap<dir::GlobalTypeId, Option<dir::ScalarFamilySet>>,
-    /// Aliasing per settled ground type.
-    pub(in crate::sema) aliased: FxIndexMap<dir::GlobalTypeId, bool>,
-    /// Memoized drop hook members per nominal, none recording the absent Drop conformance.
-    pub(in crate::sema) drop_conformers:
-        FxIndexMap<dir::GlobalSymbolId, Option<dir::GlobalSymbolId>>,
-    /// Canonical member bindings per owner and space.
-    pub(in crate::sema) bindings:
-        FxIndexMap<(dir::GlobalSymbolId, dir::MemberSpace), Option<Arc<Vec<dir::MemberBinding>>>>,
     /// Declarations reached by each declaration's heritage.
     pub(in crate::sema) heritages: FxIndexMap<dir::GlobalSymbolId, HeritageReach>,
+    /// Canonical member bindings per owner and space.
+    pub(in crate::sema) member_bindings:
+        FxIndexMap<(dir::GlobalSymbolId, dir::MemberSpace), Option<Arc<Vec<dir::MemberBinding>>>>,
     /// Decided auto interface conformances per canonical type and assuming template.
     pub(in crate::sema) conformances: FxIndexMap<
         (
@@ -218,84 +245,43 @@ pub(in crate::sema) struct CheckState<'a> {
         ),
         bool,
     >,
-    /// Storable representations proved this pass.
-    pub(in crate::sema) storables:
-        FxIndexSet<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>)>,
-    /// Substituted graphs per closed template type and substitution content.
-    pub(in crate::sema) substitutions: FxIndexMap<
-        (dir::GlobalTypeId, Option<dir::GlobalTypeId>, u64),
-        (
-            SmallVec<[dir::GenericArgumentBinding; 4]>,
-            dir::GlobalTypeId,
-        ),
+    /// Memoized drop hook members per nominal, none standing for the absent Drop conformance.
+    pub(in crate::sema) drop_conformers:
+        FxIndexMap<dir::GlobalSymbolId, Option<dir::GlobalSymbolId>>,
+    /// Extension symbols visible per looking module and target head.
+    pub(in crate::sema) visible_extensions:
+        FxIndexMap<(ModuleId, dir::TypeRoot), SmallVec<[dir::GlobalSymbolId; 4]>>,
+    /// Visible implementations per interface, each with its extension target root.
+    pub(in crate::sema) visible_implementations: FxIndexMap<
+        (ModuleId, dir::GlobalSymbolId),
+        SmallVec<[(dir::GlobalSymbolId, Option<dir::TypeRoot>); 4]>,
     >,
-    /// Derived parameter variances per handle form, with in-flight marks.
-    pub(in crate::sema) variances:
-        FxIndexMap<(dir::GlobalGenericParameterId, VarianceForm), VarianceState>,
+    /// Member keys each blanket extension can expose.
+    pub(in crate::sema) blanket_keys: FxIndexMap<dir::GlobalSymbolId, FxIndexSet<dir::StaticKey>>,
+    /// Interface requirements each extension implements, keyed by member key.
+    pub(in crate::sema) requirement_interfaces:
+        FxIndexMap<dir::GlobalSymbolId, FxIndexMap<dir::StaticKey, dir::GlobalSymbolId>>,
 
-    // cycle guards
-    /// Active derivability goals closed coinductively on re-entry.
-    pub(in crate::sema) deriving: FxIndexSet<(dir::GlobalTypeId, dir::AutoInterface)>,
-    /// Active extension member lookups closed coinductively on re-entry.
-    pub(in crate::sema) extending: FxIndexSet<(dir::GlobalSymbolId, dir::GlobalTypeId)>,
-    /// Extension applicability goals currently deciding.
-    pub(in crate::sema) deciding: FxIndexSet<(Relation, dir::GlobalTypeId, dir::GlobalTypeId)>,
-
-    /// The module's transient inference state.
-    pub(in crate::sema) infer: InferContext,
-    /// The fulfillment queue driving pending work to verdicts.
-    pub(in crate::sema) fulfill: Fulfillment,
-
-    // walk state
-    /// Resolved decorators in module walk order.
-    pub(in crate::sema) decorators: Vec<DecoratorApplication>,
-    /// The authored decorators this pass's walk already visited.
-    pub(in crate::sema) walked_decorators: FxIndexSet<dir::LocalNodeId<dir::Decorator>>,
-    /// Declaration types scanned for induced memory variables.
-    pub(in crate::sema) induced_parameter_sites: Vec<InducedParameterSite>,
-    /// Induced parameters already rebound to their sites this run.
-    pub(in crate::sema) claimed_induced: FxIndexSet<GenericParameterId>,
-
-    // checked state
+    // outputs
     /// Stable declaration symbol types.
     pub(in crate::sema) declaration_types: FxIndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Body-owned binding symbol types.
     pub(in crate::sema) binding_types: FxIndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Checked source node occurrence types.
     pub(in crate::sema) node_types: NodeTable,
+    /// Contextual expected types by source node occurrence.
+    pub(in crate::sema) expected_types: NodeTable,
     /// Expression nodes whose value is a literal fresh from its expression.
     pub(in crate::sema) fresh_nodes: FxIndexMap<dir::GlobalNodeIdAny, Option<dir::GlobalTypeId>>,
     /// Const bindings initialized by a fresh literal, whose reads stay fresh.
     pub(in crate::sema) fresh_bindings: FxIndexSet<dir::GlobalSymbolId>,
-    /// Flow cursor state for the pass's single body traversal.
-    pub(in crate::sema) flow: FlowState,
     /// Constructor exit branches per initialized class, filled at check.
     pub(in crate::sema) constructor_branches: FxIndexMap<dir::GlobalSymbolId, Vec<FlowBranch>>,
-    /// Contextual expected types by source node occurrence.
-    pub(in crate::sema) expected_types: NodeTable,
-
-    // walk scheduling
-    /// Declarations already walked, when asked or in root order.
-    pub(in crate::sema) walked_declarations: FxIndexSet<dir::GlobalNodeIdAny>,
-    /// Declarations currently walking, innermost last.
-    pub(in crate::sema) walking_declarations: Vec<dir::GlobalNodeIdAny>,
-    /// Whether writeback is resolving declared-form member bindings.
-    pub(in crate::sema) is_writeback: bool,
-    /// Conditional reductions nested on the stack.
-    pub(in crate::sema) instantiation_depth: u32,
-
-    // body driver state
-    /// Named function bodies keyed by their declaration symbol.
-    pub(in crate::sema) functions: FxIndexMap<dir::GlobalSymbolId, FunctionBody>,
-    /// Member block bodies discovered while checking, in discovery order.
-    pub(in crate::sema) blocks: Vec<dir::GlobalNodeIdAny>,
-    /// Lambda bodies keyed by their value expression.
-    pub(in crate::sema) lambdas: FxIndexMap<dir::GlobalNodeIdAny, FunctionBody>,
 
     // stats
     /// Work counters for the stats sidecar.
     pub(in crate::sema) counters: CheckCounters,
-    /// Retained trace state, present only when tracing is requested.
+    /// Trace state kept only when tracing is requested.
     pub(in crate::sema) trace: Option<Box<CheckTrace>>,
 }
 
@@ -365,6 +351,7 @@ impl<'a> CheckState<'a> {
 
         // open every decision, inference, and trace table empty
         let state = Self {
+            // context
             compiler,
             context,
             recorder: context.recorder(),
@@ -374,69 +361,72 @@ impl<'a> CheckState<'a> {
             environment_declared,
             environment,
             module_id,
+            pass,
             module,
             external_modules: ExternalModuleTable::default(),
-            external_resolved: FxIndexMap::default(),
-            pass,
-            assuming_scopes: FxIndexMap::default(),
-            answers: FxIndexMap::default(),
-            bindings: FxIndexMap::default(),
-            canonicals: FxIndexMap::default(),
-            bound_sets: FxIndexSet::default(),
-            premise_contents: FxIndexMap::default(),
-            extension_sets: FxIndexMap::default(),
-            blanket_keys: FxIndexMap::default(),
-            requirement_interfaces: FxIndexMap::default(),
-            visible_implementations: FxIndexMap::default(),
-            counters: CheckCounters::default(),
-            normalizations: FxIndexMap::default(),
-            erasures: FxIndexMap::default(),
-            argument_ranks: FxIndexMap::default(),
-            scalar_families: FxIndexMap::default(),
-            aliased: FxIndexMap::default(),
-            drop_conformers: FxIndexMap::default(),
-            is_writeback: false,
-            instantiation_depth: 0,
-            conformances: FxIndexMap::default(),
-            heritages: FxIndexMap::default(),
-            deriving: FxIndexSet::default(),
-            extending: FxIndexSet::default(),
-            storables: FxIndexSet::default(),
-            substitutions: FxIndexMap::default(),
-            variances: FxIndexMap::default(),
+            external_resolutions: FxIndexMap::default(),
+            // solver
             infer: InferContext::new(),
             fulfill: Fulfillment::new(),
+            flow: FlowState::default(),
+            functions: FxIndexMap::default(),
+            lambdas: FxIndexMap::default(),
+            blocks: Vec::new(),
             decorators: Vec::new(),
-            walked_decorators: FxIndexSet::default(),
-            induced_parameter_sites: Vec::new(),
+            induced_sites: Vec::new(),
             claimed_induced: FxIndexSet::default(),
+            walked_declarations: FxIndexSet::default(),
+            walked_decorators: FxIndexSet::default(),
+            walking_declarations: Vec::new(),
+            deriving: FxIndexSet::default(),
+            extending: FxIndexSet::default(),
+            deciding: FxIndexSet::default(),
+            instantiation_depth: 0,
+            // memos
+            answers: FxIndexMap::default(),
+            canonical_entries: FxIndexMap::default(),
+            bound_sets: FxIndexSet::default(),
+            premises: FxIndexMap::default(),
+            assuming_scopes: FxIndexMap::default(),
+            normalizations: FxIndexMap::default(),
+            erasures: FxIndexMap::default(),
+            substitutions: FxIndexMap::default(),
+            scalar_families: FxIndexMap::default(),
+            aliasing: FxIndexMap::default(),
+            storables: FxIndexSet::default(),
+            variances: FxIndexMap::default(),
+            argument_ranks: FxIndexMap::default(),
+            heritages: FxIndexMap::default(),
+            member_bindings: FxIndexMap::default(),
+            conformances: FxIndexMap::default(),
+            drop_conformers: FxIndexMap::default(),
+            visible_extensions: FxIndexMap::default(),
+            visible_implementations: FxIndexMap::default(),
+            blanket_keys: FxIndexMap::default(),
+            requirement_interfaces: FxIndexMap::default(),
+            // outputs
             declaration_types: FxIndexMap::default(),
             binding_types: FxIndexMap::default(),
             node_types: NodeTable::default(),
+            expected_types: NodeTable::default(),
             fresh_nodes: FxIndexMap::default(),
             fresh_bindings: FxIndexSet::default(),
-            flow: FlowState::default(),
             constructor_branches: FxIndexMap::default(),
-            expected_types: NodeTable::default(),
-            walked_declarations: FxIndexSet::default(),
-            walking_declarations: Vec::new(),
-            deciding: FxIndexSet::default(),
-            functions: FxIndexMap::default(),
-            blocks: Vec::new(),
-            lambdas: FxIndexMap::default(),
-            trace: CheckTrace::new(emit_events, should_stream_check_events()),
+            // stats
+            counters: CheckCounters::default(),
+            trace: CheckTrace::new(emit_events, is_check_event_streaming()),
         };
 
         Ok(state)
     }
 
-    /// Return whether this check infers one member's bodies.
-    pub(in crate::sema) fn infers_module(&self, module: ModuleId) -> bool {
+    /// Return whether this check infers one module's bodies.
+    pub(in crate::sema) fn is_inferred_module(&self, module: ModuleId) -> bool {
         self.pass == Pass::Check && module == self.module_id
     }
 
     /// Return whether this pass declares the module's own interface.
-    pub(in crate::sema) fn is_declaration(&self) -> bool {
+    pub(in crate::sema) fn is_declaring(&self) -> bool {
         self.pass == Pass::Declare
     }
 
@@ -445,8 +435,8 @@ impl<'a> CheckState<'a> {
         self.pass == Pass::Check
     }
 
-    /// Bind the error type to every exported binding without a derived type.
-    pub(in crate::sema) fn bind_underivable_exports(&mut self) -> CompilerResult<()> {
+    /// Commit the error type to every exported binding without a derived type.
+    pub(in crate::sema) fn commit_underivable_exports(&mut self) -> CompilerResult<()> {
         // view the module tree with its expansion patches
         let module = self.module_id;
         let input = self.module(module);
@@ -460,7 +450,7 @@ impl<'a> CheckState<'a> {
             self.collect_exported_declarators(module, tree, *root, &mut exported);
         }
 
-        // report and bind the error type where derivation failed
+        // report and commit the error type where derivation failed
         for (declarator, symbol) in exported {
             if self.symbol_type_maybe(symbol).is_some() {
                 continue;
@@ -472,12 +462,12 @@ impl<'a> CheckState<'a> {
             }
 
             // report the failure once, while declaring
-            if self.is_declaration() {
+            if self.is_declaring() {
                 self.report_export_type_not_derivable(module, declarator);
             }
 
             let error = self.intern_type(dir::Type::Error)?;
-            self.bind_symbol_type(symbol, error)?;
+            self.commit_symbol_type(symbol, error)?;
         }
 
         Ok(())
@@ -644,7 +634,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether any operand already reported an error.
-    pub(in crate::sema) fn any_error_operand(
+    pub(in crate::sema) fn has_error_operand(
         &self,
         operands: &[dir::GlobalTypeId],
     ) -> CompilerResult<bool> {
@@ -792,7 +782,7 @@ impl CheckState<'_> {
             child_flags |= self.type_flags(*child)?;
         }
 
-        // record the foreign modules this type mentions as it stores
+        // note the foreign modules this type mentions as it stores
         for child in &children {
             if child.module_id != module {
                 self.module.references.insert(child.module_id);
@@ -847,7 +837,7 @@ impl CheckState<'_> {
         let (local, inserted) = self.module.types_tail.intern_type_inserted(ty, child_flags);
         let id = local.into_global(module);
 
-        // settle each newly born closed head once declarations can load
+        // normalize each newly born closed head once declarations can load
         if inserted
             && !child_flags.has_variable()
             && self.pass != Pass::Declare
@@ -1215,7 +1205,7 @@ impl CheckState<'_> {
     }
 
     /// Return one index signature list owned by a module.
-    pub(in crate::sema) fn shape_index_signatures(
+    pub(in crate::sema) fn object_index_signatures(
         &self,
         module: ModuleId,
         list: dir::TypeListId,
@@ -1374,7 +1364,7 @@ impl CheckState<'_> {
         definition: dir::Definition,
     ) -> CompilerResult<()> {
         // keep checked segments append-grow: unchanged declared entries stay layered
-        if !self.is_declaration()
+        if !self.is_declaring()
             && let Some(declared) = self
                 .module_maybe(symbol.module_id)
                 .and_then(|state| state.declared.as_ref())
@@ -1701,12 +1691,12 @@ impl CheckState<'_> {
         &mut self,
         source: ModuleId,
         target: ModuleId,
-        mut shape: dir::ShapeType,
+        mut shape: dir::ObjectType,
         map: &mut impl FnMut(&mut Self, dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId>,
-    ) -> CompilerResult<dir::ShapeType> {
+    ) -> CompilerResult<dir::ObjectType> {
         // map each property's read and write types
         let mut properties = SmallVec::<[dir::TypeProperty; 8]>::from_slice(
-            self.shape_properties(source, shape.properties)?,
+            self.object_properties(source, shape.properties)?,
         );
         for property in &mut properties {
             property.access = match property.access {
@@ -1728,7 +1718,7 @@ impl CheckState<'_> {
 
         // map each index signature's key and value types
         let mut signatures = SmallVec::<[dir::TypeIndexSignature; 2]>::from_slice(
-            self.shape_index_signatures(source, shape.index_signatures)?,
+            self.object_index_signatures(source, shape.index_signatures)?,
         );
         for signature in &mut signatures {
             signature.key_type = map(self, signature.key_type)?;
@@ -1786,7 +1776,7 @@ impl CheckState<'_> {
     }
 
     /// Return one shape property list owned by a module.
-    pub(in crate::sema) fn shape_properties(
+    pub(in crate::sema) fn object_properties(
         &self,
         module: ModuleId,
         list: dir::TypeListId,
@@ -1814,7 +1804,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let properties = self.intern_properties(properties)?;
 
-        self.intern_type(dir::Type::Object(dir::ShapeType {
+        self.intern_type(dir::Type::Object(dir::ObjectType {
             properties,
             call_signatures: dir::TypeListId::EMPTY,
             construct_signatures: dir::TypeListId::EMPTY,
@@ -1845,8 +1835,8 @@ impl CheckState<'_> {
         Ok(ty)
     }
 
-    /// Return one refined type's base and associated bindings.
-    pub(in crate::sema) fn refinement_bindings(
+    /// Return one refined type's base with its associated refinements.
+    pub(in crate::sema) fn refinements(
         &self,
         mut id: dir::GlobalTypeId,
     ) -> CompilerResult<(

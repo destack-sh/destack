@@ -47,18 +47,18 @@ impl BodyState<'_, '_> {
             // look the key up at this step, by value and through its borrows
             let mut lookup = self.lookup_member_at_step(origin, module, subject, key, step)?;
             if !matches!(lookup, MemberLookup::Missing) {
-                // walk to the found depth again, committed, under the access the members demand
-                let demanded = self.demanded_access(&lookup, access)?;
-                let steps = self.autoderef(origin, receiver, demanded)?;
+                // walk to the found depth again, committed, under the access the members require
+                let required = self.required_access(&lookup, access)?;
+                let steps = self.autoderef(origin, receiver, required)?;
                 let Some(found) = steps.get(depth) else {
                     self.check.report_borrow_access_not_granted(
                         origin,
-                        demanded,
+                        required,
                         Some(dir::Access::Readonly),
                         subject.target,
                     )?;
 
-                    return Ok(MemberLookup::Undecided);
+                    return Ok(MemberLookup::Ambiguous);
                 };
                 for adjustment in found.adjustments.clone().into_iter().rev() {
                     lookup.prepend_adjustment(adjustment);
@@ -203,7 +203,7 @@ impl BodyState<'_, '_> {
             };
 
             // take the method by value, or through a borrow of the step
-            if this_form.overlaps(step_form) {
+            if this_form.is_overlapping(step_form) {
                 by_value.push(candidate);
             } else if this_form.ownership == dir::Ownership::Borrowed
                 && step_form.ownership != dir::Ownership::Borrowed
@@ -391,9 +391,9 @@ impl BodyState<'_, '_> {
         }))?))
     }
 
-    /// Return the strongest access the found members demand of their receiver: a method's
+    /// Return the strongest access the found members require of their receiver: a method's
     /// `this` access, or the use's own access for fields.
-    fn demanded_access(
+    fn required_access(
         &mut self,
         lookup: &MemberLookup,
         use_access: dir::Access,
@@ -401,7 +401,7 @@ impl BodyState<'_, '_> {
         let MemberLookup::Found(candidates) = lookup else {
             return Ok(use_access);
         };
-        let mut demanded = use_access;
+        let mut required = use_access;
         for candidate in candidates {
             if candidate.role != MemberRole::Method {
                 continue;
@@ -423,11 +423,11 @@ impl BodyState<'_, '_> {
             let access = self.check.type_borrow(this.module_id, borrow)?.access;
             let access = self.shallow_resolve(access)?;
             if let dir::Type::Memory(dir::MemoryLiteral::Access(access)) = self.ty(access)? {
-                demanded = demanded.max(access);
+                required = required.max(access);
             }
         }
 
-        Ok(demanded)
+        Ok(required)
     }
 
     /// Relate one implicit method receiver to its `this` parameter.
@@ -561,7 +561,7 @@ impl BodyState<'_, '_> {
             return Ok(ReceiverSteps::new());
         }
 
-        // project newtype carriers while retaining their enclosing memory forms
+        // project newtype carriers while keeping their enclosing memory forms
         let (carrier, mut steps) = self.project_newtype_receiver(origin, source)?;
         if carrier == narrowed {
             return Ok(steps);
@@ -585,7 +585,7 @@ impl BodyState<'_, '_> {
             return Ok(steps);
         }
 
-        // narrowed union subsets retain the physical carrier representation
+        // narrowed union subsets keep the physical carrier representation
         let Some(narrowed_arms) = self.union_arms(origin, narrowed)? else {
             return Ok(steps);
         };

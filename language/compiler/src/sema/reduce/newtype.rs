@@ -54,7 +54,7 @@ impl CheckState<'_> {
         _origin: Origin,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<NewtypeInstance>> {
-        // resolve the solved value before judging its head
+        // resolve the solved value before reading its head
         let value = self.shallow_resolve(value)?;
         let dir::Type::Application(instance) = self.ty(value)? else {
             return Ok(None);

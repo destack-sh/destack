@@ -15,11 +15,11 @@ impl CheckState<'_> {
     ) -> CompilerResult<bool> {
         let mut active = FxIndexSet::default();
 
-        self.type_overlap(origin, source, target, &mut active)
+        self.type_may_overlap(origin, source, target, &mut active)
     }
 
-    /// Return type overlap while tracking recursive comparisons.
-    fn type_overlap(
+    /// Return whether two types may overlap, tracking recursive comparisons.
+    fn type_may_overlap(
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
@@ -82,7 +82,7 @@ impl CheckState<'_> {
         // compare generic parameters through every active bound
         if let dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) = source_type {
             for bound in self.parameter_bounds(origin, parameter)? {
-                if !self.type_overlap(origin, bound, target, active)? {
+                if !self.type_may_overlap(origin, bound, target, active)? {
                     return Ok(false);
                 }
             }
@@ -91,7 +91,7 @@ impl CheckState<'_> {
         }
         if let dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) = target_type {
             for bound in self.parameter_bounds(origin, parameter)? {
-                if !self.type_overlap(origin, source, bound, active)? {
+                if !self.type_may_overlap(origin, source, bound, active)? {
                     return Ok(false);
                 }
             }
@@ -102,13 +102,13 @@ impl CheckState<'_> {
         // erased values retain their checked constraint as their runtime domain
         match (&source_type, &target_type) {
             (dir::Type::Dynamic(source), dir::Type::Dynamic(target)) => {
-                return self.type_overlap(origin, source.constraint, target.constraint, active);
+                return self.type_may_overlap(origin, source.constraint, target.constraint, active);
             }
             (dir::Type::Dynamic(source), _) => {
-                return self.type_overlap(origin, source.constraint, target, active);
+                return self.type_may_overlap(origin, source.constraint, target, active);
             }
             (_, dir::Type::Dynamic(target)) => {
-                return self.type_overlap(origin, source, target.constraint, active);
+                return self.type_may_overlap(origin, source, target.constraint, active);
             }
             _ => {}
         }
@@ -138,7 +138,7 @@ impl CheckState<'_> {
                 return Ok(false);
             }
 
-            return self.type_overlap(origin, source_chain.base(), target_chain.base(), active);
+            return self.type_may_overlap(origin, source_chain.base(), target_chain.base(), active);
         }
 
         // reject incompatible properties required by structural types
@@ -160,19 +160,19 @@ impl CheckState<'_> {
                 if source.variant != target.variant {
                     Ok(false)
                 } else {
-                    self.type_overlap(origin, source.owner, target.owner, active)
+                    self.type_may_overlap(origin, source.owner, target.owner, active)
                 }
             }
             (dir::Type::Variant(variant), _) => {
-                self.type_overlap(origin, variant.owner, target, active)
+                self.type_may_overlap(origin, variant.owner, target, active)
             }
             (_, dir::Type::Variant(variant)) => {
-                self.type_overlap(origin, source, variant.owner, active)
+                self.type_may_overlap(origin, source, variant.owner, active)
             }
 
             // scalar singletons and intervals compare their exact values
             (source, target)
-                if let Some(overlaps) = Self::scalar_types_may_overlap(source, target) =>
+                if let Some(overlaps) = self.scalar_types_may_overlap(source, target) =>
             {
                 Ok(overlaps)
             }
@@ -223,7 +223,7 @@ impl CheckState<'_> {
 
                 // every element position must keep a shared inhabitant
                 for (source, target) in source_elements.iter().zip(target_elements.iter()) {
-                    if !self.type_overlap(origin, *source, *target, active)? {
+                    if !self.type_may_overlap(origin, *source, *target, active)? {
                         return Ok(false);
                     }
                 }
@@ -241,12 +241,12 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
-        shape: dir::ShapeType,
+        shape: dir::ObjectType,
         target: dir::GlobalTypeId,
         active: &mut FxIndexSet<(dir::GlobalTypeId, dir::GlobalTypeId)>,
     ) -> CompilerResult<bool> {
         let fields: SmallVec<[_; 4]> = self
-            .shape_properties(source.module_id, shape.properties)?
+            .object_properties(source.module_id, shape.properties)?
             .into();
 
         // incompatible required properties make the intersection empty
@@ -264,7 +264,7 @@ impl CheckState<'_> {
             )?;
             if let Some(target_field) = self.body().member_read_type(&lookup)? {
                 let source_field = field.access.read().unwrap_or_else(|| field.access.store());
-                if !self.type_overlap(origin, source_field, target_field, active)? {
+                if !self.type_may_overlap(origin, source_field, target_field, active)? {
                     return Ok(false);
                 }
             } else if !self.may_have_additional_member(origin, target, field.key)? {
@@ -284,7 +284,7 @@ impl CheckState<'_> {
         active: &mut FxIndexSet<(dir::GlobalTypeId, dir::GlobalTypeId)>,
     ) -> CompilerResult<bool> {
         for element in elements {
-            if self.type_overlap(origin, element, target, active)? {
+            if self.type_may_overlap(origin, element, target, active)? {
                 return Ok(true);
             }
         }
@@ -330,13 +330,13 @@ impl CheckState<'_> {
                 match self.argument_variance(source_instance.symbol, index, form)? {
                     Variance::Bivariant | Variance::Contravariant => {}
                     Variance::Covariant => {
-                        if !self.type_overlap(origin, source, target, active)? {
+                        if !self.type_may_overlap(origin, source, target, active)? {
                             return Ok(false);
                         }
                     }
                     Variance::Invariant => {
                         // treat an undecided pair as overlapping
-                        if self.evaluate_relation(origin, Relation::Equal, source, target)?
+                        if self.decide_relation(origin, Relation::Equal, source, target)?
                             == Verdict::Fails
                         {
                             return Ok(false);
@@ -349,10 +349,8 @@ impl CheckState<'_> {
         }
 
         // accept inherited applications, the subtype's values are shared
-        let source_is_subtype =
-            self.evaluate_relation(origin, Relation::Subtype, source, target)?;
-        let target_is_subtype =
-            self.evaluate_relation(origin, Relation::Subtype, target, source)?;
+        let source_is_subtype = self.decide_relation(origin, Relation::Subtype, source, target)?;
+        let target_is_subtype = self.decide_relation(origin, Relation::Subtype, target, source)?;
         // treat an undecided pair as overlapping
         if source_is_subtype != Verdict::Fails || target_is_subtype != Verdict::Fails {
             return Ok(true);
@@ -366,7 +364,10 @@ impl CheckState<'_> {
     }
 
     /// Return exact overlap for scalar singleton and interval types.
-    fn scalar_types_may_overlap(source: &dir::Type, target: &dir::Type) -> Option<bool> {
+    ///
+    /// A pair outside the singleton and interval domains returns `None`, leaving it to the other
+    /// constructor families.
+    fn scalar_types_may_overlap(&self, source: &dir::Type, target: &dir::Type) -> Option<bool> {
         let overlaps = match (source, target) {
             (dir::Type::Literal(source), dir::Type::Literal(target)) => source == target,
             (dir::Type::Literal(source), dir::Type::Range(target)) => {

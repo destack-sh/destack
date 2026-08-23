@@ -112,16 +112,16 @@ impl CheckState<'_> {
             &mut state.generics_tail
         })?;
 
-        // record the instantiations the committed bodies perform
+        // commit the instantiations the committed bodies perform
         if self.is_checking() {
-            self.record_instantiations();
+            self.commit_instantiations();
         }
 
         Ok(())
     }
 
-    /// Record every instantiation the committed decisions and conversions perform.
-    fn record_instantiations(&mut self) {
+    /// Commit every instantiation the committed decisions and conversions perform.
+    fn commit_instantiations(&mut self) {
         // collect selections that bind generic arguments, with their governing template
         let mut seen = FxIndexSet::default();
         let mut instantiations = Vec::new();
@@ -183,7 +183,7 @@ impl CheckState<'_> {
         let mut method = None;
         while let Some(parent) = tree.get_parent(current) {
             if let Some(symbol) = self.module.declaration_symbol(parent) {
-                // ground parameterized owners through their selecting method
+                // resolve parameterized owners through their selecting method
                 let is_parameterized = self
                     .loaded_symbol_template(symbol)
                     .and_then(|template| self.generic_template(template))
@@ -196,7 +196,7 @@ impl CheckState<'_> {
                     return Some(method.unwrap_or(symbol));
                 }
 
-                // remember the innermost method awaiting a parameterized owner
+                // keep the innermost method awaiting a parameterized owner
                 let is_method = parent
                     .try_into_typed::<dir::Member>()
                     .is_ok_and(|member| matches!(tree.get(member), dir::Member::Method { .. }));
@@ -227,7 +227,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Write one settled symbol type over whatever entry the artifact already carries.
+    /// Write one resolved symbol type over whatever entry the artifact already carries.
     fn write_symbol_type(&mut self, symbol: dir::GlobalSymbolId, resolved: dir::GlobalTypeId) {
         let written = self
             .module
@@ -244,11 +244,11 @@ impl CheckState<'_> {
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // track the roots on the active path to break cycles, replaying settled subgraphs
+        // track the roots on the active path to break cycles, reusing resolved subgraphs
         let ty = self.shallow_resolve(ty)?;
         let mut active = FxIndexSet::default();
-        let mut settled = FxIndexMap::default();
-        let resolved = self.resolve_open_type(ty, &mut active, &mut settled)?;
+        let mut memo = FxIndexMap::default();
+        let resolved = self.resolve_open_type(ty, &mut active, &mut memo)?;
 
         // require the write to close over solutions and holes
         if self.type_flags(resolved)?.has_variable() {
@@ -265,7 +265,7 @@ impl CheckState<'_> {
         &mut self,
         id: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
-        settled: &mut FxIndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
+        memo: &mut FxIndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // a closed graph without computation heads resolves to itself
         let flags = self.type_flags(id)?;
@@ -278,8 +278,8 @@ impl CheckState<'_> {
             return Ok(id);
         }
 
-        // replay the form this walk already resolved for the root
-        if let Some(done) = settled.get(&id).copied() {
+        // reuse the form this walk already resolved for the root
+        if let Some(done) = memo.get(&id).copied() {
             return Ok(done);
         }
 
@@ -295,10 +295,10 @@ impl CheckState<'_> {
                 Some(solution) => {
                     let solution = self.shallow_resolve(solution)?;
 
-                    self.resolve_open_type(solution, active, settled)?
+                    self.resolve_open_type(solution, active, memo)?
                 }
                 // a clean declaration writes every type it carries
-                None if self.is_declaration()
+                None if self.is_declaring()
                     && self.module(self.module_id).diagnostics.is_empty() =>
                 {
                     let origin = self.infer.origin(self.infer.variable(variable)?.origin);
@@ -320,7 +320,7 @@ impl CheckState<'_> {
         else {
             let rebuilt =
                 self.map_type_children(id.module_id, id.module_id, ty, &mut |state, child| {
-                    state.resolve_open_type(child, active, settled)
+                    state.resolve_open_type(child, active, memo)
                 })?;
 
             // renormalize solved unions like any other construction
@@ -338,18 +338,18 @@ impl CheckState<'_> {
                 rebuilt => self.intern_type(rebuilt)?,
             };
 
-            self.settle_computation(rebuilt)?
+            self.resolve_computation(rebuilt)?
         };
         active.swap_remove(&id);
-        settled.insert(id, resolved);
+        memo.insert(id, resolved);
 
         Ok(resolved)
     }
 
-    /// Settle one closed computation head to the type it reduces to.
-    fn settle_computation(&mut self, id: dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId> {
-        // typeof and associated projections settle at check, where value types exist
-        if self.is_declaration() {
+    /// Normalize one closed computation head to the type it reduces to.
+    fn resolve_computation(&mut self, id: dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId> {
+        // typeof and associated projections resolve at check, where value types exist
+        if self.is_declaring() {
             return Ok(id);
         }
 
@@ -359,11 +359,11 @@ impl CheckState<'_> {
             return Ok(id);
         }
 
-        // settle written projections and operations, plus the alias names whose values reach one
+        // normalize written projections and operations, plus the alias names whose values reach one
         let computes = match self.ty(id)? {
             dir::Type::Operation(_) | dir::Type::Member(_) => true,
-            dir::Type::Application(instance) => self.alias_computes(instance.symbol)?,
-            dir::Type::Reference(reference) => self.alias_computes(reference.symbol)?,
+            dir::Type::Application(instance) => self.is_computed_alias(instance.symbol)?,
+            dir::Type::Reference(reference) => self.is_computed_alias(reference.symbol)?,
             _ => false,
         };
         if !computes {
@@ -374,17 +374,17 @@ impl CheckState<'_> {
     }
 
     /// Return whether one type alias value requires normalization.
-    pub(in crate::sema) fn alias_computes(
+    pub(in crate::sema) fn is_computed_alias(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<bool> {
         let mut named = FxIndexSet::default();
 
-        self.name_computes(symbol, &mut named)
+        self.is_computed_name(symbol, &mut named)
     }
 
     /// Return whether one declared name's family requires normalization.
-    fn name_computes(
+    fn is_computed_name(
         &mut self,
         symbol: dir::GlobalSymbolId,
         named: &mut FxIndexSet<dir::GlobalSymbolId>,
@@ -399,25 +399,25 @@ impl CheckState<'_> {
             _ => return Ok(false),
         };
 
-        self.value_requires_normalization(value, named)
+        self.is_computed_value(value, named)
     }
 
     /// Return whether one declared alias value requires normalization.
-    fn value_requires_normalization(
+    fn is_computed_value(
         &mut self,
         value: dir::GlobalTypeId,
         named: &mut FxIndexSet<dir::GlobalSymbolId>,
     ) -> CompilerResult<bool> {
         match self.ty(value)? {
             dir::Type::Operation(_) | dir::Type::Member(_) => Ok(true),
-            dir::Type::Application(instance) => self.name_computes(instance.symbol, named),
-            dir::Type::Reference(reference) => self.name_computes(reference.symbol, named),
+            dir::Type::Application(instance) => self.is_computed_name(instance.symbol, named),
+            dir::Type::Reference(reference) => self.is_computed_name(reference.symbol, named),
 
             // search every union member for a computation
             dir::Type::Union(union) => {
                 let elements = self.type_ids(value.module_id, union.elements)?.to_vec();
                 for element in elements {
-                    if self.value_requires_normalization(element, named)? {
+                    if self.is_computed_value(element, named)? {
                         return Ok(true);
                     }
                 }

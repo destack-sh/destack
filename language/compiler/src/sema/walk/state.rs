@@ -122,7 +122,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         id: dir::LocalNodeId<T>,
     ) -> CompilerResult<FlowSite> {
-        // sites mint once and replay at every later visit
+        // sites mint once and reuse at every later visit
         self.check.visit_site(id.into_global_any(self.module))
     }
 
@@ -146,7 +146,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let cause = self.check.intern_cause(Cause::root(site.origin(), kind));
         let expectation = Expectation::assignable(target, cause, use_);
         self.check
-            .register_check(Check::Node(NodeCheck { site, expectation }))?;
+            .queue_check(Check::Node(NodeCheck { site, expectation }))?;
 
         Ok(())
     }
@@ -297,11 +297,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
     /// Report one written `_` a declaration position cannot infer, returning the error type.
     ///
     /// A declaration writes every type it carries, so only bodies infer.
-    pub(in crate::sema) fn reject_declaration_hole(
+    pub(in crate::sema) fn report_declaration_hole(
         &mut self,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        if !self.check.is_declaration() {
+        if !self.check.is_declaring() {
             return Ok(None);
         }
         let anchor = self.check.diagnostic_anchor(self.module, source);
@@ -324,7 +324,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             source.into_global(self.module),
             self.flow().template_scope(),
         );
-        let variable = self.check.allocate_variable(origin, role);
+        let variable = self.check.open_variable(origin, role);
 
         self.check.variable_type(variable)
     }
@@ -368,7 +368,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
 
         // report foreign value reads while declaring
-        let ty = if !self.check.is_own_module(symbol.module_id) && self.check.is_declaration() {
+        let ty = if !self.check.is_own_module(symbol.module_id) && self.check.is_declaring() {
             let source = self
                 .check
                 .walking_declarations
@@ -427,7 +427,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // infer declaration types when recursive and forward references need a slot
         let origin = Origin::Symbol(symbol);
-        let variable = self.check.allocate_variable(origin, VariableRole::Regular);
+        let variable = self.check.open_variable(origin, VariableRole::Regular);
         let ty = self.check.variable_type(variable)?;
         self.check.commit_declaration_type(symbol, ty)?;
 
@@ -444,7 +444,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
 
         let origin = Origin::Symbol(symbol);
-        let variable = self.check.allocate_variable(origin, VariableRole::Regular);
+        let variable = self.check.open_variable(origin, VariableRole::Regular);
         let ty = self.check.variable_type(variable)?;
         let space = {
             let bindings = self.check.module(symbol.module_id).binding_table();
@@ -472,24 +472,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.check.commit_binding_type(symbol, ty)?;
 
         Ok(ty)
-    }
-
-    /// Bind one symbol's type to an exact type.
-    pub(in crate::sema) fn bind_symbol_type(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.bind_symbol_type(symbol, ty)
-    }
-
-    /// Set one symbol's static value singleton type.
-    pub(in crate::sema) fn commit_static_value(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        value: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        self.check.commit_static_value(symbol, value)
     }
 
     /// Intern one type into this module's working segment.

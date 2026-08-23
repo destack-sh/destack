@@ -213,8 +213,8 @@ impl BodyState<'_, '_> {
         Ok(adopted)
     }
 
-    /// Record one const name pattern's binding as fresh, so its reads widen like the literal.
-    fn mark_fresh_pattern_binding(
+    /// Add one const name pattern's binding to the fresh set, so its reads widen like the literal.
+    fn insert_fresh_pattern_binding(
         &mut self,
         module: ModuleId,
         pattern: dir::LocalNodeId<dir::Pattern>,
@@ -313,7 +313,7 @@ impl BodyState<'_, '_> {
         // the delegate return becomes the yield's own output
         let variable = self
             .check
-            .allocate_variable(site.origin(), VariableRole::Regular);
+            .open_variable(site.origin(), VariableRole::Regular);
         let output = self.check.variable_type(variable)?;
 
         // the delegate value must implement the generator protocol
@@ -401,7 +401,7 @@ impl BodyState<'_, '_> {
 
         // open the loop output joined by break values
         let origin = site.origin();
-        let variable = self.check.allocate_variable(origin, VariableRole::Regular);
+        let variable = self.check.open_variable(origin, VariableRole::Regular);
         let result = self.check.variable_type(variable)?;
         let label = self.check.control_label(node.into_typed(), label)?;
         self.check.enter_control_target(
@@ -579,7 +579,7 @@ impl BodyState<'_, '_> {
             None => {
                 self.check
                     .report_break_outside_control_target(module, node.local_id);
-                self.check.flow.mark_unbound_jump(node.local_id);
+                self.check.flow.insert_unbound_jump(node.local_id);
             }
         }
 
@@ -672,7 +672,7 @@ impl BodyState<'_, '_> {
         // derive the type the pattern destructures from
         let target = match (declarator.value, written) {
             // transcribe the written type while declaring
-            (Some(_), Some(written)) if self.is_declaration() => {
+            (Some(_), Some(written)) if self.is_declaring() => {
                 match self.check.type_flags(written)?.has_variable() {
                     true => None,
                     false => Some(written),
@@ -697,13 +697,13 @@ impl BodyState<'_, '_> {
                 Some(written)
             }
             // leave unexported initializers to the body pass
-            (Some(_), None) if self.is_declaration() && !exported => None,
+            (Some(_), None) if self.is_declaring() && !exported => None,
             // error for exported non-transcribable values
             (Some(value), None)
                 if exported && !self.check.is_transcribable_literal(module, value) =>
             {
                 // infer the body while checking
-                if !self.is_declaration() {
+                if !self.is_declaring() {
                     let site = self.visit_site(value.into_global_any(module))?;
                     self.infer_node(site, PlaceUse::Read, InferMode::Regular)?;
                 }
@@ -725,12 +725,12 @@ impl BodyState<'_, '_> {
                 // a const keeps a fresh literal, any other binding widens it through its slot
                 let ty = if binding_kind == Some(dir::LetKind::Const) {
                     if value.is_fresh {
-                        self.mark_fresh_pattern_binding(module, pattern);
+                        self.insert_fresh_pattern_binding(module, pattern);
                     }
                     ty
                 } else {
                     match self.pattern_binding_variable(module, pattern)? {
-                        Some(slot) => self.bind_fresh(slot, value)?,
+                        Some(slot) => self.widen_fresh_slot(slot, value)?,
                         None => self.fresh_variable(site.origin(), value)?,
                     }
                 };
@@ -745,7 +745,7 @@ impl BodyState<'_, '_> {
             }
             // uninitialized declarators take their written type
             (None, Some(written)) => {
-                match self.is_declaration() && self.check.type_flags(written)?.has_variable() {
+                match self.is_declaring() && self.check.type_flags(written)?.has_variable() {
                     true => None,
                     false => Some(written),
                 }
@@ -768,7 +768,7 @@ impl BodyState<'_, '_> {
             self.check_pattern(pattern.into_global(module), site.flow, site.scope, target)?;
 
             // non-matching positions must always match irrefutably
-            let requires_irrefutable = !self.check.allows_refutable_pattern(module, id);
+            let requires_irrefutable = !self.check.is_refutable_pattern_position(module, id);
             if requires_irrefutable {
                 let value = match declarator.value {
                     Some(value) => ExpectedType::Node(value.into_global_any(module)),
@@ -789,7 +789,7 @@ impl BodyState<'_, '_> {
         }
 
         // commit a module constant's static term beside its checked initializer
-        if !self.is_declaration()
+        if !self.is_declaring()
             && binding_kind == Some(dir::LetKind::Const)
             && let Some(value) = declarator.value
             && let Some(symbol) = self
@@ -803,7 +803,7 @@ impl BodyState<'_, '_> {
         // mark the declared and ambient bindings assigned
         {
             let node = self.module(module).view().get(id).clone();
-            self.check.mark_declarator_assigned(&node, is_ambient);
+            self.check.assign_declarator_bindings(&node, is_ambient);
         }
 
         Ok(())
@@ -834,7 +834,7 @@ impl BodyState<'_, '_> {
                         });
                     };
                     let origin = self.visit_site(pattern.into_global_any(module))?.origin();
-                    self.reject_type_shadowing_binding(module, value.into_any(), pattern, origin)?;
+                    self.report_type_shadowing_binding(module, value.into_any(), pattern, origin)?;
 
                     self.check_declarator(module, *declarator, Some(*kind), false, false)?;
                 }
@@ -972,9 +972,9 @@ impl BodyState<'_, '_> {
             return Ok(());
         }
 
-        // reuse a settled commit; one still open re-walks fresh
+        // reuse a resolved commit; one still open re-walks fresh
         if let Some(committed) = self.check.committed_node_type(node)
-            && self.check.open_type_variables([committed])?.is_empty()
+            && self.check.collect_open_variables([committed])?.is_empty()
         {
             return Ok(());
         }
@@ -1063,32 +1063,43 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Register one function value's body at its first typing visit.
+    /// Return whether one declaration node holds a function value.
     ///
-    /// Return whether the declaration is a function value; statements keep their declaration path.
-    pub(in crate::sema) fn register_function_value(
-        &mut self,
+    /// A committed body answers for its own node; every other declaration reads its syntax.
+    pub(in crate::sema) fn is_function_value_declaration(
+        &self,
         node: dir::GlobalNodeIdAny,
         declaration: dir::LocalNodeId<dir::Declaration>,
     ) -> CompilerResult<bool> {
-        let module = node.module_id;
         if self.check.lambdas.contains_key(&node) {
             return Ok(true);
+        }
+        let (parsed, expanded) = self.patched_inputs(node.module_id);
+        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+
+        Ok(matches!(
+            tree.get(declaration),
+            dir::Declaration::Function(function)
+                if function.signature.form == dir::FunctionForm::Lambda
+                    || function.name.is_none()
+        ))
+    }
+
+    /// Commit one function value's body at its first typing visit.
+    pub(in crate::sema) fn commit_function_value(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        declaration: dir::LocalNodeId<dir::Declaration>,
+    ) -> CompilerResult<()> {
+        let module = node.module_id;
+        if self.check.lambdas.contains_key(&node) {
+            return Ok(());
         }
         let (parsed, expanded) = self.patched_inputs(module);
         let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
         let kind = tree.get(declaration).clone();
-        let is_lambda = matches!(
-            &kind,
-            dir::Declaration::Function(function)
-                if function.signature.form == dir::FunctionForm::Lambda
-                    || function.name.is_none()
-        );
-        if !is_lambda {
-            return Ok(false);
-        }
 
-        // declare the signature, register the body, and key it by value
+        // declare the signature, commit the body, and key it by value
         let mut walk = WalkState::new(module, tree, self.check).for_body();
         walk.walk_declaration(declaration, &kind)?;
         let symbol = walk
@@ -1111,14 +1122,14 @@ impl BodyState<'_, '_> {
         };
         self.check.lambdas.insert(node, body);
 
-        Ok(true)
+        Ok(())
     }
 
-    /// Register the function values among one call's arguments.
+    /// Commit the function values among one call's arguments.
     ///
-    /// Registration is durable syntax; it runs before candidate probes
-    /// so rollbacks never unregister a body.
-    pub(in crate::sema) fn register_argument_function_values(
+    /// The commit is durable syntax; it runs before candidate probes
+    /// so rollbacks never drop a body.
+    pub(in crate::sema) fn commit_argument_function_values(
         &mut self,
         module: ModuleId,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
@@ -1132,15 +1143,17 @@ impl BodyState<'_, '_> {
                 .view()
                 .get(value.local_id.into_typed::<dir::Expression>())
                 .clone();
-            if let dir::Expression::Declaration(declaration) = expression {
-                self.register_function_value(value, declaration)?;
+            if let dir::Expression::Declaration(declaration) = expression
+                && self.is_function_value_declaration(value, declaration)?
+            {
+                self.commit_function_value(value, declaration)?;
             }
         }
 
         Ok(())
     }
 
-    /// Type one declaration statement, registering the bodies it owns.
+    /// Type one declaration statement, committing the bodies it owns.
     pub(in crate::sema) fn infer_declaration_statement(
         &mut self,
         site: FlowSite,
@@ -1150,7 +1163,8 @@ impl BodyState<'_, '_> {
         let module = node.module_id;
 
         // type a function value with its expression
-        if self.register_function_value(node, declaration)? {
+        if self.is_function_value_declaration(node, declaration)? {
+            self.commit_function_value(node, declaration)?;
             self.check_function_value(site, None, InferMode::Regular)?;
 
             return Ok(());

@@ -45,7 +45,7 @@ impl TypeSubstitution {
         parameter: dir::GlobalGenericParameterId,
         argument: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        // reject duplicate parameter bindings
+        // refuse duplicate parameter bindings
         if self
             .bindings
             .iter()
@@ -206,12 +206,12 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
         rule: SubstitutionRule<'_>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // mark every affected path once, then rebuild along the marks
-        let mut marks = FxIndexMap::default();
-        self.mark_substitutions(id, rule, &mut marks)?;
+        // flag every affected path once, then rebuild along the flags
+        let mut affected = FxIndexMap::default();
+        self.substitution_affects(id, rule, &mut affected)?;
         let mut substituting = FxIndexSet::default();
 
-        self.substitute_guarded(target, id, rule, &marks, &mut substituting)
+        self.substitute_guarded(target, id, rule, &affected, &mut substituting)
     }
 
     /// Return whether one substitution maps every parameter to itself.
@@ -256,26 +256,26 @@ impl CheckState<'_> {
             return Ok(id);
         }
 
-        // replay one decided substitution of a settled graph, verifying the
+        // reuse one decided substitution of a resolved graph, verifying the
         //  stored bindings behind the hashed key
         let mut hasher = FxHasher::default();
         substitution.bindings.hash(&mut hasher);
         let key = (id, substitution.receiver, hasher.finish());
-        let is_settled = !flags.has_variable();
-        if is_settled
+        let is_closed = !flags.has_variable();
+        if is_closed
             && let Some((bindings, substituted)) = self.substitutions.get(&key)
             && *bindings == substitution.bindings
         {
             return Ok(*substituted);
         }
 
-        // substitute the graph and record what it decided
+        // substitute the graph and store what it decided
         let substituted = self.substitute_graph(
             self.module_id,
             id,
             SubstitutionRule::Substitute { substitution },
         )?;
-        if is_settled {
+        if is_closed {
             self.substitutions
                 .insert(key, (substitution.bindings.clone(), substituted));
         }
@@ -291,7 +291,7 @@ impl CheckState<'_> {
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // derive the complete positional and receiver substitution
-        let (base, _) = self.refinement_bindings(implementation)?;
+        let (base, _) = self.refinements(implementation)?;
         let dir::Type::Application(application) = self.ty(base)? else {
             return Err(CompilerError::Internal {
                 message: format!("interface implementation {implementation:?} has no application"),
@@ -399,7 +399,7 @@ impl CheckState<'_> {
                 subject.receiver = receiver;
                 subject.target = target;
                 subject.key_type = key_type;
-                self.module.members_tail.record_subject(site, subject);
+                self.module.members_tail.commit_subject(site, subject);
             }
         }
 
@@ -559,7 +559,7 @@ impl CheckState<'_> {
             return self.erase_inference_barriers(id.module_id, id);
         }
 
-        // replay the decided erasure of a variable-free graph
+        // reuse the decided erasure of a closed graph
         if let Some(erased) = self.erasures.get(&id) {
             return Ok(*erased);
         }
@@ -660,18 +660,18 @@ impl CheckState<'_> {
         )
     }
 
-    /// Mark whether each reachable id contains an affected leaf.
-    fn mark_substitutions(
+    /// Return whether one reachable id contains a leaf the substitution replaces.
+    fn substitution_affects(
         &mut self,
         id: dir::GlobalTypeId,
         rule: SubstitutionRule<'_>,
-        marks: &mut FxIndexMap<dir::GlobalTypeId, bool>,
+        affected: &mut FxIndexMap<dir::GlobalTypeId, bool>,
     ) -> CompilerResult<bool> {
-        // replay marks and break cycles
-        if let Some(known) = marks.get(&id) {
+        // reuse flagged ids and break cycles
+        if let Some(known) = affected.get(&id) {
             return Ok(*known);
         }
-        marks.insert(id, false);
+        affected.insert(id, false);
 
         // decide leaves directly and inherit composites from their children
         let ty = self.ty_raw(id)?;
@@ -698,7 +698,7 @@ impl CheckState<'_> {
             }
             (dir::Type::This, SubstitutionRule::Substitute { .. }) => rule.receiver().is_some(),
             (dir::Type::Variable(variable), _) => match self.infer.solution(variable)? {
-                Some(solution) => self.mark_substitutions(solution, rule, marks)?,
+                Some(solution) => self.substitution_affects(solution, rule, affected)?,
                 None => match rule {
                     SubstitutionRule::Canonicalize { holes, .. } => {
                         holes.contains_key(&self.infer.alias_root(variable)?)
@@ -722,13 +722,13 @@ impl CheckState<'_> {
                 let mut children = SmallVec::<[dir::GlobalTypeId; 8]>::new();
                 self.for_each_type_child(id.module_id, &ty, |child| children.push(child))?;
                 for child in children {
-                    hit |= self.mark_substitutions(child, rule, marks)?;
+                    hit |= self.substitution_affects(child, rule, affected)?;
                 }
 
                 hit
             }
         };
-        marks.insert(id, hit);
+        affected.insert(id, hit);
 
         Ok(hit)
     }
@@ -739,27 +739,28 @@ impl CheckState<'_> {
         target: ModuleId,
         id: dir::GlobalTypeId,
         rule: SubstitutionRule<'_>,
-        marks: &FxIndexMap<dir::GlobalTypeId, bool>,
+        affected: &FxIndexMap<dir::GlobalTypeId, bool>,
         substituting: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // break substitution cycles conservatively
         if !substituting.insert(id) {
             return Ok(id);
         }
-        let substituted =
-            ensure_sufficient_stack(|| self.substitute_id(target, id, rule, marks, substituting));
+        let substituted = ensure_sufficient_stack(|| {
+            self.substitute_id(target, id, rule, affected, substituting)
+        });
         substituting.swap_remove(&id);
 
         substituted
     }
 
-    /// Substitute one type id after the cycle guard accepts it.
+    /// Substitute one type id once the cycle guard passes it.
     fn substitute_id(
         &mut self,
         target: ModuleId,
         id: dir::GlobalTypeId,
         rule: SubstitutionRule<'_>,
-        marks: &FxIndexMap<dir::GlobalTypeId, bool>,
+        affected: &FxIndexMap<dir::GlobalTypeId, bool>,
         substituting: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // replace one matched type id
@@ -776,12 +777,12 @@ impl CheckState<'_> {
         };
         if let Some(variable) = variable {
             return match self.infer.solution(variable)? {
-                // substitute through the solution, which marks apart from its variable entry
+                // substitute through the solution, which flags apart from its variable entry
                 Some(solution) => {
-                    let mut marks = FxIndexMap::default();
-                    self.mark_substitutions(solution, rule, &mut marks)?;
+                    let mut affected = FxIndexMap::default();
+                    self.substitution_affects(solution, rule, &mut affected)?;
 
-                    self.substitute_guarded(target, solution, rule, &marks, substituting)
+                    self.substitute_guarded(target, solution, rule, &affected, substituting)
                 }
                 // rename one open root to its numbered canonical hole
                 None => match rule {
@@ -835,11 +836,11 @@ impl CheckState<'_> {
         if matches!(rule, SubstitutionRule::EraseNoInfer)
             && let Some(target_id) = self.no_infer_target(id)?
         {
-            return self.substitute_guarded(target, target_id, rule, marks, substituting);
+            return self.substitute_guarded(target, target_id, rule, affected, substituting);
         }
 
         // preserve every graph without a requested substitution
-        if !marks.get(&id).copied().unwrap_or(false) {
+        if !affected.get(&id).copied().unwrap_or(false) {
             return Ok(id);
         }
 
@@ -876,7 +877,7 @@ impl CheckState<'_> {
         // read type records from their owner and intern the result in the target module
         let ty = self.ty(id)?;
         let substituted =
-            self.substitute_children(id.module_id, target, ty, rule, marks, substituting)?;
+            self.substitute_children(id.module_id, target, ty, rule, affected, substituting)?;
         let rebuilt = match substituted {
             dir::Type::Union(union) => {
                 let elements: SmallVec<[_; 8]> = self.type_ids(target, union.elements)?.into();
@@ -915,11 +916,11 @@ impl CheckState<'_> {
         target: ModuleId,
         ty: dir::Type,
         rule: SubstitutionRule<'_>,
-        marks: &FxIndexMap<dir::GlobalTypeId, bool>,
+        affected: &FxIndexMap<dir::GlobalTypeId, bool>,
         substituting: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::Type> {
         self.map_type_children(source, target, ty, &mut |state, child| {
-            state.substitute_guarded(target, child, rule, marks, substituting)
+            state.substitute_guarded(target, child, rule, affected, substituting)
         })
     }
 }

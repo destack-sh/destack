@@ -81,8 +81,8 @@ impl CheckState<'_> {
             // arrays enumerate positionally
             dir::Type::Application(_) if self.array_element(ty)?.is_some() => false,
             dir::Type::Application(instance) => matches!(
-                self.symbol_kind_maybe(instance.symbol)?,
-                Some(dir::SymbolKind::Class | dir::SymbolKind::Struct | dir::SymbolKind::Interface)
+                self.symbol_kind(instance.symbol)?,
+                dir::SymbolKind::Class | dir::SymbolKind::Struct | dir::SymbolKind::Interface
             ),
             dir::Type::Form(form) => self.is_keyed_type(origin, form.value)?,
             // require every alternative of a union to be keyed on its own
@@ -273,8 +273,10 @@ impl CheckState<'_> {
 
             // pair the access slots of each property in turn
             let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
-            let source_fields = self.shape_properties(source.module_id, source_shape.properties)?;
-            let target_fields = self.shape_properties(target.module_id, target_shape.properties)?;
+            let source_fields =
+                self.object_properties(source.module_id, source_shape.properties)?;
+            let target_fields =
+                self.object_properties(target.module_id, target_shape.properties)?;
             for (source, target) in source_fields.iter().zip(target_fields) {
                 if source.key != target.key || source.is_optional != target.is_optional {
                     return Ok(Verdict::Fails);
@@ -321,9 +323,9 @@ impl CheckState<'_> {
 
             // pair the key and value types of each index signature
             let source_indexes =
-                self.shape_index_signatures(source.module_id, source_shape.index_signatures)?;
+                self.object_index_signatures(source.module_id, source_shape.index_signatures)?;
             let target_indexes =
-                self.shape_index_signatures(target.module_id, target_shape.index_signatures)?;
+                self.object_index_signatures(target.module_id, target_shape.index_signatures)?;
             for (source, target) in source_indexes.iter().zip(target_indexes) {
                 if source.is_optional != target.is_optional
                     || source.is_readonly != target.is_readonly
@@ -361,8 +363,10 @@ impl CheckState<'_> {
             let is_constructed = matches!(self.ty(source)?, dir::Type::Object(_));
 
             // require each target field from the source shape
-            let source_fields = self.shape_properties(source.module_id, source_shape.properties)?;
-            let target_fields = self.shape_properties(target.module_id, target_shape.properties)?;
+            let source_fields =
+                self.object_properties(source.module_id, source_shape.properties)?;
+            let target_fields =
+                self.object_properties(target.module_id, target_shape.properties)?;
             let mut pairs =
                 SmallVec::<[(Relation, dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
             for target_field in target_fields {
@@ -411,7 +415,7 @@ impl CheckState<'_> {
 
             // collect the index signatures the target requires
             let index_signatures = SmallVec::<[dir::TypeIndexSignature; 2]>::from_slice(
-                self.shape_index_signatures(target.module_id, target_shape.index_signatures)?,
+                self.object_index_signatures(target.module_id, target_shape.index_signatures)?,
             );
 
             (pairs, signature_requirements, index_signatures)
@@ -425,20 +429,20 @@ impl CheckState<'_> {
 
         // decide each signature requirement against its candidates
         for (candidates, target_signature) in signature_requirements {
-            let mut satisfied = Verdict::Fails;
+            let mut matched = Verdict::Fails;
             for candidate in candidates {
-                satisfied = satisfied.or(self.constrain_type(
+                matched = matched.or(self.constrain_type(
                     origin,
                     cause,
                     relation,
                     candidate,
                     target_signature,
                 )?);
-                if satisfied == Verdict::Holds {
+                if matched == Verdict::Holds {
                     break;
                 }
             }
-            verdict = verdict.and(satisfied);
+            verdict = verdict.and(matched);
             if verdict == Verdict::Fails {
                 return Ok(Verdict::Fails);
             }
@@ -598,7 +602,7 @@ impl CheckState<'_> {
         };
 
         let signature = self
-            .shape_index_signatures(target.module_id, shape.index_signatures)?
+            .object_index_signatures(target.module_id, shape.index_signatures)?
             .iter()
             .find(|signature| !signature.is_readonly)
             .copied();
@@ -623,7 +627,7 @@ impl CheckState<'_> {
         };
 
         let target_fields = SmallVec::<[dir::TypeProperty; 8]>::from_slice(
-            self.shape_properties(target.module_id, target_shape.properties)?,
+            self.object_properties(target.module_id, target_shape.properties)?,
         );
         let target_constructs = SmallVec::<[dir::GlobalTypeId; 2]>::from_slice(
             self.type_ids(target.module_id, target_shape.construct_signatures)?,
@@ -633,7 +637,9 @@ impl CheckState<'_> {
         // require each target field from the static declaration
         let mut verdict = Verdict::Holds;
         for field in target_fields {
-            let subject = dir::MemberSubject::new(source, source, dir::MemberSpace::Static);
+            let subject =
+                self.body()
+                    .member_subject(origin, source, source, dir::MemberSpace::Static)?;
             let lookup = self
                 .body()
                 .lookup_member(origin, module, subject, field.key)?;
@@ -774,7 +780,7 @@ impl CheckState<'_> {
             }
             _ => self
                 .body()
-                .decide_subscript_index_signature_satisfied(origin, relation, source, target),
+                .decide_subscript_index_signature(origin, relation, source, target),
         }
     }
 
@@ -785,7 +791,7 @@ impl CheckState<'_> {
         cause: CauseId,
         relation: Relation,
         module: ModuleId,
-        source: dir::ShapeType,
+        source: dir::ObjectType,
         target: &dir::TypeIndexSignature,
     ) -> CompilerResult<Verdict> {
         // hold covered storage to exactly the value type for keyed finds
@@ -796,7 +802,7 @@ impl CheckState<'_> {
 
         // decide a source with declared index signatures by those signatures
         let source_indexes = SmallVec::<[dir::TypeIndexSignature; 2]>::from_slice(
-            self.shape_index_signatures(module, source.index_signatures)?,
+            self.object_index_signatures(module, source.index_signatures)?,
         );
         if !source_indexes.is_empty() {
             let mut verdict = Verdict::Fails;
@@ -808,7 +814,7 @@ impl CheckState<'_> {
                     continue;
                 }
                 let key =
-                    self.evaluate_relation(origin, relation, target.key_type, source.key_type)?;
+                    self.decide_relation(origin, relation, target.key_type, source.key_type)?;
                 if key == Verdict::Fails {
                     continue;
                 }
@@ -831,12 +837,12 @@ impl CheckState<'_> {
 
         // prove each finite field covered by the key domain
         let source_fields = SmallVec::<[dir::TypeProperty; 8]>::from_slice(
-            self.shape_properties(module, source.properties)?,
+            self.object_properties(module, source.properties)?,
         );
         let mut verdict = Verdict::Holds;
         for field in source_fields {
             let key = self.static_key_type(field.key)?;
-            let covered = self.evaluate_relation(origin, relation, key, target.key_type)?;
+            let covered = self.decide_relation(origin, relation, key, target.key_type)?;
             if covered == Verdict::Fails {
                 continue;
             }
@@ -871,7 +877,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        // normalize both signatures so splatted slots pair positionally
+        // normalize both signatures so spread slots pair positionally
         let source = self.normalize(origin, source)?;
         let target = self.normalize(origin, target)?;
 
@@ -1163,7 +1169,7 @@ impl CheckState<'_> {
 
         // keep the borrowed form as the compared shape while the copy is undecided
         if !self
-            .satisfies_auto_interface(origin, value, dir::AutoInterface::Copy)?
+            .decide_auto_interface(origin, value, dir::AutoInterface::Copy)?
             .holds()
         {
             return Ok(ty);
@@ -1230,7 +1236,7 @@ impl CheckState<'_> {
         let mut pairs = SmallVec::<[FunctionAssignabilityPair; 8]>::new();
 
         // compare receiver input contravariantly for function values
-        if this_parameter.includes_this() {
+        if this_parameter.has_this() {
             match (
                 source_signature.this_parameter,
                 target_signature.this_parameter,
@@ -1333,7 +1339,7 @@ enum ThisParameterComparison {
 
 impl ThisParameterComparison {
     /// Return whether `this` participates in this comparison.
-    fn includes_this(self) -> bool {
+    fn has_this(self) -> bool {
         matches!(self, Self::Compare)
     }
 }

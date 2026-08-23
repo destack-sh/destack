@@ -2,7 +2,6 @@ mod bound;
 mod canonical;
 mod cause;
 mod check;
-mod decision;
 mod fulfill;
 mod goal;
 mod probe;

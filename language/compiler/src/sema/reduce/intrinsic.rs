@@ -102,7 +102,7 @@ impl CheckState<'_> {
         };
         let target = self.normalize(origin, *target)?;
 
-        // project only settled builtin integers to their unsigned width
+        // project only resolved builtin integers to their unsigned width
         let dir::Type::Primitive(dir::PrimitiveType::Integer(integer)) = self.ty(target)? else {
             return Ok(None);
         };

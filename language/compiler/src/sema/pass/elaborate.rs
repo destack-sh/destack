@@ -23,7 +23,7 @@ impl CheckState<'_> {
             state.flatten_declared_owners()?;
             state.decide_declared_implementations()?;
             ArtifactAttemptRecorder::breakdown_maybe(recorder, "decorators", || {
-                state.check_decorators()
+                state.apply_decorators()
             })?;
 
             // derive variances, constructor entries, and marker conformances
@@ -132,7 +132,7 @@ impl CheckState<'_> {
             // ask the most general application, opening every argument fresh
             let mut arguments = SmallVec::<[dir::GlobalTypeId; 4]>::new();
             for _ in 0..count {
-                let variable = state.check.allocate_variable(origin, VariableRole::Regular);
+                let variable = state.check.open_variable(origin, VariableRole::Regular);
                 arguments.push(state.intern_type(dir::Type::Variable(variable))?);
             }
 
@@ -203,8 +203,8 @@ impl CheckState<'_> {
                 checks.push(self.check_representation(origin, target)?);
             }
 
-            for judged in checks {
-                for failure in judged.into_failures() {
+            for decided in checks {
+                for failure in decided.into_failures() {
                     self.report_obligation_failure(failure)?;
                 }
             }
@@ -220,7 +220,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<(DirElaborated, Vec<DiagnosticRecord>)> {
         self.write_back()?;
 
-        // settle every member site this pass recorded before the artifact publishes it
+        // resolve every member site this pass stored before the artifact publishes it
         self.resolve_member_subjects(module)?;
         let diagnostics = self.collect_diagnostics()?;
 

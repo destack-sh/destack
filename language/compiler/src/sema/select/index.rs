@@ -161,7 +161,7 @@ impl SubscriptSelection {
         let mut writes = Vec::new();
         let mut key_types = SmallVec::<[dir::GlobalTypeId; 2]>::new();
 
-        // retain every selected runtime arm
+        // keep every selected runtime arm
         for selection in selections {
             key_types.extend(selection.key_types);
             if let Some(read) = selection.read {
@@ -233,14 +233,14 @@ impl SubscriptSelection {
     }
 
     /// Return whether the selected read accesses stored aggregate state.
-    pub(in crate::sema) fn reads_storage(&self) -> bool {
+    pub(in crate::sema) fn is_stored_read(&self) -> bool {
         self.read
             .as_ref()
             .is_some_and(dir::SubscriptDecision::is_stored)
     }
 
     /// Return whether the selected write accesses stored aggregate state.
-    pub(in crate::sema) fn writes_storage(&self) -> bool {
+    pub(in crate::sema) fn is_stored_write(&self) -> bool {
         self.write
             .as_ref()
             .is_some_and(dir::SubscriptDecision::is_stored)
@@ -277,8 +277,8 @@ impl SubscriptSelection {
 
 #[allow(clippy::too_many_arguments)]
 impl BodyState<'_, '_> {
-    /// Decide whether one receiver satisfies a structural index signature.
-    pub(in crate::sema) fn decide_subscript_index_signature_satisfied(
+    /// Decide one receiver against a structural index signature.
+    pub(in crate::sema) fn decide_subscript_index_signature(
         &mut self,
         origin: Origin,
         relation: Relation,
@@ -334,7 +334,7 @@ impl BodyState<'_, '_> {
 
         // infer the written index operand
         let Some(index) = index else {
-            return self.reject_operator(node, origin, "[]".to_string(), &[target]);
+            return self.report_rejected_operator(node, origin, "[]".to_string(), &[target]);
         };
         let index_node = index.into_global_any(module);
         let index_key = self.check.module(module).view().get(index).static_key();
@@ -361,25 +361,35 @@ impl BodyState<'_, '_> {
             index,
         )?
         else {
-            return self.reject_operator(node, origin, "[]".to_string(), &[receiver_type, index]);
+            return self.report_rejected_operator(
+                node,
+                origin,
+                "[]".to_string(),
+                &[receiver_type, index],
+            );
         };
 
         // require one key conversion across every selected runtime arm
         if !self.check_subscript_key(index_site, index, selection.key_types())? {
-            return self.reject_operator(node, origin, "[]".to_string(), &[receiver_type, index]);
+            return self.report_rejected_operator(
+                node,
+                origin,
+                "[]".to_string(),
+                &[receiver_type, index],
+            );
         }
         let ty = selection
             .read_type()
             .ok_or_else(|| CompilerError::Internal {
                 message: "subscript read selection has no read resolution".to_string(),
             })?;
-        let reads_storage = selection.reads_storage();
+        let is_stored_read = selection.is_stored_read();
         if let Some(decision) = selection.into_decision() {
             self.commit_decision(node, decision)?;
         }
-        if reads_storage && let Some(key) = index_key {
+        if is_stored_read && let Some(key) = index_key {
             self.commit_projected_access(node, receiver_node, key)?;
-            self.record_access_use(node, dir::BindingUse::READ);
+            self.commit_access_use(node, dir::BindingUse::READ);
         }
         let site = self.visit_site(node)?;
         let ty = self.flow_type_at(site, ty)?;
@@ -405,8 +415,7 @@ impl BodyState<'_, '_> {
 
         // singleton keys use an existing member before any subscript fallback
         if let Some(key) = self.static_key_from_type(index)? {
-            let subject = dir::MemberSubject::new(receiver.ty, receiver_type, space)
-                .with_scope(self.assuming_scope(origin)?);
+            let subject = self.member_subject(origin, receiver.ty, receiver_type, space)?;
             let mut lookup = self.lookup_member(origin, module, subject, key)?;
 
             // keep a found static member authoritative over subscript protocols
@@ -528,7 +537,7 @@ impl BodyState<'_, '_> {
         let dir::Type::Application(instance) = self.ty(constraint)? else {
             return Ok(None);
         };
-        if self.symbol_kind_maybe(instance.symbol)? != Some(dir::SymbolKind::Interface) {
+        if self.symbol_kind(instance.symbol)? != dir::SymbolKind::Interface {
             return Ok(None);
         }
         let requirements = self.interface_requirements(constraint, constraint)?;
@@ -536,13 +545,13 @@ impl BodyState<'_, '_> {
         // prefer index signatures declared by the selected interface
         for signature in requirements.index_signatures {
             // keep the candidate alive on an undecided key relation, reject only a proven mismatch
-            let accepts = self.evaluate_relation(
+            let is_key_assignable = self.decide_relation(
                 origin,
                 Relation::Assignable,
                 index,
                 signature.signature.key_type,
             )? != Verdict::Fails;
-            if accepts {
+            if is_key_assignable {
                 let selection = self.dynamic_subscript_selection(
                     origin, use_, receiver, constraint, index_node, signature,
                 )?;
@@ -864,18 +873,18 @@ impl BodyState<'_, '_> {
         lookup_receiver: dir::GlobalTypeId,
         index: dir::GlobalTypeId,
         use_: PlaceUse,
-        shape: &dir::ShapeType,
+        shape: &dir::ObjectType,
     ) -> CompilerResult<Option<SubscriptSelection>> {
         // index signatures accept matching key types
         let index_signatures: SmallVec<[_; 4]> = self
-            .shape_index_signatures(lookup_receiver.module_id, shape.index_signatures)?
+            .object_index_signatures(lookup_receiver.module_id, shape.index_signatures)?
             .into();
         for (position, signature) in index_signatures.into_iter().enumerate() {
             // keep the candidate alive on an undecided key relation, reject only a proven mismatch
-            let accepts =
-                self.evaluate_relation(origin, Relation::Assignable, index, signature.key_type)?
+            let is_key_assignable =
+                self.decide_relation(origin, Relation::Assignable, index, signature.key_type)?
                     != Verdict::Fails;
-            if accepts {
+            if is_key_assignable {
                 let target = dir::MemberTarget::Index(dir::IndexResolution {
                     receiver: dir::MemberReceiver::direct(lookup_receiver),
                     key_type: signature.key_type,
@@ -897,11 +906,12 @@ impl BodyState<'_, '_> {
         }))?;
 
         // keep the candidate alive on an undecided key relation, reject only a proven mismatch
-        let accepts = self.evaluate_relation(origin, Relation::Assignable, index, key_domain)?
-            != Verdict::Fails;
-        if accepts {
+        let is_key_assignable =
+            self.decide_relation(origin, Relation::Assignable, index, key_domain)?
+                != Verdict::Fails;
+        if is_key_assignable {
             let fields: SmallVec<[_; 4]> = self
-                .shape_properties(lookup_receiver.module_id, shape.properties)?
+                .object_properties(lookup_receiver.module_id, shape.properties)?
                 .into();
             let mut keys = Vec::new();
             let mut write_types = Vec::new();
@@ -1299,7 +1309,7 @@ impl BodyState<'_, '_> {
             },
         };
 
-        // require one recorded source for every IndexSet parameter
+        // require one written source for every IndexSet parameter
         if parameters.len() != sources.len() {
             return Err(CompilerError::Internal {
                 message: "selected IndexSet signature has an incompatible arity".to_string(),
@@ -1355,7 +1365,7 @@ impl BodyState<'_, '_> {
             return Ok(Verdict::Fails);
         };
 
-        self.evaluate_relation(origin, relation, call.return_type, read_type)
+        self.decide_relation(origin, relation, call.return_type, read_type)
     }
 
     /// Decide whether `IndexSet<I>` accepts values compatible with one signature.
@@ -1407,8 +1417,8 @@ impl BodyState<'_, '_> {
             _ => self.normalized_intersection_type(value_types)?,
         };
 
-        let key_verdict = self.evaluate_relation(origin, relation, key_type, key)?;
-        let value_verdict = self.evaluate_relation(origin, relation, value_type, input)?;
+        let key_verdict = self.decide_relation(origin, relation, key_type, key)?;
+        let value_verdict = self.decide_relation(origin, relation, value_type, input)?;
 
         Ok(key_verdict.and(value_verdict))
     }

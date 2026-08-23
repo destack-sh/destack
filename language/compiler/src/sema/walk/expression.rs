@@ -122,7 +122,7 @@ impl WalkState<'_, '_> {
                         *is_ambient,
                     )?;
                     let node = self.tree.get(*declarator).clone();
-                    self.mark_declarator_assigned(&node, *is_ambient);
+                    self.assign_declarator_bindings(&node, *is_ambient);
                 }
             }
             // using x = value
@@ -130,7 +130,7 @@ impl WalkState<'_, '_> {
                 for declarator in declarators {
                     self.walk_declarator(*declarator, self.tree.get(*declarator), None, false)?;
                     let node = self.tree.get(*declarator).clone();
-                    self.mark_declarator_assigned(&node, false);
+                    self.assign_declarator_bindings(&node, false);
                 }
             }
             // if condition { then } else { otherwise }
@@ -380,7 +380,7 @@ impl WalkState<'_, '_> {
                 let right = *right;
 
                 if let Some(place) = self.walk_assigned_place(right)? {
-                    self.mark_place_assigned(place);
+                    self.assign_place(place);
                 }
 
                 // increments invalidate narrowings under the target
@@ -697,7 +697,7 @@ impl WalkState<'_, '_> {
         };
 
         // mark the places assigned by this expression
-        self.mark_assign_pattern_places(places);
+        self.assign_written_places(places);
 
         Ok(())
     }
@@ -800,13 +800,13 @@ impl WalkState<'_, '_> {
         Ok(places)
     }
 
-    /// Mark all places assigned by one assignment pattern.
-    fn mark_assign_pattern_places(
+    /// Assign every place written by one assignment pattern.
+    fn assign_written_places(
         &mut self,
         places: Vec<(dir::LocalNodeId<dir::Expression>, AssignedPlace)>,
     ) {
         for (expression, place) in places {
-            self.mark_place_assigned(place);
+            self.assign_place(place);
 
             // assignments invalidate narrowings under the written expression
             self.clear_mutated_expression_narrowings(expression);

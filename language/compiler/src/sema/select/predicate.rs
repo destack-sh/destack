@@ -129,7 +129,7 @@ impl BodyState<'_, '_> {
         // guard targets read as their declaration reference
         let reference = self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
         self.commit_node_type(target, reference)?;
-        if self.symbol_kind_maybe(symbol)? != Some(dir::SymbolKind::Class) {
+        if self.symbol_kind(symbol)? != dir::SymbolKind::Class {
             return Ok(None);
         }
 
@@ -266,13 +266,13 @@ impl BodyState<'_, '_> {
             }),
             dir::Type::Application(dir::GenericApplication { symbol, .. })
             | dir::Type::Reference(dir::TypeReference { symbol }) => {
-                match self.symbol_kind_maybe(symbol)? {
-                    Some(dir::SymbolKind::Class | dir::SymbolKind::NewtypeInterface) => {
+                match self.symbol_kind(symbol)? {
+                    dir::SymbolKind::Class | dir::SymbolKind::NewtypeInterface => {
                         dir::PredicateCondition::Subtype(target)
                     }
-                    Some(
-                        dir::SymbolKind::Struct | dir::SymbolKind::Enum | dir::SymbolKind::Newtype,
-                    ) => dir::PredicateCondition::Type(target),
+                    dir::SymbolKind::Struct | dir::SymbolKind::Enum | dir::SymbolKind::Newtype => {
+                        dir::PredicateCondition::Type(target)
+                    }
                     _ => return Ok(None),
                 }
             }
@@ -344,18 +344,14 @@ impl BodyState<'_, '_> {
                 let mut alternatives = Vec::with_capacity(elements.len());
                 for element in elements {
                     // build no predicate for an undecided arm
-                    let satisfies = match self.evaluate_relation(
-                        origin,
-                        Relation::Satisfies,
-                        element,
-                        target,
-                    )? {
-                        Verdict::Holds => true,
-                        Verdict::Fails => false,
-                        Verdict::Ambiguous => return Ok(None),
-                    };
+                    let is_matched =
+                        match self.decide_relation(origin, Relation::Satisfies, element, target)? {
+                            Verdict::Holds => true,
+                            Verdict::Fails => false,
+                            Verdict::Ambiguous => return Ok(None),
+                        };
                     let predicate = self.runtime_union_arm_predicate(origin, value, element)?;
-                    if satisfies && let Some(predicate) = predicate {
+                    if is_matched && let Some(predicate) = predicate {
                         alternatives.push(predicate);
                     }
                 }
@@ -378,7 +374,7 @@ impl BodyState<'_, '_> {
             // plain values decide the target statically
             None => {
                 let condition =
-                    match self.evaluate_relation(origin, Relation::Satisfies, value, target)? {
+                    match self.decide_relation(origin, Relation::Satisfies, value, target)? {
                         Verdict::Holds => dir::PredicateCondition::Always,
                         Verdict::Fails => dir::PredicateCondition::Never,
                         Verdict::Ambiguous => return Ok(None),

@@ -367,7 +367,7 @@ impl CheckState<'_> {
         pairs: &[(dir::GlobalTypeId, dir::GlobalTypeId)],
     ) -> CompilerResult<bool> {
         for (pattern, actual) in pairs.iter().copied() {
-            // matching binds parameters; assignability judges the rest later
+            // matching binds parameters; assignability decides the rest later
             if !self.type_flags(pattern)?.has_parameter() {
                 continue;
             }
@@ -681,7 +681,7 @@ impl CheckState<'_> {
         };
 
         // match unless the bound is proven unequal
-        let verdict = self.evaluate_relation(origin, Relation::Equal, bound, argument)?;
+        let verdict = self.decide_relation(origin, Relation::Equal, bound, argument)?;
 
         Ok(verdict != Verdict::Fails)
     }

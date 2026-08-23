@@ -114,7 +114,7 @@ impl BodyState<'_, '_> {
             .signature_parameters(source_module, source.parameters)?
             .to_vec();
 
-        // settle an open rest pack, spreading its tuple over the slots
+        // expand an open rest pack, spreading its tuple over the slots
         let mut packs = Vec::new();
         for parameter in self
             .check

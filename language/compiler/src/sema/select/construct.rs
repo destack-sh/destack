@@ -126,10 +126,7 @@ impl BodyState<'_, '_> {
         };
 
         // construct value bindings through their inferred value type
-        if self
-            .symbol_kind_maybe(symbol)?
-            .is_some_and(dir::SymbolKind::is_binding)
-        {
+        if self.symbol_kind(symbol)?.is_binding() {
             let target = self.symbol_type(symbol)?;
             let target = self.strip_form(origin, target)?;
             self.commit_node_type(source, target)?;
@@ -245,7 +242,7 @@ impl BodyState<'_, '_> {
             return Ok(error);
         };
 
-        // register every bound and predicate on the constructed application
+        // push every bound and predicate on the constructed application
         for constraint in
             self.substitute_application_constraints(origin, template, &substitution)?
         {
@@ -316,13 +313,13 @@ impl BodyState<'_, '_> {
 
         let instance = match self.ty(target)? {
             dir::Type::Application(instance) => instance,
-            _ => return self.reject_not_constructible(node, origin, target, ""),
+            _ => return self.report_rejected_construct_target(node, origin, target, ""),
         };
 
         // require a class to construct through new
         let constructors = match self.definition(instance.symbol)? {
             Some(dir::Definition::Struct(_)) => {
-                return self.reject_not_constructible(
+                return self.report_rejected_construct_target(
                     node,
                     origin,
                     target,
@@ -330,7 +327,7 @@ impl BodyState<'_, '_> {
                 );
             }
             Some(dir::Definition::Newtype(_)) => {
-                return self.reject_not_constructible(
+                return self.report_rejected_construct_target(
                     node,
                     origin,
                     target,
@@ -358,7 +355,7 @@ impl BodyState<'_, '_> {
                     &mut active,
                 )?
             }
-            _ => return self.reject_not_constructible(node, origin, target, ""),
+            _ => return self.report_rejected_construct_target(node, origin, target, ""),
         };
         if constructors.is_empty() {
             return Err(CompilerError::Internal {
@@ -398,9 +395,9 @@ impl BodyState<'_, '_> {
                 selected = Some(constructor);
                 break;
             }
-            let (verdict, rejection) = self.probe_candidate_describing(
+            let (verdict, rejection) = self.probe_candidate_with_note(
                 |state| {
-                    let outcome = state.attempt_construct(
+                    let outcome = state.probe_construct(
                         origin,
                         target.module_id,
                         &instance,
@@ -415,7 +412,7 @@ impl BodyState<'_, '_> {
                 |state, rejection| {
                     state
                         .check
-                        .describe_signature_rejection(module, constructor.ty, rejection)
+                        .format_signature_rejection(module, constructor.ty, rejection)
                 },
             )?;
             match verdict {
@@ -430,7 +427,7 @@ impl BodyState<'_, '_> {
 
         // confirm the selected declaration outside any probe
         if let Some(constructor) = selected {
-            let attempt = self.attempt_construct(
+            let attempt = self.probe_construct(
                 origin,
                 target.module_id,
                 &instance,
@@ -488,7 +485,7 @@ impl BodyState<'_, '_> {
 
         rejections.truncate(4);
 
-        self.reject_construct(site, node, origin, argument_nodes, &rejections)
+        self.report_rejected_construct(site, node, origin, argument_nodes, &rejections)
     }
 
     /// Return construct candidates for one class instance.
@@ -586,8 +583,8 @@ impl BodyState<'_, '_> {
         self.intern_signature(function)
     }
 
-    /// Attempt one constructor candidate against collected arguments.
-    pub(in crate::sema) fn attempt_construct(
+    /// Probe one constructor candidate against collected arguments.
+    pub(in crate::sema) fn probe_construct(
         &mut self,
         origin: Origin,
         instance_module: ModuleId,
@@ -643,7 +640,7 @@ impl BodyState<'_, '_> {
         };
 
         let return_type = function.return_type.or(Some(target));
-        let carried = self.settled_argument_bindings(&substitution.bindings)?;
+        let carried = self.resolved_argument_bindings(&substitution.bindings)?;
         self.match_signature(
             origin,
             function_type.module_id,
@@ -707,7 +704,7 @@ impl BodyState<'_, '_> {
                 }
                 NewtypeRejection::NoMatch(notes) => {
                     let source =
-                        self.reject_construct(site, node, origin, argument_nodes, &notes)?;
+                        self.report_rejected_construct(site, node, origin, argument_nodes, &notes)?;
                     let target = expectation.map_or(source, |expectation| expectation.target);
 
                     return Ok(ValueCheck {
@@ -763,7 +760,7 @@ impl BodyState<'_, '_> {
             self.commit_coercion(*source, coercion.clone())?;
         }
 
-        // record the construction over the selected newtype backing
+        // commit the construction over the selected newtype backing
         let target = dir::ConstructTarget::Newtype { selection, backing };
         let resolution = dir::ConstructDecision::new(
             target,
@@ -824,7 +821,7 @@ impl BodyState<'_, '_> {
             }))?;
         }
 
-        // record the construction over the selected class constructor
+        // commit the construction over the selected class constructor
         let resolution = dir::ConstructDecision::new(
             target,
             self.selected_argument_bindings(node, module, argument_nodes, &signature)?,
@@ -852,10 +849,10 @@ impl BodyState<'_, '_> {
         let signatures = self.apparent_signatures(constraint, SignatureFamily::Construct)?;
         let Some((constraint_module, instance)) = self.nominal_application_maybe(constraint)?
         else {
-            return self.reject_not_constructible(node, origin, target, "");
+            return self.report_rejected_construct_target(node, origin, target, "");
         };
         if signatures.is_empty() {
-            return self.reject_not_constructible(node, origin, target, "");
+            return self.report_rejected_construct_target(node, origin, target, "");
         }
 
         // select the first applicable construct signature in declaration order
@@ -867,9 +864,9 @@ impl BodyState<'_, '_> {
                 selected = Some(signature);
                 break;
             }
-            let (verdict, rejection) = self.probe_candidate_describing(
+            let (verdict, rejection) = self.probe_candidate_with_note(
                 |state| {
-                    let outcome = state.attempt_construct(
+                    let outcome = state.probe_construct(
                         origin,
                         constraint_module,
                         &instance,
@@ -884,7 +881,7 @@ impl BodyState<'_, '_> {
                 |state, rejection| {
                     state
                         .check
-                        .describe_signature_rejection(module, signature.ty, rejection)
+                        .format_signature_rejection(module, signature.ty, rejection)
                 },
             )?;
             match verdict {
@@ -899,7 +896,7 @@ impl BodyState<'_, '_> {
 
         // confirm the selected signature outside any probe
         if let Some(signature) = selected {
-            let attempt = self.attempt_construct(
+            let attempt = self.probe_construct(
                 origin,
                 constraint_module,
                 &instance,
@@ -943,18 +940,18 @@ impl BodyState<'_, '_> {
                 }
                 SignatureMatch::Invalid { rejection, .. } => {
                     let description =
-                        self.describe_signature_rejection(module, signature.ty, &rejection)?;
+                        self.format_signature_rejection(module, signature.ty, &rejection)?;
                     rejections.push(description);
                 }
                 SignatureMatch::Inapplicable(rejection) => {
                     let description =
-                        self.describe_signature_rejection(module, signature.ty, &rejection)?;
+                        self.format_signature_rejection(module, signature.ty, &rejection)?;
                     rejections.push(description);
                 }
             }
         }
 
-        self.reject_construct(site, node, origin, argument_nodes, &rejections)
+        self.report_rejected_construct(site, node, origin, argument_nodes, &rejections)
     }
 
     /// Commit one selected dynamic construction.
@@ -1044,9 +1041,9 @@ impl BodyState<'_, '_> {
                 selected = Some(constructor);
                 break;
             }
-            let (verdict, rejection) = self.probe_candidate_describing(
+            let (verdict, rejection) = self.probe_candidate_with_note(
                 |state| {
-                    let outcome = state.attempt_construct(
+                    let outcome = state.probe_construct(
                         origin,
                         base_module,
                         &instance,
@@ -1061,7 +1058,7 @@ impl BodyState<'_, '_> {
                 |state, rejection| {
                     state
                         .check
-                        .describe_signature_rejection(module, constructor.ty, rejection)
+                        .format_signature_rejection(module, constructor.ty, rejection)
                 },
             )?;
             match verdict {
@@ -1076,7 +1073,7 @@ impl BodyState<'_, '_> {
 
         // confirm the selected constructor outside any probe
         if let Some(constructor) = selected {
-            let attempt = self.attempt_construct(
+            let attempt = self.probe_construct(
                 origin,
                 base_module,
                 &instance,
@@ -1106,7 +1103,7 @@ impl BodyState<'_, '_> {
                 }
                 SignatureMatch::Inapplicable(rejection) => {
                     let description =
-                        self.describe_signature_rejection(module, constructor.ty, &rejection)?;
+                        self.format_signature_rejection(module, constructor.ty, &rejection)?;
                     rejections.push(description);
                 }
             }
@@ -1115,9 +1112,9 @@ impl BodyState<'_, '_> {
         // reject the super call when no base constructor accepts the arguments
         rejections.truncate(4);
 
-        self.reject_construct(site, node, origin, argument_nodes, &rejections)?;
+        self.report_rejected_construct(site, node, origin, argument_nodes, &rejections)?;
 
-        self.reject_call(node, None, None)
+        self.commit_rejected_call(node, None, None)
     }
 
     /// Commit one selected base constructor as the super initialization.
@@ -1199,8 +1196,8 @@ impl BodyState<'_, '_> {
         Ok(produced)
     }
 
-    /// Reject one construction whose arguments fit no constructor.
-    pub(in crate::sema) fn reject_construct(
+    /// Report one construction whose arguments match no constructor.
+    pub(in crate::sema) fn report_rejected_construct(
         &mut self,
         site: FlowSite,
         node: dir::GlobalNodeIdAny,
@@ -1216,8 +1213,8 @@ impl BodyState<'_, '_> {
         Ok(error)
     }
 
-    /// Reject one construction whose target cannot use new.
-    fn reject_not_constructible(
+    /// Report one construction whose target cannot use new.
+    fn report_rejected_construct_target(
         &mut self,
         node: dir::GlobalNodeIdAny,
         origin: Origin,

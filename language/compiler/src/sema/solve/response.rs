@@ -7,21 +7,21 @@ use smallvec::SmallVec;
 
 use crate::sema::solve::canonical::Renaming;
 use crate::sema::{
-    Answer, Canonical, Cause, CauseKind, Check, CheckState, Hole, Origin, Question, Relation,
+    Answer, Canonical, CanonicalGoal, Cause, CauseKind, Check, CheckState, Hole, Origin, Relation,
     RelationCheck,
 };
 use crate::{CompilerError, CompilerResult};
 
-/// One decided question's canonical output, instantiated per ask site.
+/// One decided goal's canonical output, instantiated per goal site.
 #[derive(Debug, Clone)]
 pub(in crate::sema) struct Response<T> {
     /// The decided value.
     pub(in crate::sema) value: T,
-    /// The canonical solution per ask hole, absent while one stayed open.
+    /// The canonical solution per goal hole, absent while one stayed open.
     pub(in crate::sema) solutions: SmallVec<[Option<dir::GlobalTypeId>; 2]>,
     /// The fresh existentials the answer introduces, reopened per site.
     pub(in crate::sema) holes: SmallVec<[Hole; 2]>,
-    /// The canonical checks the decision queued, re-registered per site.
+    /// The canonical checks the decision queued, requeued per site.
     pub(in crate::sema) checks: SmallVec<[RelationCheck; 2]>,
 }
 
@@ -35,30 +35,30 @@ impl<T> Response<T> {
 }
 
 impl CheckState<'_> {
-    /// Remember the first decided response for one canonical question.
-    pub(in crate::sema) fn remember_answer<T: dir::TypeFold>(
+    /// Commit the first decided response for one canonical goal.
+    pub(in crate::sema) fn commit_answer<T: dir::TypeFold>(
         &mut self,
-        question: &Question,
+        goal: &CanonicalGoal,
         canonical: &Canonical,
         checks_from: usize,
         value: T,
         answer: impl FnOnce(Arc<Response<T>>) -> Answer,
     ) -> CompilerResult<()> {
-        // keep the first answer decided for this question
-        if self.answers.contains_key(question) {
+        // keep the first answer decided for this goal
+        if self.answers.contains_key(goal) {
             return Ok(());
         }
 
-        // store the value folded canonical over its ask
+        // store the value folded canonical over its goal
         if let Some(response) = self.canonicalize_response(canonical, checks_from, value)? {
             self.answers
-                .insert(question.clone(), answer(Arc::new(response)));
+                .insert(goal.clone(), answer(Arc::new(response)));
         }
 
         Ok(())
     }
 
-    /// Fold one decision's output canonical over its ask, growing answer holes.
+    /// Fold one decision's output canonical over its goal, growing answer holes.
     pub(in crate::sema) fn canonicalize_response<T: dir::TypeFold>(
         &mut self,
         canonical: &Canonical,
@@ -67,7 +67,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<Response<T>>> {
         let mut renaming = Renaming::seeded(canonical);
 
-        // fold what the decision solved of the ask's own holes
+        // fold what the decision solved of the goal's own holes
         let mut solutions = SmallVec::new();
         for root in &canonical.holes {
             let solution = match self.infer.solution(*root)? {
@@ -103,7 +103,7 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
-        // describe each grown root so replay sites reopen equal variables
+        // describe each grown root so instantiation sites reopen equal variables
         let holes = self.hole_contents(&mut renaming, canonical.holes.len())?;
 
         Ok(Some(Response {
@@ -114,21 +114,21 @@ impl CheckState<'_> {
         }))
     }
 
-    /// Reopen one stored response at this ask site's live roots.
+    /// Reopen one stored response at this goal site's live roots.
     pub(in crate::sema) fn instantiate_response<T: dir::TypeFold + Clone>(
         &mut self,
         origin: Origin,
         canonical: &Canonical,
         response: &Response<T>,
     ) -> CompilerResult<T> {
-        // reopen each answer hole with its recorded solving policy
+        // reopen each answer hole with its stored solving policy
         let mut live_holes: SmallVec<[dir::TypeVariableId; 4]> =
             SmallVec::from_slice(&canonical.holes);
         for hole in &response.holes {
-            live_holes.push(self.allocate_variable_of(origin, hole.kind, hole.role));
+            live_holes.push(self.open_variable_of(origin, hole.kind, hole.role));
         }
 
-        // bind what the decision solved of the ask's own holes
+        // bind what the decision solved of the goal's own holes
         let mut memo = FxIndexMap::default();
         for (root, solution) in canonical.holes.iter().zip(&response.solutions) {
             let Some(solution) = solution else {
@@ -141,7 +141,7 @@ impl CheckState<'_> {
             self.constrain_type(origin, cause, Relation::Equal, hole, solution)?;
         }
 
-        // re-register the checks the decision queued
+        // requeue the checks the decision queued
         for check in &response.checks {
             let mut check = *check;
             check.map_types(&mut |ty| {
@@ -181,7 +181,7 @@ impl CheckState<'_> {
     }
 
     /// Reopen one carried type when it reaches a hole or renamed parameter.
-    /// The live holes list the ask's roots first, then the reopened answer roots.
+    /// The live holes list the goal's roots first, then the reopened answer roots.
     pub(in crate::sema) fn instantiate_response_type(
         &mut self,
         ty: dir::GlobalTypeId,
@@ -194,7 +194,7 @@ impl CheckState<'_> {
             return Ok(*done);
         }
 
-        // reopen hole and rigid carriers, keeping settled types verbatim
+        // reopen hole and rigid carriers, keeping closed types verbatim
         let flags = self.type_flags(ty)?;
         let done = if flags.has_hole() || flags.has_parameter() {
             let module = self.module_id;

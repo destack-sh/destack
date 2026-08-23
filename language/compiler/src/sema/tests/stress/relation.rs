@@ -4,7 +4,7 @@ const ITEMS: usize = 1_000;
 
 /// Repeated union conversions replay one canonical relation answer.
 #[test]
-fn test_repeated_union_conversions_replay_one_relation_answer() {
+fn test_repeated_union_conversions_reuse_one_relation_answer() {
     let body = (0..ITEMS)
         .map(|index| format!("    let value{index}: int32 | undefined = 0;"))
         .collect::<Vec<_>>()
@@ -20,12 +20,12 @@ check.stats.solve.obligations=1000
 check.stats.solve.solutions=0
 check.stats.solve.bounds=0
 check.stats.solve.decisions=1000
-check.stats.judges.decided=4
-check.stats.judges.replayed=1000
+check.stats.relations.decided=4
+check.stats.relations.reused=1000
 check.stats.bindings.built=0
-check.stats.bindings.replayed=0
+check.stats.bindings.reused=0
 check.stats.members.derived=0
-check.stats.members.replayed=0
+check.stats.members.reused=0
 check.stats.members.refused=0
 check.stats.probes.total=3007
 check.stats.probes.selections=0

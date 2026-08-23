@@ -37,7 +37,7 @@ impl CheckState<'_> {
             // readonly borrows remove the write path through their payload
             dir::Form::Borrowed(borrow) => {
                 let access = self.type_borrow(module, borrow)?.access;
-                if self.body().access_is_readonly(access)? {
+                if self.body().is_readonly_access(access)? {
                     self.constrain_variance(
                         origin,
                         cause,
@@ -228,7 +228,7 @@ impl CheckState<'_> {
             && source_chain.ownership_form().is_none()
             && matches!(self.ty(source)?, dir::Type::Form(_))
             && !matches!(self.ty(target)?, dir::Type::Form(_))
-            && self.type_is_immutable(origin, source_chain.base(), &mut SmallVec::new())?
+            && self.is_immutable(origin, source_chain.base(), &mut SmallVec::new())?
         {
             return Ok(Some(self.constrain_type(
                 origin,
@@ -418,7 +418,7 @@ impl CheckState<'_> {
                 }
 
                 // copy everything else into the destination storage
-                match self.satisfies_auto_interface(origin, source, dir::AutoInterface::Copy)? {
+                match self.decide_auto_interface(origin, source, dir::AutoInterface::Copy)? {
                     Verdict::Holds => {}
                     verdict @ (Verdict::Fails | Verdict::Ambiguous) => return Ok(Some(verdict)),
                 }
@@ -549,7 +549,7 @@ impl CheckState<'_> {
         }
 
         // read copyable payloads out of the view only
-        match self.satisfies_auto_interface(origin, payload, dir::AutoInterface::Copy)? {
+        match self.decide_auto_interface(origin, payload, dir::AutoInterface::Copy)? {
             Verdict::Holds => {}
             verdict @ (Verdict::Fails | Verdict::Ambiguous) => return Ok(verdict),
         }

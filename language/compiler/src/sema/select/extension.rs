@@ -4,10 +4,10 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Answer, Ask, BodyState, CandidateOutcome, Canonical, Cause, CauseKind, CheckOutcome,
-    DeclaredMember, ExtensionSource, GenericParameterId, GenericTemplateId, Implementation,
-    LookupReceiver, MemberCandidate, MemberLookup, Origin, Question, ReceiverSteps, Relation,
-    RelationCheck, Settle, TypeArgumentInference, TypeSubstitution, VariableRole, Verdict,
+    Answer, BodyState, CandidateOutcome, Canonical, CanonicalGoal, Cause, CauseKind, CheckOutcome,
+    DeclaredMember, ExtensionSource, GenericParameterId, GenericTemplateId, Goal, Implementation,
+    LookupReceiver, MemberCandidate, MemberLookup, Origin, ReceiverSteps, Relation, RelationCheck,
+    Resolve, TypeArgumentInference, TypeSubstitution, VariableRole, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -27,6 +27,27 @@ pub(in crate::sema) enum OpenBounds {
     Probe,
     /// Keep the bound open, so only a closed bound disproves the candidate.
     Keep,
+}
+
+/// Whether one extension exposes a looked-up member key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum KeyExposure {
+    /// The extension enumerates its keys and declares this one.
+    Present,
+    /// The extension enumerates its keys and declares no such key.
+    Absent,
+    /// The extension exposes keys this decision cannot enumerate.
+    Ambiguous,
+}
+
+impl KeyExposure {
+    /// Classify one enumerated key set's answer.
+    fn decided(is_present: bool) -> Self {
+        match is_present {
+            true => Self::Present,
+            false => Self::Absent,
+        }
+    }
 }
 
 /// The polarity-aware outcome of matching one extension implementation.
@@ -59,8 +80,8 @@ impl BodyState<'_, '_> {
         let mut is_undecided = false;
         let mut seen = FxIndexSet::default();
         for extension in extensions {
-            // consult a blanket only when it can expose the looked-up key
-            if !self.extension_exposes_key(extension, key)? {
+            // skip a blanket whose enumerated keys exclude the looked-up key
+            if self.decide_extension_key(extension, key)? == KeyExposure::Absent {
                 continue;
             }
 
@@ -92,7 +113,7 @@ impl BodyState<'_, '_> {
 
         // answer undecided when re-entry emptied the candidates
         if candidates.is_empty() && is_undecided {
-            return Ok(MemberLookup::Undecided);
+            return Ok(MemberLookup::Ambiguous);
         }
 
         Ok(MemberLookup::from_candidates(candidates))
@@ -108,25 +129,25 @@ impl BodyState<'_, '_> {
         root: dir::TypeRoot,
     ) -> CompilerResult<Vec<ExtensionSource>> {
         let canonical = self.check.canonicalize(origin, [receiver, subject], true)?;
-        let question = match &canonical {
+        let goal = match &canonical {
             Some(canonical) => Some(
                 self.check
-                    .question(Ask::Sources { root, module }, canonical)?,
+                    .canonical_goal(Goal::Sources { root, module }, canonical)?,
             ),
             None => None,
         };
 
-        // replay the composed answer at this ask's live roots
-        if let Some(question) = &question
+        // instantiate the composed answer at this goal's live roots
+        if let Some(goal) = &goal
             && let Some(canonical) = &canonical
-            && let Some(Answer::Sources(response)) = self.check.answers.get(question).cloned()
+            && let Some(Answer::Sources(response)) = self.check.answers.get(goal).cloned()
         {
             return self
                 .check
                 .instantiate_response(origin, canonical, &response);
         }
 
-        // decide each reachable extension once, replaying decided matches
+        // decide each reachable extension once, reusing decided matches
         let composed_before = self.check.fulfill.checks.count();
         let extensions = self.reachable_extensions(origin, module, receiver, subject, root)?;
         let mut sources = Vec::new();
@@ -138,10 +159,10 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // remember the composed answer folded canonical over its ask
-        if let (Some(question), Some(canonical)) = (&question, &canonical) {
-            self.check.remember_answer(
-                question,
+        // commit the composed answer folded canonical over its ask
+        if let (Some(goal), Some(canonical)) = (&goal, &canonical) {
+            self.check.commit_answer(
+                goal,
                 canonical,
                 composed_before,
                 sources.clone(),
@@ -188,13 +209,13 @@ impl BodyState<'_, '_> {
                 return Ok(CandidateOutcome::Accepted(()));
             };
 
-            // solve the declared bounds of settled pairs, binding their induced parameters
+            // solve the declared bounds of resolved pairs, binding their induced parameters
             if is_settled && let Some(template) = template {
                 let constraints =
                     state.substitute_application_constraints(origin, template, &substitution)?;
                 for constraint in constraints {
-                    let id = state.check.register_relation(constraint)?;
-                    state.check.solve_relation(id, Settle::Complete)?;
+                    let id = state.check.queue_relation(constraint)?;
+                    state.check.solve_relation(id, Resolve::Complete)?;
                 }
             }
 
@@ -269,12 +290,12 @@ impl BodyState<'_, '_> {
     /// Return whether one subject's nominal head matches a concrete target head.
     ///
     /// Assignability into a non-interface nominal flows through declared heritage.
-    fn root_matches_target(
+    fn is_matching_root(
         &mut self,
         subject: dir::GlobalTypeId,
         target_type: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        // interface and alias targets admit every head
+        // interface and alias targets match every head
         let Some(target_symbol) = self.nominal_head(target_type)? else {
             return Ok(true);
         };
@@ -285,7 +306,7 @@ impl BodyState<'_, '_> {
             return Ok(true);
         }
 
-        // concrete targets admit matching heads and declared heritage
+        // concrete targets match their own head and declared heritage
         match self.nominal_head(subject)? {
             Some(subject_symbol) => Ok(subject_symbol == target_symbol
                 || self.reaches_heritage(subject_symbol, target_symbol)?),
@@ -344,7 +365,7 @@ impl BodyState<'_, '_> {
         let requirement = requirements.get(&key).copied();
 
         // memoize complete definitions only, declaration-time members are still arriving
-        if !self.is_declaration() {
+        if !self.is_declaring() {
             self.check
                 .requirement_interfaces
                 .insert(extension, requirements);
@@ -353,17 +374,19 @@ impl BodyState<'_, '_> {
         Ok(requirement)
     }
 
-    /// Return whether one extension can expose one member key.
+    /// Decide whether one extension exposes one member key, memoizing the keys it enumerates.
     ///
     /// Rooted extensions are already scoped by their target root; a blanket exposes its declared
     /// keys and its interfaces' member keys.
-    fn extension_exposes_key(
+    /// A member without a static key leaves the whole set unenumerable.
+    fn decide_extension_key(
         &mut self,
         extension: dir::GlobalSymbolId,
         key: dir::StaticKey,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<KeyExposure> {
+        // serve the memo
         if let Some(keys) = self.check.blanket_keys.get(&extension) {
-            return Ok(keys.contains(&key));
+            return Ok(KeyExposure::decided(keys.contains(&key)));
         }
 
         // read the blanket's declared keys with its implemented interfaces
@@ -373,7 +396,7 @@ impl BodyState<'_, '_> {
             Some(dir::Definition::Extension(definition)) if definition.target.is_blanket() => {
                 for member in &definition.members {
                     let Some(declared) = member.key() else {
-                        return Ok(true);
+                        return Ok(KeyExposure::Ambiguous);
                     };
                     keys.insert(declared);
                 }
@@ -384,10 +407,10 @@ impl BodyState<'_, '_> {
                         .map(|conformance| conformance.interface),
                 );
             }
-            _ => return Ok(true),
+            _ => return Ok(KeyExposure::Ambiguous),
         }
 
-        // admit every member key the implemented interfaces declare
+        // add every member key the implemented interfaces declare
         for implemented in interfaces {
             let Some((_, interface)) = self.nominal_application_maybe(implemented)? else {
                 continue;
@@ -398,7 +421,7 @@ impl BodyState<'_, '_> {
             };
             for member in &definition.members {
                 let Some(key) = member.key() else {
-                    return Ok(true);
+                    return Ok(KeyExposure::Ambiguous);
                 };
                 keys.insert(key);
             }
@@ -406,15 +429,15 @@ impl BodyState<'_, '_> {
         let exposes = keys.contains(&key);
 
         // memoize complete definitions only: declaration-time members are still arriving
-        if !self.is_declaration() {
+        if !self.is_declaring() {
             self.check.blanket_keys.insert(extension, keys);
         }
 
-        Ok(exposes)
+        Ok(KeyExposure::decided(exposes))
     }
 
     /// Return whether one extension declaration is visible from one module.
-    fn extension_is_visible(
+    fn is_extension_visible(
         &mut self,
         extension: dir::GlobalSymbolId,
         module: ModuleId,
@@ -493,8 +516,8 @@ impl BodyState<'_, '_> {
 
         // visit extension declarations in resolution order
         for extension_symbol in extensions {
-            // consult a blanket only when it can expose the looked-up key
-            if !self.extension_exposes_key(extension_symbol, key)? {
+            // skip a blanket whose enumerated keys exclude the looked-up key
+            if self.decide_extension_key(extension_symbol, key)? == KeyExposure::Absent {
                 continue;
             }
 
@@ -510,7 +533,7 @@ impl BodyState<'_, '_> {
             let found = match lookup {
                 MemberLookup::Found(found) => found,
                 MemberLookup::Missing | MemberLookup::Field(_) => continue,
-                MemberLookup::Undecided => {
+                MemberLookup::Ambiguous => {
                     // report the coinductive re-entry as undecided
                     is_undecided = true;
                     continue;
@@ -533,7 +556,7 @@ impl BodyState<'_, '_> {
 
         // answer undecided when re-entry emptied the candidates
         if candidates.is_empty() && is_undecided {
-            return Ok(MemberLookup::Undecided);
+            return Ok(MemberLookup::Ambiguous);
         }
 
         Ok(MemberLookup::from_candidates(candidates))
@@ -549,7 +572,7 @@ impl BodyState<'_, '_> {
         root: dir::TypeRoot,
     ) -> CompilerResult<SmallVec<[dir::GlobalSymbolId; 4]>> {
         // serve the memo
-        if let Some(symbols) = self.check.extension_sets.get(&(module, root)) {
+        if let Some(symbols) = self.check.visible_extensions.get(&(module, root)) {
             return Ok(symbols.clone());
         }
 
@@ -615,16 +638,16 @@ impl BodyState<'_, '_> {
         }
 
         // decide the visible set once per head, after every declaration has landed
-        if !self.is_declaration() {
+        if !self.is_declaring() {
             self.check
-                .extension_sets
+                .visible_extensions
                 .insert((module, root), symbols.clone());
         }
 
         Ok(symbols)
     }
 
-    /// Decide one extension's argument match for a subject, replaying its canonical answer.
+    /// Decide one extension's argument match for a subject, instantiating its canonical answer.
     fn decided_extension_source(
         &mut self,
         origin: Origin,
@@ -634,17 +657,17 @@ impl BodyState<'_, '_> {
         extension: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<ExtensionSource>> {
         // admit the present extensions visible from the asking module
-        if self.is_absent_symbol(extension) || !self.extension_is_visible(extension, module)? {
+        if self.is_absent_symbol(extension) || !self.is_extension_visible(extension, module)? {
             return Ok(None);
         }
 
-        // replay the extension's own canonical decision
+        // reuse the extension's own canonical decision
         let canonical = self.check.canonicalize(origin, [receiver, subject], true)?;
         let canonical = canonical.as_deref();
         let extension_question = match canonical {
             Some(canonical) => Some(
                 self.check
-                    .question(Ask::Extension { extension }, canonical)?,
+                    .canonical_goal(Goal::Extension { extension }, canonical)?,
             ),
             None => None,
         };
@@ -676,13 +699,13 @@ impl BodyState<'_, '_> {
         let arguments = arguments?;
         let is_definitive = self.check.counters.extension_reentries == reentries_before;
 
-        // remember the deduction folded canonical over its ask
+        // commit the deduction folded canonical over its ask
         match &arguments {
             Some(arguments) => {
                 if let (Some(extension_question), Some(canonical)) =
                     (&extension_question, canonical)
                 {
-                    self.check.remember_answer(
+                    self.check.commit_answer(
                         extension_question,
                         canonical,
                         checks_before,
@@ -691,7 +714,7 @@ impl BodyState<'_, '_> {
                     )?;
                 }
             }
-            // remember a refusal decided without a truncated collection
+            // commit a refusal decided without a truncated collection
             None if is_definitive => {
                 if let Some(extension_question) = extension_question
                     && !self.check.answers.contains_key(&extension_question)
@@ -766,25 +789,23 @@ impl BodyState<'_, '_> {
         }
 
         // serve a repeated canonical goal from the memo, evaluating it on first ask
-        let asked = self.check.ask(
+        let canonical = self.check.canonicalize_goal(
             origin,
-            Ask::Implementation(relation),
+            Goal::Implementation(relation),
             &[receiver, interface_type],
             true,
         )?;
         if excluded.is_none()
-            && let Some((question, canonical)) = &asked
+            && let Some((goal, canonical)) = &canonical
         {
-            // evaluate an unanswered open question once, isolated from this site's
-            //  inference; ground questions decide in place, which is already isolated
-            if !canonical.holes.is_empty() && !self.check.answers.contains_key(question) {
-                self.check
-                    .answers
-                    .insert(question.clone(), Answer::Undecided);
-                self.evaluate_implementation(origin, relation, question, canonical)?;
+            // evaluate an unanswered open goal once, isolated from this site's
+            //  inference; closed goals decide in place, which is already isolated
+            if !canonical.holes.is_empty() && !self.check.answers.contains_key(goal) {
+                self.check.answers.insert(goal.clone(), Answer::Undecided);
+                self.commit_implementation_answer(origin, relation, goal, canonical)?;
             }
 
-            if let Some(Answer::Implement(response)) = self.check.answers.get(question).cloned() {
+            if let Some(Answer::Implement(response)) = self.check.answers.get(goal).cloned() {
                 let implementation = self
                     .check
                     .instantiate_response(origin, canonical, &response)?;
@@ -804,7 +825,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // replay the winner the receiver's owning module already decided
+        // reuse the winner the receiver's owning module already decided
         let owner = match self.ty(receiver)? {
             dir::Type::Application(applied) if applied.arguments.is_empty() => Some(applied.symbol),
             dir::Type::Reference(reference) => Some(reference.symbol),
@@ -821,9 +842,9 @@ impl BodyState<'_, '_> {
             });
         if excluded.is_none()
             && let Some(winner) = decided
-            && self.extension_is_visible(winner, module)?
+            && self.is_extension_visible(winner, module)?
         {
-            let replayed = self.confirm_extension(
+            let is_confirmed = self.confirm_extension_implementation(
                 origin,
                 relation,
                 instance_module,
@@ -831,7 +852,7 @@ impl BodyState<'_, '_> {
                 &instance,
                 winner,
             )?;
-            if replayed {
+            if is_confirmed {
                 return Ok(Verdict::Holds);
             }
         }
@@ -857,14 +878,14 @@ impl BodyState<'_, '_> {
 
         let decision = decision?;
 
-        // remember ground decisions, whose operands alone determined them
+        // commit closed decisions, whose operands alone determined them
         if excluded.is_none()
-            && let Some((question, canonical)) = &asked
+            && let Some((goal, canonical)) = &canonical
             && canonical.holes.is_empty()
             && decision.verdict != Verdict::Ambiguous
         {
-            self.check.remember_answer(
-                question,
+            self.check.commit_answer(
+                goal,
                 canonical,
                 checks_before,
                 decision,
@@ -875,19 +896,22 @@ impl BodyState<'_, '_> {
         Ok(decision.verdict)
     }
 
-    /// Decide one canonical question against fresh roots, remembering its answer.
-    fn evaluate_implementation(
+    /// Decide one canonical goal against fresh roots, committing its answer.
+    ///
+    /// The decision runs at fresh roots, isolated from the asking site's inference, and commits
+    /// only when it reports no failure.
+    fn commit_implementation_answer(
         &mut self,
         origin: Origin,
         relation: Relation,
-        question: &Question,
+        goal: &CanonicalGoal,
         canonical: &Canonical,
     ) -> CompilerResult<()> {
         let module = self.check.module_id;
         self.evaluate_discarding(|state| {
             let [asked_receiver, asked_interface] = canonical.operands[..] else {
                 return Err(CompilerError::Internal {
-                    message: "an implementation question lost its operand pair".to_string(),
+                    message: "an implementation goal lost its operand pair".to_string(),
                 });
             };
 
@@ -896,7 +920,7 @@ impl BodyState<'_, '_> {
             for root in &canonical.holes {
                 let kind = state.check.infer.variable(*root)?.kind;
                 let role = state.check.infer.variable_role(*root)?;
-                fresh.push(state.check.allocate_variable_of(origin, kind, role));
+                fresh.push(state.check.open_variable_of(origin, kind, role));
             }
 
             // instantiate the canonical operands at the fresh roots
@@ -934,7 +958,7 @@ impl BodyState<'_, '_> {
             state.check.deciding.swap_remove(&active);
             let decision = decision?;
 
-            // remember decided answers whose evaluation reported no failure
+            // commit decided answers whose evaluation reported no failure
             if decision.verdict != Verdict::Ambiguous
                 && state.check.fulfill.failures.len() == failures_before
             {
@@ -945,9 +969,9 @@ impl BodyState<'_, '_> {
                     parameters: canonical.parameters.clone(),
                     premise: canonical.premise,
                 };
-                state.check.answers.swap_remove(question);
-                state.check.remember_answer(
-                    question,
+                state.check.answers.swap_remove(goal);
+                state.check.commit_answer(
+                    goal,
                     &evaluated,
                     checks_before,
                     decision,
@@ -960,7 +984,9 @@ impl BodyState<'_, '_> {
     }
 
     /// Confirm one known extension implementation against a goal.
-    fn confirm_extension(
+    ///
+    /// A confirmed match commits the inference it binds, and returns whether it matched.
+    fn confirm_extension_implementation(
         &mut self,
         origin: Origin,
         relation: Relation,
@@ -982,7 +1008,7 @@ impl BodyState<'_, '_> {
         let target_type = extension.target.r#type();
         let template = self.symbol_template(extension_symbol)?;
 
-        // replay the match, committing the inference it binds
+        // instantiate the match, committing the inference it binds
         self.check.counters.extension_probes += 1;
         let matched = self.confirm_candidate(|state| {
             let matched = state.match_extension_implementation(
@@ -1047,7 +1073,7 @@ impl BodyState<'_, '_> {
                 .collect::<SmallVec<[_; 2]>>();
 
             // keep only declarations whose conformances reach the requested interface
-            if !self.implements_requested_interface(&interfaces, interface.symbol)? {
+            if !self.has_requested_interface(&interfaces, interface.symbol)? {
                 continue;
             }
 
@@ -1162,7 +1188,7 @@ impl BodyState<'_, '_> {
     }
 
     /// Return whether one declaration's conformances reach a requested interface.
-    fn implements_requested_interface(
+    fn has_requested_interface(
         &mut self,
         interfaces: &[dir::GlobalTypeId],
         interface: dir::GlobalSymbolId,
@@ -1197,7 +1223,7 @@ impl BodyState<'_, '_> {
         open_bounds: OpenBounds,
     ) -> CompilerResult<ExtensionMatch> {
         // require the receiver head to reach the declared target head
-        if !self.root_matches_target(lookup_receiver, target_type)? {
+        if !self.is_matching_root(lookup_receiver, target_type)? {
             return Ok(ExtensionMatch::Unmatched);
         }
 
@@ -1264,8 +1290,8 @@ impl BodyState<'_, '_> {
 
                 // decide a closed bound now, disproving an inapplicable candidate
                 if closed {
-                    let id = self.check.register_relation(constraint)?;
-                    self.check.solve_relation(id, Settle::Complete)?;
+                    let id = self.check.queue_relation(constraint)?;
+                    self.check.solve_relation(id, Resolve::Complete)?;
 
                     // a disproved bound rejects, an undecided one stays unproven
                     match self.check.fulfill.checks.result(id)? {
@@ -1276,19 +1302,19 @@ impl BodyState<'_, '_> {
                 }
                 // keep an open bound under overlap proving, where it may still hold
                 else if open_bounds == OpenBounds::Keep {
-                    self.check.register_relation(constraint)?;
+                    self.check.queue_relation(constraint)?;
                 }
                 // probe an open bound, keeping an undecided one open
                 else {
                     let verdict = self.probe_candidate(|state| {
-                        let id = state.check.register_relation(constraint)?;
-                        state.check.solve_relation(id, Settle::Bounded)?;
+                        let id = state.check.queue_relation(constraint)?;
+                        state.check.solve_relation(id, Resolve::Bounded)?;
                         Ok(CandidateOutcome::<(), ()>::Accepted(()))
                     })?;
                     if verdict == Verdict::Fails {
                         return Ok(ExtensionMatch::Unmatched);
                     }
-                    self.check.register_relation(constraint)?;
+                    self.check.queue_relation(constraint)?;
                 }
             }
         }
@@ -1388,7 +1414,8 @@ impl BodyState<'_, '_> {
             }
             let mut witnesses = None;
             for bound in bounds {
-                witnesses = self.interface_inhabitants(module, bound)?;
+                let mut visited = FxIndexSet::default();
+                witnesses = self.interface_inhabitants(module, bound, &mut visited)?;
                 if witnesses.is_some() {
                     break;
                 }
@@ -1506,9 +1533,9 @@ impl BodyState<'_, '_> {
                 {
                     let closed = state.check.type_variables(constraint.source)?.is_empty()
                         && state.check.type_variables(constraint.target)?.is_empty();
-                    let id = state.check.register_relation(constraint)?;
+                    let id = state.check.queue_relation(constraint)?;
                     if closed {
-                        state.check.solve_relation(id, Settle::Complete)?;
+                        state.check.solve_relation(id, Resolve::Complete)?;
                         let outcome = state.check.fulfill.checks.result(id)?;
                         if matches!(outcome, Some(CheckOutcome::Fails(_))) {
                             return Ok(CandidateOutcome::Rejected(()));
@@ -1528,39 +1555,28 @@ impl BodyState<'_, '_> {
     }
 
     /// Return the declared types implementing one interface bound, or `None` for every other bound.
+    ///
+    /// Rooted implementations witness themselves, blanket implementations witness through their
+    /// own bound, whose interfaces the visited set closes.
     fn interface_inhabitants(
         &mut self,
         module: ModuleId,
         constraint: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<Vec<dir::GlobalTypeId>>> {
-        let mut inhabitants = Vec::new();
-        let mut visited = FxIndexSet::default();
-        let is_interface =
-            self.collect_interface_inhabitants(module, constraint, &mut visited, &mut inhabitants)?;
-
-        Ok(is_interface.then_some(inhabitants))
-    }
-
-    /// Collect the rooted implementation targets of one interface, through blanket implementors.
-    fn collect_interface_inhabitants(
-        &mut self,
-        module: ModuleId,
-        constraint: dir::GlobalTypeId,
         visited: &mut FxIndexSet<dir::GlobalSymbolId>,
-        inhabitants: &mut Vec<dir::GlobalTypeId>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Option<Vec<dir::GlobalTypeId>>> {
         // read the bound's interface, other bounds leave the parameter open
         let Some((_, instance)) = self.nominal_application_maybe(constraint)? else {
-            return Ok(false);
+            return Ok(None);
         };
         if !self.symbol_kind(instance.symbol)?.is_interface() {
-            return Ok(false);
+            return Ok(None);
         }
         if !visited.insert(instance.symbol) {
-            return Ok(true);
+            return Ok(Some(Vec::new()));
         }
 
-        // rooted implementations witness themselves, blankets witness through their bound
+        // take the target of each rooted implementation, descending through the blankets
+        let mut inhabitants = Vec::new();
         for (implementor, _) in self.visible_implementations(module, instance.symbol)? {
             let Some(dir::Definition::Extension(extension)) = self.definition(implementor)? else {
                 continue;
@@ -1581,12 +1597,19 @@ impl BodyState<'_, '_> {
                     else {
                         continue;
                     };
-                    self.collect_interface_inhabitants(module, bound, visited, inhabitants)?;
+                    let Some(bounded) = self.interface_inhabitants(module, bound, visited)? else {
+                        continue;
+                    };
+                    for ty in bounded {
+                        if !inhabitants.contains(&ty) {
+                            inhabitants.push(ty);
+                        }
+                    }
                 }
             }
         }
 
-        Ok(true)
+        Ok(Some(inhabitants))
     }
 
     /// Collect the visible implementations of one interface, each with its target root.
@@ -1648,7 +1671,7 @@ impl BodyState<'_, '_> {
                 .iter()
                 .map(|conformance| conformance.interface)
                 .collect::<SmallVec<[_; 2]>>();
-            if self.implements_requested_interface(&interfaces, interface)? {
+            if self.has_requested_interface(&interfaces, interface)? {
                 symbols.push((symbol, root));
             }
         }
@@ -2051,7 +2074,7 @@ impl BodyState<'_, '_> {
                         Some(fresh) => *fresh,
                         None => {
                             let _binding = *self.require_generic_parameter(erased)?;
-                            let variable = self.allocate_variable(
+                            let variable = self.open_variable(
                                 origin,
                                 VariableRole::Instantiation { parameter: erased },
                             );
@@ -2266,7 +2289,7 @@ impl BodyState<'_, '_> {
             };
 
             // carry the solved extension arguments onto the candidate
-            let generic_arguments = self.settled_argument_bindings(&substitution.bindings)?;
+            let generic_arguments = self.resolved_argument_bindings(&substitution.bindings)?;
             let requirement = self.requirement_interface(extension_symbol, member.key)?;
             let candidate = MemberCandidate {
                 symbol: member.symbol,
@@ -2320,10 +2343,10 @@ impl BodyState<'_, '_> {
                 .collect::<SmallVec<[_; 2]>>();
             let target_type = extension.target.r#type();
 
-            // retain conformances whose interface declares the projected member
+            // keep conformances whose interface declares the projected member
             let mut declaring = SmallVec::<[dir::GlobalTypeId; 2]>::new();
             for conformance in conformances {
-                if self.declares_associated_type(conformance, key)? {
+                if self.has_associated_type(conformance, key)? {
                     declaring.push(conformance);
                 }
             }
@@ -2409,7 +2432,7 @@ impl BodyState<'_, '_> {
         };
 
         // require the subject head to reach the declared target head
-        if !self.root_matches_target(subject, target_type)? {
+        if !self.is_matching_root(subject, target_type)? {
             return Ok(None);
         }
 
@@ -2458,14 +2481,13 @@ impl BodyState<'_, '_> {
 
         // require the subject to satisfy the bound target
         let target = self.substitute_type(target_type, &substitution)?;
-        if self.evaluate_relation(origin, Relation::Assignable, subject, target)? == Verdict::Fails
-        {
+        if self.decide_relation(origin, Relation::Assignable, subject, target)? == Verdict::Fails {
             return Ok(None);
         }
 
         // filter on the declared constraints without committing their obligations
         if let Some(template) = template
-            && !self.substitution_constraints_may_hold(origin, template, &substitution)?
+            && !self.is_substitution_viable(origin, template, &substitution)?
         {
             return Ok(None);
         }

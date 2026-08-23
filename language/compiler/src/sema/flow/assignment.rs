@@ -3,8 +3,8 @@ use destack_dir as dir;
 use crate::sema::{AssignedPlace, CheckState};
 
 impl CheckState<'_> {
-    /// Check that one local binding is assigned before a read.
-    pub(in crate::sema) fn check_assigned_read(
+    /// Report one local binding read before its assignment.
+    pub(in crate::sema) fn report_unassigned_read(
         &mut self,
         source: dir::LocalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -31,59 +31,59 @@ impl CheckState<'_> {
         }
     }
 
-    /// Mark one local flow place as assigned.
-    pub(in crate::sema) fn mark_place_assigned(&mut self, place: AssignedPlace) {
-        self.flow.mark_assigned(place);
+    /// Add one local flow place to the assigned set.
+    pub(in crate::sema) fn assign_place(&mut self, place: AssignedPlace) {
+        self.flow.insert_assigned(place);
     }
 
-    /// Mark bindings assigned by one initialized or ambient declarator.
-    pub(in crate::sema) fn mark_declarator_assigned(
+    /// Assign the bindings of one initialized or ambient declarator.
+    pub(in crate::sema) fn assign_declarator_bindings(
         &mut self,
         declarator: &dir::Declarator,
         is_ambient: bool,
     ) {
         // only initialized and ambient declarators assign their pattern
         if is_ambient || declarator.value.is_some() {
-            self.mark_bindings_assigned(declarator.pattern.into_any());
+            self.assign_bindings(declarator.pattern.into_any());
         }
     }
 
-    /// Mark all bindings introduced by one source node as definitely assigned.
-    pub(in crate::sema) fn mark_bindings_assigned(&mut self, source: dir::LocalNodeIdAny) {
+    /// Assign every binding introduced by one source node.
+    pub(in crate::sema) fn assign_bindings(&mut self, source: dir::LocalNodeIdAny) {
         match source.ty {
             // parameter
             dir::NodeType::Parameter => {
                 let id = source.into_typed::<dir::Parameter>();
 
-                self.mark_parameter_bindings_assigned(id);
+                self.assign_parameter_bindings(id);
             }
             // pattern
             dir::NodeType::Pattern => {
                 let id = source.into_typed::<dir::Pattern>();
 
-                self.mark_pattern_bindings_assigned(id);
+                self.assign_pattern_bindings(id);
             }
             // pattern field
             dir::NodeType::PatternField => {
                 let id = source.into_typed::<dir::PatternField>();
 
-                self.mark_pattern_field_bindings_assigned(id);
+                self.assign_pattern_field_bindings(id);
             }
             // nodes without pattern bindings
             _ => {}
         }
     }
 
-    /// Mark the symbol declared by one binding source.
-    fn mark_declared_binding(&mut self, source: dir::LocalNodeIdAny) {
+    /// Assign the symbol declared by one binding source.
+    fn assign_declared_binding(&mut self, source: dir::LocalNodeIdAny) {
         if let Some(symbol) = self.module(self.module_id).declaration_symbol(source) {
-            self.flow.mark_assigned(AssignedPlace::Symbol(symbol));
+            self.flow.insert_assigned(AssignedPlace::Symbol(symbol));
         }
     }
 
-    /// Mark bindings introduced by one parameter as definitely assigned.
-    fn mark_parameter_bindings_assigned(&mut self, id: dir::LocalNodeId<dir::Parameter>) {
-        self.mark_declared_binding(id.into_any());
+    /// Assign every binding introduced by one parameter.
+    fn assign_parameter_bindings(&mut self, id: dir::LocalNodeId<dir::Parameter>) {
+        self.assign_declared_binding(id.into_any());
 
         // walk parameter binding shape
         let node = self.module(self.module_id).view().get(id).clone();
@@ -92,7 +92,7 @@ impl CheckState<'_> {
             dir::Parameter::Pattern { pattern, .. }
             // (...{ name })
             | dir::Parameter::VariadicPattern { pattern, .. } => {
-                self.mark_pattern_bindings_assigned(pattern);
+                self.assign_pattern_bindings(pattern);
             }
             // (name)
             dir::Parameter::Named { .. }
@@ -103,9 +103,9 @@ impl CheckState<'_> {
         }
     }
 
-    /// Mark bindings introduced by one pattern as definitely assigned.
-    fn mark_pattern_bindings_assigned(&mut self, id: dir::LocalNodeId<dir::Pattern>) {
-        self.mark_declared_binding(id.into_any());
+    /// Assign every binding introduced by one pattern.
+    fn assign_pattern_bindings(&mut self, id: dir::LocalNodeId<dir::Pattern>) {
+        self.assign_declared_binding(id.into_any());
 
         // walk pattern binding shape
         let node = self.module(self.module_id).view().get(id).clone();
@@ -125,7 +125,7 @@ impl CheckState<'_> {
             | dir::Pattern::DereferenceOf { right: pattern }
             // pattern = value
             | dir::Pattern::Default { pattern, .. } => {
-                self.mark_pattern_bindings_assigned(pattern);
+                self.assign_pattern_bindings(pattern);
             }
             // [a, b]
             dir::Pattern::Tuple { fields }
@@ -137,16 +137,16 @@ impl CheckState<'_> {
             | dir::Pattern::NominalTuple { fields, .. }
             // T { name }
             | dir::Pattern::NominalObject { fields, .. } => {
-                // mark each nested field pattern
+                // assign each nested field pattern
                 for field in fields {
-                    self.mark_pattern_field_bindings_assigned(field);
+                    self.assign_pattern_field_bindings(field);
                 }
             }
             // a | b
             dir::Pattern::Union { patterns } => {
-                // mark each alternative binding pattern
+                // assign each alternative binding pattern
                 for pattern in patterns {
-                    self.mark_pattern_bindings_assigned(pattern);
+                    self.assign_pattern_bindings(pattern);
                 }
             }
             // name
@@ -160,9 +160,9 @@ impl CheckState<'_> {
         }
     }
 
-    /// Mark bindings introduced by one pattern field as definitely assigned.
-    fn mark_pattern_field_bindings_assigned(&mut self, id: dir::LocalNodeId<dir::PatternField>) {
-        self.mark_declared_binding(id.into_any());
+    /// Assign every binding introduced by one pattern field.
+    fn assign_pattern_field_bindings(&mut self, id: dir::LocalNodeId<dir::PatternField>) {
+        self.assign_declared_binding(id.into_any());
 
         // walk pattern field binding shape
         let node = self.module(self.module_id).view().get(id).clone();
@@ -180,7 +180,7 @@ impl CheckState<'_> {
             | dir::PatternField::Computed { pattern, .. }
             // [pattern]
             | dir::PatternField::Positional { pattern } => {
-                self.mark_pattern_bindings_assigned(pattern);
+                self.assign_pattern_bindings(pattern);
             }
             // { name }
             dir::PatternField::Named { pattern: None, .. }

@@ -41,8 +41,8 @@ impl KeySet {
         self.domains.extend(other.domains);
     }
 
-    /// Return whether this set accepts one exact key.
-    fn accepts(&self, key: dir::StaticKey) -> bool {
+    /// Return whether this set covers one exact key.
+    fn has_key(&self, key: dir::StaticKey) -> bool {
         self.keys.contains(&key) || self.domains.contains(&KeyDomain::from_key(key))
     }
 
@@ -50,21 +50,21 @@ impl KeySet {
     fn intersect(self, other: Self) -> Self {
         let mut keys = KeySet::default();
 
-        // keep exact left keys accepted by the right side
+        // keep exact left keys the right side covers
         for key in self.keys.iter().copied() {
-            if other.accepts(key) {
+            if other.has_key(key) {
                 keys.insert_key(key);
             }
         }
 
-        // keep exact right keys accepted by left domains
+        // keep exact right keys the left domains cover
         for key in other.keys.iter().copied() {
-            if !keys.keys.contains(&key) && self.accepts(key) {
+            if !keys.keys.contains(&key) && self.has_key(key) {
                 keys.insert_key(key);
             }
         }
 
-        // keep broad domains accepted by both sides
+        // keep broad domains both sides cover
         for domain in self.domains.iter().copied() {
             if other.domains.contains(&domain) {
                 keys.insert_domain(domain);
@@ -139,7 +139,7 @@ impl CheckState<'_> {
             dir::Type::Reference(_) | dir::Type::Static(_) => dir::MemberSpace::Static,
             _ => dir::MemberSpace::Instance,
         };
-        let subject = dir::MemberSubject::new(owner, head, space);
+        let subject = self.body().member_subject(origin, owner, head, space)?;
         let lookup = self
             .body()
             .lookup_member(origin, origin.module(), subject, key)?;
@@ -231,7 +231,7 @@ impl CheckState<'_> {
             })),
 
             // keep undecided lookups symbolic
-            MemberLookup::Undecided => Ok(OperationReduction::Rigid),
+            MemberLookup::Ambiguous => Ok(OperationReduction::Rigid),
         }
     }
 
@@ -306,7 +306,7 @@ impl CheckState<'_> {
         let projected = match (self.ty(left)?, static_key) {
             (dir::Type::Object(shape), Some(static_key)) => {
                 let field = self
-                    .shape_properties(left.module_id, shape.properties)?
+                    .object_properties(left.module_id, shape.properties)?
                     .iter()
                     .find(|field| field.key == static_key)
                     .copied();
@@ -409,14 +409,14 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         shape_id: dir::GlobalTypeId,
-        shape: &dir::ShapeType,
+        shape: &dir::ObjectType,
         key: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let Some(domain) = self.index_key_domain(key)? else {
             return Ok(None);
         };
         let signatures: SmallVec<[_; 4]> = self
-            .shape_index_signatures(shape_id.module_id, shape.index_signatures)?
+            .object_index_signatures(shape_id.module_id, shape.index_signatures)?
             .into();
 
         // match the first signature covering the key domain
@@ -502,13 +502,13 @@ impl CheckState<'_> {
             dir::Type::Object(shape) => {
                 let mut set = KeySet::default();
                 let fields: SmallVec<[_; 4]> = self
-                    .shape_properties(target.module_id, shape.properties)?
+                    .object_properties(target.module_id, shape.properties)?
                     .into();
                 for field in fields {
                     set.insert_key(field.key);
                 }
                 let index_signatures: SmallVec<[_; 4]> = self
-                    .shape_index_signatures(target.module_id, shape.index_signatures)?
+                    .object_index_signatures(target.module_id, shape.index_signatures)?
                     .into();
                 for signature in index_signatures {
                     self.insert_index_key_type(origin, &mut set, signature.key_type)?;
@@ -604,7 +604,7 @@ impl CheckState<'_> {
                 set
             }
 
-            // fixed arrays with a settled count key by their exact indices
+            // fixed arrays with a resolved count key by their exact indices
             dir::Type::FixedArray(array) => {
                 let count = self.normalize(origin, array.count)?;
                 let mut set = KeySet::default();
@@ -825,7 +825,7 @@ impl CheckState<'_> {
 
                 match self.ty(target)? {
                     dir::Type::Object(shape) => Some(
-                        self.shape_properties(target.module_id, shape.properties)?
+                        self.object_properties(target.module_id, shape.properties)?
                             .to_vec(),
                     ),
                     dir::Type::Application(_) => self.interface_instance_fields(target, target)?,
@@ -929,7 +929,7 @@ impl CheckState<'_> {
 
         let fields = self.intern_properties(&fields)?;
         let index_signatures = self.intern_index_signatures(&index_signatures)?;
-        let shape = dir::Type::Object(dir::ShapeType {
+        let shape = dir::Type::Object(dir::ObjectType {
             properties: fields,
             call_signatures: dir::TypeListId::EMPTY,
             construct_signatures: dir::TypeListId::EMPTY,

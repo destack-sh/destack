@@ -36,7 +36,7 @@ impl BodyState<'_, '_> {
         }
 
         // select one contextual union member when exactly one applies
-        if expectation.relation.distributes_over_union_target()
+        if expectation.relation.is_union_distributive()
             && let Some(check) = self.check_union_target(site, expectation)?
         {
             return Ok(check);
@@ -180,8 +180,9 @@ impl BodyState<'_, '_> {
 
         // deduce function value parameters from a callable target
         if let dir::Expression::Declaration(declaration) = &expression
-            && self.register_function_value(site.node, *declaration)?
+            && self.is_function_value_declaration(site.node, *declaration)?
         {
+            self.commit_function_value(site.node, *declaration)?;
             let check = self.check_function_value(site, Some(expectation), InferMode::Regular)?;
 
             return Ok(CheckAttempt::Checked(check));

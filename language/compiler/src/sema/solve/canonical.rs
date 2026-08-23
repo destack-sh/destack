@@ -5,15 +5,15 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Ask, BoundSet, BoundSetId, Callee, CheckState, GenericParameterId, Hole, Origin, Premise,
-    PremiseParameter, Question,
+    BoundSet, BoundSetId, Callee, CanonicalGoal, CheckState, GenericParameterId, Goal, Hole,
+    Origin, Premise, PremiseParameter,
 };
 use crate::{CompilerError, CompilerResult};
 
-/// One question's operands in canonical form, shared across equal asks.
+/// One goal's operands in canonical form, shared across equal goals.
 #[derive(Debug, Clone)]
 pub(in crate::sema) struct Canonical {
-    /// The canonical operands, in ask order.
+    /// The canonical operands, in goal order.
     pub(in crate::sema) operands: SmallVec<[dir::GlobalTypeId; 2]>,
     /// The live root renamed into each hole, in hole order.
     pub(in crate::sema) holes: SmallVec<[dir::TypeVariableId; 4]>,
@@ -28,7 +28,7 @@ pub(in crate::sema) struct Canonical {
 /// One memoized canonical form with the hole state it was folded under.
 #[derive(Debug, Clone)]
 pub(in crate::sema) struct CanonicalEntry {
-    /// The memoized canonical form, absent for refused settled pairs.
+    /// The memoized canonical form, absent for refused closed pairs.
     canonical: Option<Arc<Canonical>>,
     /// The open roots the fold numbered, invalidating the entry when one closes.
     holes: SmallVec<[dir::TypeVariableId; 4]>,
@@ -55,9 +55,9 @@ impl Renaming {
         }
     }
 
-    /// Create a renaming seeded at one ask's numbering, growing answer holes.
+    /// Create a renaming seeded at one goal's numbering, growing answer holes.
     pub(super) fn seeded(canonical: &Canonical) -> Self {
-        // number each of the ask's holes in its decided order
+        // number each of the goal's holes in its decided order
         let mut holes = FxIndexMap::default();
         for (index, root) in canonical.holes.iter().enumerate() {
             holes.insert(*root, dir::HoleIndex(index as u16));
@@ -72,15 +72,15 @@ impl Renaming {
 }
 
 impl CheckState<'_> {
-    /// Canonicalize one subject's operands into a memoizable question.
-    pub(in crate::sema) fn ask(
+    /// Canonicalize one subject's operands into a memoizable goal.
+    pub(in crate::sema) fn canonicalize_goal(
         &mut self,
         origin: Origin,
-        ask: Ask,
+        goal: Goal,
         operands: &[dir::GlobalTypeId],
         open: bool,
-    ) -> CompilerResult<Option<(Question, Arc<Canonical>)>> {
-        // canonicalize pairs through the settled memo, lists past it
+    ) -> CompilerResult<Option<(CanonicalGoal, Arc<Canonical>)>> {
+        // canonicalize pairs through the closed memo, lists past it
         let canonical = match operands {
             [source, target] => self.canonicalize(origin, [*source, *target], open)?,
             operands => self.canonicalize_list(origin, operands, open)?,
@@ -88,47 +88,47 @@ impl CheckState<'_> {
         let Some(canonical) = canonical else {
             return Ok(None);
         };
-        let question = self.question(ask, &canonical)?;
+        let goal = self.canonical_goal(goal, &canonical)?;
 
-        Ok(Some((question, canonical)))
+        Ok(Some((goal, canonical)))
     }
 
-    /// Mint one further question over an already canonicalized form.
-    pub(in crate::sema) fn question(
+    /// Mint one further goal over an already canonicalized form.
+    pub(in crate::sema) fn canonical_goal(
         &mut self,
-        ask: Ask,
+        goal: Goal,
         canonical: &Canonical,
-    ) -> CompilerResult<Question> {
+    ) -> CompilerResult<CanonicalGoal> {
         let operands = self.intern_type_ids(&canonical.operands)?;
 
-        Ok(Question {
-            ask,
+        Ok(CanonicalGoal {
+            goal,
             operands,
             premise: canonical.premise,
         })
     }
 
-    /// Canonicalize one selection ask over its callee and operands.
-    pub(in crate::sema) fn selection_question(
+    /// Canonicalize one selection goal over its callee and operands.
+    pub(in crate::sema) fn selection_goal(
         &mut self,
         origin: Origin,
         callee: Callee,
         expected: Option<dir::GlobalTypeId>,
         operands: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Option<(Question, Arc<Canonical>)>> {
+    ) -> CompilerResult<Option<(CanonicalGoal, Arc<Canonical>)>> {
         // lead the operand list with the expectation when one exists
-        let mut asked = SmallVec::<[dir::GlobalTypeId; 8]>::new();
-        asked.extend(expected);
-        asked.extend_from_slice(operands);
-        let subject = Ask::Selection {
+        let mut canonicalized = SmallVec::<[dir::GlobalTypeId; 8]>::new();
+        canonicalized.extend(expected);
+        canonicalized.extend_from_slice(operands);
+        let subject = Goal::Selection {
             callee,
             expected: expected.is_some(),
         };
 
-        self.ask(origin, subject, &asked, true)
+        self.canonicalize_goal(origin, subject, &canonicalized, true)
     }
 
-    /// Canonicalize one question's operands so equal questions look equal.
+    /// Canonicalize one goal's operands so equal goals look equal.
     pub(in crate::sema) fn canonicalize(
         &mut self,
         origin: Origin,
@@ -140,10 +140,10 @@ impl CheckState<'_> {
         let target = self.shallow_resolve(target)?;
         let flags = self.type_flags(source)? | self.type_flags(target)?;
         let resolved = [source, target];
-        let is_settled = !flags.has_variable();
+        let is_closed = !flags.has_variable();
 
-        // refuse an open pair the ask cannot memoize
-        if !is_settled && !open {
+        // refuse an open pair the goal cannot memoize
+        if !is_closed && !open {
             return Ok(None);
         }
 
@@ -154,7 +154,7 @@ impl CheckState<'_> {
             None
         };
         let key = (resolved, scope);
-        if let Some(entry) = self.canonicals.get(&key)
+        if let Some(entry) = self.canonical_entries.get(&key)
             && self.is_entry_live(entry)?
         {
             return Ok(entry.canonical.clone());
@@ -163,13 +163,13 @@ impl CheckState<'_> {
         let (canonical, cacheable) = self.canonicalize_operands(origin, &resolved)?;
         let canonical = canonical.map(Arc::new);
 
-        // memoize settled forms freely and open forms with their numbered roots
-        if cacheable && (is_settled || canonical.is_some()) {
+        // memoize closed forms freely and open forms with their numbered roots
+        if cacheable && (is_closed || canonical.is_some()) {
             let holes = match &canonical {
                 Some(canonical) => canonical.holes.clone(),
                 None => SmallVec::new(),
             };
-            self.canonicals.insert(
+            self.canonical_entries.insert(
                 key,
                 CanonicalEntry {
                     canonical: canonical.clone(),
@@ -192,7 +192,7 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Canonicalize one operand list so equal questions look equal.
+    /// Canonicalize one operand list so equal goals look equal.
     pub(in crate::sema) fn canonicalize_list(
         &mut self,
         origin: Origin,
@@ -207,7 +207,7 @@ impl CheckState<'_> {
             resolved.push(operand);
         }
 
-        // refuse an open list the ask cannot memoize
+        // refuse an open list the goal cannot memoize
         if !open && flags.has_variable() {
             return Ok(None);
         }
@@ -216,7 +216,7 @@ impl CheckState<'_> {
         Ok(canonical.map(Arc::new))
     }
 
-    /// Canonicalize one question's operands past the memo.
+    /// Canonicalize one goal's operands past the memo.
     fn canonicalize_operands(
         &mut self,
         origin: Origin,
@@ -242,12 +242,12 @@ impl CheckState<'_> {
             dir::TypeFlags::HAS_PARAMETER
         };
 
-        // decide settled operands freely
+        // decide closed operands freely
         let premise = if !flags.has_parameter() && !flags.has_this() && holes.is_empty() {
             Premise::Free
         }
         // refuse assumed operands while declaring, whose templates are still forming
-        else if self.is_declaration() {
+        else if self.is_declaring() {
             return Ok((None, false));
         }
         // scope operands that mention this, which carry no hole content
@@ -378,7 +378,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether one type mentions any numbered parameter.
-    fn mentions_parameter(
+    fn has_numbered_parameter(
         &self,
         id: dir::GlobalTypeId,
         numbered: &FxIndexMap<GenericParameterId, dir::RigidIndex>,
@@ -404,7 +404,7 @@ impl CheckState<'_> {
         Ok(false)
     }
 
-    /// Intern the bound content one question's renamed parameters assume.
+    /// Intern the bound content one goal's renamed parameters assume.
     fn intern_premise(
         &mut self,
         origin: Origin,
@@ -414,7 +414,7 @@ impl CheckState<'_> {
         let scope = self.assuming_scope(origin)?;
         let initial: SmallVec<[GenericParameterId; 4]> =
             renaming.parameters.keys().copied().collect();
-        if let Some((closed, premise)) = self.premise_contents.get(&(scope, initial.clone())) {
+        if let Some((closed, premise)) = self.premises.get(&(scope, initial.clone())) {
             for parameter in closed.clone() {
                 let next = dir::RigidIndex(renaming.parameters.len() as u16);
                 renaming.parameters.entry(parameter).or_insert(next);
@@ -469,8 +469,8 @@ impl CheckState<'_> {
                 if included[index] {
                     continue;
                 }
-                let mentions = self.mentions_parameter(predicate.left, &renaming.parameters)?
-                    || self.mentions_parameter(predicate.right, &renaming.parameters)?;
+                let mentions = self.has_numbered_parameter(predicate.left, &renaming.parameters)?
+                    || self.has_numbered_parameter(predicate.right, &renaming.parameters)?;
                 if !mentions {
                     continue;
                 }
@@ -494,13 +494,13 @@ impl CheckState<'_> {
             .copied()
             .filter(|parameter| !initial.contains(parameter))
             .collect();
-        self.premise_contents
+        self.premises
             .insert((scope, initial), (closed, Some(premise)));
 
         Ok(Some(premise))
     }
 
-    /// Canonicalize one settled assumed bound type.
+    /// Canonicalize one closed assumed bound type.
     fn assumed_operand(
         &mut self,
         ty: dir::GlobalTypeId,

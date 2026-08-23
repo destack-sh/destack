@@ -157,7 +157,7 @@ impl CheckState<'_> {
                         matched = Some(target_index);
                     }
                 } else if self
-                    .evaluate_relation(origin, Relation::Equal, source_type, target_type)?
+                    .decide_relation(origin, Relation::Equal, source_type, target_type)?
                     .holds()
                 {
                     matched = Some(target_index);
@@ -183,7 +183,7 @@ impl CheckState<'_> {
         }
 
         // unresolved variables on either side leave the equation ambiguous
-        let open = self.open_type_variables(source.into_iter().chain(target))?;
+        let open = self.collect_open_variables(source.into_iter().chain(target))?;
         if !open.is_empty() {
             return Err(CompilerError::Internal {
                 message: format!("open variables {open:?} reached set equality"),

@@ -159,7 +159,7 @@ impl CheckState<'_> {
         // use intrinsic conformance when no declaration provides it
         if let Some(auto_interface) = auto_interface {
             let decided =
-                self.satisfies_intrinsic_interface(origin, source, target, auto_interface)?;
+                self.decide_intrinsic_interface(origin, source, target, auto_interface)?;
 
             return Ok(decided.join_undecided(implemented));
         }
@@ -192,7 +192,7 @@ impl CheckState<'_> {
 
             self.relate_method(origin, cause, relation, source, target, receiver)
         } else {
-            self.evaluate_relation(origin, relation, source, target)
+            self.decide_relation(origin, relation, source, target)
         }
     }
 
@@ -306,7 +306,7 @@ impl CheckState<'_> {
         substitution: &TypeSubstitution,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // read the implemented interface and its written refinements
-        let (mut base, mut bindings) = self.refinement_bindings(implementation)?;
+        let (mut base, mut bindings) = self.refinements(implementation)?;
         let dir::Type::Application(application) = self.ty(base)? else {
             return Err(CompilerError::Internal {
                 message: format!("interface implementation {implementation:?} has no application"),
@@ -398,7 +398,7 @@ impl CheckState<'_> {
 
             let constraint =
                 self.instantiate_interface_type(constraint, implementation, receiver)?;
-            if self.evaluate_relation(origin, Relation::Satisfies, *value, constraint)?
+            if self.decide_relation(origin, Relation::Satisfies, *value, constraint)?
                 == Verdict::Fails
             {
                 return Ok(None);
@@ -417,14 +417,16 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        // read what the applied interface demands of the source
+        // read what the applied interface requires of the source
         let requirements = self.interface_requirements(target, source)?;
         let module = origin.module();
 
         // require each member from the source
         let mut verdict = Verdict::Holds;
         for member in &requirements.members {
-            let subject = dir::MemberSubject::new(source, source, member.space);
+            let subject = self
+                .body()
+                .member_subject(origin, source, source, member.space)?;
             let lookup = self
                 .body()
                 .lookup_member(origin, module, subject, member.key)?;
@@ -543,14 +545,14 @@ impl CheckState<'_> {
         // prove each required call signature from the source
         let mut verdict = Verdict::Holds;
         for signature in &requirements.call_signatures {
-            let satisfied = self.relate_signature_requirement(
+            let required = self.relate_signature_requirement(
                 origin,
                 cause,
                 source,
                 signature.ty,
                 SignatureFamily::Call,
             )?;
-            verdict = verdict.and(satisfied);
+            verdict = verdict.and(required);
             if verdict == Verdict::Fails {
                 return Ok(Verdict::Fails);
             }
@@ -558,14 +560,14 @@ impl CheckState<'_> {
 
         // prove each required construct signature from the source
         for signature in &requirements.construct_signatures {
-            let satisfied = self.relate_signature_requirement(
+            let required = self.relate_signature_requirement(
                 origin,
                 cause,
                 source,
                 signature.ty,
                 SignatureFamily::Construct,
             )?;
-            verdict = verdict.and(satisfied);
+            verdict = verdict.and(required);
             if verdict == Verdict::Fails {
                 return Ok(Verdict::Fails);
             }
@@ -573,9 +575,9 @@ impl CheckState<'_> {
 
         // prove each required index signature from the source
         for signature in &requirements.index_signatures {
-            let satisfied =
+            let required =
                 self.relate_index_signature(origin, cause, relation, source, &signature.signature)?;
-            verdict = verdict.and(satisfied);
+            verdict = verdict.and(required);
             if verdict == Verdict::Fails {
                 return Ok(Verdict::Fails);
             }

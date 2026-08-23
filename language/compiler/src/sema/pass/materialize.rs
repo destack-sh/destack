@@ -45,7 +45,7 @@ impl CheckState<'_> {
                 }
 
                 // evaluate only computation results, keeping written alias spellings
-                let resolved = match self.type_reaches_computation(ty)? {
+                let resolved = match self.has_reachable_computation(ty)? {
                     true => self.evaluate_type(origin, ty)?,
                     false => ty,
                 };
@@ -87,7 +87,7 @@ impl CheckState<'_> {
 
             // evaluate only computation results, keeping written alias spellings
             let mut resolved = ty;
-            if self.type_reaches_computation(ty)? {
+            if self.has_reachable_computation(ty)? {
                 let origin = Origin::Node(source, None);
                 resolved = self.evaluate_type(origin, ty)?;
                 if resolved != ty {
@@ -117,7 +117,7 @@ impl CheckState<'_> {
 
             // evaluate only computation results, keeping written alias spellings
             let mut resolved = ty;
-            if self.type_reaches_computation(ty)? {
+            if self.has_reachable_computation(ty)? {
                 let origin = Origin::Node(node, None);
                 resolved = self.evaluate_type(origin, ty)?;
                 if resolved != ty {

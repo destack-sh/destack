@@ -79,9 +79,9 @@ impl CheckState<'_> {
 
                 // report the later overload once the earlier signature takes its calls
                 let origin = Origin::Node(method.source, None);
-                if self.accepts_arities_of(earlier, later)?
+                if self.has_every_arity_of(earlier, later)?
                     && self
-                        .evaluate_relation(origin, Relation::Assignable, earlier, later)?
+                        .decide_relation(origin, Relation::Assignable, earlier, later)?
                         .holds()
                 {
                     self.report_unreachable_overload(method.source, &key);
@@ -89,7 +89,7 @@ impl CheckState<'_> {
                 }
             }
 
-            // record this overload for the members that follow
+            // keep this overload for the members that follow
             overloads.entry(entry).or_default().push(method.symbol);
         }
 
@@ -97,7 +97,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether one signature takes every call arity another signature takes.
-    fn accepts_arities_of(
+    fn has_every_arity_of(
         &mut self,
         earlier: dir::GlobalTypeId,
         later: dir::GlobalTypeId,
@@ -175,7 +175,7 @@ impl CheckState<'_> {
             return Ok(check);
         }
 
-        // judge the implemented pairs against the extension's own package
+        // check the implemented pairs against the extension's own package
         let package = module.package_id;
         match target {
             // reject headed implementation pairs outside both packages
@@ -585,7 +585,7 @@ impl BodyState<'_, '_> {
                 let redeclared = inherent.iter().any(|candidate| {
                     candidate.key == member.key
                         && candidate.space == member.space
-                        && candidate.form.overlaps(member.form)
+                        && candidate.form.is_overlapping(member.form)
                 });
                 if redeclared {
                     failures.push(ObligationFailure::InherentMemberRedeclared {
@@ -629,7 +629,7 @@ impl BodyState<'_, '_> {
                 let duplicated = other.iter().any(|candidate| {
                     candidate.key == member.key
                         && candidate.space == member.space
-                        && candidate.form.overlaps(member.form)
+                        && candidate.form.is_overlapping(member.form)
                 });
                 if duplicated {
                     failures.push(ObligationFailure::DuplicateExtensionMember {
@@ -821,8 +821,8 @@ impl ReceiverForm {
         access: None,
     };
 
-    /// Return whether two receiver forms admit one common receiver.
-    pub(in crate::sema) fn overlaps(self, other: Self) -> bool {
+    /// Return whether two receiver forms share one common receiver.
+    pub(in crate::sema) fn is_overlapping(self, other: Self) -> bool {
         self.ownership == other.ownership
             && match (self.access, other.access) {
                 (Some(left), Some(right)) => left == right,

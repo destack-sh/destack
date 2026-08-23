@@ -15,7 +15,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<()> {
         let node = site.node;
         let module = node.module_id;
-        self.check_block_statements(module, block)?;
+        self.infer_block_statements(module, block)?;
         let tail = self.visit_block_value(module, block)?;
         let ty = match tail {
             Some(tail) => self.infer_node_type(tail, PlaceUse::Read)?,
@@ -26,8 +26,8 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Check every leading statement of one block in source order.
-    pub(in crate::sema) fn check_block_statements(
+    /// Infer every leading statement of one block in source order.
+    pub(in crate::sema) fn infer_block_statements(
         &mut self,
         module: ModuleId,
         block: dir::LocalNodeId<dir::Block>,
@@ -50,7 +50,7 @@ impl BodyState<'_, '_> {
                 self.check
                     .module_mut(module)
                     .flows
-                    .mark_unreachable(node.local_id);
+                    .set_unreachable(node.local_id);
             }
 
             // let each statement own the inference it opens
@@ -70,7 +70,7 @@ impl BodyState<'_, '_> {
                     self.check
                         .module_mut(module)
                         .flows
-                        .mark_diverging(node.local_id);
+                        .set_diverging(node.local_id);
                 }
             }
         }
@@ -108,7 +108,7 @@ impl BodyState<'_, '_> {
         expectation: Expectation,
     ) -> CompilerResult<ValueCheck> {
         let module = site.node.module_id;
-        self.check_block_statements(module, block)?;
+        self.infer_block_statements(module, block)?;
         let value = self.visit_block_value(module, block)?;
         let check = match value {
             Some(value) => {

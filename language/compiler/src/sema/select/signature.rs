@@ -47,7 +47,7 @@ impl ParameterSelection {
     }
 }
 
-/// One signature decision folded canonical, replayed across call sites.
+/// One signature decision folded canonical, instantiated across call sites.
 #[derive(Debug, Clone)]
 pub(in crate::sema) struct SignatureInstance {
     /// The selected overload position within the callee's candidates.
@@ -237,7 +237,7 @@ impl BodyState<'_, '_> {
     }
 
     /// Expand one substituted tuple rest into its positional parameters.
-    fn splat_tuple_rest_parameters(
+    fn spread_tuple_rest_parameters(
         &mut self,
         origin: Origin,
         parameters: Vec<dir::FunctionParameterType>,
@@ -324,7 +324,7 @@ impl BodyState<'_, '_> {
         let parameter_type = self.receiver_relative_type(origin, receiver, parameter_type)?;
         let parameter_type = self.shallow_resolve(parameter_type)?;
 
-        // rest parameters retain their collection type and accept its element per source
+        // rest parameters keep their collection type and take its element per source
         let argument_type = if parameter.is_rest {
             self.rest_element_type(origin, parameter_type)?
                 .unwrap_or(parameter_type)
@@ -366,19 +366,19 @@ impl BodyState<'_, '_> {
         )
     }
 
-    /// Bind recorded argument sources to selected parameters, projecting rest elements.
+    /// Bind written argument sources to selected parameters, projecting rest elements.
     pub(in crate::sema) fn bind_argument_sources(
         &mut self,
         origin: Origin,
         signature: &SignatureSelection,
         sources: &[dir::ArgumentSource],
     ) -> CompilerResult<Vec<dir::ArgumentBinding>> {
-        // bind each selected parameter to the source recorded at its position
+        // bind each selected parameter to the source written at its position
         let mut bindings = Vec::with_capacity(signature.parameters.len());
         for (index, selected) in signature.parameters.iter().enumerate() {
             let parameter = selected.parameter;
 
-            // project rest elements through the deep normal form for settled selections
+            // project rest elements through the deep normal form for resolved selections
             let argument_type = if parameter.is_rest {
                 self.rest_element_type(origin, parameter.ty)?
                     .unwrap_or(parameter.ty)
@@ -487,8 +487,8 @@ impl BodyState<'_, '_> {
         }
     }
 
-    /// Attempt one callable candidate without recording a decision.
-    pub(in crate::sema) fn attempt_callable(
+    /// Probe one callable candidate without committing a decision.
+    pub(in crate::sema) fn probe_callable(
         &mut self,
         origin: Origin,
         function_type: dir::GlobalTypeId,
@@ -508,7 +508,7 @@ impl BodyState<'_, '_> {
             dir::Type::Function(function) => {
                 let function = function.signature;
 
-                return self.attempt_callable(
+                return self.probe_callable(
                     origin,
                     function,
                     owner,
@@ -523,7 +523,7 @@ impl BodyState<'_, '_> {
             dir::Type::FunctionPointer(function) => {
                 let function = function.signature;
 
-                return self.attempt_callable(
+                return self.probe_callable(
                     origin,
                     function,
                     owner,
@@ -720,7 +720,7 @@ impl BodyState<'_, '_> {
             ));
         };
 
-        // build the selection from whatever the invocation settled
+        // build the selection from whatever the invocation resolved
         let mut selection = self.signature_selection(
             origin,
             signature_module,
@@ -825,11 +825,11 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // splat a substituted tuple rest into positional parameters
+        // spread a substituted tuple rest into positional parameters
         let signature_parameters =
-            self.splat_tuple_rest_parameters(origin, signature_parameters.to_vec(), substitution)?;
+            self.spread_tuple_rest_parameters(origin, signature_parameters.to_vec(), substitution)?;
 
-        // reject argument tails a splatted signature cannot accept
+        // reject argument tails a spread signature cannot take
         let has_rest = signature_parameters
             .iter()
             .any(|parameter| parameter.is_rest);
@@ -955,7 +955,7 @@ impl BodyState<'_, '_> {
 
         // fix the shapes the contextual closures read, widening their literal candidates
         if !contextual.is_empty() {
-            let roots = self.check.open_type_variables(fixed.iter().copied())?;
+            let roots = self.check.collect_open_variables(fixed.iter().copied())?;
             for root in &roots {
                 let ty = self.check.variable_type(*root)?;
                 self.check.fix_literal_candidates(ty)?;
@@ -999,7 +999,7 @@ impl BodyState<'_, '_> {
         Ok(SignatureRejection::Mismatch {
             verdict: self
                 .check
-                .verdict(false, origin, relation, source, target)?,
+                .decide_outcome(false, origin, relation, source, target)?,
             cause,
             relation,
             use_,
@@ -1075,7 +1075,7 @@ impl BodyState<'_, '_> {
         let declared = self
             .signature_parameters(signature_module, function.parameters)?
             .to_vec();
-        let declared = self.splat_tuple_rest_parameters(origin, declared, substitution)?;
+        let declared = self.spread_tuple_rest_parameters(origin, declared, substitution)?;
         let mut parameters = SmallVec::<[_; 4]>::new();
         for parameter in declared {
             let parameter = self.select_parameter(origin, parameter, substitution, receiver)?;
@@ -1091,7 +1091,7 @@ impl BodyState<'_, '_> {
         }
 
         // intern the instantiated signature alongside its solved arguments
-        let arguments = self.settled_argument_bindings(&substitution.bindings)?;
+        let arguments = self.resolved_argument_bindings(&substitution.bindings)?;
         let function_type =
             self.instantiate_signature_type(function, substitution, &parameters, return_type)?;
 

@@ -16,9 +16,9 @@ impl BodyState<'_, '_> {
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<()> {
         let module = node.module_id;
-        self.check_pattern_bindings(module, fields)?;
+        self.report_duplicate_pattern_bindings(module, fields)?;
 
-        if !self.check_pattern_rest_fields(module, fields) {
+        if !self.report_pattern_rest_fields(module, fields) {
             return self.commit_rejected_pattern(node);
         }
 
@@ -117,7 +117,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // record the sequence form behind the scrutinee
+        // commit the sequence form behind the scrutinee
         self.commit_pattern(
             node,
             dir::PatternDecision::Destructure(Box::new(
@@ -143,7 +143,7 @@ impl BodyState<'_, '_> {
         fields: &[dir::LocalNodeId<dir::AssignPatternField>],
     ) -> CompilerResult<bool> {
         let module = node.module_id;
-        if !self.check_assign_pattern_rest_fields(module, fields) {
+        if !self.report_assign_rest_fields(module, fields) {
             self.commit_decision(node.into_any(), dir::Decision::Rejected)?;
 
             return Ok(false);

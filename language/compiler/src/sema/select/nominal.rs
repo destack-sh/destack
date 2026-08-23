@@ -16,10 +16,10 @@ impl BodyState<'_, '_> {
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<()> {
         let module = node.module_id;
-        self.check_pattern_bindings(module, fields)?;
+        self.report_duplicate_pattern_bindings(module, fields)?;
 
         // reject invalid rest fields
-        if !self.check_pattern_rest_fields(module, fields) {
+        if !self.report_pattern_rest_fields(module, fields) {
             return self.commit_rejected_pattern(node);
         }
 
@@ -31,7 +31,7 @@ impl BodyState<'_, '_> {
         // resolve the written nominal tag like a construction head
         let tag = self.written_construct_tag(origin, module, ty)?;
         let Some(instance) = self.newtype_payload(origin, tag)? else {
-            return self.reject_pattern(node, origin, tag);
+            return self.report_rejected_pattern(node, origin, tag);
         };
         let backing = instance.backing;
         let projection = instance.into_projection();
@@ -67,7 +67,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<()> {
         // reject fields, enum members have no payload to destructure
         if !fields.is_empty() {
-            return self.reject_pattern(node, origin, owners[0]);
+            return self.report_rejected_pattern(node, origin, owners[0]);
         }
 
         // read the selected variant from its enum definition
@@ -130,9 +130,9 @@ impl BodyState<'_, '_> {
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<()> {
         let module = node.module_id;
-        self.check_pattern_bindings(module, fields)?;
+        self.report_duplicate_pattern_bindings(module, fields)?;
 
-        if !self.check_pattern_rest_fields(module, fields) {
+        if !self.report_pattern_rest_fields(module, fields) {
             return self.commit_rejected_pattern(node);
         }
 
@@ -145,7 +145,7 @@ impl BodyState<'_, '_> {
         let tag = self.written_construct_tag(origin, module, ty)?;
         let instance = match self.ty(tag)? {
             dir::Type::Application(instance) => instance,
-            _ => return self.reject_pattern(node, origin, tag),
+            _ => return self.report_rejected_pattern(node, origin, tag),
         };
 
         // bind the pattern instantiation from the matched input

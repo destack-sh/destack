@@ -233,10 +233,10 @@ impl BodyState<'_, '_> {
             // read fields and index signatures straight off a structural target
             dir::Type::Object(shape) => {
                 let fields = SmallVec::from_slice(
-                    self.shape_properties(target.module_id, shape.properties)?,
+                    self.object_properties(target.module_id, shape.properties)?,
                 );
                 let indexes = SmallVec::from_slice(
-                    self.shape_index_signatures(target.module_id, shape.index_signatures)?,
+                    self.object_index_signatures(target.module_id, shape.index_signatures)?,
                 );
 
                 Ok(Some((fields, indexes)))

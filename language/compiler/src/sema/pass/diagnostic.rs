@@ -20,8 +20,8 @@ impl CheckState<'_> {
             warnings.append(&mut self.module_mut(module).warnings);
         }
 
-        // reject unsettled relation checks outside declarations
-        if !self.is_declaration() {
+        // refuse undecided relation checks outside declarations
+        if !self.is_declaring() {
             for (id, check) in self.fulfill.checks.iter() {
                 let Check::Relation(relation) = check else {
                     continue;
@@ -29,7 +29,7 @@ impl CheckState<'_> {
                 if !self.fulfill.checks.is_complete(id) {
                     return Err(CompilerError::Internal {
                         message: format!(
-                            "checked write found the unsettled relation check {:?} at {:?}",
+                            "checked write found the undecided relation check {:?} at {:?}",
                             id, relation.origin,
                         ),
                     });
@@ -85,7 +85,7 @@ impl CheckState<'_> {
             }
         }
 
-        // record diagnostics in source order
+        // collect diagnostics in source order
         let mut records = Vec::with_capacity(errors.len() + controlled_warnings.len());
         for diagnostic in errors {
             records.push(diagnostic.to_record(self.context)?);

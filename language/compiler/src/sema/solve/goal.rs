@@ -10,29 +10,29 @@ use crate::sema::{
     Verdict,
 };
 
-/// One question the solver decides, in canonical form.
+/// One goal the solver decides, in canonical form.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(in crate::sema) struct Question {
+pub(in crate::sema) struct CanonicalGoal {
     /// The decided subject.
-    pub(in crate::sema) ask: Ask,
-    /// The canonical operands, in ask order.
+    pub(in crate::sema) goal: Goal,
+    /// The canonical operands, in goal order.
     pub(in crate::sema) operands: dir::TypeListId,
     /// The assumptions the operands decide under.
     pub(in crate::sema) premise: Premise,
 }
 
-/// The subject one question decides.
+/// The subject one goal decides.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::sema) enum Ask {
-    /// One judged relation over [source, target].
+pub(in crate::sema) enum Goal {
+    /// One decided relation over [source, target].
     Relation(Relation),
     /// One implementation decision over [source, target].
     Implementation(Relation),
-    /// The extensions one head admits over [receiver, subject].
+    /// The extensions one head exposes over [receiver, subject].
     Sources {
-        /// The head whose extensions the ask reaches.
+        /// The head whose extensions the goal reaches.
         root: dir::TypeRoot,
-        /// The module whose visibility admits the extensions.
+        /// The module whose visibility reaches the extensions.
         module: ModuleId,
     },
     /// One extension's deduced arguments over [receiver, subject].
@@ -42,7 +42,7 @@ pub(in crate::sema) enum Ask {
     },
     /// The member one key exposes over [receiver, target].
     Member {
-        /// The module whose visibility admits the members.
+        /// The module whose visibility reaches the members.
         module: ModuleId,
         /// The searched member space.
         space: dir::MemberSpace,
@@ -51,7 +51,7 @@ pub(in crate::sema) enum Ask {
     },
     /// The callable selected over [expected.., callee, arguments..].
     Selection {
-        /// The callable identity asked.
+        /// The callable identity canonicalized.
         callee: Callee,
         /// Whether an expectation leads the canonical operands.
         expected: bool,
@@ -96,7 +96,7 @@ pub(in crate::sema) enum Answer {
     /// The evaluation stayed undecided, so sites decide in place.
     Undecided,
     /// The callable decision one canonical operand list selected.
-    Selection(Arc<Response<Selected>>),
+    Selection(Arc<Response<Dispatch>>),
 }
 
 /// One decided extension-implementation verdict with its winner's match.
@@ -106,9 +106,9 @@ pub(in crate::sema) struct Implementation {
     pub(in crate::sema) verdict: Verdict,
     /// The winning implementation, absent on disproof.
     pub(in crate::sema) winner: Option<dir::GlobalSymbolId>,
-    /// The winner's substituted target, constrained by each ask site's receiver.
+    /// The winner's substituted target, constrained by each goal site's receiver.
     pub(in crate::sema) target: Option<dir::GlobalTypeId>,
-    /// The winner's matched interface application, related to each ask site's request.
+    /// The winner's matched interface application, related to each goal site's request.
     pub(in crate::sema) interface: Option<dir::GlobalTypeId>,
 }
 
@@ -121,9 +121,9 @@ pub(in crate::sema) struct ExtensionSource {
     pub(in crate::sema) arguments: SmallVec<[dir::GlobalTypeId; 4]>,
 }
 
-/// One decided callable selection, replayed per ask site.
+/// One decided dispatch, instantiated per goal site.
 #[derive(Debug, Clone)]
-pub(in crate::sema) enum Selected {
+pub(in crate::sema) enum Dispatch {
     /// The selected declaration with its instantiated signature.
     Callable(SignatureInstance),
     /// The selected newtype backing without per-site coercions.
@@ -145,10 +145,10 @@ pub(in crate::sema) enum Selected {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::sema) struct BoundSetId(pub(in crate::sema) u32);
 
-/// The assumptions one canonical question decides under.
+/// The assumptions one canonical goal decides under.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::sema) enum Premise {
-    /// The operands are settled and decide once per pass.
+    /// The operands are closed and decide once per pass.
     Free,
     /// The renamed parameters assume one interned bound set.
     Bounds(BoundSetId),
@@ -169,7 +169,7 @@ pub(in crate::sema) struct PremiseParameter {
     pub(in crate::sema) default: Option<dir::GlobalTypeId>,
 }
 
-/// The bound content one question's renamed parameters assume.
+/// The bound content one goal's renamed parameters assume.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub(in crate::sema) struct BoundSet {
     /// The renamed parameters' declared content, in rigid order.
@@ -181,7 +181,7 @@ pub(in crate::sema) struct BoundSet {
     pub(in crate::sema) holes: SmallVec<[Hole; 2]>,
 }
 
-/// One numbered open root's carried content, shared by asks and answers.
+/// One numbered open root's carried content, shared by goals and answers.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(in crate::sema) struct Hole {
     /// What the root ranges over.
@@ -217,7 +217,7 @@ impl dir::TypeFold for ExtensionSource {
     }
 }
 
-impl dir::TypeFold for Selected {
+impl dir::TypeFold for Dispatch {
     /// Map every type this selection carries.
     fn map_types<E>(
         &mut self,

@@ -8,8 +8,8 @@ use crate::sema::{
 use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
-    /// Check one decorator application.
-    pub(in crate::sema) fn check_decorator(
+    /// Select the backing for one decorator application.
+    pub(in crate::sema) fn select_decorator(
         &mut self,
         site: FlowSite,
         application: DecoratorApplication,

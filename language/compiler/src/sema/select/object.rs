@@ -32,9 +32,9 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<()> {
         // check the keys, bindings, and rest field the pattern declares
         let module = node.module_id;
-        self.check_pattern_field_keys(module, fields)?;
-        self.check_pattern_bindings(module, fields)?;
-        if !self.check_pattern_rest_fields(module, fields) {
+        self.report_duplicate_pattern_fields(module, fields)?;
+        self.report_duplicate_pattern_bindings(module, fields)?;
+        if !self.report_pattern_rest_fields(module, fields) {
             return self.commit_rejected_pattern(node);
         }
 
@@ -75,9 +75,9 @@ impl BodyState<'_, '_> {
         fields: &[dir::LocalNodeId<dir::AssignPatternField>],
     ) -> CompilerResult<bool> {
         let module = node.module_id;
-        self.check_assign_pattern_field_keys(module, fields)?;
+        self.report_duplicate_assign_fields(module, fields)?;
 
-        if !self.check_assign_pattern_rest_fields(module, fields) {
+        if !self.report_assign_rest_fields(module, fields) {
             self.commit_decision(node.into_any(), dir::Decision::Rejected)?;
 
             return Ok(false);
@@ -176,7 +176,7 @@ impl BodyState<'_, '_> {
                         self.object_rest_projection(rest_origin, module, owner, &projected_keys)?
                     else {
                         // stay silent when the owner already reported an error
-                        if !self.any_error_operand(&[owner])? {
+                        if !self.has_error_operand(&[owner])? {
                             self.report_spread_not_object(rest_origin, owner)?;
                         }
 
@@ -261,7 +261,7 @@ impl BodyState<'_, '_> {
                     {
                         let input = self.pattern_binding_type(symbol, projected_value)?;
 
-                        self.bind_symbol_type(symbol, input)?;
+                        self.commit_symbol_type(symbol, input)?;
                     }
                 }
             }
@@ -332,7 +332,7 @@ impl BodyState<'_, '_> {
                         self.object_rest_projection(rest_origin, module, owner, &projected_keys)?
                     else {
                         // stay silent when the owner already reported an error
-                        if !self.any_error_operand(&[owner])? {
+                        if !self.has_error_operand(&[owner])? {
                             self.report_spread_not_object(rest_origin, owner)?;
                         }
 
@@ -582,7 +582,7 @@ impl BodyState<'_, '_> {
         owner: dir::GlobalTypeId,
         key: dir::StaticKey,
     ) -> CompilerResult<ObjectField> {
-        let subject = dir::MemberSubject::new(owner, owner, dir::MemberSpace::Instance);
+        let subject = self.member_subject(origin, owner, owner, dir::MemberSpace::Instance)?;
         let lookup = self.lookup_member(origin, module, subject, key)?;
 
         let field = self.object_lookup_field(origin, owner, key, lookup)?;
@@ -653,7 +653,7 @@ impl BodyState<'_, '_> {
 
                 ObjectField::Projection(Box::new(resolution.into()))
             }
-            MemberLookup::Missing | MemberLookup::Undecided => ObjectField::Missing,
+            MemberLookup::Missing | MemberLookup::Ambiguous => ObjectField::Missing,
         };
 
         Ok(field)

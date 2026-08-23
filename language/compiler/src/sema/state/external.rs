@@ -74,14 +74,14 @@ impl CheckState<'_> {
     }
 
     /// Read one external module's resolved import targets.
-    pub(in crate::sema) fn external_resolved(
+    pub(in crate::sema) fn external_resolutions(
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<Arc<DirResolved>> {
         if let Some(state) = self.external_modules.get(&module) {
             return Ok(Arc::clone(&state.resolved));
         }
-        if let Some(resolved) = self.external_resolved.get(&module) {
+        if let Some(resolved) = self.external_resolutions.get(&module) {
             return Ok(Arc::clone(resolved));
         }
 
@@ -90,7 +90,8 @@ impl CheckState<'_> {
             .artifacts
             .read::<DirResolved>((module, self.profile))
             .map_err(CompilerError::from)?;
-        self.external_resolved.insert(module, Arc::clone(&resolved));
+        self.external_resolutions
+            .insert(module, Arc::clone(&resolved));
 
         Ok(resolved)
     }
@@ -101,7 +102,7 @@ impl CheckState<'_> {
         interface: dir::GlobalSymbolId,
     ) -> CompilerResult<SmallVec<[(dir::GlobalSymbolId, Option<dir::GlobalSymbolId>); 4]>> {
         // skip program reads while declaring
-        if self.is_declaration() {
+        if self.is_declaring() {
             return Ok(SmallVec::new());
         }
 
@@ -126,7 +127,7 @@ impl CheckState<'_> {
         module: ModuleId,
     ) -> CompilerResult<Option<&CheckExternalModuleState>> {
         // skip external reads while declaring
-        if self.is_declaration() {
+        if self.is_declaring() {
             return Ok(None);
         }
 
@@ -158,7 +159,7 @@ impl CheckState<'_> {
             let resolved = if self.is_own_module(current.module_id) {
                 Arc::clone(&self.module(current.module_id).resolved)
             } else {
-                self.external_resolved(current.module_id)?
+                self.external_resolutions(current.module_id)?
             };
             let resolution = resolved.imports.symbol_resolution(current.local_id);
             match resolution {
@@ -213,7 +214,7 @@ impl CheckState<'_> {
         let resolved = if self.is_own_module(symbol.module_id) {
             Arc::clone(&self.module(symbol.module_id).resolved)
         } else {
-            self.external_resolved(symbol.module_id)?
+            self.external_resolutions(symbol.module_id)?
         };
         if let Some(dir::ImportResolution::Resolved(resolution)) =
             resolved.imports.symbol_resolution(symbol.local_id)
@@ -239,12 +240,12 @@ impl CheckState<'_> {
         Ok(None)
     }
 
-    /// Import external modules and record the direct imports' visibility.
+    /// Import external modules and store the direct imports' visibility.
     ///
     /// Elaborated member bindings embed types from their module's own
     /// imports, so the load walks the import closure to a fixpoint.
     pub(in crate::sema) fn import_external_modules(&mut self) -> CompilerResult<()> {
-        // record the direct imports' visibility in every pass
+        // store the direct imports' visibility in every pass
         let module = self.module_id;
         let visible = self.external_module_ids(module);
         self.module_mut(module)
@@ -252,7 +253,7 @@ impl CheckState<'_> {
             .extend(visible.iter().copied());
 
         // skip external reads while declaring
-        if self.is_declaration() {
+        if self.is_declaring() {
             return Ok(());
         }
 

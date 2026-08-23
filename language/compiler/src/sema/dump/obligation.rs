@@ -4,8 +4,8 @@ use destack_dir as dir;
 use crate::sema::{CheckId, DumpContext, Obligation, PatternCoverage};
 
 impl Obligation {
-    /// Render this obligation as one trace event.
-    pub(in crate::sema) fn render_event(
+    /// Format this obligation as one trace event.
+    pub(in crate::sema) fn format_event(
         &self,
         id: CheckId,
         finished: bool,
@@ -60,7 +60,7 @@ impl Obligation {
     }
 }
 
-/// Render one runtime predicate payload.
+/// Format one runtime predicate payload.
 fn runtime_predicate_label(
     predicate: &dir::GuardDecision,
     context: &DumpContext<'_, '_>,
@@ -87,7 +87,7 @@ fn runtime_predicate_label(
     }
 }
 
-/// Render one pattern coverage payload.
+/// Format one pattern coverage payload.
 fn pattern_coverage_label(coverage: &PatternCoverage, context: &DumpContext<'_, '_>) -> String {
     match coverage {
         PatternCoverage::Match { arms } => {
@@ -116,7 +116,7 @@ fn pattern_coverage_label(coverage: &PatternCoverage, context: &DumpContext<'_, 
     }
 }
 
-/// Render one writable place compactly.
+/// Format one writable place compactly.
 fn place_label(place: &dir::WriteResolution, context: &DumpContext<'_, '_>) -> String {
     match place {
         dir::WriteResolution::Binding { symbol, .. } => {
@@ -128,7 +128,7 @@ fn place_label(place: &dir::WriteResolution, context: &DumpContext<'_, '_>) -> S
     }
 }
 
-/// Render one writable member compactly.
+/// Format one writable member compactly.
 fn member_place_label(member: &dir::MemberDecision, context: &DumpContext<'_, '_>) -> String {
     match member {
         dir::OperationResolution::One(access) => member_access_place_label(access, context),
@@ -143,12 +143,12 @@ fn member_place_label(member: &dir::MemberDecision, context: &DumpContext<'_, '_
     }
 }
 
-/// Render one singular writable member compactly.
+/// Format one singular writable member compactly.
 fn member_access_place_label(access: &dir::MemberAccess, context: &DumpContext<'_, '_>) -> String {
     member_target_place_label(&access.target, context)
 }
 
-/// Render one writable member target compactly.
+/// Format one writable member target compactly.
 fn member_target_place_label(target: &dir::MemberTarget, context: &DumpContext<'_, '_>) -> String {
     match target {
         dir::MemberTarget::Field(dir::FieldResolution {

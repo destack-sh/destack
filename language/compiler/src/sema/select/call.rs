@@ -6,8 +6,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Answer, BodyState, CallableArgument, Callee, CheckFailure, CheckOutcome, Expectation, FlowSite,
-    InferMode, Origin, PlaceUse, REPORTED_REJECTIONS, Selected, SignatureFamily, SignatureInstance,
+    Answer, BodyState, CallableArgument, Callee, CheckFailure, CheckOutcome, Dispatch, Expectation,
+    FlowSite, InferMode, Origin, PlaceUse, REPORTED_REJECTIONS, SignatureFamily, SignatureInstance,
     SignatureMatch, SignatureSelection, Value, ValueCheck, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
@@ -155,9 +155,7 @@ impl BodyState<'_, '_> {
             // call a value binding through its type, a declaration through its overloads
             let mut is_value_binding = true;
             for symbol in &symbols {
-                is_value_binding &= self
-                    .symbol_kind_maybe(*symbol)?
-                    .is_some_and(dir::SymbolKind::is_binding);
+                is_value_binding &= self.symbol_kind(*symbol)?.is_binding();
             }
             if is_value_binding {
                 return self.value_callable_candidates(origin, callee_site, is_optional);
@@ -173,10 +171,7 @@ impl BodyState<'_, '_> {
 
                 // a newtype head constructs, every other declaration calls
                 let ty = self.symbol_type(symbol)?;
-                let is_newtype = matches!(
-                    self.symbol_kind_maybe(symbol)?,
-                    Some(dir::SymbolKind::Newtype)
-                );
+                let is_newtype = matches!(self.symbol_kind(symbol)?, dir::SymbolKind::Newtype);
                 let target = if is_newtype {
                     CallableTarget::Newtype(symbol)
                 } else {
@@ -531,7 +526,7 @@ impl BodyState<'_, '_> {
             return Ok(overloads);
         }
 
-        // retain one candidate for an invocable value representation
+        // keep one candidate for an invocable value representation
         let mut overloads = SmallVec::new();
         if let Some(ty) = self.callable_type(ty)? {
             overloads.push(CallableCandidate {
@@ -547,8 +542,8 @@ impl BodyState<'_, '_> {
         Ok(overloads)
     }
 
-    /// Attempt one callable candidate against collected arguments.
-    fn attempt_call(
+    /// Probe one callable candidate against collected arguments.
+    fn probe_call(
         &mut self,
         origin: Origin,
         candidate: &CallableCandidate,
@@ -556,7 +551,7 @@ impl BodyState<'_, '_> {
         argument_types: &[dir::GlobalTypeId],
         expectation: Option<Expectation>,
     ) -> CompilerResult<SignatureMatch> {
-        let matched = self.attempt_callable(
+        let matched = self.probe_callable(
             origin,
             candidate.ty,
             candidate.generic_scope,
@@ -608,9 +603,9 @@ impl BodyState<'_, '_> {
             let mut undecided = None;
             rejections.clear();
             for (position, candidate) in arm.overloads.iter().enumerate() {
-                let (verdict, rejection) = self.probe_candidate_describing(
+                let (verdict, rejection) = self.probe_candidate_with_note(
                     |state| {
-                        let matched = state.attempt_call(
+                        let matched = state.probe_call(
                             origin,
                             candidate,
                             arguments,
@@ -621,7 +616,7 @@ impl BodyState<'_, '_> {
                         Ok(matched.into_candidate())
                     },
                     |state, rejection| {
-                        state.check.describe_signature_rejection(
+                        state.check.format_signature_rejection(
                             origin.module(),
                             candidate.ty,
                             rejection,
@@ -689,8 +684,8 @@ impl BodyState<'_, '_> {
         Ok(Some(signature))
     }
 
-    /// Attempt every selected runtime arm as one inference transaction.
-    fn attempt_call_arms(
+    /// Probe every selected runtime arm as one inference transaction.
+    fn probe_call_arms(
         &mut self,
         origin: Origin,
         candidates: &[(usize, &CallableCandidate)],
@@ -704,7 +699,7 @@ impl BodyState<'_, '_> {
         let mut has_return_mismatch = false;
         for (_, candidate) in candidates {
             let matched =
-                self.attempt_call(origin, candidate, arguments, argument_types, expectation)?;
+                self.probe_call(origin, candidate, arguments, argument_types, expectation)?;
             let signature = match matched {
                 SignatureMatch::Selected(signature) => signature,
                 SignatureMatch::ReturnMismatch(signature) => {
@@ -714,7 +709,7 @@ impl BodyState<'_, '_> {
                 }
                 SignatureMatch::Invalid { rejection, .. }
                 | SignatureMatch::Inapplicable(rejection) => {
-                    let rejection = self.check.describe_signature_rejection(
+                    let rejection = self.check.format_signature_rejection(
                         origin.module(),
                         candidate.ty,
                         &rejection,
@@ -748,7 +743,7 @@ impl BodyState<'_, '_> {
         }
     }
 
-    /// Build one retained call attempt from an unmatched candidate.
+    /// Build one kept call attempt from an unmatched candidate.
     fn attempted_call(
         &mut self,
         origin: Origin,
@@ -800,14 +795,14 @@ impl BodyState<'_, '_> {
         }))
     }
 
-    /// Commit one rejected call node, retaining its best attempt when any.
-    pub(in crate::sema) fn reject_call(
+    /// Commit one rejected call node, keeping its best attempt when any.
+    pub(in crate::sema) fn commit_rejected_call(
         &mut self,
         node: dir::GlobalNodeIdAny,
         expectation: Option<Expectation>,
         attempt: Option<dir::Call>,
     ) -> CompilerResult<ValueCheck> {
-        // retain the call the node reached for, or commit a bare rejection
+        // keep the call the node reached for, or commit a bare rejection
         match attempt {
             Some(attempt) => {
                 self.commit_decision(node, dir::Decision::Attempted(Box::new(attempt)))?
@@ -844,7 +839,7 @@ impl BodyState<'_, '_> {
         })
     }
 
-    /// Defer one call whose callee value has not settled yet.
+    /// Defer one call whose callee value has not resolved yet.
     fn defer_call_selection(
         &mut self,
         site: FlowSite,
@@ -886,7 +881,7 @@ impl BodyState<'_, '_> {
         let argument_nodes = argument_nodes.as_slice();
 
         // register function-valued arguments before any candidate probe
-        self.register_argument_function_values(module, argument_nodes)?;
+        self.commit_argument_function_values(module, argument_nodes)?;
 
         // decide identifier and receiver arguments ahead of candidate probes
         for argument in argument_nodes {
@@ -937,7 +932,7 @@ impl BodyState<'_, '_> {
         let Some(callees) = self.callable_candidates(origin, module, callee_site, is_optional)?
         else {
             // rejected callees already reported their own diagnostic
-            return self.reject_call(node, expectation, None);
+            return self.commit_rejected_call(node, expectation, None);
         };
 
         // decide the callee reference before selecting its call
@@ -968,7 +963,7 @@ impl BodyState<'_, '_> {
             let callee_type = self.flow_type_at(callee_site, callee_type)?;
 
             // poison a callee that already reported an error
-            if self.any_error_operand(&[callee_type])? {
+            if self.has_error_operand(&[callee_type])? {
                 return self.poison_call(node, expectation);
             }
 
@@ -978,7 +973,7 @@ impl BodyState<'_, '_> {
             }
             self.report_not_callable(origin, callee_type)?;
 
-            return self.reject_call(node, expectation, None);
+            return self.commit_rejected_call(node, expectation, None);
         }
 
         // select the nominal constructor for a newtype target
@@ -1010,10 +1005,10 @@ impl BodyState<'_, '_> {
         // read the call's argument values
         let arguments = self.callable_arguments(module, argument_nodes, ValueUse::Argument)?;
 
-        // ask the argument-blind and the argument-committed selection question
+        // pose the argument-blind and the argument-committed selection goals
         let expected = expectation.map(|expectation| expectation.target);
         let first = candidates.first();
-        let (blind, question) = match first.map(|first| &first.target) {
+        let (blind, committed_goal) = match first.map(|first| &first.target) {
             Some(CallableTarget::Symbol(symbol)) => {
                 let Some(first) = first else {
                     return Err(CompilerError::Internal {
@@ -1021,29 +1016,29 @@ impl BodyState<'_, '_> {
                     });
                 };
 
-                // ask blind over the callee, its written arguments, and the argument types
+                // pose the blind goal over the callee, its written arguments, and the argument types
                 let mut operands = SmallVec::<[dir::GlobalTypeId; 8]>::new();
                 operands.push(first.ty);
                 operands.extend(dir::GenericArgumentBinding::values(
                     &first.generic_arguments,
                 ));
                 operands.extend(argument_types.iter().copied());
-                let blind = self.check.selection_question(
+                let blind = self.check.selection_goal(
                     origin,
                     Callee::Symbol(*symbol),
                     expected,
                     &operands,
                 )?;
 
-                // ask again over the argument types this site has committed
+                // pose the committed goal over the argument types this site has committed
                 let committed = arguments
                     .iter()
                     .map(|argument| self.committed_node_type(argument.source))
                     .collect::<Option<SmallVec<[dir::GlobalTypeId; 8]>>>();
-                let question = match committed {
+                let committed_goal = match committed {
                     Some(committed) => {
                         operands.extend(committed);
-                        self.check.selection_question(
+                        self.check.selection_goal(
                             origin,
                             Callee::Symbol(*symbol),
                             expected,
@@ -1053,9 +1048,9 @@ impl BodyState<'_, '_> {
                     None => None,
                 };
 
-                (blind, question)
+                (blind, committed_goal)
             }
-            // value, newtype, and erased callees ask no canonical question
+            // value, newtype, and erased callees pose no canonical goal
             Some(
                 CallableTarget::Expression
                 | CallableTarget::CallSignature { .. }
@@ -1064,23 +1059,23 @@ impl BodyState<'_, '_> {
             | None => (None, None),
         };
 
-        // replay the decided answer at this site's live roots, preferring the committed one
-        let replayed = [&question, &blind].into_iter().find_map(|asked| {
-            let (asked, canonical) = asked.as_ref()?;
-            match self.check.answers.get(asked) {
+        // instantiate the decided answer at this site's live roots, preferring the committed one
+        let instantiated = [&committed_goal, &blind].into_iter().find_map(|posed| {
+            let (goal, canonical) = posed.as_ref()?;
+            match self.check.answers.get(goal) {
                 Some(Answer::Selection(response)) => {
                     Some((response.clone(), Arc::clone(canonical)))
                 }
                 _ => None,
             }
         });
-        if let Some((response, canonical)) = replayed {
+        if let Some((response, canonical)) = instantiated {
             let mark = self.check.infer.mark(&mut self.check.fulfill);
-            let replayed = match self
+            let instantiated = match self
                 .check
                 .instantiate_response(origin, &canonical, &response)?
             {
-                Selected::Callable(mut instance) if instance.overload < candidates.len() => {
+                Dispatch::Callable(mut instance) if instance.overload < candidates.len() => {
                     // re-relate the receiver, adopting this site's projection steps
                     let callable = match self.check.ty(instance.selection.callable)? {
                         dir::Type::Function(function) => {
@@ -1103,7 +1098,7 @@ impl BodyState<'_, '_> {
                                 None => false,
                             }
                         }
-                        // a call without a declared this replays verbatim
+                        // a call without a declared this instantiates verbatim
                         (Some(_), None) | (None, _) => true,
                     };
                     if is_accepted {
@@ -1114,13 +1109,13 @@ impl BodyState<'_, '_> {
                     }
                 }
                 // every other stored answer re-derives at this site
-                Selected::Callable(_)
-                | Selected::Newtype(_)
-                | Selected::Protocol(..)
-                | Selected::Builtin { .. }
-                | Selected::Rejected => None,
+                Dispatch::Callable(_)
+                | Dispatch::Newtype(_)
+                | Dispatch::Protocol(..)
+                | Dispatch::Builtin { .. }
+                | Dispatch::Rejected => None,
             };
-            match replayed {
+            match instantiated {
                 Some((overload, signature)) => {
                     self.check.infer.commit(mark, &mut self.check.fulfill);
                     let source = self.commit_callable_signature(
@@ -1165,7 +1160,7 @@ impl BodyState<'_, '_> {
         if let Some((position, candidate)) = overload.candidates.first().copied() {
             let mark = self.check.infer.mark(&mut self.check.fulfill);
             let attempt =
-                self.attempt_call(origin, candidate, &arguments, &argument_types, expectation)?;
+                self.probe_call(origin, candidate, &arguments, &argument_types, expectation)?;
             match &attempt {
                 // keep the inference an accepted call bound
                 SignatureMatch::Selected(_) => {
@@ -1189,20 +1184,20 @@ impl BodyState<'_, '_> {
             }
 
             match attempt {
-                // commit the accepted call and remember its decision
+                // commit the accepted call with its decision
                 SignatureMatch::Selected(signature) => {
                     // fold the decision canonical over both asks
                     let mut stored = signature.clone();
                     stored.coercions = SmallVec::new();
                     stored.receiver_steps = None;
-                    let value = Selected::Callable(SignatureInstance {
+                    let value = Dispatch::Callable(SignatureInstance {
                         overload: position,
                         selection: stored,
                     });
 
-                    // serve argument-independent answers under the blind question
-                    if let Some((asked, canonical)) = &blind
-                        && !self.check.answers.contains_key(asked)
+                    // serve argument-independent answers under the blind goal
+                    if let Some((goal, canonical)) = &blind
+                        && !self.check.answers.contains_key(goal)
                         && let Some(response) = self.check.canonicalize_response(
                             canonical,
                             checks_before,
@@ -1212,13 +1207,13 @@ impl BodyState<'_, '_> {
                     {
                         self.check
                             .answers
-                            .insert(asked.clone(), Answer::Selection(Arc::new(response)));
+                            .insert(goal.clone(), Answer::Selection(Arc::new(response)));
                     }
 
-                    // serve open generic answers under the argument-committed question
-                    if let Some((asked, canonical)) = &question {
-                        self.check.remember_answer(
-                            asked,
+                    // serve open generic answers under the argument-committed goal
+                    if let Some((goal, canonical)) = &committed_goal {
+                        self.check.commit_answer(
+                            goal,
                             canonical,
                             checks_before,
                             value,
@@ -1289,7 +1284,7 @@ impl BodyState<'_, '_> {
                     self.report_signature_rejection(origin, rejection)?;
                     let attempt = self.attempted_call(origin, candidate, argument_nodes)?;
 
-                    return self.reject_call(node, expectation, attempt);
+                    return self.commit_rejected_call(node, expectation, attempt);
                 }
                 // leave a refused overload to the shared report below
                 SignatureMatch::Invalid { .. } | SignatureMatch::Inapplicable(_) => {}
@@ -1302,13 +1297,13 @@ impl BodyState<'_, '_> {
         let arguments = self.infer_argument_types(site, argument_nodes)?;
         self.report_no_matching_call(origin, &arguments, &rejections)?;
 
-        // retain the first candidate so downstream passes keep a target
+        // keep the first candidate so downstream passes keep a target
         let attempt = match overload.candidates.first() {
             Some((_, candidate)) => self.attempted_call(origin, candidate, argument_nodes)?,
             None => None,
         };
 
-        self.reject_call(node, expectation, attempt)
+        self.commit_rejected_call(node, expectation, attempt)
     }
 
     /// Return whether one call head is an inference hole.
@@ -1342,17 +1337,14 @@ impl BodyState<'_, '_> {
             self.report_cannot_infer_node(node)?;
             self.commit_error_node(callee)?;
 
-            return self.reject_call(node, None, None);
+            return self.commit_rejected_call(node, None, None);
         };
 
         // require the expected target to name one newtype
         let target = expectation.target;
         let symbol = match self.ty(target)? {
             dir::Type::Application(instance)
-                if matches!(
-                    self.symbol_kind_maybe(instance.symbol)?,
-                    Some(dir::SymbolKind::Newtype)
-                ) =>
+                if matches!(self.symbol_kind(instance.symbol)?, dir::SymbolKind::Newtype) =>
             {
                 instance.symbol
             }
@@ -1360,7 +1352,7 @@ impl BodyState<'_, '_> {
                 self.report_invalid_inferred_construct_target(origin, target)?;
                 self.commit_error_node(callee)?;
 
-                return self.reject_call(node, Some(expectation), None);
+                return self.commit_rejected_call(node, Some(expectation), None);
             }
         };
 
@@ -1402,11 +1394,11 @@ impl BodyState<'_, '_> {
             rejections.truncate(REPORTED_REJECTIONS);
             self.report_no_matching_call(origin, &argument_types, &rejections)?;
 
-            return self.reject_call(node, expectation, None);
+            return self.commit_rejected_call(node, expectation, None);
         }
 
         // confirm the selected combination outside the selection probes
-        let (signatures, outcome) = match self.attempt_call_arms(
+        let (signatures, outcome) = match self.probe_call_arms(
             origin,
             &overload.candidates,
             &arguments,
@@ -1421,7 +1413,7 @@ impl BodyState<'_, '_> {
                 let argument_types = self.infer_argument_types(site, argument_nodes)?;
                 self.report_no_matching_call(origin, &argument_types, &[rejection])?;
 
-                return self.reject_call(node, expectation, None);
+                return self.commit_rejected_call(node, expectation, None);
             }
         };
 

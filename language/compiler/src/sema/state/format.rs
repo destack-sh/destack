@@ -143,12 +143,12 @@ impl CheckState<'_> {
             }
 
             dir::Type::Object(shape) => {
-                let shape_properties = self.shape_properties(id.module_id, shape.properties)?;
+                let object_properties = self.object_properties(id.module_id, shape.properties)?;
                 let index_signatures =
-                    self.shape_index_signatures(id.module_id, shape.index_signatures)?;
+                    self.object_index_signatures(id.module_id, shape.index_signatures)?;
 
                 let mut fields = Vec::new();
-                for property in shape_properties.iter().take(FORMAT_WIDTH) {
+                for property in object_properties.iter().take(FORMAT_WIDTH) {
                     let key = self.format_static_key(&property.key);
                     let optional = if property.is_optional { "?" } else { "" };
 
@@ -191,7 +191,7 @@ impl CheckState<'_> {
                     fields.push(format!("{readonly}[{name}: {key}]{optional}: {value}"));
                 }
 
-                let field_count = shape_properties.len() + index_signatures.len();
+                let field_count = object_properties.len() + index_signatures.len();
                 if field_count > FORMAT_WIDTH {
                     fields.push("…".to_string());
                 }
@@ -875,7 +875,7 @@ impl CheckState<'_> {
             module_id: bindings.module_id,
             local_id: symbol,
         });
-        if !Self::should_qualify_symbol(entry) {
+        if !Self::is_qualified_symbol(entry) {
             paths.insert(symbol, label.clone());
 
             return label;
@@ -903,7 +903,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether one symbol should be owner-qualified.
-    fn should_qualify_symbol(symbol: &dir::Symbol) -> bool {
+    fn is_qualified_symbol(symbol: &dir::Symbol) -> bool {
         symbol.role == dir::SymbolRole::Item
             || symbol.role == dir::SymbolRole::Namespace
             || symbol.kind == dir::SymbolKind::TypeAlias

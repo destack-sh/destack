@@ -123,7 +123,7 @@ pub(in crate::sema) struct FlowBranch {
 
 impl FlowBranch {
     /// Return whether this branch assigns one place.
-    pub(in crate::sema) fn assigns(&self, place: AssignedPlace) -> bool {
+    pub(in crate::sema) fn is_assigned(&self, place: AssignedPlace) -> bool {
         self.assigned.contains(&place)
     }
 }
@@ -242,8 +242,8 @@ impl FlowState {
         self.current = point;
     }
 
-    /// Mark one jump that bound no target.
-    pub(in crate::sema) fn mark_unbound_jump(&mut self, source: dir::LocalNodeIdAny) {
+    /// Add one jump that bound no target.
+    pub(in crate::sema) fn insert_unbound_jump(&mut self, source: dir::LocalNodeIdAny) {
         self.unbound_jumps.insert(source);
     }
 
@@ -392,7 +392,7 @@ impl FlowState {
                         .is_some_and(|target| target.name == label)
                         .then_some(index)
                 } else {
-                    target.form.accepts_unlabeled_break().then_some(index)
+                    target.form.is_unlabeled_break_target().then_some(index)
                 }
             })
     }
@@ -411,10 +411,10 @@ impl FlowState {
             .find_map(|(index, target)| {
                 if let Some(label) = label {
                     (target.label.is_some_and(|target| target.name == label)
-                        && target.form.accepts_continue())
+                        && target.form.is_continue_target())
                     .then_some(index)
                 } else {
-                    target.form.accepts_continue().then_some(index)
+                    target.form.is_continue_target().then_some(index)
                 }
             })
     }
@@ -512,9 +512,9 @@ impl FlowState {
         }
     }
 
-    /// Mark one place as definitely assigned.
-    pub(in crate::sema) fn mark_assigned(&mut self, place: AssignedPlace) {
-        // record previous assignment state for rollback
+    /// Add one place to the definitely assigned set.
+    pub(in crate::sema) fn insert_assigned(&mut self, place: AssignedPlace) {
+        // keep previous assignment state for rollback
         let was_assigned = self.assigned.contains(&place);
 
         self.changes.push(FlowChange::Assign {
@@ -635,12 +635,12 @@ impl FlowState {
     ) {
         self.restore(checkpoint);
 
-        // replay assigned places from the branch
+        // apply assigned places from the branch
         for place in &branch.assigned {
-            self.mark_assigned(*place);
+            self.insert_assigned(*place);
         }
 
-        // replay narrowings from the branch
+        // apply narrowings from the branch
         for (path, narrowings) in &branch.narrowings {
             self.set_narrowings(path.clone(), narrowings);
         }
@@ -657,7 +657,7 @@ impl FlowState {
 
         // keep places assigned by both branches
         for place in left.assigned.intersection(&right.assigned) {
-            self.mark_assigned(*place);
+            self.insert_assigned(*place);
         }
 
         // collect all touched narrowing paths

@@ -9,6 +9,9 @@ use crate::{CompilerError, CompilerResult};
 impl CheckState<'_> {
     /// Write one solved module into its checked DIR segments.
     pub(in crate::sema) fn write_module(&mut self, module: ModuleId) -> CompilerResult<()> {
+        // seal typing positions, writeback projects declared forms fresh
+        self.infer.seal();
+
         // collect the literal value each symbol resolved to
         let symbol_literals = self.static_symbol_literals(module)?;
 
@@ -84,7 +87,7 @@ impl CheckState<'_> {
         self.write_captures(module)?;
 
         // resolve every member site this pass recorded, then store what they select
-        if self.is_declaration() {
+        if self.is_declaring() {
             self.resolve_member_subjects(module)?;
         } else {
             let recorder = self.recorder;
@@ -150,40 +153,37 @@ impl CheckState<'_> {
         Ok(constants)
     }
 
-    /// Re-key every recorded member site on its resolved subject.
+    /// Re-key every stored member site on its resolved subject.
     pub(in crate::sema) fn resolve_member_subjects(
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<()> {
-        for (site, recorded) in self.recorded_member_sites(module) {
-            self.resolve_member_site(module, site, recorded)?;
+        for (site, stored) in self.member_sites(module) {
+            self.resolve_member_site(module, site, stored)?;
         }
 
         Ok(())
     }
 
-    /// Return the member sites this pass recorded, in selection order.
-    fn recorded_member_sites(
-        &self,
-        module: ModuleId,
-    ) -> Vec<(dir::MemberSite, dir::MemberSubject)> {
+    /// Return the member sites this pass stored, in selection order.
+    fn member_sites(&self, module: ModuleId) -> Vec<(dir::MemberSite, dir::MemberSubject)> {
         self.module(module)
             .iter_member_subjects()
             .collect::<Vec<_>>()
     }
 
-    /// Re-key one recorded member site on its resolved subject.
+    /// Re-key one stored member site on its resolved subject.
     fn resolve_member_site(
         &mut self,
         module: ModuleId,
         site: dir::MemberSite,
-        recorded: dir::MemberSubject,
+        stored: dir::MemberSubject,
     ) -> CompilerResult<dir::MemberSubject> {
-        let subject = self.resolve_member_subject(recorded)?;
-        if subject != recorded {
+        let subject = self.resolved_member_subject(stored)?;
+        if subject != stored {
             self.module_mut(module)
                 .members_tail
-                .record_subject(site, subject);
+                .commit_subject(site, subject);
         }
 
         Ok(subject)
@@ -191,9 +191,9 @@ impl CheckState<'_> {
 
     /// Store the membership each resolved subject selects.
     fn write_member_bindings(&mut self, module: ModuleId) -> CompilerResult<()> {
-        for (site, recorded) in self.recorded_member_sites(module) {
+        for (site, stored) in self.member_sites(module) {
             // re-key the site against the subject inference solved
-            let subject = self.resolve_member_site(module, site, recorded)?;
+            let subject = self.resolve_member_site(module, site, stored)?;
 
             // membership is a function of the resolved subject, one projection stands for all sites
             if self.module(module).membership(&subject).is_some() {
@@ -217,12 +217,8 @@ impl CheckState<'_> {
         module: ModuleId,
         subject: dir::MemberSubject,
     ) -> CompilerResult<dir::Membership> {
-        // project the membership under the writeback flag
         let origin = Origin::Node(site.node(), subject.scope);
-        self.is_writeback = true;
-        let membership = self.project_membership(origin, module, subject);
-        self.is_writeback = false;
-        let mut membership = membership?;
+        let mut membership = self.project_membership(origin, module, subject)?;
 
         // resolve the open types a structural binding still carries
         for binding in &mut membership.structural {
@@ -429,7 +425,7 @@ impl CheckState<'_> {
 
     /// Resolve each source member type expression to its selected symbol.
     fn write_member_type_resolutions(&mut self, module: ModuleId) -> CompilerResult<()> {
-        // collect the member type expressions the walk recorded subjects for
+        // collect the member type expressions the walk stored subjects for
         let sites = self
             .module(module)
             .iter_member_subjects()
@@ -542,8 +538,8 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Re-derive one member lookup subject over its resolved types.
-    fn resolve_member_subject(
+    /// Return one member lookup subject over its resolved types.
+    fn resolved_member_subject(
         &mut self,
         subject: dir::MemberSubject,
     ) -> CompilerResult<dir::MemberSubject> {
@@ -564,7 +560,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::Literal)>> {
-        // collect the values the walk recorded per symbol
+        // collect the values the walk stored per symbol
         let static_values = self
             .module(module)
             .static_values

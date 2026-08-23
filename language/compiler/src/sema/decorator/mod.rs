@@ -1,7 +1,6 @@
 mod application;
 mod apply;
 mod capture;
-mod check;
 mod control;
 mod object;
 mod representation;

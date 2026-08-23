@@ -367,7 +367,7 @@ impl CheckState<'_> {
             dir::Type::Primitive(dir::PrimitiveType::String) => true,
             dir::Type::Primitive(dir::PrimitiveType::Float(_)) => template.number().is_some(),
             dir::Type::Primitive(dir::PrimitiveType::Integer(integer)) => {
-                template.fits_integer(integer)
+                template.is_in_integer_range(integer)
             }
             dir::Type::Primitive(dir::PrimitiveType::Bigint) => template.integer().is_some(),
             dir::Type::Primitive(dir::PrimitiveType::Boolean) => text == "true" || text == "false",
@@ -543,7 +543,7 @@ impl CheckState<'_> {
         span: dir::GlobalTypeId,
     ) -> CompilerResult<Option<String>> {
         let text = match self.ty(span)? {
-            // numeric literals admit many written forms
+            // numeric literals take many written forms
             dir::Type::Literal(
                 dir::Literal::Integer(_) | dir::Literal::Float(_) | dir::Literal::Bigint(_),
             ) => None,
@@ -742,8 +742,7 @@ impl CheckState<'_> {
             ) => Ok(true),
             _ => {
                 // match the span unless the domain relation is proven false
-                let verdict =
-                    self.evaluate_relation(origin, Relation::Assignable, source, target)?;
+                let verdict = self.decide_relation(origin, Relation::Assignable, source, target)?;
 
                 Ok(verdict != Verdict::Fails)
             }
@@ -854,8 +853,8 @@ impl TemplateText<'_> {
         range.contains_literal(literal).then_some(literal)
     }
 
-    /// Return whether this text fits one integer type.
-    fn fits_integer(self, integer: dir::IntegerType) -> bool {
+    /// Return whether this text lies inside one integer type's range.
+    fn is_in_integer_range(self, integer: dir::IntegerType) -> bool {
         let Some(value) = self.integer() else {
             return false;
         };

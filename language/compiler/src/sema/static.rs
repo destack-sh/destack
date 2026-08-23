@@ -314,7 +314,7 @@ impl CheckState<'_> {
     /// Commit one module constant's static term at its checked declarator.
     ///
     /// Same-module const generic arguments read the term before the write
-    /// pass runs; a term the open inference cannot ground yet stays for the
+    /// pass runs; a term the open inference cannot resolve yet stays for the
     /// write pass to evaluate over the solved types.
     pub(in crate::sema) fn commit_constant_term(
         &mut self,
@@ -435,10 +435,7 @@ impl CheckState<'_> {
             }
         }
         // otherwise read a type declaration as a first-class value, skipping unread kinds
-        else if self
-            .symbol_kind_maybe(symbol)?
-            .is_some_and(|kind| kind.can_be_used_as_type())
-        {
+        else if self.symbol_kind(symbol)?.can_be_used_as_type() {
             let ty = self.require_node_type(source)?;
             let ty = self.shallow_resolve(ty)?;
 

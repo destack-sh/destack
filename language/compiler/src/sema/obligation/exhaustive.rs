@@ -34,8 +34,9 @@ impl CheckState<'_> {
             }
         }
 
-        // accept any covering pattern alternative
-        let is_exhaustive = self.decide_patterns_cover(origin, &patterns, value)?;
+        // accept any covering pattern alternative, an undecided cover reporting as non-exhaustive
+        let covered = self.decide_patterns_cover(origin, &patterns, value)?;
+        let is_exhaustive = covered.holds();
         let check = if is_exhaustive {
             ObligationCheck::holds()
         } else {
@@ -44,7 +45,7 @@ impl CheckState<'_> {
             ObligationCheck::fail(ObligationFailure::NonExhaustivePattern { source, missing })
         };
 
-        // record the coverage proof downstream consumers replay
+        // commit the coverage proof downstream consumers reuse
         let proof = self.decide_pattern_coverage(origin, arms, &patterns, is_exhaustive)?;
         self.commit_decision(source, dir::Decision::Coverage(proof))?;
 
@@ -91,7 +92,13 @@ impl CheckState<'_> {
                 .filter(|(_, arm)| !arm.is_guarded)
                 .map(|(pattern, _)| *pattern)
                 .collect::<Vec<_>>();
-            if !covering.is_empty() && self.decide_patterns_cover(origin, &covering, value)? {
+            if covering.is_empty() {
+                continue;
+            }
+
+            // an undecided cover keeps the arm live, matching today's collapse
+            let covered = self.decide_patterns_cover(origin, &covering, value)?;
+            if covered.holds() {
                 redundant.push(*pattern);
             }
         }

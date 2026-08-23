@@ -13,7 +13,7 @@ pub(in crate::sema) enum Blame {
     },
     /// One structural slot beneath the related pair mismatches.
     Slot {
-        /// Slot descriptions from the leaf outward.
+        /// Slot labels from the leaf outward.
         path: Vec<String>,
         /// The mismatched leaf source type.
         source: dir::GlobalTypeId,
@@ -24,7 +24,7 @@ pub(in crate::sema) enum Blame {
 
 /// One structural descent state while blaming a failed pair.
 struct BlameLeaf {
-    /// Slot descriptions from the leaf outward.
+    /// Slot labels from the leaf outward.
     path: Vec<String>,
     /// The mismatched leaf source type.
     source: dir::GlobalTypeId,
@@ -35,8 +35,8 @@ struct BlameLeaf {
 }
 
 impl CheckState<'_> {
-    /// Decorate one failure with its cause chain.
-    pub(in crate::sema) fn explain_cause<T>(
+    /// Format one failure's cause chain into its diagnostic.
+    pub(in crate::sema) fn format_cause<T>(
         &self,
         mut diagnostic: DiagnosticBuilder<T>,
         cause: CauseId,
@@ -46,7 +46,7 @@ impl CheckState<'_> {
         let chain = self.cause_chain(cause);
         let module = self.cause_origin(cause).module();
 
-        // describe the slot path into the mismatch, blamed leaf first
+        // format the slot path into the mismatch, blamed leaf first
         let mut slots: Vec<String> = match blame {
             Some(Blame::Slot { path, .. }) => path.clone(),
             _ => Vec::new(),
@@ -55,7 +55,7 @@ impl CheckState<'_> {
             chain
                 .iter()
                 .take_while(|cause| cause.kind.is_slot())
-                .filter_map(|cause| self.describe_slot(cause.kind)),
+                .filter_map(|cause| self.format_slot(cause.kind)),
         );
         let note = match (blame, slots.is_empty()) {
             // name the exact mismatched types for a blamed leaf
@@ -82,7 +82,7 @@ impl CheckState<'_> {
             }
         }
 
-        // point at the syntax that demanded the check
+        // point at the syntax that required the check
         if let Some(root) = chain.last()
             && let Some((anchor, message)) = self.root_label(root.kind)?
             && anchor != *primary
@@ -131,7 +131,7 @@ impl CheckState<'_> {
             }
         }
 
-        // hint at interfaces when only class exactness rejected a storage pair
+        // hint at interfaces when only class exactness refused a storage pair
         let is_storage = matches!(relation, Relation::Assignable | Relation::Widens);
         let is_value_class = is_storage
             && match self.ty(leaf.source)? {
@@ -195,7 +195,7 @@ impl CheckState<'_> {
             self.blame_pairs(relation, source, target)?
         {
             if self
-                .evaluate_relation(origin, child_relation, child_source, child_target)?
+                .decide_relation(origin, child_relation, child_source, child_target)?
                 .holds()
             {
                 continue;
@@ -222,7 +222,7 @@ impl CheckState<'_> {
         })
     }
 
-    /// Decompose one closed pair into described slot relations.
+    /// Decompose one closed pair into its labeled slot relations.
     fn blame_pairs(
         &mut self,
         relation: Relation,
@@ -241,10 +241,10 @@ impl CheckState<'_> {
             // blame matching shape fields under their storage relations
             (dir::Type::Object(source_shape), dir::Type::Object(target_shape)) => {
                 let source_fields = self
-                    .shape_properties(source.module_id, source_shape.properties)?
+                    .object_properties(source.module_id, source_shape.properties)?
                     .to_vec();
                 let target_fields = self
-                    .shape_properties(target.module_id, target_shape.properties)?
+                    .object_properties(target.module_id, target_shape.properties)?
                     .to_vec();
                 for target_field in target_fields {
                     let source_field = source_fields
@@ -260,7 +260,7 @@ impl CheckState<'_> {
                     };
                     for (field_relation, source_ty, target_ty) in relations {
                         pairs.push((
-                            self.describe_slot(CauseKind::Field {
+                            self.format_slot(CauseKind::Field {
                                 key: target_field.key,
                             }),
                             field_relation,
@@ -288,7 +288,7 @@ impl CheckState<'_> {
                     .enumerate()
                 {
                     pairs.push((
-                        self.describe_slot(CauseKind::Element {
+                        self.format_slot(CauseKind::Element {
                             index: index as u32,
                         }),
                         relation.interior(),
@@ -318,7 +318,7 @@ impl CheckState<'_> {
                     .enumerate()
                 {
                     pairs.push((
-                        self.describe_slot(CauseKind::Parameter {
+                        self.format_slot(CauseKind::Parameter {
                             index: index as u32,
                         }),
                         relation.interior(),
@@ -330,7 +330,7 @@ impl CheckState<'_> {
                     (source_function.return_type, target_function.return_type)
                 {
                     pairs.push((
-                        self.describe_slot(CauseKind::ReturnSlot),
+                        self.format_slot(CauseKind::ReturnSlot),
                         relation.interior(),
                         source_return,
                         target_return,
@@ -404,7 +404,7 @@ impl CheckState<'_> {
                     let (argument_source, argument_target) =
                         order.orient(*source_argument, *target_argument);
                     pairs.push((
-                        self.describe_slot(CauseKind::TypeArgument {
+                        self.format_slot(CauseKind::TypeArgument {
                             symbol,
                             index: index as u32,
                             variance,
@@ -445,8 +445,8 @@ impl CheckState<'_> {
         root
     }
 
-    /// Describe one slot the constraint descended into.
-    fn describe_slot(&self, kind: CauseKind) -> Option<String> {
+    /// Format one slot the constraint descended into.
+    fn format_slot(&self, kind: CauseKind) -> Option<String> {
         let description = match kind {
             CauseKind::Field { key } => format!("field '{}'", self.format_static_key(&key)),
             CauseKind::Element { index } => format!("element {index}"),
@@ -522,7 +522,7 @@ impl CheckState<'_> {
     }
 }
 
-/// Join slot descriptions from the mismatch outward, eliding deep paths.
+/// Join slot labels from the mismatch outward, eliding deep paths.
 fn join_path(slots: &[String]) -> String {
     match slots {
         [.., _, _, _, _, last] => {

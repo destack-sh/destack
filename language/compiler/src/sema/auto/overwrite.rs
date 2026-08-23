@@ -7,31 +7,19 @@ use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Decide whether one type can be overwritten through non-exclusive access.
-    pub(in crate::sema) fn satisfies_overwrite_stable(
+    pub(in crate::sema) fn decide_overwrite_stable(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
-        // unfold aliases, then use bounds declared by generic types
-        let ty = self.normalize(origin, ty)?;
-        if let Some(decision) =
-            self.decide_generic_auto_interface(origin, ty, dir::AutoInterface::OverwriteStable)?
-        {
-            return Ok(Verdict::decided(decision));
-        }
-
-        // close recursive structural types coinductively
-        if active.contains(&ty) {
-            return Ok(Verdict::Holds);
-        }
-        active.push(ty);
-
-        // restore the active stack after this decision
-        let result = self.decide_overwrite_stable_type(origin, ty, active);
-        active.pop();
-
-        result
+        self.decide_guarded(
+            origin,
+            ty,
+            dir::AutoInterface::OverwriteStable,
+            active,
+            |state, ty, active| state.decide_overwrite_stable_type(origin, ty, active),
+        )
     }
 
     /// Decide overwrite stability for one active type.
@@ -51,7 +39,7 @@ impl CheckState<'_> {
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(ty.module_id, refined)?;
 
-                self.satisfies_overwrite_stable(origin, refined.base, active)
+                self.decide_overwrite_stable(origin, refined.base, active)
             }
 
             dir::Type::Error
@@ -67,7 +55,7 @@ impl CheckState<'_> {
             | dir::Type::Range(_)
             | dir::Type::Reference(_) => Ok(Verdict::Holds),
             dir::Type::Variant(variant) => {
-                self.satisfies_overwrite_stable(origin, variant.owner, active)
+                self.decide_overwrite_stable(origin, variant.owner, active)
             }
             dir::Type::Unknown
             | dir::Type::Intrinsic
@@ -87,14 +75,14 @@ impl CheckState<'_> {
                 dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Raw => Ok(Verdict::Holds),
                 dir::Form::Owned => Ok(Verdict::Fails),
                 dir::Form::Placed { .. } | dir::Form::Readonly => {
-                    self.satisfies_overwrite_stable(origin, form.value, active)
+                    self.decide_overwrite_stable(origin, form.value, active)
                 }
             },
             dir::Type::Application(instance) => {
-                self.satisfies_overwrite_stable_instance(origin, ty.module_id, instance, active)
+                self.decide_overwrite_stable_instance(origin, ty.module_id, instance, active)
             }
             dir::Type::FixedArray(array) => {
-                self.satisfies_overwrite_stable(origin, array.element, active)
+                self.decide_overwrite_stable(origin, array.element, active)
             }
             dir::Type::Slice(_) => Ok(Verdict::Holds),
             dir::Type::Tuple(tuple) => {
@@ -104,29 +92,35 @@ impl CheckState<'_> {
                     .map(|element| element.ty)
                     .collect();
 
-                self.all_overwrite_stable(origin, ids, active)
+                self.decide_all(ids, |state, id| {
+                    state.decide_overwrite_stable(origin, id, active)
+                })
             }
             dir::Type::Object(shape) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
-                    .shape_properties(ty.module_id, shape.properties)?
+                    .object_properties(ty.module_id, shape.properties)?
                     .iter()
                     .flat_map(|field| field.access.types())
                     .collect();
 
-                self.all_overwrite_stable(origin, ids, active)
+                self.decide_all(ids, |state, id| {
+                    state.decide_overwrite_stable(origin, id, active)
+                })
             }
             dir::Type::FunctionPointer(_) => Ok(Verdict::Holds),
             dir::Type::Intersection(intersection) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> =
                     SmallVec::from_slice(self.type_ids(ty.module_id, intersection.elements)?);
 
-                self.all_overwrite_stable(origin, ids, active)
+                self.decide_all(ids, |state, id| {
+                    state.decide_overwrite_stable(origin, id, active)
+                })
             }
         }
     }
 
     /// Decide whether one nominal application can be overwritten without exclusivity.
-    fn satisfies_overwrite_stable_instance(
+    fn decide_overwrite_stable_instance(
         &mut self,
         origin: Origin,
         instance_module: ModuleId,
@@ -139,76 +133,24 @@ impl CheckState<'_> {
 
         match definition {
             dir::Definition::TypeAlias(definition) => {
-                self.satisfies_overwrite_stable(origin, definition.value, active)
+                self.decide_overwrite_stable(origin, definition.value, active)
             }
             dir::Definition::Struct(definition) => {
-                let mut fields = SmallVec::<[_; 8]>::new();
-                for member in &definition.members {
-                    if let dir::DefinitionMember::Field(_) = member
-                        && let Some(ty) = self.definition_member_type(member)?
-                    {
-                        fields.push(ty);
-                    }
-                }
+                let fields = self.stored_field_types(&definition.members)?;
 
-                self.all_applied_overwrite_stable(
-                    origin,
-                    instance_module,
-                    &instance,
-                    fields,
-                    active,
-                )
+                self.decide_all_applied(instance_module, &instance, fields, |state, id| {
+                    state.decide_overwrite_stable(origin, id, active)
+                })
             }
             dir::Definition::Class(_) | dir::Definition::Interface(_) => Ok(Verdict::Holds),
             dir::Definition::Enum(_) => Ok(Verdict::Fails),
-            dir::Definition::Newtype(definition) => self.all_applied_overwrite_stable(
-                origin,
+            dir::Definition::Newtype(definition) => self.decide_all_applied(
                 instance_module,
                 &instance,
                 [definition.backing],
-                active,
+                |state, id| state.decide_overwrite_stable(origin, id, active),
             ),
             dir::Definition::Extension(_) => Ok(Verdict::Fails),
         }
-    }
-
-    /// Decide overwrite stability for applied nominal component types.
-    fn all_applied_overwrite_stable(
-        &mut self,
-        origin: Origin,
-        instance_module: ModuleId,
-        instance: &dir::GenericApplication,
-        ids: impl IntoIterator<Item = dir::GlobalTypeId>,
-        active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<Verdict> {
-        let substitution = self.instance_substitution(instance_module, instance)?;
-        let mut verdict = Verdict::Holds;
-        for id in ids {
-            let id = self.substitute_type(id, &substitution)?;
-            verdict = verdict.and(self.satisfies_overwrite_stable(origin, id, active)?);
-            if verdict == Verdict::Fails {
-                return Ok(Verdict::Fails);
-            }
-        }
-
-        Ok(verdict)
-    }
-
-    /// Decide whether every type in one iterator is overwrite-stable.
-    fn all_overwrite_stable(
-        &mut self,
-        origin: Origin,
-        ids: impl IntoIterator<Item = dir::GlobalTypeId>,
-        active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<Verdict> {
-        let mut verdict = Verdict::Holds;
-        for id in ids {
-            verdict = verdict.and(self.satisfies_overwrite_stable(origin, id, active)?);
-            if verdict == Verdict::Fails {
-                return Ok(Verdict::Fails);
-            }
-        }
-
-        Ok(verdict)
     }
 }

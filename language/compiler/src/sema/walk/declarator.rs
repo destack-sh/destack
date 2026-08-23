@@ -41,7 +41,7 @@ impl WalkState<'_, '_> {
 
         // require non-matching positions to always succeed
         if let Some(value) = expected
-            && !self.check.allows_refutable_pattern(self.module, id)
+            && !self.check.is_refutable_pattern_position(self.module, id)
         {
             self.check.push_obligation(
                 Obligation::PatternCoverage(PatternCoverageObligation {
@@ -94,7 +94,7 @@ impl WalkState<'_, '_> {
             // annotations that infer resolve at their initializers
             let infers = !is_ambient
                 && declarator.ty.is_some_and(|annotation| {
-                    self.check.annotation_infers(self.module, annotation)
+                    self.check.is_inferring_annotation(self.module, annotation)
                 });
             if (declarator.ty.is_none() || infers) && !exported {
                 continue;
@@ -149,7 +149,7 @@ impl WalkState<'_, '_> {
 
         // walk the declared pattern type
         let matched = match declarator.ty {
-            Some(_) if declared_row && !self.check.is_declaration() => None,
+            Some(_) if declared_row && !self.check.is_declaring() => None,
             Some(annotation) => Some(match is_ambient {
                 true => self.walk_static_type_expression(annotation)?,
                 false => self.walk_type_expression(annotation)?,
@@ -163,7 +163,7 @@ impl WalkState<'_, '_> {
 
 impl CheckState<'_> {
     /// Return whether one declarator position permits a refutable pattern.
-    pub(in crate::sema) fn allows_refutable_pattern(
+    pub(in crate::sema) fn is_refutable_pattern_position(
         &self,
         module: ModuleId,
         declarator: dir::LocalNodeId<dir::Declarator>,
@@ -354,7 +354,7 @@ impl CheckState<'_> {
 
 impl CheckState<'_> {
     /// Return whether one annotation writes a hole or elides a borrow lifetime.
-    pub(in crate::sema) fn annotation_infers(
+    pub(in crate::sema) fn is_inferring_annotation(
         &self,
         module: ModuleId,
         annotation: dir::LocalNodeId<dir::TypeExpression>,

@@ -362,7 +362,7 @@ impl VariableTable {
         })
     }
 
-    /// Record the declared default completing one variable when inference stays dry.
+    /// Set the declared default completing one variable when inference stays dry.
     pub(in crate::sema) fn set_default(
         &mut self,
         id: dir::TypeVariableId,

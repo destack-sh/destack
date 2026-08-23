@@ -3,8 +3,8 @@ use destack_artifact::{ArtifactEvent, ArtifactEventLog};
 use crate::sema::{CheckEvent, DumpContext, VariableKind};
 
 impl CheckEvent {
-    /// Render this event into an artifact event log.
-    pub(in crate::sema) fn render(
+    /// Format this event into an artifact event log.
+    pub(in crate::sema) fn format_event(
         &self,
         context: &DumpContext<'_, '_>,
         log: &mut ArtifactEventLog,
@@ -56,7 +56,7 @@ impl CheckEvent {
                 ),
             Self::Checked { check, is_finished } => {
                 match context.check.fulfill.checks.get(*check) {
-                    Ok(check_kind) => check_kind.render_event(*check, *is_finished, context),
+                    Ok(check_kind) => check_kind.format_event(*check, *is_finished, context),
                     Err(_) => ArtifactEvent::new("check.checked")
                         .debug()
                         .text("id", context.check_label(*check))

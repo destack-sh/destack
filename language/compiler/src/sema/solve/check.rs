@@ -24,10 +24,10 @@ impl CheckId {
     }
 }
 
-/// One unit of pending checking work: a claim to decide, or a blocked step to resume.
+/// One unit of pending checking work: a judgment to decide, or a blocked step to resume.
 #[derive(Debug, Clone)]
 pub(in crate::sema) enum Check {
-    // claims deciding to verdicts
+    // judgments deciding to verdicts
     /// A relation must hold between two types.
     Relation(RelationCheck),
     /// A declared obligation must hold once its assuming scope closes.
@@ -414,7 +414,7 @@ impl CheckTable {
         id: CheckId,
         result: Option<CheckOutcome>,
     ) -> CompilerResult<()> {
-        // reject completing a check as undecided
+        // refuse completing a check as undecided
         if result == Some(CheckOutcome::Pending) {
             return Err(CompilerError::Internal {
                 message: format!("check {id:?} cannot complete as pending"),
@@ -428,7 +428,7 @@ impl CheckTable {
                 message: format!("check {id:?} has no result slot"),
             })?;
 
-        // reject a resumption completing with a verdict
+        // refuse a resumption completing with a verdict
         if matches!(
             row.check,
             Check::Node(_)
@@ -462,7 +462,7 @@ impl CheckTable {
     }
 }
 
-/// One failed check retained until its cause tree is complete.
+/// One failed check kept until its cause tree is complete.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::sema) struct FailedCheck {
     /// The cause that produced the check.
@@ -477,7 +477,7 @@ pub(in crate::sema) struct FailedCheck {
     pub(in crate::sema) target: dir::GlobalTypeId,
     /// The failure reason.
     pub(in crate::sema) failure: CheckFailure,
-    /// Whether the check judged over open variables, so its failure is re-judged once they close.
+    /// Whether the check decided over open variables, so its failure decides again once they close.
     pub(in crate::sema) is_provisional: bool,
 }
 
@@ -609,8 +609,8 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Return whether one application's substituted constraints may still hold.
-    pub(in crate::sema) fn substitution_constraints_may_hold(
+    /// Return whether every substituted constraint of one application can still hold.
+    pub(in crate::sema) fn is_substitution_viable(
         &mut self,
         origin: Origin,
         template: GenericTemplateId,
@@ -635,7 +635,7 @@ impl CheckState<'_> {
         let mut ambiguous = SmallVec::new();
         for check in checks {
             let verdict =
-                self.evaluate_relation(check.origin, check.relation, check.source, check.target)?;
+                self.decide_relation(check.origin, check.relation, check.source, check.target)?;
             let mut satisfied = verdict != Verdict::Fails;
             if verdict == Verdict::Ambiguous {
                 ambiguous.push(check);
@@ -652,7 +652,7 @@ impl CheckState<'_> {
             {
                 let declared = self.substitute_type(declared, substitution)?;
                 satisfied = self
-                    .evaluate_relation(check.origin, check.relation, declared, check.target)?
+                    .decide_relation(check.origin, check.relation, declared, check.target)?
                     .holds();
             }
 

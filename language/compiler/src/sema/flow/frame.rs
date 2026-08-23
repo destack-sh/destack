@@ -70,12 +70,12 @@ pub(in crate::sema) enum ControlTargetForm {
 
 impl ControlTargetForm {
     /// Return whether `continue` may target this form.
-    pub(in crate::sema) fn accepts_continue(self) -> bool {
+    pub(in crate::sema) fn is_continue_target(self) -> bool {
         matches!(self, Self::Loop { .. } | Self::Iteration)
     }
 
     /// Return whether an unlabeled `break` may target this form.
-    pub(in crate::sema) fn accepts_unlabeled_break(self) -> bool {
+    pub(in crate::sema) fn is_unlabeled_break_target(self) -> bool {
         matches!(self, Self::Loop { .. } | Self::Iteration | Self::Switch)
     }
 }

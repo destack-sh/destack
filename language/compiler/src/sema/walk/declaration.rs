@@ -29,8 +29,8 @@ enum WalkedEnumVariant {
 }
 
 impl CheckState<'_> {
-    /// Bind nominal type definition symbols as declaration references.
-    pub(in crate::sema) fn bind_module_reference_types(
+    /// Commit nominal type definition symbols as declaration references.
+    pub(in crate::sema) fn commit_module_reference_types(
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<()> {
@@ -48,14 +48,14 @@ impl CheckState<'_> {
         }
 
         for symbol in symbols {
-            self.bind_nominal_reference_type(symbol)?;
+            self.commit_nominal_reference_type(symbol)?;
         }
 
         Ok(())
     }
 
-    /// Bind one nominal type definition symbol as its own reference type.
-    fn bind_nominal_reference_type(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<()> {
+    /// Commit one nominal type definition symbol as its own reference type.
+    fn commit_nominal_reference_type(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<()> {
         if self.declaration_type_maybe(symbol).is_some() {
             return Ok(());
         }
@@ -436,7 +436,7 @@ impl WalkState<'_, '_> {
                 members: Vec::new(),
             })
         } else {
-            self.bind_symbol_type(symbol, value)?;
+            self.commit_symbol_type(symbol, value)?;
 
             // commit the induced owner template, whose arity matches interned applications
             let template = self.induced_owner_template(induction, template)?;
@@ -502,7 +502,7 @@ impl WalkState<'_, '_> {
 
         // transparent intrinsic aliases reduce when applied
         if self.check.is_transparent_intrinsic_alias(symbol)? {
-            self.bind_symbol_type(symbol, value)?;
+            self.commit_symbol_type(symbol, value)?;
             let definition = dir::Definition::TypeAlias(dir::TypeAliasDefinition {
                 template: template.map(|template| template.local_id),
                 value,
@@ -686,8 +686,8 @@ impl WalkState<'_, '_> {
             if let Some((source, instance)) = self.heritage_instance(extends_type, ty)? {
                 if self
                     .check
-                    .symbol_kind_maybe(instance.symbol)?
-                    .is_none_or(|kind| kind == dir::SymbolKind::Class)
+                    .symbol_kind(instance.symbol)
+                    .map(|kind| kind == dir::SymbolKind::Class)?
                 {
                     self.relate_heritage_clause(extends_type, Relation::Extends, receiver.ty, ty)?;
                     extends = Some(dir::NominalHeritage { source, ty });
@@ -781,8 +781,8 @@ impl WalkState<'_, '_> {
             };
             if self
                 .check
-                .symbol_kind_maybe(instance.symbol)?
-                .is_some_and(|kind| !kind.is_interface())
+                .symbol_kind(instance.symbol)
+                .map(|kind| !kind.is_interface())?
             {
                 self.check
                     .report_implementation_target_not_interface_symbol(
@@ -925,7 +925,7 @@ impl WalkState<'_, '_> {
                 self.check.report(self.module, error);
 
                 let error = self.intern_type(dir::Type::Error)?;
-                self.bind_symbol_type(variant.symbol, error)?;
+                self.commit_symbol_type(variant.symbol, error)?;
                 next_value = None;
 
                 continue;
@@ -938,7 +938,7 @@ impl WalkState<'_, '_> {
                 self.check
                     .report_duplicate_enum_variant_value(variant.source, previous, value);
                 let error = self.intern_type(dir::Type::Error)?;
-                self.bind_symbol_type(variant.symbol, error)?;
+                self.commit_symbol_type(variant.symbol, error)?;
                 next_value = Some(variant.value.increment());
 
                 continue;
@@ -950,7 +950,7 @@ impl WalkState<'_, '_> {
                 owner: receiver.ty,
                 variant: variant.symbol,
             }))?;
-            self.bind_symbol_type(variant.symbol, ty)?;
+            self.commit_symbol_type(variant.symbol, ty)?;
             let literal = dir::Literal::from(variant.value);
             let static_type = self.intern_type(dir::Type::Literal(literal))?;
             self.commit_static_value(variant.symbol, static_type)?;
@@ -1015,8 +1015,8 @@ impl WalkState<'_, '_> {
             if let Some((source, instance)) = self.heritage_instance(*extends_type, ty)? {
                 if self
                     .check
-                    .symbol_kind_maybe(instance.symbol)?
-                    .is_none_or(|kind| kind.is_interface())
+                    .symbol_kind(instance.symbol)
+                    .map(|kind| kind.is_interface())?
                 {
                     extends.push(dir::NominalHeritage { source, ty });
                 } else {
@@ -1106,8 +1106,8 @@ impl WalkState<'_, '_> {
                 // skip kind validation on foreign symbols, checking reads their kind
                 if self
                     .check
-                    .symbol_kind_maybe(instance.symbol)?
-                    .is_none_or(|kind| kind.is_interface())
+                    .symbol_kind(instance.symbol)
+                    .map(|kind| kind.is_interface())?
                 {
                     implements.push(dir::NominalConformance {
                         source,
@@ -1216,7 +1216,7 @@ impl WalkState<'_, '_> {
             signature
         };
         self.push_induced_parameter_site(induction, function);
-        self.bind_symbol_type(symbol, function)?;
+        self.commit_symbol_type(symbol, function)?;
 
         Ok(())
     }
@@ -1239,7 +1239,7 @@ impl WalkState<'_, '_> {
         // evaluate the scalar value before committing its member state
         let Some(value) = self.evaluate_enum_variant_value(id, value, implicit)? else {
             let error = self.intern_type(dir::Type::Error)?;
-            self.bind_symbol_type(symbol, error)?;
+            self.commit_symbol_type(symbol, error)?;
 
             return Ok(WalkedEnumVariant::Invalid);
         };
@@ -1541,7 +1541,7 @@ impl WalkState<'_, '_> {
         }
 
         // require a written result type on every named declaration
-        if self.check.is_declaration() {
+        if self.check.is_declaring() {
             let anchor = self.check.diagnostic_anchor(self.module, source);
             let error = CheckError::MissingResultType {
                 anchor,
@@ -1743,7 +1743,7 @@ impl WalkState<'_, '_> {
                 .generic_parameter(secondary)
                 .is_none_or(|binding| binding.constraint.is_some() && binding.default.is_none());
             let determined = match constraint {
-                Some(constraint) => self.check.parameter_occurs(constraint, secondary)?,
+                Some(constraint) => self.check.has_parameter_occurrence(constraint, secondary)?,
                 None => false,
             };
             if constrained && !determined {

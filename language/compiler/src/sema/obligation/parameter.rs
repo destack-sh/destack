@@ -51,7 +51,7 @@ impl CheckState<'_> {
             let form = self.parameter_variance_form(parameter)?;
             if let Some(declared) = declared_variance {
                 let derived = self.derive_variance(parameter, form)?;
-                if !Variance::from(declared).admits(derived) {
+                if !Variance::from(declared).is_compatible_with(derived) {
                     failures.push(ObligationFailure::VarianceConflict {
                         source: self.symbol_source(parameter_symbol)?,
                         parameter: parameter_symbol,
@@ -69,7 +69,7 @@ impl CheckState<'_> {
             // require one occurrence in the exposed types
             let mut occurs = false;
             for ty in &types {
-                if self.parameter_occurs(*ty, parameter)? {
+                if self.has_parameter_occurrence(*ty, parameter)? {
                     occurs = true;
 
                     break;
@@ -161,7 +161,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether one generic parameter occurs in one type graph.
-    pub(in crate::sema) fn parameter_occurs(
+    pub(in crate::sema) fn has_parameter_occurrence(
         &mut self,
         ty: dir::GlobalTypeId,
         parameter: dir::GlobalGenericParameterId,

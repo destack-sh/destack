@@ -58,7 +58,7 @@ impl BodyState<'_, '_> {
                 )
             }
             // error values already explain themselves
-            None if self.any_error_operand(&[ty])? => {
+            None if self.has_error_operand(&[ty])? => {
                 self.commit_pattern(node, dir::PatternDecision::Ignore)
             }
             // report every other pattern value

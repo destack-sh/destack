@@ -136,8 +136,8 @@ impl OperatorProtocol {
 }
 
 impl CheckState<'_> {
-    /// Return whether every overlapping operand pair supports strict equality.
-    pub(in crate::sema) fn supports_strict_equality(
+    /// Return whether every overlapping operand pair has strict equality.
+    pub(in crate::sema) fn has_strict_equality(
         &mut self,
         origin: Origin,
         left: dir::GlobalTypeId,
@@ -145,15 +145,15 @@ impl CheckState<'_> {
     ) -> CompilerResult<bool> {
         // prove the exact capability through the ordinary interface relation
         let target = self.language_type(dir::LanguageItem::StrictEqual, &[right])?;
-        if self.evaluate_relation(origin, Relation::Satisfies, left, target)? != Verdict::Fails {
+        if self.decide_relation(origin, Relation::Satisfies, left, target)? != Verdict::Fails {
             return Ok(true);
         }
 
-        self.supports_builtin_strict_equality(origin, left, right)
+        self.has_builtin_strict_equality(origin, left, right)
     }
 
     /// Return whether every overlapping operand pair has builtin strict equality.
-    pub(in crate::sema) fn supports_builtin_strict_equality(
+    pub(in crate::sema) fn has_builtin_strict_equality(
         &mut self,
         origin: Origin,
         left: dir::GlobalTypeId,
@@ -165,10 +165,10 @@ impl CheckState<'_> {
 
         // compare transparent newtypes through their backing representations
         if let Some(instance) = self.decompose_newtype(origin, left)? {
-            return self.supports_builtin_strict_equality(origin, instance.backing, right);
+            return self.has_builtin_strict_equality(origin, instance.backing, right);
         }
         if let Some(instance) = self.decompose_newtype(origin, right)? {
-            return self.supports_builtin_strict_equality(origin, left, instance.backing);
+            return self.has_builtin_strict_equality(origin, left, instance.backing);
         }
 
         // accept disjoint types, the caller reports their empty overlap
@@ -180,7 +180,7 @@ impl CheckState<'_> {
         if let dir::Type::Union(union) = self.ty(left)? {
             let elements = self.type_ids(left.module_id, union.elements)?.to_vec();
             for element in elements {
-                if !self.supports_builtin_strict_equality(origin, element, right)? {
+                if !self.has_builtin_strict_equality(origin, element, right)? {
                     return Ok(false);
                 }
             }
@@ -190,7 +190,7 @@ impl CheckState<'_> {
         if let dir::Type::Union(union) = self.ty(right)? {
             let elements = self.type_ids(right.module_id, union.elements)?.to_vec();
             for element in elements {
-                if !self.supports_builtin_strict_equality(origin, left, element)? {
+                if !self.has_builtin_strict_equality(origin, left, element)? {
                     return Ok(false);
                 }
             }

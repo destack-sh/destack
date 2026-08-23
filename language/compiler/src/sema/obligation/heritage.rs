@@ -142,7 +142,7 @@ impl CheckState<'_> {
             }
         }
 
-        // record the placement on every declaration except aliases and extensions
+        // commit the placement on every declaration except aliases and extensions
         if let Some((_, _, space)) = placement
             && !matches!(
                 self.definition(symbol)?,
@@ -245,7 +245,7 @@ impl CheckState<'_> {
             }
         }
 
-        // record validated override targets on their members
+        // commit validated override targets on their members
         if !selected_overrides.is_empty()
             && let Some(dir::Definition::Class(class)) = self.definition_mut(symbol)
         {

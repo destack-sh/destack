@@ -63,7 +63,7 @@ impl BodyState<'_, '_> {
                             .report_invalid_struct_accessor(property.into_global_any(module));
                     }
 
-                    // retain ordinary method shorthand and diagnosed accessors for checking
+                    // keep ordinary method shorthand and diagnosed accessors for checking
                     let Some(name) = name else {
                         continue;
                     };
@@ -103,15 +103,15 @@ impl BodyState<'_, '_> {
             None => SmallVec::new(),
         };
 
-        // record the fields accepted by this literal
+        // commit the fields this literal takes
         if let Some(target) = target {
             let key_type = self.intern_object(&target_fields)?;
-            let subject = dir::MemberSubject::new(target, target, dir::MemberSpace::Instance)
-                .with_scope(site.scope)
+            let subject = self
+                .member_subject(origin, target, target, dir::MemberSpace::Instance)?
                 .with_key_type(key_type);
             self.module_mut(module)
                 .members_tail
-                .record_subject(dir::MemberSite::Node(node.into_any()), subject);
+                .commit_subject(dir::MemberSite::Node(node.into_any()), subject);
         }
 
         // leave every field check to the construct's write obligation
@@ -193,7 +193,7 @@ impl BodyState<'_, '_> {
                     }
 
                     // poison the literal when its spread source already reported an error
-                    if self.any_error_operand(&[spread])? {
+                    if self.has_error_operand(&[spread])? {
                         let source = self.poison_node(node.into_any())?;
                         let target = target.unwrap_or(source);
 
@@ -221,7 +221,7 @@ impl BodyState<'_, '_> {
                         });
                     };
 
-                    self.record_spread_subject(site, property, spread, &spread_fields)?;
+                    self.commit_spread_subject(site, property, spread, &spread_fields)?;
                     for field in spread_fields {
                         fields.insert(field.key, field);
                     }
@@ -319,7 +319,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Vec<dir::TypeProperty>>> {
-        // require a settled spread source before merging its fields
+        // require a resolved spread source before merging its fields
         let ty = self.shallow_resolve(ty)?;
         if let Some(variable) = self.root_variable(ty)? {
             return Err(CompilerError::Internal {
@@ -339,7 +339,7 @@ impl BodyState<'_, '_> {
         match self.ty(current)? {
             // anonymous classes spread their fields directly
             dir::Type::Object(shape) => Ok(Some(
-                self.shape_properties(current.module_id, shape.properties)?
+                self.object_properties(current.module_id, shape.properties)?
                     .to_vec(),
             )),
             // instances spread their visible fields
@@ -355,7 +355,7 @@ impl BodyState<'_, '_> {
 
                     // read each member through the receiver instance
                     let subject =
-                        dir::MemberSubject::new(current, current, dir::MemberSpace::Instance);
+                        self.member_subject(origin, current, current, dir::MemberSpace::Instance)?;
                     let lookup = self.lookup_member(origin, module, subject, key)?;
                     let ty = self.member_read_type(&lookup)?;
                     if let Some(ty) = ty {

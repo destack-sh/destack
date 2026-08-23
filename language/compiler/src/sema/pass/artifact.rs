@@ -5,7 +5,7 @@ use destack_dir as dir;
 use destack_repository::ArtifactAttemptRecorder;
 use destack_source::ModuleId;
 
-use crate::sema::{Answer, Ask, CheckModuleState, CheckState, Relation, Verdict};
+use crate::sema::{Answer, CheckModuleState, CheckState, Goal, Relation, Verdict};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -85,7 +85,7 @@ impl CheckState<'_> {
         module: ModuleId,
     ) -> CompilerResult<DirElaborated> {
         // persist the implementation winners this pass decided
-        self.record_selected_implementations(module)?;
+        self.commit_selected_implementations(module)?;
 
         // mix the declared fingerprint so base changes reach this identity
         let inherited = self
@@ -149,16 +149,16 @@ impl CheckState<'_> {
         })
     }
 
-    /// Record the most general implementations this pass selected for its own owners.
-    fn record_selected_implementations(&mut self, module: ModuleId) -> CompilerResult<()> {
+    /// Commit the most general implementations this pass selected for its own owners.
+    fn commit_selected_implementations(&mut self, module: ModuleId) -> CompilerResult<()> {
         // collect every implementation goal this pass answered
         let goals: Vec<_> = self
             .answers
             .iter()
-            .filter_map(|(question, answer)| match (question.ask, answer) {
-                (Ask::Implementation(relation), Answer::Implement(response)) => Some((
+            .filter_map(|(goal, answer)| match (goal.goal, answer) {
+                (Goal::Implementation(relation), Answer::Implement(response)) => Some((
                     relation,
-                    question.operands,
+                    goal.operands,
                     response.value.verdict,
                     response.value.winner,
                 )),
@@ -173,7 +173,7 @@ impl CheckState<'_> {
             }
             let [source, target] = *self.type_ids(module, operands)? else {
                 return Err(CompilerError::Internal {
-                    message: "an implementation question lost its operand pair".to_string(),
+                    message: "an implementation goal lost its operand pair".to_string(),
                 });
             };
             let Some(owner) = self.concrete_owner(module, source)? else {
@@ -183,7 +183,7 @@ impl CheckState<'_> {
                 continue;
             };
 
-            // record the winner of the most general application, whose arguments all stay holes
+            // commit the winner of the most general application, whose arguments all stay holes
             let arguments = self.type_ids(target.module_id, instance.arguments)?;
             let mut is_general = true;
             for argument in arguments {

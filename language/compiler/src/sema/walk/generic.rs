@@ -136,19 +136,17 @@ impl WalkState<'_, '_> {
         declaration: InducedParameterOwner,
         ty: dir::GlobalTypeId,
     ) {
-        self.check
-            .induced_parameter_sites
-            .push(InducedParameterSite {
-                declaration: declaration.declaration,
-                ty,
-            });
+        self.check.induced_sites.push(InducedParameterSite {
+            declaration: declaration.declaration,
+            ty,
+        });
     }
 }
 
 impl CheckState<'_> {
     /// Propagate induced memory variables into declaration templates.
     pub(in crate::sema) fn induce_signature_lifetimes(&mut self) -> CompilerResult<()> {
-        let sites = std::mem::take(&mut self.induced_parameter_sites);
+        let sites = std::mem::take(&mut self.induced_sites);
 
         // collect induced parameters before mutating generic tables
         let mut parameters = FxIndexMap::default();

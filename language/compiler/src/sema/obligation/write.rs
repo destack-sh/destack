@@ -69,11 +69,11 @@ impl CheckState<'_> {
             }
         };
 
-        // record direct mutation below a binding without treating rebinding as interior mutation
+        // commit direct mutation below a binding without treating rebinding as interior mutation
         let mutates_direct_value = target.mode == WriteMode::Direct
             && !matches!(target.write, dir::WriteResolution::Binding { .. });
         if matches!(check, ObligationCheck::Holds) && mutates_direct_value {
-            self.record_access_use(target.source, dir::BindingUse::MUTATE);
+            self.commit_access_use(target.source, dir::BindingUse::MUTATE);
         }
 
         Ok(check)
@@ -147,7 +147,7 @@ impl CheckState<'_> {
         match target {
             // require a writable projection and a writable slot for a field write
             dir::MemberTarget::Field(field) => {
-                if self.body().receiver_projects_readonly(receiver)? {
+                if self.body().is_readonly_receiver_projection(receiver)? {
                     let failure = ObligationFailure::CannotAssignReadonlyMember {
                         source,
                         member: target.clone(),
@@ -177,7 +177,7 @@ impl CheckState<'_> {
             dir::MemberTarget::Call(_) => Ok(ObligationCheck::holds()),
             // require a writable projection and writable fields for an index write
             dir::MemberTarget::Index(index) => {
-                if self.body().receiver_projects_readonly(receiver)? {
+                if self.body().is_readonly_receiver_projection(receiver)? {
                     let failure = ObligationFailure::CannotAssignReadonlyMember {
                         source,
                         member: target.clone(),
@@ -239,11 +239,13 @@ impl CheckState<'_> {
 
         // require a value that overwrites atomically for a shared receiver
         let ty = self.normalize(origin, ty)?;
-        match self.satisfies_auto_interface(origin, ty, dir::AutoInterface::OverwriteStable)? {
+        match self.decide_auto_interface(origin, ty, dir::AutoInterface::OverwriteStable)? {
             Verdict::Holds => return Ok(ObligationCheck::holds()),
             // stall the obligation while an open variable leaves the rule undecided
             Verdict::Ambiguous => {
-                return Ok(ObligationCheck::Ambiguous(self.open_type_variables([ty])?));
+                return Ok(ObligationCheck::Ambiguous(
+                    self.collect_open_variables([ty])?,
+                ));
             }
             Verdict::Fails => {}
         }
@@ -356,7 +358,7 @@ impl CheckState<'_> {
         // read the mutability the owning aggregate declares for the key
         let is_readonly = match self.ty(owner)? {
             dir::Type::Object(shape) => self
-                .shape_properties(owner.module_id, shape.properties)?
+                .object_properties(owner.module_id, shape.properties)?
                 .iter()
                 .find(|property| property.key == key)
                 .map(|property| !property.access.is_writable()),
@@ -475,7 +477,7 @@ impl CheckState<'_> {
         }
 
         // require every field the key domain reaches to be writable
-        let properties = self.shape_properties(receiver.module_id, shape.properties)?;
+        let properties = self.object_properties(receiver.module_id, shape.properties)?;
         let mut is_readonly = false;
         for key in keys {
             let property = properties

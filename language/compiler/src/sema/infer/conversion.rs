@@ -2,9 +2,9 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Answer, Ask, BodyState, BorrowConversion, CandidateOutcome, CauseId, Check, CheckFailure,
-    CheckOutcome, CheckState, ConversionCheck, Expectation, FlowSite, InferMode, Origin, Relation,
-    Value, ValueConversion, ValueUse, Verdict,
+    Answer, BodyState, BorrowConversion, CandidateOutcome, CauseId, Check, CheckFailure,
+    CheckOutcome, CheckState, ConversionCheck, Expectation, FlowSite, Goal, InferMode, Origin,
+    Relation, Value, ValueConversion, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -122,8 +122,8 @@ impl BodyState<'_, '_> {
         }
     }
 
-    /// Record the access one borrowed value's reborrow demands of the place it lends from.
-    fn record_reborrow_access(
+    /// Commit the access one borrowed value's reborrow requires of the place it lends from.
+    fn commit_reborrow_access(
         &mut self,
         origin: Origin,
         source: Value,
@@ -142,7 +142,7 @@ impl BodyState<'_, '_> {
         };
         let access = self.type_borrow(target.module_id, borrow)?.access;
         if let Some(requested) = self.access_literal(origin, access)? {
-            self.record_required_access(node, requested, true);
+            self.commit_required_access(node, requested, true);
         }
 
         Ok(())
@@ -177,18 +177,17 @@ impl BodyState<'_, '_> {
             if verdict == Verdict::Ambiguous {
                 source.ty = self.shallow_resolve(source.ty)?;
                 target = self.shallow_resolve(target)?;
-                self.check
-                    .register_check(Check::Conversion(ConversionCheck {
-                        site,
-                        source: written,
-                        expectation: Expectation {
-                            cause,
-                            relation,
-                            target,
-                            use_,
-                            mode,
-                        },
-                    }))?;
+                self.check.queue_check(Check::Conversion(ConversionCheck {
+                    site,
+                    source: written,
+                    expectation: Expectation {
+                        cause,
+                        relation,
+                        target,
+                        use_,
+                        mode,
+                    },
+                }))?;
 
                 return Ok(ValueConversion {
                     source: source.ty,
@@ -206,18 +205,17 @@ impl BodyState<'_, '_> {
                 variables = self.type_variables(source.ty)?;
                 variables.extend(self.type_variables(target)?);
                 if !variables.is_empty() {
-                    self.check
-                        .register_check(Check::Conversion(ConversionCheck {
-                            site,
-                            source: written,
-                            expectation: Expectation {
-                                cause,
-                                relation,
-                                target,
-                                use_,
-                                mode,
-                            },
-                        }))?;
+                    self.check.queue_check(Check::Conversion(ConversionCheck {
+                        site,
+                        source: written,
+                        expectation: Expectation {
+                            cause,
+                            relation,
+                            target,
+                            use_,
+                            mode,
+                        },
+                    }))?;
 
                     return Ok(ValueConversion {
                         source: source.ty,
@@ -372,7 +370,7 @@ impl BodyState<'_, '_> {
             let payload = source_chain.base();
             if !self.type_is_aliased(origin, payload)?
                 && self
-                    .satisfies_auto_interface(origin, payload, dir::AutoInterface::Copy)?
+                    .decide_auto_interface(origin, payload, dir::AutoInterface::Copy)?
                     .holds()
             {
                 return self.constrain_type(origin, cause, relation, payload, target);
@@ -381,7 +379,7 @@ impl BodyState<'_, '_> {
 
         // record the access a reborrow into a borrowed destination demands
         if source_borrowed && target_borrowed {
-            self.record_reborrow_access(origin, source, target)?;
+            self.commit_reborrow_access(origin, source, target)?;
         }
 
         // consuming positions transfer owned values into managed storage
@@ -467,7 +465,7 @@ impl BodyState<'_, '_> {
             && let Some(requested) = self.access_literal(origin, borrow.access)?
         {
             let is_aliased = self.type_is_aliased(origin, source.ty)?;
-            self.record_required_access(node, requested, is_aliased);
+            self.commit_required_access(node, requested, is_aliased);
         }
 
         // lend the borrow itself on a handle acquisition, its payload on a reborrow
@@ -508,11 +506,11 @@ impl BodyState<'_, '_> {
             )))?;
             match self.relate_access_assignable(origin, readonly, borrow.access)? {
                 Verdict::Holds => {}
-                Verdict::Fails => self.record_access_use(node, dir::BindingUse::MUTATE),
+                Verdict::Fails => self.commit_access_use(node, dir::BindingUse::MUTATE),
                 Verdict::Ambiguous => {
                     return Err(CompilerError::Internal {
                         message: format!(
-                            "settled borrow at {} has undecided access requirements",
+                            "resolved borrow at {} has undecided access requirements",
                             self.node_label(node)
                         ),
                     });
@@ -523,7 +521,7 @@ impl BodyState<'_, '_> {
         Ok(verdict)
     }
 
-    /// Convert one value whose inference variables have settled.
+    /// Convert one value whose inference variables have resolved.
     fn convert_closed_value(
         &mut self,
         site: FlowSite,
@@ -611,7 +609,7 @@ impl BodyState<'_, '_> {
             });
         }
 
-        // stored positions convert into the settled written target
+        // stored positions convert into the resolved written target
         let target = match use_.requires_storage() {
             true => self.deeply_resolve(origin, target)?,
             false => target,
@@ -619,10 +617,10 @@ impl BodyState<'_, '_> {
 
         // skip adjustment for identical and unreachable values, recording the reborrow access
         if self
-            .evaluate_relation(origin, Relation::Equal, source.ty, target)?
+            .decide_relation(origin, Relation::Equal, source.ty, target)?
             .holds()
         {
-            self.record_reborrow_access(origin, source, target)?;
+            self.commit_reborrow_access(origin, source, target)?;
             return Ok(Ok(None));
         }
         let source_value = self.strip_form(origin, source.ty)?;
@@ -771,7 +769,7 @@ impl BodyState<'_, '_> {
             return Ok(Some(cases));
         }
 
-        // rigid parameters convert case by case over their settled domain
+        // rigid parameters convert case by case over their resolved domain
         let source_value = self.strip_form(origin, source)?;
         let dir::Type::Parameter(parameter) = self.ty(source_value)? else {
             return Ok(None);
@@ -797,29 +795,32 @@ impl BodyState<'_, '_> {
         targets: &[dir::GlobalTypeId],
         use_: ValueUse,
     ) -> CompilerResult<Result<(dir::GlobalTypeId, Option<Box<dir::Coercion>>), CheckFailure>> {
-        // replay the arm a settled source already selected for this union
+        // reuse the arm a resolved source already selected for this union
         let mut arm_key = None;
         let mut operands = SmallVec::<[dir::GlobalTypeId; 8]>::new();
         operands.push(source.ty);
         operands.extend_from_slice(targets);
-        let subject = Ask::Arm {
+        let subject = Goal::Arm {
             value_use: use_,
             is_placed: source.place.is_some(),
         };
-        if let Some((key, _)) = self.check.ask(origin, subject, &operands, false)? {
-            // replay the recorded answer, which selects by target position
+        if let Some((key, _)) = self
+            .check
+            .canonicalize_goal(origin, subject, &operands, false)?
+        {
+            // reuse the recorded answer, which selects by target position
             match self.check.answers.get(&key) {
-                // replay an exact case at its declared identity
+                // reuse an exact case at its declared identity
                 Some(Answer::Arm(Ok((arm, true)))) => {
                     return Ok(Ok((targets[*arm as usize], None)));
                 }
-                // replay a converted case through its recorded arm
+                // reuse a converted case through its recorded arm
                 Some(Answer::Arm(Ok((arm, false)))) => {
                     let target = targets[*arm as usize];
 
                     return self.confirm_union_case(site, origin, cause, source, target, use_);
                 }
-                // replay the recorded failure
+                // reuse the recorded failure
                 Some(Answer::Arm(Err(failure))) => return Ok(Err(*failure)),
                 // record the arm this selection settles on
                 _ => arm_key = Some(key),
@@ -829,10 +830,10 @@ impl BodyState<'_, '_> {
         // exact cases preserve their declared identity
         for (arm, target) in targets.iter().copied().enumerate() {
             if self
-                .evaluate_relation(origin, Relation::Equal, source.ty, target)?
+                .decide_relation(origin, Relation::Equal, source.ty, target)?
                 .holds()
             {
-                // settle the arm as an exact case
+                // answer the arm as an exact case
                 if let Some(key) = arm_key {
                     self.check
                         .answers
@@ -863,7 +864,7 @@ impl BodyState<'_, '_> {
                 selected = Some((arm, target));
             }
         }
-        // settle the arm as a failure when every case rejects the source
+        // answer the arm as a failure when every case rejects the source
         let Some((arm, target)) = selected else {
             if let Some(key) = arm_key {
                 self.check
@@ -874,7 +875,7 @@ impl BodyState<'_, '_> {
             return Ok(Err(CheckFailure::Relation));
         };
 
-        // settle the arm as a converted case
+        // answer the arm as a converted case
         if let Some(key) = arm_key {
             self.check
                 .answers
@@ -931,11 +932,11 @@ impl BodyState<'_, '_> {
             return Ok(Err(failure));
         }
 
-        // record the settled result of a target reaching a deferred operation
+        // record the resolved result of a target reaching a deferred operation
         let resolved_target = self.shallow_resolve(target)?;
         let target_reaches_computation = match self.ty(resolved_target)? {
             dir::Type::Operation(_) => true,
-            dir::Type::Application(instance) => self.alias_computes(instance.symbol)?,
+            dir::Type::Application(instance) => self.is_computed_alias(instance.symbol)?,
             _ => false,
         };
         let recorded_target = if target_reaches_computation {
@@ -947,7 +948,7 @@ impl BodyState<'_, '_> {
         // record no adjustment for a dynamic read at exactly its declared constraint
         if let dir::Type::Dynamic(dynamic) = self.ty(self.shallow_resolve(source.ty)?)?
             && self
-                .evaluate_relation(origin, Relation::Equal, dynamic.constraint, recorded_target)?
+                .decide_relation(origin, Relation::Equal, dynamic.constraint, recorded_target)?
                 .holds()
         {
             return Ok(Ok(None));

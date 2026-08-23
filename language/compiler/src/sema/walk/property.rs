@@ -144,7 +144,7 @@ impl WalkState<'_, '_> {
                     tracked,
                 )?;
                 if let Some(symbol) = symbol {
-                    self.bind_symbol_type(symbol, method)?;
+                    self.commit_symbol_type(symbol, method)?;
                 }
 
                 // walk method body after its result exists
@@ -224,7 +224,7 @@ impl WalkState<'_, '_> {
                     let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                     let induction = InducedParameterOwner::new(source, parent, Some(symbol));
                     self.push_induced_parameter_site(induction, value);
-                    self.bind_symbol_type(symbol, value)?;
+                    self.commit_symbol_type(symbol, value)?;
                 }
 
                 let Some(symbol) = symbol else {
@@ -279,7 +279,7 @@ impl WalkState<'_, '_> {
                 let field_type = match declared_type {
                     // take the written annotation
                     Some(declared_type) => Some(self.walk_type_expression(declared_type)?),
-                    // settle the reported field on the error type
+                    // take the error type for the reported field
                     None if is_uninferable => Some(self.intern_type(dir::Type::Error)?),
                     // infer the field from its default through the binding slot
                     None => symbol
@@ -292,11 +292,11 @@ impl WalkState<'_, '_> {
                     if let Some(induction) = induced_owner {
                         self.push_induced_parameter_site(induction, field_type);
                     }
-                    self.bind_symbol_type(symbol, field_type)?;
+                    self.commit_symbol_type(symbol, field_type)?;
                 }
 
-                // validate annotated defaults while checking, unannotated ones settle the type
-                let checks_default = declared_type.is_none() || !self.check.is_declaration();
+                // validate annotated defaults while checking, unannotated ones supply the type
+                let checks_default = declared_type.is_none() || !self.check.is_declaring();
                 if checks_default && let (Some(field_type), Some(default)) = (field_type, default) {
                     let before_default = self.fork_flow();
                     self.walk_expression(default, self.tree.get(default))?;
@@ -419,7 +419,7 @@ impl WalkState<'_, '_> {
                 self.push_induced_parameter_site(induction, method);
 
                 // write the method symbol type
-                self.bind_symbol_type(symbol, method)?;
+                self.commit_symbol_type(symbol, method)?;
 
                 Ok(Some(dir::DefinitionMember::Method(dir::MethodDefinition {
                     space: if *is_static {
@@ -629,7 +629,7 @@ impl WalkState<'_, '_> {
                         message: format!("type field member {id:?} has no declaration symbol"),
                     });
                 };
-                self.bind_symbol_type(symbol, field_type)?;
+                self.commit_symbol_type(symbol, field_type)?;
 
                 let key = name.into();
 
@@ -698,7 +698,7 @@ impl WalkState<'_, '_> {
                 self.push_induced_parameter_site(induction, method);
 
                 // write the method symbol type
-                self.bind_symbol_type(symbol, method)?;
+                self.commit_symbol_type(symbol, method)?;
 
                 // walk default method bodies
                 if let (Some(body), Some(result)) = (body, result) {
@@ -798,7 +798,7 @@ impl WalkState<'_, '_> {
 
                 // write the member symbol type
                 if let (Some(value), Some(symbol)) = (value, symbol) {
-                    self.bind_symbol_type(symbol, value)?;
+                    self.commit_symbol_type(symbol, value)?;
                 }
 
                 let Some(symbol) = symbol else {
@@ -864,7 +864,7 @@ impl WalkState<'_, '_> {
                 message: format!("associated constant {id:?} has no declaration symbol"),
             });
         };
-        self.bind_symbol_type(symbol, ty)?;
+        self.commit_symbol_type(symbol, ty)?;
 
         // check annotated values and retain every written value
         if let Some(written) = written {

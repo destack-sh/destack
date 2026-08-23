@@ -3,7 +3,7 @@ use destack_source::{ModuleId, Span};
 
 use crate::sema::{CheckId, CheckState, ExpectedType, Origin, Relation, TypeBound};
 
-/// Rendering context for check trace values.
+/// Formatting context for check trace values.
 pub(in crate::sema) struct DumpContext<'a, 'b> {
     /// The check state that owns tables referenced by trace ids.
     pub(in crate::sema) check: &'a CheckState<'b>,

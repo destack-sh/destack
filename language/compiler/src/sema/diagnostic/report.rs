@@ -307,20 +307,20 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
-    /// Report an unresolved reference at one source node.
-    pub(in crate::sema) fn reject_unresolved_reference(
+    /// Report an unresolved reference at one source node, storing its failed path.
+    pub(in crate::sema) fn report_unresolved_reference(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
         path: &dir::Path,
     ) {
-        // retain the failed path so quickfixes can plan imports
+        // keep the failed path so quickfixes can plan imports
         let node = source.into_global(module);
         self.module_mut(module)
             .resolutions
             .set_unresolved_reference(node, path.clone());
 
-        self.report_unresolved_reference(module, source, path);
+        self.emit_unresolved_reference(module, source, path);
     }
 
     /// Report one argument leaving a value-consumed parameter unfixed.
@@ -384,8 +384,8 @@ impl CheckState<'_> {
             .unwrap_or_else(|| "the parameter".to_string())
     }
 
-    /// Report one path naming no visible declaration, suggesting the closest name in scope.
-    fn report_unresolved_reference(
+    /// Emit one path naming no visible declaration, suggesting the closest name in scope.
+    fn emit_unresolved_reference(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
@@ -1063,8 +1063,8 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Describe why one candidate signature rejected an invocation.
-    pub(in crate::sema) fn describe_signature_rejection(
+    /// Format why one candidate signature refused an invocation.
+    pub(in crate::sema) fn format_signature_rejection(
         &self,
         module: ModuleId,
         candidate: dir::GlobalTypeId,
@@ -1299,7 +1299,7 @@ impl CheckState<'_> {
                 failure,
                 ..
             } => {
-                self.record_failure(FailedCheck {
+                self.push_failure(FailedCheck {
                     cause,
                     relation,
                     use_,
@@ -1834,7 +1834,7 @@ impl CheckState<'_> {
         } = *check;
 
         // skip reporting once source or target already reported an error
-        if self.any_error_operand(&[source, target])? {
+        if self.has_error_operand(&[source, target])? {
             return Ok(false);
         }
 
@@ -1964,7 +1964,7 @@ impl CheckState<'_> {
         };
 
         // explain the cause chain and report the failure once
-        let diagnostic = self.explain_cause(diagnostic, cause, &anchor, blame.as_ref())?;
+        let diagnostic = self.format_cause(diagnostic, cause, &anchor, blame.as_ref())?;
         self.report(module, diagnostic);
 
         Ok(true)

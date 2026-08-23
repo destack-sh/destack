@@ -84,7 +84,7 @@ impl BodyState<'_, '_> {
         // open one element variable and relate every element into it
         else {
             let origin = site.origin();
-            let variable = self.allocate_variable(origin, VariableRole::Regular);
+            let variable = self.open_variable(origin, VariableRole::Regular);
             let element = self.variable_type(variable)?;
 
             for (source, value) in &values {
@@ -534,7 +534,7 @@ impl BodyState<'_, '_> {
         ) {
             return Ok(None);
         }
-        let variable = self.allocate_variable(origin, VariableRole::Regular);
+        let variable = self.open_variable(origin, VariableRole::Regular);
         let element = self.variable_type(variable)?;
         let array = self.array_type(element)?;
         if self.constrain_type(origin, cause, Relation::Assignable, array, target)?

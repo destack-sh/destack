@@ -364,10 +364,10 @@ impl Compiler {
         context.emit_counter("solve.bounds", stats.bounds as u64);
         context.emit_counter("solve.decisions", stats.decisions as u64);
         let counters = check.counters;
-        context.emit_counter("check.judges", counters.judges);
-        context.emit_counter("check.judge_replays", counters.judge_replays);
+        context.emit_counter("check.relation_decisions", counters.relation_decisions);
+        context.emit_counter("check.relation_reuses", counters.relation_reuses);
         context.emit_counter("check.binding_derivations", counters.binding_derivations);
-        context.emit_counter("check.binding_replays", counters.binding_replays);
+        context.emit_counter("check.binding_reuses", counters.binding_reuses);
         context.emit_counter("check.probes", counters.probes);
         context.emit_counter("check.selection_probes", counters.selection_probes);
         context.emit_counter("check.extension_probes", counters.extension_probes);
@@ -375,12 +375,12 @@ impl Compiler {
         context.emit_counter("check.reduces", counters.reduces);
         context.emit_counter("check.instantiations", counters.instantiations);
         context.emit_counter("check.member_derivations", counters.member_derivations);
-        context.emit_counter("check.member_replays", counters.member_replays);
+        context.emit_counter("check.member_reuses", counters.member_reuses);
         context.emit_counter("check.member_refusals", counters.member_refusals);
 
         // emit the stats sidecar when the options ask for it
         if options.emit_stats {
-            let content = stats.render_metadata(counters);
+            let content = stats.format_metadata(counters);
             context.emit_sidecar(self.put_sidecar(
                 "metadata",
                 iter::once(("phase", "check")),

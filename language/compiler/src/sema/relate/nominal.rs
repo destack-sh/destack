@@ -89,7 +89,7 @@ impl CheckState<'_> {
                 .and_then(dir::AutoInterface::from_language_item)
                 .filter(|interface| interface.has_builtin_implementation())
             {
-                return self.satisfies_auto_interface(origin, source, interface);
+                return self.decide_auto_interface(origin, source, interface);
             }
 
             // applied interface targets select implementations
@@ -274,7 +274,7 @@ impl CheckState<'_> {
         let has_target_definition = self.definition(target_instance.symbol)?.is_some();
         let has_source_definition = self.definition(source_instance.symbol)?.is_some();
         if !has_target_definition || !has_source_definition {
-            if self.is_declaration() {
+            if self.is_declaring() {
                 return Ok(Verdict::Holds);
             }
 
@@ -375,7 +375,7 @@ impl CheckState<'_> {
         // read the written fields of the structural source
         let source_fields = match self.ty(source)? {
             dir::Type::Object(shape) => self
-                .shape_properties(source.module_id, shape.properties)?
+                .object_properties(source.module_id, shape.properties)?
                 .iter()
                 .map(|field| field.key)
                 .collect::<SmallVec<[_; 8]>>(),
@@ -415,7 +415,7 @@ impl CheckState<'_> {
         // read the written fields of the structural source
         let source_fields = match self.ty(source)? {
             dir::Type::Object(shape) => self
-                .shape_properties(source.module_id, shape.properties)?
+                .object_properties(source.module_id, shape.properties)?
                 .iter()
                 .map(|field| field.key)
                 .collect::<SmallVec<[_; 8]>>(),
@@ -679,12 +679,12 @@ impl CheckState<'_> {
         // require each target field from the source fields
         let (fields, index_signatures) = match self.ty(target)? {
             dir::Type::Object(shape) => (
-                self.shape_properties(target.module_id, shape.properties)?
+                self.object_properties(target.module_id, shape.properties)?
                     .iter()
                     .map(|field| (field.key, field.access.store(), field.is_optional))
                     .collect::<SmallVec<[_; 4]>>(),
                 SmallVec::<[_; 4]>::from(
-                    self.shape_index_signatures(target.module_id, shape.index_signatures)?,
+                    self.object_index_signatures(target.module_id, shape.index_signatures)?,
                 ),
             ),
             _ => return Ok(Verdict::Fails),
@@ -695,7 +695,9 @@ impl CheckState<'_> {
         // look each target key up on the source and relate what it finds
         let mut verdict = Verdict::Holds;
         for (key, field_type, is_optional) in fields {
-            let subject = dir::MemberSubject::new(source, source, dir::MemberSpace::Instance);
+            let subject =
+                self.body()
+                    .member_subject(origin, source, source, dir::MemberSpace::Instance)?;
             let lookup = self.body().lookup_member(origin, module, subject, key)?;
             let member = self.body().member_read_type(&lookup)?;
 
@@ -810,7 +812,7 @@ impl CheckState<'_> {
         closure: &mut HeritageClosure,
     ) -> CompilerResult<()> {
         // read the declaration this application instantiates, staying symbolic while declaring
-        let declaring = self.is_declaration();
+        let declaring = self.is_declaring();
         let definition = match self.definition(instance.symbol)? {
             Some(definition) => definition,
             None if declaring => return Ok(()),

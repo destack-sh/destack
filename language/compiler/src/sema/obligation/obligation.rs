@@ -49,17 +49,17 @@ pub(in crate::sema) enum Obligation {
     RangeElement(RangeElementObligation),
 }
 
-/// When one obligation may judge.
+/// When one obligation decides.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::sema) enum ObligationPhase {
     /// Solves control-flow holes as soon as its node checks.
     Produce,
-    /// Judges finished bodies at the final round, like borrowck.
-    Judge,
+    /// Decides remaining obligations at the final round, like borrowck.
+    Final,
 }
 
 impl Obligation {
-    /// Return when this obligation may judge.
+    /// Return when this obligation decides.
     pub(in crate::sema) fn phase(&self) -> ObligationPhase {
         match self {
             Self::PatternCoverage(_)
@@ -67,7 +67,7 @@ impl Obligation {
             | Self::ForInSource(_)
             | Self::RangeElement(_) => ObligationPhase::Produce,
             Self::WritableTarget(_) | Self::FieldInitialization(_) | Self::WellFormedType(_) => {
-                ObligationPhase::Judge
+                ObligationPhase::Final
             }
         }
     }
@@ -85,7 +85,7 @@ impl Obligation {
         }
     }
 
-    /// Return the judged operand types stored on this obligation.
+    /// Return the checked operand types stored on this obligation.
     pub(in crate::sema) fn operand_types(&self) -> SmallVec<[dir::GlobalTypeId; 2]> {
         match self {
             Self::PatternCoverage(obligation) => match obligation.value {
@@ -274,7 +274,7 @@ pub(in crate::sema) enum ObligationFailure {
     },
     /// Shared storage contains a safe reference into local storage.
     LocalReferenceInSharedStorage {
-        /// The stored type or field retaining the local reference.
+        /// The stored type or field keeping the local reference.
         source: dir::GlobalNodeIdAny,
     },
     /// A type does not satisfy a compiler-known interface.
@@ -671,7 +671,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<CheckId> {
         let entry = ObligationEntry { obligation, scope };
 
-        self.register_check(Check::Declared(entry))
+        self.queue_check(Check::Declared(entry))
     }
 
     /// Check one obligation once, returning its failures.
@@ -692,7 +692,7 @@ impl CheckState<'_> {
         for failure in check.into_failures() {
             self.report_obligation_failure(failure)?;
         }
-        self.record_event(CheckEvent::Checked {
+        self.push_event(CheckEvent::Checked {
             check: id,
             is_finished: true,
         });
@@ -707,7 +707,7 @@ impl CheckState<'_> {
         obligation: &Obligation,
     ) -> CompilerResult<ObligationCheck> {
         // hold without checking once an operand already reported an error
-        if self.any_error_operand(&obligation.operand_types())? {
+        if self.has_error_operand(&obligation.operand_types())? {
             return Ok(ObligationCheck::holds());
         }
 
@@ -775,8 +775,8 @@ impl CheckState<'_> {
         &mut self,
         obligation: &RangeElementObligation,
     ) -> CompilerResult<ObligationCheck> {
-        // judge the element once inference solves every endpoint
-        let stalls = self.open_type_variables([obligation.element])?;
+        // decide the element once inference solves every endpoint
+        let stalls = self.collect_open_variables([obligation.element])?;
         if !stalls.is_empty() {
             return Ok(ObligationCheck::Ambiguous(stalls));
         }

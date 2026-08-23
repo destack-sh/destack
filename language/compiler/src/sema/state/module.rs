@@ -13,8 +13,8 @@ use destack_source::{ModuleId, Span};
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Capture, Cause, CauseKind, CheckError, CheckState, CheckWarning, FlowPoint, FlowPointId,
-    FlowSite, Origin, Relation, RelationCheck, StaticPresence, VariableRole, Wake,
+    Capture, Cause, CauseKind, CheckError, CheckEvent, CheckState, CheckWarning, FlowPoint,
+    FlowPointId, FlowSite, Origin, Relation, RelationCheck, StaticPresence, VariableRole, Wake,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -755,7 +755,7 @@ impl CheckState<'_> {
                 // equate a solved hole with its re-derivation through the solver
                 if let Some(origin) = self.node_origin_maybe(node) {
                     let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                    self.register_relation(RelationCheck::new(
+                    self.queue_relation(RelationCheck::new(
                         origin,
                         Relation::Equal,
                         ty,
@@ -782,7 +782,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Commit the error type for one rejected source node.
+    /// Commit the error type for one refused source node.
     pub(in crate::sema) fn commit_error_node(
         &mut self,
         node: dir::GlobalNodeIdAny,
@@ -797,12 +797,12 @@ impl CheckState<'_> {
         Ok(ty)
     }
 
-    /// Enter one source node at the live cursor, recording its flow site.
+    /// Enter one source node at the live cursor, storing its flow site.
     pub(in crate::sema) fn visit_site(
         &mut self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<FlowSite> {
-        // reuse a site the walk already recorded for this node
+        // reuse a site the walk already stored for this node
         if let Some(flow) = self.module(node.module_id).node_flows.get(&node).copied() {
             let scope = self
                 .module(node.module_id)
@@ -823,7 +823,7 @@ impl CheckState<'_> {
         Ok(FlowSite { node, flow, scope })
     }
 
-    /// Return the recorded flow site of one visited node.
+    /// Return the stored flow site of one visited node.
     pub(in crate::sema) fn node_site(
         &self,
         node: dir::GlobalNodeIdAny,
@@ -947,7 +947,7 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        // solve closed types; open types settle through their own inference
+        // solve closed types; open types resolve through their own inference
         if self.type_variables(ty)?.is_empty() {
             self.commit_solution(variable, ty)?;
         }
@@ -955,8 +955,8 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Bind one symbol to an exact checked type.
-    pub(in crate::sema) fn bind_symbol_type(
+    /// Commit one symbol's exact checked type into the table its kind owns.
+    pub(in crate::sema) fn commit_symbol_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
@@ -1037,7 +1037,7 @@ impl CheckState<'_> {
             return Ok(ty);
         }
 
-        // external tables are settled, so an absent type is always a failure
+        // external tables are committed, so an absent type is always a failure
         if !self.is_own_module(symbol.module_id) {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -1062,8 +1062,7 @@ impl CheckState<'_> {
             return *variable;
         }
 
-        let variable =
-            self.allocate_variable(Origin::Symbol(symbol), VariableRole::Symbol { symbol });
+        let variable = self.open_variable(Origin::Symbol(symbol), VariableRole::Symbol { symbol });
         self.infer.symbol_variables.insert(symbol, variable);
 
         variable
@@ -1084,7 +1083,7 @@ impl CheckState<'_> {
             && self.declaration_type_maybe(symbol).is_none()
             && !self.symbol_kind(symbol)?.is_type_definition()
         {
-            self.bind_symbol_type(symbol, ty)?;
+            self.commit_symbol_type(symbol, ty)?;
         }
 
         Ok(Some(ty))
@@ -1141,7 +1140,7 @@ impl CheckState<'_> {
             }
             dir::DefinitionMember::AssociatedType(associated) => associated.value.is_some(),
             dir::DefinitionMember::AssociatedConst(associated) => {
-                self.symbol_has_static_value(associated.symbol)
+                self.has_static_value(associated.symbol)
             }
             dir::DefinitionMember::Field(_)
             | dir::DefinitionMember::EnumVariant(_)
@@ -1152,7 +1151,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether one symbol has an inferred or written static value.
-    fn symbol_has_static_value(&self, symbol: dir::GlobalSymbolId) -> bool {
+    fn has_static_value(&self, symbol: dir::GlobalSymbolId) -> bool {
         let has_inferred_value = self
             .module_maybe(symbol.module_id)
             .is_some_and(|module| module.static_values.contains_key(&symbol));
@@ -1161,7 +1160,7 @@ impl CheckState<'_> {
         has_inferred_value || has_static_id
     }
 
-    /// Return one symbol's settled static id, if declared.
+    /// Return one symbol's committed static id, if declared.
     pub(in crate::sema) fn symbol_static_id(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -1190,7 +1189,7 @@ impl CheckState<'_> {
             return Some(value);
         }
 
-        // read own settled terms through the static table stack
+        // read own committed terms through the static table stack
         if let Some(module) = self.module_maybe(symbol.module_id) {
             let table = module.statics.with_tail(&module.statics_tail);
             let id = table.get_symbol_static_id(symbol)?;
@@ -1199,7 +1198,7 @@ impl CheckState<'_> {
             return self.static_singleton(id, &term);
         }
 
-        // read foreign settled terms through the loaded external tables
+        // read foreign committed terms through the loaded external tables
         let external = self.external_modules.get(&symbol.module_id)?;
         let id = external.statics.get_symbol_static_id(symbol)?;
         let term = external.statics.get_static_maybe(id.local_id)?.clone();
@@ -1224,7 +1223,7 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return the singleton type of one settled static term.
+    /// Return the singleton type of one committed static term.
     fn static_term_type(&mut self, term: &dir::StaticTerm) -> Option<dir::GlobalTypeId> {
         match term {
             dir::StaticTerm::Type { ty } => Some(*ty),
@@ -1322,14 +1321,6 @@ impl CheckState<'_> {
         )
     }
 
-    /// Return one symbol's kind when its declaring module is readable.
-    pub(in crate::sema) fn symbol_kind_maybe(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<dir::SymbolKind>> {
-        Ok(Some(self.symbol_kind(symbol)?))
-    }
-
     /// Return the declaration kind for one symbol.
     pub(in crate::sema) fn symbol_kind(
         &mut self,
@@ -1390,5 +1381,103 @@ impl CheckState<'_> {
         }
 
         Ok(())
+    }
+}
+
+impl CheckState<'_> {
+    /// Commit one node decision into its module's decision segment.
+    pub(in crate::sema) fn commit_decision(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        resolution: dir::Decision,
+    ) -> CompilerResult<()> {
+        let uses = resolution.binding_uses();
+
+        // refuse refinements that would invalidate already committed uses
+        if let Some(previous) = self.module(node.module_id).decisions.decision(node) {
+            let previous_uses = previous.binding_uses();
+            if !previous_uses.is_empty() && previous_uses != uses {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "check node {} refined its selected declaration uses: previous = {previous_uses:?}, new = {uses:?}",
+                        self.node_label(node),
+                    ),
+                });
+            }
+        }
+
+        // write the selected declaration uses
+        for (symbol, binding_use) in uses {
+            self.module_mut(node.module_id).flows.commit_binding_use(
+                node.local_id,
+                symbol,
+                binding_use,
+            );
+        }
+
+        // later derivations refine the same targets, the last committed payload stays
+        self.module_mut(node.module_id)
+            .decisions
+            .set_decision(node, resolution);
+        self.push_event(CheckEvent::NodeDecided { node });
+
+        Ok(())
+    }
+
+    /// Commit one node's lexical name into its module's resolution segment.
+    pub(in crate::sema) fn commit_name(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        resolution: dir::NameResolution,
+    ) -> CompilerResult<()> {
+        // write one unambiguous lexical reference
+        if let Some(symbol) = resolution.single_symbol() {
+            self.module_mut(node.module_id).flows.commit_binding_use(
+                node.local_id,
+                symbol,
+                dir::BindingUse::READ,
+            );
+        }
+
+        self.module_mut(node.module_id)
+            .resolutions
+            .set_name_resolution(node, resolution);
+        self.push_event(CheckEvent::NodeDecided { node });
+
+        Ok(())
+    }
+
+    /// Return one node's committed lexical name.
+    pub(in crate::sema) fn name_decision(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> Option<&dir::NameResolution> {
+        self.module(node.module_id)
+            .resolutions
+            .name_resolution(node)
+    }
+
+    /// Poison one node whose operand already reported an error.
+    pub(in crate::sema) fn poison_node(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.commit_decision(node, dir::Decision::Poisoned)?;
+        self.commit_error_node(node)
+    }
+
+    /// Return one node's committed resolution.
+    pub(in crate::sema) fn decision(&self, node: dir::GlobalNodeIdAny) -> Option<&dir::Decision> {
+        self.module(node.module_id).decisions.decision(node)
+    }
+
+    /// Return one module's committed resolutions.
+    pub(in crate::sema) fn resolutions(&self, module: ModuleId) -> &dir::ResolutionSegment {
+        &self.module(module).resolutions
+    }
+
+    /// Return one module's committed decisions.
+    pub(in crate::sema) fn decisions(&self, module: ModuleId) -> &dir::DecisionSegment {
+        &self.module(module).decisions
     }
 }

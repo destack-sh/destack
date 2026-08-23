@@ -108,7 +108,7 @@ impl CheckState<'_> {
                     message: format!("definition {symbol:?} cannot implement interfaces"),
                 })?;
 
-        // require the declaration to retain the queued implementation count
+        // require the declaration to keep the queued implementation count
         if conformances.len() != member_selections.len() {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -188,12 +188,12 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         auto_interface: dir::AutoInterface,
     ) -> CompilerResult<ConformanceSelection> {
-        match self.satisfies_intrinsic_interface(origin, target, interface, auto_interface)? {
+        match self.decide_intrinsic_interface(origin, target, interface, auto_interface)? {
             Verdict::Holds => Ok(ConformanceSelection::Selected(Vec::new())),
             Verdict::Fails => Ok(ConformanceSelection::Missing),
             // leave the conformance undecided while its variables stay open
             Verdict::Ambiguous => Ok(ConformanceSelection::Undecided(
-                self.open_type_variables([target, interface])?,
+                self.collect_open_variables([target, interface])?,
             )),
         }
     }
@@ -220,7 +220,7 @@ impl CheckState<'_> {
             return Ok(ConformanceSelection::Missing);
         };
 
-        // read the members, signatures, and inherited interfaces it demands
+        // read the members, signatures, and inherited interfaces it requires
         let mut requirements = self.interface_requirements(interface, target)?;
 
         // project interface-owner members through this implementation's refinements
@@ -276,7 +276,7 @@ impl CheckState<'_> {
                     self.inherent_member_candidates(origin, target, requirement)?
                 else {
                     return Ok(ConformanceSelection::Undecided(
-                        self.open_type_variables([target, interface])?,
+                        self.collect_open_variables([target, interface])?,
                     ));
                 };
                 for candidate in inherent {
@@ -444,7 +444,7 @@ impl CheckState<'_> {
 
         // yield declaration candidates for a nominal implementation
         let candidates = match lookup {
-            MemberLookup::Undecided => return Ok(None),
+            MemberLookup::Ambiguous => return Ok(None),
             MemberLookup::Missing => Vec::new(),
             MemberLookup::Found(candidates) => candidates,
             lookup @ MemberLookup::Intersection(_) => {
@@ -510,16 +510,18 @@ impl CheckState<'_> {
         interface: dir::AutoInterface,
     ) -> CompilerResult<ObligationCheck> {
         // hold without checking once an operand already reported an error
-        if self.any_error_operand(&[ty])? {
+        if self.has_error_operand(&[ty])? {
             return Ok(ObligationCheck::holds());
         }
 
         // decide the interface's own conformance rule
-        match self.satisfies_auto_interface(origin, ty, interface)? {
+        match self.decide_auto_interface(origin, ty, interface)? {
             Verdict::Holds => return Ok(ObligationCheck::holds()),
             // stall the obligation while an open variable leaves the rule undecided
             Verdict::Ambiguous => {
-                return Ok(ObligationCheck::Ambiguous(self.open_type_variables([ty])?));
+                return Ok(ObligationCheck::Ambiguous(
+                    self.collect_open_variables([ty])?,
+                ));
             }
             Verdict::Fails => {}
         }

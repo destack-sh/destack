@@ -7,10 +7,10 @@ use crate::sema::{CandidateOutcome, Cause, CauseKind, CheckState, Origin, Relati
 
 use super::substitute::InferSubstitution;
 
-/// Nested conditional reductions tolerated before an instantiation is judged infinite.
+/// Nested conditional reductions tolerated before an instantiation counts as infinite.
 const INSTANTIATION_DEPTH_LIMIT: u32 = 100;
 
-/// Tail conditionals evaluated in place before an instantiation is judged infinite.
+/// Tail conditionals evaluated in place before an instantiation counts as infinite.
 const TAIL_CONDITIONAL_LIMIT: u32 = 1000;
 
 /// One `infer` binder declared by a conditional extends pattern.
@@ -38,7 +38,7 @@ impl CheckState<'_> {
         origin: Origin,
         conditional: dir::ConditionalType,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // judge an instantiation that keeps nesting as infinite
+        // treat an instantiation that keeps nesting as infinite
         if self.instantiation_depth >= INSTANTIATION_DEPTH_LIMIT {
             self.report_excessive_type_instantiation(origin)?;
 
@@ -143,7 +143,7 @@ impl CheckState<'_> {
 
         // defer an open tested conditional until its variables solve
         if !self
-            .open_type_variables([left, conditional.right])?
+            .collect_open_variables([left, conditional.right])?
             .is_empty()
         {
             return Ok(None);
@@ -197,7 +197,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         if binders.is_empty() {
             let verdict =
-                self.evaluate_relation(origin, Relation::Extends, element, conditional.right)?;
+                self.decide_relation(origin, Relation::Extends, element, conditional.right)?;
 
             return Ok(match verdict {
                 Verdict::Holds => Some(conditional.then_type),
@@ -231,7 +231,7 @@ impl CheckState<'_> {
         let mut variables = SmallVec::<[_; 2]>::with_capacity(binders.len());
         let mut pattern = conditional.right;
         for binder in binders {
-            let variable = self.allocate_variable(origin, VariableRole::Binder);
+            let variable = self.open_variable(origin, VariableRole::Binder);
             let variable_type = self.variable_type(variable)?;
             for &occurrence in &binder.occurrences {
                 pattern = self.replace_type(module, pattern, occurrence, variable_type)?;
@@ -255,7 +255,7 @@ impl CheckState<'_> {
                 Some(solution) => self.deeply_resolve(origin, solution)?,
                 None => self.intern_type(dir::Type::Unknown)?,
             };
-            if !self.open_type_variables([solution])?.is_empty() {
+            if !self.collect_open_variables([solution])?.is_empty() {
                 return Ok(CandidateOutcome::Rejected(InferRejection::Open));
             }
             let solution = match binder.constraint {
@@ -305,11 +305,11 @@ impl CheckState<'_> {
             }
         }
 
-        let holds = self
-            .evaluate_relation(origin, Relation::Extends, solution, constraint)?
+        let is_holds = self
+            .decide_relation(origin, Relation::Extends, solution, constraint)?
             .holds();
 
-        Ok(holds.then_some(solution))
+        Ok(is_holds.then_some(solution))
     }
 
     /// Collect the infer binders declared by one extends pattern.

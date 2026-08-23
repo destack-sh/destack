@@ -1,5 +1,6 @@
 mod access;
 mod argument;
+mod binding;
 mod call;
 mod construct;
 mod extension;
@@ -16,6 +17,7 @@ mod operator;
 mod pattern;
 mod place;
 mod predicate;
+mod projection;
 mod property;
 mod protocol;
 mod receiver;
@@ -31,7 +33,7 @@ pub(in crate::sema) use destack_dir::MemberRole;
 
 pub(in crate::sema) use extension::{ExtensionMatch, OpenBounds, UnboundParameters};
 pub(in crate::sema) use instantiation::TypeArgumentInference;
-pub(in crate::sema) use member::*;
+pub(in crate::sema) use lookup::{DeclaredMember, LookupReceiver, MemberCandidate, MemberLookup};
 pub(in crate::sema) use newtype::{
     NewtypeInstance, NewtypeMatch, NewtypeOverload, NewtypeRejection, NewtypeSignature,
     REPORTED_REJECTIONS,

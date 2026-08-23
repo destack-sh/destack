@@ -26,7 +26,7 @@ impl CheckState<'_> {
         &self,
         declaration: dir::GlobalNodeIdAny,
     ) -> Vec<dir::GlobalTypeId> {
-        self.induced_parameter_sites
+        self.induced_sites
             .iter()
             .filter(|site| site.declaration == declaration)
             .map(|site| site.ty)
@@ -625,8 +625,8 @@ impl CheckState<'_> {
             });
         };
 
-        // claim the parameter this site already induced
-        if let Some(parameter) = self.claim_induced_parameter(template, site, kind) {
+        // reuse the parameter this site already induced
+        if let Some(parameter) = self.reuse_induced_parameter(template, site, kind) {
             return Ok(parameter);
         }
 
@@ -661,8 +661,8 @@ impl CheckState<'_> {
         Ok(parameter)
     }
 
-    /// Claim the induced parameter one site owns on a template, once per hole.
-    fn claim_induced_parameter(
+    /// Reuse the induced parameter one site owns on a template, once per hole.
+    fn reuse_induced_parameter(
         &mut self,
         template: GenericTemplateId,
         site: dir::GlobalNodeIdAny,
@@ -763,7 +763,7 @@ impl CheckState<'_> {
                 message: format!("check module {module:?} has no working generics"),
             })?;
 
-        // skip parameters the declared stage settled
+        // skip parameters the declared stage closed
         let Some(binding) = working
             .generics_tail
             .get_local_parameter_mut(parameter.local_id)
@@ -779,7 +779,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Record one walked where-clause predicate on its declaring template.
+    /// Push one walked where-clause predicate onto its declaring template.
     pub(in crate::sema) fn push_template_predicate(
         &mut self,
         template: GenericTemplateId,
@@ -792,7 +792,7 @@ impl CheckState<'_> {
                 message: format!("check module {module:?} has no working generics"),
             })?;
 
-        // skip templates the declared stage settled
+        // skip templates the declared stage closed
         let Some(declared) = working
             .generics_tail
             .get_local_template_mut(template.local_id)
@@ -800,7 +800,7 @@ impl CheckState<'_> {
             return Ok(());
         };
 
-        // skip predicates the declaration pass already recorded
+        // skip predicates the declaration pass already pushed
         if !declared.predicates.contains(&predicate) {
             declared.predicates.push(predicate);
         }
@@ -1232,8 +1232,8 @@ impl CheckState<'_> {
         local.map(|id| id.into_global(module))
     }
 
-    /// Settle applied generic argument bindings for checked DIR.
-    pub(in crate::sema) fn settled_argument_bindings(
+    /// Resolve applied generic argument bindings for checked DIR.
+    pub(in crate::sema) fn resolved_argument_bindings(
         &mut self,
         applied: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
@@ -1248,7 +1248,7 @@ impl CheckState<'_> {
             bindings.push(dir::GenericArgumentBinding::new(parameter, argument));
         }
 
-        // record in written order
+        // sort in written order
         let mut keyed = Vec::with_capacity(bindings.len());
         for binding in bindings {
             let rank = self.written_argument_rank(binding.parameter)?;

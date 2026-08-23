@@ -77,7 +77,7 @@ impl CheckState<'_> {
                 if kind == dir::RepresentationKind::C
                     && self.class_requires_virtual_dispatch(symbol)?
         );
-        if !definition.supports_representation(kind) || has_virtual_dispatch {
+        if !definition.is_representable(kind) || has_virtual_dispatch {
             let representation = self.strings().get(representation_value.name).to_string();
             self.report_unsupported_representation(module, source.local_id, representation);
 

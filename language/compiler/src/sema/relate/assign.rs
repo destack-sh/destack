@@ -266,14 +266,14 @@ impl CheckState<'_> {
 
             // adapt a const literal to a parameter its scalar-family admits
             (dir::Type::Literal(_), dir::Type::Parameter(_)) => {
-                Verdict::decided(self.builtin_scalar_accepts_literal(origin, source, target)?)
+                Verdict::decided(self.is_builtin_scalar_representable(origin, source, target)?)
             }
 
             // relate literal and interval sources to interface targets
             (dir::Type::Literal(_) | dir::Type::Range(_), dir::Type::Application(instance))
                 if self
-                    .symbol_kind_maybe(instance.symbol)?
-                    .is_some_and(|kind| kind.is_interface()) =>
+                    .symbol_kind(instance.symbol)
+                    .map(|kind| kind.is_interface())? =>
             {
                 self.relate_erased_assignable(origin, cause, source, target)?
             }
@@ -417,16 +417,16 @@ impl CheckState<'_> {
                 | dir::Type::FixedArray(_),
                 dir::Type::Application(instance),
             ) if self
-                .symbol_kind_maybe(instance.symbol)?
-                .is_some_and(|kind| kind.is_interface()) =>
+                .symbol_kind(instance.symbol)
+                .map(|kind| kind.is_interface())? =>
             {
                 self.relate_erased_assignable(origin, cause, source, target)?
             }
             // relate callable applications to interface targets
             (dir::Type::Application(callable), dir::Type::Application(instance))
                 if self
-                    .symbol_kind_maybe(instance.symbol)?
-                    .is_some_and(|kind| kind.is_interface())
+                    .symbol_kind(instance.symbol)
+                    .map(|kind| kind.is_interface())?
                     && self.is_function_language_item(callable.symbol)? =>
             {
                 self.relate_erased_assignable(origin, cause, source, target)?
@@ -456,8 +456,8 @@ impl CheckState<'_> {
             }
             (dir::Type::Application(_), dir::Type::Application(instance))
                 if self
-                    .symbol_kind_maybe(instance.symbol)?
-                    .is_some_and(|kind| kind.is_interface()) =>
+                    .symbol_kind(instance.symbol)
+                    .map(|kind| kind.is_interface())? =>
             {
                 // box erasable values only behind an erased interface target
                 match self.erasable_source(origin, source)? {
@@ -526,7 +526,7 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        self.satisfies_auto_interface(origin, source, dir::AutoInterface::DynamicSafe)
+        self.decide_auto_interface(origin, source, dir::AutoInterface::DynamicSafe)
     }
 
     /// Relate one source value erasing into `Dynamic<constraint>`.
@@ -543,7 +543,7 @@ impl CheckState<'_> {
         };
 
         // box erasable values only behind a dynamic constraint
-        match self.satisfies_auto_interface(origin, source, dir::AutoInterface::DynamicSafe)? {
+        match self.decide_auto_interface(origin, source, dir::AutoInterface::DynamicSafe)? {
             Verdict::Holds => {}
             verdict @ (Verdict::Fails | Verdict::Ambiguous) => return Ok(verdict),
         }

@@ -39,7 +39,7 @@ impl CheckState<'_> {
                 }
             }
 
-            // remember nothing while the owning module stays unloaded
+            // cache nothing while the owning module stays unloaded
             if !is_owner_loaded {
                 return Ok(None);
             }

@@ -18,7 +18,7 @@ impl CheckState<'_> {
 
         // check each field that requires a runtime value
         for field in fields {
-            if !self.field_requires_initialization(origin, &field)? {
+            if !self.is_initialization_required(origin, &field)? {
                 continue;
             }
 
@@ -30,7 +30,7 @@ impl CheckState<'_> {
                 });
             }
             // accept instance storage assigned on every constructor completion
-            else if !self.constructors_assign_field(obligation, &field) {
+            else if !self.has_constructor_assignment(obligation, &field) {
                 failures.push(ObligationFailure::FieldNotDefinitelyInitialized {
                     source: field.source,
                     field: field.symbol,
@@ -74,7 +74,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether one field requires initialization.
-    fn field_requires_initialization(
+    fn is_initialization_required(
         &mut self,
         origin: Origin,
         field: &dir::FieldDefinition,
@@ -82,14 +82,14 @@ impl CheckState<'_> {
         let ty = self.symbol_type(field.symbol)?;
         let undefined = self.intern_type(dir::Type::Undefined)?;
         let is_assignable = self
-            .evaluate_relation(origin, Relation::Assignable, undefined, ty)?
+            .decide_relation(origin, Relation::Assignable, undefined, ty)?
             .holds();
 
         Ok(!is_assignable)
     }
 
     /// Return whether every constructor branch assigns one field.
-    fn constructors_assign_field(
+    fn has_constructor_assignment(
         &self,
         obligation: &FieldInitializationObligation,
         field: &dir::FieldDefinition,
@@ -99,9 +99,10 @@ impl CheckState<'_> {
             key: field.key,
         };
 
-        // read constructor exit branches recorded during checking
+        // read the exit branches constructors wrote at check; a class
+        //  without any checked constructor initializes nothing
         match self.constructor_branches.get(&obligation.symbol) {
-            Some(branches) => branches.iter().all(|branch| branch.assigns(place)),
+            Some(branches) => branches.iter().all(|branch| branch.is_assigned(place)),
             None => false,
         }
     }

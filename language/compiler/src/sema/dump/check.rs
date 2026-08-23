@@ -3,8 +3,8 @@ use destack_artifact::ArtifactEvent;
 use crate::sema::{Check, CheckId, DumpContext};
 
 impl Check {
-    /// Render this check as one trace event.
-    pub(in crate::sema) fn render_event(
+    /// Format this check as one trace event.
+    pub(in crate::sema) fn format_event(
         &self,
         id: CheckId,
         finished: bool,
@@ -59,7 +59,7 @@ impl Check {
                 .text("node", context.node_label(equality.value))
                 .text("id", context.check_label(id))
                 .bool("finished", finished),
-            Self::Declared(entry) => entry.obligation.render_event(id, finished, context),
+            Self::Declared(entry) => entry.obligation.format_event(id, finished, context),
         }
     }
 }

@@ -1,4 +1,5 @@
 mod atomic;
+mod component;
 mod copy;
 mod derive;
 mod drop;

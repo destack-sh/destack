@@ -6,13 +6,13 @@ use crate::CompilerResult;
 use crate::sema::CheckState;
 
 impl CheckState<'_> {
-    /// Run the declare pass: walk the module's own declarations and settle them.
+    /// Run the declare pass: walk the module's own declarations and resolve them.
     pub(in crate::sema) fn run_declare(&mut self) -> CompilerResult<()> {
         let recorder = self.recorder;
         self.with_scope(|state| {
             ArtifactAttemptRecorder::breakdown_maybe(recorder, "walk", || state.walk_declarations())
         })?;
-        self.bind_underivable_exports()?;
+        self.commit_underivable_exports()?;
 
         Ok(())
     }

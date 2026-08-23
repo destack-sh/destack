@@ -85,7 +85,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // resolve the solved operand before judging its head
+        // resolve the solved operand before reading its head
         let target = self.shallow_resolve(target)?;
         if !active.insert(target) {
             return Ok(Some(target));

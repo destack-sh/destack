@@ -14,7 +14,7 @@ impl CheckState<'_> {
         checks_from: usize,
         failures_from: usize,
     ) -> CompilerResult<FxIndexSet<dir::TypeVariableId>> {
-        // take the failures retained past the given count
+        // take the failures kept past the given count
         let mut failures = self.fulfill.failures.split_off(failures_from);
 
         // include completed relation checks in the same cause forest
@@ -38,7 +38,7 @@ impl CheckState<'_> {
                 });
             };
 
-            // record completed failures as provisional, to re-judge over solved types
+            // keep completed failures provisional, deciding them again over solved types
             failures.push(FailedCheck {
                 cause: relation.cause,
                 relation: relation.relation,
@@ -193,7 +193,7 @@ impl CheckState<'_> {
             if let Some(symbol) = self.infer.variable_role(variable)?.symbol()
                 && self.symbol_type_maybe(symbol).is_none()
             {
-                self.bind_symbol_type(symbol, error)?;
+                self.commit_symbol_type(symbol, error)?;
             }
 
             // close whatever the binding left open
@@ -217,7 +217,7 @@ impl CheckState<'_> {
         // keep inferred members' origins only
         let origins = origins
             .into_iter()
-            .filter(|(origin, _)| self.infers_module(origin.module()))
+            .filter(|(origin, _)| self.is_inferred_module(origin.module()))
             .collect::<Vec<_>>();
 
         // report in source order for deterministic diagnostics

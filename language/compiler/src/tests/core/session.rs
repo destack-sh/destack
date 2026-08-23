@@ -443,7 +443,7 @@ impl TestSession {
 
     /// Render one MIR artifact as formatted MIR.
     #[track_caller]
-    fn render_mir_snapshot(&self, key: ArtifactKey) -> String {
+    pub(crate) fn render_mir_snapshot(&self, key: ArtifactKey) -> String {
         // build through the provider, failing loudly with rendered diagnostics
         let version = match self.require_artifact_result(key) {
             Ok(version) => version,

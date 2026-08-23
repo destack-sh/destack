@@ -79,11 +79,11 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        // replay the alias decision a settled ground type already made
+        // reuse the alias decision a closed type already made
         let ty = self.shallow_resolve(ty)?;
         let flags = self.type_flags(ty)?;
-        let is_ground = !flags.has_variable() && !flags.has_parameter() && !flags.has_this();
-        if is_ground && let Some(is_aliased) = self.aliased.get(&ty) {
+        let is_closed = !flags.has_variable() && !flags.has_parameter() && !flags.has_this();
+        if is_closed && let Some(is_aliased) = self.aliasing.get(&ty) {
             return Ok(*is_aliased);
         }
 
@@ -94,8 +94,8 @@ impl CheckState<'_> {
             ownership,
             Some(dir::Ownership::Managed | dir::Ownership::Borrowed)
         );
-        if is_ground {
-            self.aliased.insert(ty, is_aliased);
+        if is_closed {
+            self.aliasing.insert(ty, is_aliased);
         }
 
         Ok(is_aliased)
@@ -528,7 +528,7 @@ impl CheckState<'_> {
         // readonly views over immutable payloads grant nothing less
         if form == dir::Form::Readonly {
             let mut active = SmallVec::new();
-            if self.type_is_immutable(origin, value, &mut active)? {
+            if self.is_immutable(origin, value, &mut active)? {
                 return Ok(true);
             }
         }

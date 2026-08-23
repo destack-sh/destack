@@ -53,10 +53,10 @@ impl BodyState<'_, '_> {
                         bindings.get_symbol(symbol.local_id).scope.id == bindings.module_scope().id
                     };
 
-                    // replay a module read at any point, a local read inside its frame
+                    // reuse a module read at any point, a local read inside its frame
                     if is_module_binding || self.check.flow.current_function().is_some() {
                         self.check
-                            .check_assigned_read(node.local_id.into_any(), *symbol);
+                            .report_unassigned_read(node.local_id.into_any(), *symbol);
                     }
                 }
 
@@ -229,7 +229,7 @@ impl BodyState<'_, '_> {
                     // leave a pending conversion to the queue
                     CheckOutcome::Pending => {}
                     CheckOutcome::Fails(failure) => {
-                        self.record_failure(FailedCheck {
+                        self.push_failure(FailedCheck {
                             cause,
                             relation: Relation::Assignable,
                             use_: Some(ValueUse::Store),
@@ -442,7 +442,9 @@ impl BodyState<'_, '_> {
 
                 Ok(())
             }
-            expression => self.reject_expression_without_inference_owner(node, expression),
+            expression => Err(CompilerError::Internal {
+                message: format!("cannot infer expression {node:?}: {expression:?}"),
+            }),
         }
     }
 
@@ -554,17 +556,6 @@ impl BodyState<'_, '_> {
         Ok(contextualizes)
     }
 
-    /// Reject expression inference that reached solve without a matching owner.
-    fn reject_expression_without_inference_owner(
-        &self,
-        node: dir::GlobalNodeId<dir::Expression>,
-        expression: dir::Expression,
-    ) -> CompilerResult<()> {
-        Err(CompilerError::Internal {
-            message: format!("cannot infer expression {node:?}: {expression:?}"),
-        })
-    }
-
     /// Infer one name expression by its resolution.
     pub(in crate::sema) fn infer_name_expression(
         &mut self,
@@ -605,16 +596,13 @@ impl BodyState<'_, '_> {
         };
 
         // report foreign value reads while declaring
-        if self.is_declaration() && !self.is_own_module(symbol.module_id) {
+        if self.is_declaring() && !self.is_own_module(symbol.module_id) {
             self.report_export_type_not_derivable(site.node.module_id, site.node.local_id);
 
             // record the runtime access path while checking
-            if self
-                .symbol_kind_maybe(*symbol)?
-                .is_some_and(dir::SymbolKind::is_binding)
-            {
+            if self.symbol_kind(*symbol)?.is_binding() {
                 self.commit_access(site.node, dir::AccessPath::symbol(*symbol))?;
-                self.record_access_use(site.node, dir::BindingUse::READ);
+                self.commit_access_use(site.node, dir::BindingUse::READ);
             }
             let ty = self.intern_type(dir::Type::Error)?;
             self.commit_node_type(site.node, ty)?;
@@ -630,12 +618,12 @@ impl BodyState<'_, '_> {
             && let Some(carrier) = binding.constraint
         {
             // body reads consume the value the signature must fix
-            if self.check.recorded_cardinality(parameter).is_none() {
+            if self.check.resolved_cardinality(parameter).is_none() {
                 self.check
                     .report_value_read_not_fixed(site.node, parameter)?;
             }
             self.commit_access(site.node, dir::AccessPath::symbol(*symbol))?;
-            self.record_access_use(site.node, dir::BindingUse::READ);
+            self.commit_access_use(site.node, dir::BindingUse::READ);
             let carrier = self.flow_type_at(site, carrier)?;
             self.commit_node_type(site.node, carrier)?;
 
@@ -651,8 +639,8 @@ impl BodyState<'_, '_> {
             Some(value) => value,
             // type alias and class names as their written declaration reference
             None if matches!(
-                self.symbol_kind_maybe(*symbol)?,
-                Some(dir::SymbolKind::TypeAlias | dir::SymbolKind::Class)
+                self.symbol_kind(*symbol)?,
+                dir::SymbolKind::TypeAlias | dir::SymbolKind::Class
             ) =>
             {
                 self.intern_type(dir::Type::Reference(dir::TypeReference { symbol: *symbol }))?
@@ -660,20 +648,14 @@ impl BodyState<'_, '_> {
             None => self.symbol_type(*symbol)?,
         };
 
-        // binding reads record their runtime access path
-        if self
-            .symbol_kind_maybe(*symbol)?
-            .is_some_and(dir::SymbolKind::is_binding)
-        {
+        // binding reads commit their runtime access path
+        if self.symbol_kind(*symbol)?.is_binding() {
             self.commit_access(site.node, dir::AccessPath::symbol(*symbol))?;
-            self.record_access_use(site.node, dir::BindingUse::READ);
+            self.commit_access_use(site.node, dir::BindingUse::READ);
         }
 
-        // record the selected function value for runtime consumers
-        if matches!(
-            self.symbol_kind_maybe(*symbol)?,
-            Some(dir::SymbolKind::Function)
-        ) {
+        // commit the selected function value for runtime consumers
+        if matches!(self.symbol_kind(*symbol)?, dir::SymbolKind::Function) {
             let value = dir::FunctionValue {
                 target: dir::CallableTarget::Symbol {
                     function: dir::FunctionTarget {
@@ -843,7 +825,7 @@ impl BodyState<'_, '_> {
                         segments: smallvec::smallvec![name],
                     });
                 self.check
-                    .reject_unresolved_reference(module, source.local_id, &path);
+                    .report_unresolved_reference(module, source.local_id, &path);
                 self.commit_error_node(source)?;
 
                 Ok(None)
@@ -859,7 +841,7 @@ impl BodyState<'_, '_> {
                         segments: smallvec::smallvec![name],
                     });
                 self.check
-                    .reject_unresolved_reference(module, source.local_id, &path);
+                    .report_unresolved_reference(module, source.local_id, &path);
                 self.commit_error_node(source)?;
 
                 Ok(None)

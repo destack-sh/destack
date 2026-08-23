@@ -31,13 +31,13 @@ enum RepresentationFailure {
     Abstract,
     /// Inline storage contains itself.
     Circular(dir::GlobalNodeIdAny),
-    /// Shared storage retains a safe local reference.
+    /// Shared storage keeps a safe local reference.
     LocalReference(dir::GlobalNodeIdAny),
 }
 
 impl CheckState<'_> {
-    /// Decide whether one type has a fixed storage representation.
-    pub(in crate::sema) fn satisfies_concrete(
+    /// Return whether one type has a fixed storage representation.
+    pub(in crate::sema) fn is_concrete(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
@@ -63,8 +63,8 @@ impl CheckState<'_> {
         Ok(failure.is_none())
     }
 
-    /// Decide whether one type's values may live in shared space.
-    pub(in crate::sema) fn satisfies_shared_safe(
+    /// Return whether one type's values may live in shared space.
+    pub(in crate::sema) fn is_shared_safe(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
@@ -212,7 +212,7 @@ impl CheckState<'_> {
         Ok(self.conformances.get(&key) == Some(&true))
     }
 
-    /// Record one proven representation interface.
+    /// Commit one proven representation interface.
     fn prove_representation(
         &mut self,
         origin: Origin,
@@ -226,7 +226,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Record one proven storable representation.
+    /// Commit one proven storable representation.
     fn prove_storage(&mut self, origin: Origin, ty: dir::GlobalTypeId) -> CompilerResult<()> {
         if let Some(key) = self.storage_key(origin, ty)? {
             self.storables.insert(key);
@@ -235,7 +235,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Key one proven storable representation by type identity, for settled types only.
+    /// Key one proven storable representation by type identity, for resolved types only.
     fn storage_key(
         &mut self,
         origin: Origin,
@@ -252,7 +252,7 @@ impl CheckState<'_> {
             .map(|assumes| (ty, assumes)))
     }
 
-    /// Key one representation interface by type identity, for settled types only.
+    /// Key one representation interface by type identity, for resolved types only.
     fn representation_key(
         &mut self,
         origin: Origin,
@@ -381,11 +381,11 @@ impl CheckState<'_> {
                 let RepresentationCheck::Concrete { interface } = check else {
                     return Ok(None);
                 };
-                let holds = self
-                    .evaluate_relation(origin, Relation::Satisfies, ty, interface)?
+                let is_proven = self
+                    .decide_relation(origin, Relation::Satisfies, ty, interface)?
                     .holds();
 
-                return Ok((!holds).then_some(RepresentationFailure::Abstract));
+                return Ok((!is_proven).then_some(RepresentationFailure::Abstract));
             }
             // skip abstract type expressions, they select no runtime representation
             dir::Type::Unknown
@@ -424,7 +424,7 @@ impl CheckState<'_> {
                 .map(|element| (element.ty, source))
                 .collect(),
             dir::Type::Object(shape) => self
-                .shape_properties(owner, shape.properties)?
+                .object_properties(owner, shape.properties)?
                 .iter()
                 .flat_map(|field| field.access.types().map(move |ty| (ty, source)))
                 .collect(),

@@ -39,7 +39,7 @@ impl Relation {
             (Self::Assignable | Self::Widens, Self::Assignable | Self::Widens) => {
                 Some(Self::Assignable)
             }
-            // predicates judge the variable's solution, never inflowing bounds
+            // predicates decide the variable's solution, never inflowing bounds
             _ => None,
         }
     }
@@ -62,8 +62,8 @@ impl Relation {
         )
     }
 
-    /// Return whether a union target accepts any successful element relation.
-    pub(in crate::sema) fn distributes_over_union_target(self) -> bool {
+    /// Return whether this relation distributes over a union target.
+    pub(in crate::sema) fn is_union_distributive(self) -> bool {
         matches!(
             self,
             Self::Subtype
@@ -102,7 +102,7 @@ pub(in crate::sema) struct RelationAttempt {
 pub(in crate::sema) enum Cycle {
     /// A repeated pair holds as a recursive hypothesis.
     Coinductive,
-    /// A repeated pair is refused, rejecting self-supported proof.
+    /// A repeated pair is refused, refusing self-supported proof.
     Inductive,
 }
 
@@ -146,7 +146,7 @@ impl RelationStack {
         self.stack.is_empty()
     }
 
-    /// Return the in-flight answer for one pair, recording cycle use.
+    /// Return the in-flight answer for one pair, noting cycle use.
     pub(in crate::sema) fn lookup(&mut self, key: &RelationKey, cycle: Cycle) -> Option<bool> {
         let verdict = *self.decisions.get(key)?;
         match verdict {
@@ -188,7 +188,7 @@ impl RelationStack {
         RelationAttempt { key, index }
     }
 
-    /// Finish one attempt, returning the decision it settled.
+    /// Finish one attempt, returning the decision it reached.
     pub(in crate::sema) fn finish(
         &mut self,
         attempt: RelationAttempt,
@@ -224,7 +224,7 @@ impl RelationStack {
             return None;
         }
 
-        // settle holds justified by this attempt
+        // close the holds this attempt justifies
         self.resolve_dependents(attempt.index, Some(attempt.index));
         self.decisions.swap_remove(&attempt.key);
 
@@ -260,7 +260,7 @@ impl RelationStack {
             }
 
             match outcome {
-                // the cycle settled true on its own
+                // the cycle decided true on its own
                 Some(target) if target == index => {
                     self.decisions.swap_remove(&key);
                     self.provisional.swap_remove(position);

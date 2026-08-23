@@ -208,7 +208,7 @@ impl BodyState<'_, '_> {
                 _ => None,
             };
 
-            // retain the matching owner instance
+            // keep the matching owner instance
             if let Some(owner) = owner {
                 owners.push(owner);
             }

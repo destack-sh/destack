@@ -10,27 +10,27 @@ use crate::sema::reify::r#type::TypeReifier;
 use crate::sema::{CheckModuleState, CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
 
-/// One module rendered with solved checked types.
+/// One module formatted with solved checked types.
 pub(in crate::sema) struct AnnotatedSource {
-    /// The rendered module.
+    /// The formatted module.
     pub(in crate::sema) module: Arc<Module>,
     /// The formatted source text.
     pub(in crate::sema) content: String,
 }
 
 impl CheckState<'_> {
-    /// Render the checked module's source with solved types.
-    pub(in crate::sema) fn render_annotated_sources(
+    /// Format the checked module's source with solved types.
+    pub(in crate::sema) fn format_annotated_sources(
         &mut self,
     ) -> CompilerResult<Vec<AnnotatedSource>> {
         let module_id = self.module_id;
         let coercions = self.source_coercions(module_id)?;
-        let source = self.render_annotated_source(module_id, &coercions)?;
+        let source = self.format_annotated_source(module_id, &coercions)?;
 
         Ok(source.into_iter().collect())
     }
 
-    /// Return one module's committed coercions for source rendering.
+    /// Return one module's committed coercions for source formatting.
     fn source_coercions(
         &mut self,
         module: ModuleId,
@@ -45,8 +45,8 @@ impl CheckState<'_> {
         Ok(coercions)
     }
 
-    /// Render one member module's source with solved checked types.
-    fn render_annotated_source(
+    /// Format one member module's source with solved checked types.
+    fn format_annotated_source(
         &mut self,
         module_id: ModuleId,
         coercions: &[(dir::GlobalNodeIdAny, dir::Coercion)],
@@ -77,7 +77,10 @@ impl CheckState<'_> {
             FormatterOptions::default(),
         )
         .map_err(|error| CompilerError::Internal {
-            message: format!("annotated render failed for {}: {error}", state.module.uri),
+            message: format!(
+                "annotated formatting failed for {}: {error}",
+                state.module.uri
+            ),
         })?;
 
         Ok(Some(AnnotatedSource {
@@ -130,7 +133,7 @@ impl CheckState<'_> {
 struct SourceReifier<'a, 'b> {
     /// The checked module state.
     check: &'a CheckState<'b>,
-    /// The module being rendered.
+    /// The module being formatted.
     state: &'a CheckModuleState,
     /// The type-expression reifier writing synthesized nodes.
     types: TypeReifier<'a, 'b>,
@@ -298,7 +301,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
 
         for (node, parameter) in written.iter().zip(parameters.iter()) {
             // written modifiers and unmeasured parameters stay as written
-            let Some(modifier) = self.check.recorded_variance(module_id, *parameter) else {
+            let Some(modifier) = self.check.committed_variance(module_id, *parameter) else {
                 continue;
             };
 

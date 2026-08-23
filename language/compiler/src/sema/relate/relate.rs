@@ -256,7 +256,7 @@ impl CheckState<'_> {
         let reduced_target = self.structurally_normalize(origin, target)?;
         if reduced_source == source && reduced_target == target {
             // leave a relation over open heads undecided
-            return self.undecided_over_open_heads(source, target);
+            return self.decide_stuck_relation(source, target);
         }
 
         self.constrain_type(origin, cause, relation, reduced_source, reduced_target)
@@ -302,7 +302,7 @@ impl CheckState<'_> {
         if viables.len() > 1 {
             let mut matching = SmallVec::<[_; 4]>::new();
             for (source, target) in viables.iter().copied() {
-                if self.same_type_constructor(source, target)? {
+                if self.is_same_type_constructor(source, target)? {
                     matching.push((source, target));
                 }
             }
@@ -341,7 +341,7 @@ impl CheckState<'_> {
         }
 
         // wait for open variables to close before disambiguating applicable arms
-        let open = self.open_type_variables(
+        let open = self.collect_open_variables(
             candidates
                 .iter()
                 .flat_map(|(source, target)| iter::once(*source).chain(iter::once(*target))),
@@ -355,7 +355,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether one pair shares its top type constructor.
-    fn same_type_constructor(
+    fn is_same_type_constructor(
         &self,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
@@ -381,7 +381,7 @@ impl CheckState<'_> {
     }
 
     /// Collect the open inference variables referenced by some types.
-    pub(in crate::sema) fn open_type_variables(
+    pub(in crate::sema) fn collect_open_variables(
         &self,
         types: impl IntoIterator<Item = dir::GlobalTypeId>,
     ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 2]>> {
@@ -418,13 +418,13 @@ impl CheckState<'_> {
         Ok(current)
     }
 
-    /// Return the open variable at one settled type root.
+    /// Return the open variable at one resolved type root.
     pub(in crate::sema) fn root_variable(
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::TypeVariableId>> {
         match self.ty(self.shallow_resolve(id)?)? {
-            dir::Type::Variable(variable) => self.open_variable(variable),
+            dir::Type::Variable(variable) => self.open_root(variable),
             _ => Ok(None),
         }
     }
@@ -441,7 +441,7 @@ impl CheckState<'_> {
         let id = self.shallow_resolve(id)?;
         match self.ty(id)? {
             // an open variable stands as the comparison root
-            dir::Type::Variable(variable) => Ok((id, self.open_variable(variable)?)),
+            dir::Type::Variable(variable) => Ok((id, self.open_root(variable)?)),
             // family-default ownership constructors shed to their payload
             dir::Type::Form(_) => Ok((self.reduce_default_ownership_chain(origin, id)?, None)),
             _ => Ok((id, None)),

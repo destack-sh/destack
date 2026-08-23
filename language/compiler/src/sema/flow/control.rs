@@ -99,7 +99,7 @@ impl CheckState<'_> {
             self.report_continue_outside_loop(source.module_id, source.local_id.into_any());
 
             // unbound jumps already emitted diagnostics
-            self.flow.mark_unbound_jump(source.local_id.into_any());
+            self.flow.insert_unbound_jump(source.local_id.into_any());
 
             return Ok(());
         };

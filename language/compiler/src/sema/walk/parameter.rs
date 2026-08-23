@@ -80,7 +80,7 @@ impl WalkState<'_, '_> {
 
         // the parameter name writes its own parameter type
         let ty = self.check.generic_parameter_type(parameter)?;
-        self.bind_symbol_type(symbol, ty)?;
+        self.commit_symbol_type(symbol, ty)?;
 
         Ok(Some(parameter))
     }
@@ -194,7 +194,7 @@ impl WalkState<'_, '_> {
                 let parameter_type = self.walk_parameter_type(id)?;
 
                 // validate defaults while checking, declaring transcribes them
-                if let Some(default) = default.filter(|_| !self.check.is_declaration()) {
+                if let Some(default) = default.filter(|_| !self.check.is_declaring()) {
                     let before_default = self.fork_flow();
                     self.walk_expression(default, self.tree.get(default))?;
                     if let Some(parameter_type) = parameter_type {

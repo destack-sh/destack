@@ -124,7 +124,7 @@ impl BodyState<'_, '_> {
         let check = self.check_node(value_site, expectation)?;
         let value_type = check.source;
 
-        // warn when the cast target equals the operand's settled type
+        // warn when the cast target equals the operand's resolved type
         let value_root = self.check.shallow_resolve(value_type)?;
         let target_root = self.check.shallow_resolve(target)?;
         if value_root == target_root && self.check.type_variables(value_root)?.is_empty() {
@@ -169,7 +169,7 @@ impl BodyState<'_, '_> {
             [] => None,
             bounds => {
                 let origin = site.origin();
-                let variable = self.allocate_variable(origin, VariableRole::Regular);
+                let variable = self.open_variable(origin, VariableRole::Regular);
                 let element = self.variable_type(variable)?;
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 for bound in bounds {

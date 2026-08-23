@@ -14,12 +14,12 @@ impl CheckState<'_> {
             state.induce_signature_lifetimes()?;
             state.apply_capture_directives()?;
             ArtifactAttemptRecorder::breakdown_maybe(recorder, "decorators", || {
-                state.check_decorators()
+                state.apply_decorators()
             })
         })?;
         self.report_constant_conditions()?;
         self.report_member_conflicts()?;
-        self.bind_underivable_exports()?;
+        self.commit_underivable_exports()?;
 
         Ok(())
     }
@@ -28,18 +28,18 @@ impl CheckState<'_> {
     pub(in crate::sema) fn finish_check(
         mut self,
         module: ModuleId,
-        render_annotations: bool,
+        format_annotations: bool,
     ) -> CompilerResult<(DirChecked, Vec<DiagnosticRecord>, Vec<AnnotatedSource>)> {
-        // render annotations from the live working state
-        let annotated = match render_annotations {
-            true => self.render_annotated_sources()?,
+        // format annotations from the live working state
+        let annotated = match format_annotations {
+            true => self.format_annotated_sources()?,
             false => Vec::new(),
         };
         self.write_back()?;
 
         let recorder = self.recorder;
         ArtifactAttemptRecorder::breakdown_maybe(recorder, "write", || {
-            self.record_committed_conformances(module)?;
+            self.commit_conformances(module)?;
 
             self.write_module(module)
         })?;

@@ -42,7 +42,7 @@ impl WalkState<'_, '_> {
                 self.walk_pattern(*pattern, self.tree.get(*pattern), is_binding)?;
 
                 // walk default values while checking, declaring transcribes them
-                if !self.check.is_declaration() {
+                if !self.check.is_declaring() {
                     let before_value = self.fork_flow();
                     self.walk_expression(*value, self.tree.get(*value))?;
                     self.restore_flow(before_value);
@@ -54,14 +54,14 @@ impl WalkState<'_, '_> {
                 ..
             } => {
                 if is_binding {
-                    self.allocate_pattern_binding(id.into_any())?;
+                    self.open_pattern_binding_slot(id.into_any())?;
                 }
                 self.walk_pattern(*pattern, self.tree.get(*pattern), is_binding)?;
             }
             // name
             dir::Pattern::Binding { pattern: None, .. } => {
                 if is_binding {
-                    self.allocate_pattern_binding(id.into_any())?;
+                    self.open_pattern_binding_slot(id.into_any())?;
                 }
             }
             // value
@@ -137,7 +137,7 @@ impl WalkState<'_, '_> {
                 if let Some(pattern) = *pattern {
                     self.walk_pattern(pattern, self.tree.get(pattern), is_binding)?;
                 } else if is_binding {
-                    self.allocate_pattern_binding(id.into_any())?;
+                    self.open_pattern_binding_slot(id.into_any())?;
                 }
             }
             // { [key]: pattern }
@@ -166,8 +166,8 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Allocate the type slot for one declaration pattern binding.
-    fn allocate_pattern_binding(&mut self, source: dir::LocalNodeIdAny) -> CompilerResult<()> {
+    /// Open the type slot for one declaration pattern binding.
+    fn open_pattern_binding_slot(&mut self, source: dir::LocalNodeIdAny) -> CompilerResult<()> {
         let symbol = self
             .declared_symbol(source)
             .ok_or_else(|| CompilerError::Internal {

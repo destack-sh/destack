@@ -6,7 +6,7 @@ use crate::sema::{CheckState, Origin};
 
 impl CheckState<'_> {
     /// Decide whether one type is a fixed point of `readonly`.
-    pub(in crate::sema) fn type_is_immutable(
+    pub(in crate::sema) fn is_immutable(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
@@ -18,14 +18,14 @@ impl CheckState<'_> {
         }
         active.push(ty);
 
-        let result = self.is_immutable_type(origin, ty, active);
+        let result = self.is_immutable_head(origin, ty, active);
         active.pop();
 
         result
     }
 
     /// Return whether one active type is immutable.
-    fn is_immutable_type(
+    fn is_immutable_head(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
@@ -46,23 +46,23 @@ impl CheckState<'_> {
             | dir::Type::Range(_)
             | dir::Type::Literal(_)
             | dir::Type::Primitive(_) => Ok(true),
-            dir::Type::Variant(member) => self.type_is_immutable(origin, member.owner, active),
+            dir::Type::Variant(member) => self.is_immutable(origin, member.owner, active),
             // readonly forms grant reads alone, transitively
             dir::Type::Form(form) => match form.form {
                 dir::Form::Readonly => Ok(true),
                 dir::Form::Borrowed(borrow) => {
                     let access = self.type_borrow(ty.module_id, borrow)?.access;
 
-                    self.body().access_is_readonly(access)
+                    self.body().is_readonly_access(access)
                 }
-                dir::Form::Owned => self.type_is_immutable(origin, form.value, active),
+                dir::Form::Owned => self.is_immutable(origin, form.value, active),
                 dir::Form::Raw | dir::Form::Managed | dir::Form::Placed { .. } => Ok(false),
             },
             // parameters prove through declared or assumed bounds
             dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) => {
                 let mut decision = false;
                 for bound in self.parameter_bounds(origin, parameter)? {
-                    decision = self.type_is_immutable(origin, bound, active)?;
+                    decision = self.is_immutable(origin, bound, active)?;
                     if decision {
                         break;
                     }
@@ -75,7 +75,7 @@ impl CheckState<'_> {
                 self.language_item(instance.symbol)?,
                 Some(dir::LanguageItem::String | dir::LanguageItem::BigInt)
             )),
-            dir::Type::FixedArray(array) => self.type_is_immutable(origin, array.element, active),
+            dir::Type::FixedArray(array) => self.is_immutable(origin, array.element, active),
             dir::Type::Tuple(tuple) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
                     .tuple_elements(ty.module_id, tuple.elements)?
@@ -97,13 +97,13 @@ impl CheckState<'_> {
                     return Ok(false);
                 }
                 let fields: SmallVec<[_; 4]> = self
-                    .shape_properties(ty.module_id, shape.properties)?
+                    .object_properties(ty.module_id, shape.properties)?
                     .into();
                 if fields.iter().any(|field| field.access.is_writable()) {
                     return Ok(false);
                 }
                 let signatures: SmallVec<[_; 4]> = self
-                    .shape_index_signatures(ty.module_id, shape.index_signatures)?
+                    .object_index_signatures(ty.module_id, shape.index_signatures)?
                     .into();
                 if signatures.iter().any(|signature| !signature.is_readonly) {
                     return Ok(false);
@@ -142,7 +142,7 @@ impl CheckState<'_> {
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<bool> {
         for id in ids {
-            if !self.type_is_immutable(origin, id, active)? {
+            if !self.is_immutable(origin, id, active)? {
                 return Ok(false);
             }
         }

@@ -45,8 +45,8 @@ impl Variance {
         Variance::Contravariant.compose(self)
     }
 
-    /// Return whether this declared variance admits one derived use.
-    pub(in crate::sema) fn admits(self, derived: Variance) -> bool {
+    /// Return whether this declared variance is compatible with one derived use.
+    pub(in crate::sema) fn is_compatible_with(self, derived: Variance) -> bool {
         matches!(derived, Variance::Bivariant) || self == Variance::Invariant || self == derived
     }
 
@@ -60,7 +60,7 @@ impl Variance {
         }
     }
 
-    /// Return the argument relation and operand order this variance demands.
+    /// Return the argument relation and operand order this variance requires.
     ///
     /// The relation is `Widens` when the arguments name storage inside an
     /// existing value, and `Assignable` when a conformance query encodes
@@ -153,7 +153,7 @@ impl CheckState<'_> {
         parameter: dir::GlobalGenericParameterId,
         form: VarianceForm,
     ) -> CompilerResult<Variance> {
-        // replay derived variances, recursive uses start optimistic
+        // reuse derived variances, recursive uses start optimistic
         match self.variances.get(&(parameter, form)) {
             Some(VarianceState::Derived(variance)) => return Ok(*variance),
             Some(VarianceState::Deriving) => return Ok(Variance::Bivariant),
@@ -222,11 +222,9 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<VarianceForm> {
-        // default foreign parameters to the owned form while
-        //  declaring, checking derives the real form
-        let Some(kind) = self.symbol_kind_maybe(symbol)? else {
-            return Ok(VarianceForm::Owned);
-        };
+        // NOTE #Suspicious: an intended declare-phase Owned default was dead code
+        //  here, the kind read always answers; surface if declare derives wrong forms
+        let kind = self.symbol_kind(symbol)?;
 
         let form = match kind {
             dir::SymbolKind::Class
@@ -531,7 +529,7 @@ impl CheckState<'_> {
             // structural shapes measure reads forward and writes backward
             dir::Type::Object(shape) => {
                 let fields: SmallVec<[_; 4]> = self
-                    .shape_properties(ty.module_id, shape.properties)?
+                    .object_properties(ty.module_id, shape.properties)?
                     .into();
                 let mut measured = Variance::Bivariant;
                 for field in fields {
@@ -559,7 +557,7 @@ impl CheckState<'_> {
                         measured.join(self.measure_type(signature, position, form, parameter)?);
                 }
                 let index_signatures: SmallVec<[_; 4]> = self
-                    .shape_index_signatures(ty.module_id, shape.index_signatures)?
+                    .object_index_signatures(ty.module_id, shape.index_signatures)?
                     .into();
                 for signature in index_signatures {
                     measured = measured.join(self.measure_type(
@@ -685,7 +683,7 @@ impl CheckState<'_> {
             let source = self.shallow_resolve(*source)?;
             let target = self.shallow_resolve(*target)?;
 
-            // erased target arguments admit every instantiation of their parameter
+            // erased target arguments match every instantiation of their parameter
             if matches!(self.ty(target)?, dir::Type::Erased(_)) {
                 continue;
             }
@@ -737,9 +735,9 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         relation: Relation,
     ) -> CompilerResult<Relation> {
-        let relation = match self.symbol_kind_maybe(symbol)? {
+        let relation = match self.symbol_kind(symbol)? {
             // widen interface applications by assignability
-            Some(dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface)
+            dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface
                 if relation == Relation::Widens =>
             {
                 Relation::Assignable
@@ -918,14 +916,14 @@ impl CheckState<'_> {
     }
 
     /// Return the One cardinality one parameter resolves to, if any.
-    pub(in crate::sema) fn recorded_cardinality(
+    pub(in crate::sema) fn resolved_cardinality(
         &self,
         parameter: dir::GlobalGenericParameterId,
     ) -> Option<dir::Cardinality> {
         let mut visited = FxIndexSet::default();
         let mut current = parameter;
 
-        // follow Of links to the recorded One
+        // follow Of links to the committed One
         while visited.insert(current) {
             match self.parameter_cardinality(current)? {
                 one @ dir::Cardinality::One { .. } => return Some(one),
@@ -936,7 +934,7 @@ impl CheckState<'_> {
         None
     }
 
-    /// Return the cardinality one parameter's segments record.
+    /// Return the cardinality stored for one parameter's segments.
     fn parameter_cardinality(
         &self,
         parameter: dir::GlobalGenericParameterId,
@@ -959,28 +957,28 @@ impl CheckState<'_> {
         None
     }
 
-    /// Return whether one type satisfies a One cardinality demand.
-    pub(in crate::sema) fn type_satisfies_one_cardinality(
+    /// Return whether one type carries One cardinality.
+    pub(in crate::sema) fn has_one_cardinality(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        // expose the value domain behind computation heads before judging
+        // expose the value domain behind computation heads before deciding
         let ty = self.normalize_computation(origin, ty)?;
-        let satisfies = match self.ty(ty)? {
+        let is_one = match self.ty(ty)? {
             // literals and errors stand for one value
             dir::Type::Literal(_) | dir::Type::Error => true,
             // bare enum members carry one discriminant value
             dir::Type::Variant(_) => true,
-            // reject unsettled variables loudly
+            // fail loudly on unsettled variables
             dir::Type::Variable(_) => {
                 return Err(CompilerError::Internal {
                     message: format!("unsettled variable at {origin:?}"),
                 });
             }
-            // rigid parameters carry their own recorded cardinality
+            // rigid parameters carry their own committed cardinality
             dir::Type::Parameter(parameter) => {
-                self.recorded_cardinality(parameter).is_some()
+                self.resolved_cardinality(parameter).is_some()
                     || self
                         .generic_parameter(parameter)
                         .is_some_and(|binding| binding.memory_parameter().is_some())
@@ -989,11 +987,11 @@ impl CheckState<'_> {
             dir::Type::Operation(operation) => {
                 match self.type_operation(ty.module_id, operation)? {
                     dir::TypeOperation::StaticBinary(binary) => {
-                        self.type_satisfies_one_cardinality(origin, binary.left)?
-                            && self.type_satisfies_one_cardinality(origin, binary.right)?
+                        self.has_one_cardinality(origin, binary.left)?
+                            && self.has_one_cardinality(origin, binary.right)?
                     }
                     dir::TypeOperation::StaticUnary(unary) => {
-                        self.type_satisfies_one_cardinality(origin, unary.target)?
+                        self.has_one_cardinality(origin, unary.target)?
                     }
                     // infer binders match the one value the scrutinee fixed
                     dir::TypeOperation::Infer(_) => true,
@@ -1003,11 +1001,11 @@ impl CheckState<'_> {
             _ => false,
         };
 
-        Ok(satisfies)
+        Ok(is_one)
     }
 
-    /// Return the derived variance recorded for one parameter, if any.
-    pub(in crate::sema) fn recorded_variance(
+    /// Return the derived variance committed for one parameter, if any.
+    pub(in crate::sema) fn committed_variance(
         &self,
         module: ModuleId,
         parameter: dir::LocalGenericParameterId,

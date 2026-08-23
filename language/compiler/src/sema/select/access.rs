@@ -34,8 +34,8 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Record one use of a selected stable storage access.
-    pub(in crate::sema) fn record_access_use(
+    /// Commit one use of a selected stable storage access.
+    pub(in crate::sema) fn commit_access_use(
         &mut self,
         node: dir::GlobalNodeIdAny,
         uses: dir::BindingUse,
@@ -56,14 +56,14 @@ impl CheckState<'_> {
         };
         let flows = &mut self.module_mut(node.module_id).flows;
 
-        // record the exact access independently from its root binding
-        flows.record_access_use(node.local_id, path, uses);
+        // write the exact access independently from its root binding
+        flows.commit_access_use(node.local_id, path, uses);
 
-        // record symbol root uses without treating projected writes as reassignment
+        // write symbol root uses without treating projected writes as reassignment
         if let dir::AccessRoot::Symbol(symbol) = root
             && !root_uses.is_empty()
         {
-            flows.record_binding_use(node.local_id, symbol, root_uses);
+            flows.commit_binding_use(node.local_id, symbol, root_uses);
         }
     }
 

@@ -52,8 +52,8 @@ impl CheckState<'_> {
             FlowNarrowing::Unchanged => Ok(ty),
             // wait for the consulted operation to decide, then re-narrow and close the hole
             FlowNarrowing::Pending { operation, .. } => {
-                let hole = self.allocate_variable(site.origin(), VariableRole::Regular);
-                self.register_check(Check::Narrowing(NarrowingCheck {
+                let hole = self.open_variable(site.origin(), VariableRole::Regular);
+                self.queue_check(Check::Narrowing(NarrowingCheck {
                     site,
                     path: path.path().clone(),
                     operation,
@@ -135,7 +135,7 @@ impl CheckState<'_> {
         for (tested, predicate) in predicates.into_iter().rev() {
             // wait for a consulted operation to decide
             if let FlowPredicate::Equality { operation, .. } = predicate
-                && let Some(blocker) = self.open_operation_hole(operation)?
+                && let Some(blocker) = self.operation_hole(operation)?
             {
                 return Ok(FlowNarrowing::Pending { operation, blocker });
             }
@@ -160,7 +160,7 @@ impl CheckState<'_> {
     }
 
     /// Return the open hole standing for one undecided operation.
-    pub(in crate::sema) fn open_operation_hole(
+    pub(in crate::sema) fn operation_hole(
         &mut self,
         operation: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Option<dir::TypeVariableId>> {
@@ -390,7 +390,7 @@ impl CheckState<'_> {
                     let narrow = self.require_node_type(inner.into_any())?;
 
                     // stop where the cast converts the value
-                    if self.evaluate_relation(origin, Relation::Subtype, narrow, widened)?
+                    if self.decide_relation(origin, Relation::Subtype, narrow, widened)?
                         != Verdict::Holds
                     {
                         break;

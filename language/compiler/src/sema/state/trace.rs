@@ -10,14 +10,14 @@ const CHECK_EVENT_STREAM_ENV: &str = "DESTACK_CHECK_EVENT_STREAM";
 /// Work counters accumulated while checking one module.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(in crate::sema) struct CheckCounters {
-    /// Relation judgments computed past the memos.
-    pub(in crate::sema) judges: u64,
+    /// Relation judgments decided past the memos.
+    pub(in crate::sema) relation_decisions: u64,
     /// Relation judgments served from the memos.
-    pub(in crate::sema) judge_replays: u64,
+    pub(in crate::sema) relation_reuses: u64,
     /// Member bindings derived past the memo.
     pub(in crate::sema) binding_derivations: u64,
     /// Member bindings served from the memo.
-    pub(in crate::sema) binding_replays: u64,
+    pub(in crate::sema) binding_reuses: u64,
     /// Speculative probes opened.
     pub(in crate::sema) probes: u64,
     /// Probes opened by overload selection.
@@ -31,7 +31,7 @@ pub(in crate::sema) struct CheckCounters {
     /// Generic parameter instantiations opened.
     pub(in crate::sema) instantiations: u64,
     /// Member lookups served from the answers table.
-    pub(in crate::sema) member_replays: u64,
+    pub(in crate::sema) member_reuses: u64,
     /// Member lookups derived past the answers table.
     pub(in crate::sema) member_derivations: u64,
     /// Member lookups refusing canonical form.
@@ -57,7 +57,7 @@ pub(in crate::sema) struct CheckStats {
     pub(in crate::sema) decisions: usize,
 }
 
-/// The bounds visible when one variable event was recorded.
+/// The bounds visible when one variable event was traced.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::sema) struct VariableBounds {
     /// Types that must be assignable to the variable.
@@ -123,13 +123,13 @@ pub(in crate::sema) enum CheckEvent {
     },
 }
 
-/// Retained trace state while checking.
+/// Trace state kept while checking.
 pub(in crate::sema) struct CheckTrace {
-    /// Trace events recorded while checking.
+    /// Trace events kept while checking.
     pub(in crate::sema) events: Vec<CheckEvent>,
     /// Whether events are kept for artifact output.
     pub(in crate::sema) emit: bool,
-    /// Whether events print as they are recorded.
+    /// Whether events print as they arrive.
     pub(in crate::sema) stream: bool,
 }
 
@@ -149,7 +149,7 @@ impl CheckTrace {
 }
 
 impl CheckState<'_> {
-    /// Return the recorded trace events, empty without a trace.
+    /// Return the kept trace events, empty without a trace.
     pub(in crate::sema) fn trace_events(&self) -> &[CheckEvent] {
         match &self.trace {
             Some(trace) => &trace.events,
@@ -157,8 +157,8 @@ impl CheckState<'_> {
         }
     }
 
-    /// Record one check event.
-    pub(in crate::sema) fn record_event(&mut self, event: CheckEvent) {
+    /// Push one check event onto the trace.
+    pub(in crate::sema) fn push_event(&mut self, event: CheckEvent) {
         let Some(trace) = &self.trace else {
             return;
         };
@@ -168,7 +168,7 @@ impl CheckState<'_> {
             self.stream_event(&event);
         }
 
-        // retain the event for artifact output
+        // keep the event for artifact output
         if let Some(trace) = &mut self.trace
             && trace.emit
         {
@@ -180,26 +180,26 @@ impl CheckState<'_> {
     fn stream_event(&self, event: &CheckEvent) {
         let context = DumpContext::new(self);
         let mut log = ArtifactEventLog::new();
-        event.render(&context, &mut log);
+        event.format_event(&context, &mut log);
 
         eprint!("{}", log.render_plain());
     }
 
-    /// Return rendered event lines for this module.
+    /// Return the formatted event lines for this module.
     pub(in crate::sema) fn events(&self) -> ArtifactEventLog {
         let context = DumpContext::new(self);
         let mut log = ArtifactEventLog::new();
 
-        // summarize retained trace state
+        // summarize the kept trace state
         log.push(
             ArtifactEvent::new("trace.summary")
                 .info()
                 .usize("events", self.trace_events().len()),
         );
 
-        // render retained events in order
+        // format the kept events in order
         for event in self.trace_events() {
-            event.render(&context, &mut log);
+            event.format_event(&context, &mut log);
         }
 
         log
@@ -214,7 +214,7 @@ impl CheckState<'_> {
             solutions += usize::from(!state.state.is_open());
         }
 
-        // render relation and declared checks as the pinned constraint and obligation counts
+        // count relation and declared checks as the constraint and obligation totals
         let mut constraints = 0;
         let mut obligations = 0;
         for (_, check) in self.fulfill.checks.iter() {
@@ -240,14 +240,14 @@ impl CheckState<'_> {
     }
 }
 
-/// Return whether check events should stream as they are recorded.
-pub(in crate::sema) fn should_stream_check_events() -> bool {
+/// Return whether check events stream as they arrive.
+pub(in crate::sema) fn is_check_event_streaming() -> bool {
     std::env::var_os(CHECK_EVENT_STREAM_ENV).is_some_and(|value| !value.is_empty() && value != "0")
 }
 
 impl CheckStats {
-    /// Render these stats with their counters as stable metadata lines.
-    pub(in crate::sema) fn render_metadata(self, counters: CheckCounters) -> String {
+    /// Format these stats with their counters as stable metadata lines.
+    pub(in crate::sema) fn format_metadata(self, counters: CheckCounters) -> String {
         format!(
             "\
 check.stats.solve.variables={}
@@ -256,12 +256,12 @@ check.stats.solve.obligations={}
 check.stats.solve.solutions={}
 check.stats.solve.bounds={}
 check.stats.solve.decisions={}
-check.stats.judges.decided={}
-check.stats.judges.replayed={}
+check.stats.relations.decided={}
+check.stats.relations.reused={}
 check.stats.bindings.built={}
-check.stats.bindings.replayed={}
+check.stats.bindings.reused={}
 check.stats.members.derived={}
-check.stats.members.replayed={}
+check.stats.members.reused={}
 check.stats.members.refused={}
 check.stats.probes.total={}
 check.stats.probes.selections={}
@@ -275,12 +275,12 @@ check.stats.reduces={}",
             self.solutions,
             self.bounds,
             self.decisions,
-            counters.judges,
-            counters.judge_replays,
+            counters.relation_decisions,
+            counters.relation_reuses,
             counters.binding_derivations,
-            counters.binding_replays,
+            counters.binding_reuses,
             counters.member_derivations,
-            counters.member_replays,
+            counters.member_reuses,
             counters.member_refusals,
             counters.probes,
             counters.selection_probes,

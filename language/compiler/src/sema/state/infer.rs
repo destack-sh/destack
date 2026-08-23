@@ -18,6 +18,8 @@ pub(in crate::sema) struct InferContext {
     /// Variables opened for generic parameters, keyed by application.
     pub(in crate::sema) instantiations:
         FxIndexMap<(OriginId, GenericParameterId), dir::TypeVariableId>,
+    /// Whether typing positions are sealed, set once solutions are final.
+    pub(in crate::sema) sealed: bool,
 
     // solving rounds
     /// The open inference scope depth.
@@ -32,7 +34,7 @@ pub(in crate::sema) struct InferContext {
     pub(in crate::sema) causes: CauseArena,
 
     // speculation
-    /// Inference mutations recorded while speculation is active.
+    /// Inference mutations pushed while speculation is active.
     pub(in crate::sema) trail: Vec<InferUndo>,
     /// The number of nested trail marks.
     pub(in crate::sema) marks: usize,
@@ -69,7 +71,7 @@ pub(in crate::sema) enum InferUndo {
         /// The previous completed outcome.
         previous: Option<CheckOutcome>,
     },
-    /// Undo one recorded instantiation.
+    /// Undo one stored instantiation.
     Instantiation {
         /// The typing position that opened the parameter.
         key: (OriginId, GenericParameterId),
@@ -85,6 +87,7 @@ impl InferContext {
             causes: CauseArena::default(),
             relations: RelationStack::new(),
             instantiations: FxIndexMap::default(),
+            sealed: false,
             scope_depth: 0,
             symbol_variables: FxIndexMap::default(),
             trail: Vec::new(),
@@ -140,7 +143,7 @@ impl InferContext {
         poison: dir::GlobalTypeId,
         fulfill: &mut Fulfillment,
     ) -> CompilerResult<()> {
-        // undo every mutation recorded past the mark
+        // undo every mutation pushed past the mark
         while self.trail.len() > mark.trail {
             let undo = self.trail.pop().ok_or_else(|| CompilerError::Internal {
                 message: "solver trail ended before its mark".into(),
@@ -157,7 +160,7 @@ impl InferContext {
         Ok(())
     }
 
-    /// Close one trail mark, keeping the mutations it recorded.
+    /// Close one trail mark, keeping the mutations it pushed.
     pub(in crate::sema) fn commit(&mut self, _mark: TrailMark, fulfill: &mut Fulfillment) {
         fulfill.commit_speculation();
         self.marks -= 1;
@@ -166,15 +169,15 @@ impl InferContext {
         }
     }
 
-    /// Allocate one variable.
-    pub(in crate::sema) fn allocate_variable(
+    /// Open one inference variable.
+    pub(in crate::sema) fn open_variable(
         &mut self,
         origin: Origin,
         kind: VariableKind,
         role: VariableRole,
     ) -> dir::TypeVariableId {
         let variable = dir::TypeVariableId(self.variables.count() as u32);
-        self.record_undo(InferUndo::Variable {
+        self.push_undo(InferUndo::Variable {
             id: variable,
             previous: None,
         });
@@ -222,19 +225,19 @@ impl InferContext {
         let id = self.alias_root(id)?;
         let pushed = self.variables.push_bound(id, side, bound)?;
         if pushed {
-            self.record_undo(InferUndo::Bound { id, side });
+            self.push_undo(InferUndo::Bound { id, side });
         }
 
         Ok(pushed)
     }
 
-    /// Record the declared default completing one variable.
+    /// Set the declared default completing one variable.
     pub(in crate::sema) fn set_variable_default(
         &mut self,
         id: dir::TypeVariableId,
         default: dir::GlobalTypeId,
     ) {
-        self.record_undo(InferUndo::Default {
+        self.push_undo(InferUndo::Default {
             id,
             previous: self.variables.variable_default(id),
         });
@@ -254,19 +257,19 @@ impl InferContext {
         &mut self,
         variable: dir::TypeVariableId,
     ) -> CompilerResult<&mut Variable> {
-        self.record_variable(variable)?;
+        self.push_variable_undo(variable)?;
 
         self.variables.get_mut(variable)
     }
 
-    /// Set one check's outcome, recording its prior state on the trail.
+    /// Set one check's outcome, pushing its prior state on the trail.
     pub(in crate::sema) fn set_check_result(
         &mut self,
         checks: &mut CheckTable,
         id: CheckId,
         outcome: Option<CheckOutcome>,
     ) -> CompilerResult<()> {
-        self.record_check(checks, id)?;
+        self.push_check_undo(checks, id)?;
         checks.set_result(id, outcome)?;
 
         Ok(())
@@ -326,11 +329,16 @@ impl InferContext {
         self.variables.count()
     }
 
-    /// Record one trail entry if speculation is active.
-    fn record_undo(&mut self, undo: InferUndo) {
+    /// Push one trail entry if speculation is active.
+    fn push_undo(&mut self, undo: InferUndo) {
         if self.marks > 0 {
             self.trail.push(undo);
         }
+    }
+
+    /// Seal typing positions once solutions are final, so later projections instantiate fresh.
+    pub(in crate::sema) fn seal(&mut self) {
+        self.sealed = true;
     }
 
     /// Return the variable already opened for one parameter at one typing position.
@@ -339,24 +347,34 @@ impl InferContext {
         origin: OriginId,
         parameter: GenericParameterId,
     ) -> Option<dir::TypeVariableId> {
+        // sealed positions instantiate fresh
+        if self.sealed {
+            return None;
+        }
+
         self.instantiations.get(&(origin, parameter)).copied()
     }
 
-    /// Record the variable opened for one parameter at one typing position.
-    pub(in crate::sema) fn record_instantiation(
+    /// Store the variable opened for one parameter at one typing position.
+    pub(in crate::sema) fn insert_instantiation(
         &mut self,
         origin: OriginId,
         parameter: GenericParameterId,
         variable: dir::TypeVariableId,
     ) {
-        self.record_undo(InferUndo::Instantiation {
+        // sealed positions stay unclaimed
+        if self.sealed {
+            return;
+        }
+
+        self.push_undo(InferUndo::Instantiation {
             key: (origin, parameter),
         });
         self.instantiations.insert((origin, parameter), variable);
     }
 
-    /// Record one variable's prior state if speculation is active.
-    fn record_variable(&mut self, id: dir::TypeVariableId) -> CompilerResult<()> {
+    /// Push one variable's prior state if speculation is active.
+    fn push_variable_undo(&mut self, id: dir::TypeVariableId) -> CompilerResult<()> {
         if self.marks > 0 {
             let previous = *self.variables.get(id)?;
             let role = self.variables.role(id)?;
@@ -369,8 +387,8 @@ impl InferContext {
         Ok(())
     }
 
-    /// Record one check entry if speculation is active.
-    fn record_check(&mut self, checks: &CheckTable, id: CheckId) -> CompilerResult<()> {
+    /// Push one check entry if speculation is active.
+    fn push_check_undo(&mut self, checks: &CheckTable, id: CheckId) -> CompilerResult<()> {
         if self.marks > 0 {
             self.trail.push(InferUndo::Check {
                 id,
@@ -381,7 +399,7 @@ impl InferContext {
         Ok(())
     }
 
-    /// Undo one recorded trail entry.
+    /// Undo one trail entry.
     fn rollback_undo(
         &mut self,
         undo: InferUndo,

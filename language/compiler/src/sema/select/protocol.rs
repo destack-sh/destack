@@ -216,7 +216,7 @@ impl BodyState<'_, '_> {
             });
         };
 
-        // retain the protocol declaration's parameter bounds
+        // keep the protocol declaration's parameter bounds
         for constraint in
             self.substitute_application_constraints(origin, template, &substitution)?
         {
@@ -709,7 +709,7 @@ impl BodyState<'_, '_> {
                     candidates,
                 )
             }
-            MemberLookup::Missing | MemberLookup::Field(_) | MemberLookup::Undecided => Ok(None),
+            MemberLookup::Missing | MemberLookup::Field(_) | MemberLookup::Ambiguous => Ok(None),
         }
     }
 
@@ -798,7 +798,7 @@ impl BodyState<'_, '_> {
                     candidates,
                 )
             }
-            MemberLookup::Missing | MemberLookup::Field(_) | MemberLookup::Undecided => Ok(None),
+            MemberLookup::Missing | MemberLookup::Field(_) | MemberLookup::Ambiguous => Ok(None),
         }
     }
 
@@ -813,7 +813,7 @@ impl BodyState<'_, '_> {
         requirements: &[InterfaceMember],
         candidates: Vec<MemberCandidate>,
     ) -> CompilerResult<Option<ProtocolMember>> {
-        let candidates = self.retain_protocol_implementers(
+        let candidates = self.filter_protocol_implementers(
             origin,
             module,
             lookup_receiver,
@@ -880,7 +880,7 @@ impl BodyState<'_, '_> {
         argument_sources: &[dir::ArgumentSource],
         candidates: Vec<MemberCandidate>,
     ) -> CompilerResult<Option<ProtocolCall>> {
-        let candidates = self.retain_protocol_implementers(
+        let candidates = self.filter_protocol_implementers(
             origin,
             module,
             lookup_receiver,
@@ -927,8 +927,8 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Retain candidates declared by the interface or its proven implementers.
-    fn retain_protocol_implementers(
+    /// Keep only the candidates declared by the interface or its proven implementers.
+    fn filter_protocol_implementers(
         &mut self,
         origin: Origin,
         module: ModuleId,
@@ -1023,7 +1023,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // retain interface declarations and the members of proven implementers
+        // keep interface declarations and the members of proven implementers
         let mut selected = Vec::new();
         for candidate in candidates {
             let source = self.symbol_source(candidate.symbol)?;
@@ -1038,7 +1038,7 @@ impl BodyState<'_, '_> {
         Ok(selected)
     }
 
-    /// Retain candidates whose declarations are selected by a protocol implementation.
+    /// Keep only the candidates whose declarations one protocol implementation selects.
     fn select_protocol_declarations(
         &self,
         declarations: &FxIndexSet<dir::GlobalNodeIdAny>,
@@ -1097,7 +1097,7 @@ impl BodyState<'_, '_> {
             ..receiver
         };
         let arguments = self.source_callable_arguments(origin, argument_sources)?;
-        let attempt = self.attempt_callable(
+        let attempt = self.probe_callable(
             origin,
             candidate.callable.ok_or_else(|| CompilerError::Internal {
                 message: format!("protocol member {symbol:?} has no callable type"),

@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 use crate::sema::{
     Cause, CauseKind, Check, CheckEvent, CheckFailure, CheckId, CheckOutcome, CheckState,
     CheckTable, ConversionCheck, EqualityCheck, FailedCheck, FlowNarrowing, NarrowingCheck,
-    NodeCheck, ObligationEntry, ObligationPhase, Relation, RelationCheck, SelectionCheck, Settle,
+    NodeCheck, ObligationEntry, ObligationPhase, Relation, RelationCheck, Resolve, SelectionCheck,
     Verdict, WorkState,
 };
 use crate::{CompilerError, CompilerResult};
@@ -17,17 +17,17 @@ pub(in crate::sema) enum Wake {
     Variable(dir::TypeVariableId),
     /// One source node commits a type.
     Node(dir::GlobalNodeIdAny),
-    /// Any settle stage begins.
+    /// Any resolve stage begins.
     Stage,
-    /// The final settle begins.
+    /// The final resolve begins.
     Final,
 }
 
-/// One open speculative attempt: the checks registered before it, which the attempt cannot
+/// One open speculative attempt: the checks queued before it, which the attempt cannot
 /// step, and the wakes held back from them until the attempt commits.
 #[derive(Debug, Default)]
 struct Fence {
-    /// The number of checks registered before the attempt.
+    /// The number of checks queued before the attempt.
     checks: usize,
     /// Wake events the attempt fired at fenced checks.
     wakes: Vec<Wake>,
@@ -37,7 +37,7 @@ struct Fence {
 pub(in crate::sema) struct Fulfillment {
     /// Collected checks with their outcomes and scheduling state.
     pub(in crate::sema) checks: CheckTable,
-    /// Failed checks retained until their cause trees are complete.
+    /// Failed checks kept until their cause trees are complete.
     pub(in crate::sema) failures: Vec<FailedCheck>,
     /// Checks queued to step.
     pub(in crate::sema) ready: Vec<CheckId>,
@@ -70,7 +70,7 @@ impl Fulfillment {
         self.fences.last().map_or(0, |fence| fence.checks)
     }
 
-    /// Open one speculative attempt, fencing off every check registered so far.
+    /// Open one speculative attempt, fencing off every check queued so far.
     pub(in crate::sema) fn open_speculation(&mut self) {
         self.fences.push(Fence {
             checks: self.checks.count(),
@@ -115,13 +115,13 @@ impl Fulfillment {
         }
     }
 
-    /// Register one check's work, keeping repeated registrations single while live.
-    pub(in crate::sema) fn register_work(
+    /// Queue one check's work, keeping repeated queuing single while live.
+    pub(in crate::sema) fn queue_work(
         &mut self,
         check: CheckId,
         produces: SmallVec<[dir::TypeVariableId; 2]>,
     ) {
-        // leave a live registration as it stands
+        // leave a live queue entry as it stands
         if self.checks.state(check) != WorkState::Done {
             return;
         }
@@ -151,9 +151,9 @@ impl Fulfillment {
         }
     }
 
-    /// Wait one check on the variables it watches, or on the next settle stage.
+    /// Wait one check on the variables it watches, or on the next resolve stage.
     pub(in crate::sema) fn stall_work(&mut self, id: CheckId, watched: &[dir::TypeVariableId]) {
-        // wait for the next settle stage without any watched variable
+        // wait for the next resolve stage without any watched variable
         if watched.is_empty() {
             return self.wait(id, Wake::Stage);
         }
@@ -173,7 +173,7 @@ impl Fulfillment {
         self.queue_waiters(event, waiters);
     }
 
-    /// Wake every waiting check for the final settle.
+    /// Wake every waiting check for the final resolve.
     pub(in crate::sema) fn wake_all(&mut self) {
         for (event, waiters) in std::mem::take(&mut self.waiting) {
             self.queue_waiters(event, waiters);
@@ -252,31 +252,34 @@ impl Fulfillment {
 }
 
 impl CheckState<'_> {
-    /// Register one check with fulfillment, queuing it to step.
-    pub(in crate::sema) fn register_check(&mut self, check: Check) -> CompilerResult<CheckId> {
-        let produces = self.check_produces(&check)?;
+    /// Collect one check into fulfillment and queue it to step.
+    pub(in crate::sema) fn queue_check(&mut self, check: Check) -> CompilerResult<CheckId> {
+        let produces = self.produced_variables(&check)?;
         let id = self.fulfill.checks.allocate(check);
-        self.fulfill.register_work(id, produces);
+        self.fulfill.queue_work(id, produces);
 
         Ok(id)
     }
 
-    /// Register one check already stalled on the blockers it waits behind.
-    pub(in crate::sema) fn register_check_stalled(
+    /// Collect one check already stalled on the blockers it waits behind.
+    pub(in crate::sema) fn queue_check_stalled(
         &mut self,
         check: Check,
         blockers: &[dir::TypeVariableId],
     ) -> CompilerResult<CheckId> {
-        let produces = self.check_produces(&check)?;
+        let produces = self.produced_variables(&check)?;
         let id = self.fulfill.checks.allocate(check);
-        self.fulfill.register_work(id, produces);
+        self.fulfill.queue_work(id, produces);
         self.fulfill.stall_work(id, blockers);
 
         Ok(id)
     }
 
     /// Return the open variables one check's completion can still bound.
-    fn check_produces(&self, check: &Check) -> CompilerResult<SmallVec<[dir::TypeVariableId; 2]>> {
+    fn produced_variables(
+        &self,
+        check: &Check,
+    ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 2]>> {
         let mut produces = SmallVec::new();
         match check {
             // land a blocked node's result on the expectation target
@@ -285,7 +288,7 @@ impl CheckState<'_> {
             }
             // solve a narrowing's own hole once its operation decides
             Check::Narrowing(narrowing) => {
-                if let Some(hole) = self.open_variable(narrowing.hole)? {
+                if let Some(hole) = self.open_root(narrowing.hole)? {
                     produces.push(hole);
                 }
             }
@@ -305,11 +308,11 @@ impl CheckState<'_> {
     }
 
     /// Collect one relation and queue it without attempting it yet.
-    pub(in crate::sema) fn register_relation(
+    pub(in crate::sema) fn queue_relation(
         &mut self,
         relation: RelationCheck,
     ) -> CompilerResult<CheckId> {
-        self.register_check(Check::Relation(relation))
+        self.queue_check(Check::Relation(relation))
     }
 
     /// Collect one relation and solve it in place, queuing it while ambiguous.
@@ -318,19 +321,22 @@ impl CheckState<'_> {
         relation: RelationCheck,
     ) -> CompilerResult<CheckId> {
         let id = self.fulfill.checks.allocate_relation(relation);
-        self.solve_relation(id, Settle::Bounded)?;
+        self.solve_relation(id, Resolve::Bounded)?;
 
         // queue the relation while an ambiguous verdict leaves it open
         if !self.fulfill.checks.is_complete(id) {
-            self.fulfill.register_work(id, SmallVec::new());
+            self.fulfill.queue_work(id, SmallVec::new());
         }
 
         Ok(id)
     }
 
     /// Step the work ready at entry once, leaving fresh registrations queued.
-    pub(in crate::sema) fn solve_where_possible(&mut self, settle: Settle) -> CompilerResult<bool> {
-        // take the round's ready queue, leaving fresh registrations for the next
+    pub(in crate::sema) fn solve_where_possible(
+        &mut self,
+        resolve: Resolve,
+    ) -> CompilerResult<bool> {
+        // take the round's ready queue, leaving fresh work for the next
         let ready = std::mem::take(&mut self.fulfill.ready);
         let fence = self.fulfill.fence();
         let mut held = Vec::new();
@@ -346,10 +352,10 @@ impl CheckState<'_> {
                 continue;
             }
 
-            round |= self.step_check(id, settle)?;
+            round |= self.step_check(id, resolve)?;
         }
 
-        // keep the fenced checks queued ahead of the round's registrations
+        // keep the fenced checks queued ahead of the round's fresh work
         held.append(&mut self.fulfill.ready);
         self.fulfill.ready = held;
 
@@ -359,28 +365,28 @@ impl CheckState<'_> {
     /// Step one pending check, dispatching by kind.
     ///
     /// This is the one driver every kind of check steps through, resolving a check's
-    /// open blockers hard at the final settle before re-evaluating.
-    fn step_check(&mut self, id: CheckId, settle: Settle) -> CompilerResult<bool> {
+    /// open blockers hard at the final resolve before re-evaluating.
+    fn step_check(&mut self, id: CheckId, resolve: Resolve) -> CompilerResult<bool> {
         let check = self.fulfill.checks.get(id)?.clone();
 
         match check {
-            Check::Relation(_) => self.step_relation(id, settle),
+            Check::Relation(_) => self.step_relation(id, resolve),
             Check::Node(node) => self.step_node(id, node),
-            Check::Conversion(conversion) => self.step_conversion(id, conversion, settle),
-            Check::Narrowing(narrowing) => self.step_narrowing(id, narrowing, settle),
-            Check::Selection(selection) => self.step_selection(id, selection, settle),
-            Check::Equality(equality) => self.step_equality(id, equality, settle),
-            Check::Declared(entry) => self.step_declared(id, entry, settle),
+            Check::Conversion(conversion) => self.step_conversion(id, conversion, resolve),
+            Check::Narrowing(narrowing) => self.step_narrowing(id, narrowing, resolve),
+            Check::Selection(selection) => self.step_selection(id, selection, resolve),
+            Check::Equality(equality) => self.step_equality(id, equality, resolve),
+            Check::Declared(entry) => self.step_declared(id, entry, resolve),
         }
     }
 
-    /// Resolve one check's blocking variables hard at the final settle.
-    fn settle_blockers(
+    /// Resolve one check's blocking variables hard at the final resolve.
+    fn resolve_blockers(
         &mut self,
-        settle: Settle,
+        resolve: Resolve,
         blockers: &[dir::TypeVariableId],
     ) -> CompilerResult<()> {
-        if settle == Settle::Final && !blockers.is_empty() {
+        if resolve == Resolve::Final && !blockers.is_empty() {
             self.resolve_variables(blockers)?;
         }
 
@@ -388,9 +394,9 @@ impl CheckState<'_> {
     }
 
     /// Step one pending relation check, returning whether it completed.
-    fn step_relation(&mut self, id: CheckId, settle: Settle) -> CompilerResult<bool> {
+    fn step_relation(&mut self, id: CheckId, resolve: Resolve) -> CompilerResult<bool> {
         // solve the relation, finishing the work once it decides
-        self.solve_relation(id, settle)?;
+        self.solve_relation(id, resolve)?;
         if self.fulfill.checks.is_complete(id) {
             self.fulfill.finish_work(id);
 
@@ -410,7 +416,7 @@ impl CheckState<'_> {
 
     /// Step one blocked node by re-running its check, returning whether it completed.
     fn step_node(&mut self, id: CheckId, node: NodeCheck) -> CompilerResult<bool> {
-        // re-run the whole check, which re-registers while an inference barrier stays open
+        // re-run the whole check, which requeues while an inference barrier stays open
         self.fulfill.finish_work(id);
         let mut body = self.body();
         body.check_node(node.site, node.expectation)?;
@@ -423,7 +429,7 @@ impl CheckState<'_> {
         &mut self,
         id: CheckId,
         conversion: ConversionCheck,
-        settle: Settle,
+        resolve: Resolve,
     ) -> CompilerResult<bool> {
         // read the pending conversion's expectation and site
         let mut expectation = conversion.expectation;
@@ -435,9 +441,9 @@ impl CheckState<'_> {
             expectation.use_,
         )?;
 
-        // close the operands hard at the final settle, deciding the conversion
-        let blockers = self.open_type_variables([source.ty, expectation.target])?;
-        self.settle_blockers(settle, &blockers)?;
+        // close the operands hard at the final resolve, deciding the conversion
+        let blockers = self.collect_open_variables([source.ty, expectation.target])?;
+        self.resolve_blockers(resolve, &blockers)?;
 
         // roll an ambiguous conversion back and wait for its operands to close
         let mark = self.infer.mark(&mut self.fulfill);
@@ -451,8 +457,8 @@ impl CheckState<'_> {
         )?;
         let was_ambiguous = verdict == Verdict::Ambiguous;
 
-        // fail an ambiguous conversion at the final settle
-        if was_ambiguous && settle == Settle::Final {
+        // fail an ambiguous conversion at the final resolve
+        if was_ambiguous && resolve == Resolve::Final {
             verdict = Verdict::Fails;
         }
 
@@ -471,11 +477,11 @@ impl CheckState<'_> {
             self.infer.commit(mark, &mut self.fulfill);
         }
 
-        // convert once both sides settle
+        // convert once both sides resolve
         source.ty = self.shallow_resolve(source.ty)?;
         expectation.target = self.shallow_resolve(expectation.target)?;
         if !self
-            .open_type_variables([source.ty, expectation.target])?
+            .collect_open_variables([source.ty, expectation.target])?
             .is_empty()
         {
             self.stall_operands(id, [source.ty, expectation.target])?;
@@ -505,11 +511,11 @@ impl CheckState<'_> {
         &mut self,
         id: CheckId,
         narrowing: NarrowingCheck,
-        settle: Settle,
+        resolve: Resolve,
     ) -> CompilerResult<bool> {
-        // wait for the consulted operation to decide, closing its hole hard at the final settle
-        if let Some(blocker) = self.open_operation_hole(narrowing.operation)? {
-            self.settle_blockers(settle, &[blocker])?;
+        // wait for the consulted operation to decide, closing its hole hard at the final resolve
+        if let Some(blocker) = self.operation_hole(narrowing.operation)? {
+            self.resolve_blockers(resolve, &[blocker])?;
             if self.decision(narrowing.operation).is_none() {
                 self.fulfill.stall_work(id, &[blocker]);
 
@@ -523,8 +529,8 @@ impl CheckState<'_> {
                 FlowNarrowing::Narrowed(narrowed) => narrowed,
                 FlowNarrowing::Unchanged => narrowing.source,
                 FlowNarrowing::Pending { blocker, .. } => {
-                    self.settle_blockers(settle, &[blocker])?;
-                    if settle != Settle::Final {
+                    self.resolve_blockers(resolve, &[blocker])?;
+                    if resolve != Resolve::Final {
                         self.fulfill.stall_work(id, &[blocker]);
 
                         return Ok(false);
@@ -549,12 +555,12 @@ impl CheckState<'_> {
         &mut self,
         id: CheckId,
         selection: SelectionCheck,
-        settle: Settle,
+        resolve: Resolve,
     ) -> CompilerResult<bool> {
         // wait for a stalled selection's blocker to solve
         if let Some(stalled_on) = selection.stalled_on {
             let root = self.infer.alias_root(stalled_on)?;
-            self.settle_blockers(settle, &[root])?;
+            self.resolve_blockers(resolve, &[root])?;
             if self.infer.variable(root)?.state.is_open() {
                 self.fulfill.stall_work(id, &[root]);
 
@@ -562,7 +568,7 @@ impl CheckState<'_> {
             }
         }
 
-        // reattempt the selection, which re-registers itself while blocked
+        // reattempt the selection, which requeues itself while blocked
         self.fulfill.finish_work(id);
         let mut body = self.body();
         body.attempt_node(selection.site, selection.use_, None)?;
@@ -575,18 +581,18 @@ impl CheckState<'_> {
         &mut self,
         id: CheckId,
         equality: EqualityCheck,
-        settle: Settle,
+        resolve: Resolve,
     ) -> CompilerResult<bool> {
         // wait for the stalled selection's blocker to solve
         let root = self.infer.alias_root(equality.stalled_on)?;
-        self.settle_blockers(settle, &[root])?;
+        self.resolve_blockers(resolve, &[root])?;
         if self.infer.variable(root)?.state.is_open() {
             self.fulfill.stall_work(id, &[root]);
 
             return Ok(false);
         }
 
-        // reattempt the selection, which re-registers itself while blocked
+        // reattempt the selection, which requeues itself while blocked
         self.fulfill.finish_work(id);
         let mut body = self.body();
         body.select_switch_equality(equality.value, equality.scrutinee, &equality.cases)?;
@@ -599,7 +605,7 @@ impl CheckState<'_> {
         &mut self,
         id: CheckId,
         entry: ObligationEntry,
-        settle: Settle,
+        resolve: Resolve,
     ) -> CompilerResult<bool> {
         // complete obligations untouched outside checking
         if !self.is_checking() {
@@ -608,16 +614,16 @@ impl CheckState<'_> {
             return Ok(true);
         }
 
-        // hold settle-phase obligations for the final settle
+        // hold final-phase obligations for the final resolve
         let phase = entry.obligation.phase();
-        if phase == ObligationPhase::Judge && settle != Settle::Final {
+        if phase == ObligationPhase::Final && resolve != Resolve::Final {
             self.fulfill.wait(id, Wake::Final);
 
             return Ok(false);
         }
 
         // run through solved types once the owning scope checked the node
-        if settle != Settle::Final {
+        if resolve != Resolve::Final {
             match self.committed_node_type(entry.obligation.source()) {
                 // stall on the committed type's open root
                 Some(ty) => {
@@ -649,13 +655,13 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Wait one check on its operands' open variables, or on the next settle stage.
+    /// Wait one check on its operands' open variables, or on the next resolve stage.
     fn stall_operands(
         &mut self,
         id: CheckId,
         operands: [dir::GlobalTypeId; 2],
     ) -> CompilerResult<()> {
-        let open = self.open_type_variables(operands)?;
+        let open = self.collect_open_variables(operands)?;
         self.fulfill.stall_work(id, &open);
 
         Ok(())
@@ -665,7 +671,7 @@ impl CheckState<'_> {
     pub(in crate::sema) fn solve_relation(
         &mut self,
         id: CheckId,
-        settle: Settle,
+        resolve: Resolve,
     ) -> CompilerResult<()> {
         if self.fulfill.checks.is_complete(id) {
             return Ok(());
@@ -677,9 +683,9 @@ impl CheckState<'_> {
             });
         };
 
-        // close the operands at the final settle, deciding the check hard
-        let blockers = self.open_type_variables([relation.source, relation.target])?;
-        self.settle_blockers(settle, &blockers)?;
+        // close the operands at the final resolve, deciding the check hard
+        let blockers = self.collect_open_variables([relation.source, relation.target])?;
+        self.resolve_blockers(resolve, &blockers)?;
 
         // attempt the relation, keeping whatever it bound
         let mark = self.infer.mark(&mut self.fulfill);
@@ -693,11 +699,11 @@ impl CheckState<'_> {
         self.infer.commit(mark, &mut self.fulfill);
 
         // keep the attempt's bounds and leave the check pending while it is ambiguous
-        if verdict == Verdict::Ambiguous && settle != Settle::Final {
+        if verdict == Verdict::Ambiguous && resolve != Resolve::Final {
             return Ok(());
         }
 
-        // fail an undecided relation at the final settle
+        // fail an undecided relation at the final resolve
         let outcome = match verdict {
             Verdict::Ambiguous => CheckOutcome::Fails(CheckFailure::Undecided),
             verdict => self.complete_constraint_check(
@@ -712,7 +718,7 @@ impl CheckState<'_> {
             .set_check_result(&mut self.fulfill.checks, id, Some(outcome))?;
 
         // trace the finished check
-        self.record_event(CheckEvent::Checked {
+        self.push_event(CheckEvent::Checked {
             check: id,
             is_finished: true,
         });
@@ -720,8 +726,8 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Retain one failed check until its cause tree is complete.
-    pub(in crate::sema) fn record_failure(&mut self, mut check: FailedCheck) -> CompilerResult<()> {
+    /// Push one failed check, kept until its cause tree is complete.
+    pub(in crate::sema) fn push_failure(&mut self, mut check: FailedCheck) -> CompilerResult<()> {
         // keep a failure over open operands provisional until they close
         check.is_provisional =
             (self.type_flags(check.source)? | self.type_flags(check.target)?).has_variable();

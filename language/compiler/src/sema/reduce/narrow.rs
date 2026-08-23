@@ -51,7 +51,7 @@ impl CheckState<'_> {
         let unknown = self.intern_type(dir::Type::Unknown)?;
         let member = self.field_shape_type(key, unknown)?;
         let member_is_narrower = self
-            .evaluate_relation(origin, Relation::Satisfies, member, receiver)?
+            .decide_relation(origin, Relation::Satisfies, member, receiver)?
             .holds();
         let narrowed = if member_is_narrower {
             member
@@ -302,7 +302,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<dir::TypeVariableId> {
-        self.open_type_variables([source, target])?
+        self.collect_open_variables([source, target])?
             .first()
             .copied()
             .ok_or_else(|| CompilerError::Internal {
@@ -408,7 +408,7 @@ impl CheckState<'_> {
         }
 
         // keep or remove the source arm on an exact match, deferring an undecided one
-        match self.evaluate_relation(origin, Relation::Subtype, source, target)? {
+        match self.decide_relation(origin, Relation::Subtype, source, target)? {
             Verdict::Holds => {
                 let narrowed = if is_positive {
                     source
@@ -427,7 +427,7 @@ impl CheckState<'_> {
         }
 
         // select the target when it is narrower, otherwise preserve both constraints
-        let is_top_like = match self.evaluate_relation(origin, Relation::Subtype, target, source)? {
+        let is_top_like = match self.decide_relation(origin, Relation::Subtype, target, source)? {
             Verdict::Holds => true,
             Verdict::Fails => false,
             Verdict::Ambiguous => {

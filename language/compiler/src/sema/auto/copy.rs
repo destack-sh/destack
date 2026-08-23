@@ -7,31 +7,19 @@ use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Decide whether one type duplicates implicitly without ownership.
-    pub(in crate::sema) fn satisfies_copy(
+    pub(in crate::sema) fn decide_copy(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
-        // unfold aliases, then use bounds declared by generic types
-        let ty = self.normalize(origin, ty)?;
-        if let Some(decision) =
-            self.decide_generic_auto_interface(origin, ty, dir::AutoInterface::Copy)?
-        {
-            return Ok(Verdict::decided(decision));
-        }
-
-        // close recursive structural types coinductively
-        if active.contains(&ty) {
-            return Ok(Verdict::Holds);
-        }
-        active.push(ty);
-
-        // restore the active stack after this decision
-        let result = self.decide_copy_type(origin, ty, active);
-        active.pop();
-
-        result
+        self.decide_guarded(
+            origin,
+            ty,
+            dir::AutoInterface::Copy,
+            active,
+            |state, ty, active| state.decide_copy_type(origin, ty, active),
+        )
     }
 
     /// Decide copyability for one active type.
@@ -47,13 +35,13 @@ impl CheckState<'_> {
         if let dir::Type::Form(form) = kind {
             return match form.form {
                 dir::Form::Managed | dir::Form::Raw | dir::Form::Readonly => Ok(Verdict::Holds),
-                dir::Form::Owned => self.satisfies_owned_copy(origin, form.value, active),
+                dir::Form::Owned => self.decide_owned_copy(origin, form.value, active),
                 dir::Form::Borrowed(borrow) => {
                     let access = self.type_borrow(ty.module_id, borrow)?.access;
 
-                    Ok(Verdict::decided(self.body().access_is_readonly(access)?))
+                    Ok(Verdict::decided(self.body().is_readonly_access(access)?))
                 }
-                dir::Form::Placed { .. } => self.satisfies_copy(origin, form.value, active),
+                dir::Form::Placed { .. } => self.decide_copy(origin, form.value, active),
             };
         }
 
@@ -62,11 +50,11 @@ impl CheckState<'_> {
             return Ok(Verdict::Holds);
         }
 
-        self.satisfies_structural_copy(origin, ty, kind, active)
+        self.decide_structural_copy(origin, ty, kind, active)
     }
 
     /// Decide copyability for one type stored directly in a value.
-    fn satisfies_structural_copy(
+    fn decide_structural_copy(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
@@ -80,7 +68,7 @@ impl CheckState<'_> {
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(ty.module_id, refined)?;
 
-                self.satisfies_copy(origin, refined.base, active)
+                self.decide_copy(origin, refined.base, active)
             }
             // copy owned scalar values directly
             dir::Type::Error
@@ -95,9 +83,9 @@ impl CheckState<'_> {
             | dir::Type::Primitive(_)
             | dir::Type::Literal(_)
             | dir::Type::Range(_) => Ok(Verdict::Holds),
-            // judge variants through their owning enum
-            dir::Type::Variant(member) => self.satisfies_copy(origin, member.owner, active),
-            // reject opaque and callable storage
+            // decide variants through their owning enum
+            dir::Type::Variant(member) => self.decide_copy(origin, member.owner, active),
+            // refuse opaque and callable storage
             dir::Type::Unknown
             | dir::Type::Intrinsic
             | dir::Type::Member(_)
@@ -122,17 +110,17 @@ impl CheckState<'_> {
             dir::Type::Form(_) => Err(CompilerError::Internal {
                 message: format!("memory form {ty:?} reached structural copy"),
             }),
-            // judge nominal storage through its declaration
+            // decide nominal storage through its declaration
             dir::Type::Application(instance) => {
-                self.satisfies_copy_instance(origin, ty.module_id, instance, active)
+                self.decide_copy_instance(origin, ty.module_id, instance, active)
             }
             // fail loudly on managed slices decided before this point
             dir::Type::Slice(_) => Err(CompilerError::Internal {
                 message: format!("managed slice {ty:?} reached structural copy"),
             }),
-            // judge fixed arrays through their element
-            dir::Type::FixedArray(array) => self.satisfies_copy(origin, array.element, active),
-            // judge tuples through every element
+            // decide fixed arrays through their element
+            dir::Type::FixedArray(array) => self.decide_copy(origin, array.element, active),
+            // decide tuples through every element
             dir::Type::Tuple(tuple) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
                     .tuple_elements(ty.module_id, tuple.elements)?
@@ -140,37 +128,37 @@ impl CheckState<'_> {
                     .map(|element| element.ty)
                     .collect();
 
-                self.all_copy(origin, ids, active)
+                self.decide_all(ids, |state, id| state.decide_copy(origin, id, active))
             }
-            // judge anonymous objects through their stored properties
+            // decide anonymous objects through their stored properties
             dir::Type::Object(shape) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
-                    .shape_properties(ty.module_id, shape.properties)?
+                    .object_properties(ty.module_id, shape.properties)?
                     .iter()
                     .map(|property| property.access.store())
                     .collect();
 
-                self.all_copy(origin, ids, active)
+                self.decide_all(ids, |state, id| state.decide_copy(origin, id, active))
             }
-            // judge unions through every alternative
+            // decide unions through every alternative
             dir::Type::Union(union) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> =
                     SmallVec::from_slice(self.type_ids(ty.module_id, union.elements)?);
 
-                self.all_copy(origin, ids, active)
+                self.decide_all(ids, |state, id| state.decide_copy(origin, id, active))
             }
-            // judge intersections through every constituent
+            // decide intersections through every constituent
             dir::Type::Intersection(intersection) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> =
                     SmallVec::from_slice(self.type_ids(ty.module_id, intersection.elements)?);
 
-                self.all_copy(origin, ids, active)
+                self.decide_all(ids, |state, id| state.decide_copy(origin, id, active))
             }
         }
     }
 
     /// Decide copyability for one payload stored inline as an owned value.
-    fn satisfies_owned_copy(
+    fn decide_owned_copy(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
@@ -194,46 +182,46 @@ impl CheckState<'_> {
 
         let kind = self.ty(ty)?;
 
-        // judge indirect scalar representations through their library storage
+        // decide indirect scalar representations through their library storage
         if let Some(item) = kind
             .scalar_domain()
             .and_then(dir::ScalarDomain::representation_item)
         {
             let representation = self.language_type(item, &[])?;
 
-            return self.satisfies_owned_copy(origin, representation, active);
+            return self.decide_owned_copy(origin, representation, active);
         }
 
         // decide owned payloads by their stored representation
         match kind {
             // decide explicit memory carriers through the carrier rules
-            dir::Type::Form(_) => self.satisfies_copy(origin, ty, active),
-            // reject carriers whose descriptor uniquely owns indirect storage
+            dir::Type::Form(_) => self.decide_copy(origin, ty, active),
+            // refuse carriers whose descriptor uniquely owns indirect storage
             dir::Type::Dynamic(_) | dir::Type::Function(_) | dir::Type::Slice(_) => {
                 Ok(Verdict::Fails)
             }
-            // judge inline nominal storage past its managed handle default
+            // decide inline nominal storage past its managed handle default
             dir::Type::Application(instance) => {
                 active.push(ty);
-                let result = self.satisfies_copy_instance(origin, ty.module_id, instance, active);
+                let result = self.decide_copy_instance(origin, ty.module_id, instance, active);
                 active.pop();
 
                 result
             }
             // preserve structural copy for owned inline values
-            _ => self.satisfies_structural_copy(origin, ty, kind, active),
+            _ => self.decide_structural_copy(origin, ty, kind, active),
         }
     }
 
     /// Decide copyability for one nominal instance.
-    fn satisfies_copy_instance(
+    fn decide_copy_instance(
         &mut self,
         origin: Origin,
         instance_module: ModuleId,
         instance: dir::GenericApplication,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
-        // admit the copy capability and the scalar markers by definition
+        // hold the copy capability and the scalar markers by definition
         let item = self.language_item(instance.symbol)?;
         if matches!(
             item,
@@ -263,15 +251,10 @@ impl CheckState<'_> {
             }),
             // copy a struct once every field copies, a raw pointer field under a written derive
             dir::Definition::Struct(definition) => {
-                let mut fields = SmallVec::<[_; 8]>::new();
-                for member in &definition.members {
-                    if let dir::DefinitionMember::Field(_) = member
-                        && let Some(ty) = self.definition_member_type(member)?
-                    {
-                        fields.push(ty);
-                    }
-                }
+                let fields = self.stored_field_types(&definition.members)?;
                 let derives = definition.derives.as_deref().unwrap_or_default();
+
+                // refuse a raw pointer field outside a written derive
                 if !derives.contains(&dir::AutoInterface::Copy) {
                     for field in &fields {
                         if self.is_raw_pointer(*field)? {
@@ -280,7 +263,9 @@ impl CheckState<'_> {
                     }
                 }
 
-                self.all_applied_copy(origin, instance_module, &instance, fields, active)
+                self.decide_all_applied(instance_module, &instance, fields, |state, id| {
+                    state.decide_copy(origin, id, active)
+                })
             }
             // copy an enum at its integer tag or managed string reference
             dir::Definition::Enum(_) => Ok(Verdict::Holds),
@@ -293,12 +278,11 @@ impl CheckState<'_> {
                     return Ok(Verdict::Fails);
                 }
 
-                self.all_applied_copy(
-                    origin,
+                self.decide_all_applied(
                     instance_module,
                     &instance,
                     [definition.backing],
-                    active,
+                    |state, id| state.decide_copy(origin, id, active),
                 )
             }
             // move class values
@@ -310,50 +294,10 @@ impl CheckState<'_> {
         }
     }
 
-    /// Decide copyability for applied nominal component types.
-    fn all_applied_copy(
-        &mut self,
-        origin: Origin,
-        instance_module: ModuleId,
-        instance: &dir::GenericApplication,
-        ids: impl IntoIterator<Item = dir::GlobalTypeId>,
-        active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<Verdict> {
-        let substitution = self.instance_substitution(instance_module, instance)?;
-        let mut verdict = Verdict::Holds;
-        for id in ids {
-            let applied = self.substitute_type(id, &substitution)?;
-            verdict = verdict.and(self.satisfies_copy(origin, applied, active)?);
-            if verdict == Verdict::Fails {
-                return Ok(Verdict::Fails);
-            }
-        }
-
-        Ok(verdict)
-    }
-
     /// Return whether one type is a raw pointer form.
     fn is_raw_pointer(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
         let ty = self.shallow_resolve(ty)?;
 
         Ok(matches!(self.ty(ty)?, dir::Type::Form(form) if form.form == dir::Form::Raw))
-    }
-
-    /// Decide whether every type in one iterator is copyable.
-    fn all_copy(
-        &mut self,
-        origin: Origin,
-        ids: impl IntoIterator<Item = dir::GlobalTypeId>,
-        active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
-    ) -> CompilerResult<Verdict> {
-        let mut verdict = Verdict::Holds;
-        for id in ids {
-            verdict = verdict.and(self.satisfies_copy(origin, id, active)?);
-            if verdict == Verdict::Fails {
-                return Ok(Verdict::Fails);
-            }
-        }
-
-        Ok(verdict)
     }
 }

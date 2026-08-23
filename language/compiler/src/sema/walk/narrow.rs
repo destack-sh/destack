@@ -79,7 +79,7 @@ impl CheckState<'_> {
         declarator: dir::LocalNodeId<dir::Declarator>,
     ) -> CompilerResult<()> {
         let node = self.module(self.module_id).view().get(declarator).clone();
-        self.mark_declarator_assigned(&node, false);
+        self.assign_declarator_bindings(&node, false);
         self.narrow_declarator_match(declarator)
     }
 

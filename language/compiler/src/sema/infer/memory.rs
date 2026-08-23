@@ -37,10 +37,10 @@ impl BodyState<'_, '_> {
                 .report_borrow_access_not_granted(origin, requested, granted, value.ty)?;
         }
 
-        // record the access this borrow requires from the lent place
+        // commit the access this borrow requires from the lent place
         if is_granted && let Some(source) = value.node {
             let is_aliased = self.type_is_aliased(origin, value.ty)?;
-            self.record_required_access(source, requested, is_aliased);
+            self.commit_required_access(source, requested, is_aliased);
         }
 
         // wrap the borrowed value in its borrow form
@@ -54,21 +54,21 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Record the uses one borrow of a binding value demands from it.
-    pub(in crate::sema) fn record_required_access(
+    /// Commit the binding uses one borrow of a binding value requires from it.
+    pub(in crate::sema) fn commit_required_access(
         &mut self,
         node: dir::GlobalNodeIdAny,
         requested: dir::Access,
         is_aliased: bool,
     ) {
-        // exclusive demand is a place requirement apart from binding mutability
+        // exclusive access is a place requirement apart from binding mutability
         if requested == dir::Access::Exclusive {
-            self.record_access_use(node, dir::BindingUse::EXCLUSIVE);
+            self.commit_access_use(node, dir::BindingUse::EXCLUSIVE);
         }
 
-        // record mutable access to directly stored binding values
+        // commit mutable access to directly stored binding values
         if requested != dir::Access::Readonly && !is_aliased {
-            self.record_access_use(node, dir::BindingUse::MUTATE);
+            self.commit_access_use(node, dir::BindingUse::MUTATE);
         }
     }
 }

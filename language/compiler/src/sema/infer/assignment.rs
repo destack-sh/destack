@@ -41,7 +41,7 @@ impl BodyState<'_, '_> {
             let Some(place) =
                 self.select_assignment(expression_site, *expression, PlaceUse::Write)?
             else {
-                return self.reject_assignment_expression(node, left_node);
+                return self.commit_rejected_assignment(node, left_node);
             };
             let target = place.write.ty();
             let right_site = self.visit_site(right_node)?;
@@ -65,7 +65,7 @@ impl BodyState<'_, '_> {
 
             // mark the written place assigned and drop stale narrowings
             if let Some(assigned) = self.check.assigned_place(*expression) {
-                self.check.mark_place_assigned(assigned);
+                self.check.assign_place(assigned);
             }
             self.check.clear_mutated_expression_narrowings(*expression);
 
@@ -97,7 +97,7 @@ impl BodyState<'_, '_> {
                 Origin::Node(right_node, site.scope),
             )?;
             if !selected {
-                return self.reject_assignment_expression(node, left_node);
+                return self.commit_rejected_assignment(node, left_node);
             }
             self.commit_node_type(left_node.into_any(), value)?;
         }
@@ -124,12 +124,12 @@ impl BodyState<'_, '_> {
         else {
             self.report_invalid_assignment_target(module, left.into_any());
 
-            return self.reject_assignment_expression(node, left_node);
+            return self.commit_rejected_assignment(node, left_node);
         };
         let target = *target;
         let target_site = self.visit_site(target.into_global_any(module))?;
         let Some(place) = self.select_assignment(target_site, target, PlaceUse::Update)? else {
-            return self.reject_assignment_expression(node, left_node);
+            return self.commit_rejected_assignment(node, left_node);
         };
 
         let read_type = place
@@ -177,7 +177,7 @@ impl BodyState<'_, '_> {
             InferMode::Regular,
         )?;
         if matches!(check.outcome, CheckOutcome::Fails(_)) {
-            return self.reject_assignment_expression(node, left_node);
+            return self.commit_rejected_assignment(node, left_node);
         }
         self.commit_assign_pattern_place(site.origin(), left_node, place)?;
         self.commit_node_type(node.into_any(), write_type)?;
@@ -185,8 +185,8 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Reject one assignment expression and publish error types for its nodes.
-    fn reject_assignment_expression(
+    /// Commit the rejected decision and error types for one assignment expression.
+    fn commit_rejected_assignment(
         &mut self,
         node: dir::GlobalNodeId<dir::Expression>,
         left: dir::GlobalNodeId<dir::AssignPattern>,

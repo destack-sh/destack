@@ -20,23 +20,23 @@ pub(in crate::sema) enum FallbackStage {
 
 impl CheckState<'_> {
     /// Allocate one inference variable.
-    pub(in crate::sema) fn allocate_variable(
+    pub(in crate::sema) fn open_variable(
         &mut self,
         origin: Origin,
         role: VariableRole,
     ) -> dir::TypeVariableId {
-        self.allocate_variable_of(origin, VariableKind::Type, role)
+        self.open_variable_of(origin, VariableKind::Type, role)
     }
 
     /// Allocate one inference variable of the given kind.
-    pub(in crate::sema) fn allocate_variable_of(
+    pub(in crate::sema) fn open_variable_of(
         &mut self,
         origin: Origin,
         kind: VariableKind,
         role: VariableRole,
     ) -> dir::TypeVariableId {
-        let variable = self.infer.allocate_variable(origin, kind, role);
-        self.record_event(CheckEvent::VariableAllocated { variable, kind });
+        let variable = self.infer.open_variable(origin, kind, role);
+        self.push_event(CheckEvent::VariableAllocated { variable, kind });
 
         variable
     }
@@ -74,7 +74,7 @@ impl CheckState<'_> {
         Ok((self.root_kind(root)? != VariableKind::Type).then_some(root))
     }
 
-    /// Record the declared default completing one variable when inference stays dry.
+    /// Set the declared default completing one variable when inference stays dry.
     pub(in crate::sema) fn set_variable_default(
         &mut self,
         variable: dir::TypeVariableId,
@@ -83,8 +83,8 @@ impl CheckState<'_> {
         self.infer.set_variable_default(variable, default);
     }
 
-    /// Return one canonical open variable, or none when the variable is solved.
-    pub(in crate::sema) fn open_variable(
+    /// Return one variable's alias root, or none once the variable is solved.
+    pub(in crate::sema) fn open_root(
         &self,
         variable: dir::TypeVariableId,
     ) -> CompilerResult<Option<dir::TypeVariableId>> {
@@ -99,7 +99,7 @@ impl CheckState<'_> {
         &self,
         variable: dir::TypeVariableId,
     ) -> CompilerResult<VariableRole> {
-        let Some(variable) = self.open_variable(variable)? else {
+        let Some(variable) = self.open_root(variable)? else {
             return Ok(VariableRole::Regular);
         };
 
@@ -143,7 +143,7 @@ impl CheckState<'_> {
     }
 
     /// Commit the widened union of one variable's literal lower bounds, so a contextual slot
-    /// read before its call settles reads a widened type.
+    /// read before its call decides reads a widened type.
     pub(in crate::sema) fn fix_literal_candidates(
         &mut self,
         ty: dir::GlobalTypeId,
@@ -340,7 +340,7 @@ impl CheckState<'_> {
         stage: FallbackStage,
     ) -> CompilerResult<bool> {
         // wait for a live producer that may still grow this variable's bounds
-        if stage != FallbackStage::Final && self.variable_may_grow(variable)? {
+        if stage != FallbackStage::Final && self.has_live_producer(variable)? {
             return Ok(false);
         }
 
@@ -399,7 +399,7 @@ impl CheckState<'_> {
             }
         }
 
-        // admit the lower candidates, a numeric variable taking its family from typed bounds
+        // take the lower candidates, a numeric variable taking its family from typed bounds
         let state = *self.infer.variable(variable)?;
         let origin = self.infer.origin(state.origin);
         let has_equation = closed_lower
@@ -410,14 +410,14 @@ impl CheckState<'_> {
             if has_equation && bound.relation != Relation::Equal {
                 continue;
             }
-            if !self.admits_candidate(origin, state.kind, bound.ty)? {
+            if !self.is_candidate_kind(origin, state.kind, bound.ty)? {
                 continue;
             }
             lower_types.push(bound.ty);
         }
         let mut typed = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for contextual in contextual_types {
-            if self.admits_candidate(origin, state.kind, contextual)? {
+            if self.is_candidate_kind(origin, state.kind, contextual)? {
                 typed.push(contextual);
             }
         }
@@ -463,17 +463,13 @@ impl CheckState<'_> {
         {
             Some(lower_solution)
         } else if let Some(lower_solution) = lower_solution {
-            let verdict = self.solution_satisfies_bounds(
-                origin,
-                lower_solution,
-                &closed_lower,
-                &closed_upper,
-            )?;
+            let verdict =
+                self.decide_solution_bounds(origin, lower_solution, &closed_lower, &closed_upper)?;
 
             match verdict {
-                // take the lower solution its bounds admit
+                // take the lower solution its bounds hold for
                 Verdict::Holds => Some(lower_solution),
-                // adopt a candidate closed at the final settle, or open only in numeric variables
+                // adopt a candidate closed at the final stage, or open only in numeric variables
                 Verdict::Ambiguous
                     if (stage == FallbackStage::Final
                         && !self.type_flags(lower_solution)?.has_variable())
@@ -486,7 +482,7 @@ impl CheckState<'_> {
                 // fall back to the contextual solution, then report the violated bounds
                 Verdict::Fails => match contextual {
                     Some(contextual)
-                        if self.solution_satisfies_bounds(
+                        if self.decide_solution_bounds(
                             origin,
                             contextual,
                             &closed_lower,
@@ -552,7 +548,7 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Return whether one type resolves to a scalar literal.
+    /// Return whether every variable one type still contains is numeric.
     fn is_open_only_numerically(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
         let variables = self.type_variables(ty)?;
         if variables.is_empty() {
@@ -567,11 +563,11 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Return whether one bound may solve a variable of the given kind.
+    /// Return whether one bound type may solve a variable of the given kind.
     ///
     /// A numeric variable takes the typed members of its family, an integer one adapting to
     /// floats as well.
-    fn admits_candidate(
+    fn is_candidate_kind(
         &mut self,
         origin: Origin,
         kind: VariableKind,
@@ -594,8 +590,8 @@ impl CheckState<'_> {
         }))
     }
 
-    /// Return whether a live check may still push a new bound onto one variable.
-    fn variable_may_grow(&self, variable: dir::TypeVariableId) -> CompilerResult<bool> {
+    /// Return whether a live producing check may still push a new bound onto one variable.
+    fn has_live_producer(&self, variable: dir::TypeVariableId) -> CompilerResult<bool> {
         let Some(producers) = self.fulfill.producers.get(&variable) else {
             return Ok(false);
         };
@@ -613,8 +609,8 @@ impl CheckState<'_> {
         Ok(false)
     }
 
-    /// Return the verdict of one closed solution against every collected bound.
-    fn solution_satisfies_bounds(
+    /// Decide one closed solution against every collected bound.
+    fn decide_solution_bounds(
         &mut self,
         origin: Origin,
         solution: dir::GlobalTypeId,
@@ -626,7 +622,7 @@ impl CheckState<'_> {
         // require every produced value to flow into the solution
         for bound in lower {
             verdict =
-                verdict.and(self.evaluate_relation(origin, bound.relation, bound.ty, solution)?);
+                verdict.and(self.decide_relation(origin, bound.relation, bound.ty, solution)?);
             if verdict == Verdict::Fails {
                 return Ok(Verdict::Fails);
             }
@@ -635,7 +631,7 @@ impl CheckState<'_> {
         // require the solution to flow into every expectation
         for bound in upper {
             verdict =
-                verdict.and(self.evaluate_relation(origin, bound.relation, solution, bound.ty)?);
+                verdict.and(self.decide_relation(origin, bound.relation, solution, bound.ty)?);
             if verdict == Verdict::Fails {
                 return Ok(Verdict::Fails);
             }
@@ -674,7 +670,7 @@ impl CheckState<'_> {
             if let dir::Type::Variable(variable) = ty {
                 if let Some(solution) = self.infer.solution(variable)? {
                     pending.push(solution);
-                } else if let Some(variable) = self.open_variable(variable)?
+                } else if let Some(variable) = self.open_root(variable)?
                     && !variables.contains(&variable)
                 {
                     variables.push(variable);
@@ -704,7 +700,7 @@ impl CheckState<'_> {
         Ok(false)
     }
 
-    /// Record one variable solution.
+    /// Commit one variable solution.
     pub(in crate::sema) fn commit_solution(
         &mut self,
         variable: dir::TypeVariableId,
@@ -814,7 +810,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Record one failed variable solution.
+    /// Commit one failed variable solution.
     pub(in crate::sema) fn commit_error_solution(
         &mut self,
         variable: dir::TypeVariableId,
@@ -823,7 +819,7 @@ impl CheckState<'_> {
         self.commit_variable_solution(variable, VariableState::Error(error))
     }
 
-    /// Record one completed variable state.
+    /// Commit one completed variable state.
     fn commit_variable_solution(
         &mut self,
         variable: dir::TypeVariableId,
@@ -854,7 +850,7 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        // reject a second completion
+        // refuse a second completion
         if !previous.is_open() {
             return Err(CompilerError::Internal {
                 message: format!("check variable {variable:?} completed twice"),
@@ -868,7 +864,7 @@ impl CheckState<'_> {
         // forward the producers onto the solution's still-open variables
         let successors = self.type_variables(ty)?;
         self.fulfill.forward_producers(variable, &successors);
-        self.record_event(CheckEvent::VariableSolved {
+        self.push_event(CheckEvent::VariableSolved {
             variable,
             bounds: Box::new(bounds.clone()),
             solution: ty,
@@ -982,7 +978,7 @@ impl CheckState<'_> {
         }
 
         // trace the pushed bound
-        self.record_event(match side {
+        self.push_event(match side {
             BoundSide::Lower => CheckEvent::LowerBoundPushed { variable, bound },
             BoundSide::Upper => CheckEvent::UpperBoundPushed { variable, bound },
         });

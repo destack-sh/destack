@@ -95,7 +95,7 @@ impl BodyState<'_, '_> {
                     }
 
                     // poison the literal when its spread source already reported an error
-                    if self.any_error_operand(&[spread])? {
+                    if self.has_error_operand(&[spread])? {
                         return self.poison_node(node.into_any());
                     }
 
@@ -110,7 +110,7 @@ impl BodyState<'_, '_> {
                         return Ok(error);
                     };
 
-                    self.record_spread_subject(
+                    self.commit_spread_subject(
                         site,
                         property.into_global_any(site.node.module_id),
                         spread,
@@ -138,7 +138,7 @@ impl BodyState<'_, '_> {
         // intern the collected literal shape
         let fields: Vec<dir::TypeProperty> = fields.into_values().collect();
         let fields = self.intern_properties(&fields)?;
-        let shape = self.intern_type(dir::Type::Object(dir::ShapeType {
+        let shape = self.intern_type(dir::Type::Object(dir::ObjectType {
             properties: fields,
             call_signatures: dir::TypeListId::EMPTY,
             construct_signatures: dir::TypeListId::EMPTY,
@@ -152,7 +152,7 @@ impl BodyState<'_, '_> {
             return Ok(ty);
         };
         let target_fields: SmallVec<[_; 4]> = self
-            .shape_properties(ty.module_id, shape.properties)?
+            .object_properties(ty.module_id, shape.properties)?
             .into();
         for (key, source) in sources {
             let Some(target) = target_fields.iter().find(|field| field.key == key) else {
@@ -196,13 +196,17 @@ impl BodyState<'_, '_> {
 
         // record the fields accepted by this literal
         let key_type = self.intern_object(&target_fields)?;
-        let subject =
-            dir::MemberSubject::new(target_value, target_value, dir::MemberSpace::Instance)
-                .with_scope(site.scope)
-                .with_key_type(key_type);
+        let subject = self
+            .member_subject(
+                origin,
+                target_value,
+                target_value,
+                dir::MemberSpace::Instance,
+            )?
+            .with_key_type(key_type);
         self.module_mut(node.module_id)
             .members_tail
-            .record_subject(dir::MemberSite::Node(node.into_any()), subject);
+            .commit_subject(dir::MemberSite::Node(node.into_any()), subject);
 
         let mut authored = IndexMap::<dir::StaticKey, dir::PropertyAccess>::new();
         let mut source_fields = IndexMap::<dir::StaticKey, dir::TypeProperty>::new();
@@ -289,7 +293,7 @@ impl BodyState<'_, '_> {
 
                     // check the literal once an open spread source solves
                     if let Some(variable) = self.root_variable(spread)? {
-                        self.check.register_check_stalled(
+                        self.check.queue_check_stalled(
                             Check::Node(NodeCheck { site, expectation }),
                             &[variable],
                         )?;
@@ -303,7 +307,7 @@ impl BodyState<'_, '_> {
                     }
 
                     // poison the literal when its spread source already reported an error
-                    if self.any_error_operand(&[spread])? {
+                    if self.has_error_operand(&[spread])? {
                         self.poison_node(node.into_any())?;
 
                         return Ok(CheckAttempt::NotApplicable);
@@ -321,7 +325,7 @@ impl BodyState<'_, '_> {
                         return Ok(CheckAttempt::NotApplicable);
                     };
 
-                    self.record_spread_subject(
+                    self.commit_spread_subject(
                         site,
                         property.into_global_any(site.node.module_id),
                         spread,
@@ -448,7 +452,7 @@ impl BodyState<'_, '_> {
             false => {
                 let fields: Vec<_> = source_fields.into_values().collect();
                 let fields = self.intern_properties(&fields)?;
-                self.intern_type(dir::Type::Object(dir::ShapeType {
+                self.intern_type(dir::Type::Object(dir::ObjectType {
                     properties: fields,
                     call_signatures: dir::TypeListId::EMPTY,
                     construct_signatures: dir::TypeListId::EMPTY,
@@ -542,8 +546,8 @@ impl BodyState<'_, '_> {
         )
     }
 
-    /// Record the member subject one spread property contributes its fields through.
-    pub(in crate::sema) fn record_spread_subject(
+    /// Commit the member subject one spread property contributes its fields through.
+    pub(in crate::sema) fn commit_spread_subject(
         &mut self,
         site: FlowSite,
         property: dir::GlobalNodeIdAny,
@@ -551,12 +555,12 @@ impl BodyState<'_, '_> {
         spread_fields: &[dir::TypeProperty],
     ) -> CompilerResult<()> {
         let key_type = self.intern_object(spread_fields)?;
-        let subject = dir::MemberSubject::new(spread, spread, dir::MemberSpace::Instance)
-            .with_scope(site.scope)
+        let subject = self
+            .member_subject(site.origin(), spread, spread, dir::MemberSpace::Instance)?
             .with_key_type(key_type);
         self.module_mut(property.module_id)
             .members_tail
-            .record_subject(dir::MemberSite::Node(property), subject);
+            .commit_subject(dir::MemberSite::Node(property), subject);
 
         Ok(())
     }
@@ -616,7 +620,7 @@ impl BodyState<'_, '_> {
         // fall back to the first index signature accepting the key
         let key_type = self.static_key_type(key)?;
         for signature in index_signatures {
-            let accepts = self.check.evaluate_relation(
+            let accepts = self.check.decide_relation(
                 origin,
                 Relation::Assignable,
                 key_type,

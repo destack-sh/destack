@@ -55,7 +55,7 @@ impl CheckState<'_> {
                 }
 
                 absorbed = self
-                    .evaluate_relation(origin, Relation::Assignable, bound, other)?
+                    .decide_relation(origin, Relation::Assignable, bound, other)?
                     .holds();
                 if absorbed {
                     break;
@@ -380,7 +380,7 @@ impl CheckState<'_> {
             // object literal shapes rebuild with widened field types
             dir::Type::Object(shape) => {
                 let mut fields = SmallVec::<[dir::TypeProperty; 8]>::from_slice(
-                    self.shape_properties(module, shape.properties)?,
+                    self.object_properties(module, shape.properties)?,
                 );
                 let mut changed = false;
                 for field in &mut fields {
@@ -413,7 +413,7 @@ impl CheckState<'_> {
                 }
 
                 let fields = self.intern_properties(&fields)?;
-                let shape = dir::ShapeType {
+                let shape = dir::ObjectType {
                     properties: fields,
                     call_signatures: shape.call_signatures,
                     construct_signatures: shape.construct_signatures,
@@ -425,7 +425,7 @@ impl CheckState<'_> {
             _ => Ok(None),
         }
     }
-    /// Widen one property value slot toward its settled root.
+    /// Widen one property value slot toward its resolved root.
     fn widen_property_slot(
         &mut self,
         module: ModuleId,

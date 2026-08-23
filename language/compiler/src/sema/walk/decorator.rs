@@ -50,8 +50,8 @@ impl WalkState<'_, '_> {
         // skip kind validation on foreign targets while declaring
         if self
             .check
-            .symbol_kind_maybe(symbol)?
-            .is_some_and(|kind| !matches!(kind, dir::SymbolKind::Newtype))
+            .symbol_kind(symbol)
+            .map(|kind| !matches!(kind, dir::SymbolKind::Newtype))?
         {
             self.check
                 .report_invalid_decorator_target(self.module, decorator.target.into_any());
@@ -129,7 +129,7 @@ impl WalkState<'_, '_> {
 
                 match symbols.as_slice() {
                     [] => {
-                        self.check.reject_unresolved_reference(
+                        self.check.report_unresolved_reference(
                             self.module,
                             target.into_any(),
                             &path,
@@ -151,7 +151,7 @@ impl WalkState<'_, '_> {
             }
             dir::Reference::TypeLiteral(_) | dir::Reference::Missing => {
                 self.check
-                    .reject_unresolved_reference(self.module, target.into_any(), &path);
+                    .report_unresolved_reference(self.module, target.into_any(), &path);
 
                 None
             }

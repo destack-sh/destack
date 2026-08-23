@@ -11,7 +11,7 @@ impl CheckState<'_> {
         // select the module when this check infers its bodies
         let modules: Vec<ModuleId> = [self.module_id]
             .into_iter()
-            .filter(|module| self.infers_module(*module))
+            .filter(|module| self.is_inferred_module(*module))
             .collect();
 
         // report each checked module
@@ -26,7 +26,7 @@ impl CheckState<'_> {
     fn report_module_constant_conditions(&mut self, module: ModuleId) -> CompilerResult<()> {
         let conditions = self.condition_expressions(module);
 
-        // settle each checked condition before inspecting its canonical type
+        // resolve each checked condition before inspecting its canonical type
         for condition in conditions {
             let global = condition.into_global_any(module);
 

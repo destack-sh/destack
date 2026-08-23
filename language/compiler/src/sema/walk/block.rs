@@ -34,10 +34,7 @@ impl WalkState<'_, '_> {
 
                 // record the statement that stops the flow
                 if !is_reachable {
-                    self.check
-                        .module
-                        .flows
-                        .mark_diverging(expression.into_any());
+                    self.check.module.flows.set_diverging(expression.into_any());
                 }
             }
             // check unreachable expression in isolated flow
@@ -45,7 +42,7 @@ impl WalkState<'_, '_> {
                 self.check
                     .module
                     .flows
-                    .mark_unreachable(expression.into_any());
+                    .set_unreachable(expression.into_any());
                 if !warned_unreachable {
                     self.check
                         .report_unreachable_code(self.module, expression.into_any());
@@ -68,7 +65,7 @@ impl WalkState<'_, '_> {
                 self.check
                     .module
                     .flows
-                    .mark_unreachable(expression.into_any());
+                    .set_unreachable(expression.into_any());
                 if !warned_unreachable {
                     self.check
                         .report_unreachable_code(self.module, expression.into_any());

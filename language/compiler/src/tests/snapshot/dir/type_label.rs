@@ -58,7 +58,7 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Range(range) => self.range_type_label(range),
             dir::Type::Slice(slice) => self.slice_type_label(types, slice),
             dir::Type::Tuple(tuple) => self.tuple_type_label(types, tuple),
-            dir::Type::Object(shape) => self.shape_type_label(types, shape),
+            dir::Type::Object(shape) => self.object_type_label(types, shape),
             dir::Type::FunctionSignature(function) => {
                 self.function_type_label(types, types.signature(*function))
             }
@@ -671,7 +671,7 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Return one shape type label.
-    fn shape_type_label(&self, types: &dir::TypeTable<'_>, shape: &dir::ShapeType) -> String {
+    fn object_type_label(&self, types: &dir::TypeTable<'_>, shape: &dir::ObjectType) -> String {
         // render fields first, then signatures
         let mut fields = types
             .properties(shape.properties)

@@ -14,7 +14,7 @@ pub(in crate::sema) struct TypeReifier<'a, 'b> {
     check: &'a CheckState<'b>,
     /// The amended output tree receiving synthesized nodes.
     pub(super) tree: dir::Tree,
-    /// The string pool shared with the rendered module.
+    /// The string pool shared with the formatted module.
     strings: &'a StringPool,
     /// The anchor span stamped on synthesized nodes.
     span: Span,
@@ -140,14 +140,14 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         Ok(Some(parameter))
     }
 
-    /// Reify one settled borrow into its named borrow expression.
+    /// Reify one closed borrow into its named borrow expression.
     fn reify_borrowed_of(
         &mut self,
         lifetime: dir::GlobalTypeId,
         access: dir::GlobalTypeId,
         target_type: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<Option<dir::TypeExpression>> {
-        // require a settled access literal for the borrow modifier
+        // require a closed access literal for the borrow modifier
         let access = match self.check.ty(self.check.shallow_resolve(access)?)? {
             dir::Type::Memory(dir::MemoryLiteral::Access(access)) => access,
             _ => return Ok(None),
@@ -443,12 +443,12 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     return Ok(None);
                 }
 
-                let shape_properties = self
+                let object_properties = self
                     .check
-                    .shape_properties(id.module_id, shape.properties)?
+                    .object_properties(id.module_id, shape.properties)?
                     .to_vec();
-                let mut members = Vec::with_capacity(shape_properties.len());
-                for field in &shape_properties {
+                let mut members = Vec::with_capacity(object_properties.len());
+                for field in &object_properties {
                     let name = match field.key {
                         dir::StaticKey::Name(name) => dir::Name::Identifier(name),
                         dir::StaticKey::Index(index) => dir::Name::Index(index),
@@ -551,13 +551,13 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                         let borrow = self.check.type_borrow(id.module_id, *borrow)?;
                         let (lifetime, access) = (borrow.lifetime, borrow.access);
 
-                        // render settled borrows through the borrow form
+                        // reify closed borrows through the borrow form
                         if let Some(borrowed) =
                             self.reify_borrowed_of(lifetime, access, target_type)?
                         {
                             borrowed
                         }
-                        // render parametric slots through the full algebra
+                        // reify parametric slots through the full algebra
                         else {
                             let Some(lifetime) = self.reify_depth(lifetime, next)? else {
                                 return Ok(None);
@@ -1125,7 +1125,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         Some(self.insert(dir::Expression::Identifier { name }))
     }
 
-    /// Write one symbol name into the render pool.
+    /// Write one symbol name into the shared string pool.
     fn symbol_name(&self, symbol: dir::GlobalSymbolId) -> Option<dir::StringId> {
         if let Some(item) = self.check.environment_bound.language.item(symbol) {
             return Some(self.language_item_name(item));

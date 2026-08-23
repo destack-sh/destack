@@ -385,7 +385,7 @@ impl BodyState<'_, '_> {
         if let Some(pattern) = pattern {
             if let Some(value) = expected.or(failure) {
                 let pattern_site = self.visit_site(pattern.into_global_any(module))?;
-                self.reject_type_shadowing_binding(module, anchor, pattern, pattern_site.origin())?;
+                self.report_type_shadowing_binding(module, anchor, pattern, pattern_site.origin())?;
                 let cause = self.check.intern_cause(Cause::root(
                     pattern_site.origin(),
                     CauseKind::Pattern {
@@ -412,7 +412,7 @@ impl BodyState<'_, '_> {
                     scope,
                 )?;
             }
-            self.check.mark_bindings_assigned(pattern.into_any());
+            self.check.assign_bindings(pattern.into_any());
         }
 
         // catch (...) { ... }: the handler value joins the try result
@@ -557,7 +557,7 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Reject one bare pattern binding whose name shadows a visible type.
+    /// Report one bare pattern binding whose name shadows a visible type.
     ///
     /// Examples:
     /// ```ds
@@ -565,7 +565,7 @@ impl BodyState<'_, '_> {
     /// if (let Cancelled = value) {}
     /// try { value? } catch (Cancelled) {}
     /// ```
-    pub(in crate::sema) fn reject_type_shadowing_binding(
+    pub(in crate::sema) fn report_type_shadowing_binding(
         &mut self,
         module: ModuleId,
         anchor: dir::LocalNodeIdAny,
@@ -609,7 +609,9 @@ impl BodyState<'_, '_> {
         for symbol in symbols {
             let kind = self.check.binding_table(module).get_symbol(symbol).kind;
             if kind.is_type_definition() {
-                return self.report_type_shadowing_binding(name, origin);
+                let name = self.check.strings().get(name).to_string();
+
+                return self.check.report_pattern_shadows_type(origin, name);
             } else if kind != dir::SymbolKind::Import {
                 continue;
             }
@@ -630,23 +632,14 @@ impl BodyState<'_, '_> {
                     self.check.import_external_module(target.module_id)?;
                 }
                 if self.symbol_kind(target)?.is_type_definition() {
-                    return self.report_type_shadowing_binding(name, origin);
+                    let name = self.check.strings().get(name).to_string();
+
+                    return self.check.report_pattern_shadows_type(origin, name);
                 }
             }
         }
 
         Ok(())
-    }
-
-    /// Report one pattern binding that shadows a visible type.
-    fn report_type_shadowing_binding(
-        &mut self,
-        name: dir::StringId,
-        origin: Origin,
-    ) -> CompilerResult<()> {
-        let name = self.check.strings().get(name).to_string();
-
-        self.check.report_pattern_shadows_type(origin, name)
     }
 
     /// Check present match arms with isolated branch flow.
@@ -671,7 +664,7 @@ impl BodyState<'_, '_> {
         let mut outcome = CheckOutcome::Holds;
 
         for arm in arms {
-            // replay exclusions from previous arms
+            // apply exclusions from previous arms
             self.check.restore_flow(before);
             if let Some(path) = &value_path {
                 for pattern in &excluded {
@@ -684,7 +677,7 @@ impl BodyState<'_, '_> {
             let pattern = arm_node.pattern();
             let guard = arm_node.guard();
             let pattern_site = self.check.visit_site(pattern.into_global_any(module))?;
-            self.reject_type_shadowing_binding(
+            self.report_type_shadowing_binding(
                 module,
                 value.into_any(),
                 pattern,
@@ -699,7 +692,7 @@ impl BodyState<'_, '_> {
             if let Some(path) = &value_path {
                 self.check.narrow_pattern(path.clone(), pattern, true)?;
             }
-            self.check.mark_bindings_assigned(pattern.into_any());
+            self.check.assign_bindings(pattern.into_any());
 
             // apply the optional arm guard
             if let Some(guard) = guard {
@@ -911,7 +904,7 @@ impl BodyState<'_, '_> {
             ControlTargetForm::Iteration,
         );
         let before_body = self.check.fork_flow();
-        self.check.mark_bindings_assigned(pattern.into_any());
+        self.check.assign_bindings(pattern.into_any());
         let body_site = self.visit_site(body.into_global_any(module))?;
         self.attempt_node(body_site, PlaceUse::Read, None)?;
         self.check.restore_flow(before_body);

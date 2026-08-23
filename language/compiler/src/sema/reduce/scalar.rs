@@ -20,18 +20,18 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::ScalarFamilySet>> {
-        // replay the families a settled ground type already decided
+        // reuse the families a closed type already decided
         let ty = self.shallow_resolve(ty)?;
         let flags = self.type_flags(ty)?;
-        let is_ground = !flags.has_variable() && !flags.has_parameter() && !flags.has_this();
-        if is_ground && let Some(families) = self.scalar_families.get(&ty) {
+        let is_closed = !flags.has_variable() && !flags.has_parameter() && !flags.has_this();
+        if is_closed && let Some(families) = self.scalar_families.get(&ty) {
             return Ok(families.clone());
         }
 
         // walk the type for its families and record them
         let mut parameters = SmallVec::new();
         let families = self.type_scalar_families(origin, ty, ScalarUse::Value, &mut parameters)?;
-        if is_ground {
+        if is_closed {
             self.scalar_families.insert(ty, families.clone());
         }
 
@@ -49,8 +49,8 @@ impl CheckState<'_> {
         self.type_scalar_families(origin, ty, ScalarUse::Builtin, &mut parameters)
     }
 
-    /// Return whether one literal is accepted by a builtin scalar operand.
-    pub(in crate::sema) fn builtin_scalar_accepts_literal(
+    /// Return whether one literal is representable by a builtin scalar operand.
+    pub(in crate::sema) fn is_builtin_scalar_representable(
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
@@ -74,7 +74,7 @@ impl CheckState<'_> {
             &mut formats,
         )?;
 
-        // require representability in every exact format admitted by each family
+        // require representability in every exact format each family names
         for family in families.iter().copied() {
             let dir::ScalarFamily::Domain(domain) = family else {
                 return Ok(false);

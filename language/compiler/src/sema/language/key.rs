@@ -60,11 +60,11 @@ impl CheckState<'_> {
             dir::Type::Object(shape) => {
                 let key_type = self.static_key_type(key)?;
                 let signatures = self
-                    .shape_index_signatures(ty.module_id, shape.index_signatures)?
+                    .object_index_signatures(ty.module_id, shape.index_signatures)?
                     .to_vec();
                 for signature in signatures {
                     if self
-                        .evaluate_relation(
+                        .decide_relation(
                             origin,
                             Relation::Assignable,
                             key_type,

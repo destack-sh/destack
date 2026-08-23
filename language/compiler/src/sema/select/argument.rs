@@ -29,7 +29,7 @@ impl BodyState<'_, '_> {
                     .collect();
                 argument_index = arguments.len();
 
-                // selected signatures are settled, the element must project
+                // selected signatures are resolved, the element must project
                 let element = self.rest_element_type(origin, parameter_type.ty)?;
                 accepted = element.unwrap_or(accepted);
 
@@ -101,7 +101,7 @@ impl BodyState<'_, '_> {
         // preserve source expressions for candidate checking
         for argument in arguments {
             let source = argument.into_global_any(module);
-            let is_spread = self.node_is_spread_argument(source);
+            let is_spread = self.is_spread_argument(source);
             match self.argument_expression(module, *argument) {
                 Some(value) => values.push(CallableArgument {
                     source: value,
@@ -146,7 +146,7 @@ impl BodyState<'_, '_> {
                         ty: None,
                         relation: Relation::Assignable,
                         use_: ValueUse::Argument,
-                        is_spread: self.node_is_spread_argument(*source),
+                        is_spread: self.is_spread_argument(*source),
                     });
                 }
                 dir::ArgumentSource::Rest { elements, .. } => {
@@ -156,7 +156,7 @@ impl BodyState<'_, '_> {
                             ty: None,
                             relation: Relation::Assignable,
                             use_: ValueUse::Argument,
-                            is_spread: self.node_is_spread_argument(*source),
+                            is_spread: self.is_spread_argument(*source),
                         });
                     }
                 }
@@ -180,8 +180,8 @@ impl BodyState<'_, '_> {
         Ok(values)
     }
 
-    /// Return whether one recorded source node spreads a sequence.
-    pub(in crate::sema) fn node_is_spread_argument(&self, node: dir::GlobalNodeIdAny) -> bool {
+    /// Return whether one source node spreads a sequence.
+    pub(in crate::sema) fn is_spread_argument(&self, node: dir::GlobalNodeIdAny) -> bool {
         let Ok(argument) = node.local_id.try_into_typed::<dir::Argument>() else {
             return false;
         };

@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::sema::{
-    Answer, Ask, CandidateOutcome, Cause, CauseId, CauseKind, CheckState, Cycle, Origin, Relation,
+    Answer, CandidateOutcome, Cause, CauseId, CauseKind, CheckState, Cycle, Goal, Origin, Relation,
 };
 
 /// The outcome of deciding one relation, keeping ambiguity apart from failure.
@@ -20,8 +20,8 @@ pub(in crate::sema) enum Verdict {
 
 impl Verdict {
     /// Classify one decided outcome.
-    pub(in crate::sema) fn decided(holds: bool) -> Self {
-        match holds {
+    pub(in crate::sema) fn decided(is_holds: bool) -> Self {
+        match is_holds {
             true => Self::Holds,
             false => Self::Fails,
         }
@@ -49,7 +49,19 @@ impl Verdict {
         }
     }
 
-    /// Join one disjunct proven only when this one does not hold.
+    /// Join one disjunct, where success dominates and ambiguity taints.
+    pub(in crate::sema) fn or(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Holds, _) | (_, Self::Holds) => Self::Holds,
+            (Self::Ambiguous, _) | (_, Self::Ambiguous) => Self::Ambiguous,
+            _ => Self::Fails,
+        }
+    }
+
+    /// Join one disjunct reached only while this one leaves the outcome open.
+    ///
+    /// Every disjunct passed here relates types and binds inference, so a holding left side
+    /// keeps it from running at all.
     pub(in crate::sema) fn or_else(
         self,
         other: impl FnOnce() -> CompilerResult<Self>,
@@ -59,20 +71,11 @@ impl Verdict {
             verdict => Ok(verdict.or(other()?)),
         }
     }
-
-    /// Join one disjunct, where success dominates and ambiguity taints.
-    pub(in crate::sema) fn or(self, other: Self) -> Self {
-        match (self, other) {
-            (Self::Holds, _) | (_, Self::Holds) => Self::Holds,
-            (Self::Ambiguous, _) | (_, Self::Ambiguous) => Self::Ambiguous,
-            _ => Self::Fails,
-        }
-    }
 }
 
 impl CheckState<'_> {
     /// Evaluate one relation between type roots as a pure query, growing the stack.
-    pub(in crate::sema) fn evaluate_relation(
+    pub(in crate::sema) fn decide_relation(
         &mut self,
         origin: Origin,
         relation: Relation,
@@ -111,19 +114,19 @@ impl CheckState<'_> {
                 return Ok(Verdict::Ambiguous);
             }
 
-            return self.undecided_over_open_heads(source, target);
+            return self.decide_stuck_relation(source, target);
         }
 
-        self.evaluate_relation(origin, relation, reduced_source, reduced_target)
+        self.decide_relation(origin, relation, reduced_source, reduced_target)
     }
 
-    /// Judge one failed stuck relation, undecided while either head stays open.
-    pub(in crate::sema) fn undecided_over_open_heads(
+    /// Decide one failed stuck relation, undecided while either head stays open.
+    pub(in crate::sema) fn decide_stuck_relation(
         &mut self,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        let is_undecided = self.open_head(source)? || self.open_head(target)?;
+        let is_undecided = self.is_open_head(source)? || self.is_open_head(target)?;
 
         Ok(match is_undecided {
             true => Verdict::Ambiguous,
@@ -132,7 +135,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether one head stays open: a variable, or a non-template projection over one.
-    pub(in crate::sema) fn open_head(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+    pub(in crate::sema) fn is_open_head(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
         if self.root_variable(ty)?.is_some() {
             return Ok(true);
         }
@@ -152,37 +155,37 @@ impl CheckState<'_> {
         Ok(!self.type_variables(ty)?.is_empty())
     }
 
-    /// Classify one judged outcome, where failure over an open head is ambiguity.
-    pub(in crate::sema) fn verdict(
+    /// Classify one relation outcome, where failure over an open head is ambiguity.
+    pub(in crate::sema) fn decide_outcome(
         &mut self,
-        holds: bool,
+        is_holds: bool,
         origin: Origin,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        if holds {
+        if is_holds {
             return Ok(Verdict::Holds);
         }
 
-        // retry the judgment once an open head solves
+        // retry the decision once an open head solves
         let source = self.shallow_resolve(source)?;
         let target = self.shallow_resolve(target)?;
-        if self.open_head(source)? || self.open_head(target)? {
+        if self.is_open_head(source)? || self.is_open_head(target)? {
             return Ok(Verdict::Ambiguous);
         }
 
-        // predicates carry their own ambiguity, judged without committing
+        // predicates carry their own ambiguity, decided without committing
         if relation == Relation::Satisfies {
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-            let mut satisfied = Verdict::Fails;
+            let mut decision = Verdict::Fails;
             self.probe_candidate(|state| {
-                satisfied = state.relate_satisfies(origin, cause, relation, source, target)?;
+                decision = state.relate_satisfies(origin, cause, relation, source, target)?;
 
                 Ok(CandidateOutcome::<(), ()>::Rejected(()))
             })?;
 
-            return Ok(satisfied);
+            return Ok(decision);
         }
 
         Ok(Verdict::Fails)
@@ -242,7 +245,7 @@ impl CheckState<'_> {
         for side in [source, target] {
             if let Some(dir::TypeOperation::Conditional(conditional)) = self.operation_head(side)?
                 && !self
-                    .open_type_variables([conditional.left, conditional.right])?
+                    .collect_open_variables([conditional.left, conditional.right])?
                     .is_empty()
             {
                 return Ok(Verdict::Ambiguous);
@@ -280,7 +283,7 @@ impl CheckState<'_> {
 
         // canonicalize the pair
         let Some((question, canonical)) =
-            self.ask(origin, Ask::Relation(relation), &[source, target], true)?
+            self.canonicalize_goal(origin, Goal::Relation(relation), &[source, target], true)?
         else {
             return self.relate_matrix(origin, cause, relation, source, target);
         };
@@ -288,13 +291,13 @@ impl CheckState<'_> {
             self.type_flags(canonical.operands[0])? | self.type_flags(canonical.operands[1])?;
         let has_holes = flags.has_hole();
 
-        // replay a decided answer
+        // reuse a decided answer
         if let Some(answer) = self.answers.get(&question) {
-            let holds = matches!(answer, Answer::Holds);
-            if !has_holes || !holds {
-                self.counters.judge_replays += 1;
+            let is_holds = matches!(answer, Answer::Holds);
+            if !has_holes || !is_holds {
+                self.counters.relation_reuses += 1;
 
-                return Ok(Verdict::decided(holds));
+                return Ok(Verdict::decided(is_holds));
             }
         }
 
@@ -315,25 +318,29 @@ impl CheckState<'_> {
             Cycle::Coinductive
         };
         let key = (relation, source, target);
-        if let Some(holds) = self.infer.relations.lookup(&key, cycle) {
-            self.counters.judge_replays += 1;
+        if let Some(is_holds) = self.infer.relations.lookup(&key, cycle) {
+            self.counters.relation_reuses += 1;
 
-            return Ok(Verdict::decided(holds));
+            return Ok(Verdict::decided(is_holds));
         }
 
         // enter this pair as an active decision
-        self.counters.judges += 1;
+        self.counters.relation_decisions += 1;
         let attempt = self.infer.relations.enter(key);
 
         let decision = self.relate_matrix(origin, cause, relation, source, target);
 
-        // memoize settled decisions, forget failed and undecided attempts
+        // memoize resolved decisions, forget failed and undecided attempts
         match &decision {
             Ok(verdict) if *verdict != Verdict::Ambiguous => {
-                // decided settled pairs are durable for the whole module
-                let holds = verdict.holds();
-                if let Some(holds) = self.infer.relations.finish(attempt, holds) {
-                    let answer = if holds { Answer::Holds } else { Answer::Fails };
+                // decided resolved pairs are durable for the whole module
+                let is_holds = verdict.holds();
+                if let Some(is_holds) = self.infer.relations.finish(attempt, is_holds) {
+                    let answer = if is_holds {
+                        Answer::Holds
+                    } else {
+                        Answer::Fails
+                    };
                     self.answers.insert(question, answer);
                 }
             }
