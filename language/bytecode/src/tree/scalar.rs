@@ -640,6 +640,12 @@ pub enum FloatOperation {
     Round = 39,
     /// Round to the nearest integral value, breaking ties away from zero.
     RoundTiesAway = 40,
+    /// Compute the cube root.
+    CubeRoot = 41,
+    /// Compute the natural exponential minus one.
+    Expm1 = 42,
+    /// Compute the natural logarithm after adding one.
+    Log1p = 43,
 }
 
 impl FloatOperation {
@@ -659,6 +665,7 @@ impl FloatOperation {
             "gt" => Some(Self::GreaterThan),
             "ge" => Some(Self::GreaterEqual),
             "sqrt" => Some(Self::SquareRoot),
+            "cbrt" => Some(Self::CubeRoot),
             "abs" => Some(Self::Absolute),
             "fma" => Some(Self::FusedMultiplyAdd),
             "copySign" => Some(Self::CopySign),
@@ -672,8 +679,10 @@ impl FloatOperation {
             "atan" => Some(Self::Atan),
             "atan2" => Some(Self::Atan2),
             "exp" => Some(Self::Exp),
+            "expm1" => Some(Self::Expm1),
             "exp2" => Some(Self::Exp2),
             "log" => Some(Self::Log),
+            "log1p" => Some(Self::Log1p),
             "log2" => Some(Self::Log2),
             "log10" => Some(Self::Log10),
             "pow" => Some(Self::Pow),
@@ -707,6 +716,7 @@ impl FloatOperation {
             Self::GreaterThan => "gt",
             Self::GreaterEqual => "ge",
             Self::SquareRoot => "sqrt",
+            Self::CubeRoot => "cbrt",
             Self::Absolute => "abs",
             Self::FusedMultiplyAdd => "fma",
             Self::CopySign => "copySign",
@@ -720,8 +730,10 @@ impl FloatOperation {
             Self::Atan => "atan",
             Self::Atan2 => "atan2",
             Self::Exp => "exp",
+            Self::Expm1 => "expm1",
             Self::Exp2 => "exp2",
             Self::Log => "log",
+            Self::Log1p => "log1p",
             Self::Log2 => "log2",
             Self::Log10 => "log10",
             Self::Pow => "pow",
@@ -740,8 +752,8 @@ impl FloatOperation {
 
     /// Decode one stable floating-point operation code.
     pub const fn from_code(code: u8) -> Option<Self> {
-        if code <= Self::RoundTiesAway as u8 {
-            // SAFETY: every code through the final variant is assigned contiguously.
+        if code <= Self::Log1p as u8 {
+            // SAFETY: every code through the final variant is assigned contiguously
             Some(unsafe { std::mem::transmute::<u8, Self>(code) })
         } else {
             None
@@ -780,6 +792,7 @@ impl FloatOperation {
             self,
             Self::Negate
                 | Self::SquareRoot
+                | Self::CubeRoot
                 | Self::Absolute
                 | Self::Sin
                 | Self::Cos
@@ -788,8 +801,10 @@ impl FloatOperation {
                 | Self::Acos
                 | Self::Atan
                 | Self::Exp
+                | Self::Expm1
                 | Self::Exp2
                 | Self::Log
+                | Self::Log1p
                 | Self::Log2
                 | Self::Log10
                 | Self::Floor
