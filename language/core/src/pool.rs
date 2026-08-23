@@ -1,4 +1,4 @@
-use std::hash::{BuildHasher, Hash};
+use std::hash::{BuildHasher, Hash, Hasher};
 
 use destack_serde::Reflect;
 use rustc_hash::{FxBuildHasher, FxHashMap};
@@ -27,6 +27,14 @@ pub struct ValuePool<T> {
     first_id: u32,
     /// The interned values.
     values: Arena<T>,
+}
+
+impl<T: Hash> Hash for ValuePool<T> {
+    /// Hash the owned values behind the pool's base id.
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.first_id.hash(state);
+        self.values.hash(state);
+    }
 }
 
 impl<T> ValuePool<T> {

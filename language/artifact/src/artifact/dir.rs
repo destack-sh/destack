@@ -237,7 +237,7 @@ impl DirResolved {
                         }
                     }
                 }
-                dir::Reference::Missing => {}
+                dir::Reference::TypeLiteral(_) | dir::Reference::Missing => {}
             }
         }
         symbols.sort_unstable();

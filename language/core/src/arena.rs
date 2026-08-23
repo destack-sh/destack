@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
 use std::mem::size_of;
 
 use destack_serde::{Reflect, Schema, Type};
@@ -9,6 +10,13 @@ use serde::{Deserialize, Serialize};
 pub struct Arena<T> {
     /// The stored elements.
     pub(super) items: Vec<T>,
+}
+
+impl<T: Hash> Hash for Arena<T> {
+    /// Hash the stored elements behind their count.
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.items.hash(state);
+    }
 }
 
 impl<T> Debug for Arena<T>

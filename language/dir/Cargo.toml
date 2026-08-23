@@ -26,6 +26,7 @@ indexmap = { workspace = true, features = ["serde"] }
 parking_lot = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+siphasher = { workspace = true }
 serde_json = { workspace = true }
 smallvec = { workspace = true, features = ["serde"] }
 

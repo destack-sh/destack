@@ -5,6 +5,7 @@ use destack_core::FxIndexMap as IndexMap;
 use destack_serde::Reflect;
 use rustc_hash::{FxHashMap, FxHasher};
 use serde::{Deserialize, Serialize};
+use siphasher::sip128::{Hasher128, SipHasher13};
 use smallvec::SmallVec;
 
 use destack_core::{Arena, PoolId, StringId, ValueInterner, ValuePool};
@@ -615,6 +616,48 @@ impl TypeSegment {
         self.first_type_id
     }
 
+    /// Digest the segment content for artifact fingerprinting.
+    pub fn content_digest(&self) -> u128 {
+        let mut hasher = SipHasher13::new();
+        Hasher::write(&mut hasher, b"destack.dir.types.digest.v1");
+        self.module_id.hash(&mut hasher);
+        self.first_type_id.hash(&mut hasher);
+
+        // hash the dense pools directly
+        self.types.hash(&mut hasher);
+        self.flags.hash(&mut hasher);
+        self.type_ids.hash(&mut hasher);
+        self.elements.hash(&mut hasher);
+        self.properties.hash(&mut hasher);
+        self.parameters.hash(&mut hasher);
+        self.index_signatures.hash(&mut hasher);
+        self.strings.hash(&mut hasher);
+        self.operations.hash(&mut hasher);
+        self.signatures.hash(&mut hasher);
+        self.members.hash(&mut hasher);
+        self.refinements.hash(&mut hasher);
+        self.borrows.hash(&mut hasher);
+
+        // hash the assignment maps in their insertion order
+        self.node_types.len().hash(&mut hasher);
+        for (node, ty) in &self.node_types {
+            node.hash(&mut hasher);
+            ty.hash(&mut hasher);
+        }
+        self.expected_types.len().hash(&mut hasher);
+        for (node, ty) in &self.expected_types {
+            node.hash(&mut hasher);
+            ty.hash(&mut hasher);
+        }
+        self.symbol_types.len().hash(&mut hasher);
+        for (symbol, ty) in &self.symbol_types {
+            symbol.hash(&mut hasher);
+            ty.hash(&mut hasher);
+        }
+
+        hasher.finish128().as_u128()
+    }
+
     /// Create a new type segment.
     pub fn new(module_id: ModuleId) -> Self {
         Self {
@@ -901,6 +944,15 @@ pub(crate) struct ListPool<T> {
     lists: Vec<TypeListId>,
 }
 
+impl<T: Hash> Hash for ListPool<T> {
+    /// Hash the pool's elements and list spans behind the base offset.
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.first.hash(state);
+        self.elements.hash(state);
+        self.lists.hash(state);
+    }
+}
+
 /// Intern bookkeeping growing one list pool.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ListInterner {
@@ -1028,7 +1080,7 @@ impl ListInterner {
     }
 }
 
-/// Return the FxHasher hash of one value.
+/// Compute the intern hash of one value.
 fn fx_hash(value: &impl Hash) -> u64 {
     let mut hasher = FxHasher::default();
     value.hash(&mut hasher);
