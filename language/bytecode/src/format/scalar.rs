@@ -188,7 +188,7 @@ impl Scalar {
             Self::Uint32 => (bits as u32).to_string(),
             Self::Int64 => (bits as i64).to_string(),
             Self::Uint64 => bits.to_string(),
-            Self::Float16 | Self::Bfloat16 | Self::Float32 | Self::Float64 => {
+            Self::Float32 | Self::Float64 => {
                 let Some(value) = self.float(bits) else {
                     unreachable!("floating point scalars have one concrete format");
                 };

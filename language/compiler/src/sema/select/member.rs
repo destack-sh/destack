@@ -2241,7 +2241,6 @@ impl BodyState<'_, '_> {
             | dir::Type::Hole(_)
             | dir::Type::Rigid(_)
             | dir::Type::Never
-            | dir::Type::Any
             | dir::Type::Unknown
             | dir::Type::Void
             | dir::Type::Null

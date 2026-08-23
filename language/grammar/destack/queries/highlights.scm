@@ -110,7 +110,6 @@
 
 [
   "abstract"
-  "asserts"
   "const"
   "declare"
   "enum"

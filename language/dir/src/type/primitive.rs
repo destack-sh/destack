@@ -18,7 +18,7 @@ pub enum PrimitiveType {
     Bigint,
     /// Integer type, like `int32`, `uint8`, or `usize`.
     Integer(IntegerType),
-    /// Float type, like `float64` or `bfloat16`.
+    /// Float type, like `float32` or `float64`.
     Float(FloatType),
 }
 
@@ -360,10 +360,6 @@ impl IntegerType {
 /// A floating-point type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum FloatType {
-    /// 16-bit IEEE-754 binary16 float `float16`.
-    Float16,
-    /// 16-bit bfloat format `bfloat16`.
-    Bfloat16,
     /// 32-bit IEEE-754 float `float32`.
     Float32,
     /// 64-bit IEEE-754 float `float64`.
@@ -374,8 +370,6 @@ impl FloatType {
     /// Return the mantissa and exponent bits of this float type.
     pub fn shape(self) -> (u32, u32) {
         match self {
-            FloatType::Float16 => (11, 5),
-            FloatType::Bfloat16 => (8, 8),
             FloatType::Float32 => (24, 8),
             FloatType::Float64 => (53, 11),
         }
@@ -395,12 +389,11 @@ impl FloatType {
         rounded == value || (rounded.is_nan() && value.is_nan())
     }
 
-    /// Return the concrete bit width, if known without target layout.
-    pub fn width(&self) -> Option<u16> {
+    /// Return the concrete bit width.
+    pub fn width(self) -> u16 {
         match self {
-            FloatType::Float16 | FloatType::Bfloat16 => Some(16),
-            FloatType::Float32 => Some(32),
-            FloatType::Float64 => Some(64),
+            FloatType::Float32 => 32,
+            FloatType::Float64 => 64,
         }
     }
 
@@ -408,8 +401,6 @@ impl FloatType {
     #[inline]
     pub fn as_str(self) -> &'static str {
         match self {
-            FloatType::Float16 => "float16",
-            FloatType::Bfloat16 => "bfloat16",
             FloatType::Float32 => "float32",
             FloatType::Float64 => "float64",
         }
@@ -419,8 +410,6 @@ impl FloatType {
     pub fn roundtrip_f64(self, value: f64) -> f64 {
         let format = match self {
             FloatType::Float64 => FloatFormat::Float64,
-            FloatType::Float16 => FloatFormat::Float16,
-            FloatType::Bfloat16 => FloatFormat::Bfloat16,
             FloatType::Float32 => FloatFormat::Float32,
         };
 

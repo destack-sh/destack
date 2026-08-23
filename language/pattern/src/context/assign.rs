@@ -60,8 +60,8 @@ impl ModuleContext {
 
         let source_type = program.type_by_id(source)?;
 
-        // bottom and dynamic source types satisfy every supported target
-        if matches!(source_type, dir::Type::Never | dir::Type::Any) {
+        // accept the bottom source type for every supported target
+        if matches!(source_type, dir::Type::Never) {
             active.pop();
 
             return Ok(true);
@@ -191,8 +191,8 @@ impl ModuleContext {
 
         let target_type = program.type_by_id(target)?;
 
-        // dynamic and top target types accept every supported source
-        if matches!(target_type, dir::Type::Any | dir::Type::Unknown) {
+        // accept every supported source for the top target type
+        if matches!(target_type, dir::Type::Unknown) {
             active.pop();
 
             return Ok(true);
@@ -462,8 +462,8 @@ impl ModuleContext {
         }
 
         match (source, target) {
-            (dir::Type::Never | dir::Type::Any, _) => true,
-            (_, dir::Type::Any | dir::Type::Unknown) => true,
+            (dir::Type::Never, _) => true,
+            (_, dir::Type::Unknown) => true,
             (dir::Type::Literal(source), dir::Type::Primitive(target)) => {
                 source.widens_to_primitive(target)
             }

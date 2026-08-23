@@ -180,8 +180,6 @@ impl TypeEmitter<'_> {
     /// Return one bytecode floating point representation.
     fn float(&self, format: mir::FloatType) -> bytecode::Scalar {
         match format {
-            mir::FloatType::Float16 => bytecode::Scalar::Float16,
-            mir::FloatType::Bfloat16 => bytecode::Scalar::Bfloat16,
             mir::FloatType::Float32 => bytecode::Scalar::Float32,
             mir::FloatType::Float64 => bytecode::Scalar::Float64,
         }

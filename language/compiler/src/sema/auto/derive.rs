@@ -104,8 +104,7 @@ impl CheckState<'_> {
             dir::Type::Variant(member) => self.satisfies_derivable(origin, member.owner, interface),
 
             // opaque and callable forms carry no field-wise conformance
-            dir::Type::Any
-            | dir::Type::Unknown
+            dir::Type::Unknown
             | dir::Type::Intrinsic
             | dir::Type::Key(_)
             | dir::Type::Memory(_)

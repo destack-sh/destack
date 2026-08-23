@@ -104,7 +104,7 @@ const layout = const layoutOf<Header>();
 
 declare let bytes: [uint8; sizeOf<Header>()];
 type Slots<T, const N: usize = strideOf<T>()> = [uint8; N];
-declare let erased: Any<Writer>;
+declare let erased: Dynamic<Writer>;
 
 --------------------------------------------------------------------------------
 

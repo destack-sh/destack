@@ -98,8 +98,7 @@ impl CheckState<'_> {
             // judge variants through their owning enum
             dir::Type::Variant(member) => self.satisfies_copy(origin, member.owner, active),
             // reject opaque and callable storage
-            dir::Type::Any
-            | dir::Type::Unknown
+            dir::Type::Unknown
             | dir::Type::Intrinsic
             | dir::Type::Member(_)
             | dir::Type::Operation(_)

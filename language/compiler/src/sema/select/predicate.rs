@@ -241,7 +241,7 @@ impl BodyState<'_, '_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::Predicate>> {
         let condition = match self.ty(target)? {
-            dir::Type::Any | dir::Type::Unknown => dir::PredicateCondition::Always,
+            dir::Type::Unknown => dir::PredicateCondition::Always,
             // refinements test through their base application
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(target.module_id, refined)?;

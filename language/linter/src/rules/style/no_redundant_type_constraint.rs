@@ -10,7 +10,7 @@ declare_lint! {
         id: "no-redundant-type-constraint",
         summary: "Disallow generic constraints equal to the implicit top type",
         explanation: r#"
-An `unknown` or `any` generic constraint accepts the same arguments as an unconstrained type parameter.
+An `unknown` generic constraint accepts the same arguments as an unconstrained type parameter.
 Instead, you SHOULD omit the redundant constraint.
 "#,
         example: {
@@ -53,7 +53,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let is_top = matches!(
             view.get(constraint),
             dir::TypeExpression::Keyword {
-                value: dir::TypeLiteral::Unknown | dir::TypeLiteral::Any
+                value: dir::TypeLiteral::Unknown
             }
         );
         if !is_top {

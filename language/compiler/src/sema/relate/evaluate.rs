@@ -482,8 +482,8 @@ impl CheckState<'_> {
             // empty and indeterminate domains
             (dir::Type::Error, _) | (_, dir::Type::Error) => Verdict::Holds,
             (dir::Type::Never, _) => Verdict::Holds,
-            (_, dir::Type::Any | dir::Type::Unknown) => Verdict::Holds,
-            (dir::Type::Any | dir::Type::Unknown, _) => Verdict::Fails,
+            (_, dir::Type::Unknown) => Verdict::Holds,
+            (dir::Type::Unknown, _) => Verdict::Fails,
 
             // union and intersection inclusion
             (dir::Type::Union(union), _) => {

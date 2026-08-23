@@ -1145,7 +1145,7 @@ fn test_parse_export_named_type_with_keyword_alias_without_target() {
 
 #[test]
 fn test_report_export_function_without_name() {
-    let test = TestParser::new("export function(option: any): void");
+    let test = TestParser::new("export function(option: unknown): void");
     let mut parser = test.prepare();
     let error = parser.parse_export().unwrap_err();
 

@@ -4366,14 +4366,6 @@
                   {
                     "type": "SYMBOL",
                     "name": "static_return_type_annotation"
-                  },
-                  {
-                    "type": "SYMBOL",
-                    "name": "asserts_annotation"
-                  },
-                  {
-                    "type": "SYMBOL",
-                    "name": "type_predicate_annotation"
                   }
                 ]
               },
@@ -8267,10 +8259,6 @@
         {
           "type": "STRING",
           "value": "loop"
-        },
-        {
-          "type": "STRING",
-          "value": "any"
         },
         {
           "type": "STRING",
@@ -14906,50 +14894,6 @@
         }
       ]
     },
-    "asserts": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "asserts"
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "SYMBOL",
-              "name": "type_predicate"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "identifier"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "this"
-            }
-          ]
-        }
-      ]
-    },
-    "asserts_annotation": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "SEQ",
-          "members": [
-            {
-              "type": "STRING",
-              "value": ":"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "asserts"
-            }
-          ]
-        }
-      ]
-    },
     "type": {
       "type": "CHOICE",
       "members": [
@@ -15672,67 +15616,6 @@
         ]
       }
     },
-    "type_predicate": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "FIELD",
-          "name": "name",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
-                "type": "SYMBOL",
-                "name": "identifier"
-              },
-              {
-                "type": "SYMBOL",
-                "name": "this"
-              },
-              {
-                "type": "ALIAS",
-                "content": {
-                  "type": "SYMBOL",
-                  "name": "predefined_type"
-                },
-                "named": true,
-                "value": "identifier"
-              }
-            ]
-          }
-        },
-        {
-          "type": "STRING",
-          "value": "is"
-        },
-        {
-          "type": "FIELD",
-          "name": "type",
-          "content": {
-            "type": "SYMBOL",
-            "name": "type"
-          }
-        }
-      ]
-    },
-    "type_predicate_annotation": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "SEQ",
-          "members": [
-            {
-              "type": "STRING",
-              "value": ":"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "type_predicate"
-            }
-          ]
-        }
-      ]
-    },
     "_type_query_member_expression": {
       "type": "SEQ",
       "members": [
@@ -16259,10 +16142,6 @@
     "predefined_type": {
       "type": "CHOICE",
       "members": [
-        {
-          "type": "STRING",
-          "value": "any"
-        },
         {
           "type": "STRING",
           "value": "number"
@@ -17901,17 +17780,8 @@
             "type": "FIELD",
             "name": "return_type",
             "content": {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "SYMBOL",
-                  "name": "type"
-                },
-                {
-                  "type": "SYMBOL",
-                  "name": "asserts"
-                }
-              ]
+              "type": "SYMBOL",
+              "name": "type"
             }
           }
         ]
@@ -18617,10 +18487,6 @@
       "tuple_expression"
     ],
     [
-      "asserts",
-      "type_predicate"
-    ],
-    [
       "pattern",
       "_try_propagation_argument"
     ],
@@ -18925,10 +18791,6 @@
       {
         "type": "STRING",
         "value": "binary"
-      },
-      {
-        "type": "SYMBOL",
-        "name": "type_predicate"
       },
       {
         "type": "SYMBOL",

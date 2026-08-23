@@ -366,8 +366,7 @@ fn test_report_template_literal_legacy_octal_escape() {
 
 #[test]
 fn test_parse_type_literal() {
-    let test =
-        TestParser::new("int32 uint8 u8 float float16 bfloat16 float32 float64 boolean char");
+    let test = TestParser::new("int32 uint8 u8 float float32 float64 boolean char");
     let mut parser = test.prepare();
 
     assert!(matches!(
@@ -394,14 +393,6 @@ fn test_parse_type_literal() {
     assert!(matches!(
         parser.parse_type_literal().unwrap(),
         TypeLiteral::Alias(ScalarAlias::Float)
-    ));
-    assert!(matches!(
-        parser.parse_type_literal().unwrap(),
-        TypeLiteral::Float(FloatType::Float16)
-    ));
-    assert!(matches!(
-        parser.parse_type_literal().unwrap(),
-        TypeLiteral::Float(FloatType::Bfloat16)
     ));
     assert!(matches!(
         parser.parse_type_literal().unwrap(),
@@ -1010,7 +1001,7 @@ fn test_parse_tree_in_parenthesis() {
 /// Parse tree literal with generic attributes on the tag.
 #[test]
 fn test_parse_tree_with_generic_arguments() {
-    let test = TestParser::new(r#"<Component<any>></Component>"#);
+    let test = TestParser::new(r#"<Component<unknown>></Component>"#);
     let mut parser = test.prepare();
     let expression = parser.parse_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), generic_arguments, attributes, children, .. } => {
@@ -1019,7 +1010,7 @@ fn test_parse_tree_with_generic_arguments() {
             assert_eq!(generic_arguments.len(), 1);
             assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                     assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
-                        assert_eq!(*value, TypeLiteral::Any);
+                        assert_eq!(*value, TypeLiteral::Unknown);
                     });
             });
         });
@@ -1602,7 +1593,7 @@ fn test_parse_tree_attribute_spread_with_multiline_comments() {
         r#"<Tag
   {
     // comment before spread
-    ...(rootProps as any)
+    ...(rootProps as unknown)
   }
 />"#,
     );

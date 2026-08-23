@@ -46,8 +46,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<bool> {
         match self.ty(ty)? {
             // accept every open type, its values may hold additional members
-            dir::Type::Any
-            | dir::Type::Unknown
+            dir::Type::Unknown
             | dir::Type::Error
             | dir::Type::Variable(_)
             | dir::Type::Parameter(_)

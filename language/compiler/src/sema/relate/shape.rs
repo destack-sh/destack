@@ -35,7 +35,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         let result = match self.ty(ty)? {
-            dir::Type::Any | dir::Type::Parameter(_) => true,
+            dir::Type::Parameter(_) => true,
             dir::Type::Primitive(primitive) => matches!(
                 primitive,
                 dir::PrimitiveType::String | dir::PrimitiveType::Integer(_)
@@ -75,7 +75,7 @@ impl CheckState<'_> {
         let ty = self.normalize(origin, ty)?;
 
         let result = match self.ty(ty)? {
-            dir::Type::Any | dir::Type::Parameter(_) => true,
+            dir::Type::Parameter(_) => true,
             dir::Type::Object(_) => true,
             dir::Type::Dynamic(dynamic) => self.is_keyed_type(origin, dynamic.constraint)?,
             // arrays enumerate positionally

@@ -356,7 +356,7 @@ fn test_parse_if_ternary_with_binary_condition() {
 fn test_parse_export_const_ternary_object_literal_arrow_value() {
     let test = TestParser::new(
         r#"export const reproValue = true ? {} : {
-    reproFunc: (_: any): any => { },
+    reproFunc: (_: unknown): unknown => { },
 };"#,
     );
     let mut parser = test.prepare();
@@ -407,7 +407,7 @@ fn test_parse_export_const_ternary_object_literal_arrow_value() {
 fn test_parse_ternary_object_literal_arrow_value_expression() {
     let test = TestParser::new(
         r#"true ? {} : {
-    reproFunc: (_: any): any => { },
+    reproFunc: (_: unknown): unknown => { },
 }"#,
     );
     let mut parser = test.prepare();

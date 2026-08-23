@@ -3,7 +3,7 @@ Type casts
 :language(destack)
 =================================
 
-foo as any as Array<number>
+foo as unknown as Array<number>
 bar satisfies number[]
 "foobar" as const
 

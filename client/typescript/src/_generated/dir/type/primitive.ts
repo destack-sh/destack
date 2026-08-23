@@ -241,7 +241,7 @@ export function fromJsonEnumVariantValue(value: Json): EnumVariantValue {
 }
 
 /** A floating-point type. */
-export type FloatType = "float16" | "bfloat16" | "float32" | "float64";
+export type FloatType = "float32" | "float64";
 
 export const FloatType = {
     /** Encode this value. */
@@ -268,17 +268,11 @@ export const FloatType = {
 /** Encode one FloatType. */
 export function encodeFloatType(writer: BinaryWriter, value: FloatType): void {
     switch (value) {
-        case "float16":
+        case "float32":
             writer.writeUnsigned(0);
             return;
-        case "bfloat16":
-            writer.writeUnsigned(1);
-            return;
-        case "float32":
-            writer.writeUnsigned(2);
-            return;
         case "float64":
-            writer.writeUnsigned(3);
+            writer.writeUnsigned(1);
             return;
     }
 
@@ -291,12 +285,8 @@ export function decodeFloatType(reader: BinaryReader): FloatType {
 
     switch (variant) {
         case 0:
-            return "float16";
-        case 1:
-            return "bfloat16";
-        case 2:
             return "float32";
-        case 3:
+        case 1:
             return "float64";
     }
 
@@ -313,10 +303,6 @@ export function fromJsonFloatType(value: Json): FloatType {
     const variant = jsonString(value);
 
     switch (variant) {
-        case "float16":
-            return "float16";
-        case "bfloat16":
-            return "bfloat16";
         case "float32":
             return "float32";
         case "float64":
@@ -482,7 +468,7 @@ export type PrimitiveType =
           readonly kind: "integer";
           readonly integer: IntegerType;
       }
-    /** Float type, like `float64` or `bfloat16`. */
+    /** Float type, like `float32` or `float64`. */
     | {
           readonly kind: "float";
           readonly float: FloatType;
@@ -515,7 +501,7 @@ export const PrimitiveType = {
         return { kind: "integer", integer };
     },
 
-    /** Float type, like `float64` or `bfloat16`. */
+    /** Float type, like `float32` or `float64`. */
     float(float: FloatType): PrimitiveType {
         return { kind: "float", float };
     },

@@ -4,7 +4,7 @@ Bytecode identities and literals
 
 function values {
     constant.int128 r0, -1
-    constant.float16 r1, bits(0x7e01)
+    constant.float32 r1, bits(0x7fc00001)
     constant.float32 r2, Infinity
     constant.float64 r3, -Infinity
     constant.boolean r4, true

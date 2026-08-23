@@ -146,7 +146,7 @@ impl Arithmetic {
         Ok(Word::float64(value))
     }
 
-    /// Execute one binary32, binary16, or bfloat16 operation.
+    /// Execute one binary32 operation.
     fn float32(
         operation: FloatOperation,
         scalar: Scalar,

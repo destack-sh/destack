@@ -53,10 +53,9 @@ impl CheckState<'_> {
 
                 self.satisfies_dynamic_safe(origin, refined.base, active)
             }
-            // represent scalar leaves directly
+            // represent terminal types directly
             dir::Type::Error
             | dir::Type::Never
-            | dir::Type::Any
             | dir::Type::Unknown
             | dir::Type::Void
             | dir::Type::Null

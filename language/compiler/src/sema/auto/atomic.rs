@@ -15,9 +15,7 @@ impl CheckState<'_> {
             dir::Type::Primitive(dir::PrimitiveType::Integer(integer)) => {
                 integer.width().is_none_or(|width| width <= 64)
             }
-            dir::Type::Primitive(dir::PrimitiveType::Float(float)) => {
-                float.width().is_some_and(|width| width <= 64)
-            }
+            dir::Type::Primitive(dir::PrimitiveType::Float(float)) => float.width() <= 64,
 
             // reject types without an atomic scalar representation
             _ => false,

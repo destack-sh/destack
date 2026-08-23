@@ -1319,8 +1319,6 @@ impl ValueRange {
     /// Return the maximum finite magnitude for a float format.
     fn float_max_finite(format: mir::FloatType) -> f64 {
         match format {
-            mir::FloatType::Float16 => float_from_bits(format.format(), 0x7bff),
-            mir::FloatType::Bfloat16 => float_from_bits(format.format(), 0x7f7f),
             mir::FloatType::Float32 => f32::MAX as f64,
             mir::FloatType::Float64 => f64::MAX,
         }

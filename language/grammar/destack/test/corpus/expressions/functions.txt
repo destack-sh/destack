@@ -248,7 +248,7 @@ function* foo<A>(amount, interestRate, duration): number {
 	yield amount * interestRate * duration / 12
 }
 
-(module: any): number => 2
+(module: unknown): number => 2
 
 ---
 
@@ -462,90 +462,6 @@ let foo: ({a}: Foo) => number
               (type_annotation
                 (type_identifier))))
           (predefined_type))))))
-
-=======================================
-Assertion functions checking a value
-:language(destack)
-=======================================
-
-function f(x: any): asserts x {
-}
-
----
-
-(program
-  (function_declaration
-    (identifier)
-    (formal_parameters
-      (required_parameter
-        (identifier)
-        (type_annotation
-          (predefined_type))))
-    (asserts_annotation
-      (asserts
-        (identifier)))
-    (statement_block)))
-
-=======================================
-Assertion functions checking a type
-:language(destack)
-=======================================
-
-function f(x: any): asserts x is number {
-}
-
-class Foo<T> {
-  test(): this is T {}
-}
-
-function isT(t: T): t is T {
-  return true
-}
-
----
-
-(program
-  (function_declaration
-    (identifier)
-    (formal_parameters
-      (required_parameter
-        (identifier)
-        (type_annotation
-          (predefined_type))))
-    (asserts_annotation
-      (asserts
-        (type_predicate
-          (identifier)
-          (predefined_type))))
-    (statement_block))
-  (class_declaration
-    (type_identifier)
-    (type_parameters
-      (type_parameter
-        (type_identifier)))
-    (class_body
-      (method_definition
-        (property_identifier)
-        (formal_parameters)
-        (type_predicate_annotation
-          (type_predicate
-            (this)
-            (type_identifier)))
-        (statement_block))))
-  (function_declaration
-    (identifier)
-    (formal_parameters
-      (required_parameter
-        (identifier)
-        (type_annotation
-          (type_identifier))))
-    (type_predicate_annotation
-      (type_predicate
-        (identifier)
-        (type_identifier)))
-    (statement_block
-      (return_statement
-        (true)))))
 
 ===============================================================================
 Declared generator functions are allowed

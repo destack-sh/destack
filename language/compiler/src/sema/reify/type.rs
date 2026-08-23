@@ -274,7 +274,6 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             }
 
             dir::Type::Never => Self::literal(dir::TypeLiteral::Never),
-            dir::Type::Any => Self::literal(dir::TypeLiteral::Any),
             dir::Type::Unknown => Self::literal(dir::TypeLiteral::Unknown),
             dir::Type::Void => Self::literal(dir::TypeLiteral::Void),
             dir::Type::Null => Self::literal(dir::TypeLiteral::Null),

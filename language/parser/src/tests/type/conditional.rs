@@ -385,13 +385,13 @@ fn test_parse_type_extends_with_union_right() {
 /// Parse conditional types with function right-hand sides.
 #[test]
 fn test_parse_conditional_type_with_function_right() {
-    let test = TestParser::new("type T = A extends (x: number) => any ? C : D");
+    let test = TestParser::new("type T = A extends (x: number) => unknown ? C : D");
     let mut parser = test.prepare();
     let expr_id = parser
         .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
-    // type T = A extends (x: number) => any ? C : D
+    // type T = A extends (x: number) => unknown ? C : D
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Conditional { extends_type, then_type, else_type, .. } => {

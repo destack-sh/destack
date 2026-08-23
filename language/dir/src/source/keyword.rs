@@ -114,8 +114,6 @@ pub enum Keyword {
     Keyof,
     /// Infer expression.
     Infer,
-    /// Any expression (alias).
-    Any,
     /// Never expression (alias).
     Never,
     /// Alias or cast an item.
@@ -292,7 +290,6 @@ impl Keyword {
             Keyword::Undefined => "undefined",
             Keyword::Keyof => "keyof",
             Keyword::Infer => "infer",
-            Keyword::Any => "any",
             Keyword::Never => "never",
             Keyword::As => "as",
             Keyword::Is => "is",
@@ -392,7 +389,6 @@ impl FromStr for Keyword {
             "undefined" => Ok(Keyword::Undefined),
             "keyof" => Ok(Keyword::Keyof),
             "infer" => Ok(Keyword::Infer),
-            "any" => Ok(Keyword::Any),
             "never" => Ok(Keyword::Never),
             "as" => Ok(Keyword::As),
             "is" => Ok(Keyword::Is),

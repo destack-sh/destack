@@ -31,9 +31,9 @@ fn test_format_recovered_parameter() {
 #[test]
 fn test_format_float_parameter_types() {
     assert_format_program_roundtrip_with_file_type(
-        r#"function convert(a: float16, b: bfloat16, c: float32, d: float64): void {}
+        r#"function convert(a: float32, b: float64): void {}
 "#,
-        r#"function convert(a: float16, b: bfloat16, c: float32, d: float64): void {}
+        r#"function convert(a: float32, b: float64): void {}
 "#,
         FileType::Destack,
         DestackFormatOptions::default(),
@@ -242,7 +242,7 @@ fn test_format_type_literal_parameter_layout() {
     assert_format_program_reference_widths(
         r#"export default function useTagsCount({
   query,
-}: { query?: Record<any, any> } = {}) {
+}: { query?: Record<unknown, unknown> } = {}) {
 }
 "#,
         FileType::Destack,
@@ -251,12 +251,12 @@ fn test_format_type_literal_parameter_layout() {
                 80,
                 r#"export default function useTagsCount({
   query,
-}: { query?: Record<any, any> } = {}) {}
+}: { query?: Record<unknown, unknown> } = {}) {}
 "#,
             ),
             (
                 100,
-                r#"export default function useTagsCount({ query }: { query?: Record<any, any> } = {}) {}
+                r#"export default function useTagsCount({ query }: { query?: Record<unknown, unknown> } = {}) {}
 "#,
             ),
         ],

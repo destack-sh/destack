@@ -340,7 +340,7 @@ fn test_parse_try_with_typed_destructuring_catch_pattern() {
         r###"
 try {
     foo()
-} catch ({ name, message }: any) {
+} catch ({ name, message }: unknown) {
     bar()
 }
 "###,
@@ -367,7 +367,7 @@ try {
 
         // catch annotation
         assert_node!(parser.tree, *catch_ty, TypeExpression::Keyword { value } => {
-            assert_eq!(*value, TypeLiteral::Any);
+            assert_eq!(*value, TypeLiteral::Unknown);
         });
 
         // catch body

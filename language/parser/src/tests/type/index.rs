@@ -9,14 +9,14 @@ use destack_dir::{
 #[test]
 fn test_parse_function_type_return_conditional() {
     let test = TestParser::new(
-        "type Getter<T, P> = (target: T, propertyKey: P) => P extends keyof T ? T[P] : any",
+        "type Getter<T, P> = (target: T, propertyKey: P) => P extends keyof T ? T[P] : unknown",
     );
     let mut parser = test.prepare();
     let expr_id = parser
         .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
-    // type Getter<T, P> = (target: T, propertyKey: P) => P extends keyof T ? T[P] : any
+    // type Getter<T, P> = (target: T, propertyKey: P) => P extends keyof T ? T[P] : unknown
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
@@ -42,7 +42,7 @@ fn test_parse_function_type_return_conditional() {
                         });
                     });
                     assert_node!(parser.tree, *else_type, TypeExpression::Keyword { value } => {
-                        assert_eq!(*value, TypeLiteral::Any);
+                        assert_eq!(*value, TypeLiteral::Unknown);
                     });
                 });
             });
@@ -53,14 +53,14 @@ fn test_parse_function_type_return_conditional() {
 #[test]
 fn test_parse_type_arguments_with_conditional() {
     let test = TestParser::new(
-        "type Descriptor<P, T> = TypedPropertyDescriptor<P extends keyof T ? T[P] : any>",
+        "type Descriptor<P, T> = TypedPropertyDescriptor<P extends keyof T ? T[P] : unknown>",
     );
     let mut parser = test.prepare();
     let expr_id = parser
         .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
-    // type Descriptor<P, T> = TypedPropertyDescriptor<P extends keyof T ? T[P] : any>
+    // type Descriptor<P, T> = TypedPropertyDescriptor<P extends keyof T ? T[P] : unknown>
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Reference { generic_arguments, .. } => {
@@ -88,7 +88,7 @@ fn test_parse_type_arguments_with_conditional() {
                                 });
                             });
                             assert_node!(parser.tree, *else_type, TypeExpression::Keyword { value } => {
-                                assert_eq!(*value, TypeLiteral::Any);
+                                assert_eq!(*value, TypeLiteral::Unknown);
                             });
                         });
                 });

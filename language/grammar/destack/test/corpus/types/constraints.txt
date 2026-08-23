@@ -22,8 +22,8 @@ Constructor type constraints
 :language(destack)
 ==================================
 
-type Foo<T: abstract new (...args: any) => any> = T;
-type Foo<T: new (...args: any) => any> = T;
+type Foo<T: abstract new (...args: unknown) => unknown> = T;
+type Foo<T: new (...args: unknown) => unknown> = T;
 
 ---
 

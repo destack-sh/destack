@@ -535,7 +535,7 @@ geom.Mesh<2, 4> {
 fn test_parse_object_literal_with_typed_arrow_value() {
     let test = TestParser::new(
         r#"{
-    reproFunc: (_: any): any => { },
+    reproFunc: (_: unknown): unknown => { },
 }"#,
     );
     let mut parser = test.prepare();

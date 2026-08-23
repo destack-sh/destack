@@ -23,10 +23,10 @@ entry(v0: isize, v1: usize, v2: typeDescriptor, v3: typeId):
 fn test_format_concrete_float_types() {
     assert_format(
         r#"
-function floats(v0: float16, v1: bfloat16, v2: float32, v3: float64): void {
-entry(v0: float16, v1: bfloat16, v2: float32, v3: float64):
-    v4: float16 = 1.5
-    v5: bfloat16 = 1.5
+function floats(v0: float32, v1: float64): void {
+entry(v0: float32, v1: float64):
+    v2: float32 = 1.5
+    v3: float64 = 1.5
     return
 }
 "#,

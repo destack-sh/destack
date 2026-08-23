@@ -371,13 +371,13 @@ fn test_parse_arrow_parameter_accessor_name() {
 /// Parse newline-separated parenthesized assertion starters as a continued call.
 #[test]
 fn test_parse_statement_newline_before_parenthesized_assertion_continues_call() {
-    let test = TestParser::new("(foo.bar as Baz)\n(foo.bar as any)");
+    let test = TestParser::new("(foo.bar as Baz)\n(foo.bar as unknown)");
     let mut parser = test.prepare();
     let expression_id = parser
         .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
         .unwrap();
 
-    // (foo.bar as Baz) (foo.bar as any)
+    // (foo.bar as Baz) (foo.bar as unknown)
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_eq!(arguments.len(), 1);
 
@@ -392,15 +392,15 @@ fn test_parse_statement_newline_before_parenthesized_assertion_continues_call() 
             });
         });
 
-        // (foo.bar as any)
+        // (foo.bar as unknown)
         assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
-            // foo.bar as any
+            // foo.bar as unknown
             assert_node!(parser.tree, *value, Expression::As { expression, target_type } => {
                 // foo.bar
                 assert_expression_path!(parser, parser.tree.get(*expression), "foo.bar");
-                // any
+                // unknown
                 assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
-                    assert_eq!(*value, TypeLiteral::Any);
+                    assert_eq!(*value, TypeLiteral::Unknown);
                 });
             });
         });

@@ -13,8 +13,7 @@ impl Dir<'_> {
         type_id: dir::GlobalTypeId,
     ) -> Result<Option<dir::Ownership>, ProviderError> {
         let ownership = match self.get_type(type_id)? {
-            dir::Type::Any
-            | dir::Type::Unknown
+            dir::Type::Unknown
             | dir::Type::Object(_)
             | dir::Type::Dynamic(_)
             | dir::Type::Slice(_)

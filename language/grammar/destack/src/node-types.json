@@ -705,19 +705,11 @@
         "required": false,
         "types": [
           {
-            "type": "asserts_annotation",
-            "named": true
-          },
-          {
             "type": "static_return_type_annotation",
             "named": true
           },
           {
             "type": "type_annotation",
-            "named": true
-          },
-          {
-            "type": "type_predicate_annotation",
             "named": true
           }
         ]
@@ -964,19 +956,11 @@
         "required": false,
         "types": [
           {
-            "type": "asserts_annotation",
-            "named": true
-          },
-          {
             "type": "static_return_type_annotation",
             "named": true
           },
           {
             "type": "type_annotation",
-            "named": true
-          },
-          {
-            "type": "type_predicate_annotation",
             "named": true
           }
         ]
@@ -1011,44 +995,6 @@
         },
         {
           "type": "type",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "asserts",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "identifier",
-          "named": true
-        },
-        {
-          "type": "this",
-          "named": true
-        },
-        {
-          "type": "type_predicate",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "asserts_annotation",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "asserts",
           "named": true
         }
       ]
@@ -1706,19 +1652,11 @@
         "required": false,
         "types": [
           {
-            "type": "asserts_annotation",
-            "named": true
-          },
-          {
             "type": "static_return_type_annotation",
             "named": true
           },
           {
             "type": "type_annotation",
-            "named": true
-          },
-          {
-            "type": "type_predicate_annotation",
             "named": true
           }
         ]
@@ -2339,19 +2277,11 @@
         "required": false,
         "types": [
           {
-            "type": "asserts_annotation",
-            "named": true
-          },
-          {
             "type": "static_return_type_annotation",
             "named": true
           },
           {
             "type": "type_annotation",
-            "named": true
-          },
-          {
-            "type": "type_predicate_annotation",
             "named": true
           }
         ]
@@ -3803,19 +3733,11 @@
         "required": false,
         "types": [
           {
-            "type": "asserts_annotation",
-            "named": true
-          },
-          {
             "type": "static_return_type_annotation",
             "named": true
           },
           {
             "type": "type_annotation",
-            "named": true
-          },
-          {
-            "type": "type_predicate_annotation",
             "named": true
           }
         ]
@@ -3881,19 +3803,11 @@
         "required": false,
         "types": [
           {
-            "type": "asserts_annotation",
-            "named": true
-          },
-          {
             "type": "static_return_type_annotation",
             "named": true
           },
           {
             "type": "type_annotation",
-            "named": true
-          },
-          {
-            "type": "type_predicate_annotation",
             "named": true
           }
         ]
@@ -3949,19 +3863,11 @@
         "required": false,
         "types": [
           {
-            "type": "asserts_annotation",
-            "named": true
-          },
-          {
             "type": "static_return_type_annotation",
             "named": true
           },
           {
             "type": "type_annotation",
-            "named": true
-          },
-          {
-            "type": "type_predicate_annotation",
             "named": true
           }
         ]
@@ -4006,10 +3912,6 @@
         "multiple": false,
         "required": true,
         "types": [
-          {
-            "type": "asserts",
-            "named": true
-          },
           {
             "type": "type",
             "named": true
@@ -4067,19 +3969,11 @@
         "required": false,
         "types": [
           {
-            "type": "asserts_annotation",
-            "named": true
-          },
-          {
             "type": "static_return_type_annotation",
             "named": true
           },
           {
             "type": "type_annotation",
-            "named": true
-          },
-          {
-            "type": "type_predicate_annotation",
             "named": true
           }
         ]
@@ -4145,19 +4039,11 @@
         "required": false,
         "types": [
           {
-            "type": "asserts_annotation",
-            "named": true
-          },
-          {
             "type": "static_return_type_annotation",
             "named": true
           },
           {
             "type": "type_annotation",
-            "named": true
-          },
-          {
-            "type": "type_predicate_annotation",
             "named": true
           }
         ]
@@ -4237,11 +4123,6 @@
         ]
       }
     }
-  },
-  {
-    "type": "identifier",
-    "named": true,
-    "fields": {}
   },
   {
     "type": "if_expression",
@@ -6329,19 +6210,11 @@
         "required": false,
         "types": [
           {
-            "type": "asserts_annotation",
-            "named": true
-          },
-          {
             "type": "static_return_type_annotation",
             "named": true
           },
           {
             "type": "type_annotation",
-            "named": true
-          },
-          {
-            "type": "type_predicate_annotation",
             "named": true
           }
         ]
@@ -6413,19 +6286,11 @@
         "required": false,
         "types": [
           {
-            "type": "asserts_annotation",
-            "named": true
-          },
-          {
             "type": "static_return_type_annotation",
             "named": true
           },
           {
             "type": "type_annotation",
-            "named": true
-          },
-          {
-            "type": "type_predicate_annotation",
             "named": true
           }
         ]
@@ -9254,51 +9119,6 @@
     }
   },
   {
-    "type": "type_predicate",
-    "named": true,
-    "fields": {
-      "name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          },
-          {
-            "type": "this",
-            "named": true
-          }
-        ]
-      },
-      "type": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "type",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "type_predicate_annotation",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "type_predicate",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "type_query",
     "named": true,
     "fields": {},
@@ -10193,15 +10013,7 @@
     "named": false
   },
   {
-    "type": "any",
-    "named": false
-  },
-  {
     "type": "as",
-    "named": false
-  },
-  {
-    "type": "asserts",
     "named": false
   },
   {
@@ -10337,6 +10149,10 @@
     "type": "html_comment",
     "named": true,
     "extra": true
+  },
+  {
+    "type": "identifier",
+    "named": true
   },
   {
     "type": "if",

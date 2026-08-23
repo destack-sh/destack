@@ -198,9 +198,6 @@ impl ScalarFormat {
         match self {
             Self::Int { width, .. } => (width as usize).div_ceil(u8::BITS as usize),
             Self::Float {
-                format: FloatType::Float16 | FloatType::Bfloat16,
-            } => 2,
-            Self::Float {
                 format: FloatType::Float32,
             }
             | Self::Character => 4,
@@ -225,8 +222,6 @@ impl From<bytecode::Scalar> for ScalarFormat {
             bytecode::Scalar::Uint32 => Self::int(32, false),
             bytecode::Scalar::Int64 => Self::int(64, true),
             bytecode::Scalar::Uint64 => Self::int(64, false),
-            bytecode::Scalar::Float16 => Self::float(FloatType::Float16),
-            bytecode::Scalar::Bfloat16 => Self::float(FloatType::Bfloat16),
             bytecode::Scalar::Float32 => Self::float(FloatType::Float32),
             bytecode::Scalar::Float64 => Self::float(FloatType::Float64),
         }
@@ -247,10 +242,6 @@ pub enum WordLayout {
     Int { width: u8 },
     /// Unsigned integer value.
     Uint { width: u8 },
-    /// Float16 value.
-    Float16,
-    /// BF16 value.
-    Bfloat16,
     /// Float32 value.
     Float32,
     /// Float64 value.
@@ -289,7 +280,6 @@ impl WordLayout {
             Self::Boolean => 1,
             Self::Character => 4,
             Self::Int { width } | Self::Uint { width } => (width as usize).div_ceil(8),
-            Self::Float16 | Self::Bfloat16 => 2,
             Self::Float32 => 4,
             Self::Float64 => 8,
             Self::LocalReference
@@ -310,7 +300,6 @@ impl WordLayout {
             Self::Character => Word::from_bits(raw),
             Self::Int { width } => Word::int(raw as i64, width),
             Self::Uint { width } => Word::uint(raw, width),
-            Self::Float16 | Self::Bfloat16 => Word::from_bits(raw),
             Self::Float32 => Word::float32(f32::from_bits(raw as u32)),
             Self::Float64 => Word::float64(f64::from_bits(raw)),
             Self::LocalReference
@@ -331,8 +320,6 @@ impl WordLayout {
             Self::Int { .. }
             | Self::Uint { .. }
             | Self::Character
-            | Self::Float16
-            | Self::Bfloat16
             | Self::Float32
             | Self::Float64
             | Self::LocalReference
@@ -415,12 +402,6 @@ impl Layout {
             }) => u8::try_from(*width)
                 .ok()
                 .map(|width| WordLayout::Uint { width }),
-            LayoutShape::Scalar(ScalarFormat::Float {
-                format: FloatType::Float16,
-            }) => Some(WordLayout::Float16),
-            LayoutShape::Scalar(ScalarFormat::Float {
-                format: FloatType::Bfloat16,
-            }) => Some(WordLayout::Bfloat16),
             LayoutShape::Scalar(ScalarFormat::Float {
                 format: FloatType::Float32,
             }) => Some(WordLayout::Float32),

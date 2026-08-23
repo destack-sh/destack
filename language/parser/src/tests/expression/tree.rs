@@ -334,7 +334,7 @@ fn test_parse_ternary_parenthesized_typed_arrow_function_before_tree() {
 #[test]
 fn test_parse_tree_attribute_typed_arrow_value() {
     let test = TestParser::new(
-        "<StyledComponent className={({ theme }): { [key: string]: any } => ({ color: theme.blue })} />",
+        "<StyledComponent className={({ theme }): { [key: string]: unknown } => ({ color: theme.blue })} />",
     );
     let mut parser = test.prepare();
     let expr_id = parser
@@ -417,7 +417,7 @@ fn test_parse_tree_attribute_fixed_array_expression_value_recovers_missing_lengt
 #[test]
 fn test_parse_ternary_tree_attribute_typed_arrow() {
     let test = TestParser::new(
-        "disabled ? <StyledComponent className={({ theme }): { [key: string]: any } => ({ color: theme.blue })} /> : null",
+        "disabled ? <StyledComponent className={({ theme }): { [key: string]: unknown } => ({ color: theme.blue })} /> : null",
     );
     let mut parser = test.prepare();
     let expr_id = parser

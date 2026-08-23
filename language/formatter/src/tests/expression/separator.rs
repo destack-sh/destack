@@ -198,11 +198,11 @@ fn test_format_parenthesized_scalar_separator_line_comments() {
 fn test_format_parenthesized_scalar_separator_mixed_comments() {
     assert_format_program_roundtrip_with_file_type(
         r#"const value = (/* keep */ // comment
-    a as any) + 1
+    a as unknown) + 1
 "#,
         r#"const value =
     /* keep */ // comment
-    (a as any) + 1;
+    (a as unknown) + 1;
 "#,
         FileType::Destack,
         DestackFormatOptions::default_with_line_width(100),
@@ -213,7 +213,7 @@ fn test_format_parenthesized_scalar_separator_mixed_comments() {
 #[test]
 fn test_parenthesized_scalar_separator_mixed_comments_attach_as_inner_leading_slice() {
     let input = r#"(/* keep */ // comment
-    a as any) + 1"#;
+    a as unknown) + 1"#;
     let block_start = 1;
     let block_end = 11;
     let line_start = 12;
@@ -271,7 +271,7 @@ fn test_parenthesized_scalar_separator_mixed_comments_attach_as_inner_leading_sl
 #[test]
 fn test_format_inner_assertion_with_parenthesized_scalar_separator_mixed_comments() {
     let input = r#"(/* keep */ // comment
-    a as any) + 1"#;
+    a as unknown) + 1"#;
     let (test, expression_id) =
         TestFormatter::parse_with_file_type(input, FileType::Destack, |parser| {
             parse_first_expression(parser)
@@ -292,7 +292,7 @@ fn test_format_inner_assertion_with_parenthesized_scalar_separator_mixed_comment
     assert_eq!(
         formatted,
         r#"/* keep */ // comment
-(a as any)"#
+(a as unknown)"#
     );
 }
 

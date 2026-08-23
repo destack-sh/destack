@@ -445,7 +445,7 @@ fn test_parse_typed_arrow_with_as_parameter_in_ternary_condition() {
 /// Parse async identifiers with `as` casts.
 #[test]
 fn test_parse_async_as_cast() {
-    let test = TestParser::new("async as any");
+    let test = TestParser::new("async as unknown");
     let mut parser = test.prepare();
     let expr_id = parser
         .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
@@ -454,7 +454,7 @@ fn test_parse_async_as_cast() {
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
         assert_expression_path!(parser, parser.tree.get(*expression), "async");
         assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value } => {
-            assert_eq!(*value, TypeLiteral::Any);
+            assert_eq!(*value, TypeLiteral::Unknown);
         });
     });
 }
@@ -905,7 +905,7 @@ fn test_parse_new_expression_with_generic_receiver_and_const_assertion_argument(
 /// Report angle bracket assertions in `new` receivers.
 #[test]
 fn test_report_type_assertion_in_new_receiver() {
-    let test = TestParser::new("new <any>Test2();");
+    let test = TestParser::new("new <unknown>Test2();");
     let mut parser = test.prepare();
     let error = parser
         .parse_expression(ExpressionPosition::Value, ExpressionStop::default())

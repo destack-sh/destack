@@ -428,7 +428,7 @@
       "patterns": [
         {
           "name": "support.type.builtin.ds",
-          "match": "\\b(?:unknown|boolean|char|string|number|bigint|int(?:\\d+)?|uint(?:\\d+)?|u\\d+|isize|usize|float(?:16|32|64)?|bfloat16)\\b"
+          "match": "\\b(?:unknown|boolean|char|string|number|bigint|int(?:\\d+)?|uint(?:\\d+)?|u\\d+|isize|usize|float(?:32|64)?)\\b"
         },
         {
           "name": "support.type.builtin.ds",

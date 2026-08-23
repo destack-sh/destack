@@ -2017,7 +2017,6 @@ impl BodyState<'_, '_> {
             // remaining types expose no keyed members
             dir::Type::Error
             | dir::Type::Never
-            | dir::Type::Any
             | dir::Type::Unknown
             | dir::Type::Void
             | dir::Type::Null

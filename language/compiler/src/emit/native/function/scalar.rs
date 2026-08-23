@@ -32,18 +32,12 @@ impl<'a> FunctionEmitter<'a> {
                 self.emit_integer_constant(ty, *value, builder)
             }
             mir::Constant::Float { bits, format } => match format {
-                mir::FloatType::Float16 => Ok(builder
-                    .ins()
-                    .f16const(cir::immediates::Ieee16::with_bits(*bits as u16))),
                 mir::FloatType::Float32 => Ok(builder
                     .ins()
                     .f32const(cir::immediates::Ieee32::with_bits(*bits as u32))),
                 mir::FloatType::Float64 => Ok(builder
                     .ins()
                     .f64const(cir::immediates::Ieee64::with_bits(*bits))),
-                mir::FloatType::Bfloat16 => {
-                    Err(self.invalid("native bfloat16 constants are unsupported"))
-                }
             },
             mir::Constant::Char { value } => {
                 Ok(builder.ins().iconst(cir::types::I32, *value as i64))
@@ -648,16 +642,12 @@ impl<'a> FunctionEmitter<'a> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
         let format = match ty {
-            cir::types::F16 => FloatFormat::Float16,
             cir::types::F32 => FloatFormat::Float32,
             cir::types::F64 => FloatFormat::Float64,
             _ => return Err(self.invalid("native constant requires a floating-point type")),
         };
         let bits = float_to_bits(format, value);
         let constant = match ty {
-            cir::types::F16 => builder
-                .ins()
-                .f16const(cir::immediates::Ieee16::with_bits(bits as u16)),
             cir::types::F32 => builder
                 .ins()
                 .f32const(cir::immediates::Ieee32::with_bits(bits as u32)),

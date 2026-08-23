@@ -23,11 +23,10 @@ impl CheckState<'_> {
             // error types absorb everything
             (dir::Type::Error, _) | (_, dir::Type::Error) => Verdict::Holds,
             // box erasable values into an erased top target
-            (_, dir::Type::Any) | (_, dir::Type::Unknown) => match widens {
+            (_, dir::Type::Unknown) => match widens {
                 true => Verdict::Fails,
                 false => self.erasable_source(origin, source)?,
             },
-            (dir::Type::Any, _) => Verdict::decided(!widens),
             (dir::Type::Never, _) => Verdict::Holds,
 
             // string literals inhabit matching template literal patterns

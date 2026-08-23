@@ -33,8 +33,6 @@ impl ModuleLowerer<'_> {
                 None => mir::Type::Usize,
             }),
             dir::PrimitiveType::Float(float) => Ok(mir::Type::Float(match float {
-                dir::FloatType::Float16 => mir::FloatType::Float16,
-                dir::FloatType::Bfloat16 => mir::FloatType::Bfloat16,
                 dir::FloatType::Float32 => mir::FloatType::Float32,
                 dir::FloatType::Float64 => mir::FloatType::Float64,
             })),

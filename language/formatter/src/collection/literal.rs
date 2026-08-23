@@ -444,7 +444,6 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for TypeLiteral {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             TypeLiteral::Never => write!(f, [token("never")]),
-            TypeLiteral::Any => write!(f, [token("any")]),
             TypeLiteral::Undefined => write!(f, [token("undefined")]),
             TypeLiteral::Unknown => write!(f, [token("unknown")]),
             TypeLiteral::Void => write!(f, [token("void")]),

@@ -283,7 +283,6 @@
 ; keywords
 [
   "abstract"
-  "asserts"
   "as"
   "async"
   "await"
@@ -387,9 +386,6 @@
   (":") @punctuation.special)
 
 (index_signature
-  (":") @punctuation.special)
-
-(type_predicate_annotation
   (":") @punctuation.special)
 
 (public_field_definition

@@ -52,10 +52,6 @@ pub enum CastOperator {
     NullableDowncast,
     /// Downcast from unknown.
     UnknownDowncast,
-    /// Downcast from any.
-    AnyDowncast,
-    /// Upcast into any.
-    AnyUpcast,
     /// Upcast into unknown.
     UnknownUpcast,
     /// Upcast into object (from non-primitive).

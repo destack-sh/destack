@@ -550,10 +550,8 @@ impl TypeHasher {
     /// Hash one concrete floating-point format.
     fn hash_float_type(&mut self, format: FloatType) {
         let tag = match format {
-            FloatType::Float16 => 0,
-            FloatType::Bfloat16 => 1,
-            FloatType::Float32 => 2,
-            FloatType::Float64 => 3,
+            FloatType::Float32 => 0,
+            FloatType::Float64 => 1,
         };
         self.hasher.write_u8(tag);
     }

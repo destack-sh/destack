@@ -29,7 +29,7 @@ impl WalkState<'_, '_> {
         match self.tree.get(id) {
             // "ok", 42, true
             dir::TypeExpression::Literal { value } => self.intern_type(dir::Type::Literal(*value)),
-            // never, any, null, number, ...
+            // never, unknown, null, number, ...
             dir::TypeExpression::Keyword { value } => {
                 self.intern_type(dir::Type::from(value.clone()))
             }

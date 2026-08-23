@@ -236,12 +236,7 @@ impl Literal {
 
     /// Return whether this literal inhabits every member of one scalar domain.
     pub fn widens_to_domain(&self, domain: ScalarDomain) -> bool {
-        const FLOATS: [FloatType; 4] = [
-            FloatType::Float16,
-            FloatType::Bfloat16,
-            FloatType::Float32,
-            FloatType::Float64,
-        ];
+        const FLOATS: [FloatType; 2] = [FloatType::Float32, FloatType::Float64];
 
         match (self, domain) {
             (Self::Integer(value), ScalarDomain::Integer) => {
@@ -461,7 +456,6 @@ pub struct TemplateChunk {
 /// Examples:
 /// ```
 /// never
-/// any
 /// undefined
 /// void
 /// null
@@ -473,8 +467,6 @@ pub struct TemplateChunk {
 pub enum TypeLiteral {
     /// Never type `never`.
     Never,
-    /// Any type `any`.
-    Any,
     /// Uninitialized type and value.
     Undefined,
     /// Unknown type.
@@ -522,7 +514,6 @@ impl TypeLiteral {
             "undefined" => Some(Self::Undefined),
             "unknown" => Some(Self::Unknown),
             "null" => Some(Self::Null),
-            "any" => Some(Self::Any),
             "never" => Some(Self::Never),
             _ => None,
         }
@@ -566,8 +557,6 @@ impl TypeLiteral {
 
         // recognize the fixed floating point type names
         match name {
-            "float16" => Some(Self::Float(FloatType::Float16)),
-            "bfloat16" => Some(Self::Float(FloatType::Bfloat16)),
             "float32" => Some(Self::Float(FloatType::Float32)),
             "float64" => Some(Self::Float(FloatType::Float64)),
             _ => None,
@@ -593,7 +582,7 @@ impl TypeLiteral {
             Self::Number | Self::Float(_) => ScalarDomain::Float,
             Self::Alias(alias) => alias.primitive().scalar_domain(),
             Self::Integer(_) => ScalarDomain::Integer,
-            Self::Never | Self::Any | Self::Unknown | Self::Void => return None,
+            Self::Never | Self::Unknown | Self::Void => return None,
         };
 
         Some(domain)

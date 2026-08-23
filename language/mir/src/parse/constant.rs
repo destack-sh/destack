@@ -321,8 +321,6 @@ impl Parser {
             "char" => Type::Character,
             "isize" => Type::Isize,
             "usize" => Type::Usize,
-            "float16" => Type::FLOAT16,
-            "bfloat16" => Type::BFLOAT16,
             "float32" => Type::FLOAT32,
             "float64" => Type::FLOAT64,
             "typeDescriptor" => Type::TypeDescriptor,
@@ -384,11 +382,9 @@ impl Parser {
 
     /// Parse a float constant with type suffix.
     pub(super) fn parse_float_constant(&self, text: &str) -> Option<Constant> {
-        let suffix_start = text.rfind("bfloat").or_else(|| text.rfind("float"))?;
+        let suffix_start = text.rfind("float")?;
         let (digits, suffix) = text.split_at(suffix_start);
         let format = match suffix {
-            "float16" => FloatType::Float16,
-            "bfloat16" => FloatType::Bfloat16,
             "float32" => FloatType::Float32,
             "float64" => FloatType::Float64,
             _ => return None,

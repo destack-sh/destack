@@ -269,17 +269,17 @@ fn test_parse_parameter_variadic_array_pattern_with_type() {
 
 #[test]
 fn test_parse_parameter_variadic_array_pattern_with_nested_object_and_defaults() {
-    // ...[src, { id, systemId, input, syncSnapshot = false } = {} as any]: SpawnArguments<...>
+    // ...[src, { id, systemId, input, syncSnapshot = false } = {} as unknown]: SpawnArguments<...>
     let test = TestParser::new(
         r#"...[
     src,
-    { id, systemId, input, syncSnapshot = false } = {} as any
+    { id, systemId, input, syncSnapshot = false } = {} as unknown
 ]: SpawnArguments<TContext, TExpressionEvent, TEvent, TActor>"#,
     );
     let mut parser = test.prepare();
     let parameter_id = parser.parse_parameter(Default::default()).unwrap();
     assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type: Some(declared_type), .. } => {
-        // [src, { ... } = {} as any]
+        // [src, { ... } = {} as unknown]
         assert_node!(parser.tree, *pattern, Pattern::Sequence { fields } => {
             assert_eq!(fields.len(), 2);
 
@@ -290,7 +290,7 @@ fn test_parse_parameter_variadic_array_pattern_with_nested_object_and_defaults()
                 });
             });
 
-            // { id, systemId, input, syncSnapshot = false } = {} as any
+            // { id, systemId, input, syncSnapshot = false } = {} as unknown
             assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
                 assert_node!(parser.tree, *pattern, Pattern::Default { pattern, value } => {
                     assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
@@ -312,7 +312,7 @@ fn test_parse_parameter_variadic_array_pattern_with_nested_object_and_defaults()
                         assert_node!(parser.tree, *expression, Expression::ObjectExpression { properties, .. } => {
                             assert!(properties.is_empty());
                         });
-                        assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value: TypeLiteral::Any });
+                        assert_node!(parser.tree, *target_type, TypeExpression::Keyword { value: TypeLiteral::Unknown });
                     });
                 });
             });

@@ -891,8 +891,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::Ownership>> {
         let ty = self.normalize(origin, ty)?;
         let default = match self.ty(ty)? {
-            dir::Type::Any
-            | dir::Type::Unknown
+            dir::Type::Unknown
             | dir::Type::Object(_)
             | dir::Type::Dynamic(_)
             | dir::Type::Slice(_)

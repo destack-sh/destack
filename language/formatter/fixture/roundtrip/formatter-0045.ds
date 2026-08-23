@@ -19,7 +19,7 @@ import {
 import { invariant, secondsToMilliseconds } from "motion-utils";
 
 interface AnimationDefinition {
-    map: Map<string, NativeAnimation<any>>;
+    map: Map<string, NativeAnimation<unknown>>;
     key: string;
     unresolvedKeyframes: UnresolvedValueKeyframe[];
     options: Omit<NativeAnimationOptions, "keyframes"> & { keyframes?: ValueKeyframe[] };
@@ -72,7 +72,7 @@ export function animateElements(
             }
 
             const valueOptions = {
-                ...getValueTransition(elementTransition as any, valueName),
+                ...getValueTransition(elementTransition as unknown, valueName),
             };
 
             valueOptions.duration &&= secondsToMilliseconds(valueOptions.duration);

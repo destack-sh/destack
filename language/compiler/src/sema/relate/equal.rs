@@ -27,7 +27,6 @@ impl CheckState<'_> {
             | (dir::Type::Undefined, dir::Type::Undefined)
             | (dir::Type::Void, dir::Type::Void)
             | (dir::Type::Never, dir::Type::Never)
-            | (dir::Type::Any, dir::Type::Any)
             | (dir::Type::Unknown, dir::Type::Unknown)
             | (dir::Type::This, dir::Type::This) => Verdict::Holds,
             // unit values are the concrete value representation of void

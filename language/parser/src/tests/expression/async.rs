@@ -83,7 +83,7 @@ fn test_parse_async_generic_false_positive() {
 /// Parse async generic arrow ASI.
 #[test]
 fn test_parse_async_generic_arrow_asi() {
-    let test = TestParser::new("let a = {}\nasync<T,>() => {}\n\n(a as any).b = 1;\n");
+    let test = TestParser::new("let a = {}\nasync<T,>() => {}\n\n(a as unknown).b = 1;\n");
     let mut parser = test.prepare();
     let expressions = parser.parse_in_place();
 

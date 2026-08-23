@@ -28,7 +28,7 @@ Parenthesized types
 =======================================
 
 let x: (string);
-let x: ({a: any});
+let x: ({a: unknown});
 
 ---
 
@@ -55,7 +55,7 @@ Type annotations in parenthesized expressions
 :language(destack)
 =======================================
 
-const range = (document: any).selection.createRange()
+const range = (document: unknown).selection.createRange()
 
 ---
 

@@ -25,8 +25,6 @@ pub enum Type {
     Error,
     /// Never type `never`.
     Never,
-    /// TypeScript `any` compatibility marker.
-    Any,
     /// Unknown type.
     Unknown,
     /// Void type.
@@ -102,7 +100,6 @@ impl From<TypeLiteral> for Type {
     fn from(value: TypeLiteral) -> Self {
         match value {
             TypeLiteral::Never => Self::Never,
-            TypeLiteral::Any => Self::Any,
             TypeLiteral::Undefined => Self::Undefined,
             TypeLiteral::Unknown => Self::Unknown,
             TypeLiteral::Void => Self::Void,
@@ -159,7 +156,6 @@ impl Type {
             Self::Rigid(_) => "Rigid",
             Self::Error => "Error",
             Self::Never => "Never",
-            Self::Any => "Any",
             Self::Unknown => "Unknown",
             Self::Void => "Void",
             Self::Null => "Null",
@@ -354,7 +350,6 @@ impl Type {
 
             // concrete heads contribute nothing of their own
             Self::Never
-            | Self::Any
             | Self::Unknown
             | Self::Void
             | Self::Null
@@ -425,7 +420,6 @@ impl Type {
             Self::Error
             | Self::Variable(_)
             | Self::Never
-            | Self::Any
             | Self::Unknown
             | Self::Void
             | Self::Null

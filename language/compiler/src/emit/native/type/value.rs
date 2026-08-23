@@ -208,12 +208,8 @@ impl TypeEmitter<'_> {
     /// Return one floating point register type.
     fn float(&self, format: mir::FloatType) -> Result<cir::Type, EmitError> {
         match format {
-            mir::FloatType::Float16 => Ok(cir::types::F16),
             mir::FloatType::Float32 => Ok(cir::types::F32),
             mir::FloatType::Float64 => Ok(cir::types::F64),
-            mir::FloatType::Bfloat16 => {
-                Err(self.unsupported("native bfloat16 scalar emission is unavailable"))
-            }
         }
     }
 }

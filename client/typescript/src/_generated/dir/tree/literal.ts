@@ -998,10 +998,6 @@ export type TypeLiteral =
     | {
           readonly kind: "never";
       }
-    /** Any type `any`. */
-    | {
-          readonly kind: "any";
-      }
     /** Uninitialized type and value. */
     | {
           readonly kind: "undefined";
@@ -1059,11 +1055,6 @@ export const TypeLiteral = {
     /** Never type `never`. */
     "never"(): TypeLiteral {
         return { kind: "never" };
-    },
-
-    /** Any type `any`. */
-    "any"(): TypeLiteral {
-        return { kind: "any" };
     },
 
     /** Uninitialized type and value. */
@@ -1153,46 +1144,43 @@ export function encodeTypeLiteral(writer: BinaryWriter, value: TypeLiteral): voi
         case "never":
             writer.writeUnsigned(0);
             return;
-        case "any":
+        case "undefined":
             writer.writeUnsigned(1);
             return;
-        case "undefined":
+        case "unknown":
             writer.writeUnsigned(2);
             return;
-        case "unknown":
+        case "void":
             writer.writeUnsigned(3);
             return;
-        case "void":
+        case "null":
             writer.writeUnsigned(4);
             return;
-        case "null":
+        case "boolean":
             writer.writeUnsigned(5);
             return;
-        case "boolean":
+        case "character":
             writer.writeUnsigned(6);
             return;
-        case "character":
+        case "string":
             writer.writeUnsigned(7);
             return;
-        case "string":
+        case "bigint":
             writer.writeUnsigned(8);
             return;
-        case "bigint":
+        case "number":
             writer.writeUnsigned(9);
             return;
-        case "number":
-            writer.writeUnsigned(10);
-            return;
         case "alias":
-            writer.writeUnsigned(11);
+            writer.writeUnsigned(10);
             encodeScalarAlias(writer, value.alias);
             return;
         case "integer":
-            writer.writeUnsigned(12);
+            writer.writeUnsigned(11);
             encodeIntegerType(writer, value.integer);
             return;
         case "float":
-            writer.writeUnsigned(13);
+            writer.writeUnsigned(12);
             encodeFloatType(writer, value.float);
             return;
     }
@@ -1209,46 +1197,43 @@ export function decodeTypeLiteral(reader: BinaryReader): TypeLiteral {
             return { kind: "never" };
         }
         case 1: {
-            return { kind: "any" };
-        }
-        case 2: {
             return { kind: "undefined" };
         }
-        case 3: {
+        case 2: {
             return { kind: "unknown" };
         }
-        case 4: {
+        case 3: {
             return { kind: "void" };
         }
-        case 5: {
+        case 4: {
             return { kind: "null" };
         }
-        case 6: {
+        case 5: {
             return { kind: "boolean" };
         }
-        case 7: {
+        case 6: {
             return { kind: "character" };
         }
-        case 8: {
+        case 7: {
             return { kind: "string" };
         }
-        case 9: {
+        case 8: {
             return { kind: "bigint" };
         }
-        case 10: {
+        case 9: {
             return { kind: "number" };
         }
-        case 11: {
+        case 10: {
             const alias = decodeScalarAlias(reader);
 
             return { kind: "alias", alias };
         }
-        case 12: {
+        case 11: {
             const integer = decodeIntegerType(reader);
 
             return { kind: "integer", integer };
         }
-        case 13: {
+        case 12: {
             const float = decodeFloatType(reader);
 
             return { kind: "float", float };
@@ -1264,10 +1249,6 @@ export function toJsonTypeLiteral(value: TypeLiteral): Json {
         case "never":
             return {
                 kind: "never",
-            };
-        case "any":
-            return {
-                kind: "any",
             };
         case "undefined":
             return {
@@ -1332,10 +1313,6 @@ export function fromJsonTypeLiteral(value: Json): TypeLiteral {
 
     switch (kind) {
         case "never":
-            return {
-                kind,
-            };
-        case "any":
             return {
                 kind,
             };

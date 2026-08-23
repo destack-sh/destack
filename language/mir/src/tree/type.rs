@@ -630,8 +630,6 @@ impl Type {
         is_signed: false,
     };
 
-    pub const FLOAT16: Type = Type::Float(FloatType::Float16);
-    pub const BFLOAT16: Type = Type::Float(FloatType::Bfloat16);
     pub const FLOAT32: Type = Type::Float(FloatType::Float32);
     pub const FLOAT64: Type = Type::Float(FloatType::Float64);
 
@@ -988,10 +986,6 @@ impl Type {
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
 )]
 pub enum FloatType {
-    /// A 16-bit IEEE-754 binary16 float.
-    Float16,
-    /// A 16-bit bfloat format.
-    Bfloat16,
     /// A 32-bit IEEE-754 float.
     Float32,
     /// A 64-bit IEEE-754 float.
@@ -1002,7 +996,6 @@ impl FloatType {
     /// Return the bit width.
     pub const fn width(self) -> u16 {
         match self {
-            FloatType::Float16 | FloatType::Bfloat16 => 16,
             FloatType::Float32 => 32,
             FloatType::Float64 => 64,
         }
@@ -1011,8 +1004,6 @@ impl FloatType {
     /// Return the canonical source label.
     pub fn label(self) -> &'static str {
         match self {
-            FloatType::Float16 => "float16",
-            FloatType::Bfloat16 => "bfloat16",
             FloatType::Float32 => "float32",
             FloatType::Float64 => "float64",
         }
@@ -1021,8 +1012,6 @@ impl FloatType {
     /// Return the core representation format.
     pub fn format(self) -> FloatFormat {
         match self {
-            FloatType::Float16 => FloatFormat::Float16,
-            FloatType::Bfloat16 => FloatFormat::Bfloat16,
             FloatType::Float32 => FloatFormat::Float32,
             FloatType::Float64 => FloatFormat::Float64,
         }

@@ -116,11 +116,11 @@ impl CheckState<'_> {
         // keep open domains conservative
         let source_is_open = matches!(
             source_type,
-            dir::Type::Any | dir::Type::Unknown | dir::Type::Variable(_) | dir::Type::Error
+            dir::Type::Unknown | dir::Type::Variable(_) | dir::Type::Error
         );
         let target_is_open = matches!(
             target_type,
-            dir::Type::Any | dir::Type::Unknown | dir::Type::Variable(_) | dir::Type::Error
+            dir::Type::Unknown | dir::Type::Variable(_) | dir::Type::Error
         );
         if source_is_open || target_is_open {
             return Ok(true);

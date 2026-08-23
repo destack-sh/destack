@@ -27,7 +27,7 @@ fn test_parse_member_definite_field() {
 
 #[test]
 fn test_parse_member_definite_accessor() {
-    let test = TestParser::new("accessor a!: any");
+    let test = TestParser::new("accessor a!: unknown");
     let mut parser = test.prepare();
 
     let member = parser.parse_member().unwrap();
@@ -38,7 +38,7 @@ fn test_parse_member_definite_accessor() {
         assert!(*is_accessor);
         assert!(*is_definite);
         assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
-            assert_eq!(*value, TypeLiteral::Any);
+            assert_eq!(*value, TypeLiteral::Unknown);
         });
     });
 }
@@ -562,7 +562,7 @@ fn test_parse_property_missing_value_expression() {
 
 #[test]
 fn test_parse_property_with_typed_arrow_value() {
-    let test = TestParser::new("reproFunc: (_: any): any => { }");
+    let test = TestParser::new("reproFunc: (_: unknown): unknown => { }");
     let mut parser = test.prepare();
     let property = parser.parse_property().unwrap();
     assert_node!(parser.tree, property, Property::Field { name: Name::Identifier(name), value, .. } => {
@@ -787,20 +787,20 @@ fn test_report_property_optional_definite_assignment_combo() {
 
 #[test]
 fn test_parse_property_method_call() {
-    let test = TestParser::new("<T = any>(x: T): T");
+    let test = TestParser::new("<T = unknown>(x: T): T");
     let mut parser = test.prepare();
     let property_id = parser.parse_property().unwrap();
-    // <T = any>(x: T): T
+    // <T = unknown>(x: T): T
     assert_node!(parser.tree, property_id, Property::Method { signature, .. } => {
         assert_eq!(signature.role, Some(FunctionRole::Call));
         let generic_parameters = &signature.generic_parameters;
-        // <T = any>
+        // <T = unknown>
         assert_eq!(generic_parameters.len(), 1);
         assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint, default, .. } => {
             assert_string!(parser, *name, "T");
             assert!(constraint.is_none());
             assert_node!(parser.tree, default.unwrap(), TypeExpression::Keyword { value } => {
-                assert_eq!(*value, TypeLiteral::Any);
+                assert_eq!(*value, TypeLiteral::Unknown);
             });
         });
         // x: T

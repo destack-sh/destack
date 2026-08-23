@@ -1366,8 +1366,6 @@ fn primitive_label(primitive: dir::PrimitiveType) -> String {
 /// Return the canonical label for one float predicate.
 fn float_label(float: dir::FloatType) -> String {
     match float {
-        dir::FloatType::Float16 => "float16".to_string(),
-        dir::FloatType::Bfloat16 => "bfloat16".to_string(),
         dir::FloatType::Float32 => "float32".to_string(),
         dir::FloatType::Float64 => "float64".to_string(),
     }

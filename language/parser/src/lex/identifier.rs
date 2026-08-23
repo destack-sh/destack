@@ -328,7 +328,6 @@ pub(crate) fn classify_keyword_bytes(bytes: &[u8]) -> Option<Keyword> {
     match bytes {
         b"abstract" => Some(Keyword::Abstract),
         b"accessor" => Some(Keyword::Accessor),
-        b"any" => Some(Keyword::Any),
         b"as" => Some(Keyword::As),
         b"async" => Some(Keyword::Async),
         b"await" => Some(Keyword::Await),

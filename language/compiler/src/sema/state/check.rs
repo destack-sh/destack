@@ -1448,7 +1448,6 @@ impl CheckState<'_> {
             | dir::Type::Rigid(_)
             | dir::Type::Error
             | dir::Type::Never
-            | dir::Type::Any
             | dir::Type::Unknown
             | dir::Type::Void
             | dir::Type::Null

@@ -156,7 +156,6 @@ impl<'a> Dir<'a> {
                 | dir::Type::Undefined
                 | dir::Type::Void
                 | dir::Type::Never
-                | dir::Type::Any
                 | dir::Type::Unknown),
                 right_kind,
             ) => Ok(left_kind == right_kind),

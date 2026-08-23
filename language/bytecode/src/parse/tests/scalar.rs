@@ -98,19 +98,15 @@ function f0 {
     assert_eq!(object.functions()[0].register_count, 6);
 }
 
-/// Parse decimal exponents and round narrow literals using ties-to-even.
+/// Parse floating-point literals with decimal exponents.
 #[test]
-fn test_parse_narrow_float_literals() {
+fn test_parse_float_literals() {
     let object = TestParser::new(
         r#"
 function f0 {
-    constant.float16 r0, 1.00048828125
-    constant.float16 r1, 1.0009765625
-    constant.bfloat16 r2, 1.00390625
-    constant.bfloat16 r3, 1.0078125
-    constant.float64 r4, 1.25e-3
-    constant.float64 r5, -2E+2
-    return r0:r5
+    constant.float32 r0, 1.25e-3
+    constant.float64 r1, -2E+2
+    return r0:r1
 }
 "#,
     )
@@ -118,20 +114,13 @@ function f0 {
     let bits = object
         .instructions(FunctionId(0))
         .expect("defined function")
-        .take(6)
+        .take(2)
         .map(|instruction| instruction.expect("valid instruction").read_u64(2))
         .collect::<Result<Vec<_>>>()
         .expect("valid literal operands");
 
     assert_eq!(
         bits,
-        vec![
-            0x3c00,
-            0x3c01,
-            0x3f80,
-            0x3f81,
-            1.25e-3_f64.to_bits(),
-            (-2e2_f64).to_bits(),
-        ]
+        vec![u64::from((1.25e-3_f32).to_bits()), (-2e2_f64).to_bits()]
     );
 }

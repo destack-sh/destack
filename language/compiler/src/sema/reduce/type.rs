@@ -41,8 +41,8 @@ impl CheckState<'_> {
             // explicit erasure names its constraint
             dir::Type::Dynamic(dynamic) => Ok(Some(dynamic.constraint)),
 
-            // top types carry the dynamic payload at themselves
-            dir::Type::Any | dir::Type::Unknown => Ok(Some(ty)),
+            // carry an unknown dynamic payload directly
+            dir::Type::Unknown => Ok(Some(ty)),
 
             // interface-typed values erase behind their constraint
             dir::Type::Application(instance) => Ok(matches!(

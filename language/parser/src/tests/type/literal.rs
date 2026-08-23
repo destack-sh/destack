@@ -506,7 +506,7 @@ fn test_parse_type_literal_call_signature_with_const_parameter_conditional_bound
     let test = TestParser::new(
         r#"type T = {
   <
-Value: Field<any> | Field.ValueAny,
+Value: Field<unknown> | Field.ValueAny,
 const Mapping: (Value extends Field<infer S> ? { readonly [K in keyof S]?: (variant: S[K]) => Field.ValueAny } : { readonly [K in Variants[number]]?: (variant: Value) => Field.ValueAny })
   >(f: Mapping): Value
 }"#,
@@ -525,7 +525,7 @@ const Mapping: (Value extends Field<infer S> ? { readonly [K in keyof S]?: (vari
                     let generic_parameters = &signature.generic_parameters;
                     assert_eq!(generic_parameters.len(), 2);
 
-                    // Value: Field<any> | Field.ValueAny
+                    // Value: Field<unknown> | Field.ValueAny
                     assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint: Some(ty), .. } => {
                         assert_string!(parser, *name, "Value");
                         assert_node!(parser.tree, *ty, TypeExpression::Union { elements } => {

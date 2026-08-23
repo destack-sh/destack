@@ -24,7 +24,7 @@ fn test_format_type_conditional_trailing_branch_comments() {
         r#"type Awaited<T> = T extends null | undefined
   ? T // special case for null
   : T extends object
-    ? F extends (value: infer V) => any // if callable
+    ? F extends (value: infer V) => unknown // if callable
       ? Awaited<V> // recursively unwrap
       : never // not callable
     : T; // non-object
@@ -32,7 +32,7 @@ fn test_format_type_conditional_trailing_branch_comments() {
         r#"type Awaited<T> = T extends null | undefined
     ? T // special case for null
     : T extends object
-      ? F extends (value: infer V) => any // if callable
+      ? F extends (value: infer V) => unknown // if callable
           ? Awaited<V> // recursively unwrap
           : never // not callable
       : T; // non-object
@@ -80,25 +80,25 @@ type LocalBox = local ^User;
 fn test_format_type_conditional_alternate_line_comment() {
     assert_format_program!(
         r#"type A = typeof globalThis extends {
-    onmessage: any;
-    ReportingObserver: any;
+    onmessage: unknown;
+    ReportingObserver: unknown;
     CompressionStream: infer T;
 } ? T
     // TS 4.8, 4.9, 5.0
-    : typeof globalThis extends { onmessage: any; TransformStream: { prototype: infer T } } ? {
+    : typeof globalThis extends { onmessage: unknown; TransformStream: { prototype: infer T } } ? {
             prototype: T;
             new(format: "deflate" | "deflate-raw" | "gzip"): T;
         }
     : StreamWebCompressionStream;
 "#,
         r#"type A = typeof globalThis extends {
-    onmessage: any;
-    ReportingObserver: any;
+    onmessage: unknown;
+    ReportingObserver: unknown;
     CompressionStream: infer T;
 }
     ? T
     : // TS 4.8, 4.9, 5.0
-      typeof globalThis extends { onmessage: any; TransformStream: { prototype: infer T } }
+      typeof globalThis extends { onmessage: unknown; TransformStream: { prototype: infer T } }
       ? {
             prototype: T;
             new (format: "deflate" | "deflate-raw" | "gzip"): T;
@@ -113,10 +113,10 @@ fn test_format_type_conditional_alternate_line_comment() {
 #[test]
 fn test_format_type_empty_object_literal() {
     assert_format_program!(
-        r#"type A = typeof globalThis extends { onmessage: any } ? {} : AbortController
+        r#"type A = typeof globalThis extends { onmessage: unknown } ? {} : AbortController
 type B = T | {}
 "#,
-        r#"type A = typeof globalThis extends { onmessage: any } ? {} : AbortController;
+        r#"type A = typeof globalThis extends { onmessage: unknown } ? {} : AbortController;
 type B = T | {};
 "#,
         FileType::Destack
@@ -224,11 +224,11 @@ fn test_format_const_generic_type_value_marker() {
 #[test]
 fn test_format_type_construct_signature_spacing() {
     assert_format_program!(
-        r#"type B = { new(): Foo; new(...args: any): Bar }
-type C = F extends abstract new(...args: any) => infer T ? T : never
+        r#"type B = { new(): Foo; new(...args: unknown): Bar }
+type C = F extends abstract new(...args: unknown) => infer T ? T : never
 "#,
-        r#"type B = { new (): Foo; new (...args: any): Bar };
-type C = F extends abstract new (...args: any) => infer T ? T : never;
+        r#"type B = { new (): Foo; new (...args: unknown): Bar };
+type C = F extends abstract new (...args: unknown) => infer T ? T : never;
 "#,
         FileType::Destack
     );
@@ -264,9 +264,9 @@ type Fixed = [string; 5];
 #[test]
 fn test_format_type_labeled_tuple_rest() {
     assert_format_program!(
-        r#"type AnyRest = (args: ...any[])
+        r#"type AnyRest = (args: ...unknown[])
 "#,
-        r#"type AnyRest = (args: ...any[],);
+        r#"type AnyRest = (args: ...unknown[],);
 "#,
         FileType::Destack
     );
@@ -936,7 +936,7 @@ x: boolean }
 fn test_format_conditional_nested_test_layout() {
     assert_format_program_reference_widths(
         r#"type IsUnion<T> = (
-  Testtttttttttttttttttttttttttttttttttt extends any ? false : never
+  Testtttttttttttttttttttttttttttttttttt extends unknown ? false : never
 ) extends false
   ? false
   : true
@@ -953,7 +953,7 @@ export const IsUnionType = (
             (
                 80,
                 r#"type IsUnion<T> = (
-  Testtttttttttttttttttttttttttttttttttt extends any ? false : never
+  Testtttttttttttttttttttttttttttttttttt extends unknown ? false : never
 ) extends false
   ? false
   : true;
@@ -967,7 +967,9 @@ export const IsUnionType = (
             ),
             (
                 100,
-                r#"type IsUnion<T> = (Testtttttttttttttttttttttttttttttttttt extends any ? false : never) extends false
+                r#"type IsUnion<T> = (
+  Testtttttttttttttttttttttttttttttttttt extends unknown ? false : never
+) extends false
   ? false
   : true;
 
@@ -982,20 +984,20 @@ export const IsUnionType = (Testtttttttttttttttttttttttttttttttttt ? false : nev
 #[test]
 fn test_format_union_parenthesis_layout() {
     assert_format_program_reference_widths(
-        r#"type T1<B> = | (B extends any ? number : string);
+        r#"type T1<B> = | (B extends unknown ? number : string);
 type T2 = | (() => void);
 "#,
         FileType::Destack,
         &[
             (
                 80,
-                r#"type T1<B> = B extends any ? number : string;
+                r#"type T1<B> = B extends unknown ? number : string;
 type T2 = () => void;
 "#,
             ),
             (
                 100,
-                r#"type T1<B> = B extends any ? number : string;
+                r#"type T1<B> = B extends unknown ? number : string;
 type T2 = () => void;
 "#,
             ),
@@ -1306,8 +1308,8 @@ fn test_format_type_assertion_assignment_layout() {
 () => (type) as unknown;
 () => (type) satisfies unknown;
 
-((type) as any)['t'];
-((type) satisfies any)['t'];
+((type) as unknown)['t'];
+((type) satisfies unknown)['t'];
 "#,
         FileType::Destack,
         &[
@@ -1319,8 +1321,8 @@ fn test_format_type_assertion_assignment_layout() {
 () => type as unknown;
 () => type satisfies unknown;
 
-(type as any)['t'];
-(type satisfies any)['t'];
+(type as unknown)['t'];
+(type satisfies unknown)['t'];
 "#,
             ),
             (
@@ -1331,8 +1333,8 @@ fn test_format_type_assertion_assignment_layout() {
 () => type as unknown;
 () => type satisfies unknown;
 
-(type as any)['t'];
-(type satisfies any)['t'];
+(type as unknown)['t'];
+(type satisfies unknown)['t'];
 "#,
             ),
         ],

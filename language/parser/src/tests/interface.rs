@@ -413,9 +413,9 @@ fn test_parse_interface_with_nameless_shorthand_functions() {
     let test = TestParser::new(
         r#"
 interface SQL {
-    <T = any>(value: T): SQL.Result<T>;
+    <T = unknown>(value: T): SQL.Result<T>;
 
-    (value: any, ...arguments: any[]): SQL.Result<any>;
+    (value: unknown, ...arguments: unknown[]): SQL.Result<unknown>;
 
     new(): SQL;
 }"#,
@@ -430,14 +430,14 @@ interface SQL {
         assert_string!(parser, name.unwrap().string(), "SQL");
         assert_eq!(members.len(), 3);
 
-        // <T = any>(value: T): SQL.Result<T>;
+        // <T = unknown>(value: T): SQL.Result<T>;
         assert_node!(parser.tree, members[0], TypeMember::CallSignature { signature } => {
 
             let generic_parameter_span = parser
                 .tree
                 .get_side_span(members[0], NodeSpanType::Region(NodeSpanRegion::GenericParameters))
                 .expect("missing generic parameter span");
-            assert_eq!(parser.span_str(generic_parameter_span), "<T = any>");
+            assert_eq!(parser.span_str(generic_parameter_span), "<T = unknown>");
 
             let parameter_span = parser
                 .tree
@@ -446,13 +446,13 @@ interface SQL {
             assert_eq!(parser.span_str(parameter_span), "(value: T)");
 
             let generic_parameters = &signature.generic_parameters;
-            // <T = any>
+            // <T = unknown>
             assert_eq!(generic_parameters.len(), 1);
             assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint, default, .. } => {
                 assert_string!(parser, *name, "T");
                 assert!(constraint.is_none());
                 assert_node!(parser.tree, (*default).unwrap(), TypeExpression::Keyword { value } => {
-                    assert_eq!(*value, TypeLiteral::Any);
+                    assert_eq!(*value, TypeLiteral::Unknown);
                 });
             });
             // value: T
@@ -465,26 +465,26 @@ interface SQL {
             assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "SQL.Result");
         });
 
-        // (value: any, ...arguments: any[]): SQL.Result<any>;
+        // (value: unknown, ...arguments: unknown[]): SQL.Result<unknown>;
         assert_node!(parser.tree, members[1], TypeMember::CallSignature { signature } => {
-            // (value: any, ...arguments: any[])
+            // (value: unknown, ...arguments: unknown[])
             assert_eq!(signature.parameters.len(), 2);
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                 assert_string!(parser, *name, "value");
                 assert_node!(parser.tree, *ty, TypeExpression::Keyword { value } => {
-                    assert_eq!(*value, TypeLiteral::Any);
+                    assert_eq!(*value, TypeLiteral::Unknown);
                 });
             });
-            // ...arguments: any[]
+            // ...arguments: unknown[]
             assert_node!(parser.tree, signature.parameters[1], Parameter::VariadicNamed { name, declared_type: Some(ty), .. } => {
                 assert_string!(parser, *name, "arguments");
                 assert_node!(parser.tree, *ty, TypeExpression::Array { element } => {
                     assert_node!(parser.tree, *element, TypeExpression::Keyword { value } => {
-                        assert_eq!(*value, TypeLiteral::Any);
+                        assert_eq!(*value, TypeLiteral::Unknown);
                     });
                 });
             });
-            // SQL.Result<any>;
+            // SQL.Result<unknown>;
             assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "SQL.Result");
         });
 
@@ -502,10 +502,10 @@ interface SQL {
 fn test_parse_interface_with_iterator_methods() {
     let test = TestParser::new(
         r#"
-interface Iterator<T, TReturn = any, TNext = any> {
+interface Iterator<T, TReturn = unknown, TNext = unknown> {
     next(...[value]: [] | [TNext]): IteratorResult<T, TReturn>;
     return?(value?: TReturn): IteratorResult<T, TReturn>;
-    throw?(e?: any): IteratorResult<T, TReturn>;
+    throw?(e?: unknown): IteratorResult<T, TReturn>;
 }
 "#,
     );
@@ -551,7 +551,7 @@ interface Iterator<T, TReturn = any, TNext = any> {
             assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "IteratorResult");
         });
 
-        // throw?(e?: any): IteratorResult<T, TReturn>;
+        // throw?(e?: unknown): IteratorResult<T, TReturn>;
         assert_node!(parser.tree, members[2], TypeMember::Method { name: Name::Identifier(name), signature, .. } => {
             assert_string!(parser, *name, "throw");
             assert_eq!(signature.parameters.len(), 1);
@@ -559,7 +559,7 @@ interface Iterator<T, TReturn = any, TNext = any> {
                 assert!(*is_optional);
                 assert_string!(parser, *name, "e");
                 assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Keyword { value } => {
-                    assert_eq!(*value, TypeLiteral::Any);
+                    assert_eq!(*value, TypeLiteral::Unknown);
                 });
             });
             assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "IteratorResult");

@@ -26,23 +26,19 @@ pub enum Scalar {
     Int64 = 7,
     /// A 64-bit unsigned integer.
     Uint64 = 8,
-    /// An IEEE 754 binary16 value.
-    Float16 = 9,
-    /// A bfloat16 value.
-    Bfloat16 = 10,
     /// An IEEE 754 binary32 value.
-    Float32 = 11,
+    Float32 = 9,
     /// An IEEE 754 binary64 value.
-    Float64 = 12,
+    Float64 = 10,
 }
 
 impl Scalar {
-    /// The reserved scalar width inside parameterized opcode ranges.
-    pub(crate) const OPCODE_STRIDE: u16 = 16;
-    /// The reserved integer width inside parameterized opcode ranges.
-    pub(crate) const INTEGER_OPCODE_STRIDE: u16 = 8;
-    /// The reserved floating-point width inside parameterized opcode ranges.
-    pub(crate) const FLOAT_OPCODE_STRIDE: u16 = 4;
+    /// The scalar count in each parameterized opcode range.
+    pub(crate) const OPCODE_STRIDE: u16 = Self::Float64 as u16 + 1;
+    /// The scalar count in each parameterized integer opcode range.
+    pub(crate) const INTEGER_OPCODE_STRIDE: u16 = Self::Uint64 as u16;
+    /// The scalar count in each parameterized floating-point opcode range.
+    pub(crate) const FLOAT_OPCODE_STRIDE: u16 = Self::Float64 as u16 - Self::Float32 as u16 + 1;
 
     /// Return the scalar with one canonical name.
     pub fn from_name(name: &str) -> Option<Self> {
@@ -56,8 +52,6 @@ impl Scalar {
             "uint32" => Some(Self::Uint32),
             "int64" => Some(Self::Int64),
             "uint64" => Some(Self::Uint64),
-            "float16" => Some(Self::Float16),
-            "bfloat16" => Some(Self::Bfloat16),
             "float32" => Some(Self::Float32),
             "float64" => Some(Self::Float64),
             _ => None,
@@ -76,8 +70,6 @@ impl Scalar {
             Self::Uint32 => "uint32",
             Self::Int64 => "int64",
             Self::Uint64 => "uint64",
-            Self::Float16 => "float16",
-            Self::Bfloat16 => "bfloat16",
             Self::Float32 => "float32",
             Self::Float64 => "float64",
         }
@@ -100,10 +92,8 @@ impl Scalar {
             6 => Some(Self::Uint32),
             7 => Some(Self::Int64),
             8 => Some(Self::Uint64),
-            9 => Some(Self::Float16),
-            10 => Some(Self::Bfloat16),
-            11 => Some(Self::Float32),
-            12 => Some(Self::Float64),
+            9 => Some(Self::Float32),
+            10 => Some(Self::Float64),
             _ => None,
         }
     }
@@ -148,7 +138,7 @@ impl Scalar {
     /// Return the dense floating-point representation index.
     pub const fn float_index(self) -> Option<u16> {
         match self.code() {
-            9..=12 => Some(self.code() as u16 - 9),
+            9..=10 => Some(self.code() as u16 - 9),
             _ => None,
         }
     }
@@ -162,7 +152,7 @@ impl Scalar {
     pub const fn bit_width(self) -> u8 {
         match self {
             Self::Boolean | Self::Int8 | Self::Uint8 => 8,
-            Self::Int16 | Self::Uint16 | Self::Float16 | Self::Bfloat16 => 16,
+            Self::Int16 | Self::Uint16 => 16,
             Self::Int32 | Self::Uint32 | Self::Float32 => 32,
             Self::Int64 | Self::Uint64 | Self::Float64 => 64,
         }
@@ -183,7 +173,6 @@ impl Scalar {
 
                 bits << shift >> shift
             }
-            Self::Float16 | Self::Bfloat16 => bits as u16 as u64,
             Self::Float32 => bits as u32 as u64,
             Self::Float64 => bits,
         }
@@ -239,8 +228,6 @@ impl Scalar {
     /// Return the concrete floating-point format.
     const fn float_format(self) -> Option<FloatFormat> {
         match self {
-            Self::Float16 => Some(FloatFormat::Float16),
-            Self::Bfloat16 => Some(FloatFormat::Bfloat16),
             Self::Float32 => Some(FloatFormat::Float32),
             Self::Float64 => Some(FloatFormat::Float64),
             _ => None,

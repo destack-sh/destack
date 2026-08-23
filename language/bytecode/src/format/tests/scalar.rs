@@ -73,7 +73,7 @@ fn test_format_non_finite_literals() {
     assert_format_eq(
         r#"
 function f0 {
-    constant.float16 r0, bits(0x7e01)
+    constant.float32 r0, bits(0x7fc00001)
 constant.float32 r1, Infinity
 constant.float64 r2, -Infinity
 return r0:r2
@@ -81,7 +81,7 @@ return r0:r2
 "#,
         r#"
 function f0 {
-    constant.float16 r0, bits(0x7e01)
+    constant.float32 r0, bits(0x7fc00001)
     constant.float32 r1, Infinity
     constant.float64 r2, -Infinity
     return r0:r2

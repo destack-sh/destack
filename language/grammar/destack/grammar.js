@@ -49,7 +49,6 @@ module.exports = grammar(JavaScript, {
       $.conditional_type,
       $.function_type,
       'binary',
-      $.type_predicate,
       $.readonly_type,
     ],
     [$.mapped_type_clause, $.primary_expression],
@@ -196,7 +195,6 @@ module.exports = grammar(JavaScript, {
       [$.primary_type, $.predefined_type_parameters],
       [$.formal_parameters, $.tuple_type],
       [$.formal_parameters, $.tuple_expression],
-      [$.asserts, $.type_predicate],
       [$.pattern, $._try_propagation_argument],
       [$.call_expression, $.match_arm_expression_statement],
       [$.primary_expression, $.match_arm_expression_statement],
@@ -269,11 +267,7 @@ module.exports = grammar(JavaScript, {
               'parameter',
               choice($.identifier, $._destructuring_pattern),
             ),
-            optional(
-              // only types that resolve to 'any' or 'unknown' are supported
-              // by the language but it's simpler to accept any type here.
-              field('type', $.type_annotation),
-            ),
+            optional(field('type', $.type_annotation)),
             ')',
           ),
           field('parameter', choice($.identifier, $._destructuring_pattern)),
@@ -1960,15 +1954,6 @@ module.exports = grammar(JavaScript, {
       $.static_value_argument,
     ),
 
-    asserts: $ => seq(
-      'asserts',
-      choice($.type_predicate, $.identifier, $.this),
-    ),
-
-    asserts_annotation: $ => seq(
-      seq(':', $.asserts),
-    ),
-
     type: $ => choice(
       $.function_type,
       $.constructor_type,
@@ -2124,21 +2109,6 @@ module.exports = grammar(JavaScript, {
       field('name', $._type_identifier),
     )),
 
-    type_predicate: $ => seq(
-      field('name', choice(
-        $.identifier,
-        $.this,
-        // accept contextual identifiers that lex as predefined types
-        alias($.predefined_type, $.identifier),
-      )),
-      'is',
-      field('type', $.type),
-    ),
-
-    type_predicate_annotation: $ => seq(
-      seq(':', $.type_predicate),
-    ),
-
     // Type query expressions are more restrictive than regular expressions
     _type_query_member_expression: $ => seq(
       field('object', choice(
@@ -2273,7 +2243,6 @@ module.exports = grammar(JavaScript, {
     },
 
     predefined_type: _ => choice(
-      'any',
       'number',
       'boolean',
       'string',
@@ -2348,8 +2317,6 @@ module.exports = grammar(JavaScript, {
         choice(
           $.type_annotation,
           $.static_return_type_annotation,
-          $.asserts_annotation,
-          $.type_predicate_annotation,
         ),
       )),
     ),
@@ -2529,10 +2496,7 @@ module.exports = grammar(JavaScript, {
         alias($.predefined_type_parameters, $.formal_parameters),
       )),
       '=>',
-      field('return_type', choice(
-        $.type,
-        $.asserts,
-      )),
+      field('return_type', $.type),
     )),
 
     _fixed_array_length: $ => choice(
@@ -2580,7 +2544,6 @@ module.exports = grammar(JavaScript, {
       'local',
       'shared',
       'loop',
-      'any',
       'number',
       'boolean',
       'string',

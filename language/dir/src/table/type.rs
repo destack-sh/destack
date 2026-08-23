@@ -290,7 +290,6 @@ impl<'a> TypeTable<'a> {
             | Type::Rigid(_)
             | Type::Error
             | Type::Never
-            | Type::Any
             | Type::Unknown
             | Type::Void
             | Type::Null

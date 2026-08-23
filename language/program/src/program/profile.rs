@@ -221,14 +221,6 @@ impl SampleKey {
                 value: self.unsigned(width),
                 width,
             },
-            WordLayout::Float16 => SampleValue::Float {
-                bits: self.unsigned(16),
-                format: FloatType::Float16,
-            },
-            WordLayout::Bfloat16 => SampleValue::Float {
-                bits: self.unsigned(16),
-                format: FloatType::Bfloat16,
-            },
             WordLayout::Float32 => SampleValue::Float {
                 bits: self.unsigned(32),
                 format: FloatType::Float32,

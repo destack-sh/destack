@@ -332,68 +332,68 @@ fn test_format_yield_type_comments() {
         r#"function *t1() {
     yield (
         // comment
-        a as any
+        a as unknown
     );
 }
 
 function *t2() {
     yield (
         // comment
-        a as any
+        a as unknown
     ) + 1;
 }
 function *t3() {
     yield (
         // comment
-        a as any
+        a as unknown
     ) ? 0 : 1;
 }
 function *t4() {
     yield (
         // comment
-        a as any
+        a as unknown
     ).b;
 }
 function *t5() {
     yield (
         // comment
-        a as any
+        a as unknown
     )[a];
 }
 function *t6() {
     yield (
         // comment
-        a as any
+        a as unknown
     )();
 }
 function *t7() {
     yield (
         // comment
-        a as any
+        a as unknown
     )``;
 }
 function *t8() {
     yield (
         // comment
-        a as any
-    ) as any;
+        a as unknown
+    ) as unknown;
 }
 function *t9() {
     yield (
         // comment
-        a as any
-    ) satisfies any;
+        a as unknown
+    ) satisfies unknown;
 }
 function *t10() {
     yield (
         // comment
-        a as any
+        a as unknown
     )!;
 }
 function *t11() {
     yield (
         /* keep */ // comment
-        a as any
+        a as unknown
     ) + 1;
 }
 "#,
@@ -404,20 +404,20 @@ function *t11() {
                 r#"function* t1() {
   yield (
     // comment
-    a as any
+    a as unknown
   );
 }
 
 function* t2() {
   yield (
     // comment
-    (a as any) + 1
+    (a as unknown) + 1
   );
 }
 function* t3() {
   yield (
     // comment
-    (a as any)
+    (a as unknown)
       ? 0
       : 1
   );
@@ -425,49 +425,49 @@ function* t3() {
 function* t4() {
   yield (
     // comment
-    (a as any).b
+    (a as unknown).b
   );
 }
 function* t5() {
   yield (
     // comment
-    (a as any)[a]
+    (a as unknown)[a]
   );
 }
 function* t6() {
   yield (
     // comment
-    (a as any)()
+    (a as unknown)()
   );
 }
 function* t7() {
   yield (
     // comment
-    (a as any)``
+    (a as unknown)``
   );
 }
 function* t8() {
   yield (
     // comment
-    a as any as any
+    a as unknown as unknown
   );
 }
 function* t9() {
   yield (
     // comment
-    a as any satisfies any
+    a as unknown satisfies unknown
   );
 }
 function* t10() {
   yield (
     // comment
-    (a as any)!
+    (a as unknown)!
   );
 }
 function* t11() {
   yield (
     /* keep */ // comment
-    (a as any) + 1
+    (a as unknown) + 1
   );
 }
 "#,
@@ -477,20 +477,20 @@ function* t11() {
                 r#"function* t1() {
   yield (
     // comment
-    a as any
+    a as unknown
   );
 }
 
 function* t2() {
   yield (
     // comment
-    (a as any) + 1
+    (a as unknown) + 1
   );
 }
 function* t3() {
   yield (
     // comment
-    (a as any)
+    (a as unknown)
       ? 0
       : 1
   );
@@ -498,49 +498,49 @@ function* t3() {
 function* t4() {
   yield (
     // comment
-    (a as any).b
+    (a as unknown).b
   );
 }
 function* t5() {
   yield (
     // comment
-    (a as any)[a]
+    (a as unknown)[a]
   );
 }
 function* t6() {
   yield (
     // comment
-    (a as any)()
+    (a as unknown)()
   );
 }
 function* t7() {
   yield (
     // comment
-    (a as any)``
+    (a as unknown)``
   );
 }
 function* t8() {
   yield (
     // comment
-    a as any as any
+    a as unknown as unknown
   );
 }
 function* t9() {
   yield (
     // comment
-    a as any satisfies any
+    a as unknown satisfies unknown
   );
 }
 function* t10() {
   yield (
     // comment
-    (a as any)!
+    (a as unknown)!
   );
 }
 function* t11() {
   yield (
     /* keep */ // comment
-    (a as any) + 1
+    (a as unknown) + 1
   );
 }
 "#,

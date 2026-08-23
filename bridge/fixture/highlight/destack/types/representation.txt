@@ -49,5 +49,5 @@ declare let bytes: [uint8; sizeOf<Header>()];
 
 type Slots<T, const N: usize = strideOf<T>()> = [uint8; N];
 
-declare let erased: Any<Writer>;
-//                  ^^^ entity.name.type.ds
+declare let erased: Dynamic<Writer>;
+//                  ^^^^^^^ entity.name.type.ds

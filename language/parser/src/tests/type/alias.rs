@@ -429,12 +429,12 @@ fn test_parse_pointer_type_alias_before_union() {
 
 #[test]
 fn test_parse_type_parameter_function_constraint() {
-    let test = TestParser::new("type Parameters<T: (a: any) => any> = T");
+    let test = TestParser::new("type Parameters<T: (a: unknown) => unknown> = T");
     let mut parser = test.prepare();
     let expr_id = parser
         .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
-    // type Parameters<T: (a: any) => any> = T
+    // type Parameters<T: (a: unknown) => unknown> = T
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { generic_parameters, .. }) => {
             assert_eq!(generic_parameters.len(), 1);
@@ -450,14 +450,14 @@ fn test_parse_type_parameter_function_constraint() {
 #[test]
 fn test_parse_type_parameter_default_conditional() {
     let test = TestParser::new(
-        "type Wrapper<F: Function, ReturnType = F extends (...args: any) => infer T ? T : unknown> = ReturnType",
+        "type Wrapper<F: Function, ReturnType = F extends (...args: unknown) => infer T ? T : unknown> = ReturnType",
     );
     let mut parser = test.prepare();
     let expr_id = parser
         .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
         .unwrap();
 
-    // type Wrapper<F: Function, ReturnType = F extends (...args: any) => infer T ? T : unknown> = ReturnType
+    // type Wrapper<F: Function, ReturnType = F extends (...args: unknown) => infer T ? T : unknown> = ReturnType
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { generic_parameters, .. }) => {
             assert_eq!(generic_parameters.len(), 2);

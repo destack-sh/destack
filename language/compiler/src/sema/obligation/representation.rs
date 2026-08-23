@@ -388,8 +388,7 @@ impl CheckState<'_> {
                 return Ok((!holds).then_some(RepresentationFailure::Abstract));
             }
             // skip abstract type expressions, they select no runtime representation
-            dir::Type::Any
-            | dir::Type::Unknown
+            dir::Type::Unknown
             | dir::Type::Intrinsic
             | dir::Type::Erased(_)
             | dir::Type::Reference(_)

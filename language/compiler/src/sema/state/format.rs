@@ -54,7 +54,6 @@ impl CheckState<'_> {
             dir::Type::Hole(hole) => format!("?{hole}"),
             dir::Type::Rigid(rigid) => format!("^{rigid}"),
             dir::Type::Never => "never".to_string(),
-            dir::Type::Any => "any".to_string(),
             dir::Type::Unknown => "unknown".to_string(),
             dir::Type::Void => "void".to_string(),
             dir::Type::Null => "null".to_string(),

@@ -64,12 +64,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
 
-        // keep dynamic values out, their ownership is unknowable
+        // skip values with unknown ownership
         let type_id = module.node_type_id(value.into_any())?;
-        if matches!(
-            module.dir.get_type(type_id)?,
-            dir::Type::Any | dir::Type::Unknown
-        ) {
+        if matches!(module.dir.get_type(type_id)?, dir::Type::Unknown) {
             continue;
         }
 

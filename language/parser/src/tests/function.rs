@@ -1606,7 +1606,7 @@ function onResolve(
 #[test]
 fn test_parse_lambda_return_type_with_optional_parameter_function_type() {
     let test = TestParser::new(
-        "(runtime, effect, options: Runtime.RunCallbackOptions<any, any> = {}): (fiberId?: FiberId.FiberId, options?: Runtime.RunCallbackOptions<any, any> | undefined) => void => 0",
+        "(runtime, effect, options: Runtime.RunCallbackOptions<unknown, unknown> = {}): (fiberId?: FiberId.FiberId, options?: Runtime.RunCallbackOptions<unknown, unknown> | undefined) => void => 0",
     );
     let mut parser = test.prepare();
     let expression_id = parser
@@ -1618,7 +1618,7 @@ fn test_parse_lambda_return_type_with_optional_parameter_function_type() {
             assert_eq!(signature.form, FunctionForm::Lambda);
             assert_eq!(signature.parameters.len(), 3);
 
-            // (fiberId?: FiberId.FiberId, options?: Runtime.RunCallbackOptions<any, any> | undefined) => void
+            // (fiberId?: FiberId.FiberId, options?: Runtime.RunCallbackOptions<unknown, unknown> | undefined) => void
             assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Function(function) => {
                 assert_eq!(function.parameters.len(), 2);
 
@@ -1629,7 +1629,7 @@ fn test_parse_lambda_return_type_with_optional_parameter_function_type() {
                     assert_expression_path!(parser, parser.tree.get(*ty), "FiberId.FiberId");
                 });
 
-                // options?: Runtime.RunCallbackOptions<any, any> | undefined
+                // options?: Runtime.RunCallbackOptions<unknown, unknown> | undefined
                 assert_node!(parser.tree, function.parameters[1], Parameter::Named { name, declared_type: Some(ty), is_optional, .. } => {
                     assert_string!(parser, *name, "options");
                     assert!(*is_optional);

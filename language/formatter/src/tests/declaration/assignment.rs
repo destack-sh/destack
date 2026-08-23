@@ -208,7 +208,7 @@ const s = /* comment */ foo<A | B | C>();
 #[test]
 fn test_format_type_alias_conditional_layout() {
     assert_format_program_reference_widths(
-        r#"export type _Repeat<A: any, N: number, L: List = ()> =
+        r#"export type _Repeat<A: unknown, N: number, L: List = ()> =
   __Repeat<N, A, L> extends infer X
   ? Cast<X, List>
   : never
@@ -217,13 +217,13 @@ fn test_format_type_alias_conditional_layout() {
         &[
             (
                 80,
-                r#"export type _Repeat<A: any, N: number, L: List = ()> =
+                r#"export type _Repeat<A: unknown, N: number, L: List = ()> =
   __Repeat<N, A, L> extends infer X ? Cast<X, List> : never;
 "#,
             ),
             (
                 100,
-                r#"export type _Repeat<A: any, N: number, L: List = ()> =
+                r#"export type _Repeat<A: unknown, N: number, L: List = ()> =
   __Repeat<N, A, L> extends infer X ? Cast<X, List> : never;
 "#,
             ),
