@@ -23,7 +23,7 @@ function discard(value: int32): void {
 import { Drop, drop } from "destack:memory";
 
 struct Subscription implements Drop {
-    drop(this): void {}
+    drop(&exclusive this): void {}
 }
 
 function unsubscribe(value: Subscription): void {
@@ -59,7 +59,20 @@ fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
                 if tree.source_span_by_id(instruction.id).is_none() {
                     continue;
                 }
+
+                // accept managed handles, releasing one destroys its storage
                 let ty = function.expect_value_type(*value);
+                if matches!(
+                    tree.get(ty),
+                    mir::Type::Reference {
+                        kind: mir::ReferenceKind::Managed,
+                        ..
+                    }
+                ) {
+                    continue;
+                }
+
+                // keep values whose frame storage destructs
                 if module
                     .lowered
                     .drops
@@ -93,10 +106,13 @@ mod tests {
 
         session.assert_diagnostics(
             r#"warning[no-drop-of-trivial-value]: value requires no destruction
- ──▶ main.ds:5:5
+ ──▶ main.ds:4:5
   │
-5 │     drop(value);
-  │     ^^^^^^^^^^^^
+2 │
+3 │ function discard(value: int32): void {
+4 │     drop(value);
+  │     ^^^^^^^^^^^
+5 │ }
   │
 "#,
         );
@@ -181,10 +197,13 @@ function discard(value: Point): void {
 
         session.assert_diagnostics(
             r#"warning[no-drop-of-trivial-value]: value requires no destruction
- ──▶ main.ds:10:5
+  ──▶ main.ds:9:5
    │
-10 │     drop(value);
-   │     ^^^^^^^^^^^^
+ 7 │
+ 8 │ function discard(value: Point): void {
+ 9 │     drop(value);
+   │     ^^^^^^^^^^^
+10 │ }
    │
 "#,
         );
@@ -196,6 +215,96 @@ function discard(value: Point): void {
         let session = TestSession::dir(
             &NO_DROP_OF_TRIVIAL_VALUE,
             NO_DROP_OF_TRIVIAL_VALUE.example.accepted.source(),
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept an explicit drop of a plain class handle releasing its storage.
+    #[test]
+    fn test_accepts_plain_class_handle_drop() {
+        let session = TestSession::dir(
+            &NO_DROP_OF_TRIVIAL_VALUE,
+            r#"
+import { drop } from "destack:memory";
+
+class Plain {
+    value: int32 = 0;
+}
+
+function release(value: Plain): void {
+    drop(value);
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept an explicit drop of a value with an extension-declared destructor.
+    #[test]
+    fn test_accepts_extension_destructor_drop() {
+        let session = TestSession::dir(
+            &NO_DROP_OF_TRIVIAL_VALUE,
+            r#"
+import { Drop, drop } from "destack:memory";
+
+struct Subscription {
+    handle: int32;
+}
+
+extension of Subscription implements Drop {
+    drop(&exclusive this): void {}
+}
+
+function unsubscribe(value: Subscription): void {
+    drop(value);
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept an explicit drop of a specialized value with a destructor.
+    #[test]
+    fn test_accepts_generic_destructor_drop() {
+        let session = TestSession::dir(
+            &NO_DROP_OF_TRIVIAL_VALUE,
+            r#"
+import { Drop, drop } from "destack:memory";
+
+struct Producer<T> implements Drop {
+    value: T;
+
+    drop(&exclusive this): void {}
+}
+
+function unsubscribe(producer: Producer<int32>): void {
+    drop(producer);
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept an explicit drop of a class value with a destructor.
+    #[test]
+    fn test_accepts_class_destructor_drop() {
+        let session = TestSession::dir(
+            &NO_DROP_OF_TRIVIAL_VALUE,
+            r#"
+import { Drop, drop } from "destack:memory";
+
+class Session implements Drop {
+    drop(&exclusive this): void {}
+}
+
+function close(value: Session): void {
+    drop(value);
+}
+"#,
         );
 
         session.assert_no_diagnostics();

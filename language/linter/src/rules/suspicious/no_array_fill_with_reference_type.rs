@@ -64,17 +64,23 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
 
-        // require a managed value with observable reference identity
+        // keep dynamic values out, their ownership is unknowable
         let type_id = module.node_type_id(value.into_any())?;
-        let dir::Type::Form(dir::FormType {
-            form: dir::Form::Managed,
-            value: represented,
-        }) = module.dir.get_type(type_id)?
-        else {
-            continue;
-        };
         if matches!(
-            module.dir.representation_item(represented)?,
+            module.dir.get_type(type_id)?,
+            dir::Type::Any | dir::Type::Unknown
+        ) {
+            continue;
+        }
+
+        // require a managed value with observable reference identity
+        if module.dir.default_ownership(type_id)? != Some(dir::Ownership::Managed) {
+            continue;
+        }
+
+        // immutable representations share safely
+        if matches!(
+            module.dir.representation_item(type_id)?,
             Some(dir::LanguageItem::String | dir::LanguageItem::BigInt)
         ) {
             continue;
@@ -120,13 +126,95 @@ function cells(value: Cell): Cell[] {
         );
 
         session.assert_diagnostics(
-            r#"warning[no-array-fill-with-reference-type]: Array.fill repeats one managed reference
- ──▶ main.ds:8:17
+            r#"
+warning[no-array-fill-with-reference-type]: Array.fill repeats one managed reference
+ ──▶ main.ds:7:17
   │
-8 │     values.fill(value);
+5 │ function cells(value: Cell): Cell[] {
+6 │     const values = [new Cell(), new Cell(), new Cell()];
+7 │     values.fill(value);
   │                 ^^^^^
+8 │     return values;
+9 │ }
   │
-  = help: construct one value per element
+
+ = help: construct one value per element
+"#,
+        );
+    }
+
+    /// Report filling an Array with a managed handle to a struct.
+    #[test]
+    fn test_reports_managed_struct_handle() {
+        let session = TestSession::dir(
+            &NO_ARRAY_FILL_WITH_REFERENCE_TYPE,
+            r#"
+import { Managed } from "destack:memory";
+
+struct Point {
+    x: int32;
+}
+
+function points(value: Managed<Point>): Managed<Point>[] {
+    const values = [value, value, value];
+    values.fill(value);
+    return values;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-array-fill-with-reference-type]: Array.fill repeats one managed reference
+  ──▶ main.ds:9:17
+   │
+ 7 │ function points(value: Managed<Point>): Managed<Point>[] {
+ 8 │     const values = [value, value, value];
+ 9 │     values.fill(value);
+   │                 ^^^^^
+10 │     return values;
+11 │ }
+   │
+
+ = help: construct one value per element
+"#,
+        );
+    }
+
+    /// Report filling an Array with a managed box of an owned class value.
+    #[test]
+    fn test_reports_managed_owned_box() {
+        let session = TestSession::dir(
+            &NO_ARRAY_FILL_WITH_REFERENCE_TYPE,
+            r#"
+import { Managed, Owned } from "destack:memory";
+
+class Cell {
+    value: int32 = 0;
+}
+
+function cells(value: Managed<Owned<Cell>>): Managed<Owned<Cell>>[] {
+    const values = [value, value, value];
+    values.fill(value);
+    return values;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-array-fill-with-reference-type]: Array.fill repeats one managed reference
+  ──▶ main.ds:9:17
+   │
+ 7 │ function cells(value: Managed<Owned<Cell>>): Managed<Owned<Cell>>[] {
+ 8 │     const values = [value, value, value];
+ 9 │     values.fill(value);
+   │                 ^^^^^
+10 │     return values;
+11 │ }
+   │
+
+ = help: construct one value per element
 "#,
         );
     }
