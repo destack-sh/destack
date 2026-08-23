@@ -153,6 +153,28 @@ macro_rules! define_language_items {
                 }
             }
 
+            /// Return whether this item defines an arithmetic operator protocol.
+            pub fn is_arithmetic_protocol(&self) -> bool {
+                matches!(
+                    self,
+                    Self::Add
+                        | Self::Subtract
+                        | Self::Multiply
+                        | Self::Divide
+                        | Self::Remainder
+                        | Self::Power
+                        | Self::And
+                        | Self::Or
+                        | Self::Xor
+                        | Self::ShiftLeft
+                        | Self::ShiftRight
+                        | Self::ShiftRightUnsigned
+                        | Self::Negate
+                        | Self::Plus
+                        | Self::Not
+                )
+            }
+
             /// Return the string mapping declared by this item.
             pub fn string_mapping(&self) -> Option<StringMapping> {
                 match self {

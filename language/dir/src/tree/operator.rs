@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::TokenType;
+use crate::{LanguageItem, TokenType};
 
 /// One operator precedence level.
 ///
@@ -151,6 +151,17 @@ pub enum UnaryOperator {
 }
 
 impl UnaryOperator {
+    /// Return the single language protocol selected by this operator.
+    pub fn single_protocol(self) -> Option<LanguageItem> {
+        match self {
+            Self::Negate => Some(LanguageItem::Negate),
+            Self::Plus => Some(LanguageItem::Plus),
+            Self::ElementwiseNot => Some(LanguageItem::Not),
+            Self::Dereference => Some(LanguageItem::Dereference),
+            _ => None,
+        }
+    }
+
     /// Return the source text for this unary operator.
     #[inline]
     pub fn text(self) -> &'static str {
@@ -295,6 +306,27 @@ pub enum BinaryOperator {
 }
 
 impl BinaryOperator {
+    /// Return the single language protocol selected by this operator.
+    pub fn single_protocol(self) -> Option<LanguageItem> {
+        match self {
+            Self::Exponent => Some(LanguageItem::Power),
+            Self::Multiply => Some(LanguageItem::Multiply),
+            Self::Divide => Some(LanguageItem::Divide),
+            Self::Remainder => Some(LanguageItem::Remainder),
+            Self::Add => Some(LanguageItem::Add),
+            Self::Subtract => Some(LanguageItem::Subtract),
+            Self::ShiftLeft => Some(LanguageItem::ShiftLeft),
+            Self::ShiftRight => Some(LanguageItem::ShiftRight),
+            Self::UnsignedShiftRight => Some(LanguageItem::ShiftRightUnsigned),
+            Self::ElementwiseAnd => Some(LanguageItem::And),
+            Self::ElementwiseXor => Some(LanguageItem::Xor),
+            Self::ElementwiseOr => Some(LanguageItem::Or),
+            Self::Equal | Self::NotEqual => Some(LanguageItem::PartialEqual),
+            Self::EqualStrict | Self::NotEqualStrict => Some(LanguageItem::StrictEqual),
+            _ => None,
+        }
+    }
+
     /// Return the source text for this binary operator.
     #[inline]
     pub fn text(self) -> &'static str {
@@ -600,6 +632,13 @@ pub enum AssignOperator {
 }
 
 impl AssignOperator {
+    /// Return the single language protocol selected by this assignment operator.
+    pub fn single_protocol(self) -> Option<LanguageItem> {
+        self.try_into()
+            .ok()
+            .and_then(BinaryOperator::single_protocol)
+    }
+
     /// Return the source text for this assignment operator.
     #[inline]
     pub fn text(self) -> &'static str {
