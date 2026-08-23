@@ -33,12 +33,18 @@ unsafe extern "C" {
     fn atan(value: f64) -> f64;
     fn atan2f(left: f32, right: f32) -> f32;
     fn atan2(left: f64, right: f64) -> f64;
+    fn cbrtf(value: f32) -> f32;
+    fn cbrt(value: f64) -> f64;
     fn expf(value: f32) -> f32;
     fn exp(value: f64) -> f64;
+    fn expm1f(value: f32) -> f32;
+    fn expm1(value: f64) -> f64;
     fn exp2f(value: f32) -> f32;
     fn exp2(value: f64) -> f64;
     fn logf(value: f32) -> f32;
     fn log(value: f64) -> f64;
+    fn log1pf(value: f32) -> f32;
+    fn log1p(value: f64) -> f64;
     fn log2f(value: f32) -> f32;
     fn log2(value: f64) -> f64;
     fn log10f(value: f32) -> f32;
@@ -103,12 +109,18 @@ impl Platform {
             native::Import::AtanF64 => atan as *const () as usize,
             native::Import::Atan2F32 => atan2f as *const () as usize,
             native::Import::Atan2F64 => atan2 as *const () as usize,
+            native::Import::CbrtF32 => cbrtf as *const () as usize,
+            native::Import::CbrtF64 => cbrt as *const () as usize,
             native::Import::ExpF32 => expf as *const () as usize,
             native::Import::ExpF64 => exp as *const () as usize,
+            native::Import::Expm1F32 => expm1f as *const () as usize,
+            native::Import::Expm1F64 => expm1 as *const () as usize,
             native::Import::Exp2F32 => exp2f as *const () as usize,
             native::Import::Exp2F64 => exp2 as *const () as usize,
             native::Import::LogF32 => logf as *const () as usize,
             native::Import::LogF64 => log as *const () as usize,
+            native::Import::Log1pF32 => log1pf as *const () as usize,
+            native::Import::Log1pF64 => log1p as *const () as usize,
             native::Import::Log2F32 => log2f as *const () as usize,
             native::Import::Log2F64 => log2 as *const () as usize,
             native::Import::Log10F32 => log10f as *const () as usize,
