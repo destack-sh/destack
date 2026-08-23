@@ -221,8 +221,8 @@ impl StaticSegment {
         self.static_by_symbol_id.insert(symbol_id, static_id);
     }
 
-    /// Record one node's static gate decision.
-    pub fn record_presence(&mut self, node: LocalNodeIdAny, gate: StaticPresence) {
+    /// Commit one node's static gate decision.
+    pub fn commit_presence(&mut self, node: LocalNodeIdAny, gate: StaticPresence) {
         self.gates.insert(node, gate);
     }
 

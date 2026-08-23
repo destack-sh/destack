@@ -34,7 +34,7 @@ pub enum Type {
     /// Undefined type and value.
     Undefined,
     /// Concrete object class of one exact shape.
-    Object(ShapeType),
+    Object(ObjectType),
     /// Primitive type, like `string` or `int32`.
     Primitive(PrimitiveType),
     /// Scalar literal type, like `"id"` or `42`.
@@ -2295,7 +2295,7 @@ impl TypeElement {
 /// { name: string; age?: int32 }
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct ShapeType {
+pub struct ObjectType {
     /// The declared property list.
     pub properties: TypeListId,
     /// The call signature list.
@@ -2306,7 +2306,7 @@ pub struct ShapeType {
     pub index_signatures: TypeListId,
 }
 
-impl ShapeType {
+impl ObjectType {
     /// Return whether this object type declares call, construct, or index signatures.
     ///
     /// An index signature counts, since it makes the object type a keyed view over concrete

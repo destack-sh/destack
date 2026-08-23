@@ -166,8 +166,8 @@ impl MemberSegment {
         }
     }
 
-    /// Record the member lookup subject selected at one source site, where the settled one wins.
-    pub fn record_subject(&mut self, site: MemberSite, subject: MemberSubject) {
+    /// Commit the member lookup subject selected at one source site, where the resolved one wins.
+    pub fn commit_subject(&mut self, site: MemberSite, subject: MemberSubject) {
         self.subjects.insert(site, subject);
     }
 
@@ -195,17 +195,17 @@ impl MemberSegment {
             .map(|((owner, space), bindings)| (*owner, *space, bindings.as_slice()))
     }
 
-    /// Set the membership projected for one settled site subject.
+    /// Set the membership projected for one resolved site subject.
     pub fn set_membership(&mut self, subject: MemberSubject, membership: Membership) {
         self.memberships.insert(subject, membership);
     }
 
-    /// Return the membership projected for one settled site subject.
+    /// Return the membership projected for one resolved site subject.
     pub fn membership(&self, subject: &MemberSubject) -> Option<&Membership> {
         self.memberships.get(subject)
     }
 
-    /// Iterate the memberships projected per settled site subject.
+    /// Iterate the memberships projected per resolved site subject.
     pub fn iter_memberships(&self) -> impl Iterator<Item = (&MemberSubject, &Membership)> + '_ {
         self.memberships.iter()
     }

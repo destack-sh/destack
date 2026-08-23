@@ -377,7 +377,7 @@ impl Printer<'_, '_, '_> {
     }
 
     /// Format one anonymous object type.
-    fn object(&self, shape: dir::ShapeType) -> DocResult<String> {
+    fn object(&self, shape: dir::ObjectType) -> DocResult<String> {
         let mut members = Vec::new();
 
         for property in self.types().properties(shape.properties) {

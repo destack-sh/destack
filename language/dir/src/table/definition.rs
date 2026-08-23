@@ -318,8 +318,8 @@ pub enum Definition {
 }
 
 impl Definition {
-    /// Return whether this declaration's own shape supports one representation family.
-    pub fn supports_representation(&self, kind: RepresentationKind) -> bool {
+    /// Return whether this declaration's own shape admits one representation family.
+    pub fn is_representable(&self, kind: RepresentationKind) -> bool {
         match (self, kind) {
             (Self::Struct(_), RepresentationKind::Destack | RepresentationKind::C)
             | (Self::Class(_), RepresentationKind::Destack) => true,

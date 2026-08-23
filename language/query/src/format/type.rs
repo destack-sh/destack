@@ -414,7 +414,7 @@ impl Formatter<'_, '_, '_> {
     }
 
     /// Format one anonymous object type.
-    fn object(&self, shape: dir::ShapeType) -> QueryResult<String> {
+    fn object(&self, shape: dir::ObjectType) -> QueryResult<String> {
         let mut members = Vec::new();
 
         for property in self.types()?.properties(shape.properties) {

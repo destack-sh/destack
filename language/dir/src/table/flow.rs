@@ -302,18 +302,18 @@ impl FlowSegment {
         Self::new(base.module_id)
     }
 
-    /// Mark one node unreachable.
-    pub fn mark_unreachable(&mut self, node: LocalNodeIdAny) {
+    /// Set one node unreachable.
+    pub fn set_unreachable(&mut self, node: LocalNodeIdAny) {
         self.unreachable.insert(node);
     }
 
-    /// Mark one node diverging.
-    pub fn mark_diverging(&mut self, node: LocalNodeIdAny) {
+    /// Set one node diverging.
+    pub fn set_diverging(&mut self, node: LocalNodeIdAny) {
         self.diverging.insert(node);
     }
 
-    /// Record one proved binding use.
-    pub fn record_binding_use(
+    /// Commit one proved binding use.
+    pub fn commit_binding_use(
         &mut self,
         node: LocalNodeIdAny,
         symbol: GlobalSymbolId,
@@ -323,14 +323,14 @@ impl FlowSegment {
             .insert(BindingOccurrence { node, symbol, uses });
     }
 
-    /// Record one proved stable access use.
-    pub fn record_access_use(&mut self, node: LocalNodeIdAny, path: AccessPath, uses: BindingUse) {
+    /// Commit one proved stable access use.
+    pub fn commit_access_use(&mut self, node: LocalNodeIdAny, path: AccessPath, uses: BindingUse) {
         self.access_occurrences
             .insert(AccessOccurrence { node, path, uses });
     }
 
-    /// Record one proved taint domain.
-    pub fn record_taint(&mut self, node: LocalNodeIdAny, tag: StringId) {
+    /// Commit one proved taint domain.
+    pub fn commit_taint(&mut self, node: LocalNodeIdAny, tag: StringId) {
         self.taints.insert(TaintOccurrence { node, tag });
     }
 
