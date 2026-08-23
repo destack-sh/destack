@@ -144,7 +144,6 @@ export type Member =
           readonly mutability?: Mutability;
           readonly visibility?: Visibility;
           readonly isOptional: boolean;
-          readonly isDefinite: boolean;
           readonly isReadonly: boolean;
           readonly isAmbient: boolean;
           readonly isAbstract: boolean;
@@ -194,8 +193,8 @@ export const Member = {
     },
 
     /** Named field. */
-    field(name: Name, declaredType: LocalNodeId | undefined, default_: LocalNodeId | undefined, mutability: Mutability | undefined, visibility: Visibility | undefined, isOptional: boolean, isDefinite: boolean, isReadonly: boolean, isAmbient: boolean, isAbstract: boolean, isOverride: boolean, isStatic: boolean, isAccessor: boolean): Member {
-        return { kind: "field", name, declaredType, default: default_, mutability, visibility, isOptional, isDefinite, isReadonly, isAmbient, isAbstract, isOverride, isStatic, isAccessor };
+    field(name: Name, declaredType: LocalNodeId | undefined, default_: LocalNodeId | undefined, mutability: Mutability | undefined, visibility: Visibility | undefined, isOptional: boolean, isReadonly: boolean, isAmbient: boolean, isAbstract: boolean, isOverride: boolean, isStatic: boolean, isAccessor: boolean): Member {
+        return { kind: "field", name, declaredType, default: default_, mutability, visibility, isOptional, isReadonly, isAmbient, isAbstract, isOverride, isStatic, isAccessor };
     },
 
     /** Named member function. */
@@ -298,7 +297,6 @@ export function encodeMember(writer: BinaryWriter, value: Member): void {
                 encodeVisibility(writer, value4);
             });
             writer.writeBool(value.isOptional);
-            writer.writeBool(value.isDefinite);
             writer.writeBool(value.isReadonly);
             writer.writeBool(value.isAmbient);
             writer.writeBool(value.isAbstract);
@@ -397,7 +395,6 @@ export function decodeMember(reader: BinaryReader): Member {
             const mutability = reader.readOption(() => decodeMutability(reader));
             const visibility = reader.readOption(() => decodeVisibility(reader));
             const isOptional = reader.readBool();
-            const isDefinite = reader.readBool();
             const isReadonly = reader.readBool();
             const isAmbient = reader.readBool();
             const isAbstract = reader.readBool();
@@ -413,7 +410,6 @@ export function decodeMember(reader: BinaryReader): Member {
                 ...(mutability === undefined ? {} : { mutability }),
                 ...(visibility === undefined ? {} : { visibility }),
                 isOptional,
-                isDefinite,
                 isReadonly,
                 isAmbient,
                 isAbstract,
@@ -508,7 +504,6 @@ export function toJsonMember(value: Member): Json {
                 ...(value.mutability === undefined ? {} : { mutability: toJsonMutability(value.mutability) }),
                 ...(value.visibility === undefined ? {} : { visibility: toJsonVisibility(value.visibility) }),
                 isOptional: value.isOptional,
-                isDefinite: value.isDefinite,
                 isReadonly: value.isReadonly,
                 isAmbient: value.isAmbient,
                 isAbstract: value.isAbstract,
@@ -588,7 +583,6 @@ export function fromJsonMember(value: Json): Member {
                 mutability: jsonOptional(object, "mutability", (value) => fromJsonMutability(value)),
                 visibility: jsonOptional(object, "visibility", (value) => fromJsonVisibility(value)),
                 isOptional: jsonBool(jsonField(object, "isOptional")),
-                isDefinite: jsonBool(jsonField(object, "isDefinite")),
                 isReadonly: jsonBool(jsonField(object, "isReadonly")),
                 isAmbient: jsonBool(jsonField(object, "isAmbient")),
                 isAbstract: jsonBool(jsonField(object, "isAbstract")),

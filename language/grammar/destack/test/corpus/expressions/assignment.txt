@@ -21,6 +21,22 @@ let c: d;
         (type_identifier)))))
 
 ==================================
+Must binding declarations
+:language(destack)
+==================================
+
+let {}! = {};
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (must_binding_pattern
+        (object_pattern))
+      (object))))
+
+==================================
 Multi-line variable declarations
 :language(destack)
 ==================================

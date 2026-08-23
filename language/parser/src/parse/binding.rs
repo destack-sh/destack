@@ -86,8 +86,6 @@ pub(crate) struct BindingModifiers {
     pub is_const_block: bool,
     /// Whether `?` was present.
     pub is_optional: bool,
-    /// Whether `!` was present.
-    pub is_definite: bool,
 }
 
 impl BindingModifiers {

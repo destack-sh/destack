@@ -230,19 +230,17 @@ class Foo {
 }
 ```
 
-### field suffixes
+### optional field suffix
 
-Optional and definite field suffixes stay attached to the field name.
+Optional field suffixes stay attached to the field name.
 
 ```ds:main.ds
-class Foo { ready!: boolean; maybe?: string; accessor value!: number }
+class Foo { maybe?: string }
 ```
 
 ```ds expected
 class Foo {
-    ready!: boolean;
     maybe?: string;
-    accessor value!: number;
 }
 ```
 

@@ -363,7 +363,6 @@ fn write_member_field_left<'ast>(
         is_override,
         is_static,
         is_accessor,
-        is_definite,
         ..
     } = member
     else {
@@ -398,7 +397,6 @@ fn write_member_field_left<'ast>(
 
     // name suffixes
     write_token_suffix(f, "?", *is_optional)?;
-    write_token_suffix(f, "!", *is_definite)?;
 
     // declared type
     if let Some(declared_type) = declared_type {

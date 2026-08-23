@@ -1586,7 +1586,6 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             declared_type,
             default,
             is_optional: _,
-            is_definite: _,
             is_readonly: _,
             mutability: _,
             visibility: _,

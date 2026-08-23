@@ -1955,8 +1955,6 @@ export type FieldDefinition = {
     readonly isOptional: boolean;
     /** Whether the field rejects writes after initialization. */
     readonly isReadonly: boolean;
-    /** Whether the field asserts definite assignment outside constructors. */
-    readonly isDefinite: boolean;
     /** Whether subclasses must provide the field. */
     readonly isAbstract: boolean;
     /** Whether the field overrides an inherited member. */
@@ -1998,11 +1996,10 @@ export function encodeFieldDefinition(writer: BinaryWriter, value: FieldDefiniti
     });
     writer.writeBool(value.isOptional);
     writer.writeBool(value.isReadonly);
-    writer.writeBool(value.isDefinite);
     writer.writeBool(value.isAbstract);
     writer.writeBool(value.isOverride);
-    writer.writeOption(value.overrides, (value10) => {
-        encodeGlobalSymbolId(writer, value10);
+    writer.writeOption(value.overrides, (value9) => {
+        encodeGlobalSymbolId(writer, value9);
     });
 }
 
@@ -2015,7 +2012,6 @@ export function decodeFieldDefinition(reader: BinaryReader): FieldDefinition {
     const initializer = reader.readOption(() => decodeGlobalNodeIdAny(reader));
     const isOptional = reader.readBool();
     const isReadonly = reader.readBool();
-    const isDefinite = reader.readBool();
     const isAbstract = reader.readBool();
     const isOverride = reader.readBool();
     const overrides = reader.readOption(() => decodeGlobalSymbolId(reader));
@@ -2028,7 +2024,6 @@ export function decodeFieldDefinition(reader: BinaryReader): FieldDefinition {
         ...(initializer === undefined ? {} : { initializer }),
         isOptional,
         isReadonly,
-        isDefinite,
         isAbstract,
         isOverride,
         ...(overrides === undefined ? {} : { overrides }),
@@ -2045,7 +2040,6 @@ export function toJsonFieldDefinition(value: FieldDefinition): Json {
         ...(value.initializer === undefined ? {} : { initializer: toJsonGlobalNodeIdAny(value.initializer) }),
         isOptional: value.isOptional,
         isReadonly: value.isReadonly,
-        isDefinite: value.isDefinite,
         isAbstract: value.isAbstract,
         isOverride: value.isOverride,
         ...(value.overrides === undefined ? {} : { overrides: toJsonGlobalSymbolId(value.overrides) }),
@@ -2064,7 +2058,6 @@ export function fromJsonFieldDefinition(value: Json): FieldDefinition {
         initializer: jsonOptional(object, "initializer", (value) => fromJsonGlobalNodeIdAny(value)),
         isOptional: jsonBool(jsonField(object, "isOptional")),
         isReadonly: jsonBool(jsonField(object, "isReadonly")),
-        isDefinite: jsonBool(jsonField(object, "isDefinite")),
         isAbstract: jsonBool(jsonField(object, "isAbstract")),
         isOverride: jsonBool(jsonField(object, "isOverride")),
         overrides: jsonOptional(object, "overrides", (value) => fromJsonGlobalSymbolId(value)),

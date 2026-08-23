@@ -226,7 +226,6 @@ impl Matcher<'_, '_> {
                     mutability: pattern_mutability,
                     visibility: pattern_visibility,
                     is_optional: pattern_optional,
-                    is_definite: pattern_definite,
                     is_readonly: pattern_readonly,
                     is_ambient: pattern_ambient,
                     is_abstract: pattern_abstract,
@@ -241,7 +240,6 @@ impl Matcher<'_, '_> {
                     mutability: candidate_mutability,
                     visibility: candidate_visibility,
                     is_optional: candidate_optional,
-                    is_definite: candidate_definite,
                     is_readonly: candidate_readonly,
                     is_ambient: candidate_ambient,
                     is_abstract: candidate_abstract,
@@ -253,7 +251,6 @@ impl Matcher<'_, '_> {
                 if pattern_mutability != candidate_mutability
                     || pattern_visibility != candidate_visibility
                     || pattern_optional != candidate_optional
-                    || pattern_definite != candidate_definite
                     || pattern_readonly != candidate_readonly
                     || pattern_ambient != candidate_ambient
                     || pattern_abstract != candidate_abstract

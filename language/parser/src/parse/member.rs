@@ -147,19 +147,6 @@ impl Parser {
         }
     }
 
-    /// Parse one definite member modifier when present.
-    #[inline]
-    fn parse_definite_modifier(&mut self, mut modifiers: BindingModifiers) -> BindingModifiers {
-        if !self.peek_is(TokenType::Not) {
-            return modifiers;
-        }
-
-        self.bump();
-        modifiers.is_definite = true;
-
-        modifiers
-    }
-
     /// Validate one member or property head after its name and postfix modifiers.
     fn validate_method_head_modifiers(
         &mut self,
@@ -168,8 +155,7 @@ impl Parser {
         asynchrony: Asynchrony,
     ) -> ParserResult<()> {
         // reject impossible modifier combinations
-        let is_invalid = modifiers.is_optional && modifiers.is_definite
-            || modifiers.is_abstract && modifiers.is_virtual
+        let is_invalid = modifiers.is_abstract && modifiers.is_virtual
             || modifiers.is_static && modifiers.is_virtual;
         if is_invalid {
             let error_range = match self.peek_previous_token() {
@@ -257,7 +243,6 @@ impl Parser {
             };
 
         // postfix modifiers
-        let modifiers = self.parse_definite_modifier(modifiers);
         let modifiers = self.parse_postfix_binding_modifier(modifiers);
         self.validate_method_head_modifiers(name.as_ref(), &modifiers, asynchrony)?;
 
@@ -768,7 +753,6 @@ impl Parser {
                     default,
                     mutability: None,
                     is_optional: modifiers.is_optional,
-                    is_definite: modifiers.is_definite,
                     is_readonly: modifiers.is_readonly,
                     visibility: modifiers.visibility,
                     is_ambient: modifiers.is_ambient,

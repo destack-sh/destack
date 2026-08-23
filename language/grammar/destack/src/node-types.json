@@ -5374,77 +5374,6 @@
     }
   },
   {
-    "type": "let_else_literal_pattern",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "false",
-          "named": true
-        },
-        {
-          "type": "null",
-          "named": true
-        },
-        {
-          "type": "number",
-          "named": true
-        },
-        {
-          "type": "string",
-          "named": true
-        },
-        {
-          "type": "true",
-          "named": true
-        },
-        {
-          "type": "undefined",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "let_else_must_pattern",
-    "named": true,
-    "fields": {
-      "argument": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "array_pattern",
-            "named": true
-          },
-          {
-            "type": "identifier",
-            "named": true
-          },
-          {
-            "type": "match_constructor_pattern",
-            "named": true
-          },
-          {
-            "type": "match_member_pattern",
-            "named": true
-          },
-          {
-            "type": "match_struct_pattern",
-            "named": true
-          },
-          {
-            "type": "tuple_pattern",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
     "type": "let_else_statement",
     "named": true,
     "fields": {
@@ -5481,15 +5410,15 @@
             "named": true
           },
           {
-            "type": "let_else_literal_pattern",
-            "named": true
-          },
-          {
-            "type": "let_else_must_pattern",
+            "type": "literal_binding_pattern",
             "named": true
           },
           {
             "type": "match_constructor_pattern",
+            "named": true
+          },
+          {
+            "type": "must_binding_pattern",
             "named": true
           },
           {
@@ -5564,6 +5493,41 @@
     "type": "lifetime",
     "named": true,
     "fields": {}
+  },
+  {
+    "type": "literal_binding_pattern",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "false",
+          "named": true
+        },
+        {
+          "type": "null",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "true",
+          "named": true
+        },
+        {
+          "type": "undefined",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "literal_try_propagation_expression",
@@ -6345,6 +6309,46 @@
         "types": [
           {
             "type": "decorator",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "must_binding_pattern",
+    "named": true,
+    "fields": {
+      "argument": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "array_pattern",
+            "named": true
+          },
+          {
+            "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "match_constructor_pattern",
+            "named": true
+          },
+          {
+            "type": "match_member_pattern",
+            "named": true
+          },
+          {
+            "type": "match_struct_pattern",
+            "named": true
+          },
+          {
+            "type": "object_pattern",
+            "named": true
+          },
+          {
+            "type": "tuple_pattern",
             "named": true
           }
         ]
@@ -9499,11 +9503,15 @@
             "named": true
           },
           {
-            "type": "let_else_literal_pattern",
+            "type": "literal_binding_pattern",
             "named": true
           },
           {
             "type": "match_constructor_pattern",
+            "named": true
+          },
+          {
+            "type": "must_binding_pattern",
             "named": true
           },
           {

@@ -381,6 +381,7 @@ impl Parser {
         } else {
             self.parse_pattern_before_type()?
         };
+        let is_must_pattern = matches!(self.tree.get(pattern_id), Pattern::Must(_));
 
         // type
         let (ty, type_range) = if self.peek_is(TokenType::Colon) {
@@ -415,7 +416,7 @@ impl Parser {
             };
 
             (Some(value), Some(operator_range))
-        } else if matches!(value, DeclaratorValue::Required(_)) {
+        } else if is_must_pattern || matches!(value, DeclaratorValue::Required(_)) {
             return Err(ParserError::expected(
                 self.peek_token_span(),
                 TokenType::Assign,

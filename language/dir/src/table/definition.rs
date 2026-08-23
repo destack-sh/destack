@@ -788,8 +788,6 @@ pub struct FieldDefinition {
     pub is_optional: bool,
     /// Whether the field rejects writes after initialization.
     pub is_readonly: bool,
-    /// Whether the field asserts definite assignment outside constructors.
-    pub is_definite: bool,
     /// Whether subclasses must provide the field.
     pub is_abstract: bool,
     /// Whether the field overrides an inherited member.

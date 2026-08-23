@@ -10,12 +10,12 @@ let value! = maybe else {};
 
 (program
   (let_else_statement
-    (let_else_literal_pattern
+    (literal_binding_pattern
       (number))
     (identifier)
     (statement_block))
   (let_else_statement
-    (let_else_must_pattern
+    (must_binding_pattern
       (identifier))
     (identifier)
     (statement_block)))

@@ -104,9 +104,9 @@ module.exports = grammar(JavaScript, {
       [$.assignment_expression, $.pattern, $.literal_type],
       [$._range_expression_atom, $._range_pattern_bound],
       [$.assignment_expression, $.pattern, $.match_pattern],
-      [$.assignment_expression, $.let_else_literal_pattern],
-      [$.primary_expression, $.let_else_literal_pattern],
-      [$.variable_declarator, $.primary_expression, $.let_else_must_pattern],
+      [$.assignment_expression, $.literal_binding_pattern],
+      [$.primary_expression, $.literal_binding_pattern],
+      [$.primary_expression, $.must_binding_pattern],
       [$.variable_declarator, $.primary_expression],
       [$.subscript_expression, $.match_arm_expression_statement],
       [$.primary_expression, $.await_expression, $.rest_pattern],
@@ -244,7 +244,7 @@ module.exports = grammar(JavaScript, {
       optional('readonly'),
       optional('abstract'),
       field('name', $._property_name),
-      optional(choice('?', '!')),
+      optional('?'),
       field('type', optional($.type_annotation)),
       optional($._initializer),
     ),
@@ -562,23 +562,24 @@ module.exports = grammar(JavaScript, {
       $.match_constructor_pattern,
       $.tuple_pattern,
       $.array_pattern,
-      $.let_else_must_pattern,
-      $.let_else_literal_pattern,
+      $.must_binding_pattern,
+      $.literal_binding_pattern,
     ),
 
-    let_else_must_pattern: $ => prec.left('unary', seq(
+    must_binding_pattern: $ => prec.left('unary', seq(
       field('argument', choice(
         $.identifier,
         $.match_constructor_pattern,
         $.match_member_pattern,
         $.match_struct_pattern,
+        $.object_pattern,
         $.tuple_pattern,
         $.array_pattern,
       )),
       '!',
     )),
 
-    let_else_literal_pattern: $ => choice(
+    literal_binding_pattern: $ => choice(
       $.number,
       $.string,
       $.true,
@@ -1233,16 +1234,16 @@ module.exports = grammar(JavaScript, {
           $.tuple_pattern,
           $.struct_pattern,
           $.match_constructor_pattern,
-          $.let_else_literal_pattern,
+          $.literal_binding_pattern,
         )),
         field('type', optional($.type_annotation)),
         optional($._initializer),
       ),
-      prec('declaration', seq(
-        field('name', $.identifier),
-        '!',
-        field('type', $.type_annotation),
-      )),
+      seq(
+        field('name', $.must_binding_pattern),
+        field('type', optional($.type_annotation)),
+        $._initializer,
+      ),
     ),
 
     struct_pattern: $ => seq(
@@ -1831,7 +1832,7 @@ module.exports = grammar(JavaScript, {
       'static',
       optional('readonly'),
       field('name', $._property_name),
-      optional(choice('?', '!')),
+      optional('?'),
       field('type', optional($.type_annotation)),
       optional($._initializer),
     ),

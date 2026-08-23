@@ -416,16 +416,6 @@ impl Parser {
             return Err(ParserError::unexpected(self.peek_token_span()));
         }
 
-        // reject definite assertions on plain properties
-        if modifiers.is_definite {
-            let error_range = match self.peek_previous_token() {
-                Some(token) => token.span.range(),
-                None => self.peek_token().range(),
-            };
-
-            return Err(ParserError::unexpected(error_range));
-        }
-
         // unnamed field separators are invalid
         if name.is_none() && (self.peek_is(TokenType::Colon) || self.peek_is(TokenType::Assign)) {
             return Err(ParserError::expected(

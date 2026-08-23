@@ -128,7 +128,11 @@ function identity<T>(value: T): T {
             &NO_REDUNDANT_TYPE_CONSTRAINT,
             r#"
 class Box<T: unknown> {
-    value!: T;
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
 }
 "#,
         );
@@ -136,7 +140,11 @@ class Box<T: unknown> {
         session.assert_fixes(
             r#"
 class Box<T> {
-    value!: T;
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
 }
 "#,
         );

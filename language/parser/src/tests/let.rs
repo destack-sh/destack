@@ -467,7 +467,7 @@ const (x, y) = foo()
 }
 
 #[test]
-fn test_parse_let_definite_assignment_pattern() {
+fn test_parse_let_must_object_pattern() {
     let test = TestParser::new("let {}! = {}");
     let mut parser = test.prepare();
     let start = parser.mark_parse_start();

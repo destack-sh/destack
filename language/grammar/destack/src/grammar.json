@@ -1226,7 +1226,7 @@
                   },
                   {
                     "type": "SYMBOL",
-                    "name": "let_else_literal_pattern"
+                    "name": "literal_binding_pattern"
                   }
                 ]
               }
@@ -1262,33 +1262,37 @@
           ]
         },
         {
-          "type": "PREC",
-          "value": "declaration",
-          "content": {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "FIELD",
-                "name": "name",
-                "content": {
-                  "type": "SYMBOL",
-                  "name": "identifier"
-                }
-              },
-              {
-                "type": "STRING",
-                "value": "!"
-              },
-              {
-                "type": "FIELD",
-                "name": "type",
-                "content": {
-                  "type": "SYMBOL",
-                  "name": "type_annotation"
-                }
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "name",
+              "content": {
+                "type": "SYMBOL",
+                "name": "must_binding_pattern"
               }
-            ]
-          }
+            },
+            {
+              "type": "FIELD",
+              "name": "type",
+              "content": {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "type_annotation"
+                  },
+                  {
+                    "type": "BLANK"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "SYMBOL",
+              "name": "_initializer"
+            }
+          ]
         }
       ]
     },
@@ -8430,17 +8434,8 @@
           "type": "CHOICE",
           "members": [
             {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "STRING",
-                  "value": "?"
-                },
-                {
-                  "type": "STRING",
-                  "value": "!"
-                }
-              ]
+              "type": "STRING",
+              "value": "?"
             },
             {
               "type": "BLANK"
@@ -9385,15 +9380,15 @@
         },
         {
           "type": "SYMBOL",
-          "name": "let_else_must_pattern"
+          "name": "must_binding_pattern"
         },
         {
           "type": "SYMBOL",
-          "name": "let_else_literal_pattern"
+          "name": "literal_binding_pattern"
         }
       ]
     },
-    "let_else_must_pattern": {
+    "must_binding_pattern": {
       "type": "PREC_LEFT",
       "value": "unary",
       "content": {
@@ -9423,6 +9418,10 @@
                 },
                 {
                   "type": "SYMBOL",
+                  "name": "object_pattern"
+                },
+                {
+                  "type": "SYMBOL",
                   "name": "tuple_pattern"
                 },
                 {
@@ -9439,7 +9438,7 @@
         ]
       }
     },
-    "let_else_literal_pattern": {
+    "literal_binding_pattern": {
       "type": "CHOICE",
       "members": [
         {
@@ -14143,17 +14142,8 @@
           "type": "CHOICE",
           "members": [
             {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "STRING",
-                  "value": "?"
-                },
-                {
-                  "type": "STRING",
-                  "value": "!"
-                }
-              ]
+              "type": "STRING",
+              "value": "?"
             },
             {
               "type": "BLANK"
@@ -18128,16 +18118,15 @@
     ],
     [
       "assignment_expression",
-      "let_else_literal_pattern"
+      "literal_binding_pattern"
     ],
     [
       "primary_expression",
-      "let_else_literal_pattern"
+      "literal_binding_pattern"
     ],
     [
-      "variable_declarator",
       "primary_expression",
-      "let_else_must_pattern"
+      "must_binding_pattern"
     ],
     [
       "variable_declarator",

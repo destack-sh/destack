@@ -11,48 +11,6 @@ use crate::parse::TypeMemberContainerKind;
 use crate::{assert_comment, assert_expression_path, assert_node, assert_path, assert_string};
 
 #[test]
-fn test_parse_member_definite_field() {
-    let test = TestParser::new("prop!: Foo");
-    let mut parser = test.prepare();
-
-    let member = parser.parse_member().unwrap();
-    test.assert_no_errors(&parser);
-
-    assert_node!(parser.tree, member, Member::Field { name: Name::Identifier(name), declared_type: Some(value), is_definite, .. } => {
-        assert_string!(parser, *name, "prop");
-        assert!(*is_definite);
-        assert_expression_path!(parser, parser.tree.get(*value), "Foo");
-    });
-}
-
-#[test]
-fn test_parse_member_definite_accessor() {
-    let test = TestParser::new("accessor a!: unknown");
-    let mut parser = test.prepare();
-
-    let member = parser.parse_member().unwrap();
-    test.assert_no_errors(&parser);
-
-    assert_node!(parser.tree, member, Member::Field { name: Name::Identifier(name), declared_type: Some(value), is_accessor, is_definite, .. } => {
-        assert_string!(parser, *name, "a");
-        assert!(*is_accessor);
-        assert!(*is_definite);
-        assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
-            assert_eq!(*value, TypeLiteral::Unknown);
-        });
-    });
-}
-
-#[test]
-fn test_report_member_optional_definite_assignment_combo() {
-    let test = TestParser::new("prop!?: Foo");
-    let mut parser = test.prepare();
-
-    let error = parser.parse_member().unwrap_err();
-    assert_eq!(parser.range_str(error.range()), "?");
-}
-
-#[test]
 fn test_parse_member_override_field() {
     let test = TestParser::new("override foo: int32");
     let mut parser = test.prepare();
@@ -692,15 +650,6 @@ fn test_parse_property_with_value_and_default_value() {
 }
 
 #[test]
-fn test_parse_property_diagnoses_definite_assignment() {
-    let test = TestParser::new("prop!: LongType[]");
-    let mut parser = test.prepare();
-
-    let error = parser.parse_property().unwrap_err();
-    assert_eq!(parser.range_str(error.range()), "!");
-}
-
-#[test]
 fn test_parse_properties_recover_error_slot() {
     // +\ny: int32
     let test = TestParser::new("+\ny: int32");
@@ -774,15 +723,6 @@ fn test_parse_properties_recover_unkeyed_default_field() {
         assert_string!(parser, *name, "y");
         assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(2)));
     });
-}
-
-#[test]
-fn test_report_property_optional_definite_assignment_combo() {
-    let test = TestParser::new("prop!?: LongType[]");
-    let mut parser = test.prepare();
-    let error = parser.parse_property().unwrap_err();
-
-    assert_eq!(parser.range_str(error.range()), "?");
 }
 
 #[test]
