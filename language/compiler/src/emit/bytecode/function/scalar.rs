@@ -54,6 +54,7 @@ impl<'a> FunctionEmitter<'a> {
                 }
             }
             mir::Intrinsic::Sqrt
+            | mir::Intrinsic::Cbrt
             | mir::Intrinsic::Abs
             | mir::Intrinsic::IsFinite
             | mir::Intrinsic::IsInfinite
@@ -69,8 +70,10 @@ impl<'a> FunctionEmitter<'a> {
             | mir::Intrinsic::Atan
             | mir::Intrinsic::Atan2
             | mir::Intrinsic::Exp
+            | mir::Intrinsic::Expm1
             | mir::Intrinsic::Exp2
             | mir::Intrinsic::Log
+            | mir::Intrinsic::Log1p
             | mir::Intrinsic::Log2
             | mir::Intrinsic::Log10
             | mir::Intrinsic::Pow
@@ -196,6 +199,7 @@ impl<'a> FunctionEmitter<'a> {
             .ok_or_else(|| self.internal("float intrinsic requires a scalar value"))?;
         let operation = match intrinsic {
             mir::Intrinsic::Sqrt => bytecode::FloatOperation::SquareRoot,
+            mir::Intrinsic::Cbrt => bytecode::FloatOperation::CubeRoot,
             mir::Intrinsic::Abs => bytecode::FloatOperation::Absolute,
             mir::Intrinsic::IsFinite => bytecode::FloatOperation::IsFinite,
             mir::Intrinsic::IsInfinite => bytecode::FloatOperation::IsInfinite,
@@ -211,8 +215,10 @@ impl<'a> FunctionEmitter<'a> {
             mir::Intrinsic::Atan => bytecode::FloatOperation::Atan,
             mir::Intrinsic::Atan2 => bytecode::FloatOperation::Atan2,
             mir::Intrinsic::Exp => bytecode::FloatOperation::Exp,
+            mir::Intrinsic::Expm1 => bytecode::FloatOperation::Expm1,
             mir::Intrinsic::Exp2 => bytecode::FloatOperation::Exp2,
             mir::Intrinsic::Log => bytecode::FloatOperation::Log,
+            mir::Intrinsic::Log1p => bytecode::FloatOperation::Log1p,
             mir::Intrinsic::Log2 => bytecode::FloatOperation::Log2,
             mir::Intrinsic::Log10 => bytecode::FloatOperation::Log10,
             mir::Intrinsic::Pow => bytecode::FloatOperation::Pow,

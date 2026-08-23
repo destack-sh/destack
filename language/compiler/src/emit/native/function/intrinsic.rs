@@ -197,9 +197,12 @@ impl FunctionEmitter<'_> {
             | mir::Intrinsic::Acos
             | mir::Intrinsic::Atan
             | mir::Intrinsic::Atan2
+            | mir::Intrinsic::Cbrt
             | mir::Intrinsic::Exp
+            | mir::Intrinsic::Expm1
             | mir::Intrinsic::Exp2
             | mir::Intrinsic::Log
+            | mir::Intrinsic::Log1p
             | mir::Intrinsic::Log2
             | mir::Intrinsic::Log10
             | mir::Intrinsic::Pow) => {
@@ -690,12 +693,18 @@ impl FunctionEmitter<'_> {
             (mir::Intrinsic::Atan, cir::types::F64) => native::Import::AtanF64,
             (mir::Intrinsic::Atan2, cir::types::F32) => native::Import::Atan2F32,
             (mir::Intrinsic::Atan2, cir::types::F64) => native::Import::Atan2F64,
+            (mir::Intrinsic::Cbrt, cir::types::F32) => native::Import::CbrtF32,
+            (mir::Intrinsic::Cbrt, cir::types::F64) => native::Import::CbrtF64,
             (mir::Intrinsic::Exp, cir::types::F32) => native::Import::ExpF32,
             (mir::Intrinsic::Exp, cir::types::F64) => native::Import::ExpF64,
+            (mir::Intrinsic::Expm1, cir::types::F32) => native::Import::Expm1F32,
+            (mir::Intrinsic::Expm1, cir::types::F64) => native::Import::Expm1F64,
             (mir::Intrinsic::Exp2, cir::types::F32) => native::Import::Exp2F32,
             (mir::Intrinsic::Exp2, cir::types::F64) => native::Import::Exp2F64,
             (mir::Intrinsic::Log, cir::types::F32) => native::Import::LogF32,
             (mir::Intrinsic::Log, cir::types::F64) => native::Import::LogF64,
+            (mir::Intrinsic::Log1p, cir::types::F32) => native::Import::Log1pF32,
+            (mir::Intrinsic::Log1p, cir::types::F64) => native::Import::Log1pF64,
             (mir::Intrinsic::Log2, cir::types::F32) => native::Import::Log2F32,
             (mir::Intrinsic::Log2, cir::types::F64) => native::Import::Log2F64,
             (mir::Intrinsic::Log10, cir::types::F32) => native::Import::Log10F32,

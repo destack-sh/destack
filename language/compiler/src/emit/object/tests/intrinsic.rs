@@ -246,7 +246,10 @@ entry(v0: float64, v1: float64):
     v17: float64 = intrinsic.math.float.exp(v16)
     v18: float64 = intrinsic.math.float.log(v17)
     v19: float64 = intrinsic.math.float.pow(v18, v1)
-    return v19
+    v20: float64 = intrinsic.math.float.cbrt(v19)
+    v21: float64 = intrinsic.math.float.expm1(v20)
+    v22: float64 = intrinsic.math.float.log1p(v21)
+    return v22
 }
 "#,
     );
@@ -272,7 +275,10 @@ function math {
     exp.float64 r0, r2
     log.float64 r2, r0
     pow.float64 r0, r2, r1
-    return r0
+    cbrt.float64 r1, r0
+    expm1.float64 r0, r1
+    log1p.float64 r1, r0
+    return r1
 }
 "#,
     );
@@ -286,12 +292,18 @@ function u0:0(i64, f64, f64) -> f64 native {
     sig3 = (f64) -> f64 native
     sig4 = (f64) -> f64 native
     sig5 = (f64, f64) -> f64 native
+    sig6 = (f64) -> f64 native
+    sig7 = (f64) -> f64 native
+    sig8 = (f64) -> f64 native
     fn0 = colocated u0:2 sig0
     fn1 = colocated u0:3 sig1
     fn2 = colocated u0:4 sig2
     fn3 = colocated u0:5 sig3
     fn4 = colocated u0:6 sig4
     fn5 = colocated u0:7 sig5
+    fn6 = colocated u0:8 sig6
+    fn7 = colocated u0:9 sig7
+    fn8 = colocated u0:10 sig8
 
 block0(v0: i64, v1: f64, v2: f64):
     v3 = sqrt v1
@@ -354,7 +366,10 @@ block0(v0: i64, v1: f64, v2: f64):
     v60 = call fn3(v59)
     v61 = call fn4(v60)
     v62 = call fn5(v61, v2)
-    return v62
+    v63 = call fn6(v62)
+    v64 = call fn7(v63)
+    v65 = call fn8(v64)
+    return v65
 }
 
 function u1:0(i64, i64, i64) native {
