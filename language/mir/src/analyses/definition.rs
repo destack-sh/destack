@@ -68,11 +68,15 @@ impl DefinitionTable {
         for &block_id in function.blocks() {
             let block = tree.get(block_id);
 
-            for (index, parameter) in block.parameters.iter().enumerate() {
-                definitions[parameter.value.0 as usize] = Some(ValueDefinition::BlockParameter {
-                    block: block_id,
-                    index,
-                });
+            // entry parameters mirror the function parameters
+            if Some(block_id) != function.entry() {
+                for (index, parameter) in block.parameters.iter().enumerate() {
+                    definitions[parameter.value.0 as usize] =
+                        Some(ValueDefinition::BlockParameter {
+                            block: block_id,
+                            index,
+                        });
+                }
             }
 
             for &instruction_id in &block.instructions {
@@ -235,8 +239,29 @@ impl DefinitionTable {
 
 #[cfg(test)]
 mod tests {
-    use super::DefinitionTable;
+    use super::{DefinitionTable, ValueDefinition};
     use crate::analyses::tests::TestProgram;
+
+    /// Preserve function parameters through their entry-block mirrors.
+    #[test]
+    fn test_defines_function_parameters() {
+        let (tree, function_id) = TestProgram::parse_function(
+            r#"
+function test(v0: int32): int32 {
+entry(v0: int32):
+    return v0
+}
+"#,
+        );
+        let function = tree.get(function_id);
+        let definitions = DefinitionTable::build(function, &tree);
+        let parameter = function.parameters[0].value;
+
+        assert_eq!(
+            definitions.definition(parameter),
+            Some(ValueDefinition::FunctionParameter(0))
+        );
+    }
 
     /// Fallible allocation success results are not treated as edge arguments.
     #[test]
