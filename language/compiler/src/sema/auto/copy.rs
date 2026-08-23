@@ -248,6 +248,15 @@ impl CheckState<'_> {
             return Ok(Verdict::Fails);
         };
 
+        // refuse value copy for a declared Drop conformance
+        if !matches!(
+            definition,
+            dir::Definition::Class(_) | dir::Definition::Interface(_)
+        ) && self.drop_hook_member(instance.symbol)?.is_some()
+        {
+            return Ok(Verdict::Fails);
+        }
+
         match definition {
             // normalization unfolds aliases before this decision
             dir::Definition::TypeAlias(_) => Err(CompilerError::Internal {
@@ -263,7 +272,8 @@ impl CheckState<'_> {
                         fields.push(ty);
                     }
                 }
-                if !derives_copy(definition.derives.as_deref()) {
+                let derives = definition.derives.as_deref().unwrap_or_default();
+                if !derives.contains(&dir::AutoInterface::Copy) {
                     for field in &fields {
                         if self.is_raw_pointer(*field)? {
                             return Ok(Verdict::Fails);
@@ -277,7 +287,8 @@ impl CheckState<'_> {
             dir::Definition::Enum(_) => Ok(Verdict::Holds),
             // copy a newtype through its backing type, a raw pointer backing under a written derive
             dir::Definition::Newtype(definition) => {
-                if !derives_copy(definition.derives.as_deref())
+                let derives = definition.derives.as_deref().unwrap_or_default();
+                if !derives.contains(&dir::AutoInterface::Copy)
                     && self.is_raw_pointer(definition.backing)?
                 {
                     return Ok(Verdict::Fails);
@@ -346,9 +357,4 @@ impl CheckState<'_> {
 
         Ok(verdict)
     }
-}
-
-/// Return whether one written derive list names `Copy`.
-fn derives_copy(derives: Option<&[dir::AutoInterface]>) -> bool {
-    derives.is_some_and(|derives| derives.contains(&dir::AutoInterface::Copy))
 }

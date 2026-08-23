@@ -224,8 +224,8 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Drop one value.
-    pub fn drop_value(&mut self, value: Value) {
-        self.insert_instruction(Instruction::Drop { value });
+    pub fn drop_value(&mut self, value: Value) -> LocalNodeId<Instruction> {
+        self.insert_instruction(Instruction::Drop { value })
     }
 
     /// Release one unique carrier's backing heap allocation after drop elaboration.

@@ -274,7 +274,7 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
         }
     }
 
-    /// Call one user-authored drop hook.
+    /// Call one user-authored drop hook with the storage reference.
     fn call_hook(&mut self, pointer: mir::Value, function: mir::FunctionId) {
         let (parameter, signature) = {
             let function = self.builder.tree().get(function);

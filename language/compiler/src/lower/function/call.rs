@@ -33,7 +33,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     .callable_implementation(function.selection.symbol)?
                 {
                     Some(CallableImplementation::Intrinsic { name }) => {
-                        return self.lower_intrinsic_call(name, call);
+                        return self.lower_intrinsic_call(expression, name, call);
                     }
                     Some(CallableImplementation::Binding { .. }) => {
                         return self.lower_binding_call(function.selection.symbol, call);

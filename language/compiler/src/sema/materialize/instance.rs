@@ -341,6 +341,24 @@ impl CheckState<'_> {
             )?;
         }
 
+        // close the hook instance destructors call on this nominal
+        if let Some(member) = self.drop_hook_member(row.selection.symbol)? {
+            match self.bind_drop_hook(member, &row.selection.arguments)? {
+                Some(bindings) => self.intern_instance(
+                    member,
+                    bindings,
+                    row.source,
+                    dir::InstanceOrigin::Instantiation,
+                    depth + 1,
+                    worklist,
+                )?,
+                None => {
+                    let module = self.module_id;
+                    self.report_unmapped_drop_conformance(module, member);
+                }
+            }
+        }
+
         // materialize the template under the substitution for this instance
         match self.definition(row.selection.symbol)?.cloned() {
             Some(definition) => self.materialize_instance_definition(

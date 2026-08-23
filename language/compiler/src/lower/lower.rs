@@ -57,6 +57,8 @@ pub(crate) struct ModuleLowerer<'a> {
         FxIndexMap<dir::GlobalSymbolId, Lowered<mir::LocalNodeId<mir::Global>>>,
     /// The declaring symbol behind each loaded language item, scanned lazily.
     pub(in crate::lower) language_items: FxIndexMap<dir::LanguageItem, dir::GlobalSymbolId>,
+    /// The authored drop hook member declared beside each Drop-conforming nominal.
+    pub(in crate::lower) drop_hooks: FxIndexMap<dir::GlobalSymbolId, dir::GlobalSymbolId>,
     /// The immortal String object and value type per collected literal content.
     pub(in crate::lower) string_literals:
         FxIndexMap<StringId, Lowered<(mir::GlobalId, mir::LocalNodeId<mir::Type>)>>,
@@ -96,6 +98,7 @@ impl<'a> ModuleLowerer<'a> {
             nominal_states: FxIndexMap::default(),
             globals: FxIndexMap::default(),
             language_items: FxIndexMap::default(),
+            drop_hooks: FxIndexMap::default(),
             string_literals: FxIndexMap::default(),
             bigint_literals: FxIndexMap::default(),
             initializers: Vec::new(),
@@ -272,6 +275,140 @@ impl<'a> ModuleLowerer<'a> {
         }
     }
 
+    /// Index the drop hook member each loaded Drop-conforming nominal declares.
+    ///
+    /// Drop conformances bind in the nominal's own module: inline on the declaration,
+    /// or on a same-module extension of it.
+    fn index_drop_hooks(&mut self) -> CompilerResult<()> {
+        let Some(interface) = self.language_items.get(&dir::LanguageItem::Drop).copied() else {
+            return Ok(());
+        };
+
+        // read the required methods off the loaded Drop interface
+        let Some(definition) = self.definition(interface)? else {
+            return Ok(());
+        };
+        let requirements = definition
+            .members()
+            .iter()
+            .filter_map(|member| match member {
+                dir::DefinitionMember::Method(method) => Some(method.symbol),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        // collect the hook each loaded conformance selects, keyed by its nominal
+        let mut hooks = FxIndexMap::default();
+        for module in self.modules.keys().copied().collect::<Vec<_>>() {
+            let state = self.state(module)?;
+            for (symbol, definition) in state.definitions.iter_definitions() {
+                let target = match definition {
+                    dir::Definition::Extension(extension) => match extension.target {
+                        dir::ExtensionTarget::Rooted {
+                            root: dir::TypeRoot::Declaration(target),
+                            ..
+                        } if target.module_id == module => target,
+                        _ => continue,
+                    },
+                    _ => symbol,
+                };
+                for conformance in definition.implementations() {
+                    let member = conformance
+                        .members
+                        .iter()
+                        .find(|member| requirements.contains(&member.requirement));
+                    if let Some(member) = member {
+                        hooks.insert(target, member.member);
+                    }
+                }
+            }
+        }
+        self.drop_hooks = hooks;
+
+        Ok(())
+    }
+
+    /// Return whether one nominal declares a Drop conformance.
+    pub(in crate::lower) fn declares_drop(&self, symbol: dir::GlobalSymbolId) -> bool {
+        self.drop_hooks.contains_key(&symbol)
+    }
+
+    /// Register each Drop-conforming nominal's authored hook beside its lowered storage.
+    ///
+    /// Sema closes hook instances beside their nominals, so the bodies arrive through
+    /// the ordinary declaration pipeline; only imported hooks declare here.
+    fn register_drop_hooks(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+        errors: &mut Vec<Box<dyn DiagnosticLike>>,
+    ) -> CompilerResult<()> {
+        if self.drop_hooks.is_empty() {
+            return Ok(());
+        }
+
+        // pair each lowered nominal with the hook instance sharing its arguments
+        let mut entries = Vec::new();
+        for (key, state) in &self.nominal_states {
+            let Some(member) = self.drop_hooks.get(&key.symbol).copied() else {
+                continue;
+            };
+            let storage = match state {
+                NominalState::Declared { storage, .. } => *storage,
+                NominalState::Lowered(nominal) => nominal.storage,
+            };
+            // an unparameterized extension hook closes without the nominal's arguments
+            let mut hook = GenericInstanceKey {
+                symbol: member,
+                arguments: key.arguments.clone(),
+            };
+            if !self.functions.contains_key(&hook) && !hook.arguments.is_empty() {
+                hook = GenericInstanceKey {
+                    symbol: member,
+                    arguments: Vec::new(),
+                };
+            }
+            entries.push((hook, storage));
+        }
+
+        for (key, storage_type) in entries {
+            // declare an unreferenced imported hook
+            if !self.functions.contains_key(&key) && key.arguments.is_empty() {
+                match self.declare_imported_function(builder, key.symbol) {
+                    Ok(()) => {}
+                    Err(CompilerError::Diagnostic(diagnostic)) => {
+                        errors.push(diagnostic);
+                        continue;
+                    }
+                    Err(error) => return Err(error),
+                }
+            }
+
+            let function = match self.functions.get(&key) {
+                Some(FunctionDeclaration::Declared(function)) => *function,
+                // declaration failures already reported their diagnostics
+                Some(FunctionDeclaration::Failed) => continue,
+                None => {
+                    return Err(CompilerError::Internal {
+                        message: format!("drop hook {:?} has no lowered instance", key.symbol),
+                    });
+                }
+            };
+
+            // register the hook for every storage its value can inhabit
+            for storage in [
+                mir::Storage::Frame,
+                mir::Storage::Heap(mir::Space::Local),
+                mir::Storage::Heap(mir::Space::Shared),
+            ] {
+                builder
+                    .drops_mut()
+                    .set_hook(storage_type, storage, function);
+            }
+        }
+
+        Ok(())
+    }
+
     /// Lower the module, returning the artifact and its diagnostics.
     pub(crate) fn lower(
         &mut self,
@@ -282,6 +419,7 @@ impl<'a> ModuleLowerer<'a> {
 
         // scan the loaded modules for language items before any type lowering
         self.scan_language_items()?;
+        self.index_drop_hooks()?;
 
         // index the instances sema closed by their structural selection
         self.index_specializations()?;
@@ -312,6 +450,13 @@ impl<'a> ModuleLowerer<'a> {
                 Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
                 Err(error) => return Err(error),
             }
+        }
+
+        // register the authored drop hooks beside their lowered nominals
+        match self.register_drop_hooks(&mut builder, &mut errors) {
+            Ok(()) => {}
+            Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
+            Err(error) => return Err(error),
         }
 
         // store the runtime bindings from the module initializer

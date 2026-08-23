@@ -4,7 +4,7 @@ import { Default } from "./capability.ds";
 @languageItem("memory.Drop")
 export newtype interface Drop {
     /// Drop this value.
-    drop(): void;
+    drop(&exclusive this): void;
 }
 
 /// Owned storage whose `Drop` does not run automatically.

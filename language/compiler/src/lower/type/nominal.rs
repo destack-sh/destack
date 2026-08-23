@@ -244,7 +244,7 @@ impl TypeLowerer<'_, '_> {
                 )
                 .with_instance(specialization);
             match definition {
-                dir::Definition::Struct(definition) => types.lower_struct(definition, ty),
+                dir::Definition::Struct(definition) => types.lower_struct(symbol, definition, ty),
                 dir::Definition::Newtype(definition) => {
                     types.lower_newtype(symbol, definition, ty, &arguments.type_arguments)
                 }

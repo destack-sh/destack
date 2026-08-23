@@ -44,7 +44,7 @@ export local struct AbortSubscription implements Drop {
     private listener: AbortListener;
 
     /// Stop observing the signal.
-    drop(this): void {
+    drop(&exclusive this): void {
         if (this.state != undefined) {
             this.state.remove(this.listener);
         }

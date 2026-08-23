@@ -1176,7 +1176,7 @@ impl CheckState<'_> {
     }
 
     /// Return the nearest template enclosing one template's lexical scope.
-    fn parent_generic_template(
+    pub(in crate::sema) fn parent_generic_template(
         &self,
         template_id: GenericTemplateId,
     ) -> CompilerResult<Option<GenericTemplateId>> {

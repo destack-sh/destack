@@ -201,6 +201,9 @@ pub(in crate::sema) struct CheckState<'a> {
         FxIndexMap<dir::GlobalTypeId, Option<dir::ScalarFamilySet>>,
     /// Aliasing per settled ground type.
     pub(in crate::sema) aliased: FxIndexMap<dir::GlobalTypeId, bool>,
+    /// Memoized drop hook members per nominal, none recording the absent Drop conformance.
+    pub(in crate::sema) drop_conformers:
+        FxIndexMap<dir::GlobalSymbolId, Option<dir::GlobalSymbolId>>,
     /// Canonical member bindings per owner and space.
     pub(in crate::sema) bindings:
         FxIndexMap<(dir::GlobalSymbolId, dir::MemberSpace), Option<Arc<Vec<dir::MemberBinding>>>>,
@@ -276,8 +279,8 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) walked_declarations: FxIndexSet<dir::GlobalNodeIdAny>,
     /// Declarations currently walking, innermost last.
     pub(in crate::sema) walking_declarations: Vec<dir::GlobalNodeIdAny>,
-    /// Whether writeback is settling declared-form member bindings.
-    pub(in crate::sema) is_settling: bool,
+    /// Whether writeback is resolving declared-form member bindings.
+    pub(in crate::sema) is_writeback: bool,
     /// Conditional reductions nested on the stack.
     pub(in crate::sema) instantiation_depth: u32,
 
@@ -391,7 +394,8 @@ impl<'a> CheckState<'a> {
             argument_ranks: FxIndexMap::default(),
             scalar_families: FxIndexMap::default(),
             aliased: FxIndexMap::default(),
-            is_settling: false,
+            drop_conformers: FxIndexMap::default(),
+            is_writeback: false,
             instantiation_depth: 0,
             conformances: FxIndexMap::default(),
             heritages: FxIndexMap::default(),

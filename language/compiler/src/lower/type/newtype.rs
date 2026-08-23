@@ -20,9 +20,13 @@ impl TypeLowerer<'_, '_> {
             return Ok(Vec::new());
         }
 
-        // wrap the backing type transparently
+        // wrap the backing type transparently, a Drop conformance forbids copy
         let inner = self.lower(definition.backing)?;
-        let copy = self.tree.get(inner).copy(self.tree);
+        let copy = if self.lowerer.declares_drop(symbol) {
+            mir::Copy::No
+        } else {
+            self.tree.get(inner).copy(self.tree)
+        };
         self.tree
             .define_type(ty, mir::Type::Newtype { inner, copy });
 

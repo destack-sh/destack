@@ -42,6 +42,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one intrinsic call through its name's vocabulary.
     pub(in crate::lower) fn lower_intrinsic_call(
         &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
         name: Option<String>,
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
@@ -58,7 +59,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return self.lower_operation_intrinsic(operation, resolution);
         }
         if let Some(instruction) = IntrinsicInstruction::from_name(&name) {
-            return self.lower_instruction_intrinsic(instruction, resolution);
+            return self.lower_instruction_intrinsic(expression, instruction, resolution);
         }
         if let Some(terminator) = IntrinsicTerminator::from_name(&name) {
             return self.lower_terminator_intrinsic(terminator, resolution);
@@ -99,6 +100,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one instruction intrinsic through its family emitter.
     fn lower_instruction_intrinsic(
         &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
         instruction: IntrinsicInstruction,
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
@@ -127,7 +129,11 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             IntrinsicInstruction::Drop => {
                 let value = self.argument_value(resolution, 0)?;
-                self.builder.drop_value(value);
+                let dropped = self.builder.drop_value(value);
+
+                // anchor the authored drop call at its written extent
+                let span = self.source().tree().get_source_extent(expression);
+                self.builder.tree_mut().set_span(dropped, span);
 
                 Ok(None)
             }

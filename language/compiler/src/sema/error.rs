@@ -1447,6 +1447,23 @@ pub enum CheckError {
         name: String,
     },
 
+    /// Drop conformance is declared on an extension whose parameters do not
+    /// mirror its target.
+    ///
+    /// ```ds
+    /// extension<U> of Guard<Vec<U>> implements Drop { ... }
+    /// ```
+    #[diagnostic(
+        id = "unmapped-drop-conformance",
+        message = "Drop conformance requires the extension parameters to mirror its target"
+    )]
+    UnmappedDropConformance {
+        /// Report the conforming extension declaration.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     /// Static guard is not invoked in its intrinsic form.
     ///
     /// ```ds

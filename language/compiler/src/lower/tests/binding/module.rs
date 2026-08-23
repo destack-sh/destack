@@ -127,3 +127,48 @@ entry:
 "#,
     );
 }
+
+/// Pair a generic extension's drop hook with each nominal specialization.
+#[test]
+fn test_pair_generic_extension_drop_hook() {
+    let session = TestSession::single(
+        r#"
+import { Drop, drop } from "destack:memory";
+
+struct Guard<T> {
+    value: T;
+}
+
+extension<T> of Guard<T> implements Drop {
+    drop(&exclusive this): void {}
+}
+
+function consume(guard: Guard<int32>): void {
+    drop(guard);
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+type Guard<int32> {
+    value: int32;
+}
+
+function test.main.consume(v0: Guard<int32>): void {
+entry(v0: Guard<int32>):
+    drop v0
+    return
+}
+
+function test.main.drop<int32, 'a>(v0: ref<Guard<int32>, borrowed, 'a, exclusive>): void {
+entry(v0: ref<Guard<int32>, borrowed, 'a, exclusive>):
+    return
+}
+
+/// @layout.struct name=Guard<int32> size=4 align=4
+/// @layout.field owner=Guard<int32> index=0 name=value offset=0 size=4 align=4
+"#,
+    );
+}

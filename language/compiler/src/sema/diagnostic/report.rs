@@ -283,6 +283,18 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
+    /// Report a Drop conformance whose extension parameters cannot map.
+    pub(in crate::sema) fn report_unmapped_drop_conformance(
+        &mut self,
+        module: ModuleId,
+        owner: dir::GlobalSymbolId,
+    ) {
+        let anchor = DiagnosticAnchor::Symbol(owner);
+        let diagnostic = CheckError::UnmappedDropConformance { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
     /// Report a missing explicit method receiver.
     pub(in crate::sema) fn report_missing_explicit_receiver(
         &mut self,
