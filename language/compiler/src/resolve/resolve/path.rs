@@ -123,6 +123,14 @@ impl ResolveState<'_> {
         }
 
         let Some(resolutions) = self.imports.global_resolutions(key) else {
+            // an unbound name spelling a builtin type literal resolves to it
+            if let Some(literal) = dir::TypeLiteral::from_name(self.strings.get(root)) {
+                return Ok(PathSegmentResolution {
+                    declaration: dir::Reference::TypeLiteral(literal.clone()),
+                    target: dir::Reference::TypeLiteral(literal),
+                });
+            }
+
             return Ok(PathSegmentResolution {
                 declaration: dir::Reference::Missing,
                 target: dir::Reference::Missing,

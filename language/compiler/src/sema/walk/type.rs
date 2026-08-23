@@ -777,6 +777,31 @@ impl WalkState<'_, '_> {
     }
 
     /// Return the resolver output for one type reference.
+    /// Walk one generic argument's type expression, keeping a bare value
+    /// binding reference symbolic for its parameter slot to interpret.
+    pub(in crate::sema) fn walk_argument_type_expression(
+        &mut self,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // recognize a bare reference naming one value binding
+        if let dir::TypeExpression::Reference {
+            generic_arguments, ..
+        } = self.tree.get(id)
+            && generic_arguments.is_empty()
+            && let Some(dir::Reference::Bound(symbols)) = self.resolved_type_reference(id)
+            && let [symbol] = self.check.present_symbols(&symbols).as_slice()
+            && self.check.symbol_kind(*symbol)?.is_binding()
+        {
+            let symbol = *symbol;
+            let source = id.into_global_any(self.module);
+            self.commit_reference_name(source, symbol)?;
+
+            return self.build_application_type(id.into_any(), symbol, &[], &[]);
+        }
+
+        self.walk_type_expression(id)
+    }
+
     fn resolved_type_reference(
         &self,
         id: dir::LocalNodeId<dir::TypeExpression>,
@@ -914,12 +939,61 @@ impl WalkState<'_, '_> {
             self.check.import_external_module(symbol.module_id)?;
         }
 
+        // reject a value binding written in type position
+        if self.check.symbol_kind(symbol)?.is_binding() {
+            let name = self.check.format_symbol(symbol);
+            self.check
+                .report_value_used_as_type(self.module, source, name);
+
+            return self.intern_type(dir::Type::Error);
+        }
+
         // bind written arguments to the declaration's parameter slots
         let Some(arguments) = self.bind_written_arguments(source, symbol, applied)? else {
             return self.intern_type(dir::Type::Error);
         };
 
         self.build_application_type(source, symbol, &arguments, applied)
+    }
+
+    /// Return the value binding one symbolic argument application names.
+    fn written_binding_symbol(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        let dir::Type::Application(instance) = self.check.ty(ty)? else {
+            return Ok(None);
+        };
+        if !instance.arguments.is_empty() {
+            return Ok(None);
+        }
+        let is_binding = self.check.symbol_kind(instance.symbol)?.is_binding();
+
+        Ok(is_binding.then_some(instance.symbol))
+    }
+
+    /// Resolve one const slot's value binding to its static value.
+    fn static_binding_argument(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+        symbolic: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the committed term's singleton type
+        if let Some(value) = self.check.static_value(symbol) {
+            return Ok(value);
+        }
+
+        // keep the reference symbolic while declaring
+        if self.check.is_declaration() {
+            return Ok(symbolic);
+        }
+
+        // report values the static evaluator cannot decide
+        self.check
+            .report_undecidable_static_value(self.module, source);
+
+        self.intern_type(dir::Type::Error)
     }
 
     /// Bind written arguments to a declaration's parameter slots in order.
@@ -968,6 +1042,23 @@ impl WalkState<'_, '_> {
             {
                 let argument = written[cursor].ty;
                 cursor += 1;
+
+                // interpret a value binding argument by the slot's kind
+                let argument = match self.written_binding_symbol(argument)? {
+                    // resolve a const slot's binding to its static value
+                    Some(value) if binding.is_const => {
+                        self.static_binding_argument(source, value, argument)?
+                    }
+                    // reject a value binding filling a type slot
+                    Some(value) => {
+                        let name = self.check.format_symbol(value);
+                        self.check
+                            .report_value_used_as_type(self.module, source, name);
+
+                        self.intern_type(dir::Type::Error)?
+                    }
+                    None => argument,
+                };
 
                 // a rigid argument parameter inherits the callee slot's cardinality
                 if self.imposes_requirements

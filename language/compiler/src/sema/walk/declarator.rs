@@ -434,6 +434,15 @@ impl CheckState<'_> {
                     _ => false,
                 })
             }
+            // Position { x: 1, y: 2 }, the head names the transcribed type
+            dir::Expression::StructExpression { properties, .. } => {
+                properties.iter().all(|property| match tree.get(*property) {
+                    dir::Property::Field { value, .. } => {
+                        self.is_transcribable_literal(module, *value)
+                    }
+                    _ => false,
+                })
+            }
             _ => false,
         }
     }

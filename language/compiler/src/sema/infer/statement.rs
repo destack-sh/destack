@@ -788,6 +788,18 @@ impl BodyState<'_, '_> {
             }
         }
 
+        // commit a module constant's static term beside its checked initializer
+        if !self.is_declaration()
+            && binding_kind == Some(dir::LetKind::Const)
+            && let Some(value) = declarator.value
+            && let Some(symbol) = self
+                .check
+                .module(module)
+                .declaration_symbol(pattern.into_any())
+        {
+            self.check.commit_constant_term(symbol, value)?;
+        }
+
         // mark the declared and ambient bindings assigned
         {
             let node = self.module(module).view().get(id).clone();

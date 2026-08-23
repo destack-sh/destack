@@ -16,6 +16,7 @@ mod relate;
 mod select;
 mod solve;
 mod state;
+mod r#static;
 mod walk;
 mod warning;
 

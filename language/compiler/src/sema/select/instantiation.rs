@@ -23,6 +23,38 @@ pub(in crate::sema) enum TypeArgumentInference<'a> {
 }
 
 impl CheckState<'_> {
+    /// Interpret one written argument for a parameter slot.
+    ///
+    /// A const slot resolves a value binding to its static value; a type slot
+    /// rejects value bindings, refusing the candidate.
+    fn slot_written_argument(
+        &mut self,
+        binding: &dir::GenericParameterBinding,
+        written: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // pass every argument except a symbolic value binding through
+        let dir::Type::Application(instance) = self.ty(written)? else {
+            return Ok(Some(written));
+        };
+        if !instance.arguments.is_empty() || !self.symbol_kind(instance.symbol)?.is_binding() {
+            return Ok(Some(written));
+        }
+
+        // resolve a const slot's binding to its committed static value
+        if binding.is_const {
+            if let Some(value) = self.static_value(instance.symbol) {
+                return Ok(Some(value));
+            }
+
+            // keep the reference symbolic while declaring
+            if self.is_declaration() {
+                return Ok(Some(written));
+            }
+        }
+
+        Ok(None)
+    }
+
     /// Bind explicit arguments and declared defaults to one template.
     pub(in crate::sema) fn bind_explicit_arguments(
         &mut self,
@@ -42,7 +74,11 @@ impl CheckState<'_> {
             let binding = *self.require_generic_parameter(parameter)?;
             let is_explicit = matches!(binding.origin, dir::GenericParameterOrigin::Explicit);
             if binding.is_writable() && cursor < written.len() {
-                substitution.bind(parameter, written[cursor])?;
+                // interpret a value binding argument by the slot's kind
+                let Some(argument) = self.slot_written_argument(&binding, written[cursor])? else {
+                    return Ok(None);
+                };
+                substitution.bind(parameter, argument)?;
                 cursor += 1;
 
                 continue;
@@ -98,7 +134,11 @@ impl CheckState<'_> {
             }
             let binding = *self.require_generic_parameter(parameter)?;
             if binding.is_writable() && cursor < written.len() {
-                substitution.bind(parameter, written[cursor])?;
+                // interpret a value binding argument by the slot's kind
+                let Some(argument) = self.slot_written_argument(&binding, written[cursor])? else {
+                    return Ok(None);
+                };
+                substitution.bind(parameter, argument)?;
                 cursor += 1;
 
                 continue;

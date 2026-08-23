@@ -89,6 +89,22 @@ impl BodyState<'_, '_> {
 
                 Ok(())
             }
+            // type T
+            dir::Expression::Type { value } => {
+                self.walk_body_guard_type_expression(node.module_id, value)?;
+                let represented = self
+                    .check
+                    .committed_node_type(value.into_global_any(node.module_id))
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: format!("type expression {value:?} committed no type"),
+                    })?;
+                let reflected = self
+                    .check
+                    .language_type(dir::LanguageItem::Type, &[represented])?;
+                self.commit_node_type(node.into_any(), reflected)?;
+
+                Ok(())
+            }
             dir::Expression::TemplateExpression { value } => {
                 let ty = self.template_expression_type(site, value, mode == InferMode::Const)?;
                 self.commit_node_type(node.into_any(), ty)?;

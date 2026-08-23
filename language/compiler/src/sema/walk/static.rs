@@ -305,6 +305,12 @@ impl WalkState<'_, '_> {
                     .resolved
                     .references
                     .get(expression.into_global_any(self.module));
+                // a type literal name stands as its denoted type
+                if let Some(dir::Reference::TypeLiteral(literal)) = reference {
+                    let ty = self.intern_type(dir::Type::from(literal.clone()))?;
+
+                    return self.bind_static_term(expression, ty);
+                }
                 let symbol = match reference {
                     Some(dir::Reference::Bound(symbols)) => {
                         let symbols = self.check.present_symbols(symbols);
@@ -313,7 +319,8 @@ impl WalkState<'_, '_> {
                             _ => None,
                         }
                     }
-                    Some(dir::Reference::Missing)
+                    Some(dir::Reference::TypeLiteral(_))
+                    | Some(dir::Reference::Missing)
                     | Some(dir::Reference::Namespace { .. })
                     | Some(dir::Reference::Projected { .. })
                     | Some(dir::Reference::Ambiguous(_))

@@ -149,7 +149,7 @@ impl WalkState<'_, '_> {
                     }
                 }
             }
-            dir::Reference::Missing => {
+            dir::Reference::TypeLiteral(_) | dir::Reference::Missing => {
                 self.check
                     .reject_unresolved_reference(self.module, target.into_any(), &path);
 

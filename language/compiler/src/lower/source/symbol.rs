@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::lower::ModuleLowerer;
+use crate::lower::{LowerError, ModuleLowerer};
 use crate::{CompilerError, CompilerResult};
 
 impl ModuleLowerer<'_> {
@@ -74,9 +74,18 @@ impl ModuleLowerer<'_> {
             return Ok(symbol);
         }
 
-        state
-            .resolutions
-            .name_resolution(node)
+        let resolution = state.resolutions.name_resolution(node);
+
+        // report a type literal name read as a runtime value
+        if resolution.is_some_and(|resolution| resolution.denoted_type().is_some()) {
+            return Err(LowerError::Unsupported {
+                anchor: self.module.into(),
+                construct: "a type literal used as a runtime value".to_string(),
+            }
+            .into());
+        }
+
+        resolution
             .and_then(|resolution| resolution.single_symbol())
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("missing a name resolution for node {}", node.local_id.id),

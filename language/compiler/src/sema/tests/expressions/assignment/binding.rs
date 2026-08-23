@@ -697,3 +697,32 @@ const b = a;
 "#,
     );
 }
+
+/// Reject a type literal name as an assignment target.
+#[test]
+fn test_type_literal_rejects_assignment() {
+    let session = TestSession::single(
+        r#"
+int = 5;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+int = 5;
+
+=== dir ===
+int = 5;
+/// @type.node source="int = 5" type=<error>
+/// @type.node source=int type=<error>
+/// @resolution.rejected source=int
+"#,
+        r#"
+/// @diagnostic.error id=non-writable-assignment-target message="assignment target is not a writable place"
+/// @diagnostic.label line=2 column=1 span="int" line_source="int = 5;"
+"#,
+    );
+}

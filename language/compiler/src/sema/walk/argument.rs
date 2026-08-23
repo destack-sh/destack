@@ -78,14 +78,14 @@ impl WalkState<'_, '_> {
             // <T> and <...T>
             dir::GenericArgument::Type { value } | dir::GenericArgument::SpreadType { value } => (
                 None,
-                self.walk_type_expression(*value)?,
+                self.walk_argument_type_expression(*value)?,
                 value.into_global_any(self.module),
             ),
             // <type Item = T> and <const Size = N>
             dir::GenericArgument::AssociatedType { name, value }
             | dir::GenericArgument::AssociatedConst { name, value } => (
                 Some(*name),
-                self.walk_type_expression(*value)?,
+                self.walk_argument_type_expression(*value)?,
                 value.into_global_any(self.module),
             ),
             // keep the argument arity visible to solve

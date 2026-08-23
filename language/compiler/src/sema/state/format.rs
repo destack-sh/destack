@@ -661,8 +661,53 @@ impl CheckState<'_> {
 
     /// Format one committed static value.
     fn format_static(&self, value: dir::GlobalStaticId) -> String {
-        match self.r#static(value) {
+        self.format_static_term(self.r#static(value))
+    }
+
+    /// Format one static term with its structural payload.
+    fn format_static_term(&self, term: &dir::StaticTerm) -> String {
+        match term {
             dir::StaticTerm::Literal { value } => self.format_scalar_literal(value),
+            dir::StaticTerm::Object { properties } => {
+                let fields = properties
+                    .iter()
+                    .filter_map(dir::StaticProperty::as_field)
+                    .map(|(key, value)| {
+                        format!(
+                            "{}: {}",
+                            self.format_static_key(&key),
+                            self.format_static_term(value)
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("; ");
+
+                if fields.is_empty() {
+                    "{}".to_string()
+                } else {
+                    format!("{{ {fields} }}")
+                }
+            }
+            dir::StaticTerm::Struct { ty, properties } => {
+                let fields = properties
+                    .iter()
+                    .filter_map(dir::StaticProperty::as_field)
+                    .map(|(key, value)| {
+                        format!(
+                            "{}: {}",
+                            self.format_static_key(&key),
+                            self.format_static_term(value)
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("; ");
+
+                if fields.is_empty() {
+                    format!("{} {{}}", self.format_type(*ty))
+                } else {
+                    format!("{} {{ {fields} }}", self.format_type(*ty))
+                }
+            }
             _ => "static".to_string(),
         }
     }

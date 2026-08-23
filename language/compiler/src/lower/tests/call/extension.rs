@@ -149,3 +149,38 @@ entry(v0: int32):
 "#,
     );
 }
+
+/// Lower a static call selected through a type literal receiver.
+#[test]
+fn test_lower_static_call_through_type_literal_receiver() {
+    let session = TestSession::single(
+        r#"
+extension of int32 {
+    static top(): int32 {
+        return 5;
+    }
+}
+
+function greatest(): int32 {
+    return int32.top();
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+function test.main.Number.top(): int32 {
+entry:
+    v0: int32 = 5
+    return v0
+}
+
+function test.main.greatest(): int32 {
+entry:
+    v0: int32 = call test.main.Number.top(): () => int32
+    return v0
+}
+"#,
+    );
+}

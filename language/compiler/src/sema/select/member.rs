@@ -738,7 +738,15 @@ impl BodyState<'_, '_> {
         let mut space = self.member_receiver_space(receiver_node, target)?;
         let mut subject = target;
 
-        // static type aliases look up through their declaration reference
+        // subject a Type<T> receiver to the statics of T
+        if let dir::Type::Application(instance) = self.ty(target)?
+            && self.language_item(instance.symbol)? == Some(dir::LanguageItem::Type)
+            && let [argument] = self.type_ids(target.module_id, instance.arguments)?
+        {
+            subject = *argument;
+        }
+
+        // static type aliases look up statics through their declaration reference
         let resolution = self
             .resolutions(receiver_node.module_id)
             .name_resolution(receiver_node)

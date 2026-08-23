@@ -120,9 +120,96 @@ const value = anchor<ZERO>();
 /// @resolution.name source=ZERO target=ZERO
 "#,
         r#"
-/// @diagnostic.error id=constraint-not-satisfied message="type 'static' does not satisfy 'Position'"
-/// @diagnostic.label line=11 column=15 span="anchor<ZERO>()" line_source="const value = anchor<ZERO>();"
-/// @diagnostic.related line=9 column=31 span="P" line_source="declare function anchor<const P: Position>(): int32;" message="required by this bound on 'P'"
+"#,
+    );
+}
+
+/// Share one instantiation across struct consts written in different field orders.
+#[test]
+fn test_share_instantiation_across_field_orders() {
+    let session = TestSession::single(
+        r#"
+struct Position {
+    x: int32;
+    y: int32;
+}
+
+const ZERO = Position { x: 0, y: 0 };
+const SWAPPED = Position { y: 0, x: 0 };
+
+declare function anchor<const P: Position>(): int32;
+
+const left = anchor<ZERO>();
+const right = anchor<SWAPPED>();
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Position {
+    x: int32;
+    y: int32;
+}
+
+const ZERO: Position = Position { x: 0, y: 0 };
+const SWAPPED: Position = Position { y: 0, x: 0 };
+
+declare function anchor<const P: Position>(): int32;
+
+const left: int32 = anchor<ZERO>();
+const right: int32 = anchor<SWAPPED>();
+
+=== dir ===
+struct Position {
+/// @type.symbol symbol=Position type=Position
+/// @definition.struct symbol=Position
+/// @definition.field symbol=Position.x source="x: int32" key=x type=int32
+/// @definition.field symbol=Position.y source="y: int32" key=y type=int32
+
+    x: int32;
+    /// @type.symbol symbol=Position.x source="x: int32" type=int32
+
+    y: int32;
+    /// @type.symbol symbol=Position.y source="y: int32" type=int32
+
+}
+
+const ZERO = Position { x: 0, y: 0 };
+/// @type.symbol symbol=ZERO source=ZERO type=Position
+/// @resolution.pattern source=ZERO kind=binding target=ZERO
+/// @resolution.name source=Position target=Position
+
+const SWAPPED = Position { y: 0, x: 0 };
+/// @type.symbol symbol=SWAPPED source=SWAPPED type=Position
+/// @resolution.pattern source=SWAPPED kind=binding target=SWAPPED
+/// @resolution.name source=Position target=Position
+
+declare function anchor<const P: Position>(): int32;
+/// @generic.template symbol=anchor parameters=(const P: Position)
+/// @type.symbol symbol=anchor source="declare function anchor<const P: Position>(): int32" type=<const P: Position>() => int32
+/// @type.symbol symbol=anchor.P source="const P: Position" type=P
+/// @resolution.name source=Position target=Position
+
+const left = anchor<ZERO>();
+/// @type.symbol symbol=left source=left type=int32
+/// @resolution.pattern source=left kind=binding target=left
+/// @resolution.name source=anchor target=anchor
+/// @resolution.call source=anchor<ZERO>() parameters=() return=int32 kind=symbol target=anchor instance="anchor<Position { x: 0; y: 0 }>"
+/// @generic.instantiation id="anchor<Position { x: 0; y: 0 }>" template=anchor arguments=(Position { x: 0; y: 0 })
+/// @resolution.name source=ZERO target=ZERO
+
+const right = anchor<SWAPPED>();
+/// @type.symbol symbol=right source=right type=int32
+/// @resolution.pattern source=right kind=binding target=right
+/// @resolution.name source=anchor target=anchor
+/// @resolution.call source=anchor<SWAPPED>() parameters=() return=int32 kind=symbol target=anchor instance="anchor<Position { x: 0; y: 0 }>"
+/// @generic.instantiation id="anchor<Position { x: 0; y: 0 }>" template=anchor arguments=(Position { x: 0; y: 0 })
+/// @resolution.name source=SWAPPED target=SWAPPED
+"#,
+        r#"
 "#,
     );
 }
@@ -170,6 +257,62 @@ const value = anchor<SIZE>();
 /// @resolution.name source=SIZE target=SIZE
 "#,
         r#"
+"#,
+    );
+}
+
+/// Reject a value binding written as a plain type annotation.
+#[test]
+fn test_reject_value_binding_as_annotation() {
+    let session = TestSession::single(
+        r#"
+struct Position {
+    x: int32;
+}
+
+const ZERO = Position { x: 0 };
+
+declare const probe: ZERO;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Position {
+    x: int32;
+}
+
+const ZERO: Position = Position { x: 0 };
+
+declare const probe: ZERO;
+
+=== dir ===
+struct Position {
+/// @type.symbol symbol=Position type=Position
+/// @definition.struct symbol=Position
+/// @definition.field symbol=Position.x source="x: int32" key=x type=int32
+
+    x: int32;
+    /// @type.symbol symbol=Position.x source="x: int32" type=int32
+
+}
+
+const ZERO = Position { x: 0 };
+/// @type.symbol symbol=ZERO source=ZERO type=Position
+/// @resolution.pattern source=ZERO kind=binding target=ZERO
+/// @resolution.name source=Position target=Position
+
+declare const probe: ZERO;
+/// @type.symbol symbol=probe source=probe type=<error>
+/// @resolution.pattern source=probe kind=binding target=probe
+/// @resolution.name source=ZERO target=ZERO
+"#,
+        r#"
+/// @diagnostic.error id=value-used-as-type message="expected a type, found value 'ZERO'"
+/// @diagnostic.label line=8 column=22 span="ZERO" line_source="declare const probe: ZERO;"
 "#,
     );
 }

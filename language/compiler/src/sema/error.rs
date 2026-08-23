@@ -1428,6 +1428,25 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// Value binding stands in type position.
+    ///
+    /// ```ds
+    /// const ZERO = 0;
+    /// declare const broken: ZERO;
+    /// ```
+    #[diagnostic(
+        id = "value-used-as-type",
+        message = "expected a type, found value '{name}'"
+    )]
+    ValueUsedAsType {
+        /// Report the written reference.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The named value binding.
+        name: String,
+    },
+
     /// Static guard is not invoked in its intrinsic form.
     ///
     /// ```ds

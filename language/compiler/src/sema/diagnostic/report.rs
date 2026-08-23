@@ -266,6 +266,23 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
+    /// Report a value binding written in type position.
+    pub(in crate::sema) fn report_value_used_as_type(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        name: String,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::ValueUsedAsType {
+            anchor,
+            module,
+            name,
+        };
+
+        self.report(module, diagnostic);
+    }
+
     /// Report a missing explicit method receiver.
     pub(in crate::sema) fn report_missing_explicit_receiver(
         &mut self,

@@ -49,6 +49,13 @@ impl BodyState<'_, '_> {
             return Ok(dir::MemberSpace::Static);
         }
 
+        // select statics through a Type<T> receiver
+        if let dir::Type::Application(instance) = self.ty(ty)?
+            && self.language_item(instance.symbol)? == Some(dir::LanguageItem::Type)
+        {
+            return Ok(dir::MemberSpace::Static);
+        }
+
         // read the declaration the receiver expression names, if any
         let symbol = match self.name_decision(receiver) {
             Some(resolution) => match resolution.symbols() {
@@ -100,7 +107,7 @@ impl BodyState<'_, '_> {
         Ok(keys.into_iter().collect())
     }
 
-    /// Look one member up on a settled subject, sharing the canonical answer.
+    /// Look one member up on a resolved subject, sharing the canonical answer.
     pub(in crate::sema) fn lookup_member(
         &mut self,
         origin: Origin,
@@ -119,7 +126,7 @@ impl BodyState<'_, '_> {
             false,
         )?;
 
-        // replay the decided answer at this ask's live roots
+        // reuse the stored answer, instantiated over this ask's inference variables
         if let Some((question, canonical)) = &asked
             && let Some(Answer::Member(response)) = self.check.answers.get(question).cloned()
         {

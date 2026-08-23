@@ -31,7 +31,8 @@ impl ModuleLowerer<'_> {
                 }
                 .into());
             };
-            let Some(term) = self.module_constant(symbol)? else {
+            let term = self.module_constant(symbol)?.filter(Self::is_constant_term);
+            let Some(term) = term else {
                 // store runtime bindings from the module initializer
                 let Some(value) = self.local().tree().get(*declarator).value else {
                     return Err(CompilerError::Internal {
@@ -126,6 +127,16 @@ impl ModuleLowerer<'_> {
         Ok(format!("{path}.{}", self.strings.get(name)))
     }
 
+    /// Return whether one static term lowers to a constant initializer.
+    fn is_constant_term(term: &dir::StaticTerm) -> bool {
+        match term {
+            dir::StaticTerm::Literal { .. } => true,
+            dir::StaticTerm::Newtype { value, .. } => Self::is_constant_term(value),
+            dir::StaticTerm::Tuple { elements } => elements.iter().all(Self::is_constant_term),
+            _ => false,
+        }
+    }
+
     /// Build the initializer of one constant from its evaluated term.
     fn constant_initializer(
         &mut self,
@@ -188,11 +199,10 @@ impl ModuleLowerer<'_> {
                 Ok(mir::GlobalInitializer::Aggregate(values))
             }
 
-            _ => Err(LowerError::Unsupported {
-                anchor: self.module.into(),
-                construct: "a composite module constant".to_string(),
-            }
-            .into()),
+            // declaration filters route every other term to the module initializer
+            _ => Err(CompilerError::Internal {
+                message: "a non-constant term reached constant lowering".to_string(),
+            }),
         }
     }
 

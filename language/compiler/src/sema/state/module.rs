@@ -1196,7 +1196,7 @@ impl CheckState<'_> {
             let id = table.get_symbol_static_id(symbol)?;
             let term = table.get_static_maybe(id.local_id)?.clone();
 
-            return self.static_term_type(&term);
+            return self.static_singleton(id, &term);
         }
 
         // read foreign settled terms through the loaded external tables
@@ -1204,7 +1204,24 @@ impl CheckState<'_> {
         let id = external.statics.get_symbol_static_id(symbol)?;
         let term = external.statics.get_static_maybe(id.local_id)?.clone();
 
-        self.static_term_type(&term)
+        self.static_singleton(id, &term)
+    }
+
+    /// Return the singleton type of one committed static.
+    fn static_singleton(
+        &mut self,
+        id: dir::GlobalStaticId,
+        term: &dir::StaticTerm,
+    ) -> Option<dir::GlobalTypeId> {
+        if let Some(direct) = self.static_term_type(term) {
+            return Some(direct);
+        }
+
+        // struct terms read as the singleton of their committed static
+        match term {
+            dir::StaticTerm::Struct { .. } => self.intern_type(dir::Type::Static(id)).ok(),
+            _ => None,
+        }
     }
 
     /// Return the singleton type of one settled static term.

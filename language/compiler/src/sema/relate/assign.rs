@@ -377,6 +377,13 @@ impl CheckState<'_> {
             {
                 self.relate_reference_construct_assignable(origin, cause, relation, source, target)?
             }
+            // satisfy a target from a struct static's carrier type
+            (dir::Type::Static(value), _)
+                if !matches!(self.ty(target)?, dir::Type::Static(_))
+                    && let dir::StaticTerm::Struct { ty, .. } = self.r#static(value).clone() =>
+            {
+                self.constrain_type(origin, cause, relation, ty, target)?
+            }
             // satisfy a bare construct signature from a class value's static side
             (dir::Type::Static(value), dir::Type::FunctionSignature(_))
                 if self
