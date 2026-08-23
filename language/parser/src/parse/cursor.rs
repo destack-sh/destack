@@ -1,5 +1,5 @@
 use crate::{CommentRetention, Lexer, Tokenizer};
-use destack_dir::{Comment, Keyword, Token, TokenLiteral, TokenType};
+use destack_dir::{Comment, Keyword, Token, TokenLiteral, TokenType, is_identifier_continue};
 use destack_source::{ByteRange, File};
 use std::mem;
 use std::sync::Arc;
@@ -275,10 +275,14 @@ impl TokenCursor {
             }
         }
 
-        // consume ASCII flags
+        // consume authored flag identifier characters
         let flags_start = index;
-        while bytes.get(index).is_some_and(u8::is_ascii_alphabetic) {
-            index += 1;
+        while let Some(character) = source[index..].chars().next() {
+            if !is_identifier_continue(character) {
+                break;
+            }
+
+            index += character.len_utf8();
         }
 
         let end = index as u32;

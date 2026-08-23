@@ -3,7 +3,6 @@ use std::borrow::Cow;
 use crate::lex::{InvalidEscape, cook};
 
 use crate::lex::decode_html_entity;
-use crate::parse::{RegexFlags, RegexPattern};
 use crate::{Parser, ParserError, ParserResult};
 
 use destack_dir::{Literal, NodeType, NumberBase, TokenLiteral, TokenSpan, TokenType};
@@ -391,10 +390,21 @@ impl Parser {
                 Ok(Literal::String(string_id))
             }
 
-            // regex string literal (ignore quotes)
+            // regular expression literal
             TokenLiteral::RegexString { has_flags } => {
-                // regex literals require a closing slash
-                if !literal_str.starts_with('/') {
+                // require opening and closing delimiters
+                let closing = literal_str.rfind('/');
+                let Some(closing) = closing.filter(|closing| *closing > 0) else {
+                    return Err(ParserError::expected(
+                        literal_span.span.range(),
+                        TokenType::Literal,
+                    )
+                    .in_node(NodeType::Expression));
+                };
+                if !literal_str.starts_with('/')
+                    || (!has_flags && closing + 1 != literal_str.len())
+                    || (has_flags && closing + 1 == literal_str.len())
+                {
                     return Err(ParserError::expected(
                         literal_span.span.range(),
                         TokenType::Literal,
@@ -402,79 +412,24 @@ impl Parser {
                     .in_node(NodeType::Expression));
                 }
 
-                // regex without flags
-                if !has_flags {
-                    if !literal_str.ends_with('/') || literal_str.len() < 2 {
-                        return Err(ParserError::expected(
-                            literal_span.span.range(),
-                            TokenType::Literal,
-                        )
-                        .in_node(NodeType::Expression));
-                    }
-
-                    let content = &literal_str[1..literal_str.len() - 1];
-                    let pattern = RegexPattern::new(content);
-                    if pattern.contains_line_terminator() {
-                        return Err(ParserError::expected(
-                            literal_span.span.range(),
-                            TokenType::Literal,
-                        )
-                        .in_node(NodeType::Expression));
-                    }
-                    let string_id = self.strings.intern(content);
-                    Ok(Literal::RegexString {
-                        content: string_id,
-                        flags: None,
-                    })
+                // reject raw line terminators
+                let content = &literal_str[1..closing];
+                if content
+                    .chars()
+                    .any(|character| matches!(character, '\n' | '\r' | '\u{2028}' | '\u{2029}'))
+                {
+                    return Err(ParserError::expected(
+                        literal_span.span.range(),
+                        TokenType::Literal,
+                    )
+                    .in_node(NodeType::Expression));
                 }
-                // regex with flags
-                else {
-                    let Some(last_slash_index) = literal_str.rfind('/') else {
-                        return Err(ParserError::expected(
-                            literal_span.span.range(),
-                            TokenType::Literal,
-                        )
-                        .in_node(NodeType::Expression));
-                    };
-                    if last_slash_index == 0 {
-                        return Err(ParserError::expected(
-                            literal_span.span.range(),
-                            TokenType::Literal,
-                        )
-                        .in_node(NodeType::Expression));
-                    }
 
-                    let content = &literal_str[1..last_slash_index];
-                    let flags = RegexFlags::new(&literal_str[last_slash_index + 1..]);
-                    let pattern = RegexPattern::new(content);
-                    if flags.is_empty() || pattern.contains_line_terminator() {
-                        return Err(ParserError::expected(
-                            literal_span.span.range(),
-                            TokenType::Literal,
-                        )
-                        .in_node(NodeType::Expression));
-                    }
-                    if !flags.is_valid() {
-                        return Err(ParserError::expected(
-                            literal_span.span.range(),
-                            TokenType::Literal,
-                        )
-                        .in_node(NodeType::Expression));
-                    }
-                    if !pattern.unicode_escapes_are_valid(&flags) {
-                        return Err(ParserError::expected(
-                            literal_span.span.range(),
-                            TokenType::Literal,
-                        )
-                        .in_node(NodeType::Expression));
-                    }
-                    let string_id = self.strings.intern(content);
-                    let flags_id = self.strings.intern(flags.source());
-                    Ok(Literal::RegexString {
-                        content: string_id,
-                        flags: Some(flags_id),
-                    })
-                }
+                // retain the authored pattern and flags
+                let content = self.strings.intern(content);
+                let flags = has_flags.then(|| self.strings.intern(&literal_str[closing + 1..]));
+
+                Ok(Literal::RegexString { content, flags })
             }
 
             // tree text content, raw text inside tree literals

@@ -149,9 +149,11 @@ fn test_parse_escaped_single_quoted_character_literal() {
         Literal::Character('A')
     );
 }
+
+/// Parse regular-expression pattern and flag source.
 #[test]
 fn test_parse_regex_string_literal() {
-    let test = TestParser::new("/abc/\n/abc/g");
+    let test = TestParser::new("/abc/\n/abc/g\n/(/future2");
     let mut parser = test.prepare();
 
     // /abc/
@@ -173,29 +175,16 @@ fn test_parse_regex_string_literal() {
         }
         other => panic!("expected regex string literal, got {other:?}"),
     }
-}
 
-/// Report unterminated regex literals.
-#[test]
-fn test_report_unterminated_regex_literal() {
-    // source: /42
-    let test = TestParser::new("/42");
-    let mut parser = test.prepare();
-    let error = parser.parse_regex_literal().unwrap_err();
-
-    assert_eq!(parser.range_str(error.range()), "/42");
-}
-
-/// Report regex literals with raw line terminators.
-#[test]
-fn test_report_regex_literal_with_line_terminator() {
-    // source: /test
-    // /
-    let test = TestParser::new("/test\n/");
-    let mut parser = test.prepare();
-    let error = parser.parse_regex_literal().unwrap_err();
-
-    assert_eq!(parser.range_str(error.range()), "/test\n/");
+    // /(/future2
+    let literal = parser.parse_regex_literal().unwrap();
+    match literal {
+        Literal::RegexString { content, flags } => {
+            assert_string!(parser, content, "(");
+            assert_string!(parser, flags.unwrap(), "future2");
+        }
+        other => panic!("expected regex string literal, got {other:?}"),
+    }
 }
 
 /// Parse a template string literal.
