@@ -13,8 +13,6 @@ declare_lint! {
         explanation: r#"
 Constructing a regular expression from constant strings defers a fixed pattern to runtime and doubles string escaping.
 Instead, you SHOULD use a regular expression literal when both the pattern and flags are constant.
-
-A literal validates its pattern while parsing the module, so the replacement requires review when runtime validation is intentional.
 "#,
         example: {
             reported: r#"
@@ -98,7 +96,7 @@ fn constant_arguments<'a>(
     Ok(Some((module.dir.strings.get(pattern), flags)))
 }
 
-/// Build a valid regex literal from one constant pattern and flag string.
+/// Build one regex literal from constant pattern and flag strings.
 fn regex_literal(pattern: &str, flags: &str) -> Option<String> {
     if !valid_flags(flags) {
         return None;
