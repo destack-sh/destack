@@ -73,6 +73,42 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
+    /// Report a keyed write landed by a setter call through a temporary Map.
+    #[test]
+    fn test_reports_temporary_map_entry() {
+        let session = TestSession::dir(
+            &NO_TEMPORARY_ASSIGNMENT,
+            r#"
+import { Map } from "destack:collections";
+
+function discard(): void {
+    entries()["key"] = 1;
+}
+
+function entries(): Map<string, int32> {
+    return new Map<string, int32>();
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-temporary-assignment]: assignment mutates a temporary value
+ ──▶ main.ds:4:5
+  │
+2 │
+3 │ function discard(): void {
+4 │     entries()["key"] = 1;
+  │     ^^^^^^^^^^^^^^^^
+5 │ }
+6 │
+  │
+
+ = help: bind the value before assigning into it
+"#,
+        );
+    }
+
     /// Report a field write through a temporary struct.
     #[test]
     fn test_reports_temporary_member() {
@@ -104,11 +140,9 @@ function values(): int32[] {
   │     ^^^^^^^^^^^
 3 │ }
 4 │
-5 │ function values(): int32[] {
-6 │     return [1, 2, 3];
-7 │ }
   │
-  = help: bind the value before assigning into it
+
+ = help: bind the value before assigning into it
 "#,
         );
     }
@@ -122,6 +156,39 @@ function values(): int32[] {
         );
 
         session.assert_no_diagnostics();
+    }
+
+    /// Report a setter-landed write through a temporary receiver.
+    #[test]
+    fn test_reports_temporary_setter_receiver() {
+        let session = TestSession::dir(
+            &NO_TEMPORARY_ASSIGNMENT,
+            r#"
+class Cell {
+    set value(next: int32) {}
+}
+
+function discard(): void {
+    new Cell().value = 1;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-temporary-assignment]: assignment mutates a temporary value
+ ──▶ main.ds:6:5
+  │
+4 │
+5 │ function discard(): void {
+6 │     new Cell().value = 1;
+  │     ^^^^^^^^^^^^^^^^
+7 │ }
+  │
+
+ = help: bind the value before assigning into it
+"#,
+        );
     }
 
     /// Accept a setter call whose receiver retains the effect.

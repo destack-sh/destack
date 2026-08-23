@@ -1242,6 +1242,25 @@ pub enum WriteResolution {
 }
 
 impl WriteResolution {
+    /// Return whether this write lands in stored aggregate state.
+    ///
+    /// Subscript writes store by construction; member writes store through
+    /// projections, fields, and setter calls.
+    pub fn stores(&self) -> bool {
+        match self {
+            Self::Binding { .. } | Self::Dereference(_) => false,
+            Self::Member(member) => {
+                let arms = member.arms();
+                !arms.is_empty()
+                    && arms.iter().all(|access| match &access.target {
+                        MemberTarget::Call(_) => true,
+                        target => target.is_stored(),
+                    })
+            }
+            Self::Subscript(_) => true,
+        }
+    }
+
     /// Return the value type accepted by this write.
     pub fn ty(&self) -> GlobalTypeId {
         match self {

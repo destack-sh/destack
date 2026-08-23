@@ -17,12 +17,7 @@ impl DirModule<'_> {
         })?;
 
         // require a member or element backed by stored state
-        let is_stored = match &resolution.write {
-            dir::WriteResolution::Member(member) => member.is_stored(),
-            dir::WriteResolution::Subscript(subscript) => subscript.is_stored(),
-            dir::WriteResolution::Binding { .. } | dir::WriteResolution::Dereference(_) => false,
-        };
-        if !is_stored {
+        if !resolution.write.stores() {
             return Ok(None);
         }
 
