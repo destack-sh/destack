@@ -199,6 +199,16 @@ impl Type {
         matches!(self, Self::Undefined | Self::Literal(Literal::Undefined))
     }
 
+    /// Return whether this is the unit type.
+    pub fn is_unit(&self) -> bool {
+        matches!(self, Self::Void)
+            || matches!(
+                self,
+                Self::Tuple(tuple)
+                    if tuple.form == TupleForm::Tuple && tuple.elements.is_empty()
+            )
+    }
+
     /// Return whether runtime values of this type can carry memory placement.
     pub fn is_placeable(&self) -> bool {
         !matches!(
