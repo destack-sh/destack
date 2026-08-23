@@ -549,22 +549,38 @@ impl BodyState<'_, '_> {
         })
     }
 
-    /// Infer one expression that resolved to one lexical symbol.
+    /// Infer one name expression by its resolution.
     pub(in crate::sema) fn infer_name_expression(
         &mut self,
         site: FlowSite,
         resolution: &dir::NameResolution,
     ) -> CompilerResult<()> {
+        // narrow to the selected symbols, reflecting a type literal into Type<T>
+        let symbols = match resolution {
+            dir::NameResolution::Type(denoted) => {
+                let reflected = self
+                    .check
+                    .language_type(dir::LanguageItem::Type, &[*denoted])?;
+
+                return self.commit_node_type(site.node, reflected);
+            }
+            dir::NameResolution::Symbols(symbols) => symbols.as_slice(),
+        };
+
         // read of a const bound to a fresh literal stays fresh
-        if let [symbol] = resolution.symbols()
+        if let [symbol] = symbols
             && self.check.fresh_bindings.contains(symbol)
         {
             self.check.fresh_nodes.insert(site.node, None);
         }
 
         // reject a plural declaration group referenced without a selecting call
-        let [symbol] = resolution.symbols() else {
-            let symbol = resolution.symbols()[0];
+        let [symbol] = symbols else {
+            let Some(symbol) = symbols.first().copied() else {
+                return Err(CompilerError::Internal {
+                    message: format!("name resolution at {:?} selects no symbols", site.node),
+                });
+            };
             self.check.report_ambiguous_overload(site.node, symbol)?;
             let ty = self.intern_type(dir::Type::Error)?;
             self.commit_node_type(site.node, ty)?;
@@ -791,6 +807,15 @@ impl BodyState<'_, '_> {
 
                 Ok(None)
             }
+            // a type literal name resolves to its denoted type
+            Some(dir::Reference::TypeLiteral(literal)) => {
+                let denoted = self.intern_type(dir::Type::from(literal))?;
+                let resolution = dir::NameResolution::new_type(denoted);
+                self.check.commit_name(source, resolution.clone())?;
+
+                Ok(Some(resolution))
+            }
+
             // report a missing name
             Some(dir::Reference::Missing) | None => {
                 let path = self

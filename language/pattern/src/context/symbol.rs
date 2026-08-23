@@ -264,7 +264,7 @@ impl ProgramContext {
                     vec![dir::ReferenceTarget::Namespace(*module)]
                 }
                 dir::Reference::Ambiguous(targets) => targets.clone().into_vec(),
-                dir::Reference::Missing => Vec::new(),
+                dir::Reference::TypeLiteral(_) | dir::Reference::Missing => Vec::new(),
                 dir::Reference::Projected { .. } => {
                     return Err(ContextError::InvalidReference(source));
                 }

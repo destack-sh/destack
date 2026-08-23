@@ -17,6 +17,7 @@ impl ModuleQueryContext<'_> {
         if let Some(resolution) = self.decisions()?.subscript_decision(node_id) {
             selections.push(resolution.target_symbols());
         }
+
         // prefer a selected function value over the name resolution it decides
         let function_targets = self
             .decisions()?
@@ -31,12 +32,18 @@ impl ModuleQueryContext<'_> {
             .filter(|targets| !targets.is_empty());
         if let Some(targets) = function_targets {
             selections.push(targets);
-        } else if let Some(resolution) = self.resolutions()?.name_resolution(node_id) {
+        } else if let Some(resolution) = self.resolutions()?.name_resolution(node_id)
+            && resolution.denoted_type().is_none()
+        {
             selections.push(resolution.symbols().to_vec());
         }
+
+        // collect the implicit receiver an unqualified member read decided
         if let Some(resolution) = self.decisions()?.receiver_decision(node_id) {
             selections.push(vec![resolution.declaration]);
         }
+
+        // collect the label a control transfer explicitly names
         if let Some(symbol) = self.transfer_label_symbol(node_id)? {
             selections.push(vec![symbol]);
         }
@@ -155,7 +162,7 @@ impl ModuleQueryContext<'_> {
                 )));
             }
             dir::Reference::Ambiguous(targets) => targets.to_vec(),
-            dir::Reference::Missing => Vec::new(),
+            dir::Reference::TypeLiteral(_) | dir::Reference::Missing => Vec::new(),
         };
 
         Ok(targets)

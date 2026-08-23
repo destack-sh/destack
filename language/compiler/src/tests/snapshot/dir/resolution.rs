@@ -296,16 +296,23 @@ fn add_name_resolution_row(
         "name",
     )
     .optional_field("source", builder.name_resolution_source(node_id));
-    let symbols = resolution.symbols();
-    let row = if symbols.len() == 1 {
-        row.field("target", builder.symbol_path_label(symbols[0]))
-    } else {
-        row.list_field(
-            "target",
-            symbols
-                .iter()
-                .map(|symbol| builder.symbol_path_label(*symbol)),
-        )
+    let row = match resolution {
+        dir::NameResolution::Type(ty) => row
+            .type_field("target", builder.global_type_label(*ty))
+            .field("kind", "type"),
+        _ => {
+            let symbols = resolution.symbols();
+            if symbols.len() == 1 {
+                row.field("target", builder.symbol_path_label(symbols[0]))
+            } else {
+                row.list_field(
+                    "target",
+                    symbols
+                        .iter()
+                        .map(|symbol| builder.symbol_path_label(*symbol)),
+                )
+            }
+        }
     };
 
     builder.push(row);

@@ -21,7 +21,8 @@ impl CheckState<'_> {
                             _ => return None,
                         }
                     }
-                    dir::Reference::Missing
+                    dir::Reference::TypeLiteral(_)
+                    | dir::Reference::Missing
                     | dir::Reference::Namespace { .. }
                     | dir::Reference::Projected { .. }
                     | dir::Reference::Ambiguous(_) => return None,

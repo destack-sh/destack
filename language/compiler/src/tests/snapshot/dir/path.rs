@@ -54,6 +54,10 @@ impl DirSnapshotBuilder<'_> {
                     .field("kind", "namespace")
                     .field("module", self.module_path(*module))
             }
+            dir::Reference::TypeLiteral(literal) => SnapshotRow::new(anchor, "reference", column)
+                .field("source", source)
+                .field("kind", "literal")
+                .field("literal", format!("{literal:?}")),
             dir::Reference::Projected { base, from } => {
                 let base = match base {
                     dir::ReferenceTarget::Symbol(symbol) => self.symbol_path_label(*symbol),

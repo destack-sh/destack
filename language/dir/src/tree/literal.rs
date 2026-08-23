@@ -469,7 +469,7 @@ pub struct TemplateChunk {
 /// float64
 /// boolean
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum TypeLiteral {
     /// Never type `never`.
     Never,
@@ -495,9 +495,9 @@ pub enum TypeLiteral {
     Number,
     /// A widthless source alias for a sized scalar, like `int` for `int64`.
     Alias(ScalarAlias),
-    /// Width-spelled integer type, like `int32` or `usize`.
+    /// Integer type written with its width, like `int32` or `usize`.
     Integer(IntegerType),
-    /// Width-spelled floating-point type, like `float32`.
+    /// Floating-point type written with its width, like `float32`.
     Float(FloatType),
 }
 
@@ -516,6 +516,71 @@ impl From<PrimitiveType> for TypeLiteral {
 }
 
 impl TypeLiteral {
+    /// Return the always-available type literal with one name.
+    pub fn from_universal_name(name: &str) -> Option<Self> {
+        match name {
+            "undefined" => Some(Self::Undefined),
+            "unknown" => Some(Self::Unknown),
+            "null" => Some(Self::Null),
+            "any" => Some(Self::Any),
+            "never" => Some(Self::Never),
+            _ => None,
+        }
+    }
+
+    /// Return the contextual type-position literal with one name.
+    pub fn from_contextual_name(name: &str) -> Option<Self> {
+        match name {
+            "boolean" => Some(Self::Boolean),
+            "void" => Some(Self::Void),
+            "char" => Some(Self::Character),
+            "string" => Some(Self::String),
+            "bigint" => Some(Self::Bigint),
+            "number" => Some(Self::Number),
+            "int" => Some(Self::Alias(ScalarAlias::Int)),
+            "isize" => Some(Self::Integer(IntegerType::Pointer { is_signed: true })),
+            "uint" => Some(Self::Alias(ScalarAlias::Uint)),
+            "usize" => Some(Self::Integer(IntegerType::Pointer { is_signed: false })),
+            "float" => Some(Self::Alias(ScalarAlias::Float)),
+            _ => None,
+        }
+    }
+
+    /// Return the explicitly sized type literal with one name.
+    pub fn from_sized_name(name: &str) -> Option<Self> {
+        // split the fixed integer families from their decimal width
+        let integer = if let Some(width) = name.strip_prefix("int") {
+            Some((width, true))
+        } else {
+            name.strip_prefix("uint").map(|width| (width, false))
+        };
+        if let Some((width, is_signed)) = integer {
+            // require a canonical nonzero decimal width
+            if width.starts_with('0') || !width.bytes().all(|byte| byte.is_ascii_digit()) {
+                return None;
+            }
+            let width = width.parse::<u16>().ok()?;
+
+            return Some(Self::Integer(IntegerType::Fixed { width, is_signed }));
+        }
+
+        // recognize the fixed floating point type names
+        match name {
+            "float16" => Some(Self::Float(FloatType::Float16)),
+            "bfloat16" => Some(Self::Float(FloatType::Bfloat16)),
+            "float32" => Some(Self::Float(FloatType::Float32)),
+            "float64" => Some(Self::Float(FloatType::Float64)),
+            _ => None,
+        }
+    }
+
+    /// Return the type literal with one name in any type position.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::from_universal_name(name)
+            .or_else(|| Self::from_contextual_name(name))
+            .or_else(|| Self::from_sized_name(name))
+    }
+
     /// Return this literal type's scalar domain.
     pub fn scalar_domain(&self) -> Option<ScalarDomain> {
         let domain = match self {

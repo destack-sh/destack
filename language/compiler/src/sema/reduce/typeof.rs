@@ -69,6 +69,13 @@ impl CheckState<'_> {
             .cloned();
 
         match reference {
+            // reflect a type literal into its Type<T> value
+            Some(dir::Reference::TypeLiteral(literal)) => {
+                let denoted = self.intern_type(dir::Type::from(literal.clone()))?;
+                let reflected = self.language_type(dir::LanguageItem::Type, &[denoted])?;
+
+                Ok(Some(reflected))
+            }
             // use a single value declaration's static value or checked type
             Some(dir::Reference::Bound(symbols)) => {
                 let symbols = self.present_symbols(&symbols);

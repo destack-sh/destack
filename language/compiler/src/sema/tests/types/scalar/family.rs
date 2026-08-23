@@ -237,3 +237,32 @@ function shrink<const Rank: int>(tensor: Tensor<Rank>): Tensor<Rank - 1> {
 "#,
     );
 }
+
+/// Reject the removed u-prefixed integer width spellings.
+#[test]
+fn test_reject_u_prefixed_width_names() {
+    let session = TestSession::single(
+        r#"
+declare const value: u32;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare const value: u32;
+
+=== dir ===
+declare const value: u32;
+/// @type.symbol symbol=value source=value type=<error>
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.unresolved source=u32 path=u32
+"#,
+        r#"
+/// @diagnostic.error id=unresolved-reference message="cannot find 'u32'"
+/// @diagnostic.label line=2 column=22 span="u32" line_source="declare const value: u32;"
+"#,
+    );
+}

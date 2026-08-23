@@ -616,6 +616,7 @@ impl ModuleQueryContext<'_> {
             | dir::Reference::Namespace { .. }
             | dir::Reference::Projected { .. }
             | dir::Reference::Ambiguous(_)
+            | dir::Reference::TypeLiteral(_)
             | dir::Reference::Missing => None,
         };
 

@@ -56,19 +56,20 @@ impl<T> OperationResolution<T> {
 /// ```ds
 /// print(value)   // `print` selects its one declared symbol
 /// parse(input)   // an overloaded `parse` selects every overload
+/// int32.maximum()   // `int32` denotes the builtin type itself
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct NameResolution {
-    /// The selected symbols in declaration order.
-    symbols: Vec<GlobalSymbolId>,
+pub enum NameResolution {
+    /// The selected declaration symbols in declaration order.
+    Symbols(Vec<GlobalSymbolId>),
+    /// The type a type-literal name denotes in expression position.
+    Type(GlobalTypeId),
 }
 
 impl NameResolution {
     /// Create a single-symbol name resolution.
     pub fn new(symbol: GlobalSymbolId) -> Self {
-        Self {
-            symbols: vec![symbol],
-        }
+        Self::Symbols(vec![symbol])
     }
 
     /// Create a name resolution from selected symbols.
@@ -78,12 +79,20 @@ impl NameResolution {
             "name resolution must contain at least one symbol"
         );
 
-        Self { symbols }
+        Self::Symbols(symbols)
+    }
+
+    /// Create a name resolution denoting one type.
+    pub fn new_type(ty: GlobalTypeId) -> Self {
+        Self::Type(ty)
     }
 
     /// Return the selected symbol when this name denotes exactly one declaration.
     pub fn single_symbol(&self) -> Option<GlobalSymbolId> {
-        let [symbol] = self.symbols.as_slice() else {
+        let Self::Symbols(symbols) = self else {
+            return None;
+        };
+        let [symbol] = symbols.as_slice() else {
             return None;
         };
 
@@ -92,7 +101,18 @@ impl NameResolution {
 
     /// Return the selected symbols in declaration order.
     pub fn symbols(&self) -> &[GlobalSymbolId] {
-        &self.symbols
+        match self {
+            Self::Symbols(symbols) => symbols,
+            Self::Type(_) => &[],
+        }
+    }
+
+    /// Return the denoted type when this name denotes a type literal.
+    pub fn denoted_type(&self) -> Option<GlobalTypeId> {
+        match self {
+            Self::Symbols(_) => None,
+            Self::Type(ty) => Some(*ty),
+        }
     }
 }
 

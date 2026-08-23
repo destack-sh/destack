@@ -879,7 +879,7 @@ impl BodyState<'_, '_> {
                     source,
                 }))
             }
-            Some(dir::Reference::Namespace { .. }) => {
+            Some(dir::Reference::Namespace { .. } | dir::Reference::TypeLiteral(_)) => {
                 self.report_invalid_assignment_target(source.module_id, source.local_id);
                 self.commit_error_node(source)?;
 

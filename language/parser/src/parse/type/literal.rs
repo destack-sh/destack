@@ -1,44 +1,18 @@
 use crate::{Parser, ParserError, ParserResult};
 
-use destack_dir::{
-    FloatType, IntegerType, Keyword, ScalarAlias, TokenType, TypeLiteral, VarianceBound,
-};
+use destack_dir::{Keyword, TokenType, TypeLiteral, VarianceBound};
 
 impl Parser {
     /// Return the always-available type literal at the current token.
     #[inline]
     fn peek_universal_type_literal(&self) -> Option<TypeLiteral> {
-        match self.peek_token_str() {
-            "undefined" => Some(TypeLiteral::Undefined),
-            "unknown" => Some(TypeLiteral::Unknown),
-            "null" => Some(TypeLiteral::Null),
-            "any" => Some(TypeLiteral::Any),
-            "never" => Some(TypeLiteral::Never),
-            _ => None,
-        }
+        TypeLiteral::from_universal_name(self.peek_token_str())
     }
 
     /// Return the type-only literal at the current token sequence.
     #[inline]
     fn peek_contextual_type_literal(&self) -> Option<TypeLiteral> {
-        match self.peek_token_str() {
-            "boolean" => Some(TypeLiteral::Boolean),
-            "void" => Some(TypeLiteral::Void),
-            "char" => Some(TypeLiteral::Character),
-            "string" => Some(TypeLiteral::String),
-            "bigint" => Some(TypeLiteral::Bigint),
-            "number" => Some(TypeLiteral::Number),
-            "int" => Some(TypeLiteral::Alias(ScalarAlias::Int)),
-            "isize" => Some(TypeLiteral::Integer(IntegerType::Pointer {
-                is_signed: true,
-            })),
-            "uint" => Some(TypeLiteral::Alias(ScalarAlias::Uint)),
-            "usize" => Some(TypeLiteral::Integer(IntegerType::Pointer {
-                is_signed: false,
-            })),
-            "float" => Some(TypeLiteral::Alias(ScalarAlias::Float)),
-            _ => None,
-        }
+        TypeLiteral::from_contextual_name(self.peek_token_str())
     }
 
     /// Parse a variance bound when present.
@@ -70,33 +44,7 @@ impl Parser {
 
     /// Return the explicitly sized type literal at the current token.
     fn peek_sized_type_literal(&self) -> Option<TypeLiteral> {
-        let identifier = self.peek_token_str();
-
-        // split the common fixed integer families from their decimal width
-        let integer = if let Some(width) = identifier.strip_prefix("int") {
-            Some((width, true))
-        } else if let Some(width) = identifier.strip_prefix("uint") {
-            Some((width, false))
-        } else {
-            identifier.strip_prefix('u').map(|width| (width, false))
-        };
-        if let Some((width, is_signed)) = integer {
-            let width = width.parse::<u16>().ok()?;
-
-            return Some(TypeLiteral::Integer(IntegerType::Fixed {
-                width,
-                is_signed,
-            }));
-        }
-
-        // recognize the fixed floating point type names
-        match identifier {
-            "float16" => Some(TypeLiteral::Float(FloatType::Float16)),
-            "bfloat16" => Some(TypeLiteral::Float(FloatType::Bfloat16)),
-            "float32" => Some(TypeLiteral::Float(FloatType::Float32)),
-            "float64" => Some(TypeLiteral::Float(FloatType::Float64)),
-            _ => None,
-        }
+        TypeLiteral::from_sized_name(self.peek_token_str())
     }
 
     /// Return an unambiguous intrinsic type literal in value space.

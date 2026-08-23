@@ -60,6 +60,17 @@ impl WalkState<'_, '_> {
                 self.commit_node_type(id, error)?;
             }
 
+            // reflect a type literal name into its Type<T> value
+            Some(dir::Reference::TypeLiteral(literal)) => {
+                let denoted = self.intern_type(dir::Type::from(literal))?;
+                let reflected = self
+                    .check
+                    .language_type(dir::LanguageItem::Type, &[denoted])?;
+                self.check
+                    .commit_name(source, dir::NameResolution::new_type(denoted))?;
+                self.commit_node_type(id, reflected)?;
+            }
+
             // missing names fail loudly
             Some(dir::Reference::Missing) => {
                 let path = dir::Path {
@@ -153,7 +164,9 @@ impl WalkState<'_, '_> {
             }
 
             // select value member access
-            Some(dir::Reference::Projected { .. }) | None => {
+            Some(dir::Reference::TypeLiteral(_))
+            | Some(dir::Reference::Projected { .. })
+            | None => {
                 self.walk_expression(left, self.tree.get(left))?;
             }
         }

@@ -223,7 +223,9 @@ impl SymbolCandidate {
         let symbols = match reference {
             dir::Reference::Bound(symbols) => symbols,
             dir::Reference::Namespace { .. } => return Ok(Some(SymbolKind::Namespace)),
-            dir::Reference::Ambiguous(_) | dir::Reference::Missing => return Ok(None),
+            dir::Reference::Ambiguous(_)
+            | dir::Reference::TypeLiteral(_)
+            | dir::Reference::Missing => return Ok(None),
             dir::Reference::Projected { .. } => {
                 return Err(QueryError::invalid(
                     "search symbol alias has a projected target",

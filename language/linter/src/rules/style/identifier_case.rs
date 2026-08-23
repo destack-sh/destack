@@ -142,7 +142,9 @@ impl IdentifierCase {
         let targets = match reference {
             dir::Reference::Bound(symbols) => symbols,
             dir::Reference::Namespace { .. } => return Ok(Some(Self::Camel)),
-            dir::Reference::Ambiguous(_) | dir::Reference::Missing => return Ok(None),
+            dir::Reference::Ambiguous(_)
+            | dir::Reference::TypeLiteral(_)
+            | dir::Reference::Missing => return Ok(None),
             dir::Reference::Projected { .. } => {
                 return Err(ProviderError::internal(format!(
                     "export alias {declaration:?} has a projected target"

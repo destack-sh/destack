@@ -242,6 +242,12 @@ impl<'a> AlphaComparison<'a> {
         let left_resolution = self.left.resolutions.name_resolution(left_global);
         let right_resolution = self.right.resolutions.name_resolution(right_global);
         let names_match = match (left_resolution, right_resolution) {
+            // type literal names compare by their denoted types
+            (Some(left), Some(right))
+                if left.denoted_type().is_some() || right.denoted_type().is_some() =>
+            {
+                self.optional_types_match(left.denoted_type(), right.denoted_type())?
+            }
             (Some(left), Some(right)) => self.symbol_lists_match(left.symbols(), right.symbols()),
             (None, None) => true,
             _ => false,
@@ -442,6 +448,9 @@ impl<'a> AlphaComparison<'a> {
                         .iter()
                         .zip(right)
                         .all(|(left, right)| self.reference_targets_match(*left, *right))
+            }
+            (Some(dir::Reference::TypeLiteral(left)), Some(dir::Reference::TypeLiteral(right))) => {
+                left == right
             }
             (Some(dir::Reference::Missing), Some(dir::Reference::Missing)) | (None, None) => true,
             _ => false,

@@ -554,6 +554,14 @@ impl WalkState<'_, '_> {
             .cloned();
 
         match reference {
+            // a type literal name records its denoted type
+            Some(dir::Reference::TypeLiteral(literal)) => {
+                let denoted = self.intern_type(dir::Type::from(literal))?;
+                self.check
+                    .commit_name(source, dir::NameResolution::new_type(denoted))?;
+
+                Ok(true)
+            }
             // complete name paths reduce through their bound declaration
             Some(dir::Reference::Bound(symbols)) => {
                 let symbols = self.check.present_symbols(&symbols);
@@ -648,6 +656,12 @@ impl WalkState<'_, '_> {
 
         // commit the construct declaration name
         match reference {
+            // a type literal heads no construction
+            Some(dir::Reference::TypeLiteral(_)) => {
+                return Err(CompilerError::Internal {
+                    message: format!("construct reference {source:?} names a type literal"),
+                });
+            }
             Some(dir::Reference::Bound(symbols)) => {
                 let symbols = self.check.present_symbols(&symbols);
                 match symbols.as_slice() {
@@ -710,6 +724,10 @@ impl WalkState<'_, '_> {
         let reference = self.resolved_type_reference(id);
 
         match reference {
+            // a type literal name denotes its builtin type
+            Some(dir::Reference::TypeLiteral(literal)) => {
+                self.intern_type(dir::Type::from(literal))
+            }
             // use one resolved type declaration directly
             Some(dir::Reference::Bound(symbols)) => {
                 self.walk_bound_reference_type(id, path, generic_arguments, &symbols)

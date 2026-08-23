@@ -258,7 +258,9 @@ impl<'a> ExportIndexer<'a> {
             dir::Reference::Namespace { module, .. } => {
                 Ok(Some(dir::ExportTarget::Namespace(*module)))
             }
-            dir::Reference::Ambiguous(_) | dir::Reference::Missing => Ok(None),
+            dir::Reference::Ambiguous(_)
+            | dir::Reference::TypeLiteral(_)
+            | dir::Reference::Missing => Ok(None),
             dir::Reference::Projected { .. } => Err(ProviderError::internal(format!(
                 "export dependency item {item:?} has a projected target"
             ))

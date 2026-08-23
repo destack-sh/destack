@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use crate::{ExportTarget, GlobalNodeIdAny, GlobalSymbolId};
+use crate::{ExportTarget, GlobalNodeIdAny, GlobalSymbolId, TypeLiteral};
 
 /// Name resolutions for one module, keyed by the reference node.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -95,7 +95,7 @@ impl ReferenceTable {
                 }
                 Reference::Namespace { module, .. } => modules.push(*module),
                 Reference::Projected { base, .. } => modules.push(base.module()),
-                Reference::Missing => {}
+                Reference::TypeLiteral(_) | Reference::Missing => {}
             }
 
             modules
@@ -116,6 +116,8 @@ pub enum Reference {
         /// The alias or clause declaring the namespace name, when one names it.
         declaration: Option<GlobalNodeIdAny>,
     },
+    /// A bare name spelling a builtin type literal, with no declaration behind it.
+    TypeLiteral(TypeLiteral),
     /// A flat path named through its first segments; `segments[from..]` project from `base`.
     Projected {
         /// The exact target named by the leading segments.
@@ -137,6 +139,7 @@ impl Reference {
             Self::Namespace { .. }
             | Self::Projected { .. }
             | Self::Ambiguous(_)
+            | Self::TypeLiteral(_)
             | Self::Missing => None,
         }
     }
@@ -145,7 +148,11 @@ impl Reference {
     pub fn namespace(&self) -> Option<ModuleId> {
         match self {
             Self::Namespace { module, .. } => Some(*module),
-            Self::Bound(_) | Self::Projected { .. } | Self::Ambiguous(_) | Self::Missing => None,
+            Self::Bound(_)
+            | Self::Projected { .. }
+            | Self::Ambiguous(_)
+            | Self::TypeLiteral(_)
+            | Self::Missing => None,
         }
     }
 

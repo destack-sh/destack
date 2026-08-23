@@ -128,7 +128,7 @@ impl ProgramQueryContext<'_> {
                     dir::ReferenceTarget::Namespace(_) => None,
                 })
                 .collect()),
-            dir::Reference::Missing => Ok(Vec::new()),
+            dir::Reference::TypeLiteral(_) | dir::Reference::Missing => Ok(Vec::new()),
         }
     }
 

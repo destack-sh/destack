@@ -141,6 +141,11 @@ impl BodyState<'_, '_> {
 
         // resolve declaration callees through their recorded name decision
         if let Some(resolution) = self.name_decision(callee_node).cloned() {
+            // dispatch a type literal callee on its Type<T> value
+            if resolution.denoted_type().is_some() {
+                return self.value_callable_candidates(origin, callee_site, is_optional);
+            }
+
             let symbols = resolution
                 .symbols()
                 .iter()
