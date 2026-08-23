@@ -108,6 +108,18 @@ pub enum Import {
     PowF32 = 0x58,
     /// Double-precision power.
     PowF64 = 0x59,
+    /// Single-precision cube root.
+    CbrtF32 = 0x5a,
+    /// Double-precision cube root.
+    CbrtF64 = 0x5b,
+    /// Single-precision natural exponential minus one.
+    Expm1F32 = 0x5c,
+    /// Double-precision natural exponential minus one.
+    Expm1F64 = 0x5d,
+    /// Single-precision natural logarithm after adding one.
+    Log1pF32 = 0x5e,
+    /// Double-precision natural logarithm after adding one.
+    Log1pF64 = 0x5f,
 }
 
 /// One platform import pointer inside linked native code.
