@@ -101,7 +101,6 @@ static LINTS: &[&Lint] = &[
     &style::DEFAULT_PARAM_LAST,
     &style::DOT_NOTATION,
     &style::DOUBLE_COMPARISONS,
-    &style::ERROR_MESSAGE_STYLE,
     &style::EXCESSIVE_NESTING,
     &style::FILENAME_CASE,
     &style::GROUPED_ACCESSOR_PAIRS,
@@ -288,7 +287,6 @@ static LINTS: &[&Lint] = &[
     &suspicious::SUSPICIOUS_OPERAND_GROUPING,
     &suspicious::SUSPICIOUS_OPERATOR_IMPLEMENTATION,
     &suspicious::UNNECESSARY_WRAPS,
-    &suspicious::UNUSED_DEPENDENCY,
     &suspicious::WILDCARD_ENUM_MATCH_ARM,
 ];
 
