@@ -8,6 +8,6 @@ declare_lint_stub! {
         category: Suspicious,
         level: Warning,
         fixable: None,
-        check: DirModule,
+        check: MirModule,
     }
 }
