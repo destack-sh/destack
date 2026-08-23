@@ -137,6 +137,7 @@ match extracted {
 
 ### Comments
 
+- All prose _must_ be plain and simple technical english (in code and in comments and in docs), using the active voice.
 - Documentation comments for functions/types/etc. _should_ be proper sentences _with_ punctuation.
 - Inline comments should be short and begin with a lowercase letter.
 - (This extends to comments in _any_ code file, even scripts. I just like lowercase better.)
