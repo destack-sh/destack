@@ -286,8 +286,11 @@ impl TestSession {
         }
 
         // build the MIR module consumed by the lint
-        let (tree, target, layouts, dispatch, drops, accesses, effects, profile, strings, _) =
+        let (tree, target, mut layouts, dispatch, drops, accesses, effects, profile, strings, _) =
             parsed.into_parts();
+        mir::LayoutBuilder::new(&tree, &mut layouts, target)
+            .layout_reachable_types()
+            .expect("lint MIR layouts should build");
         let lowered = MirLowered {
             tree,
             target,

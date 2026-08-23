@@ -195,13 +195,13 @@ mod tests {
     use destack_repository::LintLevel;
 
     use super::*;
-    use crate::rules::{FOR_DIRECTION, NEEDLESS_PASS_BY_VALUE};
+    use crate::rules::{FOR_DIRECTION, LARGE_STACK_FRAME};
 
     /// Expose implemented lints and omit stubs.
     #[test]
     fn test_iterates_implemented_lints() {
         let is_implemented_listed = Lint::all().any(|lint| lint.id == FOR_DIRECTION.id);
-        let is_stub_listed = Lint::all().any(|lint| lint.id == NEEDLESS_PASS_BY_VALUE.id);
+        let is_stub_listed = Lint::all().any(|lint| lint.id == LARGE_STACK_FRAME.id);
 
         assert!(is_implemented_listed);
         assert!(!is_stub_listed);
@@ -212,7 +212,7 @@ mod tests {
     fn test_rejects_selected_stub() {
         let package = PackageId::new(0);
         let options = LinterOptions {
-            only: vec!["needless-pass-by-value".to_string()],
+            only: vec!["large-stack-frame".to_string()],
             ..LinterOptions::default()
         };
         let registry = Lint::all().cloned().collect::<Vec<_>>().into();
@@ -223,7 +223,7 @@ mod tests {
             lints.errors(),
             [LinterError::UnknownConfiguredLint {
                 anchor: DiagnosticAnchor::Package(package),
-                lint: "needless-pass-by-value".to_string(),
+                lint: "large-stack-frame".to_string(),
             }]
         );
     }
@@ -235,7 +235,7 @@ mod tests {
         let mut options = LinterOptions::default();
         options
             .rules
-            .insert("needless-pass-by-value".to_string(), LintLevel::Error);
+            .insert("large-stack-frame".to_string(), LintLevel::Error);
         let registry = Lint::all().cloned().collect::<Vec<_>>().into();
         let lints = LintSet::resolve(package, &options, registry);
 
@@ -243,7 +243,7 @@ mod tests {
             lints.errors(),
             [LinterError::UnknownConfiguredLint {
                 anchor: DiagnosticAnchor::Package(package),
-                lint: "needless-pass-by-value".to_string(),
+                lint: "large-stack-frame".to_string(),
             }]
         );
     }
