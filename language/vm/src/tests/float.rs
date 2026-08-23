@@ -30,6 +30,40 @@ function f0 {
     );
 }
 
+/// Execute cube root and cancellation-safe exponential and logarithm operations.
+#[test]
+fn test_execute_precise_float_operations() {
+    let mut machine = TestMachine::parse(
+        r#"
+function f0 {
+    cbrt.float64 r3, r0
+    expm1.float64 r4, r1
+    log1p.float64 r5, r2
+    return r3:r5
+}
+"#,
+        TestProgram::words(),
+    );
+    let offset = 1e-10_f64;
+
+    let value = machine.complete(
+        0,
+        &[
+            Word::float64(27.0),
+            Word::float64(offset),
+            Word::float64(offset),
+        ],
+    );
+    assert_eq!(
+        value,
+        vec![
+            Word::float64(3.0),
+            Word::float64(offset.exp_m1()),
+            Word::float64(offset.ln_1p()),
+        ]
+    );
+}
+
 /// Execute midpoint and clamp with their floating-point edge behavior.
 #[test]
 fn test_execute_float_midpoint_and_clamp() {
