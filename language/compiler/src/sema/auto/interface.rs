@@ -6,9 +6,18 @@ use smallvec::SmallVec;
 use crate::sema::{Cause, CauseKind, CheckState, Origin, Relation, TypeSubstitution, Verdict};
 use crate::{CompilerError, CompilerResult};
 
+/// Whether one candidate type must decide every representation marker.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MarkerDecision {
+    /// Every marker decides, as a concrete declaration leaves nothing open.
+    Required,
+    /// A marker may stay undecided while an open type awaits its solutions.
+    Optional,
+}
+
 impl CheckState<'_> {
-    /// Decide whether one type intrinsically satisfies one applied compiler-known interface.
-    pub(in crate::sema) fn satisfies_intrinsic_interface(
+    /// Decide one applied compiler-known interface intrinsically.
+    pub(in crate::sema) fn decide_intrinsic_interface(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
@@ -42,19 +51,19 @@ impl CheckState<'_> {
                 }
             };
             if let Some(other) = other {
-                // read the argument solutions settled after the bound was queued
+                // read the argument solutions resolved after the bound was queued
                 let other = self.shallow_resolve(other)?;
                 let substitution = TypeSubstitution::default().with_receiver(ty);
                 let other = self.substitute_type(other, &substitution)?;
 
                 // decide strict equality from both exact operands
                 if interface == dir::AutoInterface::StrictEqual {
-                    let satisfied = self.satisfies_strict_equal(origin, ty, other)?;
+                    let is_equatable = self.has_strict_equal_conformance(origin, ty, other)?;
 
-                    return Ok(Verdict::decided(satisfied));
+                    return Ok(Verdict::decided(is_equatable));
                 }
 
-                // allow numeric scalars to compare across their exact domains
+                // numeric scalars compare across their exact domains
                 let domains = (
                     self.ty(ty)?.scalar_domain(),
                     self.ty(other)?.scalar_domain(),
@@ -70,7 +79,7 @@ impl CheckState<'_> {
                 // require the argument to equal the receiver otherwise
                 let receiver = match numeric {
                     true => Verdict::Holds,
-                    false => self.evaluate_relation(origin, Relation::Equal, ty, other)?,
+                    false => self.decide_relation(origin, Relation::Equal, ty, other)?,
                 };
                 if receiver != Verdict::Holds {
                     return Ok(receiver);
@@ -79,11 +88,11 @@ impl CheckState<'_> {
         }
 
         // decide the interface's own conformance rule, propagating its verdict
-        self.satisfies_auto_interface(origin, ty, interface)
+        self.decide_auto_interface(origin, ty, interface)
     }
 
-    /// Decide whether one type satisfies a compiler-known auto interface.
-    pub(in crate::sema) fn satisfies_auto_interface(
+    /// Decide one compiler-known auto interface for one type.
+    pub(in crate::sema) fn decide_auto_interface(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
@@ -100,9 +109,9 @@ impl CheckState<'_> {
 
         // serve the memoized verdict
         if let Some(key) = &key
-            && let Some(holds) = self.conformances.get(key)
+            && let Some(is_holds) = self.conformances.get(key)
         {
-            return Ok(Verdict::decided(*holds));
+            return Ok(Verdict::decided(*is_holds));
         }
 
         // use bounds declared by generic types
@@ -114,7 +123,7 @@ impl CheckState<'_> {
             return Ok(Verdict::decided(decision));
         }
 
-        // allow a written derive list to replace the auto set of its declaration
+        // let a written derive list replace the auto set of its declaration
         if interface.is_auto_derivable()
             && let dir::Type::Application(instance) = self.ty(ty)?
         {
@@ -134,32 +143,28 @@ impl CheckState<'_> {
         // dispatch compiler-known conformance rules
         let mut active = SmallVec::<[dir::GlobalTypeId; 8]>::new();
         let verdict = match interface {
-            dir::AutoInterface::AtomicSafe => self.satisfies_atomic_safe(ty).map(Verdict::decided),
-            dir::AutoInterface::DynamicSafe => self.satisfies_dynamic_safe(origin, ty, &mut active),
+            dir::AutoInterface::AtomicSafe => self.is_atomic_safe(ty).map(Verdict::decided),
+            dir::AutoInterface::DynamicSafe => self.decide_dynamic_safe(origin, ty, &mut active),
             dir::AutoInterface::OverwriteStable => {
-                self.satisfies_overwrite_stable(origin, ty, &mut active)
+                self.decide_overwrite_stable(origin, ty, &mut active)
             }
             dir::AutoInterface::Integer => self
-                .satisfies_scalar_representation(ty, dir::ScalarDomain::Integer)
+                .has_scalar_representation(ty, dir::ScalarDomain::Integer)
                 .map(Verdict::decided),
             dir::AutoInterface::IntegerDomain => self
-                .satisfies_scalar_domain(origin, ty, dir::ScalarDomain::Integer)
+                .is_scalar_domain_only(origin, ty, dir::ScalarDomain::Integer)
                 .map(Verdict::decided),
             dir::AutoInterface::Float => self
-                .satisfies_scalar_representation(ty, dir::ScalarDomain::Float)
+                .has_scalar_representation(ty, dir::ScalarDomain::Float)
                 .map(Verdict::decided),
             dir::AutoInterface::FloatDomain => self
-                .satisfies_scalar_domain(origin, ty, dir::ScalarDomain::Float)
+                .is_scalar_domain_only(origin, ty, dir::ScalarDomain::Float)
                 .map(Verdict::decided),
-            dir::AutoInterface::Copy => self.satisfies_copy(origin, ty, &mut active),
-            dir::AutoInterface::SharedSafe => {
-                self.satisfies_shared_safe(origin, ty).map(Verdict::decided)
-            }
-            dir::AutoInterface::Concrete => {
-                self.satisfies_concrete(origin, ty).map(Verdict::decided)
-            }
+            dir::AutoInterface::Copy => self.decide_copy(origin, ty, &mut active),
+            dir::AutoInterface::SharedSafe => self.is_shared_safe(origin, ty).map(Verdict::decided),
+            dir::AutoInterface::Concrete => self.is_concrete(origin, ty).map(Verdict::decided),
             dir::AutoInterface::StrictEqual => self
-                .satisfies_strict_equal(origin, ty, ty)
+                .has_strict_equal_conformance(origin, ty, ty)
                 .map(Verdict::decided),
             dir::AutoInterface::Equal
             | dir::AutoInterface::PartialEqual
@@ -169,9 +174,7 @@ impl CheckState<'_> {
             | dir::AutoInterface::Hash
             | dir::AutoInterface::Default
             | dir::AutoInterface::Unpin
-            | dir::AutoInterface::Zeroable => self
-                .satisfies_derivable(origin, ty, interface)
-                .map(Verdict::decided),
+            | dir::AutoInterface::Zeroable => self.decide_derivable(origin, ty, interface),
             // order scalars intrinsically
             dir::AutoInterface::Compare | dir::AutoInterface::PartialCompare => {
                 Ok(Verdict::decided(
@@ -185,7 +188,7 @@ impl CheckState<'_> {
             dir::AutoInterface::Serialize | dir::AutoInterface::Deserialize => Ok(Verdict::Fails),
         }?;
 
-        // memoize a settled verdict, leaving an ambiguous one uncached
+        // memoize a decided verdict, leaving an ambiguous one uncached
         if let Some(key) = key
             && verdict != Verdict::Ambiguous
         {
@@ -202,7 +205,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         interface: dir::AutoInterface,
     ) -> CompilerResult<Option<bool>> {
-        // read the settled head of the subject
+        // read the resolved head of the subject
         let ty = self.shallow_resolve(ty)?;
 
         // select the bounds owned by each generic form
@@ -239,53 +242,50 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
-    /// Decide builtin `StrictEqual<R>` conformance for two operand types.
-    fn satisfies_strict_equal(
+    /// Return whether two operand types have builtin `StrictEqual<R>` conformance.
+    fn has_strict_equal_conformance(
         &mut self,
         origin: Origin,
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let supported = self.supports_builtin_strict_equality(origin, left, right)?;
+        let has_builtin = self.has_builtin_strict_equality(origin, left, right)?;
         let overlaps = self.types_may_overlap(origin, left, right)?;
 
-        Ok(supported && overlaps)
+        Ok(has_builtin && overlaps)
     }
 
-    /// Decide whether one type has one builtin scalar representation.
-    fn satisfies_scalar_representation(
+    /// Return whether one type has one builtin scalar representation.
+    fn has_scalar_representation(
         &mut self,
         ty: dir::GlobalTypeId,
         domain: dir::ScalarDomain,
     ) -> CompilerResult<bool> {
-        let holds = matches!(
+        let is_representation = matches!(
             self.ty(ty)?,
             dir::Type::Primitive(primitive) if primitive.scalar_domain() == domain
         );
 
-        Ok(holds)
+        Ok(is_representation)
     }
 
-    /// Decide whether one type belongs entirely to one scalar domain.
-    fn satisfies_scalar_domain(
+    /// Return whether one type belongs entirely to one scalar domain.
+    fn is_scalar_domain_only(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
         domain: dir::ScalarDomain,
     ) -> CompilerResult<bool> {
         let families = self.scalar_families(origin, ty)?;
-        let holds = families.is_some_and(|families| families.is_only_domain(domain));
+        let is_only_domain = families.is_some_and(|families| families.is_only_domain(domain));
 
-        Ok(holds)
+        Ok(is_only_domain)
     }
 
-    /// Record the representation markers every committed settled type satisfies.
+    /// Commit the representation markers every committed type of one module holds.
     ///
-    /// A type open in parameters or `this` is judged under the template governing its site.
-    pub(in crate::sema) fn record_committed_conformances(
-        &mut self,
-        module: ModuleId,
-    ) -> CompilerResult<()> {
+    /// A type open in parameters or `this` decides under the template governing its site.
+    pub(in crate::sema) fn commit_conformances(&mut self, module: ModuleId) -> CompilerResult<()> {
         // collect the committed node types of this module at their sites
         let mut targets = FxIndexSet::default();
         for node in self.node_types.nodes() {
@@ -308,15 +308,14 @@ impl CheckState<'_> {
             }
         }
 
-        // judge each settled value type against the representation markers
-        // NOTE #Performance: foreign-owned targets re-judge in every asking module
+        // decide each value type against the representation markers
         for (target, site) in targets {
             let flags = self.type_flags(target)?;
             if flags.has_variable() || flags.has_hole() {
                 continue;
             }
 
-            // skip heads outside value judgment
+            // skip heads outside value decision
             if matches!(
                 self.ty(target)?,
                 dir::Type::Reference(_)
@@ -337,24 +336,13 @@ impl CheckState<'_> {
             };
             let origin = Origin::Node(site, scope);
 
-            // record the markers this type satisfies, deciding each once
-            for interface in dir::AutoInterface::REPRESENTATION {
-                if self.module(module).auto.conforms(target, scope, interface) {
-                    continue;
-                }
-                let verdict = self.satisfies_auto_interface(origin, target, interface)?;
-                if verdict == Verdict::Holds {
-                    self.module_mut(module)
-                        .auto
-                        .push_conformance(target, scope, interface);
-                }
-            }
+            self.commit_representation(module, target, scope, origin, MarkerDecision::Optional)?;
         }
 
         Ok(())
     }
 
-    /// Record marker conformance and seal written derives for each concrete nominal.
+    /// Commit the representation markers each concrete nominal declaration of one module holds.
     pub(in crate::sema) fn derive_module_conformances(
         &mut self,
         module: ModuleId,
@@ -374,25 +362,48 @@ impl CheckState<'_> {
             }
         }
 
-        // record the satisfied markers on each nominal's own instance
+        // commit the held markers on each nominal's own instance
         for symbol in nominals {
             let instance = self.declaration_instance(symbol)?;
             let target = self.intern_type(dir::Type::Application(instance))?;
             let origin = Origin::Symbol(symbol);
-            for interface in dir::AutoInterface::REPRESENTATION {
-                let verdict = self.satisfies_auto_interface(origin, target, interface)?;
-                if verdict == Verdict::Ambiguous {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "declaration instance {target:?} left {interface:?} conformance ambiguous"
-                        ),
-                    });
-                }
-                if verdict == Verdict::Holds {
-                    self.module_mut(module)
-                        .auto
-                        .push_conformance(target, None, interface);
-                }
+
+            self.commit_representation(module, target, None, origin, MarkerDecision::Required)?;
+        }
+
+        Ok(())
+    }
+
+    /// Commit the representation markers one candidate type holds into one module's auto table.
+    fn commit_representation(
+        &mut self,
+        module: ModuleId,
+        target: dir::GlobalTypeId,
+        scope: Option<dir::GlobalGenericTemplateId>,
+        origin: Origin,
+        decision: MarkerDecision,
+    ) -> CompilerResult<()> {
+        // commit the markers this type holds, deciding each once
+        // NOTE #Performance: foreign-owned targets decide again in every asking module
+        for interface in dir::AutoInterface::REPRESENTATION {
+            if self.module(module).auto.conforms(target, scope, interface) {
+                continue;
+            }
+
+            // commit a held marker
+            let verdict = self.decide_auto_interface(origin, target, interface)?;
+            if verdict == Verdict::Holds {
+                self.module_mut(module)
+                    .auto
+                    .push_conformance(target, scope, interface);
+            }
+            // reject an undecided marker on a type that owes a decision
+            else if verdict == Verdict::Ambiguous && decision == MarkerDecision::Required {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "declaration instance {target:?} left {interface:?} conformance ambiguous"
+                    ),
+                });
             }
         }
 

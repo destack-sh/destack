@@ -2,13 +2,13 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    GenericArgument, MemberRole, MixedObjectSignature, Origin, Receiver, TypeSubstitution,
-    VariableRole, WalkState,
+    GenericArgument, GenericParameterId, MemberRole, MixedObjectSignature, Origin, Receiver,
+    TypeSubstitution, VariableRole, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
-    /// Walk one type annotation and record its type.
+    /// Walk one type annotation and commit its type.
     pub(in crate::sema) fn walk_type_expression(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
@@ -144,13 +144,13 @@ impl WalkState<'_, '_> {
                 let arguments: Vec<_> = arguments.into_iter().map(|argument| argument.ty).collect();
                 let arguments = self.intern_type_ids(&arguments)?;
 
-                // retain the lookup subject even when the written member is incomplete
+                // retain the written subject, which the write pass resolves once inference solves
                 let subject = dir::MemberSubject::new(owner, owner, dir::MemberSpace::Static)
                     .with_scope(self.flow().template_scope());
                 self.check
                     .module_mut(self.module)
                     .members_tail
-                    .record_subject(
+                    .commit_subject(
                         dir::MemberSite::Node(id.into_global_any(self.module)),
                         subject,
                     );
@@ -300,8 +300,16 @@ impl WalkState<'_, '_> {
                     element_types.push(self.walk_type_expression(element)?);
                 }
                 let elements = self.intern_type_ids(&element_types)?;
+                let written =
+                    self.intern_type(dir::Type::Intersection(dir::IntersectionType { elements }))?;
 
-                self.intern_type(dir::Type::Intersection(dir::IntersectionType { elements }))
+                // interpret the written intersection as its reduced form
+                let origin = Origin::Node(
+                    id.into_global_any(self.module),
+                    self.flow().template_scope(),
+                );
+                self.check
+                    .reduce_intersection(origin, written, &element_types)
             }
             // T extends U ? X : Y
             dir::TypeExpression::Conditional {
@@ -420,7 +428,7 @@ impl WalkState<'_, '_> {
         match form {
             // open anonymous holes for ordinary inference
             dir::InferForm::Hole => {
-                if let Some(rejected) = self.reject_declaration_hole(source)? {
+                if let Some(rejected) = self.report_declaration_hole(source)? {
                     return Ok(rejected);
                 }
 
@@ -472,7 +480,7 @@ impl WalkState<'_, '_> {
             return self.intern_type(dir::Type::Error);
         }
 
-        // record lexical decisions without performing a runtime read
+        // commit lexical decisions without performing a runtime read
         self.walk_type_query_value(value)?;
 
         self.intern_operation(dir::TypeOperation::TypeOf(dir::TypeOfType {
@@ -486,7 +494,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
         match self.tree.get(id) {
-            // record the name binding at the path root
+            // commit the name binding at the path root
             dir::Expression::Identifier { name } => {
                 let mut segments = SmallVec::new();
                 segments.push(*name);
@@ -495,7 +503,7 @@ impl WalkState<'_, '_> {
                 self.walk_type_query_reference(id, path).map(|_| ())
             }
 
-            // record a fully bound member path or keep walking its owner
+            // commit a fully bound member path or keep walking its owner
             dir::Expression::Member {
                 left,
                 name: Some(_),
@@ -541,7 +549,7 @@ impl WalkState<'_, '_> {
         self.walk_type_query_reference(id, path)
     }
 
-    /// Record the resolver decision for one type-query path.
+    /// Commit the resolver decision for one type-query path.
     fn walk_type_query_reference(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
@@ -592,7 +600,7 @@ impl WalkState<'_, '_> {
             // missing paths fail at the type query site
             Some(dir::Reference::Missing) => {
                 self.check
-                    .reject_unresolved_reference(self.module, id.into_any(), &path);
+                    .report_unresolved_reference(self.module, id.into_any(), &path);
 
                 Ok(true)
             }
@@ -701,7 +709,7 @@ impl WalkState<'_, '_> {
             })
             | Some(dir::Reference::Missing) => {
                 self.check
-                    .reject_unresolved_reference(self.module, id.into_any(), path);
+                    .report_unresolved_reference(self.module, id.into_any(), path);
             }
             None => {
                 return Err(CompilerError::Internal {
@@ -764,7 +772,7 @@ impl WalkState<'_, '_> {
             })
             | Some(dir::Reference::Missing) => {
                 self.check
-                    .reject_unresolved_reference(self.module, id.into_any(), path);
+                    .report_unresolved_reference(self.module, id.into_any(), path);
 
                 self.intern_type(dir::Type::Error)
             }
@@ -779,7 +787,6 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Return the resolver output for one type reference.
     /// Walk one generic argument's type expression, keeping a bare value
     /// binding reference symbolic for its parameter slot to interpret.
     pub(in crate::sema) fn walk_argument_type_expression(
@@ -798,13 +805,15 @@ impl WalkState<'_, '_> {
             let symbol = *symbol;
             let source = id.into_global_any(self.module);
             self.commit_reference_name(source, symbol)?;
+            let symbolic = dir::Type::Reference(dir::TypeReference { symbol });
 
-            return self.build_application_type(id.into_any(), symbol, &[], &[]);
+            return self.intern_type(symbolic);
         }
 
         self.walk_type_expression(id)
     }
 
+    /// Return the resolver output for one type reference.
     fn resolved_type_reference(
         &self,
         id: dir::LocalNodeId<dir::TypeExpression>,
@@ -869,7 +878,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let source = id.into_global_any(self.module);
 
-        // record the resolved name for snapshots and downstream selection
+        // commit the resolved name for snapshots and downstream selection
         self.commit_reference_name(source, symbol)?;
 
         // apply written type arguments and open omitted slots
@@ -927,7 +936,7 @@ impl WalkState<'_, '_> {
         }
 
         // keep foreign references symbolic while declaring
-        if self.check.is_declaration() && !self.check.is_own_module(symbol.module_id) {
+        if self.check.is_declaring() && !self.check.is_own_module(symbol.module_id) {
             let positional = applied
                 .iter()
                 .filter(|argument| argument.name.is_none())
@@ -959,20 +968,17 @@ impl WalkState<'_, '_> {
         self.build_application_type(source, symbol, &arguments, applied)
     }
 
-    /// Return the value binding one symbolic argument application names.
+    /// Return the value binding one symbolic argument reference names.
     fn written_binding_symbol(
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        let dir::Type::Application(instance) = self.check.ty(ty)? else {
+        let dir::Type::Reference(reference) = self.check.ty(ty)? else {
             return Ok(None);
         };
-        if !instance.arguments.is_empty() {
-            return Ok(None);
-        }
-        let is_binding = self.check.symbol_kind(instance.symbol)?.is_binding();
+        let is_symbolic = self.check.symbol_kind(reference.symbol)?.is_binding();
 
-        Ok(is_binding.then_some(instance.symbol))
+        Ok(is_symbolic.then_some(reference.symbol))
     }
 
     /// Resolve one const slot's value binding to its static value.
@@ -988,7 +994,7 @@ impl WalkState<'_, '_> {
         }
 
         // keep the reference symbolic while declaring
-        if self.check.is_declaration() {
+        if self.check.is_declaring() {
             return Ok(symbolic);
         }
 
@@ -997,6 +1003,20 @@ impl WalkState<'_, '_> {
             .report_undecidable_static_value(self.module, source);
 
         self.intern_type(dir::Type::Error)
+    }
+
+    /// Report one written application whose arguments cannot bind the slots.
+    fn report_binding_arity(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+        parameters: &[GenericParameterId],
+        written: usize,
+    ) {
+        let name = self.check.format_symbol(symbol);
+        let expected = self.check.writable_parameter_count(parameters);
+        self.check
+            .report_wrong_generic_arity(self.module, source, name, expected, written);
     }
 
     /// Bind written arguments to a declaration's parameter slots in order.
@@ -1119,20 +1139,6 @@ impl WalkState<'_, '_> {
         }
 
         Ok(Some(substitution.arguments().collect()))
-    }
-
-    /// Report one written application arity against its writable slots.
-    fn report_binding_arity(
-        &mut self,
-        source: dir::LocalNodeIdAny,
-        symbol: dir::GlobalSymbolId,
-        parameters: &[dir::GlobalGenericParameterId],
-        written: usize,
-    ) {
-        let name = self.check.format_symbol(symbol);
-        let expected = self.check.writable_parameter_count(parameters);
-        self.check
-            .report_wrong_generic_arity(self.module, source, name, expected, written);
     }
 
     /// Build one application type and apply its written refinements.
@@ -1302,7 +1308,7 @@ impl WalkState<'_, '_> {
 
             let arguments = self.intern_type_ids(&arguments)?;
 
-            // record the lookup subject for this path segment
+            // commit the lookup subject for this path segment
             let path_segment = from
                 .checked_add(index as u32)
                 .and_then(|index| u16::try_from(index).ok())
@@ -1314,12 +1320,13 @@ impl WalkState<'_, '_> {
                 segment: path_segment,
             };
 
+            // retain the written subject, which the write pass resolves once inference solves
             let subject = dir::MemberSubject::new(ty, ty, dir::MemberSpace::Static)
                 .with_scope(self.flow().template_scope());
             self.check
                 .module_mut(self.module)
                 .members_tail
-                .record_subject(site, subject);
+                .commit_subject(site, subject);
 
             ty = self.intern_member(dir::MemberType {
                 owner: ty,
@@ -1490,7 +1497,7 @@ impl WalkState<'_, '_> {
                 let construct_signatures = self.intern_type_ids(&construct_signatures)?;
                 let index_signatures = self.intern_index_signatures(&index_signatures)?;
 
-                self.intern_type(dir::Type::Object(dir::ShapeType {
+                self.intern_type(dir::Type::Object(dir::ObjectType {
                     properties,
                     call_signatures,
                     construct_signatures,
@@ -1681,7 +1688,7 @@ impl WalkState<'_, '_> {
 
         // bind the key symbol to its parameter type
         let ty = self.check.generic_parameter_type(binder)?;
-        self.bind_symbol_type(symbol, ty)?;
+        self.commit_symbol_type(symbol, ty)?;
 
         // walk the remap and value under that binder
         let key_remap = match key_remap {

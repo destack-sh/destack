@@ -7,7 +7,7 @@ use crate::{CompilerError, CompilerResult};
 
 /// Working accumulator for merging shape elements of an intersection.
 #[derive(Default)]
-struct ShapeMerge {
+struct ObjectMerge {
     /// The merged fields.
     fields: Vec<dir::TypeProperty>,
     /// The merged call signatures.
@@ -130,7 +130,7 @@ impl CheckState<'_> {
                     return self.intern_type(dir::Type::Never);
                 }
             };
-            let verdict = self.evaluate_relation(origin, Relation::Assignable, narrow, wide)?;
+            let verdict = self.decide_relation(origin, Relation::Assignable, narrow, wide)?;
             if !verdict.holds() {
                 return self.intern_type(dir::Type::Never);
             }
@@ -168,20 +168,57 @@ impl CheckState<'_> {
             }
         }
 
+        // annihilate distinct value nominals, single inheritance admits no common subtype
+        let mut nominal: Option<dir::GlobalSymbolId> = None;
+        for element in &closed {
+            let head = self.structurally_normalize(origin, *element)?;
+            let dir::Type::Application(instance) = self.ty(head)? else {
+                continue;
+            };
+            // newtypes stay: a union backing relates them to their arms
+            let is_value_nominal = matches!(
+                self.symbol_kind(instance.symbol)?,
+                dir::SymbolKind::Class | dir::SymbolKind::Struct | dir::SymbolKind::Enum
+            );
+            if !is_value_nominal {
+                continue;
+            }
+            let Some(kept) = nominal else {
+                nominal = Some(instance.symbol);
+                continue;
+            };
+            if kept == instance.symbol {
+                continue;
+            }
+
+            // track the extending class, unrelated pairs cannot coexist
+            if self.class_extends(instance.symbol, kept)? {
+                nominal = Some(instance.symbol);
+            } else if !self.class_extends(kept, instance.symbol)? {
+                return self.intern_type(dir::Type::Never);
+            }
+        }
+
         // exact key members absorb the string primitive
-        let has_exact_key = closed.iter().any(|element| {
-            matches!(
-                self.ty(*element),
-                Ok(dir::Type::Key(_) | dir::Type::Literal(dir::Literal::String(_)))
-            )
-        });
+        let mut has_exact_key = false;
+        for element in &closed {
+            has_exact_key = has_exact_key
+                || matches!(
+                    self.ty(*element)?,
+                    dir::Type::Key(_) | dir::Type::Literal(dir::Literal::String(_))
+                );
+        }
         if has_exact_key {
-            closed.retain(|element| {
-                !matches!(
-                    self.ty(*element),
-                    Ok(dir::Type::Primitive(dir::PrimitiveType::String))
-                )
-            });
+            let mut kept = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+            for element in closed {
+                if !matches!(
+                    self.ty(element)?,
+                    dir::Type::Primitive(dir::PrimitiveType::String)
+                ) {
+                    kept.push(element);
+                }
+            }
+            closed = kept;
         }
 
         // reduce one element intersection to that element
@@ -190,19 +227,20 @@ impl CheckState<'_> {
         }
 
         // merge structural shapes and keep every other element symbolic
-        let mut merged: Option<ShapeMerge> = None;
+        let mut merged: Option<ObjectMerge> = None;
         let mut others = Vec::new();
         let mut shape_count = 0usize;
         for element in closed {
             // resolve each element to the shape it names
             let head = self.structurally_normalize(origin, element)?;
+
             let dir::Type::Object(shape) = self.ty(head)? else {
                 others.push(element);
                 continue;
             };
 
             shape_count += 1;
-            self.merge_intersection_shape(origin, &mut merged, head.module_id, shape)?;
+            self.merge_intersection_object(origin, &mut merged, head.module_id, shape)?;
         }
 
         // keep intersections symbolic unless two or more shapes contributed
@@ -213,7 +251,7 @@ impl CheckState<'_> {
         let call_signatures = self.intern_type_ids(&merged.call_signatures)?;
         let construct_signatures = self.intern_type_ids(&merged.construct_signatures)?;
         let index_signatures = self.intern_index_signatures(&merged.index_signatures)?;
-        let shape = self.intern_type(dir::Type::Object(dir::ShapeType {
+        let shape = self.intern_type(dir::Type::Object(dir::ObjectType {
             properties: fields,
             call_signatures,
             construct_signatures,
@@ -232,23 +270,58 @@ impl CheckState<'_> {
         Ok(rebuilt)
     }
 
+    /// Return whether one class transitively extends another declaration.
+    fn class_extends(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        ancestor: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        // guard the walk, heritage cycles report elsewhere
+        let mut visited = SmallVec::<[dir::GlobalSymbolId; 8]>::new();
+        let mut current = symbol;
+        loop {
+            if visited.contains(&current) {
+                return Ok(false);
+            }
+            visited.push(current);
+
+            let Some(dir::Definition::Class(class)) = self.definition(current)?.cloned() else {
+                return Ok(false);
+            };
+            let Some(heritage) = class.extends else {
+                return Ok(false);
+            };
+
+            // read the parent class through alias heads
+            let origin = Origin::Symbol(current);
+            let parent = self.structurally_normalize(origin, heritage.ty)?;
+            let dir::Type::Application(parent) = self.ty(parent)? else {
+                return Ok(false);
+            };
+            if parent.symbol == ancestor {
+                return Ok(true);
+            }
+            current = parent.symbol;
+        }
+    }
+
     /// Merge one shape into an intersection shape accumulator.
-    fn merge_intersection_shape(
+    fn merge_intersection_object(
         &mut self,
         origin: Origin,
-        merged: &mut Option<ShapeMerge>,
+        merged: &mut Option<ObjectMerge>,
         module: ModuleId,
-        shape: dir::ShapeType,
+        shape: dir::ObjectType,
     ) -> CompilerResult<()> {
-        let fields = self.shape_properties(module, shape.properties)?.to_vec();
+        let fields = self.object_properties(module, shape.properties)?.to_vec();
         let call_signatures = self.type_ids(module, shape.call_signatures)?.to_vec();
         let construct_signatures = self.type_ids(module, shape.construct_signatures)?.to_vec();
         let index_signatures = self
-            .shape_index_signatures(module, shape.index_signatures)?
+            .object_index_signatures(module, shape.index_signatures)?
             .to_vec();
 
         let Some(merged) = merged.as_mut() else {
-            *merged = Some(ShapeMerge {
+            *merged = Some(ObjectMerge {
                 fields,
                 call_signatures,
                 construct_signatures,
@@ -299,6 +372,7 @@ impl CheckState<'_> {
 
         Ok(())
     }
+
     /// Intersect one shared property slot pair.
     fn intersect_property_slot(
         &mut self,

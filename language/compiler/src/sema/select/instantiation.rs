@@ -33,21 +33,21 @@ impl CheckState<'_> {
         written: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // pass every argument except a symbolic value binding through
-        let dir::Type::Application(instance) = self.ty(written)? else {
+        let dir::Type::Reference(reference) = self.ty(written)? else {
             return Ok(Some(written));
         };
-        if !instance.arguments.is_empty() || !self.symbol_kind(instance.symbol)?.is_binding() {
+        if !self.symbol_kind(reference.symbol)?.is_binding() {
             return Ok(Some(written));
         }
 
         // resolve a const slot's binding to its committed static value
         if binding.is_const {
-            if let Some(value) = self.static_value(instance.symbol) {
+            if let Some(value) = self.static_value(reference.symbol) {
                 return Ok(Some(value));
             }
 
             // keep the reference symbolic while declaring
-            if self.is_declaration() {
+            if self.is_declaring() {
                 return Ok(Some(written));
             }
         }
@@ -146,9 +146,7 @@ impl CheckState<'_> {
 
             // reuse a parameter opened earlier at this typing position
             let origin_id = self.infer.intern_origin(origin);
-            if !self.is_writeback
-                && let Some(existing) = self.infer.instantiation(origin_id, parameter)
-            {
+            if let Some(existing) = self.infer.instantiation(origin_id, parameter) {
                 let argument = self.variable_type(existing)?;
                 substitution.bind(parameter, argument)?;
 
@@ -156,16 +154,13 @@ impl CheckState<'_> {
             }
 
             // open one inference variable for the omitted parameter
-            let variable =
-                self.allocate_variable(origin, VariableRole::Instantiation { parameter });
+            let variable = self.open_variable(origin, VariableRole::Instantiation { parameter });
 
             // record the instantiation while the site claims its typing position
-            if !self.is_writeback {
-                self.infer
-                    .record_instantiation(origin_id, parameter, variable);
-            }
+            self.infer
+                .insert_instantiation(origin_id, parameter, variable);
 
-            // retain the declared default for dry inference
+            // keep the declared default for dry inference
             if let Some(default) = binding.default {
                 let default = self.substitute_type(default, &substitution)?;
                 self.set_variable_default(variable, default);
@@ -179,7 +174,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether a type exposes another type through transparent alternatives.
-    pub(in crate::sema) fn exposes_type(
+    pub(in crate::sema) fn has_exposed_type(
         &self,
         ty: dir::GlobalTypeId,
         exposed: dir::GlobalTypeId,
@@ -326,7 +321,7 @@ impl BodyState<'_, '_> {
                     return Ok(());
                 };
 
-                // register constraints determined by this application
+                // push constraints determined by this application
                 for constraint in
                     self.substitute_application_constraints(origin, template, &substitution)?
                 {
@@ -349,7 +344,7 @@ impl BodyState<'_, '_> {
             None => declared,
         };
 
-        // record the applied callable value with its selected arguments
+        // build the applied callable value with its selected arguments
         let arguments = self.symbol_generic_argument_bindings(symbol, &applied)?;
         let value = dir::FunctionValue {
             target: dir::CallableTarget::Symbol {

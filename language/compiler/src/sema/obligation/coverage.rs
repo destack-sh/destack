@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    CheckState, ObligationCheck, ObligationFailure, Origin, Relation, UncoveredValue,
+    CheckState, ObligationCheck, ObligationFailure, Origin, Relation, UncoveredValue, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -66,8 +66,9 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
         failure: impl FnOnce(dir::GlobalNodeIdAny, UncoveredValue) -> ObligationFailure,
     ) -> CompilerResult<ObligationCheck> {
-        let decision = self.decide_pattern_covers(origin, pattern, value)?;
-        let check = if decision {
+        // an undecided cover reports the value as uncovered, matching today's collapse
+        let covered = self.decide_pattern_covers(origin, pattern, value)?;
+        let check = if covered.holds() {
             ObligationCheck::holds()
         } else {
             let missing = self.uncovered_value(origin, &[pattern], value)?;
@@ -84,7 +85,7 @@ impl CheckState<'_> {
         origin: Origin,
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let value = self.strip_form(origin, value)?;
 
         // match newtypes through their backing
@@ -100,66 +101,79 @@ impl CheckState<'_> {
         if let dir::Type::Union(union) = self.ty(value)? {
             let elements: SmallVec<[_; 4]> =
                 SmallVec::from_slice(self.type_ids(value.module_id, union.elements)?);
+            let mut covered = Verdict::Holds;
             for element in elements {
-                if !self.decide_patterns_cover(origin, patterns, element)? {
-                    return Ok(false);
+                covered = covered.and(self.decide_patterns_cover(origin, patterns, element)?);
+                if covered == Verdict::Fails {
+                    break;
                 }
             }
 
-            return Ok(true);
+            return Ok(covered);
         }
 
         // cover variant domains case by case, arms sharing a case covering its payload jointly
         if let Some(domain) = self.variant_discriminant_domain(value)? {
+            let mut covered = Verdict::Holds;
             for discriminant in domain {
-                if !self.decide_variant_case_cover(origin, patterns, discriminant)? {
-                    return Ok(false);
+                covered =
+                    covered.and(self.decide_variant_case_cover(origin, patterns, discriminant)?);
+                if covered == Verdict::Fails {
+                    break;
                 }
             }
 
-            return Ok(true);
+            return Ok(covered);
         }
 
         // cover finite scalar domains value by value
         if let Some(domain) = self.ty(value)?.finite_literals() {
+            let mut covered = Verdict::Holds;
             for literal in domain {
                 let element = self.intern_type(dir::Type::Literal(literal))?;
-                if !self.decide_patterns_cover_value(origin, patterns, element)? {
-                    return Ok(false);
+                covered = covered.and(self.decide_patterns_cover_value(origin, patterns, element)?);
+                if covered == Verdict::Fails {
+                    break;
                 }
             }
 
-            return Ok(true);
+            return Ok(covered);
         }
 
         // cover scalar intervals by subtracting pattern intervals
         if let dir::Type::Range(domain) = self.ty(value)? {
-            return self.decide_patterns_cover_range(patterns, &domain);
+            let (uncovered, unreadable) = self.uncovered_range(patterns, &domain)?;
+
+            return Ok(Verdict::decided(uncovered.is_none()).join_undecided(unreadable));
         }
 
         // cover tuple domains by specializing pattern arms per element case
         if let dir::Type::Tuple(tuple) = self.ty(value)?
             && let Some(elements) = self.tuple_element_types(value, tuple.elements)?
         {
-            let Some(arms) = self.tuple_coverage_arms(origin, patterns, value, &elements)? else {
-                return Ok(true);
-            };
+            let (arms, whole) = self.tuple_coverage_arms(origin, patterns, value, &elements)?;
+            if whole.holds() {
+                return Ok(Verdict::Holds);
+            }
 
-            return self.decide_arms_cover(origin, arms, &elements);
+            let covered = self.decide_arms_cover(origin, arms, &elements)?;
+
+            return Ok(covered.join_undecided(whole));
         }
 
         self.decide_patterns_cover_value(origin, patterns, value)
     }
 
-    /// Build the coverage arms over one tuple's elements, or none when a pattern covers the tuple.
+    /// Build the coverage arms over one tuple's elements, with the verdict of covering it whole.
     fn tuple_coverage_arms(
         &mut self,
         origin: Origin,
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         value: dir::GlobalTypeId,
         elements: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Option<Vec<CoverageArm>>> {
+    ) -> CompilerResult<(Vec<CoverageArm>, Verdict)> {
         let mut arms = Vec::new();
+        let mut whole = Verdict::Fails;
         for pattern in patterns {
             // take a matching-width tuple pattern's fields as one arm
             if let Some(arm) = self.nested_coverage_arm(*pattern, elements.len())? {
@@ -169,12 +183,13 @@ impl CheckState<'_> {
             }
 
             // accept the whole domain from one covering pattern
-            if self.decide_pattern_node_covers(origin, *pattern, value)? {
-                return Ok(None);
+            whole = whole.or(self.decide_pattern_node_covers(origin, *pattern, value)?);
+            if whole.holds() {
+                break;
             }
         }
 
-        Ok(Some(arms))
+        Ok((arms, whole))
     }
 
     /// Build one coverage arm from a tuple pattern of one width, or none for other pattern shapes.
@@ -234,9 +249,9 @@ impl CheckState<'_> {
         origin: Origin,
         field: CoverageField,
         case: CoverageCase,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         match (field, case) {
-            (CoverageField::Wildcard, _) => Ok(true),
+            (CoverageField::Wildcard, _) => Ok(Verdict::Holds),
             (CoverageField::Pattern(pattern), CoverageCase::Type(ty)) => {
                 self.decide_pattern_node_covers(origin, pattern, ty)
             }
@@ -252,35 +267,41 @@ impl CheckState<'_> {
         origin: Origin,
         arms: Vec<CoverageArm>,
         columns: &[dir::GlobalTypeId],
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // cover an exhausted column list with any surviving arm
         let Some((&head, rest)) = columns.split_first() else {
-            return Ok(!arms.is_empty());
+            return Ok(Verdict::decided(!arms.is_empty()));
         };
 
         // cover every head case through its specialized arms
+        let mut covered = Verdict::Holds;
         for case in self.coverage_cases(origin, head)? {
-            let Some((specialized, columns)) = self.specialize_arms(origin, &arms, case, rest)?
-            else {
-                return Ok(false);
+            let (specialized, columns, dropped) =
+                self.specialize_arms(origin, &arms, case, rest)?;
+
+            // an escaping case leaves the whole combination uncovered
+            let case_covered = match specialized.is_empty() {
+                true => Verdict::Fails,
+                false => self.decide_arms_cover(origin, specialized, &columns)?,
             };
 
-            if !self.decide_arms_cover(origin, specialized, &columns)? {
-                return Ok(false);
+            covered = covered.and(case_covered.join_undecided(dropped));
+            if covered == Verdict::Fails {
+                break;
             }
         }
 
-        Ok(true)
+        Ok(covered)
     }
 
-    /// Specialize the arms against one head case, or none when the case escapes every arm.
+    /// Specialize the arms against one head case, with the verdict of the arms it drops.
     fn specialize_arms(
         &mut self,
         origin: Origin,
         arms: &[CoverageArm],
         case: CoverageCase,
         rest: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Option<(Vec<CoverageArm>, Vec<dir::GlobalTypeId>)>> {
+    ) -> CompilerResult<(Vec<CoverageArm>, Vec<dir::GlobalTypeId>, Verdict)> {
         // expand a tuple-typed case's elements into the column list
         let expanded = match case {
             CoverageCase::Type(ty) => match self.ty(ty)? {
@@ -298,6 +319,7 @@ impl CheckState<'_> {
 
         // specialize each arm against the case
         let mut specialized = Vec::new();
+        let mut dropped = Verdict::Fails;
         for arm in arms {
             let Some((&field, tail)) = arm.split_first() else {
                 return Err(CompilerError::Internal {
@@ -318,7 +340,10 @@ impl CheckState<'_> {
             }
 
             // drop arms whose head field escapes the case, wildcards cover every case
-            if !self.decide_field_covers_case(origin, field, case)? {
+            let covers = self.decide_field_covers_case(origin, field, case)?;
+            if !covers.holds() {
+                dropped = dropped.or(covers);
+
                 continue;
             }
 
@@ -335,11 +360,7 @@ impl CheckState<'_> {
             }
         }
 
-        if specialized.is_empty() {
-            return Ok(None);
-        }
-
-        Ok(Some((specialized, columns)))
+        Ok((specialized, columns, dropped))
     }
 
     /// Decompose one value into its coverage cases, an indivisible type staying one case.
@@ -389,6 +410,8 @@ impl CheckState<'_> {
     }
 
     /// Return one uncovered value for a failed coverage check.
+    ///
+    /// An undecided cover counts as uncovered, matching the failed check that asks for a witness.
     pub(in crate::sema) fn uncovered_value(
         &mut self,
         origin: Origin,
@@ -411,7 +434,10 @@ impl CheckState<'_> {
             let elements: SmallVec<[_; 4]> =
                 SmallVec::from_slice(self.type_ids(value.module_id, union.elements)?);
             for element in elements {
-                if !self.decide_patterns_cover(origin, patterns, element)? {
+                if !self
+                    .decide_patterns_cover(origin, patterns, element)?
+                    .holds()
+                {
                     return self.uncovered_value(origin, patterns, element);
                 }
             }
@@ -419,19 +445,21 @@ impl CheckState<'_> {
             return Ok(UncoveredValue::Type(value));
         }
 
-        // name the first uncovered variant case
-        let variant_domain = self.variant_discriminant_domain(value)?;
-        if let Some(domain) = variant_domain {
+        // name the first uncovered variant case, by its enum case key where one exists
+        if let Some(domain) = self.variant_discriminant_domain(value)? {
             for discriminant in domain {
-                if !self.decide_patterns_cover_variant_case(patterns, discriminant)? {
-                    if let Some(key) = self.enum_case_key_from_discriminant(value, discriminant)? {
-                        return Ok(UncoveredValue::VariantCase { ty: value, key });
-                    }
-
-                    let literal = self.intern_type(dir::Type::Literal(discriminant))?;
-
-                    return Ok(UncoveredValue::Type(literal));
+                let covered = self.decide_patterns_cover_variant_case(patterns, discriminant)?;
+                if covered.holds() {
+                    continue;
                 }
+
+                if let Some(key) = self.enum_case_key_from_discriminant(value, discriminant)? {
+                    return Ok(UncoveredValue::VariantCase { ty: value, key });
+                }
+
+                let literal = self.intern_type(dir::Type::Literal(discriminant))?;
+
+                return Ok(UncoveredValue::Type(literal));
             }
         }
 
@@ -439,7 +467,10 @@ impl CheckState<'_> {
         if let Some(domain) = self.ty(value)?.finite_literals() {
             for literal in domain {
                 let element = self.intern_type(dir::Type::Literal(literal))?;
-                if !self.decide_patterns_cover(origin, patterns, element)? {
+                if !self
+                    .decide_patterns_cover(origin, patterns, element)?
+                    .holds()
+                {
                     return Ok(UncoveredValue::Type(element));
                 }
             }
@@ -447,7 +478,7 @@ impl CheckState<'_> {
 
         // name the first uncovered scalar interval
         if let dir::Type::Range(domain) = self.ty(value)?
-            && let Some(range) = self.uncovered_range(patterns, &domain)?
+            && let (Some(range), _) = self.uncovered_range(patterns, &domain)?
         {
             let ty = match range.singleton_literal() {
                 Some(literal) => dir::Type::Literal(literal),
@@ -463,7 +494,8 @@ impl CheckState<'_> {
             && let Some(elements) = self.tuple_element_types(value, tuple.elements)?
         {
             let form = tuple.form;
-            if let Some(arms) = self.tuple_coverage_arms(origin, patterns, value, &elements)?
+            let (arms, whole) = self.tuple_coverage_arms(origin, patterns, value, &elements)?;
+            if !whole.holds()
                 && let Some(witness) = self.uncovered_arms_witness(origin, arms, &elements)?
             {
                 // intern the witness combination as one tuple type
@@ -511,7 +543,7 @@ impl CheckState<'_> {
                         message: "coverage arm is shorter than its column list".to_string(),
                     });
                 };
-                if self.decide_field_covers_case(origin, field, case)? {
+                if self.decide_field_covers_case(origin, field, case)?.holds() {
                     specialized.push(SmallVec::from_slice(tail));
                 }
             }
@@ -541,7 +573,7 @@ impl CheckState<'_> {
         origin: Origin,
         pattern: dir::GlobalNodeId<dir::Pattern>,
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         self.decide_patterns_cover(origin, &[pattern], value)
     }
 
@@ -551,14 +583,16 @@ impl CheckState<'_> {
         origin: Origin,
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
+        let mut covered = Verdict::Fails;
         for pattern in patterns {
-            if self.decide_pattern_node_covers(origin, *pattern, value)? {
-                return Ok(true);
+            covered = covered.or(self.decide_pattern_node_covers(origin, *pattern, value)?);
+            if covered.holds() {
+                break;
             }
         }
 
-        Ok(false)
+        Ok(covered)
     }
 
     /// Decide whether the patterns jointly cover one variant case and its payload.
@@ -567,28 +601,36 @@ impl CheckState<'_> {
         origin: Origin,
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         discriminant: dir::Literal,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         // collect payload arms from the arms selecting this discriminant
         let mut arms = Vec::new();
         let mut payload = None;
-        let mut selects = false;
+        let mut selects = Verdict::Fails;
         for pattern in patterns {
-            if !self.decide_pattern_covers_variant_case(*pattern, discriminant)? {
+            let selected = self.decide_pattern_covers_variant_case(*pattern, discriminant)?;
+            selects = selects.or(selected);
+            if !selected.holds() {
                 continue;
             }
-            selects = true;
 
             // accept the whole case from an arm without payload destructuring
             let Some((fields, projected)) = self.variant_payload_fields(*pattern)? else {
-                return Ok(true);
+                return Ok(Verdict::Holds);
             };
 
             // keep the arm's own field cover when its shapes build no arm
             let Some(arm) = self.coverage_arm(pattern.module_id, &fields)? else {
-                if let Some(projected) = projected
-                    && self.decide_fields_cover(origin, pattern.module_id, &fields, projected)?
-                {
-                    return Ok(true);
+                if let Some(projected) = projected {
+                    let covered =
+                        self.decide_fields_cover(origin, pattern.module_id, &fields, projected)?;
+                    if covered.holds() {
+                        return Ok(Verdict::Holds);
+                    }
+
+                    // keep the case undecided while its field cover stays open
+                    if covered == Verdict::Ambiguous {
+                        selects = Verdict::Ambiguous;
+                    }
                 }
 
                 continue;
@@ -602,7 +644,7 @@ impl CheckState<'_> {
             return Ok(selects);
         };
         if arms.is_empty() {
-            return Ok(false);
+            return Ok(Verdict::Fails.join_undecided(selects));
         }
 
         // cover the payload columns jointly, single payloads standing as one column
@@ -611,10 +653,12 @@ impl CheckState<'_> {
             _ => Some(SmallVec::from_elem(payload, 1)),
         };
         let Some(columns) = columns else {
-            return Ok(false);
+            return Ok(Verdict::Fails);
         };
 
-        self.decide_arms_cover(origin, arms, &columns)
+        let covered = self.decide_arms_cover(origin, arms, &columns)?;
+
+        Ok(covered.join_undecided(selects))
     }
 
     /// Return one variant arm's payload fields and projection, or none without destructuring.
@@ -655,14 +699,16 @@ impl CheckState<'_> {
         &mut self,
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         discriminant: dir::Literal,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
+        let mut covered = Verdict::Fails;
         for pattern in patterns {
-            if self.decide_pattern_covers_variant_case(*pattern, discriminant)? {
-                return Ok(true);
+            covered = covered.or(self.decide_pattern_covers_variant_case(*pattern, discriminant)?);
+            if covered.holds() {
+                break;
             }
         }
 
-        Ok(false)
+        Ok(covered)
     }
 
     /// Decide whether one pattern covers one variant discriminant.
@@ -670,11 +716,12 @@ impl CheckState<'_> {
         &mut self,
         pattern: dir::GlobalNodeId<dir::Pattern>,
         discriminant: dir::Literal,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let resolution = match self.decision(pattern.into_any()).cloned() {
             Some(dir::Decision::Pattern(resolution)) => resolution,
+            // a rejected pattern carries no shape to decide against
             Some(dir::Decision::Rejected | dir::Decision::Poisoned) => {
-                return Ok(false);
+                return Ok(Verdict::Ambiguous);
             }
             Some(decision) => {
                 return Err(CompilerError::Internal {
@@ -692,21 +739,21 @@ impl CheckState<'_> {
             // wildcard shapes cover every discriminant
             dir::PatternDecision::Ignore
             | dir::PatternDecision::Bind(dir::PatternBindingResolution { pattern: None, .. }) => {
-                true
+                Verdict::Holds
             }
 
             // variants cover their selected discriminant
-            dir::PatternDecision::Variant(resolution) => matches!(
+            dir::PatternDecision::Variant(resolution) => Verdict::decided(matches!(
                 &resolution.predicate.test,
                 dir::PredicateTest::Unary(test)
                     if matches!(
                         test.condition,
                         dir::PredicateCondition::Literal(selected) if selected == discriminant
                     )
-            ),
+            )),
 
             // discriminant tests cover their tested literal
-            dir::PatternDecision::Test(resolution) => matches!(
+            dir::PatternDecision::Test(resolution) => Verdict::decided(matches!(
                 &resolution.predicate.test,
                 dir::PredicateTest::Unary(test)
                     if matches!(
@@ -717,7 +764,7 @@ impl CheckState<'_> {
                         test.condition,
                         dir::PredicateCondition::Literal(selected) if selected == discriminant
                     )
-            ),
+            )),
 
             // defaulted patterns cover through their inner pattern
             dir::PatternDecision::Default(resolution) => {
@@ -728,12 +775,12 @@ impl CheckState<'_> {
 
             // or patterns cover when any branch covers
             dir::PatternDecision::Or(or) => {
-                let mut covered = false;
+                let mut covered = Verdict::Fails;
                 for branch in &or.patterns {
                     let branch = branch.into_typed();
-                    if self.decide_pattern_covers_variant_case(branch, discriminant)? {
-                        covered = true;
-
+                    covered =
+                        covered.or(self.decide_pattern_covers_variant_case(branch, discriminant)?);
+                    if covered.holds() {
                         break;
                     }
                 }
@@ -741,7 +788,8 @@ impl CheckState<'_> {
                 covered
             }
 
-            _ => false,
+            // TODO #Incomplete: bound patterns like `name @ Some(value)` skip their nested pattern
+            _ => Verdict::Fails,
         };
 
         Ok(covers)
@@ -753,16 +801,18 @@ impl CheckState<'_> {
         origin: Origin,
         pattern: dir::GlobalNodeId<dir::Pattern>,
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         let module = pattern.module_id;
-        if let Some(decision) = self.decide_pattern_decision_covers(pattern, value)? {
-            return Ok(decision);
+        if let Some(covered) = self.decide_pattern_decision_covers(pattern, value)? {
+            return Ok(covered);
         }
 
         let view = self.module(module).view();
         match view.get(pattern.local_id) {
             // wildcards and bare bindings always cover
-            dir::Pattern::Wildcard | dir::Pattern::Binding { pattern: None, .. } => Ok(true),
+            dir::Pattern::Wildcard | dir::Pattern::Binding { pattern: None, .. } => {
+                Ok(Verdict::Holds)
+            }
             // pattern forms cover through their contained pattern
             dir::Pattern::Binding {
                 pattern: Some(inner),
@@ -779,7 +829,7 @@ impl CheckState<'_> {
             // defaults cover absent values before testing the nested pattern
             dir::Pattern::Default { pattern: inner, .. } => {
                 if self.ty(value)?.is_undefined() {
-                    Ok(true)
+                    Ok(Verdict::Holds)
                 } else {
                     self.decide_pattern_covers(origin, inner.into_global(module), value)
                 }
@@ -789,10 +839,7 @@ impl CheckState<'_> {
                 let expression = *expression;
                 let expected = self.require_node_type(expression.into_global_any(module))?;
 
-                let verdict =
-                    self.evaluate_relation(origin, Relation::Assignable, value, expected)?;
-
-                Ok(verdict.holds())
+                self.decide_relation(origin, Relation::Assignable, value, expected)
             }
             // range patterns cover scalar values inside their interval
             dir::Pattern::Range {
@@ -826,11 +873,12 @@ impl CheckState<'_> {
 
                 // enum variants decide through their selected predicate
                 if let dir::PatternDecision::Variant(variant) = &resolution {
-                    if !self.decide_predicate_covers(&variant.predicate, value)? {
-                        return Ok(false);
+                    let covers = self.decide_predicate_covers(&variant.predicate, value)?;
+                    if !covers.holds() {
+                        return Ok(covers);
                     }
                     let Some(projection) = &variant.predicate.projection else {
-                        return Ok(fields.is_empty());
+                        return Ok(Verdict::decided(fields.is_empty()));
                     };
                     let payload = projection.ty();
 
@@ -884,11 +932,11 @@ impl CheckState<'_> {
                                 }
                             }
                             if !inherits {
-                                return Ok(false);
+                                return Ok(Verdict::Fails);
                             }
                         }
                     }
-                    _ => return Ok(false),
+                    _ => return Ok(Verdict::Fails),
                 }
 
                 // project the newtype payload behind the tag when present
@@ -915,7 +963,7 @@ impl CheckState<'_> {
         &mut self,
         pattern: dir::GlobalNodeId<dir::Pattern>,
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<bool>> {
+    ) -> CompilerResult<Option<Verdict>> {
         let resolution = self
             .decisions(pattern.module_id)
             .pattern_decision(pattern.into_any())
@@ -923,14 +971,14 @@ impl CheckState<'_> {
 
         match resolution {
             Some(dir::PatternDecision::Test(resolution)) => {
-                let decision = self.decide_predicate_covers(&resolution.predicate, value)?;
+                let covered = self.decide_predicate_covers(&resolution.predicate, value)?;
 
-                Ok(Some(decision))
+                Ok(Some(covered))
             }
             Some(dir::PatternDecision::Variant(resolution)) => {
-                let decision = self.decide_predicate_covers(&resolution.predicate, value)?;
+                let covered = self.decide_predicate_covers(&resolution.predicate, value)?;
 
-                Ok(Some(decision))
+                Ok(Some(covered))
             }
             _ => Ok(None),
         }
@@ -941,19 +989,22 @@ impl CheckState<'_> {
         &mut self,
         predicate: &dir::Predicate,
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
         match &predicate.test {
             dir::PredicateTest::Unary(unary) => self.decide_unary_predicate_covers(unary, value),
             dir::PredicateTest::Any(predicates) => {
+                let mut covered = Verdict::Fails;
                 for predicate in predicates {
-                    if self.decide_predicate_covers(predicate, value)? {
-                        return Ok(true);
+                    covered = covered.or(self.decide_predicate_covers(predicate, value)?);
+                    if covered.holds() {
+                        break;
                     }
                 }
 
-                Ok(false)
+                Ok(covered)
             }
-            dir::PredicateTest::Membership(_) => Ok(false),
+            // membership tests carry no static coverage
+            dir::PredicateTest::Membership(_) => Ok(Verdict::Ambiguous),
         }
     }
 
@@ -962,26 +1013,24 @@ impl CheckState<'_> {
         &mut self,
         predicate: &dir::PredicateUnaryTest,
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let decision = match &predicate.condition {
-            dir::PredicateCondition::Always => true,
-            dir::PredicateCondition::Never => false,
+    ) -> CompilerResult<Verdict> {
+        let covers = match &predicate.condition {
+            dir::PredicateCondition::Always => Verdict::Holds,
+            dir::PredicateCondition::Never => Verdict::Fails,
             dir::PredicateCondition::Literal(literal) => {
-                self.type_scalar_literal(value)? == Some(*literal)
+                Verdict::decided(self.type_scalar_literal(value)? == Some(*literal))
             }
-            dir::PredicateCondition::Range(range) => {
-                let Some(literal) = self.type_scalar_literal(value)? else {
-                    return Ok(false);
-                };
-
-                range.contains_literal(literal)
-            }
+            dir::PredicateCondition::Range(range) => match self.type_scalar_literal(value)? {
+                Some(literal) => Verdict::decided(range.contains_literal(literal)),
+                None => Verdict::Fails,
+            },
+            // TODO #Incomplete: type tests decide coverage through their tested type
             dir::PredicateCondition::Primitive(_)
             | dir::PredicateCondition::Type(_)
-            | dir::PredicateCondition::Subtype(_) => false,
+            | dir::PredicateCondition::Subtype(_) => Verdict::Ambiguous,
         };
 
-        Ok(decision)
+        Ok(covers)
     }
 
     /// Decide whether field patterns each cover their projected values.
@@ -991,14 +1040,15 @@ impl CheckState<'_> {
         module: ModuleId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Verdict> {
+        let mut covered = Verdict::Holds;
         for field in fields {
             let field = self.module(module).view().get(*field).clone();
-            let field_decision = match field {
+            let field_covered = match field {
                 // bare fields and elisions always cover
                 dir::PatternField::Named { pattern: None, .. }
                 | dir::PatternField::Rest { pattern: None }
-                | dir::PatternField::Elision => true,
+                | dir::PatternField::Elision => Verdict::Holds,
                 // named fields cover their projected member values
                 dir::PatternField::Named {
                     name,
@@ -1010,7 +1060,12 @@ impl CheckState<'_> {
                         self.module(module).view().get(pattern),
                         dir::Pattern::Default { .. }
                     );
-                    let subject = dir::MemberSubject::new(value, value, dir::MemberSpace::Instance);
+                    let subject = self.body().member_subject(
+                        origin,
+                        value,
+                        value,
+                        dir::MemberSpace::Instance,
+                    )?;
                     let lookup = self.body().lookup_member(origin, module, subject, key)?;
                     let member = self.body().member_read_type(&lookup)?;
 
@@ -1028,7 +1083,7 @@ impl CheckState<'_> {
                                     undefined,
                                 )?
                             } else {
-                                false
+                                Verdict::Fails
                             }
                         }
                     }
@@ -1041,40 +1096,35 @@ impl CheckState<'_> {
                 } => self.decide_pattern_covers(origin, pattern.into_global(module), value)?,
             };
 
-            if !field_decision {
-                return Ok(false);
+            covered = covered.and(field_covered);
+            if covered == Verdict::Fails {
+                break;
             }
         }
 
-        Ok(true)
+        Ok(covered)
     }
 
-    /// Decide whether pattern alternatives cover one scalar interval.
-    fn decide_patterns_cover_range(
-        &mut self,
-        patterns: &[dir::GlobalNodeId<dir::Pattern>],
-        domain: &dir::RangeType,
-    ) -> CompilerResult<bool> {
-        let uncovered = self.uncovered_range(patterns, domain)?;
-
-        Ok(uncovered.is_none())
-    }
-
-    /// Return the first uncovered interval left after pattern subtraction.
+    /// Return the first uncovered interval left after pattern subtraction, with the verdict of
+    /// the patterns whose intervals do not read statically.
     fn uncovered_range(
         &mut self,
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         domain: &dir::RangeType,
-    ) -> CompilerResult<Option<dir::RangeType>> {
+    ) -> CompilerResult<(Option<dir::RangeType>, Verdict)> {
         let mut uncovered = vec![*domain];
+        let mut unreadable = Verdict::Fails;
 
         // subtract each pattern's interval coverage
         for pattern in patterns {
+            // an unreadable pattern may still cover part of the domain
             let Some(coverage) = self.pattern_range_coverage(*pattern)? else {
+                unreadable = Verdict::Ambiguous;
+
                 continue;
             };
             let intervals = match coverage {
-                IntervalCoverage::All => return Ok(None),
+                IntervalCoverage::All => return Ok((None, unreadable)),
                 IntervalCoverage::Intervals(intervals) => intervals,
             };
 
@@ -1082,15 +1132,15 @@ impl CheckState<'_> {
             for interval in intervals {
                 uncovered = subtract_intervals(uncovered, &interval);
                 if uncovered.is_empty() {
-                    return Ok(None);
+                    return Ok((None, unreadable));
                 }
             }
         }
 
-        Ok(uncovered.into_iter().next())
+        Ok((uncovered.into_iter().next(), unreadable))
     }
 
-    /// Return scalar interval coverage represented by one pattern.
+    /// Return the scalar interval coverage one pattern represents, or none when it reads none.
     fn pattern_range_coverage(
         &mut self,
         pattern: dir::GlobalNodeId<dir::Pattern>,
@@ -1180,20 +1230,19 @@ impl CheckState<'_> {
         end: Option<dir::LocalNodeId<dir::Expression>>,
         end_kind: dir::RangeEnd,
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        // require a scalar literal value to test an interval
+    ) -> CompilerResult<Verdict> {
+        // test the written interval against a scalar literal value
+        // TODO #Incomplete: an interval value needs interval subtraction to decide
         let dir::Type::Literal(literal) = self.ty(value)? else {
-            return Ok(false);
+            return Ok(Verdict::Fails);
         };
 
-        // closed range patterns can be used for static coverage
+        // written bounds decide the interval only when they read statically
         let Some(range) = self.static_range_pattern_interval(module, start, end, end_kind)? else {
-            return Ok(false);
+            return Ok(Verdict::Ambiguous);
         };
 
-        let covered = range.contains_literal(literal);
-
-        Ok(covered)
+        Ok(Verdict::decided(range.contains_literal(literal)))
     }
 
     /// Return one statically known range pattern interval.

@@ -66,7 +66,7 @@ impl CheckState<'_> {
     /// Commit one static gate decision.
     fn commit_static_gate(&mut self, decorated: dir::LocalNodeIdAny, gate: StaticPresence) {
         let module = self.module_mut(self.module_id);
-        module.statics_tail.record_presence(decorated, gate);
+        module.statics_tail.commit_presence(decorated, gate);
 
         // retain the decision for repeated decorator walks
         module.static_presence.insert(decorated, gate);
@@ -246,7 +246,7 @@ impl WalkState<'_, '_> {
                 if let Some(literal) = self.static_term_literal(term) {
                     let ty = self.intern_type(dir::Type::Literal(literal))?;
 
-                    return self.bind_static_term(expression, ty);
+                    return self.commit_node_type(expression, ty);
                 }
             }
             Err(StaticError::NotStatic(_) | StaticError::NotBoolean(_)) => {}
@@ -258,13 +258,11 @@ impl WalkState<'_, '_> {
                 form: dir::InferForm::Hole,
                 name: None,
             } => {
-                let ty = match self.reject_declaration_hole(source)? {
+                let ty = match self.report_declaration_hole(source)? {
                     Some(rejected) => rejected,
                     None => self.open_type_hole(source, VariableRole::Regular)?,
                 };
-                self.commit_node_type(expression, ty)?;
-
-                self.bind_static_term(expression, ty)
+                self.commit_node_type(expression, ty)
             }
             // type
             dir::Expression::Type { value } => {
@@ -274,7 +272,7 @@ impl WalkState<'_, '_> {
                 } = self.tree.get(*value)
                 {
                     let source = (*value).into_any();
-                    let ty = match self.reject_declaration_hole(source)? {
+                    let ty = match self.report_declaration_hole(source)? {
                         Some(rejected) => rejected,
                         None => self.open_type_hole(source, VariableRole::Regular)?,
                     };
@@ -283,19 +281,19 @@ impl WalkState<'_, '_> {
                     self.walk_type_expression(*value)?
                 };
 
-                self.bind_static_term(expression, ty)
+                self.commit_node_type(expression, ty)
             }
             // 1
             dir::Expression::Literal(value) => {
                 let ty = self.intern_type(dir::Type::Literal(*value))?;
 
-                self.bind_static_term(expression, ty)
+                self.commit_node_type(expression, ty)
             }
             // this
             dir::Expression::This => {
                 let ty = self.intern_type(dir::Type::This)?;
 
-                self.bind_static_term(expression, ty)
+                self.commit_node_type(expression, ty)
             }
             // resolve names to const parameters and static constants
             dir::Expression::Identifier { .. } => {
@@ -309,7 +307,7 @@ impl WalkState<'_, '_> {
                 if let Some(dir::Reference::TypeLiteral(literal)) = reference {
                     let ty = self.intern_type(dir::Type::from(literal.clone()))?;
 
-                    return self.bind_static_term(expression, ty);
+                    return self.commit_node_type(expression, ty);
                 }
                 let symbol = match reference {
                     Some(dir::Reference::Bound(symbols)) => {
@@ -331,7 +329,7 @@ impl WalkState<'_, '_> {
                         .report_undecidable_static_value(self.module, source);
                     let ty = self.intern_type(dir::Type::Error)?;
 
-                    return self.bind_static_term(expression, ty);
+                    return self.commit_node_type(expression, ty);
                 };
 
                 // record the name edge for checked output
@@ -354,7 +352,7 @@ impl WalkState<'_, '_> {
                     }
                     // body value reads consume the value the signature must fix
                     else if !self.imposes_requirements
-                        && self.check.recorded_cardinality(parameter).is_none()
+                        && self.check.resolved_cardinality(parameter).is_none()
                     {
                         self.check.report_value_read_not_fixed(
                             expression.into_global_any(self.module),
@@ -363,20 +361,17 @@ impl WalkState<'_, '_> {
                     }
                     let ty = self.intern_type(dir::Type::Parameter(parameter))?;
 
-                    return self.bind_static_term(expression, ty);
+                    return self.commit_node_type(expression, ty);
                 }
 
                 if let Some(value) = self.check.static_value(symbol) {
-                    return self.bind_static_term(expression, value);
+                    return self.commit_node_type(expression, value);
                 }
 
-                let reference = dir::Type::Application(dir::GenericApplication {
-                    symbol,
-                    arguments: dir::TypeListId::EMPTY,
-                });
+                let reference = dir::Type::Reference(dir::TypeReference { symbol });
                 let ty = self.intern_type(reference)?;
 
-                self.bind_static_term(expression, ty)
+                self.commit_node_type(expression, ty)
             }
             // C == D, N * 2
             dir::Expression::Binary {
@@ -389,7 +384,7 @@ impl WalkState<'_, '_> {
                         .report_undecidable_static_value(self.module, source);
                     let ty = self.intern_type(dir::Type::Error)?;
 
-                    return self.bind_static_term(expression, ty);
+                    return self.commit_node_type(expression, ty);
                 };
                 let left = self.walk_static_term(*left)?;
                 let right = self.walk_static_term(*right)?;
@@ -400,7 +395,7 @@ impl WalkState<'_, '_> {
                 });
                 let ty = self.intern_operation(operation)?;
 
-                self.bind_static_term(expression, ty)
+                self.commit_node_type(expression, ty)
             }
             // !C
             dir::Expression::Unary { operator, right } => {
@@ -409,14 +404,14 @@ impl WalkState<'_, '_> {
                         .report_undecidable_static_value(self.module, source);
                     let ty = self.intern_type(dir::Type::Error)?;
 
-                    return self.bind_static_term(expression, ty);
+                    return self.commit_node_type(expression, ty);
                 };
                 let target = self.walk_static_term(*right)?;
                 let operation =
                     dir::TypeOperation::StaticUnary(dir::StaticUnaryType { operator, target });
                 let ty = self.intern_operation(operation)?;
 
-                self.bind_static_term(expression, ty)
+                self.commit_node_type(expression, ty)
             }
             // { role: "button", live: true }
             dir::Expression::ObjectExpression { properties } => {
@@ -443,14 +438,14 @@ impl WalkState<'_, '_> {
 
                 // intern the collected fields as an object shape
                 let properties = self.check.intern_properties(&fields)?;
-                let ty = self.intern_type(dir::Type::Object(dir::ShapeType {
+                let ty = self.intern_type(dir::Type::Object(dir::ObjectType {
                     properties,
                     call_signatures: dir::TypeListId::EMPTY,
                     construct_signatures: dir::TypeListId::EMPTY,
                     index_signatures: dir::TypeListId::EMPTY,
                 }))?;
 
-                self.bind_static_term(expression, ty)
+                self.commit_node_type(expression, ty)
             }
             // member chains project static members off their owners
             dir::Expression::Member {
@@ -466,25 +461,15 @@ impl WalkState<'_, '_> {
                     qualifier: None,
                 })?;
 
-                self.bind_static_term(expression, ty)
+                self.commit_node_type(expression, ty)
             }
             _ => {
                 self.check
                     .report_undecidable_static_value(self.module, source);
                 let ty = self.intern_type(dir::Type::Error)?;
 
-                self.bind_static_term(expression, ty)
+                self.commit_node_type(expression, ty)
             }
         }
-    }
-
-    /// Bind one static expression node to its static term type.
-    /// Bind one static expression node to its static term type.
-    fn bind_static_term(
-        &mut self,
-        expression: dir::LocalNodeId<dir::Expression>,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        self.commit_node_type(expression, ty)
     }
 }

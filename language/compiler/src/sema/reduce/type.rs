@@ -67,7 +67,7 @@ impl CheckState<'_> {
         self.deeply_resolve_shared(origin, id, &mut shared)
     }
 
-    /// Resolve solved variables through one type graph, replaying scoped heads.
+    /// Resolve solved variables through one type graph, reusing scoped heads.
     pub(in crate::sema) fn deeply_resolve_shared(
         &mut self,
         origin: Origin,
@@ -77,7 +77,7 @@ impl CheckState<'_> {
             dir::GlobalTypeId,
         >,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // replay the root this scope already resolved
+        // reuse the root this scope already resolved
         let id = self.shallow_resolve(id)?;
         let scope = self.assuming_scope(origin)?;
         if let Some(resolved) = shared.get(&(scope, id)) {
@@ -107,18 +107,13 @@ impl CheckState<'_> {
         };
 
         // read the spread as a closed tuple
-        let rest = self.structurally_normalize(origin, elements[rest_index].ty)?;
-        let dir::Type::Tuple(spread) = self.ty(rest)? else {
+        let Some(spread) = self.rest_tuple_elements(origin, elements[rest_index].ty)? else {
             return Ok(None);
         };
 
         // splice the spread elements in place
         let mut spliced: SmallVec<[_; 4]> = elements[..rest_index].into();
-        spliced.extend(
-            self.tuple_elements(rest.module_id, spread.elements)?
-                .iter()
-                .copied(),
-        );
+        spliced.extend(spread);
         spliced.extend(elements[rest_index + 1..].iter().copied());
         let spliced = self.intern_elements(&spliced)?;
         let spliced = self.intern_type(dir::Type::Tuple(dir::TupleType {
@@ -129,13 +124,14 @@ impl CheckState<'_> {
         Ok(Some(spliced))
     }
 
-    /// Splat one signature's closed tuple rest parameter into positional parameters.
-    fn reduce_signature_rest_splat(
+    /// Spread one signature's closed tuple rest parameter into positional parameters.
+    fn reduce_signature_rest_spread(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
         signature: dir::FunctionSignatureType,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // locate the rest parameter among the written positions
         let parameters: SmallVec<[_; 4]> = self
             .signature_parameters(id.module_id, signature.parameters)?
             .into();
@@ -146,15 +142,15 @@ impl CheckState<'_> {
         else {
             return Ok(None);
         };
-        // resolve a stuck rest head to its closed tuple
-        let rest_ty = self.structurally_normalize(origin, rest.ty)?;
-        let dir::Type::Tuple(tuple) = self.ty(rest_ty)? else {
+
+        // read the spread as a closed tuple
+        let Some(elements) = self.rest_tuple_elements(origin, rest.ty)? else {
             return Ok(None);
         };
 
-        // rebuild positional parameters from the tuple elements
+        // rebuild positional parameters from the spread elements
         let mut rebuilt: SmallVec<[_; 4]> = parameters[..rest_index].into();
-        for element in self.tuple_elements(rest_ty.module_id, tuple.elements)? {
+        for element in elements {
             rebuilt.push(dir::FunctionParameterType {
                 name: None,
                 ty: element.ty,
@@ -165,12 +161,27 @@ impl CheckState<'_> {
         rebuilt.extend(parameters[rest_index + 1..].iter().copied());
 
         let parameters = self.intern_parameters(&rebuilt)?;
-        let splatted = self.intern_signature(dir::FunctionSignatureType {
+        let spread = self.intern_signature(dir::FunctionSignatureType {
             parameters,
             ..signature
         })?;
 
-        Ok(Some(splatted))
+        Ok(Some(spread))
+    }
+
+    /// Return the elements one rest carrier spreads, when its head settles to a closed tuple.
+    fn rest_tuple_elements(
+        &mut self,
+        origin: Origin,
+        rest: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<SmallVec<[dir::TypeElement; 4]>>> {
+        let rest = self.structurally_normalize(origin, rest)?;
+        let dir::Type::Tuple(tuple) = self.ty(rest)? else {
+            return Ok(None);
+        };
+        let elements = self.tuple_elements(rest.module_id, tuple.elements)?.into();
+
+        Ok(Some(elements))
     }
 
     /// Normalize one closed head once at construction.
@@ -317,7 +328,7 @@ impl CheckState<'_> {
         // parameter and This heads reduce under their assuming template
         let assumes = self.decision_scope(origin, flags)?;
 
-        // replay decided reductions
+        // reuse decided reductions
         if let Some(assumes) = assumes
             && let Some(reduced) = self.normalizations.get(&(id, assumes))
         {
@@ -337,10 +348,10 @@ impl CheckState<'_> {
                 | dir::Type::Intersection(_)
                 | dir::Type::Tuple(_)
         ) {
-            // record the fixed point of a settled head, skipping the declaring pass
+            // store the fixed point of a resolved head, skipping the declaring pass
             if let Some(assumes) = assumes
                 && !flags.has_variable()
-                && !self.is_declaration()
+                && !self.is_declaring()
             {
                 self.normalizations.insert((id, assumes), id);
             }
@@ -356,7 +367,7 @@ impl CheckState<'_> {
         if let Some(assumes) = assumes
             && !flags.has_variable()
             && !self.type_flags(reduced)?.has_variable()
-            && !self.is_declaration()
+            && !self.is_declaring()
         {
             self.normalizations.insert((id, assumes), reduced);
         }
@@ -364,7 +375,7 @@ impl CheckState<'_> {
         Ok(reduced)
     }
 
-    /// Reduce one settled type head with the active expansion chain tracked.
+    /// Reduce one resolved type head with the active expansion chain tracked.
     fn normalize_chain(
         &mut self,
         origin: Origin,
@@ -400,6 +411,11 @@ impl CheckState<'_> {
 
             // continue written names as their nominal application
             dir::Type::Reference(reference) => {
+                // keep value binding references symbolic for their slots to interpret
+                if self.symbol_kind(reference.symbol)?.is_binding() {
+                    return Ok(id);
+                }
+
                 // keep bare names of generic symbols with required parameters symbolic
                 if let Some(template) = self.symbol_template(reference.symbol)? {
                     let parameters = self.generic_template_parameters(template)?;
@@ -447,11 +463,11 @@ impl CheckState<'_> {
                 None => Ok(id),
             },
 
-            // rest parameters with closed tuple types splat positionally
+            // rest parameters with closed tuple types spread positionally
             dir::Type::FunctionSignature(signature) => {
                 let signature = self.type_signature(id.module_id, signature)?;
-                match self.reduce_signature_rest_splat(origin, id, signature)? {
-                    Some(splatted) => Ok(splatted),
+                match self.reduce_signature_rest_spread(origin, id, signature)? {
+                    Some(spread) => Ok(spread),
                     None => Ok(id),
                 }
             }
@@ -659,12 +675,12 @@ impl CheckState<'_> {
         memo: &mut FxIndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // replay the reduction already recorded for this node
+        // reuse the reduction already recorded for this node
         if let Some(done) = memo.get(&id).copied() {
             return Ok(done);
         }
 
-        // replay the reduction recorded for the settled head
+        // reuse the reduction recorded for the resolved head
         let original = id;
         let id = self.shallow_resolve(id)?;
         if let Some(done) = memo.get(&id).copied() {
