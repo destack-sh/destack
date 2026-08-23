@@ -33,33 +33,13 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect declaration and object member signatures
-    for (_, declaration) in view.iter_nodes::<dir::Declaration>() {
-        if let dir::Declaration::Function(declaration) = declaration {
-            report_parameters(module, lint, &declaration.signature.parameters, &mut output)?;
-        }
-    }
-    for (_, member) in view.iter_nodes::<dir::Member>() {
-        if let Some(signature) = member.signature() {
-            report_parameters(module, lint, &signature.parameters, &mut output)?;
-        }
-    }
-    for (_, property) in view.iter_nodes::<dir::Property>() {
-        if let Some(signature) = property.signature() {
-            report_parameters(module, lint, &signature.parameters, &mut output)?;
-        }
-    }
+    // inspect every authored callable signature
+    for node in view.iter_node_ids() {
+        let Some(parameters) = module.callable_parameters(node) else {
+            continue;
+        };
 
-    // inspect callable type members and expressions
-    for (_, member) in view.iter_nodes::<dir::TypeMember>() {
-        if let Some(parameters) = member.parameters() {
-            report_parameters(module, lint, parameters, &mut output)?;
-        }
-    }
-    for (_, expression) in view.iter_nodes::<dir::TypeExpression>() {
-        if let Some(parameters) = expression.parameters() {
-            report_parameters(module, lint, parameters, &mut output)?;
-        }
+        report_parameters(module, lint, parameters, &mut output)?;
     }
 
     Ok(output)
