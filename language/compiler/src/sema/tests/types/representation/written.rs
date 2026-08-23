@@ -629,7 +629,7 @@ struct Segment {
 }
 
 class Marker {
-    position!: Point;
+    position: Point = { x: 0, y: 0 };
 }
 
 declare const segment: Segment;
@@ -652,7 +652,7 @@ struct Segment {
 }
 
 class Marker {
-    position!: Point;
+    position: Point = { x: 0, y: 0 };
 }
 
 declare const segment: Segment;
@@ -680,10 +680,10 @@ struct Segment {
 class Marker {
 /// @type.symbol symbol=Marker type=Marker
 /// @definition.class symbol=Marker
-/// @definition.field symbol=Marker.position source="position!: Point" key=position type=Point
+/// @definition.field symbol=Marker.position source="position: Point = { x: 0, y: 0 }" key=position type=Point
 
-    position!: Point;
-    /// @type.symbol symbol=Marker.position source="position!: Point" type=Point
+    position: Point = { x: 0, y: 0 };
+    /// @type.symbol symbol=Marker.position source="position: Point = { x: 0, y: 0 }" type=Point
     /// @resolution.name source=Point target=Point
 
 }

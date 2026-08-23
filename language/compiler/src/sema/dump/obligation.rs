@@ -34,7 +34,7 @@ impl Obligation {
                 runtime_predicate_label(&obligation.predicate, context),
             ),
             Self::ForInSource(obligation) => event.text("type", context.type_label(obligation.ty)),
-            Self::ClassInitialization(obligation) => event
+            Self::FieldInitialization(obligation) => event
                 .text("symbol", context.symbol_label(obligation.symbol))
                 .text("receiver", context.type_label(obligation.receiver)),
             Self::WellFormedType(obligation) => {
@@ -53,7 +53,7 @@ impl Obligation {
             Self::WritableTarget(_) => "writable.target",
             Self::RuntimePredicate(_) => "runtime.predicate",
             Self::ForInSource(_) => "for.in.source",
-            Self::ClassInitialization(_) => "class.initialization",
+            Self::FieldInitialization(_) => "field.initialization",
             Self::WellFormedType(_) => "wellformed.type",
             Self::RangeElement(_) => "range.element",
         }

@@ -306,7 +306,7 @@ fn test_resolve_relative_fields_in_shared_declarations() {
 class User {}
 
 shared class Service {
-    user!: User;
+    user: User = new User();
 
     accept(user: local User): void {}
 }
@@ -324,7 +324,7 @@ service.user satisfies shared User;
 class User {}
 
 shared class Service {
-    user!: User;
+    user: User = new User();
 
     accept(user: local User): void {}
 }
@@ -340,11 +340,13 @@ class User {}
 shared class Service {
 /// @type.symbol symbol=Service type=Service
 /// @definition.class symbol=Service
-/// @definition.field symbol=Service.user source="user!: User" key=user type=User
+/// @definition.field symbol=Service.user source="user: User = new User()" key=user type=User
 /// @definition.method symbol=Service.accept source="accept(user: local User): void {}" slot=accept type=(this: Service, Placed<User, "local">) => void
 
-    user!: User;
-    /// @type.symbol symbol=Service.user source="user!: User" type=User
+    user: User = new User();
+    /// @type.symbol symbol=Service.user source="user: User = new User()" type=User
+    /// @resolution.name source=User target=User
+    /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
     /// @resolution.name source=User target=User
 
     accept(user: local User): void {}

@@ -92,7 +92,7 @@ fn test_typeof_class_projects_statics_and_satisfies_construct_shapes() {
     let session = TestSession::single(
         r#"
 class Counter {
-    static version: int32;
+    static version: int32 = 0;
     value: int32;
 
     constructor(value: int32) {
@@ -115,7 +115,7 @@ let version: CounterCtor["version"] = 1;
         r#"
 === annotated ===
 class Counter {
-    static version: int32;
+    static version: int32 = 0;
     value: int32;
 
     constructor(value: int32): this {
@@ -135,11 +135,11 @@ class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.field symbol=Counter.version source="static version: int32" key=version static=true type=int32
+/// @definition.field symbol=Counter.version source="static version: int32 = 0" key=version static=true type=int32
 /// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(int32) => Counter
 
-    static version: int32;
-    /// @type.symbol symbol=Counter.version source="static version: int32" type=int32
+    static version: int32 = 0;
+    /// @type.symbol symbol=Counter.version source="static version: int32 = 0" type=int32
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32

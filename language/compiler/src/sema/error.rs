@@ -2991,6 +2991,26 @@ pub enum CheckError {
         field: String,
     },
 
+    /// Static field requires an initializer.
+    ///
+    /// ```ds
+    /// class Counter {
+    ///     static value: int32;
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "static-field-missing-initializer",
+        message = "static field '{field}' requires an initializer"
+    )]
+    StaticFieldMissingInitializer {
+        /// Report the field declaration.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The uninitialized field name.
+        field: String,
+    },
+
     /// Interface inheritance names a non-interface declaration.
     ///
     /// ```ds

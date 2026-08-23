@@ -555,7 +555,7 @@ fn test_default_static_member_to_local() {
 class User {}
 
 class Registry {
-    static current!: User;
+    static current: User = new User();
 }
 
 Registry.current satisfies local User;
@@ -570,7 +570,7 @@ Registry.current satisfies local User;
 class User {}
 
 class Registry {
-    static current!: User;
+    static current: User = new User();
 }
 
 Registry.current satisfies local User;
@@ -583,10 +583,12 @@ class User {}
 class Registry {
 /// @type.symbol symbol=Registry type=Registry
 /// @definition.class symbol=Registry
-/// @definition.field symbol=Registry.current source="static current!: User" key=current static=true type=User
+/// @definition.field symbol=Registry.current source="static current: User = new User()" key=current static=true type=User
 
-    static current!: User;
-    /// @type.symbol symbol=Registry.current source="static current!: User" type=User
+    static current: User = new User();
+    /// @type.symbol symbol=Registry.current source="static current: User = new User()" type=User
+    /// @resolution.name source=User target=User
+    /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
     /// @resolution.name source=User target=User
 
 }

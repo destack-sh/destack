@@ -35,6 +35,194 @@ class User {
 }
 
 #[test]
+fn test_static_field_initializers_satisfy_initialization() {
+    let session = TestSession::single(
+        r#"
+class ClassState {
+    static value: int32 = 1;
+}
+
+struct StructState {
+    static value: int32 = 1;
+}
+
+enum EnumState {
+    Ready,
+
+    static value: int32 = 1;
+}
+"#,
+    );
+
+    session.assert_dir("main.ds", DirRows::checked(), r#"
+=== annotated ===
+class ClassState {
+    static value: int32 = 1;
+}
+
+struct StructState {
+    static value: int32 = 1;
+}
+
+enum EnumState {
+    Ready,
+
+    static value: int32 = 1;
+}
+
+=== dir ===
+class ClassState {
+/// @type.symbol symbol=ClassState type=ClassState
+/// @definition.class symbol=ClassState
+/// @definition.field symbol=ClassState.value source="static value: int32 = 1" key=value static=true type=int32
+
+    static value: int32 = 1;
+    /// @type.symbol symbol=ClassState.value source="static value: int32 = 1" type=int32
+
+}
+
+struct StructState {
+/// @type.symbol symbol=StructState type=StructState
+/// @definition.struct symbol=StructState
+/// @definition.field symbol=StructState.value source="static value: int32 = 1" key=value static=true type=int32
+
+    static value: int32 = 1;
+    /// @type.symbol symbol=StructState.value source="static value: int32 = 1" type=int32
+
+}
+
+enum EnumState {
+/// @type.symbol symbol=EnumState type=EnumState
+/// @definition.enum symbol=EnumState
+/// @definition.variant symbol=EnumState.Ready source=Ready key=Ready value=0
+/// @definition.field symbol=EnumState.value source="static value: int32 = 1" key=value static=true type=int32
+
+    Ready,
+    /// @type.symbol symbol=EnumState.Ready source=Ready type=EnumState.Ready
+
+    static value: int32 = 1;
+    /// @type.symbol symbol=EnumState.value source="static value: int32 = 1" type=int32
+
+}
+"#);
+}
+
+#[test]
+fn test_static_fields_require_initializers() {
+    let session = TestSession::single(
+        r#"
+class ClassState {
+    static value: int32;
+}
+
+struct StructState {
+    static value: int32;
+}
+
+enum EnumState {
+    Ready,
+
+    static value: int32;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+class ClassState {
+    static value: int32;
+}
+
+struct StructState {
+    static value: int32;
+}
+
+enum EnumState {
+    Ready,
+
+    static value: int32;
+}
+
+=== dir ===
+class ClassState {
+/// @type.symbol symbol=ClassState type=ClassState
+/// @definition.class symbol=ClassState
+/// @definition.field symbol=ClassState.value source="static value: int32" key=value static=true type=int32
+
+    static value: int32;
+    /// @type.symbol symbol=ClassState.value source="static value: int32" type=int32
+
+}
+
+struct StructState {
+/// @type.symbol symbol=StructState type=StructState
+/// @definition.struct symbol=StructState
+/// @definition.field symbol=StructState.value source="static value: int32" key=value static=true type=int32
+
+    static value: int32;
+    /// @type.symbol symbol=StructState.value source="static value: int32" type=int32
+
+}
+
+enum EnumState {
+/// @type.symbol symbol=EnumState type=EnumState
+/// @definition.enum symbol=EnumState
+/// @definition.variant symbol=EnumState.Ready source=Ready key=Ready value=0
+/// @definition.field symbol=EnumState.value source="static value: int32" key=value static=true type=int32
+
+    Ready,
+    /// @type.symbol symbol=EnumState.Ready source=Ready type=EnumState.Ready
+
+    static value: int32;
+    /// @type.symbol symbol=EnumState.value source="static value: int32" type=int32
+
+}
+"#, r#"
+/// @diagnostic.error id=static-field-missing-initializer message="static field 'value' requires an initializer"
+/// @diagnostic.label line=3 column=12 span="value" line_source="static value: int32;"
+/// @diagnostic.error id=static-field-missing-initializer message="static field 'value' requires an initializer"
+/// @diagnostic.label line=7 column=12 span="value" line_source="static value: int32;"
+/// @diagnostic.error id=static-field-missing-initializer message="static field 'value' requires an initializer"
+/// @diagnostic.label line=13 column=12 span="value" line_source="static value: int32;"
+"#);
+}
+
+#[test]
+fn test_static_fields_admitting_undefined_need_no_initializer() {
+    let session = TestSession::single(
+        r#"
+class State {
+    static current: string | undefined;
+    static optional?: string;
+}
+"#,
+    );
+
+    session.assert_dir("main.ds", DirRows::checked(), r#"
+=== annotated ===
+class State {
+    static current: string | undefined;
+    static optional?: string;
+}
+
+=== dir ===
+class State {
+/// @type.symbol symbol=State type=State
+/// @definition.class symbol=State
+/// @definition.field symbol=State.current source="static current: string | undefined" key=current static=true type=string | undefined
+/// @definition.field symbol=State.optional source="static optional?: string" key=optional static=true type=string
+
+    static current: string | undefined;
+    /// @type.symbol symbol=State.current source="static current: string | undefined" type=string | undefined
+
+    static optional?: string;
+    /// @type.symbol symbol=State.optional source="static optional?: string" type=string
+
+}
+"#);
+}
+
+#[test]
 fn test_infer_class_field_from_initializer() {
     let session = TestSession::single(
         r#"
@@ -240,49 +428,6 @@ class User {
         r#"
 /// @diagnostic.error id=field-not-definitely-initialized message="field 'name' is not initialized on every constructor path"
 /// @diagnostic.label line=3 column=5 span="name" line_source="name: string;"
-"#,
-    );
-}
-
-#[test]
-fn test_definite_assertion_waives_constructor_initialization() {
-    let session = TestSession::single(
-        r#"
-class Connection {
-    handle!: int32;
-    count: int32;
-}
-"#,
-    );
-
-    session.assert_dir_and_diagnostics(
-        "main.ds",
-        DirRows::checked(),
-        r#"
-=== annotated ===
-class Connection {
-    handle!: int32;
-    count: int32;
-}
-
-=== dir ===
-class Connection {
-/// @type.symbol symbol=Connection type=Connection
-/// @definition.class symbol=Connection
-/// @definition.field symbol=Connection.count source="count: int32" key=count type=int32
-/// @definition.field symbol=Connection.handle source="handle!: int32" key=handle type=int32
-
-    handle!: int32;
-    /// @type.symbol symbol=Connection.handle source="handle!: int32" type=int32
-
-    count: int32;
-    /// @type.symbol symbol=Connection.count source="count: int32" type=int32
-
-}
-"#,
-        r#"
-/// @diagnostic.error id=field-not-definitely-initialized message="field 'count' is not initialized on every constructor path"
-/// @diagnostic.label line=4 column=5 span="count" line_source="count: int32;"
 "#,
     );
 }

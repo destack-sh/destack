@@ -3,7 +3,7 @@ use destack_dir as dir;
 use std::ptr::NonNull;
 
 use crate::sema::{
-    CauseKind, FlowBranch, FlowState, GenericTemplateId, InducedParameterOwner, Origin, Receiver,
+    CauseKind, FlowState, GenericTemplateId, InducedParameterOwner, Origin, Receiver,
     ReceiverBinding, Relation, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
@@ -255,7 +255,6 @@ impl WalkState<'_, '_> {
                 default,
                 is_optional,
                 is_readonly,
-                is_definite,
                 is_static,
                 is_abstract,
                 is_override,
@@ -264,8 +263,7 @@ impl WalkState<'_, '_> {
                 let (name, declared_type, default, is_optional, is_static) =
                     (*name, *declared_type, *default, *is_optional, *is_static);
                 let is_readonly = *is_readonly;
-                let (is_definite, is_abstract, is_override) =
-                    (*is_definite, *is_abstract, *is_override);
+                let (is_abstract, is_override) = (*is_abstract, *is_override);
 
                 // report a field declared without an annotation and without a default
                 let is_uninferable = declared_type.is_none() && default.is_none();
@@ -330,7 +328,6 @@ impl WalkState<'_, '_> {
                     initializer: default.map(|default| default.into_global_any(self.module)),
                     is_optional,
                     is_readonly,
-                    is_definite,
                     is_abstract,
                     is_override,
                     overrides: None,
@@ -517,7 +514,7 @@ impl WalkState<'_, '_> {
         receiver_scope: Option<Receiver>,
         is_ambient_scope: bool,
         method_body: Option<MethodBody>,
-    ) -> CompilerResult<Option<FlowBranch>> {
+    ) -> CompilerResult<()> {
         let _receiver =
             self.enter_receiver_scope(receiver_scope.filter(|_| member.binds_receiver()));
 
@@ -530,11 +527,11 @@ impl WalkState<'_, '_> {
                 abstraction,
                 ..
             } => {
-                if body.is_none() || is_ambient_scope || *is_ambient || abstraction.is_abstract() {
-                    return Ok(None);
+                if is_ambient_scope || *is_ambient || abstraction.is_abstract() {
+                    return Ok(());
                 }
                 let Some(body) = *body else {
-                    return Ok(None);
+                    return Ok(());
                 };
                 let Some(symbol) = self.declared_symbol(id.into_any()) else {
                     return Err(CompilerError::Internal {
@@ -542,9 +539,9 @@ impl WalkState<'_, '_> {
                     });
                 };
                 let Some(method_body) = method_body else {
-                    return Ok(None);
+                    return Ok(());
                 };
-                let branch = self.walk_function_body(
+                self.walk_function_body(
                     symbol,
                     signature,
                     body,
@@ -552,11 +549,7 @@ impl WalkState<'_, '_> {
                     method_body.receiver,
                 )?;
 
-                if matches!(signature.role, Some(dir::FunctionRole::Constructor)) {
-                    Ok(Some(branch))
-                } else {
-                    Ok(None)
-                }
+                Ok(())
             }
             // static { ... }, const { ... }
             dir::Member::StaticBlock { body } | dir::Member::ConstBlock { body } => {
@@ -573,13 +566,13 @@ impl WalkState<'_, '_> {
                     self.restore_flow(before_body);
                 }
 
-                Ok(None)
+                Ok(())
             }
             // members without bodies
             dir::Member::Field { .. }
             | dir::Member::AssociatedType { .. }
             | dir::Member::AssociatedConst { .. }
-            | dir::Member::Error => Ok(None),
+            | dir::Member::Error => Ok(()),
         }
     }
 
@@ -652,7 +645,6 @@ impl WalkState<'_, '_> {
                     initializer: None,
                     is_optional,
                     is_readonly,
-                    is_definite: false,
                     is_abstract: false,
                     is_override: false,
                     overrides: None,

@@ -3,8 +3,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    CauseKind, FlowBranch, FunctionBody, GeneratorTargets, GenericTemplateId,
-    InducedParameterOwner, Origin, ReceiverBinding, Relation, VariableRole, WalkState,
+    CauseKind, FunctionBody, GeneratorTargets, GenericTemplateId, InducedParameterOwner, Origin,
+    ReceiverBinding, Relation, VariableRole, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -478,7 +478,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         body: dir::LocalNodeId<dir::Expression>,
         result: dir::GlobalTypeId,
         receiver: Option<ReceiverBinding>,
-    ) -> CompilerResult<FlowBranch> {
+    ) -> CompilerResult<()> {
         let source = body.into_any();
         let origin = Origin::Node(
             body.into_global_any(self.module),
@@ -615,7 +615,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             });
         }
 
-        Ok(FlowBranch::default())
+        Ok(())
     }
 
     /// Return the signature slot for one walked runtime parameter.

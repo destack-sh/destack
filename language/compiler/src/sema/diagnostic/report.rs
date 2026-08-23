@@ -2420,6 +2420,15 @@ impl CheckState<'_> {
                 };
                 self.report(module, error);
             }
+            ObligationFailure::StaticFieldMissingInitializer { source, field } => {
+                let (module, anchor) = self.source_anchor(source);
+                let error = CheckError::StaticFieldMissingInitializer {
+                    anchor,
+                    module,
+                    field: self.format_symbol(field),
+                };
+                self.report(module, error);
+            }
         }
 
         Ok(())

@@ -41,8 +41,8 @@ pub(in crate::sema) enum Obligation {
     RuntimePredicate(Box<RuntimePredicateObligation>),
     /// A for-in source must be enumerable.
     ForInSource(ForInSourceObligation),
-    /// A class must initialize required fields on every constructor path.
-    ClassInitialization(ClassInitializationObligation),
+    /// A concrete declaration must initialize required fields.
+    FieldInitialization(FieldInitializationObligation),
     /// A written type operation must be well-formed once its operands close.
     WellFormedType(WellFormedTypeObligation),
     /// A range's written endpoints share one element type.
@@ -66,7 +66,7 @@ impl Obligation {
             | Self::RuntimePredicate(_)
             | Self::ForInSource(_)
             | Self::RangeElement(_) => ObligationPhase::Produce,
-            Self::WritableTarget(_) | Self::ClassInitialization(_) | Self::WellFormedType(_) => {
+            Self::WritableTarget(_) | Self::FieldInitialization(_) | Self::WellFormedType(_) => {
                 ObligationPhase::Judge
             }
         }
@@ -79,7 +79,7 @@ impl Obligation {
             Self::WritableTarget(obligation) => obligation.target.source,
             Self::RuntimePredicate(obligation) => obligation.source,
             Self::ForInSource(obligation) => obligation.source,
-            Self::ClassInitialization(obligation) => obligation.source,
+            Self::FieldInitialization(obligation) => obligation.source,
             Self::WellFormedType(obligation) => obligation.source,
             Self::RangeElement(obligation) => obligation.source,
         }
@@ -95,7 +95,7 @@ impl Obligation {
             Self::WritableTarget(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::ForInSource(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::WellFormedType(obligation) => SmallVec::from_slice(&[obligation.ty]),
-            Self::ClassInitialization(obligation) => SmallVec::from_slice(&[obligation.receiver]),
+            Self::FieldInitialization(obligation) => SmallVec::from_slice(&[obligation.receiver]),
             Self::RangeElement(obligation) => SmallVec::from_slice(&[obligation.element]),
             Self::RuntimePredicate(_) => SmallVec::new(),
         }
@@ -448,6 +448,13 @@ pub(in crate::sema) enum ObligationFailure {
         /// The field symbol.
         field: dir::GlobalSymbolId,
     },
+    /// Static field has no initializer.
+    StaticFieldMissingInitializer {
+        /// The field declaration source.
+        source: dir::GlobalNodeIdAny,
+        /// The field symbol.
+        field: dir::GlobalSymbolId,
+    },
     /// Declared generic parameter never occurs in its definition.
     UnusedGenericParameter {
         /// The parameter declaration source.
@@ -532,7 +539,7 @@ pub(in crate::sema) struct WritableTargetObligation {
     pub(in crate::sema) ty: dir::GlobalTypeId,
 }
 
-/// Obliges a class to initialize required fields before construction completes.
+/// Obliges a concrete declaration to initialize required fields.
 ///
 /// ```ds
 /// class User {
@@ -541,12 +548,12 @@ pub(in crate::sema) struct WritableTargetObligation {
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::sema) struct ClassInitializationObligation {
-    /// The class declaration node.
+pub(in crate::sema) struct FieldInitializationObligation {
+    /// The declaration node.
     pub(in crate::sema) source: dir::GlobalNodeIdAny,
-    /// The checked class symbol.
+    /// The checked declaration symbol.
     pub(in crate::sema) symbol: dir::GlobalSymbolId,
-    /// The constructed receiver type.
+    /// The declaration receiver type.
     pub(in crate::sema) receiver: dir::GlobalTypeId,
 }
 
@@ -715,8 +722,8 @@ impl CheckState<'_> {
                 self.check_runtime_predicate(origin, obligation)
             }
             Obligation::ForInSource(obligation) => self.check_for_in_source(origin, obligation),
-            Obligation::ClassInitialization(obligation) => {
-                self.check_class_initialization(origin, obligation)
+            Obligation::FieldInitialization(obligation) => {
+                self.check_field_initialization(origin, obligation)
             }
             Obligation::WellFormedType(obligation) => {
                 self.check_well_formed_type(origin, obligation)

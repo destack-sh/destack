@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::sema::{
-    CauseKind, ClassInitializationObligation, Obligation, Origin, Receiver, ValueUse, WalkState,
+    CauseKind, FieldInitializationObligation, Obligation, Origin, Receiver, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -65,13 +65,14 @@ impl WalkState<'_, '_> {
                     ..receiver
                 };
                 self.walk_declared_member_bodies(
-                    id,
                     symbol,
                     &class.members,
                     receiver,
                     class.is_ambient,
-                    true,
                 )?;
+                if !class.is_ambient {
+                    self.push_field_initialization(id, symbol, receiver.ty)?;
+                }
 
                 Ok(true)
             }
@@ -109,14 +110,8 @@ impl WalkState<'_, '_> {
             // walk struct members under an owned receiver
             dir::Declaration::Struct(declaration) => {
                 let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Owned))?;
-                self.walk_declared_member_bodies(
-                    id,
-                    symbol,
-                    &declaration.members,
-                    receiver,
-                    false,
-                    false,
-                )?;
+                self.walk_declared_member_bodies(symbol, &declaration.members, receiver, false)?;
+                self.push_field_initialization(id, symbol, receiver.ty)?;
 
                 Ok(true)
             }
@@ -128,14 +123,8 @@ impl WalkState<'_, '_> {
                 }
 
                 let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Owned))?;
-                self.walk_declared_member_bodies(
-                    id,
-                    symbol,
-                    &declaration.members,
-                    receiver,
-                    false,
-                    false,
-                )?;
+                self.walk_declared_member_bodies(symbol, &declaration.members, receiver, false)?;
+                self.push_field_initialization(id, symbol, receiver.ty)?;
 
                 Ok(true)
             }
@@ -156,14 +145,7 @@ impl WalkState<'_, '_> {
                     ty: target_type,
                     super_ty: None,
                 };
-                self.walk_declared_member_bodies(
-                    id,
-                    symbol,
-                    &extension.members,
-                    receiver,
-                    false,
-                    false,
-                )?;
+                self.walk_declared_member_bodies(symbol, &extension.members, receiver, false)?;
 
                 Ok(true)
             }
@@ -237,21 +219,17 @@ impl WalkState<'_, '_> {
     /// Walk the member bodies of one declared-stage nominal declaration.
     fn walk_declared_member_bodies(
         &mut self,
-        id: dir::LocalNodeId<dir::Declaration>,
         symbol: dir::GlobalSymbolId,
         members: &[dir::LocalNodeId<dir::Member>],
         receiver: Receiver,
         is_ambient: bool,
-        is_class: bool,
     ) -> CompilerResult<()> {
         // enter the declaration's template and receiver scopes
         let template = self.check.symbol_template(symbol)?;
         let _scope = self.enter_template_scope(template);
         let _receiver = self.enter_receiver_scope(Some(receiver));
 
-        // walk each member body and collect the constructor branches
-        let source = id.into_global_any(self.module);
-        let mut constructor_branches = Vec::new();
+        // walk each member body
         for member in members {
             // walk member decorators before its parameters and body
             if !self.walk_decorators(member.into_any())? {
@@ -287,29 +265,34 @@ impl WalkState<'_, '_> {
             // walk the method body against its declared signature
             let body =
                 self.declared_method_body(*member, self.tree.get(*member), Some(receiver))?;
-            if let Some(branch) = self.walk_member_body(
+            self.walk_member_body(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
                 is_ambient,
                 body,
-            )? {
-                constructor_branches.push(branch);
-            }
-        }
-
-        // require concrete constructors to initialize concrete instance fields
-        if is_class && !is_ambient {
-            let scope = self.check.symbol_template(symbol)?;
-            self.check.push_obligation(
-                Obligation::ClassInitialization(ClassInitializationObligation {
-                    source,
-                    symbol,
-                    receiver: receiver.ty,
-                }),
-                scope,
             )?;
         }
+
+        Ok(())
+    }
+
+    /// Require one concrete declaration to initialize its fields.
+    fn push_field_initialization(
+        &mut self,
+        id: dir::LocalNodeId<dir::Declaration>,
+        symbol: dir::GlobalSymbolId,
+        receiver: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let scope = self.check.symbol_template(symbol)?;
+        let obligation = FieldInitializationObligation {
+            source: id.into_global_any(self.module),
+            symbol,
+            receiver,
+        };
+
+        self.check
+            .push_obligation(Obligation::FieldInitialization(obligation), scope)?;
 
         Ok(())
     }

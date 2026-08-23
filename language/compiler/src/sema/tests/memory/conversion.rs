@@ -810,9 +810,9 @@ struct Box<T> {
 }
 
 class State {
-    user!: User;
-    boxed!: Box<User>;
-    users!: User[];
+    user: User = new User();
+    boxed: Box<User> = Box { value: new User() };
+    users: User[] = [];
 }
 
 declare function inspect(value: &readonly User): void;
@@ -836,9 +836,9 @@ struct Box<out T> {
 }
 
 class State {
-    user!: User;
-    boxed!: Box<User>;
-    users!: User[];
+    user: User = new User();
+    boxed: Box<User> = Box<User> { value: new User() };
+    users: User[] = [];
 }
 
 declare function inspect<'a>(value: &'a readonly User): void;
@@ -869,26 +869,34 @@ struct Box<T> {
 class State {
 /// @type.symbol symbol=State type=State
 /// @definition.class symbol=State
-/// @definition.field symbol=State.boxed source="boxed!: Box<User>" key=boxed type=Box<User>
-/// @definition.field symbol=State.user source="user!: User" key=user type=User
-/// @definition.field symbol=State.users source="users!: User[]" key=users type=User[]
+/// @definition.field symbol=State.boxed source="boxed: Box<User> = Box { value: new User() }" key=boxed type=Box<User>
+/// @definition.field symbol=State.user source="user: User = new User()" key=user type=User
+/// @definition.field symbol=State.users source="users: User[] = []" key=users type=User[]
 
-    user!: User;
-    /// @type.symbol symbol=State.user source="user!: User" type=User
+    user: User = new User();
+    /// @type.symbol symbol=State.user source="user: User = new User()" type=User
+    /// @resolution.name source=User target=User
+    /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
     /// @resolution.name source=User target=User
 
-    boxed!: Box<User>;
-    /// @type.symbol symbol=State.boxed source="boxed!: Box<User>" type=Box<User>
+    boxed: Box<User> = Box { value: new User() };
+    /// @type.symbol symbol=State.boxed source="boxed: Box<User> = Box { value: new User() }" type=Box<User>
     /// @generic.instance id=Box<User> template=Box arguments=(User)
     /// @resolution.name source=Box target=Box
     /// @resolution.name source=User target=User
+    /// @resolution.name source=Box target=Box
+    /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
+    /// @resolution.name source=User target=User
 
-    users!: User[];
-    /// @type.symbol symbol=State.users source="users!: User[]" type=User[]
+    users: User[] = [];
+    /// @type.symbol symbol=State.users source="users: User[] = []" type=User[]
     /// @generic.instance id=Array<User> template=collections.array.Array arguments=(User)
     /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<User>> template=collections.slice.new arguments=(memory.init.MaybeUninit<User>)
     /// @generic.instance id=memory.init.MaybeUninit<User> template=memory.init.MaybeUninit arguments=(User)
     /// @resolution.name source=User target=User
+    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as User) return=User[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<User>
+    /// @generic.instantiation id=collections.array.arrayFromSlice<User> template=collections.array.arrayFromSlice arguments=(User)
+    /// @generic.instance id=collections.array.arrayFromSlice<User> template=collections.array.arrayFromSlice arguments=(User)
 
 }
 

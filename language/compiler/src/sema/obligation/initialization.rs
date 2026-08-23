@@ -1,34 +1,41 @@
 use destack_dir as dir;
 
 use crate::sema::{
-    AssignedPlace, CheckState, ClassInitializationObligation, ObligationCheck, ObligationFailure,
+    AssignedPlace, CheckState, FieldInitializationObligation, ObligationCheck, ObligationFailure,
     Origin, Relation,
 };
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Check one class's required field initialization.
-    pub(in crate::sema) fn check_class_initialization(
+    /// Check one declaration's required field initialization.
+    pub(in crate::sema) fn check_field_initialization(
         &mut self,
         origin: Origin,
-        obligation: &ClassInitializationObligation,
+        obligation: &FieldInitializationObligation,
     ) -> CompilerResult<ObligationCheck> {
-        let fields = self.class_initialization_fields(obligation.symbol)?;
+        let fields = self.initialization_fields(obligation.symbol)?;
         let mut failures = Vec::new();
 
-        // check each required field against every constructor completion branch
+        // check each field that requires a runtime value
         for field in fields {
             if !self.field_requires_initialization(origin, &field)? {
                 continue;
             }
-            if self.constructors_assign_field(obligation, &field) {
-                continue;
-            }
 
-            failures.push(ObligationFailure::FieldNotDefinitelyInitialized {
-                source: field.source,
-                field: field.symbol,
-            });
+            // require static storage to initialize with its declaration
+            if field.space == dir::MemberSpace::Static {
+                failures.push(ObligationFailure::StaticFieldMissingInitializer {
+                    source: field.source,
+                    field: field.symbol,
+                });
+            }
+            // accept instance storage assigned on every constructor completion
+            else if !self.constructors_assign_field(obligation, &field) {
+                failures.push(ObligationFailure::FieldNotDefinitelyInitialized {
+                    source: field.source,
+                    field: field.symbol,
+                });
+            }
         }
 
         let check = ObligationCheck::from_failures(failures);
@@ -36,28 +43,27 @@ impl CheckState<'_> {
         Ok(check)
     }
 
-    /// Return fields that need class initialization checking.
-    fn class_initialization_fields(
+    /// Return fields whose declarations may require initialization.
+    fn initialization_fields(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Vec<dir::FieldDefinition>> {
-        let Some(dir::Definition::Class(class)) = self.definition(symbol)? else {
+        let Some(definition) = self.definition(symbol)? else {
             return Err(CompilerError::Internal {
-                message: format!("class initialization has no class definition: {symbol:?}"),
+                message: format!("field initialization has no definition: {symbol:?}"),
             });
         };
+        let is_class = matches!(definition, dir::Definition::Class(_));
 
-        // collect instance fields without direct initializers,
-        //  skipping definite assignment assertions like `handle!: T`
-        Ok(class
-            .members
+        // collect concrete storage without direct initializers
+        Ok(definition
+            .members()
             .iter()
             .filter_map(|member| match member {
                 dir::DefinitionMember::Field(field)
-                    if field.space == dir::MemberSpace::Instance
+                    if (field.space == dir::MemberSpace::Static || is_class)
                         && field.initializer.is_none()
                         && !field.is_optional
-                        && !field.is_definite
                         && !field.is_abstract =>
                 {
                     Some(field.clone())
@@ -67,7 +73,7 @@ impl CheckState<'_> {
             .collect())
     }
 
-    /// Return whether one field still needs constructor initialization.
+    /// Return whether one field requires initialization.
     fn field_requires_initialization(
         &mut self,
         origin: Origin,
@@ -85,7 +91,7 @@ impl CheckState<'_> {
     /// Return whether every constructor branch assigns one field.
     fn constructors_assign_field(
         &self,
-        obligation: &ClassInitializationObligation,
+        obligation: &FieldInitializationObligation,
         field: &dir::FieldDefinition,
     ) -> bool {
         let place = AssignedPlace::Member {
@@ -93,8 +99,7 @@ impl CheckState<'_> {
             key: field.key,
         };
 
-        // read the exit branches constructors recorded at check; a class
-        //  without any checked constructor initializes nothing
+        // read constructor exit branches recorded during checking
         match self.constructor_branches.get(&obligation.symbol) {
             Some(branches) => branches.iter().all(|branch| branch.assigns(place)),
             None => false,
