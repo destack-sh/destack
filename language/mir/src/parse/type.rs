@@ -392,7 +392,7 @@ impl Parser {
 
     /// Parse a named type form.
     fn parse_named_type(&mut self, name: &str, start: usize) -> ParseResult<LocalNodeId<Type>> {
-        if let Some(primitive) = self.parse_primitive_type(name) {
+        if let Some(primitive) = Type::from_primitive_name(name) {
             self.bump();
             return self.intern_type(primitive);
         }

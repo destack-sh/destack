@@ -633,6 +633,39 @@ impl Type {
     pub const FLOAT32: Type = Type::Float(FloatType::Float32);
     pub const FLOAT64: Type = Type::Float(FloatType::Float64);
 
+    /// Parse one primitive MIR type name.
+    pub fn from_primitive_name(name: &str) -> Option<Self> {
+        Some(match name {
+            "never" => Type::Never,
+            "void" => Type::Void,
+            "boolean" => Type::Boolean,
+            "char" => Type::Character,
+            name if let Some(width) = name.strip_prefix("int")
+                && let Ok(width) = width.parse() =>
+            {
+                Type::Int {
+                    width,
+                    is_signed: true,
+                }
+            }
+            name if let Some(width) = name.strip_prefix("uint")
+                && let Ok(width) = width.parse() =>
+            {
+                Type::Int {
+                    width,
+                    is_signed: false,
+                }
+            }
+            "isize" => Type::Isize,
+            "usize" => Type::Usize,
+            "float32" => Type::FLOAT32,
+            "float64" => Type::FLOAT64,
+            "typeDescriptor" => Type::TypeDescriptor,
+            "typeId" => Type::TypeId,
+            _ => return None,
+        })
+    }
+
     /// Return one structural field type.
     pub fn field_type(&self, index: u32, tree: &Tree) -> Option<TypeId> {
         match self {

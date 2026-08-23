@@ -266,69 +266,6 @@ impl Parser {
         Ok(value)
     }
 
-    /// Parse a primitive type from string.
-    pub(super) fn parse_primitive_type(&self, text: &str) -> Option<Type> {
-        Some(match text {
-            "never" => Type::Never,
-            "int8" => Type::Int {
-                width: 8,
-                is_signed: true,
-            },
-            "int16" => Type::Int {
-                width: 16,
-                is_signed: true,
-            },
-            "int32" => Type::Int {
-                width: 32,
-                is_signed: true,
-            },
-            "int64" => Type::Int {
-                width: 64,
-                is_signed: true,
-            },
-            "int128" => Type::Int {
-                width: 128,
-                is_signed: true,
-            },
-            "int256" => Type::Int {
-                width: 256,
-                is_signed: true,
-            },
-            "uint8" => Type::Int {
-                width: 8,
-                is_signed: false,
-            },
-            "uint16" => Type::Int {
-                width: 16,
-                is_signed: false,
-            },
-            "uint32" => Type::Int {
-                width: 32,
-                is_signed: false,
-            },
-            "uint64" => Type::Int {
-                width: 64,
-                is_signed: false,
-            },
-            "uint128" => Type::Int {
-                width: 128,
-                is_signed: false,
-            },
-            "uint256" => Type::Int {
-                width: 256,
-                is_signed: false,
-            },
-            "char" => Type::Character,
-            "isize" => Type::Isize,
-            "usize" => Type::Usize,
-            "float32" => Type::FLOAT32,
-            "float64" => Type::FLOAT64,
-            "typeDescriptor" => Type::TypeDescriptor,
-            "typeId" => Type::TypeId,
-            _ => return None,
-        })
-    }
-
     /// Parse one storage keyword.
     pub(super) fn parse_storage(&self, text: &str, start: usize) -> ParseResult<StorageSet> {
         let location = match text {

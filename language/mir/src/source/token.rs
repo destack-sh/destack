@@ -2,6 +2,8 @@ use destack_serde::Reflect;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
+use crate::Type;
+
 /// One lexical MIR token.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct Token {
@@ -260,33 +262,8 @@ impl TokenType {
             "owned" | "borrowed" | "copy" => Self::Ownership,
             "readonly" => Self::Readonly,
             "const" => Self::Const,
-            _ if is_primitive_type_name(text) => Self::TypeName,
+            _ if Type::from_primitive_name(text).is_some() => Self::TypeName,
             _ => Self::Identifier,
         }
     }
-}
-
-/// Return whether text is a primitive MIR type name.
-fn is_primitive_type_name(text: &str) -> bool {
-    matches!(
-        text,
-        "int8"
-            | "int16"
-            | "int32"
-            | "int64"
-            | "int128"
-            | "int256"
-            | "uint8"
-            | "uint16"
-            | "uint32"
-            | "uint64"
-            | "uint128"
-            | "uint256"
-            | "float32"
-            | "float64"
-            | "isize"
-            | "usize"
-            | "typeDescriptor"
-            | "typeId"
-    )
 }
