@@ -213,6 +213,7 @@ static LINTS: &[&Lint] = &[
     &style::PREFER_REGEX_LITERALS,
     &style::PREFER_REGEXP_EXEC,
     &style::PREFER_RETURN_THIS_TYPE,
+    &style::PREFER_SCALAR_ALIAS,
     &style::PREFER_SELF_CLOSING_TREE,
     &style::PREFER_SET_OVER_UNIT_MAP,
     &style::PREFER_SLICE_PATTERN,
