@@ -95,8 +95,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
+        // identify the redundant equality expression
+        let span = module.source_extent(guard.into_any())?;
+
         // replace the binding and guard with the literal pattern
-        let span = module.source_region(arm.into_any(), NodeSpanRegion::Guard)?;
         let mut diagnostic =
             lint.diagnostic("equality guard can be expressed by the pattern", span);
         if let Some(suggestion) = suggestion(module, lint, arm, pattern, literal)? {
@@ -151,6 +153,28 @@ function classify(value: int32): string {
 "#,
         );
 
+        session.assert_diagnostics(
+            r#"
+warning[no-redundant-match-guard]: equality guard can be expressed by the pattern
+ ──▶ main.ds:3:21
+  │
+1 │ function classify(value: int32): string {
+2 │     return match (value) {
+3 │         matched if (1 === matched) => "one"
+  │                     ^^^^^^^^^^^^^
+4 │         _ => "other"
+5 │     };
+  │
+
+ = fix: match the literal directly
+--- a/main.ds
++++ b/main.ds
+
+    2│     return match (value) {
+-   3│         matched if (1 === matched) => "one"
++   3│         1 => "one"
+"#,
+        );
         session.assert_fixes(
             r#"
 function classify(value: int32): string {
