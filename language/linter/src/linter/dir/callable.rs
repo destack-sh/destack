@@ -68,6 +68,115 @@ impl DirModule<'_> {
         }))
     }
 
+    /// Return the authored generic parameters owned by one callable node.
+    pub(crate) fn callable_generic_parameters(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Option<&[dir::LocalNodeId<dir::GenericParameter>]> {
+        let view = self.view();
+
+        match node.ty {
+            // function declaration
+            dir::NodeType::Declaration => {
+                let declaration = dir::LocalNodeId::<dir::Declaration>::new(node.id);
+                let dir::Declaration::Function(function) = view.get(declaration) else {
+                    return None;
+                };
+
+                Some(&function.signature.generic_parameters)
+            }
+            // class or interface method
+            dir::NodeType::Member => {
+                let member = dir::LocalNodeId::<dir::Member>::new(node.id);
+
+                Some(&view.get(member).signature()?.generic_parameters)
+            }
+            // object method
+            dir::NodeType::Property => {
+                let property = dir::LocalNodeId::<dir::Property>::new(node.id);
+
+                Some(&view.get(property).signature()?.generic_parameters)
+            }
+            // structural type callable
+            dir::NodeType::TypeMember => {
+                let member = dir::LocalNodeId::<dir::TypeMember>::new(node.id);
+
+                match view.get(member) {
+                    dir::TypeMember::Method { signature, .. } => {
+                        Some(&signature.generic_parameters)
+                    }
+                    dir::TypeMember::CallSignature { signature } => {
+                        Some(&signature.generic_parameters)
+                    }
+                    dir::TypeMember::ConstructSignature { signature } => {
+                        Some(&signature.generic_parameters)
+                    }
+                    _ => None,
+                }
+            }
+            // function or constructor type expression
+            dir::NodeType::TypeExpression => {
+                let expression = dir::LocalNodeId::<dir::TypeExpression>::new(node.id);
+
+                match view.get(expression) {
+                    dir::TypeExpression::Function(function) => Some(&function.generic_parameters),
+                    dir::TypeExpression::Constructor(constructor) => {
+                        Some(&constructor.generic_parameters)
+                    }
+                    _ => None,
+                }
+            }
+            // non-callable node
+            _ => None,
+        }
+    }
+
+    /// Return the authored value parameters owned by one callable node.
+    pub(crate) fn callable_parameters(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Option<&[dir::LocalNodeId<dir::Parameter>]> {
+        let view = self.view();
+
+        match node.ty {
+            // function declaration
+            dir::NodeType::Declaration => {
+                let declaration = dir::LocalNodeId::<dir::Declaration>::new(node.id);
+                let dir::Declaration::Function(function) = view.get(declaration) else {
+                    return None;
+                };
+
+                Some(&function.signature.parameters)
+            }
+            // class or interface method
+            dir::NodeType::Member => {
+                let member = dir::LocalNodeId::<dir::Member>::new(node.id);
+
+                Some(&view.get(member).signature()?.parameters)
+            }
+            // object method
+            dir::NodeType::Property => {
+                let property = dir::LocalNodeId::<dir::Property>::new(node.id);
+
+                Some(&view.get(property).signature()?.parameters)
+            }
+            // structural type callable
+            dir::NodeType::TypeMember => {
+                let member = dir::LocalNodeId::<dir::TypeMember>::new(node.id);
+
+                view.get(member).parameters()
+            }
+            // function or constructor type expression
+            dir::NodeType::TypeExpression => {
+                let expression = dir::LocalNodeId::<dir::TypeExpression>::new(node.id);
+
+                view.get(expression).parameters()
+            }
+            // non-callable node
+            _ => None,
+        }
+    }
+
     /// Return the authored return type owned by one callable node.
     pub(crate) fn callable_return_type(
         &self,

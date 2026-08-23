@@ -4,25 +4,31 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
+    /// Iterate checked name references to one binding.
+    pub(crate) fn symbol_references(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> impl Iterator<Item = dir::LocalNodeIdAny> + '_ {
+        self.resolutions
+            .name_entries()
+            .filter_map(move |(node, resolution)| {
+                (resolution.single_symbol() == Some(symbol)).then_some(node.local_id)
+            })
+    }
+
     /// Iterate checked identifier references to one binding.
     pub(crate) fn binding_references(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> impl Iterator<Item = dir::LocalNodeId<dir::Expression>> + '_ {
-        self.resolutions
-            .name_entries()
-            .filter_map(move |(node, resolution)| {
-                if resolution.single_symbol() != Some(symbol) {
-                    return None;
-                }
-
-                let expression = node.local_id.try_into_typed::<dir::Expression>().ok()?;
-                matches!(
-                    self.view().get(expression),
-                    dir::Expression::Identifier { .. }
-                )
-                .then_some(expression)
-            })
+        self.symbol_references(symbol).filter_map(|node| {
+            let expression = node.try_into_typed::<dir::Expression>().ok()?;
+            matches!(
+                self.view().get(expression),
+                dir::Expression::Identifier { .. }
+            )
+            .then_some(expression)
+        })
     }
 
     /// Return the only checked symbol declared within one node subtree.

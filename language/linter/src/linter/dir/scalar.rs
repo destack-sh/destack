@@ -152,6 +152,25 @@ impl DirModule<'_> {
         Ok(value)
     }
 
+    /// Return whether one checked expression denotes an exact numeric constant.
+    pub(crate) fn is_numeric_constant(
+        &self,
+        node: dir::LocalNodeId<dir::Expression>,
+        expected: f64,
+    ) -> Result<bool, ProviderError> {
+        let is_expected = match self.scalar_constant(node)? {
+            Some(dir::Literal::Integer(value) | dir::Literal::Bigint(value)) => {
+                let value = value as i128;
+
+                value as f64 == expected && expected as i128 == value
+            }
+            Some(dir::Literal::Float(value)) => value == expected,
+            _ => false,
+        };
+
+        Ok(is_expected)
+    }
+
     /// Select one builtin or standard-library bigint binary operation.
     pub(crate) fn integral_binary(
         &self,

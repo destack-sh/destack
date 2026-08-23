@@ -366,6 +366,18 @@ impl<'a> Dir<'a> {
         })
     }
 
+    /// Return whether one symbol declares a nominal type.
+    pub(crate) fn is_nominal_symbol(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Result<bool, ProviderError> {
+        self.read_declaration_tables(symbol.module_id, |_, definitions| {
+            Ok(definitions
+                .definition(symbol)
+                .is_some_and(dir::Definition::is_nominal))
+        })
+    }
+
     /// Return the payload carried by one checked borrowed type.
     pub(super) fn borrow_form(
         &self,

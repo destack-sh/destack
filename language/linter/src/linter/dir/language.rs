@@ -209,20 +209,29 @@ impl DirModule<'_> {
         };
 
         // resolve the member's canonical language identity
-        let declaration = declaration.into_global_any(self.id);
-        let symbol = self
-            .bindings
-            .declaration_symbol(declaration)
-            .ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "checked member {declaration:?} has no declaration symbol"
-                ))
-            })?;
-        let symbol = symbol.into_global(self.id);
+        let symbol = self.declaration_symbol(declaration)?;
 
         self.dir
             .language_member(symbol)
             .map(|member| member == Some(language_member))
+    }
+
+    /// Return whether one node is within a canonical language item declaration.
+    pub fn is_within_language_item(
+        &self,
+        node: dir::LocalNodeIdAny,
+        language_item: dir::LanguageItem,
+    ) -> Result<bool, ProviderError> {
+        // select the declaration that contains the node
+        let Some(declaration) = self.view().ancestor::<dir::Declaration>(node) else {
+            return Ok(false);
+        };
+
+        // resolve the declaration's canonical language identity
+        let symbol = self.declaration_symbol(declaration)?;
+        let item = self.dir.environment.language.item(symbol);
+
+        Ok(item == Some(language_item))
     }
 
     /// Return the canonical language item targeted by one checked expression.
