@@ -8,6 +8,22 @@ type MemberResolve =
     dyn Fn(&Dir<'_>, dir::GlobalSymbolId) -> Result<Option<dir::LanguageMember>, ProviderError>;
 
 impl Dir<'_> {
+    /// Return the written derive selection for one nominal declaration.
+    pub(crate) fn written_derives(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Result<Option<Vec<dir::AutoInterface>>, ProviderError> {
+        self.read_declaration_tables(symbol.module_id, |_, definitions| {
+            let definition = definitions.definition(symbol).ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "nominal declaration {symbol:?} has no checked definition"
+                ))
+            })?;
+
+            Ok(definition.derives().map(<[_]>::to_vec))
+        })
+    }
+
     /// Return the canonical language item represented by one checked type.
     pub fn representation_item(
         &self,
