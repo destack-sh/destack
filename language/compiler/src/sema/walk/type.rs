@@ -242,11 +242,14 @@ impl WalkState<'_, '_> {
                 } else {
                     value
                 };
-
-                self.intern_type(dir::Type::Form(dir::FormType {
+                let owned = self.intern_type(dir::Type::Form(dir::FormType {
                     form: dir::Form::Owned,
                     value,
-                }))
+                }))?;
+
+                // interpret a family-default owned form as its bare payload
+                let origin = Origin::Node(id.into_global_any(self.module), None);
+                self.check.reduce_default_ownership_chain(origin, owned)
             }
             // walk the written borrow lifetime, or open the elided hole
             dir::TypeExpression::BorrowedOf {
@@ -1239,7 +1242,9 @@ impl WalkState<'_, '_> {
             }
         };
 
-        self.intern_type(dir::Type::Form(dir::FormType { form, value }))
+        // interpret a form redundantly repeating its payload's family default as the payload
+        let written = self.intern_type(dir::Type::Form(dir::FormType { form, value }))?;
+        self.check.reduce_default_ownership_chain(origin, written)
     }
 
     /// Wrap one application with its named refinements in canonical key order.

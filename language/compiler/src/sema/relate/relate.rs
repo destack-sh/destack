@@ -133,9 +133,9 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        // substitute solved variables before comparing
-        let source = self.shallow_resolve(source)?;
-        let target = self.shallow_resolve(target)?;
+        // bring each operand to its comparison root
+        let (source, source_variable) = self.relate_root(origin, source)?;
+        let (target, target_variable) = self.relate_root(origin, target)?;
         if source == target {
             return Ok(Verdict::Holds);
         }
@@ -144,10 +144,6 @@ impl CheckState<'_> {
         if let Some(variable) = self.reverse_mapped_variable(target)? {
             return self.constrain_type(origin, cause, relation, source, variable);
         }
-
-        // read the open variable standing at each root
-        let source_variable = self.root_variable(source)?;
-        let target_variable = self.root_variable(target)?;
 
         match (source_variable, target_variable, relation) {
             // alias one open side onto the other for variable equality
@@ -430,6 +426,25 @@ impl CheckState<'_> {
         match self.ty(self.shallow_resolve(id)?)? {
             dir::Type::Variable(variable) => self.open_variable(variable),
             _ => Ok(None),
+        }
+    }
+
+    /// Bring one relate operand to its comparison root.
+    ///
+    /// Resolve solved variables, shed family-default ownership constructors,
+    /// and classify the root's open variable in one read.
+    fn relate_root(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<(dir::GlobalTypeId, Option<dir::TypeVariableId>)> {
+        let id = self.shallow_resolve(id)?;
+        match self.ty(id)? {
+            // an open variable stands as the comparison root
+            dir::Type::Variable(variable) => Ok((id, self.open_variable(variable)?)),
+            // family-default ownership constructors shed to their payload
+            dir::Type::Form(_) => Ok((self.reduce_default_ownership_chain(origin, id)?, None)),
+            _ => Ok((id, None)),
         }
     }
 

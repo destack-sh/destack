@@ -17,10 +17,10 @@ fn test_repeated_extension_method_calls_reuse_one_member_decision() {
     assert_check_stats(
         &source,
         r#"
-check.stats.solve.variables=7
+check.stats.solve.variables=10
 check.stats.solve.constraints=0
 check.stats.solve.obligations=1000
-check.stats.solve.solutions=7
+check.stats.solve.solutions=10
 check.stats.solve.bounds=0
 check.stats.solve.decisions=3003
 check.stats.judges.decided=5
@@ -30,11 +30,11 @@ check.stats.bindings.replayed=1003
 check.stats.members.derived=4
 check.stats.members.replayed=3996
 check.stats.members.refused=0
-check.stats.probes.total=2030
+check.stats.probes.total=2036
 check.stats.probes.selections=0
 check.stats.probes.extensions=0
-check.stats.instantiations=16
-check.stats.interns=15094
+check.stats.instantiations=22
+check.stats.interns=15127
 check.stats.reduces=28063
 "#,
     );

@@ -582,7 +582,7 @@ struct Point {
     x: int32;
 }
 
-let point: ^Point = ^Point { x: 1 };
+let point: Point = Point { x: 1 };
 let x: &'static readonly int32 = &readonly point.x;
 
 x satisfies &readonly int32;
@@ -600,10 +600,10 @@ struct Point {
 }
 
 let point: ^Point = Point { x: 1 };
-/// @type.symbol symbol=point source=point type=Owned<Point>
+/// @type.symbol symbol=point source=point type=Point
 /// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
-/// @type.node source="Point { x: 1 }" type=Owned<Point>
+/// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
 /// @type.node source=1 type=1
 
@@ -611,10 +611,10 @@ let x = &readonly point.x;
 /// @type.symbol symbol=x source=x type=&'static readonly int32
 /// @resolution.pattern source=x kind=binding target=x
 /// @type.node source="&readonly point.x" type=&'static readonly int32
-/// @type.node source=point type=Owned<Point>
+/// @type.node source=point type=Point
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.x receiver=Owned<Point> type=int32 kind=field target_receiver=Owned<Point> key=x target=Point.x target_type=int32
+/// @resolution.member source=point.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
 /// @resolution.place source=point.x placement="local" lifetime="static" access="exclusive"
@@ -629,10 +629,10 @@ x satisfies &readonly int32;
 
 point.x satisfies local int32;
 /// @type.node source="point.x satisfies local int32" type=int32
-/// @type.node source=point type=Owned<Point>
+/// @type.node source=point type=Point
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.x receiver=Owned<Point> type=int32 kind=field target_receiver=Owned<Point> key=x target=Point.x target_type=int32
+/// @resolution.member source=point.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
 /// @resolution.place source=point.x placement="local" lifetime="static" access="exclusive"

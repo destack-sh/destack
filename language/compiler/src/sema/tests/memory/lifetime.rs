@@ -28,12 +28,12 @@ struct Point {
     x: int32;
 }
 
-const modulePoint: ^Point = ^Point { x: 1 };
-const moduleBorrow: &'static readonly ^Point = &readonly modulePoint;
+const modulePoint: Point = Point { x: 1 };
+const moduleBorrow: &'static readonly Point = &readonly modulePoint;
 
 function inspectFrame(): void {
-    const framePoint: ^Point = ^Point { x: 2 };
-    const frameBorrow: &'frame readonly ^Point = &readonly framePoint;
+    const framePoint: Point = Point { x: 2 };
+    const frameBorrow: &'frame readonly Point = &readonly framePoint;
 
     moduleBorrow satisfies local Borrowed<Point, "static", "readonly">;
     frameBorrow satisfies local Borrowed<Point, "frame", "readonly">;
@@ -47,13 +47,13 @@ struct Point { x: int32; }
 /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
 const modulePoint: ^Point = Point { x: 1 };
-/// @type.symbol symbol=modulePoint source=modulePoint type=Owned<Point>
+/// @type.symbol symbol=modulePoint source=modulePoint type=Point
 /// @resolution.pattern source=modulePoint kind=binding target=modulePoint
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=Point target=Point
 
 const moduleBorrow = &readonly modulePoint;
-/// @type.symbol symbol=moduleBorrow source=moduleBorrow type=&'static readonly Owned<Point>
+/// @type.symbol symbol=moduleBorrow source=moduleBorrow type=&'static readonly Point
 /// @resolution.pattern source=moduleBorrow kind=binding target=moduleBorrow
 /// @resolution.name source=modulePoint target=modulePoint
 /// @resolution.place source=modulePoint placement="local" lifetime="static" access="readonly"
@@ -63,13 +63,13 @@ function inspectFrame(): void {
 /// @type.symbol symbol=inspectFrame type=() => void
 
     const framePoint: ^Point = Point { x: 2 };
-    /// @type.symbol symbol=inspectFrame.framePoint source=framePoint type=Owned<Point>
+    /// @type.symbol symbol=inspectFrame.framePoint source=framePoint type=Point
     /// @resolution.pattern source=framePoint kind=binding target=inspectFrame.framePoint
     /// @resolution.name source=Point target=Point
     /// @resolution.name source=Point target=Point
 
     const frameBorrow = &readonly framePoint;
-    /// @type.symbol symbol=inspectFrame.frameBorrow source=frameBorrow type=&'frame readonly Owned<Point>
+    /// @type.symbol symbol=inspectFrame.frameBorrow source=frameBorrow type=&'frame readonly Point
     /// @resolution.pattern source=frameBorrow kind=binding target=inspectFrame.frameBorrow
     /// @resolution.name source=framePoint target=inspectFrame.framePoint
     /// @resolution.place source=framePoint placement="local" lifetime="frame" access="readonly"

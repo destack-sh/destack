@@ -520,16 +520,24 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             }
 
             dir::Type::Form(form) => {
-                // read the managed default transparently as its payload
-                if form.form == dir::Form::Managed {
-                    return self.reify_depth(form.value, next);
-                }
                 let Some(target_type) = self.reify_depth(form.value, next)? else {
                     return Ok(None);
                 };
 
                 match &form.form {
-                    dir::Form::Managed => unreachable!("managed forms reify transparently"),
+                    // reduction leaves only meaningful boxes, spell them
+                    dir::Form::Managed => {
+                        let target_type =
+                            self.insert(dir::GenericArgument::Type { value: target_type });
+                        let name = self.language_item_name(dir::LanguageItem::Managed);
+
+                        dir::TypeExpression::Reference {
+                            path: dir::Path {
+                                segments: [name].into_iter().collect(),
+                            },
+                            generic_arguments: vec![target_type],
+                        }
+                    }
                     dir::Form::Owned => dir::TypeExpression::OwnedOf {
                         mutability: None,
                         variance: None,

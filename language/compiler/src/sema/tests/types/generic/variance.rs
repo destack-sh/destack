@@ -365,8 +365,8 @@ struct Box<out T> {
 declare const owned: Box<Circle>;
 const copy: Box<Shape> = owned;
 
-declare const aliased: Box<Circle>;
-const widened: Box<Shape> = aliased;
+declare const aliased: Managed<Box<Circle>>;
+const widened: Managed<Box<Shape>> = aliased;
 
 === dir ===
 class Shape {}
@@ -1212,9 +1212,9 @@ struct Box<out Value> {
     value: Value;
 }
 
-declare const shared: Box<Circle>;
+declare const shared: Managed<Box<Circle>>;
 
-const widened: Box<Shape> = shared;
+const widened: Managed<Box<Shape>> = shared;
 
 === dir ===
 class Shape {}

@@ -587,7 +587,7 @@ struct Point {
 }
 
 declare function make(): ^Point;
-/// @type.symbol symbol=make source="declare function make(): ^Point" type=() => Owned<Point>
+/// @type.symbol symbol=make source="declare function make(): ^Point" type=() => Point
 /// @resolution.name source=Point target=Point
 
 function run(): void {
@@ -597,14 +597,14 @@ function run(): void {
     /// @type.symbol symbol=run.point source=point type=Point
     /// @resolution.pattern source=point kind=binding target=run.point
     /// @resolution.name source=make target=make
-    /// @resolution.call source=make() parameters=() return=Owned<Point> kind=symbol target=make
+    /// @resolution.call source=make() parameters=() return=Point kind=symbol target=make
 
     let annotated: Point = make();
     /// @type.symbol symbol=run.annotated source=annotated type=Point
     /// @resolution.pattern source=annotated kind=binding target=run.annotated
     /// @resolution.name source=Point target=Point
     /// @resolution.name source=make target=make
-    /// @resolution.call source=make() parameters=() return=Owned<Point> kind=symbol target=make
+    /// @resolution.call source=make() parameters=() return=Point kind=symbol target=make
 
 }
 "#,

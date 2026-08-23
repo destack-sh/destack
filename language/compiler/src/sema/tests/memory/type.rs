@@ -855,7 +855,7 @@ struct Cell {
 type OwnedCell = WithOwnership<Cell, "owned", "static">;
 type BorrowedCell = WithOwnership<Cell, "borrowed", "static">;
 
-declare const ownedCell: ^Cell;
+declare const ownedCell: Cell;
 declare const borrowedCell: &'static Cell;
 
 ownedCell satisfies ^Cell;
@@ -873,8 +873,8 @@ struct Cell {
 }
 
 type OwnedCell = WithOwnership<Cell, "owned", "static">;
-/// @type.symbol symbol=OwnedCell source="type OwnedCell = WithOwnership<Cell, \"owned\", \"static\">" type=Owned<Cell>
-/// @definition.type symbol=OwnedCell source="type OwnedCell = WithOwnership<Cell, \"owned\", \"static\">" value=Owned<Cell>
+/// @type.symbol symbol=OwnedCell source="type OwnedCell = WithOwnership<Cell, \"owned\", \"static\">" type=Cell
+/// @definition.type symbol=OwnedCell source="type OwnedCell = WithOwnership<Cell, \"owned\", \"static\">" value=Cell
 /// @resolution.name source=WithOwnership target=memory.type.WithOwnership
 /// @resolution.name source=Cell target=Cell
 
@@ -885,7 +885,7 @@ type BorrowedCell = WithOwnership<Cell, "borrowed", "static">;
 /// @resolution.name source=Cell target=Cell
 
 declare const ownedCell: OwnedCell;
-/// @type.symbol symbol=ownedCell source=ownedCell type=Owned<Cell>
+/// @type.symbol symbol=ownedCell source=ownedCell type=Cell
 /// @resolution.pattern source=ownedCell kind=binding target=ownedCell
 /// @resolution.name source=OwnedCell target=OwnedCell
 
@@ -937,7 +937,7 @@ struct Cell {
 
 type SharedOwned = WithPlace<local ^Cell, "shared">;
 
-declare const sharedOwned: shared ^Cell;
+declare const sharedOwned: shared Cell;
 
 sharedOwned satisfies shared ^Cell;
 
@@ -953,13 +953,13 @@ struct Cell {
 }
 
 type SharedOwned = WithPlace<local ^Cell, "shared">;
-/// @type.symbol symbol=SharedOwned source="type SharedOwned = WithPlace<local ^Cell, \"shared\">" type=Placed<Owned<Cell>, "shared">
-/// @definition.type symbol=SharedOwned source="type SharedOwned = WithPlace<local ^Cell, \"shared\">" value=Placed<Owned<Cell>, "shared">
+/// @type.symbol symbol=SharedOwned source="type SharedOwned = WithPlace<local ^Cell, \"shared\">" type=Placed<Cell, "shared">
+/// @definition.type symbol=SharedOwned source="type SharedOwned = WithPlace<local ^Cell, \"shared\">" value=Placed<Cell, "shared">
 /// @resolution.name source=WithPlace target=memory.type.WithPlace
 /// @resolution.name source=Cell target=Cell
 
 declare const sharedOwned: SharedOwned;
-/// @type.symbol symbol=sharedOwned source=sharedOwned type=Placed<Owned<Cell>, "shared">
+/// @type.symbol symbol=sharedOwned source=sharedOwned type=Placed<Cell, "shared">
 /// @resolution.pattern source=sharedOwned kind=binding target=sharedOwned
 /// @resolution.name source=SharedOwned target=SharedOwned
 
@@ -1062,7 +1062,7 @@ struct Cell {
 
 type SharedOwned = WithSpace<^Cell, "shared">;
 
-declare const sharedOwned: shared ^Cell;
+declare const sharedOwned: shared Cell;
 
 sharedOwned satisfies shared ^Cell;
 
@@ -1078,13 +1078,13 @@ struct Cell {
 }
 
 type SharedOwned = WithSpace<^Cell, "shared">;
-/// @type.symbol symbol=SharedOwned source="type SharedOwned = WithSpace<^Cell, \"shared\">" type=Placed<Owned<Cell>, "shared">
-/// @definition.type symbol=SharedOwned source="type SharedOwned = WithSpace<^Cell, \"shared\">" value=Placed<Owned<Cell>, "shared">
+/// @type.symbol symbol=SharedOwned source="type SharedOwned = WithSpace<^Cell, \"shared\">" type=Placed<Cell, "shared">
+/// @definition.type symbol=SharedOwned source="type SharedOwned = WithSpace<^Cell, \"shared\">" value=Placed<Cell, "shared">
 /// @resolution.name source=WithSpace target=memory.type.WithSpace
 /// @resolution.name source=Cell target=Cell
 
 declare const sharedOwned: SharedOwned;
-/// @type.symbol symbol=sharedOwned source=sharedOwned type=Placed<Owned<Cell>, "shared">
+/// @type.symbol symbol=sharedOwned source=sharedOwned type=Placed<Cell, "shared">
 /// @resolution.pattern source=sharedOwned kind=binding target=sharedOwned
 /// @resolution.name source=SharedOwned target=SharedOwned
 
@@ -1122,7 +1122,7 @@ struct Cell {
 }
 
 type StillShared = WithSpace<shared ^Cell, "local">;
-declare const value: shared ^Cell;
+declare const value: shared Cell;
 
 value satisfies shared ^Cell;
 
@@ -1138,13 +1138,13 @@ struct Cell {
 }
 
 type StillShared = WithSpace<shared ^Cell, "local">;
-/// @type.symbol symbol=StillShared source="type StillShared = WithSpace<shared ^Cell, \"local\">" type=Placed<Owned<Cell>, "shared">
-/// @definition.type symbol=StillShared source="type StillShared = WithSpace<shared ^Cell, \"local\">" value=Placed<Owned<Cell>, "shared">
+/// @type.symbol symbol=StillShared source="type StillShared = WithSpace<shared ^Cell, \"local\">" type=Placed<Cell, "shared">
+/// @definition.type symbol=StillShared source="type StillShared = WithSpace<shared ^Cell, \"local\">" value=Placed<Cell, "shared">
 /// @resolution.name source=WithSpace target=memory.type.WithSpace
 /// @resolution.name source=Cell target=Cell
 
 declare const value: StillShared;
-/// @type.symbol symbol=value source=value type=Placed<Owned<Cell>, "shared">
+/// @type.symbol symbol=value source=value type=Placed<Cell, "shared">
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=StillShared target=StillShared
 
@@ -1191,7 +1191,7 @@ struct Cell {
 type ReadonlyOwned = WithAccess<^Cell, "readonly">;
 type ExclusiveBorrow = WithAccess<Borrowed<Cell, "static">, "exclusive">;
 
-declare const readonlyOwned: ^readonly Cell;
+declare const readonlyOwned: readonly Cell;
 declare const exclusiveBorrow: &'static exclusive Cell;
 
 readonlyOwned satisfies ^readonly Cell;
@@ -1209,8 +1209,8 @@ struct Cell {
 }
 
 type ReadonlyOwned = WithAccess<^Cell, "readonly">;
-/// @type.symbol symbol=ReadonlyOwned source="type ReadonlyOwned = WithAccess<^Cell, \"readonly\">" type=Owned<Readonly<Cell>>
-/// @definition.type symbol=ReadonlyOwned source="type ReadonlyOwned = WithAccess<^Cell, \"readonly\">" value=Owned<Readonly<Cell>>
+/// @type.symbol symbol=ReadonlyOwned source="type ReadonlyOwned = WithAccess<^Cell, \"readonly\">" type=Readonly<Cell>
+/// @definition.type symbol=ReadonlyOwned source="type ReadonlyOwned = WithAccess<^Cell, \"readonly\">" value=Readonly<Cell>
 /// @resolution.name source=WithAccess target=memory.type.WithAccess
 /// @resolution.name source=Cell target=Cell
 
@@ -1222,7 +1222,7 @@ type ExclusiveBorrow = WithAccess<Borrowed<Cell, "static">, "exclusive">;
 /// @resolution.name source=Cell target=Cell
 
 declare const readonlyOwned: ReadonlyOwned;
-/// @type.symbol symbol=readonlyOwned source=readonlyOwned type=Owned<Readonly<Cell>>
+/// @type.symbol symbol=readonlyOwned source=readonlyOwned type=Readonly<Cell>
 /// @resolution.pattern source=readonlyOwned kind=binding target=readonlyOwned
 /// @resolution.name source=ReadonlyOwned target=ReadonlyOwned
 
@@ -1282,7 +1282,7 @@ struct Payload {
 
 type Rebased = WithBase<shared ^readonly Cell, Payload>;
 
-declare const rebased: shared ^readonly Payload;
+declare const rebased: shared readonly Payload;
 
 rebased satisfies shared ^readonly Payload;
 
@@ -1308,14 +1308,14 @@ struct Payload {
 }
 
 type Rebased = WithBase<shared ^readonly Cell, Payload>;
-/// @type.symbol symbol=Rebased source="type Rebased = WithBase<shared ^readonly Cell, Payload>" type=Placed<Owned<Readonly<Payload>>, "shared">
-/// @definition.type symbol=Rebased source="type Rebased = WithBase<shared ^readonly Cell, Payload>" value=Placed<Owned<Readonly<Payload>>, "shared">
+/// @type.symbol symbol=Rebased source="type Rebased = WithBase<shared ^readonly Cell, Payload>" type=Placed<Readonly<Payload>, "shared">
+/// @definition.type symbol=Rebased source="type Rebased = WithBase<shared ^readonly Cell, Payload>" value=Placed<Readonly<Payload>, "shared">
 /// @resolution.name source=WithBase target=memory.type.WithBase
 /// @resolution.name source=Cell target=Cell
 /// @resolution.name source=Payload target=Payload
 
 declare const rebased: Rebased;
-/// @type.symbol symbol=rebased source=rebased type=Placed<Owned<Readonly<Payload>>, "shared">
+/// @type.symbol symbol=rebased source=rebased type=Placed<Readonly<Payload>, "shared">
 /// @resolution.pattern source=rebased kind=binding target=rebased
 /// @resolution.name source=Rebased target=Rebased
 

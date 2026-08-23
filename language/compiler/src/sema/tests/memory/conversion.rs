@@ -604,8 +604,8 @@ struct Cell {}
 type ManagedCell = Managed<Cell>;
 
 declare function inspect<'a>(value: &'a readonly Cell): void;
-declare const explicit: Cell;
-declare const alias: Cell;
+declare const explicit: Managed<Cell>;
+declare const alias: Managed<Cell>;
 
 inspect(explicit as &'static readonly Cell);
 inspect(alias as &'static readonly Cell);
@@ -748,8 +748,8 @@ inspect(readonlyCell);
 struct Cell {}
 
 declare function inspect<'a>(value: &'a readonly Cell): void;
-declare const localCell: local Cell;
-declare const readonlyCell: local readonly Cell;
+declare const localCell: local Managed<Cell>;
+declare const readonlyCell: local readonly Managed<Cell>;
 
 inspect(localCell as &'static readonly Cell);
 inspect(readonlyCell as &'static readonly Cell);
@@ -1778,9 +1778,9 @@ struct Label {
     values: ^uint8[];
 }
 
-declare let label: ^Label;
-let borrow: &'static ^Label = &label;
-let owned: ^Label = borrow;
+declare let label: Label;
+let borrow: &'static Label = &label;
+let owned: Label = borrow;
 
 === dir ===
 struct Label { values: ^Array<uint8>; }
@@ -1791,30 +1791,30 @@ struct Label { values: ^Array<uint8>; }
 /// @resolution.name source=Array target=collections.array.Array
 
 declare let label: ^Label;
-/// @type.symbol symbol=label source=label type=Owned<Label>
+/// @type.symbol symbol=label source=label type=Label
 /// @resolution.pattern source=label kind=binding target=label
 /// @resolution.name source=Label target=Label
 
 let borrow = &label;
-/// @type.symbol symbol=borrow source=borrow type=&'static Owned<Label>
+/// @type.symbol symbol=borrow source=borrow type=&'static Label
 /// @resolution.pattern source=borrow kind=binding target=borrow
-/// @type.node source=&label type=&'static Owned<Label>
-/// @type.node source=label type=Owned<Label>
+/// @type.node source=&label type=&'static Label
+/// @type.node source=label type=Label
 /// @resolution.name source=label target=label
 /// @resolution.place source=label placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=label root=label
 
 let owned: ^Label = borrow;
-/// @type.symbol symbol=owned source=owned type=Owned<Label>
+/// @type.symbol symbol=owned source=owned type=Label
 /// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=Label target=Label
-/// @type.node source=borrow type=&'static Owned<Label>
+/// @type.node source=borrow type=&'static Label
 /// @resolution.name source=borrow target=borrow
 /// @resolution.place source=borrow placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=borrow root=borrow
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '&'static ^Label' is not assignable to type '^Label'"
+/// @diagnostic.error id=not-assignable message="type '&'static Label' is not assignable to type 'Label'"
 /// @diagnostic.label line=6 column=21 span="borrow" line_source="let owned: ^Label = borrow;"
 /// @diagnostic.related line=6 column=12 span="^" line_source="let owned: ^Label = borrow;" message="expected due to this annotation"
 "#,
@@ -1845,10 +1845,10 @@ struct Point {
     x: int32;
 }
 
-let point: ^Point = ^Point { x: 1 };
-let borrow: &'static ^Point = &point;
+let point: Point = Point { x: 1 };
+let borrow: &'static Point = &point;
 let copied: Point = borrow as Point;
-let owned: ^Point = borrow as Point;
+let owned: Point = borrow as Point;
 
 === dir ===
 struct Point {
@@ -1862,19 +1862,19 @@ struct Point {
 }
 
 let point: ^Point = Point { x: 1 };
-/// @type.symbol symbol=point source=point type=Owned<Point>
+/// @type.symbol symbol=point source=point type=Point
 /// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
-/// @type.node source="Point { x: 1 }" type=Owned<Point>
+/// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
 /// @type.node source=1 type=1
 /// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int32 }] origin=implicit
 
 let borrow = &point;
-/// @type.symbol symbol=borrow source=borrow type=&'static Owned<Point>
+/// @type.symbol symbol=borrow source=borrow type=&'static Point
 /// @resolution.pattern source=borrow kind=binding target=borrow
-/// @type.node source=&point type=&'static Owned<Point>
-/// @type.node source=point type=Owned<Point>
+/// @type.node source=&point type=&'static Point
+/// @type.node source=point type=Point
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
@@ -1883,21 +1883,21 @@ let copied: Point = borrow;
 /// @type.symbol symbol=copied source=copied type=Point
 /// @resolution.pattern source=copied kind=binding target=copied
 /// @resolution.name source=Point target=Point
-/// @type.node source=borrow type=&'static Owned<Point>
+/// @type.node source=borrow type=&'static Point
 /// @resolution.name source=borrow target=borrow
 /// @resolution.place source=borrow placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=borrow root=borrow
-/// @coercion.node source=borrow from=&'static Owned<Point> adjustments=[{ kind: read, target: Point }] origin=implicit
+/// @coercion.node source=borrow from=&'static Point adjustments=[{ kind: read, target: Point }] origin=implicit
 
 let owned: ^Point = borrow;
-/// @type.symbol symbol=owned source=owned type=Owned<Point>
+/// @type.symbol symbol=owned source=owned type=Point
 /// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=Point target=Point
-/// @type.node source=borrow type=&'static Owned<Point>
+/// @type.node source=borrow type=&'static Point
 /// @resolution.name source=borrow target=borrow
 /// @resolution.place source=borrow placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=borrow root=borrow
-/// @coercion.node source=borrow from=&'static Owned<Point> adjustments=[{ kind: read, target: Point }] origin=implicit
+/// @coercion.node source=borrow from=&'static Point adjustments=[{ kind: read, target: Point }] origin=implicit
 "#,
         r#"
 
@@ -1966,7 +1966,7 @@ struct Point {
 }
 
 let point: Point = Point { x: 1 };
-let owned: ^Point = point;
+let owned: Point = point;
 
 === dir ===
 struct Point {
@@ -1987,7 +1987,7 @@ let point = Point { x: 1 };
 /// @type.node source=1 type=1
 
 let owned: ^Point = point;
-/// @type.symbol symbol=owned source=owned type=Owned<Point>
+/// @type.symbol symbol=owned source=owned type=Point
 /// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=Point target=Point
 /// @type.node source=point type=Point

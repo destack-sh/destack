@@ -225,12 +225,12 @@ extension of Path {
         return Path {};
     }
 
-    static from(value: ^Builder): Path {
+    static from(value: Builder): Path {
         return Path {};
     }
 }
 
-declare const builder: ^Builder;
+declare const builder: Builder;
 declare const slice: &'static readonly Slice;
 
 const fromBuilder: Path = Path.from(builder);
@@ -252,7 +252,7 @@ struct Path {}
 extension of Path {
 /// @definition.extension symbol=<module>#2 form=local target=Path
 /// @definition.method symbol=from#1 slot=from static=true type=<from#1.'a>(&from#1.'a readonly Slice) => Path
-/// @definition.method symbol=from#2 slot=from static=true type=(Owned<Builder>) => Path
+/// @definition.method symbol=from#2 slot=from static=true type=(Builder) => Path
 /// @resolution.name source=Path target=Path
 
     static from(value: &readonly Slice): Path {
@@ -268,8 +268,8 @@ extension of Path {
     }
 
     static from(value: ^Builder): Path {
-    /// @type.symbol symbol=from#2 type=(Owned<Builder>) => Path
-    /// @type.symbol symbol=from.value#2 source="value: ^Builder" type=Owned<Builder>
+    /// @type.symbol symbol=from#2 type=(Builder) => Path
+    /// @type.symbol symbol=from.value#2 source="value: ^Builder" type=Builder
     /// @resolution.name source=Builder target=Builder
     /// @resolution.name source=Path target=Path
 
@@ -280,7 +280,7 @@ extension of Path {
 }
 
 declare const builder: ^Builder;
-/// @type.symbol symbol=builder source=builder type=Owned<Builder>
+/// @type.symbol symbol=builder source=builder type=Builder
 /// @resolution.pattern source=builder kind=binding target=builder
 /// @resolution.name source=Builder target=Builder
 
@@ -293,8 +293,8 @@ const fromBuilder = Path.from(builder);
 /// @type.symbol symbol=fromBuilder source=fromBuilder type=Path
 /// @resolution.pattern source=fromBuilder kind=binding target=fromBuilder
 /// @resolution.name source=Path target=Path
-/// @resolution.member source=Path.from receiver=Path type=<from#1.'a>(&from#1.'a readonly Slice) => Path & (Owned<Builder>) => Path kind=overload-set targets=[from#1, from#2]
-/// @resolution.call source=Path.from(builder) parameters=(Owned<Builder>) arguments=(provided(builder) as Owned<Builder>) return=Path kind=symbol target=from#2
+/// @resolution.member source=Path.from receiver=Path type=<from#1.'a>(&from#1.'a readonly Slice) => Path & (Builder) => Path kind=overload-set targets=[from#1, from#2]
+/// @resolution.call source=Path.from(builder) parameters=(Builder) arguments=(provided(builder) as Builder) return=Path kind=symbol target=from#2
 /// @resolution.name source=builder target=builder
 /// @resolution.place source=builder placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=builder root=builder
@@ -303,7 +303,7 @@ const fromSlice = Path.from(slice);
 /// @type.symbol symbol=fromSlice source=fromSlice type=Path
 /// @resolution.pattern source=fromSlice kind=binding target=fromSlice
 /// @resolution.name source=Path target=Path
-/// @resolution.member source=Path.from receiver=Path type=<from#1.'a>(&from#1.'a readonly Slice) => Path & (Owned<Builder>) => Path kind=overload-set targets=[from#1, from#2]
+/// @resolution.member source=Path.from receiver=Path type=<from#1.'a>(&from#1.'a readonly Slice) => Path & (Builder) => Path kind=overload-set targets=[from#1, from#2]
 /// @resolution.call source=Path.from(slice) parameters=(&'static readonly Slice) arguments=(provided(slice) as &'static readonly Slice) return=Path kind=symbol target=from#1
 /// @resolution.name source=slice target=slice
 /// @resolution.place source=slice placement="local" lifetime="static" access="readonly"

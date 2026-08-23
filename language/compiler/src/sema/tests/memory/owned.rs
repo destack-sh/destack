@@ -24,9 +24,9 @@ struct Payload {
     value: int32;
 }
 
-declare function consume(value: ^Payload): void;
+declare function consume(value: Payload): void;
 
-const payload: ^Payload = ^Payload { value: 1 };
+const payload: Payload = Payload { value: 1 };
 consume(payload);
 
 === dir ===
@@ -41,24 +41,24 @@ struct Payload {
 }
 
 declare function consume(value: ^Payload): void;
-/// @type.symbol symbol=consume source="declare function consume(value: ^Payload): void" type=(Owned<Payload>) => void
-/// @type.symbol symbol=consume.value source="value: ^Payload" type=Owned<Payload>
+/// @type.symbol symbol=consume source="declare function consume(value: ^Payload): void" type=(Payload) => void
+/// @type.symbol symbol=consume.value source="value: ^Payload" type=Payload
 /// @resolution.name source=Payload target=Payload
 
 const payload: ^Payload = Payload { value: 1 };
-/// @type.symbol symbol=payload source=payload type=Owned<Payload>
+/// @type.symbol symbol=payload source=payload type=Payload
 /// @resolution.pattern source=payload kind=binding target=payload
 /// @resolution.name source=Payload target=Payload
-/// @type.node source="Payload { value: 1 }" type=Owned<Payload>
+/// @type.node source="Payload { value: 1 }" type=Payload
 /// @resolution.name source=Payload target=Payload
 /// @type.node source=1 type=1
 
 consume(payload);
-/// @type.node source=consume type=(Owned<Payload>) => void
+/// @type.node source=consume type=(Payload) => void
 /// @type.node source=consume(payload) type=void
 /// @resolution.name source=consume target=consume
-/// @resolution.call source=consume(payload) parameters=(Owned<Payload>) arguments=(provided(payload) as Owned<Payload>) return=void kind=symbol target=consume
-/// @type.node source=payload type=Owned<Payload>
+/// @resolution.call source=consume(payload) parameters=(Payload) arguments=(provided(payload) as Payload) return=void kind=symbol target=consume
+/// @type.node source=payload type=Payload
 /// @resolution.name source=payload target=payload
 /// @resolution.place source=payload placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=payload root=payload
@@ -91,7 +91,7 @@ struct Point {
     x: int32;
 }
 
-let point: ^Point = ^Point { x: 1 };
+let point: Point = Point { x: 1 };
 
 point satisfies ^Point;
 
@@ -107,16 +107,16 @@ struct Point {
 }
 
 let point: ^Point = Point { x: 1 };
-/// @type.symbol symbol=point source=point type=Owned<Point>
+/// @type.symbol symbol=point source=point type=Point
 /// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
-/// @type.node source="Point { x: 1 }" type=Owned<Point>
+/// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
 /// @type.node source=1 type=1
 
 point satisfies ^Point;
-/// @type.node source="point satisfies ^Point" type=Owned<Point>
-/// @type.node source=point type=Owned<Point>
+/// @type.node source="point satisfies ^Point" type=Point
+/// @type.node source=point type=Point
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
@@ -150,7 +150,7 @@ struct Buffer {
 
 declare function makeBuffer(): Buffer;
 
-let buffer: ^Buffer = makeBuffer();
+let buffer: Buffer = makeBuffer();
 
 === dir ===
 struct Buffer {
@@ -171,7 +171,7 @@ declare function makeBuffer(): Buffer;
 /// @resolution.name source=Buffer target=Buffer
 
 let buffer: ^Buffer = makeBuffer();
-/// @type.symbol symbol=buffer source=buffer type=Owned<Buffer>
+/// @type.symbol symbol=buffer source=buffer type=Buffer
 /// @resolution.pattern source=buffer kind=binding target=buffer
 /// @resolution.name source=Buffer target=Buffer
 /// @type.node source=makeBuffer type=() => Buffer
@@ -259,10 +259,10 @@ struct Data {
 }
 
 struct Container {
-    data: ^Data;
+    data: Data;
 }
 
-const container: Container = Container { data: ^Data { value: 1 } };
+const container: Container = Container { data: Data { value: 1 } };
 
 container.data satisfies ^Data;
 
@@ -280,10 +280,10 @@ struct Data {
 struct Container {
 /// @type.symbol symbol=Container type=Container
 /// @definition.struct symbol=Container
-/// @definition.field symbol=Container.data source="data: ^Data" key=data type=Owned<Data>
+/// @definition.field symbol=Container.data source="data: ^Data" key=data type=Data
 
     data: ^Data;
-    /// @type.symbol symbol=Container.data source="data: ^Data" type=Owned<Data>
+    /// @type.symbol symbol=Container.data source="data: ^Data" type=Data
     /// @resolution.name source=Data target=Data
 
 }
@@ -293,16 +293,16 @@ const container = Container { data: Data { value: 1 } };
 /// @resolution.pattern source=container kind=binding target=container
 /// @type.node source="Container { data: Data { value: 1 } }" type=Container
 /// @resolution.name source=Container target=Container
-/// @type.node source="Data { value: 1 }" type=Owned<Data>
+/// @type.node source="Data { value: 1 }" type=Data
 /// @resolution.name source=Data target=Data
 /// @type.node source=1 type=1
 
 container.data satisfies ^Data;
-/// @type.node source="container.data satisfies ^Data" type=Owned<Data>
+/// @type.node source="container.data satisfies ^Data" type=Data
 /// @type.node source=container type=Container
-/// @type.node source=container.data type=Owned<Data>
+/// @type.node source=container.data type=Data
 /// @resolution.name source=container target=container
-/// @resolution.member source=container.data receiver=Container type=Owned<Data> kind=field target_receiver=Container key=data target=Container.data target_type=Owned<Data>
+/// @resolution.member source=container.data receiver=Container type=Data kind=field target_receiver=Container key=data target=Container.data target_type=Data
 /// @resolution.place source=container placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=container root=container
 /// @resolution.place source=container.data placement="local" lifetime="static" access="readonly"
@@ -345,7 +345,7 @@ struct User {
     profile: Profile;
 }
 
-let user: ^readonly User = ^readonly User {
+let user: readonly User = readonly User {
     profile: Profile { name: "Ada" },
 };
 
@@ -374,10 +374,10 @@ struct User {
 }
 
 let user: ^readonly User = User {
-/// @type.symbol symbol=user source=user type=Owned<Readonly<User>>
+/// @type.symbol symbol=user source=user type=Readonly<User>
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
-/// @type.node type=Owned<Readonly<User>>
+/// @type.node type=Readonly<User>
 /// @resolution.name source=User target=User
 
     profile: Profile { name: "Ada" },
@@ -389,11 +389,11 @@ let user: ^readonly User = User {
 
 user.profile.name = "Grace";
 /// @type.node source="user.profile.name = \"Grace\"" type="Grace"
-/// @type.node source=user type=Owned<Readonly<User>>
+/// @type.node source=user type=Readonly<User>
 /// @type.node source=user.profile type=Profile
 /// @type.node source=user.profile.name type=Readonly<string>
 /// @resolution.name source=user target=user
-/// @resolution.member source=user.profile receiver=Owned<Readonly<User>> type=Profile kind=field target_receiver=Owned<Readonly<User>> key=profile target=User.profile target_type=Profile
+/// @resolution.member source=user.profile receiver=Readonly<User> type=Profile kind=field target_receiver=Readonly<User> key=profile target=User.profile target_type=Profile
 /// @resolution.place source=user placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=user root=user
 /// @resolution.place source=user.profile placement="local" lifetime="static" access="readonly"
@@ -494,7 +494,7 @@ function witness<T: Copy>(value: T): T {
     return value;
 }
 
-declare const point: ^Point;
+declare const point: Point;
 witness<Point>(point);
 
 declare const pair: ^Pair;
@@ -585,7 +585,7 @@ function witness<T: Copy>(value: T): T {
 }
 
 declare const point: ^Point;
-/// @type.symbol symbol=point source=point type=Owned<Point>
+/// @type.symbol symbol=point source=point type=Point
 /// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 
@@ -987,12 +987,12 @@ declare function gather<C>(): C where C: Collect<int32>;
 const point = gather<^Point>();
 /// @type.symbol symbol=point source=point type=Point
 /// @resolution.pattern source=point kind=binding target=point
-/// @type.node source=gather type=() => Owned<Point>
-/// @type.node source=gather<^Point>() type=Owned<Point>
+/// @type.node source=gather type=() => Point
+/// @type.node source=gather<^Point>() type=Point
 /// @resolution.name source=gather target=gather
-/// @resolution.call source=gather<^Point>() parameters=() return=Owned<Point> kind=symbol target=gather instance=gather<Owned<Point>>
-/// @generic.instantiation id=gather<Owned<Point>> template=gather arguments=(Owned<Point>)
-/// @generic.instance id=gather<Owned<Point>> template=gather arguments=(Owned<Point>)
+/// @resolution.call source=gather<^Point>() parameters=() return=Point kind=symbol target=gather instance=gather<Point>
+/// @generic.instantiation id=gather<Point> template=gather arguments=(Point)
+/// @generic.instance id=gather<Point> template=gather arguments=(Point)
 /// @resolution.name source=Point target=Point
 "#,
     );

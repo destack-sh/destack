@@ -1381,8 +1381,8 @@ class Circle extends Shape {}
 
 newtype Handle<out T> = intrinsic;
 
-declare const handle: Handle<Circle>;
-const widened: Handle<Shape> = handle;
+declare const handle: Managed<Handle<Circle>>;
+const widened: Managed<Handle<Shape>> = handle;
 
 === dir ===
 class Shape {}

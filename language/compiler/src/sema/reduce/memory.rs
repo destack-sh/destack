@@ -435,14 +435,16 @@ impl CheckState<'_> {
         self.intern_memory_literal(origin, literal)
     }
 
-    /// Return whether one explicit ownership form matches its payload's default form.
+    /// Return whether one explicit ownership form redundantly repeats its payload's default.
+    ///
+    /// Only the ownership constructors participate: borrows and raw pointers always layer.
     pub(in crate::sema) fn is_default_ownership_form(
         &mut self,
         origin: Origin,
         form: dir::Form,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        if !matches!(form, dir::Form::Managed | dir::Form::Owned) {
+        if !matches!(form, dir::Form::Owned | dir::Form::Managed) {
             return Ok(false);
         }
 
@@ -473,6 +475,38 @@ impl CheckState<'_> {
             }
             id = form.value;
         }
+    }
+
+    /// Reduce form constructors redundantly repeating family defaults to their payloads.
+    pub(in crate::sema) fn reduce_default_ownership_chain(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let resolved = self.shallow_resolve(id)?;
+        let dir::Type::Form(form) = self.ty(resolved)? else {
+            return Ok(resolved);
+        };
+
+        // reduce beneath first so a stacked default collapses fully
+        let value = self.reduce_default_ownership_chain(origin, form.value)?;
+
+        // drop the constructor when it redundantly repeats the payload's default ownership
+        if self.is_default_ownership_form(origin, form.form, value)? {
+            return Ok(value);
+        }
+
+        // keep the authored type when nothing beneath reduced
+        if value == form.value {
+            return Ok(resolved);
+        }
+
+        // rebuild around the reduced payload, adopting the constructor into this module
+        let constructor = self.adopt_form(resolved.module_id, form.form)?;
+        self.intern_type(dir::Type::Form(dir::FormType {
+            form: constructor,
+            value,
+        }))
     }
 
     /// Return whether one explicit form grants its payload nothing.

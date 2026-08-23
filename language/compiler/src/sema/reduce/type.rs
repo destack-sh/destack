@@ -570,8 +570,15 @@ impl CheckState<'_> {
                 self.normalize_head(origin, rebuilt)
             }
 
-            // close non-borrow forms as written values
-            dir::Type::Form(_) => Ok(id),
+            // reduce family-default ownership constructors anywhere in the form chain
+            dir::Type::Form(_) => {
+                let reduced = self.reduce_default_ownership_chain(origin, id)?;
+                if reduced == id {
+                    return Ok(id);
+                }
+
+                self.normalize_chain(origin, reduced, expanding)
+            }
 
             // intersections merge their structural shape elements
             dir::Type::Intersection(intersection) => {
