@@ -208,7 +208,6 @@ static LINTS: &[&Lint] = &[
     &style::PREFER_NTH,
     &style::PREFER_NULLISH_COALESCING,
     &style::PREFER_OPTIONAL_CHAIN,
-    &style::PREFER_PROTOCOL_IMPLEMENTATION,
     &style::PREFER_READONLY,
     &style::PREFER_REGEX_LITERALS,
     &style::PREFER_REGEXP_EXEC,
