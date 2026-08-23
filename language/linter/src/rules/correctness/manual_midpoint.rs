@@ -77,16 +77,24 @@ fn midpoint(
 
     // select the addition scaled by two, one half, or one right shift
     let sum = match operator {
-        dir::BinaryOperator::Divide if is_number(module, right.source.local_id, 2.0)? => {
+        dir::BinaryOperator::Divide
+            if module.is_numeric_constant(right.source.local_id, 2.0)? =>
+        {
             left.source.local_id
         }
-        dir::BinaryOperator::Multiply if is_number(module, left.source.local_id, 0.5)? => {
+        dir::BinaryOperator::Multiply
+            if module.is_numeric_constant(left.source.local_id, 0.5)? =>
+        {
             right.source.local_id
         }
-        dir::BinaryOperator::Multiply if is_number(module, right.source.local_id, 0.5)? => {
+        dir::BinaryOperator::Multiply
+            if module.is_numeric_constant(right.source.local_id, 0.5)? =>
+        {
             left.source.local_id
         }
-        dir::BinaryOperator::ShiftRight if is_number(module, right.source.local_id, 1.0)? => {
+        dir::BinaryOperator::ShiftRight
+            if module.is_numeric_constant(right.source.local_id, 1.0)? =>
+        {
             left.source.local_id
         }
         _ => return Ok(None),
@@ -127,23 +135,6 @@ fn midpoint(
         left: first.source.local_id,
         right: second.source.local_id,
     }))
-}
-
-/// Return whether one expression is an exact numeric constant.
-fn is_number(
-    module: &DirModule<'_>,
-    expression: dir::LocalNodeId<dir::Expression>,
-    expected: f64,
-) -> Result<bool, ProviderError> {
-    let is_expected = match module.scalar_constant(expression)? {
-        Some(dir::Literal::Integer(value) | dir::Literal::Bigint(value)) => {
-            value as f64 == expected
-        }
-        Some(dir::Literal::Float(value)) => value == expected,
-        _ => false,
-    };
-
-    Ok(is_expected)
 }
 
 /// Build the canonical midpoint call.
