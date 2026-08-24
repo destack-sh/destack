@@ -454,19 +454,11 @@ impl Trace {
             Vec::new()
         };
         let total = self.duration(&spans, &attempts);
-        let spans = if view.includes_attempts() {
-            spans.iter().map(TraceSpanSnapshot::from_span).collect()
-        } else {
-            Vec::new()
-        };
-        let counters = if view.includes_attempts() {
-            counters
-                .iter()
-                .map(TraceCounterSnapshot::from_counter)
-                .collect()
-        } else {
-            Vec::new()
-        };
+        let spans = spans.iter().map(TraceSpanSnapshot::from_span).collect();
+        let counters = counters
+            .iter()
+            .map(TraceCounterSnapshot::from_counter)
+            .collect();
         let parallelism = if view.includes_attempts() {
             parallelism(&attempts, total, self.workers, &mut artifact_label)?
         } else {
@@ -847,6 +839,11 @@ pub struct TraceStats {
 }
 
 impl TraceStats {
+    /// Return the total artifact attempts.
+    pub fn attempts(&self) -> u64 {
+        self.built + self.memory_cached + self.store_cached + self.parked + self.failed
+    }
+
     /// Add one terminal attempt outcome.
     fn add(&mut self, outcome: ArtifactAttemptOutcome) {
         match outcome {
