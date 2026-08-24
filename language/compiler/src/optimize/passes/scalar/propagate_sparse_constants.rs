@@ -1701,7 +1701,7 @@ entry:
     #[test]
     fn test_global_zero_initializer_field_get_not_constant() {
         let input = r#"
-readonly global pair: (int32, int32) = zeroInit
+readonly global pair: (int32, int32) = zeroinit
 
 function test(): int32 {
 entry:

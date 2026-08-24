@@ -942,7 +942,7 @@ mod tests {
         let managed_ref = tree.intern_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Managed,
             lifetime: mir::Lifetime::empty(),
-            storage: mir::Storage::Heap(mir::Space::Local),
+            storage: mir::Storage::LocalHeap,
             access: mir::Access::Mutable,
             pointee,
             nullability: mir::Nullability::None,
