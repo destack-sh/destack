@@ -82,7 +82,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let is_unused = matches!(
             view.get(*index),
             dir::Pattern::Wildcard | dir::Pattern::Binding { pattern: None, .. }
-        ) && module.pattern_uses(*index, &occurrences).is_empty();
+        ) && module
+            .declared_binding_uses(index.into_any(), &occurrences)
+            .is_empty();
         if !is_unused {
             continue;
         }
@@ -115,6 +117,10 @@ fn suggestion(
     call: dir::LocalNodeId<dir::Expression>,
     receiver: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
+    // remove a nested explicit iterator call with the indexed adapter
+    let receiver = module.iterator_receiver(receiver)?.unwrap_or(receiver);
+
+    // retain every source fragment copied into the replacement
     let tuple_extent = module.source_extent(tuple.into_any())?;
     let value_extent = module.source_extent(value.into_any())?;
     let call_extent = module.source_extent(call.into_any())?;
@@ -234,6 +240,31 @@ function copy(values: Iterator<int32>, output: int32[]): void {
 import { Iterator } from "destack:iter";
 
 function copy(values: Iterator<int32>, output: int32[]): void {
+    for (const value of values) {
+        output.push(value);
+    }
+}
+"#,
+        );
+    }
+
+    /// Remove both enumerate and an explicit iterator call when the index is unused.
+    #[test]
+    fn test_removes_unused_index_from_explicit_iterator() {
+        let session = TestSession::dir(
+            &UNUSED_ENUMERATE_INDEX,
+            r#"
+function copy(values: Set<int32>, output: int32[]): void {
+    for (const (_, value) of values.iterator().enumerate()) {
+        output.push(value);
+    }
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function copy(values: Set<int32>, output: int32[]): void {
     for (const value of values) {
         output.push(value);
     }

@@ -11,7 +11,7 @@ declare_lint! {
         id: "manual-find",
         summary: "Prefer find over a loop returning the first matching element",
         explanation: r#"
-A loop that returns its first matching element and otherwise returns undefined spells the find operation manually.
+A loop that returns its first match and otherwise returns undefined implements `find` manually.
 Instead, you SHOULD return the result of `find` directly.
 "#,
         example: {
@@ -57,7 +57,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             else {
                 continue;
             };
-            if view.get(*undefined).as_scalar() != Some(dir::Literal::Undefined) {
+            if module.scalar_constant(*undefined)? != Some(dir::Literal::Undefined) {
                 continue;
             }
             let Some(iteration) = module.for_of(*expression) else {
@@ -406,6 +406,79 @@ import { Iterator } from "destack:iter";
 function firstPositive(values: Iterator<int32>): int32 | undefined {
     return values.find((value) => value > 0);
 }
+"#,
+        );
+    }
+
+    /// Replace a trailing undefined constant while preserving its checked value.
+    #[test]
+    fn test_replaces_undefined_constant() {
+        let session = TestSession::dir(
+            &MANUAL_FIND,
+            r#"
+const absent: undefined = undefined;
+
+function firstPositive(values: int32[]): int32 | undefined {
+    for (const value of values) {
+        if (value > 0) {
+            return value;
+        }
+    }
+    return absent;
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+const absent: undefined = undefined;
+
+function firstPositive(values: int32[]): int32 | undefined {
+    return values.find((value) => value > 0);
+}
+"#,
+        );
+    }
+
+    /// Preserve comments in a reported first-match loop by omitting the suggestion.
+    #[test]
+    fn test_reports_commented_loop_without_suggestion() {
+        let session = TestSession::dir(
+            &MANUAL_FIND,
+            r#"
+function firstPositive(values: int32[]): int32 | undefined {
+    for (const value of values) {
+        // retain the reason for this threshold
+        if (value > 0) {
+            return value;
+        }
+    }
+    return undefined;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[manual-find]: loop manually finds its first matching value
+ ──▶ main.ds:2:5
+  │
+1 │ function firstPositive(values: int32[]): int32 | undefined {
+2 │     for (const value of values) {
+  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3 │         // retain the reason for this threshold
+  │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+4 │         if (value > 0) {
+  │         ^^^^^^^^^^^^^^^^
+5 │             return value;
+  │             ^^^^^^^^^^^^^
+6 │         }
+  │         ^
+7 │     }
+  │     ^
+8 │     return undefined;
+9 │ }
+  │
 "#,
         );
     }

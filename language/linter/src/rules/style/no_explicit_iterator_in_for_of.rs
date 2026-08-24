@@ -54,25 +54,14 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         if loop_.asynchrony != dir::Asynchrony::Sync {
             continue;
         }
-        let Some(call) = module.member_call(loop_.iterator) else {
+        let Some(receiver) = module.iterator_receiver(loop_.iterator)? else {
             continue;
         };
-        if !call.arguments.is_empty() || call.is_optional() {
-            continue;
-        }
-
-        // require the selected member to be a canonical iterator operation
-        let Some(member) = module.language_member(loop_.iterator)? else {
-            continue;
-        };
-        if member != member.owner.member("iterator") {
-            continue;
-        }
 
         // remove the redundant iterator call
         let span = module.source_extent(loop_.iterator.into_any())?;
         let mut diagnostic = lint.diagnostic("for-of calls iterator explicitly", span);
-        if let Some(suggestion) = suggestion(module, lint, loop_.iterator, call.receiver)? {
+        if let Some(suggestion) = suggestion(module, lint, loop_.iterator, receiver)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
         output.report(diagnostic);
@@ -153,6 +142,31 @@ function sum(values: int32[]): int32 {
         total += value;
     }
     return total;
+}
+"#,
+        );
+    }
+
+    /// Remove an explicit Set iterator call from for-of.
+    #[test]
+    fn test_removes_set_iterator_call() {
+        let session = TestSession::dir(
+            &NO_EXPLICIT_ITERATOR_IN_FOR_OF,
+            r#"
+function visit(values: Set<int32>): void {
+    for (const value of values.iterator()) {
+        value;
+    }
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function visit(values: Set<int32>): void {
+    for (const value of values) {
+        value;
+    }
 }
 "#,
         );

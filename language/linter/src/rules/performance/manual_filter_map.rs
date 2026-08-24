@@ -44,10 +44,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(filter) = module.member_call(expression) else {
             continue;
         };
-        if filter.is_optional()
-            || module.language_member(expression)?
-                != Some(dir::LanguageItem::Array.member("filter"))
-        {
+        if module.language_member(expression)? != Some(dir::LanguageItem::Array.member("filter")) {
             continue;
         }
         let [predicate] = filter.arguments else {
@@ -64,8 +61,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(map) = module.member_call(filter.receiver) else {
             continue;
         };
-        if map.is_optional()
-            || map.arguments.len() != 1
+        if map.arguments.len() != 1
             || module.language_member(filter.receiver)?
                 != Some(dir::LanguageItem::Array.member("map"))
         {
@@ -92,7 +88,7 @@ fn suggestion(
     lint: &Lint,
     expression: dir::LocalNodeId<dir::Expression>,
     map: dir::LocalNodeId<dir::Expression>,
-    map_member: dir::LocalNodeId<dir::Expression>,
+    map_callee: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let extent = module.source_extent(expression.into_any())?;
     let map_extent = module.source_extent(map.into_any())?;
@@ -105,10 +101,10 @@ fn suggestion(
         return Ok(None);
     }
 
-    // replace the map member and remove the defined-value filter suffix
+    // replace the map callee and remove the defined-value filter suffix
     let suffix = Span::new(extent.file, map_extent.end, extent.end);
     let mut file = FilePatch::new(extent.file);
-    file.replace(module.main_span(map_member.into_any())?, "filterMap");
+    file.replace(module.main_span(map_callee.into_any())?, "filterMap");
     file.delete(suffix);
     file.sort();
     let suggestion = lint.suggestion("map and keep defined values together", file)?;
@@ -178,6 +174,31 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
             r#"
 function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     return values.filterMap((value) => value);
+}
+"#,
+        );
+    }
+
+    /// Preserve an optional Array receiver while fusing map and filter.
+    #[test]
+    fn test_reports_optional_map() {
+        let session = TestSession::dir(
+            &MANUAL_FILTER_MAP,
+            r#"
+function defined(
+    values: (int32 | undefined)[] | undefined,
+): (int32 | undefined)[] | undefined {
+    return values?.map((value) => value).filter((value) => value !== undefined);
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+function defined(
+    values: (int32 | undefined)[] | undefined,
+): (int32 | undefined)[] | undefined {
+    return values?.filterMap((value) => value);
 }
 "#,
         );

@@ -11,7 +11,7 @@ declare_lint! {
         id: "prefer-find-map",
         summary: "Prefer findMap over separate mapping and search operations",
         explanation: r#"
-Mapping optional values through an Iterator adapter before selecting the first defined result carries separate adapter state and traversal.
+Mapping before a search creates a separate Iterator adapter and traversal state.
 Instead, you SHOULD call `findMap` to transform values until the first defined result is produced.
 "#,
         example: {
@@ -45,7 +45,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     // inspect Iterator operations that collapse into findMap
     for expression in module.call_expressions() {
         let expression = expression?;
-        let Some((adapter, member)) = find_map_adapter(module, expression)? else {
+        let Some((adapter, callee)) = find_map_adapter(module, expression)? else {
             continue;
         };
 
@@ -55,7 +55,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             "Iterator maps values before selecting the first defined result",
             span,
         );
-        if let Some(suggestion) = suggestion(module, lint, expression, adapter, member)? {
+        if let Some(suggestion) = suggestion(module, lint, expression, adapter, callee)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
         output.report(diagnostic);
@@ -64,7 +64,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Return the adapter and member that can become one findMap call.
+/// Return the adapter and callee that can become one findMap call.
 fn find_map_adapter(
     module: &DirModule<'_>,
     expression: dir::LocalNodeId<dir::Expression>,
@@ -78,9 +78,6 @@ fn find_map_adapter(
     let Some(terminal) = module.member_call(expression) else {
         return Ok(None);
     };
-    if terminal.is_optional() {
-        return Ok(None);
-    }
     let member = module.language_member(expression)?;
 
     // recognize map followed by an exact defined-value search
@@ -112,8 +109,7 @@ fn find_map_adapter(
     let Some(adapter) = module.member_call(terminal.receiver) else {
         return Ok(None);
     };
-    if adapter.is_optional()
-        || adapter.arguments.len() != 1
+    if adapter.arguments.len() != 1
         || module.language_member(terminal.receiver)?
             != Some(dir::LanguageItem::Iterator.member(adapter_name))
     {
@@ -129,7 +125,7 @@ fn suggestion(
     lint: &Lint,
     expression: dir::LocalNodeId<dir::Expression>,
     adapter: dir::LocalNodeId<dir::Expression>,
-    adapter_member: dir::LocalNodeId<dir::Expression>,
+    adapter_callee: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let extent = module.source_extent(expression.into_any())?;
     let adapter_extent = module.source_extent(adapter.into_any())?;
@@ -145,7 +141,7 @@ fn suggestion(
     // replace the adapter and remove the terminal suffix
     let suffix = Span::new(extent.file, adapter_extent.end, extent.end);
     let mut file = FilePatch::new(extent.file);
-    file.replace(module.main_span(adapter_member.into_any())?, "findMap");
+    file.replace(module.main_span(adapter_callee.into_any())?, "findMap");
     file.delete(suffix);
     file.sort();
     let suggestion = lint.fix("transform until the first defined value", file)?;
@@ -157,6 +153,7 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Recognize undefined on the left of the strict comparison.
     #[test]
     fn test_replaces_reversed_defined_search() {
@@ -230,6 +227,31 @@ function firstPositive(values: int32[]): int32 | undefined {
         );
     }
 
+    /// Preserve an optional Iterator receiver while fusing map and find.
+    #[test]
+    fn test_replaces_optional_mapping() {
+        let session = TestSession::dir(
+            &PREFER_FIND_MAP,
+            r#"
+import { Iterator } from "destack:iter";
+
+function firstDefined(values: Iterator<int32 | undefined> | undefined): int32 | undefined {
+    return values?.map((value) => value).find((value) => value !== undefined);
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+import { Iterator } from "destack:iter";
+
+function firstDefined(values: Iterator<int32 | undefined> | undefined): int32 | undefined {
+    return values?.findMap((value) => value);
+}
+"#,
+        );
+    }
+
     /// Recognize a constant alias of undefined.
     #[test]
     fn test_replaces_undefined_constant() {
@@ -292,6 +314,41 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
         );
 
         session.assert_no_diagnostics();
+    }
+
+    /// Preserve comments between the adapter and terminal operation.
+    #[test]
+    fn test_reports_commented_terminal_without_fix() {
+        let session = TestSession::dir(
+            &PREFER_FIND_MAP,
+            r#"
+function firstDefined(values: (int32 | undefined)[]): int32 | undefined {
+    return values
+        .iterator()
+        .map((value) => value) /* retain */
+        .find((value) => value !== undefined);
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[prefer-find-map]: Iterator maps values before selecting the first defined result
+ ──▶ main.ds:2:12
+  │
+1 │ function firstDefined(values: (int32 | undefined)[]): int32 | undefined {
+2 │     return values
+  │            ^^^^^^
+3 │         .iterator()
+  │         ^^^^^^^^^^^
+4 │         .map((value) => value) /* retain */
+  │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+5 │         .find((value) => value !== undefined);
+  │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+6 │ }
+  │
+"#,
+        );
     }
 
     /// Accept user-defined methods with the same names.

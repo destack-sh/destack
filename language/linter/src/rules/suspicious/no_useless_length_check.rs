@@ -11,7 +11,8 @@ declare_lint! {
         id: "no-useless-length-check",
         summary: "Disallow length checks duplicated by the guarded array operation",
         explanation: r#"
-An empty-array guard around `every` or a nonempty-array guard around `some` repeats a result already defined by that operation.
+`every` returns true for an empty array, and `some` returns false.
+Separate length guards duplicate these results.
 Instead, you SHOULD use the array operation directly.
 "#,
         example: {
@@ -62,19 +63,19 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             (left.source.local_id, right.source.local_id),
             (right.source.local_id, left.source.local_id),
         ] {
-            let Some((guarded, is_empty)) = length_guard(module, guard)? else {
+            let Some(test) = module.emptiness_test(guard)? else {
                 continue;
             };
             let Some((receiver, predicate_kind)) = array_predicate(module, predicate)? else {
                 continue;
             };
             let is_redundant = matches!(
-                (logical, is_empty, predicate_kind),
+                (logical, test.is_empty, predicate_kind),
                 (dir::BinaryOperator::Or, true, ArrayPredicate::Every)
                     | (dir::BinaryOperator::And, false, ArrayPredicate::Some)
             );
             if !is_redundant
-                || !module.is_same_computation(guarded, receiver)?
+                || !module.is_same_computation(test.receiver, receiver)?
                 || !module.is_duplicable_expression(receiver)?
             {
                 continue;
@@ -97,53 +98,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     }
 
     Ok(output)
-}
-
-/// Return the array and empty state tested by one canonical length comparison.
-fn length_guard(
-    module: &DirModule<'_>,
-    expression: dir::LocalNodeId<dir::Expression>,
-) -> Result<Option<(dir::LocalNodeId<dir::Expression>, bool)>, ProviderError> {
-    let Some((operator, [left, right])) = module.builtin_binary(expression)? else {
-        return Ok(None);
-    };
-
-    // normalize the canonical length access to the left operand
-    let Some(swapped_operator) = operator.swapped() else {
-        return Ok(None);
-    };
-    for (length, bound, operator) in [
-        (left.source.local_id, right.source.local_id, operator),
-        (
-            right.source.local_id,
-            left.source.local_id,
-            swapped_operator,
-        ),
-    ] {
-        let Some(dir::Literal::Integer(bound)) = module.scalar_constant(bound)? else {
-            continue;
-        };
-        let is_empty = match (operator, bound) {
-            (dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict, 0)
-            | (dir::BinaryOperator::LessThanOrEqual, 0)
-            | (dir::BinaryOperator::LessThan, 1) => true,
-            (
-                dir::BinaryOperator::NotEqual
-                | dir::BinaryOperator::NotEqualStrict
-                | dir::BinaryOperator::GreaterThan,
-                0,
-            )
-            | (dir::BinaryOperator::GreaterThanOrEqual, 1) => false,
-            _ => continue,
-        };
-        let Some(receiver) = module.length_receiver(length)? else {
-            continue;
-        };
-
-        return Ok(Some((receiver, is_empty)));
-    }
-
-    Ok(None)
 }
 
 /// Return the receiver and kind of one canonical Array predicate call.

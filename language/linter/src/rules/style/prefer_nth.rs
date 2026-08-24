@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use destack_source::{DiagnosticSuggestion, FilePatch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -11,8 +11,8 @@ declare_lint! {
         id: "prefer-nth",
         summary: "Prefer nth over drop followed by first",
         explanation: r#"
-Calling `first` immediately after `drop` creates an adapter only to consume its first value.
-Instead, you SHOULD call `nth` to consume the preceding values and return the selected value directly.
+Calling `first` after `drop` builds an adapter solely to consume its first value.
+Instead, you SHOULD use `nth` to skip preceding values and return the selected value.
 "#,
         example: {
             reported: r#"
@@ -40,10 +40,10 @@ function select(values: Iterator<int32>, index: isize): int32 | undefined {
 /// One drop adapter immediately consumed with first.
 #[derive(Debug, Clone, Copy)]
 struct DroppedFirst {
-    /// The source iterator.
-    receiver: dir::LocalNodeId<dir::Expression>,
-    /// The number of values discarded before selection.
-    count: dir::LocalNodeId<dir::Expression>,
+    /// The complete drop adapter call.
+    adapter: dir::LocalNodeId<dir::Expression>,
+    /// The selected drop callee.
+    callee: dir::LocalNodeId<dir::Expression>,
 }
 
 /// Report Iterator.drop calls immediately consumed with first.
@@ -78,8 +78,7 @@ fn dropped_first(
     let Some(first) = module.member_call(expression) else {
         return Ok(None);
     };
-    if first.is_optional()
-        || !first.generic_arguments.is_empty()
+    if !first.generic_arguments.is_empty()
         || !first.arguments.is_empty()
         || module.language_member(expression)? != Some(dir::LanguageItem::Iterator.member("first"))
     {
@@ -90,8 +89,7 @@ fn dropped_first(
     let Some(drop) = module.member_call(first.receiver) else {
         return Ok(None);
     };
-    if drop.is_optional()
-        || !drop.generic_arguments.is_empty()
+    if !drop.generic_arguments.is_empty()
         || module.language_member(first.receiver)?
             != Some(dir::LanguageItem::Iterator.member("drop"))
     {
@@ -100,13 +98,13 @@ fn dropped_first(
     let [argument] = drop.arguments else {
         return Ok(None);
     };
-    let dir::Argument::Positional { value: count } = module.view().get(*argument) else {
+    let dir::Argument::Positional { .. } = module.view().get(*argument) else {
         return Ok(None);
     };
 
     Ok(Some(DroppedFirst {
-        receiver: drop.receiver,
-        count: *count,
+        adapter: first.receiver,
+        callee: drop.callee,
     }))
 }
 
@@ -118,17 +116,23 @@ fn fix(
     dropped: DroppedFirst,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let extent = module.source_extent(expression.into_any())?;
-    let receiver = module.source_extent(dropped.receiver.into_any())?;
-    let count = module.source_extent(dropped.count.into_any())?;
-    if module.has_unretained_comment(extent, &[receiver, count])? {
+    let adapter = module.source_extent(dropped.adapter.into_any())?;
+    if !extent.contains_span(adapter) {
+        return Err(ProviderError::internal(
+            "first call extent does not contain its drop receiver",
+        ));
+    }
+    if module.has_unretained_comment(extent, &[adapter])? {
         return Ok(None);
     }
 
-    // retain the authored iterator and count
-    let receiver = module.expression_source(dropped.receiver, dir::OperatorPrecedence::Postfix)?;
-    let count = module.source(count)?;
-    let patch = Patch::replace(extent, format!("{receiver}.nth({count})"));
-    let fix = lint.fix("select the value directly", patch)?;
+    // retain the complete adapter and replace its operation
+    let suffix = Span::new(extent.file, adapter.end, extent.end);
+    let mut file = FilePatch::new(extent.file);
+    file.replace(module.main_span(dropped.callee.into_any())?, "nth");
+    file.delete(suffix);
+    file.sort();
+    let fix = lint.fix("select the value directly", file)?;
 
     Ok(Some(fix))
 }
@@ -158,6 +162,31 @@ import { Iterator } from "destack:iter";
 
 function select(values: Iterator<int32>, index: isize): int32 | undefined {
     return values.nth(index);
+}
+"#,
+        );
+    }
+
+    /// Preserve an optional receiver when replacing the adapter chain.
+    #[test]
+    fn test_replaces_optional_drop_first() {
+        let session = TestSession::dir(
+            &PREFER_NTH,
+            r#"
+import { Iterator } from "destack:iter";
+
+function select(values: Iterator<int32> | undefined, index: isize): int32 | undefined {
+    return values?.drop(index).first();
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+import { Iterator } from "destack:iter";
+
+function select(values: Iterator<int32> | undefined, index: isize): int32 | undefined {
+    return values?.nth(index);
 }
 "#,
         );
@@ -203,5 +232,34 @@ function select(values: Values): int32 {
         );
 
         session.assert_no_diagnostics();
+    }
+
+    /// Preserve comments between the adapter and terminal call by omitting the fix.
+    #[test]
+    fn test_reports_commented_chain_without_fix() {
+        let session = TestSession::dir(
+            &PREFER_NTH,
+            r#"
+import { Iterator } from "destack:iter";
+
+function select(values: Iterator<int32>, index: isize): int32 | undefined {
+    return values.drop(index) /* retain */ .first();
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[prefer-nth]: drop adapter is consumed only for its first value
+ ──▶ main.ds:4:12
+  │
+2 │
+3 │ function select(values: Iterator<int32>, index: isize): int32 | undefined {
+4 │     return values.drop(index) /* retain */ .first();
+  │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+5 │ }
+  │
+"#,
+        );
     }
 }

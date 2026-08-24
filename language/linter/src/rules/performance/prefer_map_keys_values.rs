@@ -92,8 +92,12 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
 
         // choose the direct iterator when exactly one component is unused
-        let is_key_unused = module.pattern_uses(*key, &occurrences).is_empty();
-        let is_value_unused = module.pattern_uses(*value, &occurrences).is_empty();
+        let is_key_unused = module
+            .declared_binding_uses(key.into_any(), &occurrences)
+            .is_empty();
+        let is_value_unused = module
+            .declared_binding_uses(value.into_any(), &occurrences)
+            .is_empty();
         let projection = match (is_key_unused, is_value_unused) {
             (true, false) => EntryProjection {
                 tuple: *pattern,

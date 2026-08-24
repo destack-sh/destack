@@ -41,6 +41,7 @@ function copy(values: int32[], output: int32[]): void {
 
 /// Report canonical sequential forEach calls.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let occurrences = module.flows.binding_occurrences().collect::<Vec<_>>();
     let mut output = LintOutput::default();
 
     // inspect canonical Array and Iterator forEach calls
@@ -69,6 +70,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 call.receiver,
                 call.arguments,
                 member.owner,
+                &occurrences,
             )?
         {
             diagnostic = diagnostic.suggestion(suggestion);
@@ -87,6 +89,7 @@ fn suggestion(
     receiver: dir::LocalNodeId<dir::Expression>,
     arguments: &[dir::LocalNodeId<dir::Argument>],
     owner: dir::LanguageItem,
+    occurrences: &[dir::BindingOccurrence],
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let view = module.view();
 
@@ -127,6 +130,20 @@ fn suggestion(
         parameter_spans.push(span);
     }
 
+    // omit an index parameter that checked flow proves unused
+    let is_index_used = parameters.get(1).is_some_and(|parameter| {
+        !module
+            .declared_binding_uses(parameter.into_any(), occurrences)
+            .is_empty()
+    });
+    let retained_parameter_count = if parameters.len() == 2 && !is_index_used {
+        1
+    } else {
+        parameters.len()
+    };
+    let retained_parameters = &parameters[..retained_parameter_count];
+    let retained_parameter_spans = &parameter_spans[..retained_parameter_count];
+
     // reject callback control whose target would change after inlining
     if module.uses_enclosing_control(body.into_any())? {
         return Ok(None);
@@ -136,20 +153,20 @@ fn suggestion(
     let replacement_extent = module.statement_span(expression)?;
     let receiver_extent = module.source_extent(receiver.into_any())?;
     let body = module.source_extent(body.into_any())?;
-    let mut retained = parameter_spans.clone();
+    let mut retained = retained_parameter_spans.to_vec();
     retained.extend([receiver_extent, body]);
     if module.has_unretained_comment(replacement_extent, &retained)? {
         return Ok(None);
     }
 
     // preserve mutable callback parameters as mutable loop bindings
-    let keyword = match parameter_binding_keyword(module, parameters) {
+    let keyword = match parameter_binding_keyword(module, retained_parameters, occurrences) {
         dir::BindingKeyword::Const => "const",
         dir::BindingKeyword::Let => "let",
     };
 
     // compose the equivalent iteration binding and source
-    let parameters = parameter_spans
+    let parameters = retained_parameter_spans
         .iter()
         .map(|span| module.source(*span))
         .collect::<Result<Vec<_>, _>>()?;
@@ -204,17 +221,12 @@ fn parameter_pattern_span(
 fn parameter_binding_keyword(
     module: &DirModule<'_>,
     parameters: &[dir::LocalNodeId<dir::Parameter>],
+    occurrences: &[dir::BindingOccurrence],
 ) -> dir::BindingKeyword {
-    let mutable = module
-        .flows
-        .binding_uses()
-        .filter(|(_, uses)| uses.may_mutate())
-        .map(|(symbol, _)| symbol)
-        .collect::<Vec<_>>();
     let is_mutable = parameters.iter().any(|parameter| {
         module
-            .symbols_declared_within(parameter.into_any())
-            .any(|symbol| mutable.contains(&symbol.local_id))
+            .declared_binding_uses(parameter.into_any(), occurrences)
+            .may_mutate()
     });
 
     match is_mutable {
@@ -331,6 +343,31 @@ function copy(values: int32[], output: isize[]): void {
     for (const (index, value) of values.entries()) {
         value;
         output.push(index);
+    }
+}
+"#,
+        );
+    }
+
+    /// Omit an unused Array.forEach index from the replacement.
+    #[test]
+    fn test_replaces_unused_array_for_each_index() {
+        let session = TestSession::dir(
+            &PREFER_FOR_OF_OVER_FOR_EACH,
+            r#"
+function copy(values: int32[], output: int32[]): void {
+    values.forEach((value, index) => {
+        output.push(value);
+    });
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+function copy(values: int32[], output: int32[]): void {
+    for (const value of values) {
+        output.push(value);
     }
 }
 "#,
