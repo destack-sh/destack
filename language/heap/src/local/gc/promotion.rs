@@ -734,7 +734,7 @@ impl HeapStorage {
 
     /// Return whether one reference points into live young space.
     pub(super) fn reference_is_young(&self, reference: HeapReference) -> HeapResult<bool> {
-        if reference.is_nullish() || self.is_immortal(reference) {
+        if reference.is_nullish() || self.is_constant(reference) {
             return Ok(false);
         }
 

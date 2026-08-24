@@ -36,13 +36,13 @@ impl HeapStorage {
         }
     }
 
-    /// Return whether one reference addresses immortal storage, which tracing skips.
-    pub(crate) fn is_immortal(&self, reference: HeapReference) -> bool {
+    /// Return whether one reference addresses constant storage, which tracing skips.
+    pub(crate) fn is_constant(&self, reference: HeapReference) -> bool {
         let offset = reference.offset();
 
-        self.immortal.byte_len != 0
-            && offset >= self.immortal.offset
-            && offset < self.immortal.offset + self.immortal.byte_len
+        self.constant.byte_len != 0
+            && offset >= self.constant.offset
+            && offset < self.constant.offset + self.constant.byte_len
     }
 
     /// Return the resolved extent for one live heap reference.

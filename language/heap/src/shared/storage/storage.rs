@@ -25,8 +25,8 @@ pub(crate) struct HeapStorage {
     pub(crate) page_size_bytes: usize,
     /// The shared heap block state.
     pub(crate) state: RwLock<HeapState>,
-    /// The immortal object range inside world memory, which tracing skips.
-    pub(crate) immortal: MemoryRange,
+    /// The constant object range inside world memory, which tracing skips.
+    pub(crate) constant: MemoryRange,
     /// The exact shared heap accounting state.
     pub(crate) accounting: HeapAccounting,
     /// The active shared collection state.
@@ -66,7 +66,7 @@ impl HeapStorage {
             memory,
             page_size_bytes: options.page_size_bytes,
             state: RwLock::new(store),
-            immortal: MemoryRange::default(),
+            constant: MemoryRange::default(),
             accounting: HeapAccounting::default(),
             gc: CollectorState::default(),
         })

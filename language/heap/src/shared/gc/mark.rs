@@ -123,8 +123,8 @@ impl HeapStorage {
         worker: Option<&SharedMarkWorker>,
         reference: SharedHeapReference,
     ) -> HeapResult<()> {
-        // nullish and immortal references are never shared mark work
-        if reference.is_nullish() || self.is_immortal(reference) {
+        // nullish and constant references are never shared mark work
+        if reference.is_nullish() || self.is_constant(reference) {
             return Ok(());
         }
 

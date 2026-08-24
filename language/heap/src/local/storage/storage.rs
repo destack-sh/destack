@@ -32,8 +32,8 @@ pub(crate) struct HeapStorage {
     pub(crate) large: LargeStorage,
     /// The owning heap metadata for each visible memory page.
     pub(crate) page_table: PageTable<PageOwner>,
-    /// The immortal object range inside world memory, which tracing skips.
-    pub(crate) immortal: MemoryRange,
+    /// The constant object range inside world memory, which tracing skips.
+    pub(crate) constant: MemoryRange,
     /// The exact live heap usage.
     pub(crate) usage: AllocationUsage,
     /// The exact live heap young space usage.
@@ -84,7 +84,7 @@ impl HeapStorage {
                 next_unused_large_block_id: FIRST_ALLOCATED_LARGE_ALLOCATION_ID,
             },
             page_table: PageTable::new(),
-            immortal: MemoryRange::default(),
+            constant: MemoryRange::default(),
             usage: AllocationUsage::default(),
             young_usage: AllocationUsage::default(),
             retained_bytes,

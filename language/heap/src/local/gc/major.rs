@@ -1012,8 +1012,8 @@ impl HeapStorage {
 
     /// Queue one major collection reference after marking it.
     fn enqueue_major_reference(&mut self, reference: HeapReference) -> HeapResult<()> {
-        // nullish and immortal references are not heap roots
-        if reference.is_nullish() || self.is_immortal(reference) {
+        // nullish and constant references are not heap roots
+        if reference.is_nullish() || self.is_constant(reference) {
             return Ok(());
         }
 

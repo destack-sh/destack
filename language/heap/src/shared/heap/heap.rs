@@ -34,9 +34,9 @@ pub struct SharedHeap {
 }
 
 impl SharedHeap {
-    /// Set the immortal object range, which tracing skips.
-    pub fn set_immortal_range(&mut self, range: MemoryRange) {
-        self.storage.immortal = range;
+    /// Set the constant object range, which tracing skips.
+    pub fn set_constant_range(&mut self, range: MemoryRange) {
+        self.storage.constant = range;
     }
 }
 

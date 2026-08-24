@@ -674,8 +674,8 @@ impl HeapStorage {
         reference: HeapReference,
         pending: &mut TraceQueue<HeapReference>,
     ) -> HeapResult<()> {
-        // nullish and immortal references are not heap roots
-        if reference.is_nullish() || self.is_immortal(reference) {
+        // nullish and constant references are not heap roots
+        if reference.is_nullish() || self.is_constant(reference) {
             return Ok(());
         }
 

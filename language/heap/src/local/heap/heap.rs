@@ -27,9 +27,9 @@ pub struct Heap {
 }
 
 impl Heap {
-    /// Set the immortal object range, which tracing skips.
-    pub fn set_immortal_range(&mut self, range: MemoryRange) {
-        self.storage.immortal = range;
+    /// Set the constant object range, which tracing skips.
+    pub fn set_constant_range(&mut self, range: MemoryRange) {
+        self.storage.constant = range;
     }
 
     /// Create one heap over one explicit memory, limits, and options.
