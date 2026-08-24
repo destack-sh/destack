@@ -5,6 +5,23 @@ use destack_source::{DiagnosticSuggestion, FilePatch, NodeSpanRegion};
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
+const CAPACITY_TYPES: &[dir::LanguageItem] = &[
+    dir::LanguageItem::Array,
+    dir::LanguageItem::BinaryHeap,
+    dir::LanguageItem::ByteBuffer,
+    dir::LanguageItem::Deque,
+    dir::LanguageItem::LinkedList,
+    dir::LanguageItem::Map,
+    dir::LanguageItem::OsStringBuilder,
+    dir::LanguageItem::PathBuilder,
+    dir::LanguageItem::Set,
+    dir::LanguageItem::Slab,
+    dir::LanguageItem::SmallArray,
+    dir::LanguageItem::SortedMap,
+    dir::LanguageItem::SortedSet,
+    dir::LanguageItem::StringBuilder,
+];
+
 declare_lint! {
     /// Prefer withCapacity over immediate reservation after construction.
     pub PREFER_WITH_CAPACITY {
@@ -62,7 +79,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let expressions = block.iter_expressions().collect::<Vec<_>>();
         for statements in expressions.windows(2) {
             let Some(construction) =
-                reserved_construction(module, statements[0], statements[1], &occurrences)?
+                select_reserved_construction(module, statements[0], statements[1], &occurrences)?
             else {
                 continue;
             };
@@ -81,7 +98,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 }
 
 /// Select one direct binding construction followed by reservation.
-fn reserved_construction(
+fn select_reserved_construction(
     module: &DirModule<'_>,
     declaration: dir::LocalNodeId<dir::Expression>,
     reservation: dir::LocalNodeId<dir::Expression>,
@@ -106,13 +123,8 @@ fn reserved_construction(
     let Some(constructor_member) = module.language_member(constructor)? else {
         return Ok(None);
     };
-    let supports_capacity = [
-        dir::LanguageItem::Array,
-        dir::LanguageItem::Map,
-        dir::LanguageItem::Set,
-    ]
-    .contains(&constructor_member.owner);
-    if !supports_capacity || constructor_member != constructor_member.owner.member("new") {
+    let is_capacity_type = CAPACITY_TYPES.contains(&constructor_member.owner);
+    if !is_capacity_type || constructor_member != constructor_member.owner.member("new") {
         return Ok(None);
     }
 
@@ -267,6 +279,122 @@ function collect(capacity: usize): ^Set<int32> {
     let values: ^Set<int32> = Set.withCapacity(capacity);
 
     return values;
+}
+"#,
+        );
+    }
+
+    /// Combine ByteBuffer.new and an immediate reserve call.
+    #[test]
+    fn test_combines_byte_buffer_reservation() {
+        let session = TestSession::dir(
+            &PREFER_WITH_CAPACITY,
+            r#"
+import { ByteBuffer } from "destack:bytes";
+
+function collect(capacity: usize): ^ByteBuffer {
+    let value: ^ByteBuffer = ByteBuffer.new();
+    value.reserve(capacity);
+
+    return value;
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+import { ByteBuffer } from "destack:bytes";
+
+function collect(capacity: usize): ^ByteBuffer {
+    let value: ^ByteBuffer = ByteBuffer.withCapacity(capacity);
+
+    return value;
+}
+"#,
+        );
+    }
+
+    /// Combine PathBuilder.new and an immediate reserve call.
+    #[test]
+    fn test_combines_path_builder_reservation() {
+        let session = TestSession::dir(
+            &PREFER_WITH_CAPACITY,
+            r#"
+import { PathBuilder } from "destack:fs";
+
+function collect(capacity: usize): ^PathBuilder {
+    let value: ^PathBuilder = PathBuilder.new();
+    value.reserve(capacity);
+
+    return value;
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+import { PathBuilder } from "destack:fs";
+
+function collect(capacity: usize): ^PathBuilder {
+    let value: ^PathBuilder = PathBuilder.withCapacity(capacity);
+
+    return value;
+}
+"#,
+        );
+    }
+
+    /// Combine Deque.new and an immediate reserve call.
+    #[test]
+    fn test_combines_deque_reservation() {
+        let session = TestSession::dir(
+            &PREFER_WITH_CAPACITY,
+            r#"
+function collect(capacity: usize): ^Deque<int32> {
+    let values: ^Deque<int32> = Deque.new();
+    values.reserve(capacity);
+
+    return values;
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+function collect(capacity: usize): ^Deque<int32> {
+    let values: ^Deque<int32> = Deque.withCapacity(capacity);
+
+    return values;
+}
+"#,
+        );
+    }
+
+    /// Combine StringBuilder.new and an immediate reserve call.
+    #[test]
+    fn test_combines_string_builder_reservation() {
+        let session = TestSession::dir(
+            &PREFER_WITH_CAPACITY,
+            r#"
+import { StringBuilder } from "destack:string";
+
+function collect(capacity: usize): ^StringBuilder {
+    let value: ^StringBuilder = StringBuilder.new();
+    value.reserve(capacity);
+
+    return value;
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+import { StringBuilder } from "destack:string";
+
+function collect(capacity: usize): ^StringBuilder {
+    let value: ^StringBuilder = StringBuilder.withCapacity(capacity);
+
+    return value;
 }
 "#,
         );
