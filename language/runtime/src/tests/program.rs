@@ -46,6 +46,7 @@ impl TestProgram {
                 tree,
                 target,
                 layouts,
+                language: mir::LanguageTable::default(),
                 dispatch,
                 drops,
                 accesses,

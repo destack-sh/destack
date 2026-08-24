@@ -357,6 +357,7 @@ impl VmSetup {
             tree,
             target,
             layouts,
+            language: mir::LanguageTable::default(),
             dispatch,
             drops,
             accesses,
