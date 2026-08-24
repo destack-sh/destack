@@ -219,8 +219,11 @@ author: "Florian"
 - and they roughly split into: how do we support which types, which expressions do we add, how do we deal with memory and layouts, and where does any of this actually run-->
 
 - what is the ergonomic ladder of TS++ between TS -> Rust
+- what's the most boring thing we could pitch? 
+- needs to be a stable foundation for all the other crazier stuff
 - don't try to be cute or clever or fancy
-- don't "fix" what's not badly broken
+- no "improvements", only corrections
+- don't "fix" what's not _actually_ broken
 - only use boring ideas already proven by other languages / libraries / ..
 
 - TS++ fashions itself as a "superset of a strict subset of TS", which is vaguely reminiscient of the relationship between C and C++
@@ -488,6 +491,8 @@ export type Record<K: PropertyKey, V> = {
 
 ### Extensions
 
+- Rust has `impl` blocks for as the _sole_ mechanism for attaching members to nominal targets
+- TS++ has its as an additional mechanism
 - like `impl` in Rust but a little broader
 - inherent, anonymous, named extensions
 - E / T, T may be local or imported
@@ -501,6 +506,7 @@ export type Record<K: PropertyKey, V> = {
 - no orphan rule? 
 - global extensions considered for impls (not import order)
 - member overloading only within a single declaration block (extension or itme declaration)
+- also for @unsafe impls
 
 ### Operator Overloading
 
