@@ -22,9 +22,7 @@ import {
 } from "./markdown.mjs";
 import { plainTextFor, searchTextFor, tokenEstimateFor } from "./text.mjs";
 import { writePageSources } from "./sources.mjs";
-import { highlightCode } from "./highlight.mjs";
 import { readLibraryReference, renderLibraryDocuments } from "./reference.mjs";
-import { homeExamples } from "../src/content/home.ts";
 
 const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const siteDirectory = join(repositoryDirectory, "platform/site");
@@ -37,7 +35,6 @@ const publicSearchFile = join(publicDirectory, "search.json");
 const generatedDocumentDirectory = join(generatedDirectory, "document");
 const generatedPostDirectory = join(generatedDirectory, "post");
 const generatedDocumentFile = join(generatedDirectory, "documents.ts");
-const generatedHomeHighlightFile = join(generatedDirectory, "home-highlights.ts");
 const generatedPostFile = join(generatedDirectory, "posts.ts");
 const generatedRouteFile = join(generatedDirectory, "prerender-routes.ts");
 const generatedSearchFile = join(generatedDirectory, "search.ts");
@@ -62,13 +59,11 @@ if (!isCheck) {
     writeGeneratedFile(publicSearchFile, `${JSON.stringify(searchEntries)}\n`);
 }
 const documentSource = renderDocumentModule(documents);
-const homeHighlightSource = renderHomeHighlightModule();
 const postSource = renderPostModule(posts);
 const routeSource = renderRouteModule(posts, documents, library.items);
 
 if (isCheck) {
     checkGeneratedFile(generatedDocumentFile, documentSource);
-    checkGeneratedFile(generatedHomeHighlightFile, homeHighlightSource);
     checkGeneratedFile(generatedPostFile, postSource);
     checkGeneratedFile(generatedRouteFile, routeSource);
     checkMissingGeneratedPath(generatedDocumentDirectory);
@@ -77,7 +72,6 @@ if (isCheck) {
 } else {
     mkdirSync(generatedDirectory, { recursive: true });
     writeGeneratedFile(generatedDocumentFile, documentSource);
-    writeGeneratedFile(generatedHomeHighlightFile, homeHighlightSource);
     writeGeneratedFile(generatedPostFile, postSource);
     writeGeneratedFile(generatedRouteFile, routeSource);
     rmSync(generatedDocumentDirectory, { force: true, recursive: true });
@@ -162,26 +156,6 @@ function resolveAssets(html, assets) {
     }
 
     return resolved;
-}
-
-/// Generate parser-backed syntax spans for every homepage technical listing.
-function renderHomeHighlightModule() {
-    const entries = homeExamples.map((example) => {
-        const editors = example.editors.map((listing) =>
-            highlightCode(listing.text, listing.language).split("\n")
-        );
-        const output = example.output === undefined
-            ? null
-            : highlightCode(example.output.text, example.output.language).split("\n");
-        const highlighted = { editors, output };
-
-        return `    ${JSON.stringify(example.action)}: ${JSON.stringify(highlighted)},`;
-    }).join("\n");
-
-    return `export const homeHighlights = {
-${entries}
-} as const;
-`;
 }
 
 /// Read and order every documentation source.
@@ -570,7 +544,8 @@ function searchEntriesFor(posts, documents, libraryItems) {
     return [
         ...documents.flatMap((document) => [
             {
-                context: "docs",
+                context: document.path.startsWith("language/library/") ? "standard library" : "docs",
+                kind: document.path.startsWith("language/library/") ? "module" : "page",
                 route: document.route,
                 text: `${document.description} ${document.searchSections.find((section) => section.depth === 1)?.text ?? ""}`,
                 title: document.title,
@@ -578,7 +553,8 @@ function searchEntriesFor(posts, documents, libraryItems) {
             ...document.searchSections
                 .filter((section) => section.depth > 1)
                 .map((section) => ({
-                    context: `docs / ${document.title}`,
+                    context: document.title,
+                    kind: "section",
                     route: `${document.route}#${section.id}`,
                     text: section.text,
                     title: section.title,
@@ -587,6 +563,7 @@ function searchEntriesFor(posts, documents, libraryItems) {
         ...posts.flatMap((post) => [
             {
                 context: `blog / ${post.date}`,
+                kind: "page",
                 route: post.route,
                 text: `${post.subtitle} ${post.searchText}`,
                 title: post.title,
@@ -594,14 +571,16 @@ function searchEntriesFor(posts, documents, libraryItems) {
             ...post.searchSections
                 .filter((section) => section.depth > 1)
                 .map((section) => ({
-                    context: `blog / ${post.title}`,
+                    context: post.title,
+                    kind: "section",
                     route: `${post.route}#${section.id}`,
                     text: section.text,
                     title: section.title,
                 })),
         ]),
         ...libraryItems.map((item) => ({
-            context: `docs / ${item.module.specifier}`,
+            context: item.module.specifier,
+            kind: "symbol",
             route: item.route,
             text: item.searchSections[0].text,
             title: item.title,

@@ -1,20 +1,16 @@
-import { homeExamples } from "./home";
 import type { SearchEntry } from "./search";
+
+/// The public installation command.
+export const installCommand = "curl -fsSL https://destack.sh/install | sh";
 
 /// Searchable content outside the generated documentation and blog collections.
 export const siteSearchEntries: readonly SearchEntry[] = [
     {
         context: "destack.sh",
+        kind: "page",
         route: "/",
-        text: `Destack the absurdly integrated open computing stack ${homeExamples
-            .map((example) => `${example.action} ${example.description}`)
-            .join(" ")}`,
+        text:
+            "Destack, the absurdly integrated, fully hackable, open-source computing stack. TypeScript++, Web, native, and desktop.",
         title: "Home",
     },
-    ...homeExamples.map((example) => ({
-        context: "destack.sh / actions",
-        route: `/#${example.action}`,
-        text: [example.claim, example.description, ...example.like].join(" "),
-        title: example.action,
-    })),
 ];
