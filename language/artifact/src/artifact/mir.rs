@@ -15,6 +15,8 @@ pub struct MirLowered {
 
     /// Canonical MIR layout table.
     pub layouts: mir::LayoutTable,
+    /// Canonical language identities.
+    pub language: mir::LanguageTable,
     /// Canonical MIR dispatch table.
     pub dispatch: mir::DispatchTable,
     /// Canonical MIR drop table.
@@ -35,6 +37,7 @@ impl MirLowered {
             target: mir::TargetLayout::default(),
             initializer: None,
             layouts: mir::LayoutTable::default(),
+            language: mir::LanguageTable::default(),
             dispatch: mir::DispatchTable::default(),
             drops: mir::DropTable::default(),
             accesses: mir::AccessTable::default(),
