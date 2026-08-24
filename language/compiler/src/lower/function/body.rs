@@ -415,7 +415,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
 
         // lower the nominal instance once for every body that reads it
         if !self.lowerer.stored_nominals.contains_key(&stored) {
-            let dir::Type::Application(instance) = self.lowerer.ty(stored)? else {
+            let dir::Type::Application(_) = self.lowerer.ty(stored)? else {
                 return Err(CompilerError::Internal {
                     message: format!(
                         "a nominal read outside an application type: {:?}",
@@ -423,11 +423,6 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
                     ),
                 });
             };
-            let arguments = self
-                .lowerer
-                .types(stored.module_id)?
-                .type_ids(instance.arguments)
-                .to_vec();
             let pointer_bytes = self.builder.pointer_bytes();
             let outcome = self
                 .lowerer
@@ -437,7 +432,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
                     &self.lifetime_parameters,
                 )
                 .with_instance(self.instance)
-                .lower_nominal(instance.symbol, &arguments);
+                .lower_nominal(stored);
             Self::bank(&mut self.lowerer.stored_nominals, stored, outcome)?;
         }
 

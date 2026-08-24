@@ -90,6 +90,7 @@ impl ModuleLowerer<'_> {
         let header = lifetime_parameters.declare(builder.function_header(&name));
         let header = header.parameters(parameters).result(result);
         let function = builder.external_function(header);
+        self.index_language_declaration(function, symbol)?;
         self.functions
             .insert(key, FunctionDeclaration::Declared(function));
 
@@ -115,6 +116,7 @@ impl ModuleLowerer<'_> {
             .lower(declared)?;
         let name = self.constant_name(symbol)?;
         let global = builder.external_global(&name, ty, mir::Mutability::Immutable);
+        self.index_language_declaration(global, symbol)?;
         self.globals.insert(symbol, Ok(global));
 
         Ok(())
@@ -162,6 +164,7 @@ impl ModuleLowerer<'_> {
         let header = lifetime_parameters.declare(builder.function_header(name));
         let header = header.parameters(parameters).result(result);
         let function = builder.binding_function(header, binding);
+        self.index_language_declaration(function, symbol)?;
 
         // mark bindings as observing external state
         *builder.effects_mut().upsert_function(function) = mir::FunctionEffect::unknown();
@@ -185,9 +188,10 @@ impl ModuleLowerer<'_> {
         let receiver = match member.role {
             // pass an exclusive reference to uninitialized constructor storage
             Some(dir::FunctionRole::Constructor) => {
+                let owner = self.symbol_type(member.owner)?;
                 let value = self
                     .type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
-                    .lower_nominal(member.owner, &[])?;
+                    .lower_nominal(owner)?;
 
                 Some(constructor_receiver_type(builder.tree_mut(), value.storage))
             }

@@ -61,6 +61,7 @@ impl ModuleLowerer<'_> {
         let header = lifetime_parameters.declare(builder.function_header(&name));
         let header = header.parameters(parameters).result(result);
         let function = builder.declare_function(header);
+        self.index_language_declaration(function, symbol)?;
         self.functions.insert(
             GenericInstanceKey::non_generic(symbol),
             FunctionDeclaration::Declared(function),
@@ -179,9 +180,10 @@ impl ModuleLowerer<'_> {
             _ if is_static => None,
             // receive an exclusive borrow of uninitialized storage
             Some(dir::FunctionRole::Constructor) => {
+                let owner = self.symbol_type(owner)?;
                 let nominal = self
                     .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
-                    .lower_nominal(owner, &[])?;
+                    .lower_nominal(owner)?;
 
                 Some(constructor_receiver_type(
                     builder.tree_mut(),
@@ -244,6 +246,7 @@ impl ModuleLowerer<'_> {
         let header = lifetime_parameters.declare(builder.function_header(&name));
         let header = header.parameters(parameters).result(result);
         let function = builder.declare_function(header);
+        self.index_language_declaration(function, symbol)?;
         self.functions.insert(
             GenericInstanceKey::non_generic(symbol),
             FunctionDeclaration::Declared(function),

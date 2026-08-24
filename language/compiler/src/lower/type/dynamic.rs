@@ -47,13 +47,7 @@ impl TypeLowerer<'_, '_> {
                     Some(dir::Definition::Interface(_))
                 ) =>
             {
-                let arguments = self
-                    .lowerer
-                    .types(constraint.module_id)?
-                    .type_ids(instance.arguments)
-                    .to_vec();
-
-                return Ok(self.lower_nominal(instance.symbol, &arguments)?.storage);
+                return Ok(self.lower_nominal(constraint)?.storage);
             }
             other => {
                 return Err(LowerError::Unsupported {

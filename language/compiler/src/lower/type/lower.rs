@@ -102,7 +102,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 .into());
             }
 
-            return Ok(self.lower_nominal(symbol, &arguments)?.value);
+            return Ok(self.lower_nominal(id)?.value);
         }
 
         // reserve an identity for anonymous compound graphs, which can cycle through their members
@@ -183,18 +183,13 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 }
 
                 // lower the instance at its applied arguments
-                let arguments = self
-                    .lowerer
-                    .types(id.module_id)?
-                    .type_ids(instance.arguments)
-                    .to_vec();
-                let nominal = self.lower_nominal(instance.symbol, &arguments)?;
+                let nominal = self.lower_nominal(id)?;
 
                 Ok(nominal.value)
             }
             // lower bare references as their nominal applications
-            dir::Type::Reference(reference) => {
-                let nominal = self.lower_nominal(reference.symbol, &[])?;
+            dir::Type::Reference(_) => {
+                let nominal = self.lower_nominal(id)?;
 
                 Ok(nominal.value)
             }
@@ -361,8 +356,9 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 // lower reference primitives through their representation classes
                 if let Some(item) = ModuleLowerer::representation_item(&other) {
                     let symbol = self.lowerer.language_item_symbol(item)?;
+                    let source = self.lowerer.symbol_type(symbol)?;
 
-                    return Ok(self.lower_nominal(symbol, &[])?.value);
+                    return Ok(self.lower_nominal(source)?.value);
                 }
 
                 // fall back to the scalar families
@@ -406,7 +402,7 @@ impl<'module> ModuleLowerer<'module> {
         id: dir::GlobalTypeId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let item = self.language_item(instance.symbol)?;
+        let item = self.language_item(instance.symbol);
         if !matches!(
             item,
             Some(dir::LanguageItem::MaybeUninit | dir::LanguageItem::ManuallyDrop)
@@ -433,7 +429,7 @@ impl TypeLowerer<'_, '_> {
         instance: &dir::GenericApplication,
         value: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        let ty = match self.lowerer.language_item(instance.symbol)? {
+        let ty = match self.lowerer.language_item(instance.symbol) {
             Some(dir::LanguageItem::MaybeUninit) => mir::Type::Uninit { value },
             Some(dir::LanguageItem::ManuallyDrop) => mir::Type::ManuallyDrop { value },
             _ => {

@@ -88,13 +88,9 @@ impl ModuleLowerer<'_> {
         };
 
         // lower the applied class at its concrete arguments
-        let arguments = self
-            .types(source.module_id)?
-            .type_ids(instance.arguments)
-            .to_vec();
         let concrete = self
             .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetimes)
-            .lower_nominal(instance.symbol, &arguments)?
+            .lower_nominal(source)?
             .storage;
         self.implementers
             .entry((concrete, constraint))

@@ -177,12 +177,13 @@ impl ModuleLowerer<'_> {
         item: dir::LanguageItem,
     ) -> CompilerResult<NominalInstance> {
         let symbol = self.language_item_symbol(item)?;
+        let source = self.symbol_type(symbol)?;
         let lifetime_parameters = LifetimeParameters::default();
         let pointer_bytes = builder.pointer_bytes();
         let mut lowerer =
             self.type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters);
 
-        lowerer.lower_nominal(symbol, &[])
+        lowerer.lower_nominal(source)
     }
 
     /// Intern one fixed unsigned element array type for immortal payload bytes.

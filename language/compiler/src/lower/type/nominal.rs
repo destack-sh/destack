@@ -106,7 +106,7 @@ impl ModuleLowerer<'_> {
                     | dir::Definition::Class(_)
             );
             // skip the lifetime marker
-            let is_lifetime_kind = self.language_item(symbol)? == Some(dir::LanguageItem::Lifetime);
+            let is_lifetime_kind = self.language_item(symbol) == Some(dir::LanguageItem::Lifetime);
             if is_nominal
                 && !is_lifetime_kind
                 && symbol.module_id == self.module
@@ -121,7 +121,8 @@ impl ModuleLowerer<'_> {
         let lifetime_parameters = LifetimeParameters::default();
         let mut types = self.type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters);
         for symbol in symbols {
-            types.lower_nominal(symbol, &[])?;
+            let source = types.lowerer.symbol_type(symbol)?;
+            types.lower_nominal(source)?;
         }
 
         Ok(())
@@ -160,10 +161,27 @@ impl TypeLowerer<'_, '_> {
     /// Lower one nominal declaration and its representation dependencies.
     pub(in crate::lower) fn lower_nominal(
         &mut self,
-        symbol: dir::GlobalSymbolId,
-        arguments: &[dir::GlobalTypeId],
+        source: dir::GlobalTypeId,
     ) -> CompilerResult<NominalInstance> {
-        let arguments = self.nominal_arguments(symbol, arguments)?;
+        let source = self.lowerer.instance_type(self.instance, source)?;
+        let (symbol, arguments) = match self.lowerer.ty(source)? {
+            dir::Type::Application(application) => {
+                let arguments = self
+                    .lowerer
+                    .types(source.module_id)?
+                    .type_ids(application.arguments)
+                    .to_vec();
+
+                (application.symbol, arguments)
+            }
+            dir::Type::Reference(reference) => (reference.symbol, Vec::new()),
+            other => {
+                return Err(CompilerError::Internal {
+                    message: format!("a non-nominal type reached nominal lowering: {other:?}"),
+                });
+            }
+        };
+        let arguments = self.nominal_arguments(symbol, &arguments)?;
 
         // reuse the reserved or completed value carrier
         if let Some(nominal) = self.lowerer.nominal_states.get(&arguments.key) {
@@ -292,13 +310,15 @@ impl TypeLowerer<'_, '_> {
             .lifetime_parameters
             .declarations(self.lowerer.strings);
         self.tree.set_type_lifetimes(ty, lifetimes.clone());
-        self.tree.insert_type_declaration(
+        let declaration = self.tree.insert_type_declaration(
             name,
             arguments.key.arguments.clone(),
             lifetimes,
             ty,
             mir::TypeHeritage::default(),
         );
+        self.lowerer
+            .index_language_declaration(declaration, symbol)?;
 
         Ok(self.apply_nominal_arguments(arguments.key, ty, value, &arguments.lifetimes))
     }

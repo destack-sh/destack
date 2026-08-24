@@ -183,8 +183,9 @@ impl TypeLowerer<'_, '_> {
         // store reference primitives as their representation classes
         if let Some(item) = ModuleLowerer::representation_item(&ty) {
             let symbol = self.lowerer.language_item_symbol(item)?;
+            let source = self.lowerer.symbol_type(symbol)?;
 
-            return Ok(self.lower_nominal(symbol, &[])?.storage);
+            return Ok(self.lower_nominal(source)?.storage);
         }
 
         match ty {
@@ -193,13 +194,8 @@ impl TypeLowerer<'_, '_> {
                 message: "a contextual this was never materialized".to_string(),
             }),
             // store nominals as their declared type
-            dir::Type::Application(instance) => {
-                let arguments = self
-                    .lowerer
-                    .types(id.module_id)?
-                    .type_ids(instance.arguments)
-                    .to_vec();
-                let nominal = self.lower_nominal(instance.symbol, &arguments)?;
+            dir::Type::Application(_) => {
+                let nominal = self.lower_nominal(id)?;
 
                 Ok(nominal.storage)
             }
@@ -363,7 +359,7 @@ impl ModuleLowerer<'_> {
                 }
                 // follow a transparent alias default to its defined value
                 Some(dir::Definition::TypeAlias(alias))
-                    if self.language_item(instance.symbol)?.is_none() =>
+                    if self.language_item(instance.symbol).is_none() =>
                 {
                     let value = self.ty(alias.value)?;
 

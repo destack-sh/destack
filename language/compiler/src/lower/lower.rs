@@ -55,8 +55,12 @@ pub(crate) struct ModuleLowerer<'a> {
     /// The global declared for each module constant.
     pub(in crate::lower) globals:
         FxIndexMap<dir::GlobalSymbolId, Lowered<mir::LocalNodeId<mir::Global>>>,
-    /// The declaring symbol behind each loaded language item, scanned lazily.
-    pub(in crate::lower) language_items: FxIndexMap<dir::LanguageItem, dir::GlobalSymbolId>,
+    /// Loaded language item symbols keyed by item.
+    pub(in crate::lower) language_symbols: FxIndexMap<dir::LanguageItem, dir::GlobalSymbolId>,
+    /// Loaded language items keyed by symbol.
+    pub(in crate::lower) language_items: FxIndexMap<dir::GlobalSymbolId, dir::LanguageItem>,
+    /// Canonical items and members keyed by lowered declarations.
+    pub(in crate::lower) language: mir::LanguageTable,
     /// The authored drop hook member declared beside each Drop-conforming nominal.
     pub(in crate::lower) drop_hooks: FxIndexMap<dir::GlobalSymbolId, dir::GlobalSymbolId>,
     /// The immortal String object and value type per collected literal content.
@@ -97,7 +101,9 @@ impl<'a> ModuleLowerer<'a> {
             stored_nominals: FxIndexMap::default(),
             nominal_states: FxIndexMap::default(),
             globals: FxIndexMap::default(),
+            language_symbols: FxIndexMap::default(),
             language_items: FxIndexMap::default(),
+            language: mir::LanguageTable::default(),
             drop_hooks: FxIndexMap::default(),
             string_literals: FxIndexMap::default(),
             bigint_literals: FxIndexMap::default(),
@@ -280,22 +286,9 @@ impl<'a> ModuleLowerer<'a> {
     /// Drop conformances bind in the nominal's own module: inline on the declaration,
     /// or on a same-module extension of it.
     fn index_drop_hooks(&mut self) -> CompilerResult<()> {
-        let Some(interface) = self.language_items.get(&dir::LanguageItem::Drop).copied() else {
+        let Some(interface) = self.language_symbols.get(&dir::LanguageItem::Drop).copied() else {
             return Ok(());
         };
-
-        // read the required methods off the loaded Drop interface
-        let Some(definition) = self.definition(interface)? else {
-            return Ok(());
-        };
-        let requirements = definition
-            .members()
-            .iter()
-            .filter_map(|member| match member {
-                dir::DefinitionMember::Method(method) => Some(method.symbol),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
 
         // collect the hook each loaded conformance selects, keyed by its nominal
         let mut hooks = FxIndexMap::default();
@@ -313,13 +306,18 @@ impl<'a> ModuleLowerer<'a> {
                     _ => symbol,
                 };
                 for conformance in definition.implementations() {
-                    let member = conformance
-                        .members
-                        .iter()
-                        .find(|member| requirements.contains(&member.requirement));
-                    if let Some(member) = member {
-                        hooks.insert(target, member.member);
+                    let conformance_symbol = self.ty(conformance.interface)?.symbol();
+                    if conformance_symbol != Some(interface) {
+                        continue;
                     }
+                    let [member] = conformance.members.as_slice() else {
+                        return Err(CompilerError::Internal {
+                            message: "a Drop conformance did not select exactly one hook"
+                                .to_string(),
+                        });
+                    };
+
+                    hooks.insert(target, member.member);
                 }
             }
         }
@@ -417,8 +415,7 @@ impl<'a> ModuleLowerer<'a> {
         let mut builder = mir::ModuleBuilder::new();
         builder.set_target_layout(target_layout);
 
-        // scan the loaded modules for language items before any type lowering
-        self.scan_language_items()?;
+        self.index_language_items()?;
         self.index_drop_hooks()?;
 
         // index the instances sema closed by their structural selection
@@ -488,6 +485,7 @@ impl<'a> ModuleLowerer<'a> {
             tree,
             target,
             layouts,
+            language: std::mem::take(&mut self.language),
             dispatch,
             drops,
             accesses,

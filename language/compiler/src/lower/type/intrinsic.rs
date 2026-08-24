@@ -12,7 +12,7 @@ impl TypeLowerer<'_, '_> {
         ty: mir::LocalNodeId<mir::Type>,
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<()> {
-        let item = self.lowerer.language_item(symbol)?;
+        let item = self.lowerer.language_item(symbol);
         match item {
             // reference the payload storage for a unique handle
             Some(dir::LanguageItem::Unique) => {

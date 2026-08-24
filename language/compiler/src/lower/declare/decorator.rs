@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::ModuleLowerer;
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::{CompilerError, CompilerResult};
 
 /// The implementation selected for one externally implemented callable.
 pub(in crate::lower) enum CallableImplementation {
@@ -29,8 +29,7 @@ impl ModuleLowerer<'_> {
             return Ok(None);
         };
 
-        // find the intrinsic decorator among the declaration's applications
-        // find the language item decorator among the declaration's applications
+        // find the callable implementation among the declaration's decorators
         for application in state.decorators.applications_for_owner(node) {
             let dir::DecoratorTarget::LanguageItem { item, .. } = application.resolution.target
             else {
@@ -54,67 +53,6 @@ impl ModuleLowerer<'_> {
         }
 
         Ok(None)
-    }
-
-    /// Return the language item declared on one symbol, when named.
-    pub(in crate::lower) fn language_item(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<dir::LanguageItem>> {
-        let state = self.state(symbol.module_id)?;
-        let Some(node) = state.bindings.get_symbol(symbol.local_id).declaration else {
-            return Ok(None);
-        };
-
-        for application in state.decorators.applications_for_owner(node) {
-            let dir::DecoratorTarget::LanguageItem {
-                item: dir::LanguageItem::LanguageItem,
-                ..
-            } = application.resolution.target
-            else {
-                continue;
-            };
-            let Some(name) = self.decorator_name(application)? else {
-                continue;
-            };
-
-            return Ok(dir::LanguageItem::from_key(&name));
-        }
-
-        Ok(None)
-    }
-
-    /// Scan every loaded module once for language item declarations.
-    pub(in crate::lower) fn scan_language_items(&mut self) -> CompilerResult<()> {
-        let modules: Vec<_> = self.modules.keys().copied().collect();
-        for module in modules {
-            let ids: Vec<_> = self.state(module)?.bindings.symbol_ids().collect();
-            for id in ids {
-                let symbol = id.into_global(module);
-                if let Some(item) = self.language_item(symbol)? {
-                    self.language_items.entry(item).or_insert(symbol);
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Return the symbol declaring one language item.
-    pub(in crate::lower) fn language_item_symbol(
-        &self,
-        item: dir::LanguageItem,
-    ) -> CompilerResult<dir::GlobalSymbolId> {
-        self.language_items.get(&item).copied().ok_or_else(|| {
-            LowerError::Unsupported {
-                anchor: self.module.into(),
-                construct: format!(
-                    "a type whose '{}' representation item is not loaded",
-                    item.key()
-                ),
-            }
-            .into()
-        })
     }
 
     /// Return the evaluated string named by one application's first argument.

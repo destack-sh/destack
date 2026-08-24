@@ -18,17 +18,12 @@ impl TypeLowerer<'_, '_> {
         if let Some(heritage) = &definition.extends {
             let base = self.lowerer.instance_type(self.instance, heritage.ty)?;
             let base = self.lowerer.peel_owned(base)?;
-            let dir::Type::Application(application) = self.lowerer.ty(base)? else {
+            let dir::Type::Application(_) = self.lowerer.ty(base)? else {
                 return Err(CompilerError::Internal {
                     message: "a class heritage outside an application type".to_string(),
                 });
             };
-            let arguments = self
-                .lowerer
-                .types(base.module_id)?
-                .type_ids(application.arguments)
-                .to_vec();
-            let storage = self.lower_nominal(application.symbol, &arguments)?.storage;
+            let storage = self.lower_nominal(base)?.storage;
             let (storage, _) = self.tree.split_lifetime_application(storage);
             let mir::Type::Struct {
                 fields: base_nodes, ..

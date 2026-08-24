@@ -105,6 +105,7 @@ impl TestModule {
             target,
             initializer: None,
             layouts: layouts.clone(),
+            language: mir::LanguageTable::default(),
             dispatch: dispatch.clone(),
             drops: drops.clone(),
             accesses: accesses.clone(),

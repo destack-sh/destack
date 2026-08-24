@@ -360,10 +360,11 @@ impl ModuleLowerer<'_> {
             _ if is_static => None,
             // receive an exclusive borrow of uninitialized storage
             Some(dir::FunctionRole::Constructor) => {
+                let owner = self.symbol_type(owner)?;
                 let nominal = self
                     .type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
                     .with_instance(specialization)
-                    .lower_nominal(owner, &[])?;
+                    .lower_nominal(owner)?;
 
                 Some(constructor_receiver_type(
                     builder.tree_mut(),
@@ -441,6 +442,7 @@ impl ModuleLowerer<'_> {
         let header = lifetime_parameters.declare(header);
         let header = header.parameters(parameters).result(result);
         let function = builder.declare_function(header);
+        self.index_language_declaration(function, symbol)?;
         self.functions
             .insert(key.clone(), FunctionDeclaration::Declared(function));
 
@@ -524,10 +526,11 @@ impl ModuleLowerer<'_> {
         }
 
         // receive an exclusive borrow of the constructed storage
+        let source = self.symbol_type(class)?;
         let nominal = self
             .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
             .with_instance(specialization)
-            .lower_nominal(class, &arguments)?;
+            .lower_nominal(source)?;
         let this = constructor_receiver_type(builder.tree_mut(), nominal.storage);
         let void = builder.tree_mut().intern_type(mir::Type::Void);
         let name = format!("{}.constructor", self.symbol_path(class)?);
