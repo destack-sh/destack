@@ -45,6 +45,19 @@ export type TableOfContentsEntry = {
 /// The generated manual chapters.
 export const documents = [
     {
+        contentRoute: "/_content/docs/start/index.html",
+        description: "Install Destack and build a small TypeScript++ application.",
+        lead: "Install Destack and build a small TypeScript++ application.",
+        markdownRoute: "/docs/start.md",
+        order: 10,
+        path: "start.md",
+        route: "/docs/start/",
+        tableOfContents: [{"depth":2,"id":"install","text":"Install"},{"depth":2,"id":"create","text":"Create"},{"depth":2,"id":"check","text":"Check"},{"depth":2,"id":"build","text":"Build"}],
+        textRoute: "/docs/start.txt",
+        title: "Get started",
+        tokens: 151,
+    },
+    {
         contentRoute: "/_content/docs/language/index.html",
         description: "The Destack language and its relationship to strict modern TypeScript.",
         lead: "The Destack language and its relationship to strict modern TypeScript.",
@@ -68,7 +81,7 @@ export const documents = [
         tableOfContents: [{"depth":2,"id":"primitives","text":"Primitives"},{"depth":2,"id":"unknown","text":"Unknown"},{"depth":2,"id":"string","text":"String"},{"depth":2,"id":"intervals","text":"Intervals"},{"depth":2,"id":"newtypes","text":"Newtypes"},{"depth":2,"id":"newtype-interfaces","text":"Newtype Interfaces"},{"depth":2,"id":"extensions","text":"Extensions"},{"depth":3,"id":"blankets","text":"Blankets"},{"depth":2,"id":"enums","text":"Enums"},{"depth":2,"id":"discriminated-unions","text":"Discriminated Unions"},{"depth":2,"id":"structs","text":"Structs"},{"depth":2,"id":"classes","text":"Classes"},{"depth":2,"id":"arrays-slices-and-tuples","text":"Arrays, Slices and Tuples"},{"depth":2,"id":"readonly","text":"Readonly"},{"depth":2,"id":"generics","text":"Generics"},{"depth":2,"id":"boundaries","text":"Boundaries"},{"depth":2,"id":"variance","text":"Variance"},{"depth":2,"id":"static","text":"Static"},{"depth":2,"id":"associated-types-and-constants","text":"Associated Types and Constants"},{"depth":2,"id":"constraints","text":"Constraints"},{"depth":2,"id":"representation","text":"Representation"},{"depth":2,"id":"layout","text":"Layout"},{"depth":2,"id":"reflection","text":"Reflection"}],
         textRoute: "/docs/language/types.txt",
         title: "Types",
-        tokens: 8853,
+        tokens: 9274,
     },
     {
         contentRoute: "/_content/docs/language/expressions/index.html",
@@ -81,7 +94,7 @@ export const documents = [
         tableOfContents: [{"depth":2,"id":"values","text":"Values"},{"depth":2,"id":"closures","text":"Closures"},{"depth":2,"id":"continuations","text":"Continuations"},{"depth":2,"id":"tasks","text":"Tasks"},{"depth":2,"id":"patterns","text":"Patterns"},{"depth":2,"id":"guards","text":"Guards"},{"depth":2,"id":"loops","text":"Loops"},{"depth":2,"id":"using","text":"Using"},{"depth":2,"id":"operators","text":"Operators"},{"depth":2,"id":"arithmetic","text":"Arithmetic"},{"depth":2,"id":"ranges","text":"Ranges"},{"depth":2,"id":"properties","text":"Properties"},{"depth":2,"id":"dispatch","text":"Dispatch"},{"depth":3,"id":"overloads","text":"Overloads"},{"depth":3,"id":"operators-2","text":"Operators"},{"depth":3,"id":"interfaces","text":"Interfaces"},{"depth":3,"id":"index-signatures","text":"Index Signatures"},{"depth":3,"id":"unions","text":"Unions"},{"depth":3,"id":"coherence","text":"Coherence"},{"depth":2,"id":"errors","text":"Errors"},{"depth":3,"id":"error","text":"Error"},{"depth":3,"id":"result","text":"Result"},{"depth":3,"id":"maybe-must-and-coalesce","text":"Maybe, Must and Coalesce"},{"depth":3,"id":"try","text":"Try"},{"depth":3,"id":"try-catch-finally","text":"Try-Catch-Finally"},{"depth":3,"id":"panics","text":"Panics"},{"depth":2,"id":"trees-tsx","text":"Trees (TSX)"},{"depth":2,"id":"decorators","text":"Decorators"},{"depth":3,"id":"diagnostics","text":"Diagnostics"},{"depth":3,"id":"taint","text":"Taint"},{"depth":3,"id":"derive","text":"Derive"},{"depth":3,"id":"static-if","text":"Static If"},{"depth":2,"id":"module","text":"Module"},{"depth":2,"id":"globals","text":"Globals"},{"depth":2,"id":"const-evaluation","text":"Const Evaluation"},{"depth":3,"id":"dynamic-code","text":"Dynamic Code"},{"depth":2,"id":"macros","text":"Macros"}],
         textRoute: "/docs/language/expressions.txt",
         title: "Expressions",
-        tokens: 13637,
+        tokens: 13568,
     },
     {
         contentRoute: "/_content/docs/language/memory/index.html",

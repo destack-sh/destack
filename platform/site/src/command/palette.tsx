@@ -17,7 +17,7 @@ import { isExternalLink } from "../navigation/link";
 import { tokens } from "../style/tokens.stylex";
 
 /// The maximum number of visible command results.
-const resultLimit = 12;
+const resultLimit = 8;
 
 /// Render site-wide search and keyboard navigation.
 export function CommandPalette() {
@@ -183,13 +183,13 @@ export function CommandPalette() {
                                             <span aria-hidden="true" {...stylex.attrs(styles.indicator)}>
                                                 {selected() === index() ? ">" : ""}
                                             </span>
-                                            <span {...stylex.attrs(styles.context, styles.resultContextMobile)}>
-                                                <Highlight match={match} text={match.command.context} />
-                                            </span>
                                             <span {...stylex.attrs(styles.result)}>
                                                 <strong {...stylex.attrs(styles.resultLabel)}>
                                                     <Highlight match={match} text={match.command.label} />
                                                 </strong>
+                                                <span {...stylex.attrs(styles.context)}>
+                                                    <Highlight match={match} text={match.command.context} />
+                                                </span>
                                                 <Show when={match.excerpt !== ""}>
                                                     <span {...stylex.attrs(styles.excerpt)}>
                                                         <Highlight match={match} text={match.excerpt} />
@@ -264,10 +264,16 @@ const styles = stylex.create({
         backgroundColor: "transparent",
         borderWidth: 0,
         color: tokens.soft,
+        cursor: "pointer",
         font: "inherit",
         padding: 0,
+        ":hover": {
+            color: tokens.accent,
+        },
     },
     context: {
+        color: tokens.soft,
+        fontSize: "var(--size-label)",
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
@@ -278,6 +284,8 @@ const styles = stylex.create({
         padding: "1rem",
     },
     excerpt: {
+        color: tokens.soft,
+        fontSize: "0.8rem",
         minWidth: 0,
         overflow: "hidden",
         textOverflow: "ellipsis",
@@ -307,7 +315,7 @@ const styles = stylex.create({
         alignItems: "center",
         borderBottomColor: tokens.line,
         borderBottomStyle: "solid",
-        borderBottomWidth: tokens.stroke,
+        borderBottomWidth: tokens.hairline,
         display: "grid",
         gap: "0.5rem",
         gridTemplateColumns: "1rem minmax(0, 1fr) auto",
@@ -317,17 +325,15 @@ const styles = stylex.create({
         color: tokens.accent,
     },
     mark: {
-        backgroundColor: tokens.orange,
-        borderRadius: "0.2rem",
-        color: tokens.ink,
-        paddingInline: "0.1rem",
+        backgroundColor: "transparent",
+        color: tokens.accent,
+        fontWeight: 600,
     },
     palette: {
         backgroundColor: tokens.cream,
         borderColor: tokens.ink,
-        borderRadius: tokens.panelRadius,
         borderStyle: "solid",
-        borderWidth: tokens.stroke,
+        borderWidth: tokens.hairline,
         color: tokens.ink,
         fontFamily: tokens.monoFont,
         fontSize: tokens.siteFontSize,
@@ -335,7 +341,7 @@ const styles = stylex.create({
         maxHeight: "min(42rem, calc(100svh - 2rem))",
         maxWidth: "none",
         padding: 0,
-        width: "min(46rem, calc(100vw - 2rem))",
+        width: "min(42rem, calc(100vw - 2rem))",
         "::backdrop": {
             backgroundColor: "rgb(5 46 64 / 72%)",
         },
@@ -346,15 +352,15 @@ const styles = stylex.create({
         minWidth: 0,
     },
     resultButton: {
-        alignItems: "start",
+        alignItems: "center",
         backgroundColor: "transparent",
         borderWidth: 0,
-        color: tokens.soft,
+        color: tokens.ink,
         display: "grid",
         font: "inherit",
         gap: "0.75rem",
-        gridTemplateColumns: "1rem 10rem minmax(0, 1fr) auto",
-        padding: "0.65rem 1rem",
+        gridTemplateColumns: "1rem minmax(0, 1fr) auto",
+        padding: "0.625rem 1rem",
         textAlign: "left",
         width: "100%",
         ":hover": {
@@ -363,11 +369,6 @@ const styles = stylex.create({
         },
         "@media (max-width: 640px)": {
             gridTemplateColumns: "1rem minmax(0, 1fr) auto",
-        },
-    },
-    resultContextMobile: {
-        "@media (max-width: 640px)": {
-            display: "none",
         },
     },
     resultLabel: {
@@ -388,7 +389,7 @@ const styles = stylex.create({
     resultRow: {
         borderTopColor: tokens.line,
         borderTopStyle: "solid",
-        borderTopWidth: tokens.stroke,
+        borderTopWidth: tokens.hairline,
     },
     resultRowFirst: {
         borderTopWidth: 0,
@@ -410,7 +411,6 @@ const styles = stylex.create({
         display: "inline-flex",
         font: "inherit",
         letterSpacing: "inherit",
-        minHeight: tokens.siteControlHeight,
         padding: 0,
         textTransform: "inherit",
         ":hover": {

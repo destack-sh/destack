@@ -1,4 +1,4 @@
-import type { SearchEntry } from "../content/search";
+import type { SearchEntry, SearchEntryKind } from "../content/search";
 import type { PageFormats } from "../content/source";
 import { navigationLinks } from "../navigation/navigation";
 
@@ -24,6 +24,9 @@ export type Command = {
 
     /// The stable command identifier.
     id: string;
+
+    /// The command class used for search ranking.
+    kind: "action" | "navigation" | SearchEntryKind;
 
     /// The primary visible label.
     label: string;
@@ -89,6 +92,7 @@ export function commandsFor(entries: readonly SearchEntry[], source?: PageFormat
             action: { href: link.href, kind: "navigate" as const },
             context: isInternal ? "navigation" : "social",
             id: `navigate:${link.href}`,
+            kind: "navigation" as const,
             label: link.label,
             shortcut: link.shortcut,
             text: isInternal ? `${link.label} site navigation` : `${link.label} community social`,
@@ -105,6 +109,7 @@ function linkCommand(id: string, context: string, label: string, href: string): 
         action: { href, kind: "navigate" },
         context,
         id,
+        kind: "action",
         label,
         text: `${label} ${href}`,
     };
@@ -122,7 +127,7 @@ export function matchCommands(
         .filter((command) => terms.length > 0 || isPrimaryCommand(command))
         .map((command) => ({ command, score: scoreCommand(command, terms) }))
         .filter((result) => result.score >= 0)
-        .sort((left, right) => right.score - left.score || left.command.label.localeCompare(right.command.label))
+        .sort((left, right) => right.score - left.score)
         .slice(0, limit)
         .map(({ command }) => ({
             command,
@@ -173,6 +178,7 @@ function contentCommand(entry: SearchEntry): Command {
         action: { href: entry.route, kind: "navigate" },
         context: entry.context,
         id: `navigate:${entry.route}`,
+        kind: entry.kind,
         label: entry.title,
         text: entry.text,
     };
@@ -184,6 +190,7 @@ function eventCommand(id: string, context: string, label: string, text: string, 
         action: { event, kind: "dispatch" },
         context,
         id,
+        kind: "action",
         label,
         text,
     };
@@ -191,7 +198,7 @@ function eventCommand(id: string, context: string, label: string, text: string, 
 
 /// Return whether a command belongs in the empty-query navigation list.
 function isPrimaryCommand(command: Command) {
-    return command.action.kind === "dispatch" || !command.action.href.includes("#");
+    return command.kind === "action" || command.kind === "navigation" || command.kind === "page";
 }
 
 /// Normalize a free-form query into unique terms.
@@ -204,14 +211,19 @@ function scoreCommand(command: Command, terms: readonly string[]) {
     const label = command.label.toLowerCase();
     const context = command.context.toLowerCase();
     const text = command.text.toLowerCase();
-    let score = command.action.kind === "dispatch" ? 1 : 0;
+    let score = rankFor(command.kind);
 
     for (const term of terms) {
         if (!label.includes(term) && !context.includes(term) && !text.includes(term)) {
             return -1;
         }
 
-        if (label === term) score += 1000;
+        // treat the final module segment as its local name
+        const isExact = label === term
+            || (command.kind === "module"
+                && (label.endsWith(`:${term}`) || label.endsWith(`/${term}`)));
+
+        if (isExact) score += 1000;
         else if (label.startsWith(term)) score += 500;
         else if (label.includes(term)) score += 250;
         else if (context.includes(term)) score += 100;
@@ -219,6 +231,23 @@ function scoreCommand(command: Command, terms: readonly string[]) {
     }
 
     return score;
+}
+
+/// Return the base rank for one command class.
+function rankFor(kind: Command["kind"]) {
+    switch (kind) {
+        case "action":
+        case "navigation":
+            return 1600;
+        case "page":
+            return 1200;
+        case "section":
+            return 800;
+        case "module":
+            return 900;
+        case "symbol":
+            return 0;
+    }
 }
 
 /// Extract a compact passage around one matching term.

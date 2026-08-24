@@ -1,6 +1,13 @@
+/// One searchable content class.
+export type SearchEntryKind = "module" | "page" | "section" | "symbol";
+
+/// One searchable page, section, module, or symbol.
 export type SearchEntry = {
     /// The collection or page containing the result.
     context: string;
+
+    /// The result class used for search ranking.
+    kind: SearchEntryKind;
 
     /// The destination selected from search.
     route: string;
@@ -37,6 +44,10 @@ function isSearchEntry(value: unknown): value is SearchEntry {
 
     return (
         typeof entry.context === "string" &&
+        (entry.kind === "module" ||
+            entry.kind === "page" ||
+            entry.kind === "section" ||
+            entry.kind === "symbol") &&
         typeof entry.route === "string" &&
         typeof entry.text === "string" &&
         typeof entry.title === "string"
