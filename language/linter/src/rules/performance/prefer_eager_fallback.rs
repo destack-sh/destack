@@ -7,11 +7,11 @@ use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
     /// Prefer eager fallbacks when deferred evaluation cannot avoid work.
-    pub UNNECESSARY_LAZY_EVALUATIONS {
-        id: "unnecessary-lazy-evaluations",
+    pub PREFER_EAGER_FALLBACK {
+        id: "prefer-eager-fallback",
         summary: "Prefer eager fallbacks when deferred evaluation cannot avoid work",
         explanation: r#"
-A Result fallback callback adds a call when its returned expression is safe to evaluate eagerly.
+`Result.unwrapOrElse` adds an unnecessary callback when its fallback is `Copy` and effect-free.
 Instead, you SHOULD pass the expression directly to `unwrapOr`.
 "#,
         example: {
@@ -41,7 +41,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     // inspect canonical Result.unwrapOrElse calls
     for expression in module.call_expressions() {
         let expression = expression?;
-        let Some((callee, callback, value)) = eager_fallback(module, expression, &occurrences)?
+        let Some((callee, callback, value)) =
+            select_eager_fallback(module, expression, &occurrences)?
         else {
             continue;
         };
@@ -49,7 +50,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         // replace the callback with its returned expression
         let span = module.source_extent(callback.into_any())?;
         let mut diagnostic = lint.diagnostic("fallback callback only returns an eager value", span);
-        if let Some(fix) = fix(module, lint, expression, callee, callback, value)? {
+        if let Some(fix) = build_fix(module, lint, expression, callee, callback, value)? {
             diagnostic = diagnostic.suggestion(fix);
         }
         output.report(diagnostic);
@@ -59,7 +60,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 }
 
 /// Select the eager value returned by one Result.unwrapOrElse callback.
-fn eager_fallback(
+fn select_eager_fallback(
     module: &DirModule<'_>,
     expression: dir::LocalNodeId<dir::Expression>,
     occurrences: &[dir::BindingOccurrence],
@@ -133,7 +134,7 @@ fn eager_fallback(
 }
 
 /// Replace one eager fallback callback with its returned expression.
-fn fix(
+fn build_fix(
     module: &DirModule<'_>,
     lint: &Lint,
     expression: dir::LocalNodeId<dir::Expression>,
@@ -168,10 +169,31 @@ mod tests {
     #[test]
     fn test_inlines_trivial_fallback() {
         let session = TestSession::dir(
-            &UNNECESSARY_LAZY_EVALUATIONS,
+            &PREFER_EAGER_FALLBACK,
             r#"
 function value(result: Result<int32, string>): int32 {
     return result.unwrapOrElse(() => 0);
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function value(result: Result<int32, string>): int32 {
+    return result.unwrapOr(0);
+}
+"#,
+        );
+    }
+
+    /// Inline a fallback callback whose unused error parameter is explicit.
+    #[test]
+    fn test_inlines_error_independent_fallback() {
+        let session = TestSession::dir(
+            &PREFER_EAGER_FALLBACK,
+            r#"
+function value(result: Result<int32, string>): int32 {
+    return result.unwrapOrElse((_error) => 0);
 }
 "#,
         );
@@ -189,7 +211,7 @@ function value(result: Result<int32, string>): int32 {
     #[test]
     fn test_accepts_error_dependent_fallback() {
         let session = TestSession::dir(
-            &UNNECESSARY_LAZY_EVALUATIONS,
+            &PREFER_EAGER_FALLBACK,
             r#"
 function value(result: Result<isize, string>): isize {
     return result.unwrapOrElse((error) => error.length);
@@ -204,7 +226,7 @@ function value(result: Result<isize, string>): isize {
     #[test]
     fn test_accepts_effectful_fallback() {
         let session = TestSession::dir(
-            &UNNECESSARY_LAZY_EVALUATIONS,
+            &PREFER_EAGER_FALLBACK,
             r#"
 declare function recover(): int32;
 

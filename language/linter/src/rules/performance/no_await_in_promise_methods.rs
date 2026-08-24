@@ -6,27 +6,33 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Disallow awaiting inside concurrent combinator arguments.
-    pub NO_AWAIT_IN_CONCURRENT_COMBINATOR {
-        id: "no-await-in-concurrent-combinator",
-        summary: "Disallow awaiting inside concurrent combinator arguments",
+    /// Disallow awaiting elements passed to Promise concurrency methods.
+    pub NO_AWAIT_IN_PROMISE_METHODS {
+        id: "no-await-in-promise-methods",
+        summary: "Disallow awaiting elements passed to Promise concurrency methods",
         explanation: r#"
-Awaiting a Promise before passing it to `Promise.all` or `Promise.race` delays construction of the concurrent operation.
-Instead, you SHOULD pass every Promise directly to the combinator.
+Awaiting a Promise inside the input array delays every following element and can serialize their operations.
+Instead, you SHOULD pass each Promise directly so `Promise.all` or `Promise.race` can observe them together.
 "#,
         example: {
             reported: r#"
 import { Promise } from "destack:async";
 
-async function gather(left: Promise<int32>, right: Promise<int32>): Promise<int32[]> {
-    return await Promise.all([await left, right]);
+declare function first(): Promise<int32>;
+declare function second(): Promise<int32>;
+
+async function gather(): Promise<int32[]> {
+    return await Promise.all([await first(), second()]);
 }
 "#,
             accepted: r#"
 import { Promise } from "destack:async";
 
-async function gather(left: Promise<int32>, right: Promise<int32>): Promise<int32[]> {
-    return await Promise.all([left, right]);
+declare function first(): Promise<int32>;
+declare function second(): Promise<int32>;
+
+async function gather(): Promise<int32[]> {
+    return await Promise.all([first(), second()]);
 }
 "#,
         },
@@ -37,11 +43,10 @@ async function gather(left: Promise<int32>, right: Promise<int32>): Promise<int3
     }
 }
 
-/// Report await expressions evaluated before Promise.all or Promise.race begins.
+/// Report direct awaited array elements passed to Promise.all or Promise.race.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
-    let mut reported = Vec::new();
 
     // inspect canonical concurrent Promise calls
     for expression in module.call_expressions() {
@@ -59,29 +64,31 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         {
             continue;
         }
-        let callable = module.enclosing_callable_body(expression.into_any());
+        let [argument] = call.arguments else {
+            continue;
+        };
+        let dir::Argument::Positional { value: values } = view.get(*argument) else {
+            continue;
+        };
+        let dir::Expression::ArrayExpression { elements } = view.get(*values) else {
+            continue;
+        };
 
-        // report awaits evaluated within a direct call argument
-        for (awaited, node) in view.iter_nodes::<dir::Expression>() {
-            let dir::Expression::Await { expression: value } = node else {
+        // report direct awaited array elements
+        for element in elements {
+            let dir::Argument::Positional { value: awaited } = view.get(*element) else {
                 continue;
             };
-            let is_argument = call
-                .arguments
-                .iter()
-                .any(|argument| view.is_inside(awaited.into_any(), argument.into_any()));
-            if !is_argument
-                || module.enclosing_callable_body(awaited.into_any()) != callable
-                || reported.contains(&awaited)
-            {
+            let dir::Expression::Await { expression: value } = view.get(*awaited) else {
+                continue;
+            };
+            if module.representation_item(value.into_any())? != Some(dir::LanguageItem::Promise) {
                 continue;
             }
-            reported.push(awaited);
 
             let span = module.source_extent(awaited.into_any())?;
-            let mut diagnostic =
-                lint.diagnostic("await delays construction of a concurrent Promise", span);
-            if let Some(suggestion) = suggestion(module, lint, awaited, *value)? {
+            let mut diagnostic = lint.diagnostic("await delays a Promise concurrency method", span);
+            if let Some(suggestion) = suggestion(module, lint, *awaited, *value)? {
                 diagnostic = diagnostic.suggestion(suggestion);
             }
             output.report(diagnostic);
@@ -120,14 +127,14 @@ mod tests {
     /// Remove await inside a Promise.all argument.
     #[test]
     fn test_replaces_await_inside_promise_all() {
-        TestSession::assert_example(&NO_AWAIT_IN_CONCURRENT_COMBINATOR);
+        TestSession::assert_example(&NO_AWAIT_IN_PROMISE_METHODS);
     }
 
     /// Remove await inside a Promise.race argument.
     #[test]
     fn test_replaces_await_inside_promise_race() {
         let session = TestSession::dir(
-            &NO_AWAIT_IN_CONCURRENT_COMBINATOR,
+            &NO_AWAIT_IN_PROMISE_METHODS,
             r#"
 import { Promise } from "destack:async";
 
@@ -152,7 +159,7 @@ async function first(left: Promise<int32>, right: Promise<int32>): Promise<int32
     #[test]
     fn test_accepts_await_inside_callback() {
         let session = TestSession::dir(
-            &NO_AWAIT_IN_CONCURRENT_COMBINATOR,
+            &NO_AWAIT_IN_PROMISE_METHODS,
             r#"
 import { Promise } from "destack:async";
 
@@ -165,11 +172,49 @@ async function deferred(value: Promise<int32>): Promise<(() => Promise<int32>)[]
         session.assert_no_diagnostics();
     }
 
+    /// Accept await nested inside an array element operation.
+    #[test]
+    fn test_accepts_nested_await() {
+        let session = TestSession::dir(
+            &NO_AWAIT_IN_PROMISE_METHODS,
+            r#"
+import { Promise } from "destack:async";
+
+declare function wrap(value: int32): Promise<int32>;
+
+async function gather(value: Promise<int32>): Promise<int32[]> {
+    return await Promise.all([wrap(await value)]);
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept a directly awaited value represented by another awaitable type.
+    #[test]
+    fn test_accepts_other_awaitable() {
+        let session = TestSession::dir(
+            &NO_AWAIT_IN_PROMISE_METHODS,
+            r#"
+import { Promise, Task } from "destack:async";
+
+declare function work(): Task<int32>;
+
+async function gather(): Promise<int32[]> {
+    return await Promise.all([await work()]);
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
     /// Remove each nested eager await once.
     #[test]
     fn test_replaces_nested_awaits_once() {
         let session = TestSession::dir(
-            &NO_AWAIT_IN_CONCURRENT_COMBINATOR,
+            &NO_AWAIT_IN_PROMISE_METHODS,
             r#"
 import { Promise } from "destack:async";
 

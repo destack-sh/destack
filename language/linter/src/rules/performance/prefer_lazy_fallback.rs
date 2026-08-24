@@ -6,11 +6,11 @@ use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
     /// Prefer lazy fallbacks when eager arguments perform avoidable work.
-    pub PREFER_LAZY_ARGUMENT {
-        id: "prefer-lazy-argument",
+    pub PREFER_LAZY_FALLBACK {
+        id: "prefer-lazy-fallback",
         summary: "Prefer lazy fallbacks when eager arguments perform avoidable work",
         explanation: r#"
-An eager Result fallback is evaluated even when the result already contains a value.
+An eager `Result` fallback is evaluated even when the result already contains a value.
 Instead, you SHOULD pass a callback to `unwrapOrElse` when evaluating the fallback can trap or perform work.
 "#,
         example: {
@@ -102,7 +102,7 @@ mod tests {
     #[test]
     fn test_defers_effectful_fallback() {
         let session = TestSession::dir(
-            &PREFER_LAZY_ARGUMENT,
+            &PREFER_LAZY_FALLBACK,
             r#"
 declare function recover(): int32;
 
@@ -123,11 +123,32 @@ function value(result: Result<int32, string>): int32 {
         );
     }
 
+    /// Parenthesize an object literal when deferring its construction.
+    #[test]
+    fn test_defers_object_fallback() {
+        let session = TestSession::dir(
+            &PREFER_LAZY_FALLBACK,
+            r#"
+function value(result: Result<{ value: int32 }, string>): { value: int32 } {
+    return result.unwrapOr({ value: 0 });
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+function value(result: Result<{ value: int32 }, string>): { value: int32 } {
+    return result.unwrapOrElse(() => ({ value: 0 }));
+}
+"#,
+        );
+    }
+
     /// Accept a trivial eager Result fallback.
     #[test]
     fn test_accepts_trivial_fallback() {
         let session = TestSession::dir(
-            &PREFER_LAZY_ARGUMENT,
+            &PREFER_LAZY_FALLBACK,
             r#"
 function value(result: Result<int32, string>): int32 {
     return result.unwrapOr(0);
@@ -142,7 +163,7 @@ function value(result: Result<int32, string>): int32 {
     #[test]
     fn test_accepts_user_method() {
         let session = TestSession::dir(
-            &PREFER_LAZY_ARGUMENT,
+            &PREFER_LAZY_FALLBACK,
             r#"
 class Value {
     unwrapOr(value: int32): int32 {
