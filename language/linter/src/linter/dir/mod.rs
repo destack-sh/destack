@@ -21,6 +21,7 @@ pub(crate) use callable::*;
 pub use comment::*;
 pub use index::*;
 pub use module::*;
+pub(crate) use operation::*;
 pub use program::*;
 pub(crate) use range::*;
 pub(crate) use scalar::*;

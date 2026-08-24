@@ -6,6 +6,8 @@ use super::{DirModule, IntegerStep};
 /// One call whose callee is a member access.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct MemberCall<'a> {
+    /// The complete call expression.
+    pub(crate) expression: dir::LocalNodeId<dir::Expression>,
     /// The member expression used as the callee.
     pub(crate) callee: dir::LocalNodeId<dir::Expression>,
     /// The receiver expression left of the member access.
@@ -25,6 +27,17 @@ pub(crate) struct NullishTest {
     pub(crate) value: dir::LocalNodeId<dir::Expression>,
     /// Whether the test succeeds for non-nullish values.
     pub(crate) is_defined: bool,
+}
+
+/// One exact emptiness test over a canonical collection measurement.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct EmptinessTest {
+    /// The measured collection.
+    pub(crate) receiver: dir::LocalNodeId<dir::Expression>,
+    /// The canonical length or size member.
+    pub(crate) measurement: dir::LanguageMember,
+    /// Whether the test succeeds for an empty collection.
+    pub(crate) is_empty: bool,
 }
 
 /// One exact comparison between a value and a nullish literal.
@@ -58,6 +71,73 @@ impl MemberCall<'_> {
 }
 
 impl DirModule<'_> {
+    /// Select one exact test for whether a canonical collection is empty.
+    pub(crate) fn emptiness_test(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<EmptinessTest>, ProviderError> {
+        let Some((operator, [left, right])) = self.builtin_binary(expression)? else {
+            return Ok(None);
+        };
+        let Some(swapped_operator) = operator.swapped() else {
+            return Ok(None);
+        };
+
+        // normalize the collection measurement to the left operand
+        for (measurement, bound, operator) in [
+            (left.source.local_id, right.source.local_id, operator),
+            (
+                right.source.local_id,
+                left.source.local_id,
+                swapped_operator,
+            ),
+        ] {
+            // require one canonical collection measurement
+            let dir::Expression::Member {
+                left: receiver,
+                is_optional: false,
+                ..
+            } = self.view().get(measurement)
+            else {
+                continue;
+            };
+            let Some(language_member) = self.language_member(measurement)? else {
+                continue;
+            };
+            if !is_collection_measurement(language_member) {
+                continue;
+            }
+
+            // read the exact comparison bound
+            let Some(dir::Literal::Integer(bound)) = self.scalar_constant(bound)? else {
+                continue;
+            };
+
+            // map the canonical zero and one bounds to their empty state
+            let is_empty = match (operator, bound) {
+                (dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict, 0)
+                | (dir::BinaryOperator::LessThanOrEqual, 0)
+                | (dir::BinaryOperator::LessThan, 1) => true,
+                (
+                    dir::BinaryOperator::NotEqual
+                    | dir::BinaryOperator::NotEqualStrict
+                    | dir::BinaryOperator::GreaterThan,
+                    0,
+                )
+                | (dir::BinaryOperator::GreaterThanOrEqual, 1) => false,
+                _ => continue,
+            };
+
+            return Ok(Some(EmptinessTest {
+                receiver: *receiver,
+                measurement: language_member,
+                is_empty,
+            }));
+        }
+
+        Ok(None)
+    }
+
     /// Return the call that directly receives one argument value.
     pub(crate) fn argument_call(
         &self,
@@ -151,9 +231,8 @@ impl DirModule<'_> {
         }
 
         // normalize the value and nullish literal from either operand order
-        let view = self.view();
-        let left_literal = view.get(left.source.local_id).as_scalar();
-        let right_literal = view.get(right.source.local_id).as_scalar();
+        let left_literal = self.scalar_constant(left.source.local_id)?;
+        let right_literal = self.scalar_constant(right.source.local_id)?;
         let (value, literal) = match (left_literal, right_literal) {
             (
                 Some(dir::Literal::Null | dir::Literal::Undefined),
@@ -214,12 +293,63 @@ impl DirModule<'_> {
         };
 
         Some(MemberCall {
+            expression,
             callee: *left,
             receiver: *receiver,
             generic_arguments,
             arguments,
             is_optional: *is_optional || *is_member_optional,
         })
+    }
+
+    /// Return the member call that directly receives one expression.
+    pub(crate) fn receiver_call(
+        &self,
+        receiver: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<MemberCall<'_>> {
+        let view = self.view();
+
+        // select the direct member access over the receiver
+        let callee: dir::LocalNodeId<dir::Expression> =
+            view.get_parent_for(receiver)?.try_into_typed().ok()?;
+        let dir::Expression::Member { left, .. } = view.get(callee) else {
+            return None;
+        };
+        if *left != receiver {
+            return None;
+        }
+
+        // require the member access to be called directly
+        let expression: dir::LocalNodeId<dir::Expression> =
+            view.get_parent_for(callee)?.try_into_typed().ok()?;
+        let call = self.member_call(expression)?;
+        if call.callee != callee {
+            return None;
+        }
+
+        Some(call)
+    }
+
+    /// Return one direct builtin negation enclosing an expression.
+    pub(crate) fn direct_negation(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<dir::LocalNodeId<dir::Expression>>, ProviderError> {
+        let Some(parent) = self
+            .view()
+            .get_parent_for(expression)
+            .and_then(|parent| parent.try_into_typed::<dir::Expression>().ok())
+        else {
+            return Ok(None);
+        };
+
+        // require builtin boolean negation over the selected expression
+        let is_negation = matches!(
+            self.builtin_unary(parent)?,
+            Some((dir::UnaryOperator::Not, operand)) if operand.source.local_id == expression
+        );
+
+        Ok(is_negation.then_some(parent))
     }
 
     /// Return one authored assignment to a direct place.
@@ -604,4 +734,34 @@ impl DirModule<'_> {
 
         Ok(Some(resolution))
     }
+}
+
+/// Return whether one canonical member measures a collection with `isEmpty`.
+fn is_collection_measurement(member: dir::LanguageMember) -> bool {
+    let owner = member.owner;
+    if member != owner.member("length") && member != owner.member("size") {
+        return false;
+    }
+
+    matches!(
+        owner,
+        dir::LanguageItem::Array
+            | dir::LanguageItem::BinaryHeap
+            | dir::LanguageItem::ConcurrentMap
+            | dir::LanguageItem::ConcurrentSet
+            | dir::LanguageItem::Deque
+            | dir::LanguageItem::FixedArray
+            | dir::LanguageItem::LinkedList
+            | dir::LanguageItem::Map
+            | dir::LanguageItem::ReadonlyArray
+            | dir::LanguageItem::Set
+            | dir::LanguageItem::Slice
+            | dir::LanguageItem::Slab
+            | dir::LanguageItem::SmallArray
+            | dir::LanguageItem::SortedMap
+            | dir::LanguageItem::SortedSet
+            | dir::LanguageItem::String
+            | dir::LanguageItem::StringBuilder
+            | dir::LanguageItem::StringSlice
+    )
 }

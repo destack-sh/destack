@@ -154,6 +154,30 @@ impl Dir<'_> {
 }
 
 impl DirModule<'_> {
+    /// Return the receiver of one canonical iterator call.
+    pub(crate) fn iterator_receiver(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<dir::LocalNodeId<dir::Expression>>, ProviderError> {
+        // require a direct zero-argument member call
+        let Some(call) = self.member_call(expression) else {
+            return Ok(None);
+        };
+        if call.is_optional() || !call.arguments.is_empty() {
+            return Ok(None);
+        }
+
+        // require the canonical iterator operation for its selected owner
+        let Some(member) = self.language_member(expression)? else {
+            return Ok(None);
+        };
+        if member != member.owner.member("iterator") {
+            return Ok(None);
+        }
+
+        Ok(Some(call.receiver))
+    }
+
     /// Return the receiver of one canonical length access.
     pub(crate) fn length_receiver(
         &self,

@@ -55,6 +55,26 @@ impl DirModule<'_> {
             .map(|(_, symbol)| symbol.into_global(self.id))
     }
 
+    /// Return the recorded uses of bindings declared within one node subtree.
+    pub(crate) fn declared_binding_uses(
+        &self,
+        node: dir::LocalNodeIdAny,
+        occurrences: &[dir::BindingOccurrence],
+    ) -> dir::BindingUse {
+        let mut uses = dir::BindingUse::default();
+
+        // merge occurrences of every binding introduced within the node
+        for symbol in self.symbols_declared_within(node) {
+            for occurrence in occurrences {
+                if occurrence.symbol == symbol {
+                    uses |= occurrence.uses;
+                }
+            }
+        }
+
+        uses
+    }
+
     /// Return the recorded uses of one binding within a node subtree.
     pub(crate) fn binding_uses_within(
         &self,

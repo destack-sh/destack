@@ -4,26 +4,6 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
-    /// Return the recorded uses of bindings declared by one pattern.
-    pub(crate) fn pattern_uses(
-        &self,
-        pattern: dir::LocalNodeId<dir::Pattern>,
-        occurrences: &[dir::BindingOccurrence],
-    ) -> dir::BindingUse {
-        let mut uses = dir::BindingUse::default();
-
-        // merge occurrences of every binding introduced by the pattern
-        for symbol in self.symbols_declared_within(pattern.into_any()) {
-            for occurrence in occurrences {
-                if occurrence.symbol == symbol {
-                    uses |= occurrence.uses;
-                }
-            }
-        }
-
-        uses
-    }
-
     /// Return the checked decision for one pattern.
     pub(crate) fn pattern_decision(
         &self,
