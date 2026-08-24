@@ -64,6 +64,11 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
+        // defer exact NaN comparisons to use-isnan
+        if module.is_nan(left_operand.source.local_id)? {
+            continue;
+        }
+
         // report the complete comparison
         let span = module.span(expression_id.into_any())?;
         let mut diagnostic = lint.diagnostic("comparison has identical operands", span);
@@ -285,6 +290,19 @@ warning[no-self-compare]: comparison has identical operands
  = help: use a negated NaN predicate to test for non-NaN
 "#,
         );
+    }
+
+    /// Leave exact NaN comparisons to use-isnan.
+    #[test]
+    fn test_accepts_exact_nan_operands() {
+        let session = TestSession::dir(
+            &NO_SELF_COMPARE,
+            r#"
+const same = NaN === NaN;
+"#,
+        );
+
+        session.assert_no_diagnostics();
     }
 
     /// Keep comparisons between distinct bindings.
