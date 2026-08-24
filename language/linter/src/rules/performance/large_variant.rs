@@ -49,10 +49,10 @@ fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
 
     // inspect every declared variant representation
     for (declaration_id, declaration) in tree.iter_nodes::<mir::TypeDeclaration>() {
-        let Some(variant) = variant_layout(declaration.ty, tree, layouts)? else {
+        let Some(variant) = select_variant_layout(declaration.ty, tree, layouts)? else {
             continue;
         };
-        let Some(excess) = largest_case_excess(variant, layouts)? else {
+        let Some(excess) = measure_largest_case_excess(variant, layouts)? else {
             continue;
         };
         if excess <= LARGE_VARIANT_EXCESS_BYTES {
@@ -72,8 +72,8 @@ fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Return the variant layout beneath transparent nominal storage.
-fn variant_layout<'a>(
+/// Select the variant layout beneath transparent nominal storage.
+fn select_variant_layout<'a>(
     ty: mir::TypeId,
     tree: &mir::Tree,
     layouts: &'a mir::LayoutTable,
@@ -106,8 +106,8 @@ fn variant_layout<'a>(
     }
 }
 
-/// Return the byte difference between the largest and second-largest cases.
-fn largest_case_excess(
+/// Measure the byte difference between the largest and second-largest cases.
+fn measure_largest_case_excess(
     variant: &mir::VariantLayout,
     layouts: &mir::LayoutTable,
 ) -> Result<Option<u32>, ProviderError> {

@@ -68,7 +68,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(condition) = condition.as_expression() else {
             continue;
         };
-        let Some(insertion) = guarded_insertion(module, condition, *then_expression)? else {
+        let Some(insertion) = select_guarded_insertion(module, condition, *then_expression)? else {
             continue;
         };
 
@@ -89,7 +89,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 }
 
 /// Select one negated Map.has check whose branch only calls Map.set.
-fn guarded_insertion(
+fn select_guarded_insertion(
     module: &DirModule<'_>,
     condition: dir::LocalNodeId<dir::Expression>,
     branch: dir::LocalNodeId<dir::Expression>,

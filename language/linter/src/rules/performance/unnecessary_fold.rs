@@ -74,7 +74,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         ) else {
             continue;
         };
-        let Some(reduction) = boolean_reduction(module, callback, initial, &occurrences)? else {
+        let Some(reduction) = select_boolean_reduction(module, callback, initial, &occurrences)?
+        else {
             continue;
         };
 
@@ -91,8 +92,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Return the terminal predicate represented by one boolean reduction.
-fn boolean_reduction(
+/// Select the terminal predicate represented by one boolean reduction.
+fn select_boolean_reduction(
     module: &DirModule<'_>,
     callback: dir::LocalNodeId<dir::Expression>,
     initial: dir::LocalNodeId<dir::Expression>,

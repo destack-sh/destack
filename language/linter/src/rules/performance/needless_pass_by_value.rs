@@ -56,7 +56,7 @@ fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
         }
 
         let definitions = module.analyses.definition(function_id, tree);
-        let consumed = consumed_parameters(function, &definitions, tree)?;
+        let consumed = collect_consumed_parameters(function, &definitions, tree)?;
         let spans = tree.function_parameter_spans(function_id);
 
         // report retained move-only parameters
@@ -85,8 +85,8 @@ fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Return the parameters moved along any reachable MIR path.
-fn consumed_parameters(
+/// Collect the parameters moved along any reachable MIR path.
+fn collect_consumed_parameters(
     function: &mir::Function,
     definitions: &mir::DefinitionTable,
     tree: &mir::Tree,
@@ -103,7 +103,7 @@ fn consumed_parameters(
             let instruction = tree.get(*instruction);
             pending.extend(instruction.consumes(tree));
 
-            if let Some(source) = projection_move_source(instruction, function, tree) {
+            if let Some(source) = find_consumed_projection_source(instruction, function, tree) {
                 pending.push(source);
             }
         }
@@ -140,8 +140,8 @@ fn consumed_parameters(
     Ok(consumed)
 }
 
-/// Return the aggregate consumed by one projected move.
-fn projection_move_source(
+/// Find the aggregate consumed by one projected move.
+fn find_consumed_projection_source(
     instruction: &mir::Instruction,
     function: &mir::Function,
     tree: &mir::Tree,

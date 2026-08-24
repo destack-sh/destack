@@ -73,7 +73,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             if is_iterated_directly(module, occurrence.node) {
                 continue;
             }
-            let Some((call, member)) = direct_member_call(module, occurrence.node) else {
+            let Some((call, member)) = select_direct_member_call(module, occurrence.node) else {
                 can_remove = false;
                 break;
             };
@@ -119,8 +119,8 @@ fn is_iterated_directly(module: &DirModule<'_>, node: dir::LocalNodeIdAny) -> bo
         .is_some_and(|for_of| for_of.iterator == iterator)
 }
 
-/// Return the direct member call for one binding occurrence.
-fn direct_member_call<'a>(
+/// Select the direct member call for one binding occurrence.
+fn select_direct_member_call<'a>(
     module: &'a DirModule<'_>,
     node: dir::LocalNodeIdAny,
 ) -> Option<(dir::LocalNodeId<dir::Expression>, &'a str)> {

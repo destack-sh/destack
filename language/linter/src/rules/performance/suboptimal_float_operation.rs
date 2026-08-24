@@ -67,7 +67,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
     // inspect every expression as one possible floating-point formula
     for (expression, _) in module.view().iter_nodes::<dir::Expression>() {
-        let Some(operation) = float_operation(module, expression)? else {
+        let Some(operation) = select_float_operation(module, expression)? else {
             continue;
         };
 
@@ -95,7 +95,7 @@ impl FloatOperation {
 }
 
 /// Select one formula with a dedicated floating-point operation.
-fn float_operation(
+fn select_float_operation(
     module: &DirModule<'_>,
     expression: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<FloatOperation>, ProviderError> {
@@ -138,7 +138,7 @@ fn float_operation(
 
     // recognize a natural logarithm divided by one canonical base logarithm
     if operator == dir::BinaryOperator::Divide
-        && let Some(receiver) = natural_log_receiver(module, left.source.local_id)?
+        && let Some(receiver) = select_natural_log_receiver(module, left.source.local_id)?
     {
         let member = module.language_member(right.source.local_id)?;
         let method = if member == Some(dir::LanguageItem::Math.member("LN2")) {
@@ -158,8 +158,8 @@ fn float_operation(
     }
 
     // recognize each additive arrangement of one floating-point product
-    let left_product = float_product(module, left.source.local_id)?;
-    let right_product = float_product(module, right.source.local_id)?;
+    let left_product = select_float_product(module, left.source.local_id)?;
+    let right_product = select_float_product(module, right.source.local_id)?;
     let fma = match (operator, left_product, right_product) {
         (dir::BinaryOperator::Add, Some([receiver, multiplier]), _) => Some(FloatOperation::Fma {
             receiver,
@@ -202,8 +202,8 @@ fn float_operation(
     Ok(fma)
 }
 
-/// Return the operands of one builtin floating-point product.
-fn float_product(
+/// Select the operands of one builtin floating-point product.
+fn select_float_product(
     module: &DirModule<'_>,
     expression: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<[dir::LocalNodeId<dir::Expression>; 2]>, ProviderError> {
@@ -222,8 +222,8 @@ fn float_product(
     Ok(Some(operands))
 }
 
-/// Return the receiver of one direct natural logarithm call.
-fn natural_log_receiver(
+/// Select the receiver of one direct natural logarithm call.
+fn select_natural_log_receiver(
     module: &DirModule<'_>,
     expression: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<dir::LocalNodeId<dir::Expression>>, ProviderError> {

@@ -79,7 +79,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let expressions = block.iter_expressions().collect::<Vec<_>>();
         let mut start = 0;
         while start < expressions.len() {
-            let Some(first) = array_call(module, expressions[start])? else {
+            let Some(first) = select_array_call(module, expressions[start])? else {
                 start += 1;
                 continue;
             };
@@ -88,7 +88,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             // extend through calls with identical safe mutation behavior
             let mut end = start + 1;
             while let Some(expression) = expressions.get(end).copied() {
-                let Some(next) = array_call(module, expression)? else {
+                let Some(next) = select_array_call(module, expression)? else {
                     break;
                 };
                 if !can_combine(module, first, next, &accesses)? {
@@ -120,7 +120,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 }
 
 /// Select one direct canonical Array.push or Array.unshift statement.
-fn array_call<'a>(
+fn select_array_call<'a>(
     module: &'a DirModule<'_>,
     expression: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<ArrayCall<'a>>, ProviderError> {

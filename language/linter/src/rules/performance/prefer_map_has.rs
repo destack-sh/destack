@@ -17,12 +17,12 @@ Instead, you SHOULD call `Map.has` when the mapped value cannot itself be `undef
         example: {
             reported: r#"
 function contains(values: Map<string, int32>, key: string): boolean {
-    return values.get(&readonly key) !== undefined;
+    return values.get(key) !== undefined;
 }
 "#,
             accepted: r#"
 function contains(values: Map<string, int32>, key: string): boolean {
-    return values.has(&readonly key);
+    return values.has(key);
 }
 "#,
         },
@@ -147,7 +147,7 @@ mod tests {
             &PREFER_MAP_HAS,
             r#"
 function contains(values: Map<string, int32>, key: string): boolean {
-    return values.get(&readonly key) !== undefined;
+    return values.get(key) !== undefined;
 }
 "#,
         );
@@ -155,7 +155,7 @@ function contains(values: Map<string, int32>, key: string): boolean {
         session.assert_fixes(
             r#"
 function contains(values: Map<string, int32>, key: string): boolean {
-    return values.has(&readonly key);
+    return values.has(key);
 }
 "#,
         );
@@ -168,7 +168,7 @@ function contains(values: Map<string, int32>, key: string): boolean {
             &PREFER_MAP_HAS,
             r#"
 function missing(values: Map<string, int32>, key: string): boolean {
-    return undefined === values.get(&readonly key);
+    return undefined === values.get(key);
 }
 "#,
         );
@@ -176,7 +176,7 @@ function missing(values: Map<string, int32>, key: string): boolean {
         session.assert_fixes(
             r#"
 function missing(values: Map<string, int32>, key: string): boolean {
-    return !values.has(&readonly key);
+    return !values.has(key);
 }
 "#,
         );
@@ -189,7 +189,7 @@ function missing(values: Map<string, int32>, key: string): boolean {
             &PREFER_MAP_HAS,
             r#"
 function contains(values: Map<string, int32 | undefined>, key: string): boolean {
-    return values.get(&readonly key) !== undefined;
+    return values.get(key) !== undefined;
 }
 "#,
         );
@@ -204,7 +204,7 @@ function contains(values: Map<string, int32 | undefined>, key: string): boolean 
             &PREFER_MAP_HAS,
             r#"
 function lookup(values: Map<string, int32>, key: string): int32 | undefined {
-    return values.get(&readonly key);
+    return values.get(key);
 }
 "#,
         );

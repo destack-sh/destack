@@ -43,7 +43,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
     // inspect authored lambda expressions
     for (expression, _) in module.view().iter_nodes::<dir::Expression>() {
-        let Some(callee) = forwarded_callee(module, expression)? else {
+        let Some(callee) = select_forwarded_callee(module, expression)? else {
             continue;
         };
 
@@ -59,8 +59,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Return the stable function called by one exact forwarding lambda.
-fn forwarded_callee(
+/// Select the stable function called by one exact forwarding lambda.
+fn select_forwarded_callee(
     module: &DirModule<'_>,
     expression: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<dir::LocalNodeId<dir::Expression>>, ProviderError> {
@@ -162,6 +162,7 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Replace a standalone forwarding closure with its function.
     #[test]
     fn test_replaces_standalone_forwarding_closure() {

@@ -5,7 +5,7 @@ use destack_source::{DiagnosticSuggestion, Patch};
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
-const SORT_METHODS: &[&str] = &["sort", "sortUnstable", "toSorted"];
+const SORT_METHODS: &[&str] = &["sort", "sortUnstable", "toSorted", "toSortedUnstable"];
 
 declare_lint! {
     /// Disallow comparators that reproduce the natural ordering.
@@ -214,6 +214,7 @@ function order(values: int32[]): void {
 function order(values: ^int32[], slice: &exclusive [int32]): ^int32[] {
     values.sortUnstable((left, right) => left.compare(right));
     slice.sort((left, right) => left.compare(right));
+    values.toSortedUnstable((left, right) => left.compare(right));
     return values.toSorted((left, right) => left.compare(right));
 }
 "#,
@@ -224,6 +225,7 @@ function order(values: ^int32[], slice: &exclusive [int32]): ^int32[] {
 function order(values: ^int32[], slice: &exclusive [int32]): ^int32[] {
     values.sortUnstable();
     slice.sort();
+    values.toSortedUnstable();
     return values.toSorted();
 }
 "#,

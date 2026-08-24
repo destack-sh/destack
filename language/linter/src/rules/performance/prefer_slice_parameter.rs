@@ -180,6 +180,7 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Preserve mutable access when replacing an array parameter.
     #[test]
     fn test_replaces_mutable_array() {
