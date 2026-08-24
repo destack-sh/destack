@@ -74,6 +74,8 @@ pub enum Error {
         /// The supplied byte length.
         actual: usize,
     },
+    /// An allocation site targets the constant space.
+    ConstantAllocationSite,
     /// A static global has no storage in its selected static space.
     MissingGlobalStorage {
         /// The global without storage.
@@ -238,6 +240,9 @@ impl fmt::Display for Error {
                 formatter,
                 "type {ty:?} requires {expected} bytes, found {actual}"
             ),
+            Self::ConstantAllocationSite => {
+                write!(formatter, "an allocation site targets the constant space")
+            }
             Self::MissingGlobalStorage { global } => {
                 write!(formatter, "global {global:?} has no static storage")
             }

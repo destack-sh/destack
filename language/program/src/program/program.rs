@@ -58,8 +58,6 @@ pub struct Program {
 
     /// Immutable constant storage owned by this program.
     pub(crate) constants: StaticImage,
-    /// Initial immortal object storage for each runtime.
-    pub(crate) immortals: StaticImage,
     /// Initial shared static storage for each runtime.
     pub(crate) shared_statics: StaticImage,
     /// Initial local static storage for each worker.
@@ -348,33 +346,30 @@ impl Program {
         &self.local_statics
     }
 
-    /// Materialize constant, immortal, and shared static storage for one runtime.
+    /// Materialize constant and shared static storage for one runtime.
     pub fn materialize_runtime_statics(
         &self,
         memory: Arc<MemoryMap>,
-    ) -> MemoryResult<(StaticSpace, StaticSpace, StaticSpace)> {
+    ) -> MemoryResult<(StaticSpace, StaticSpace)> {
         let sections = self.sections();
         let constants = self
             .constants
             .materialize_constant(sections, memory.clone())?;
-        let immortals = self.immortals.materialize(sections, memory.clone())?;
         let shared = self.shared_statics.materialize(sections, memory)?;
 
         // resolve every runtime-visible static address
         let base = |location| match location {
             GlobalLocation::Constant => Ok(constants.offset()),
-            GlobalLocation::Immortal => Ok(immortals.offset()),
             GlobalLocation::SharedStatic => Ok(shared.offset()),
             GlobalLocation::LocalStatic => Err(MemoryError::internal(
                 "runtime static relocation targets local storage",
             )),
         };
         constants.relocate(self.constants.relocations(sections), base)?;
-        immortals.relocate(self.immortals.relocations(sections), base)?;
         shared.relocate(self.shared_statics.relocations(sections), base)?;
         constants.freeze()?;
 
-        Ok((constants, immortals, shared))
+        Ok((constants, shared))
     }
 
     /// Materialize local static storage for one worker.
@@ -382,7 +377,6 @@ impl Program {
         &self,
         memory: Arc<MemoryMap>,
         constants: &StaticSpace,
-        immortals: &StaticSpace,
         shared: &StaticSpace,
     ) -> MemoryResult<StaticSpace> {
         let sections = self.sections();
@@ -391,7 +385,6 @@ impl Program {
         // resolve every worker-visible static address
         let base = |location| match location {
             GlobalLocation::Constant => Ok(constants.offset()),
-            GlobalLocation::Immortal => Ok(immortals.offset()),
             GlobalLocation::SharedStatic => Ok(shared.offset()),
             GlobalLocation::LocalStatic => Ok(local.offset()),
         };
@@ -497,6 +490,7 @@ impl Program {
                 let plan = match site.space {
                     Space::Local => local.allocation_plan(&shape),
                     Space::Shared => shared.allocation_plan(&shape),
+                    Space::Constant => return Err(Error::ConstantAllocationSite),
                 };
 
                 Ok(plan)

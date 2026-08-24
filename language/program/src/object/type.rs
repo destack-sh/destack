@@ -18,4 +18,6 @@ pub struct Type {
     pub name: Option<StringId>,
     /// The direct nominal heritage when present.
     pub heritage: Option<mir::TypeHeritage>,
+    /// The language item key this declaration binds, mirroring the source decorator.
+    pub language_item: Option<StringId>,
 }

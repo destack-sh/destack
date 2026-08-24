@@ -25,8 +25,6 @@ pub struct Memory<'a> {
     pub local_statics: &'a mut StaticSpace,
     /// Shared static memory.
     pub shared_statics: &'a mut StaticSpace,
-    /// Immortal object memory.
-    pub immortals: &'a StaticSpace,
     /// Program constant memory.
     pub constants: &'a StaticSpace,
 }
@@ -48,7 +46,6 @@ impl Memory<'_> {
             shared_mark_worker: self.shared_mark_worker,
             local_statics: self.local_statics,
             shared_statics: self.shared_statics,
-            immortals: self.immortals,
             constants: self.constants,
         }
     }
@@ -58,7 +55,6 @@ impl Memory<'_> {
     pub fn reference(&self, global: &Global) -> GlobalAddress {
         match global.location {
             GlobalLocation::Constant => self.constants.reference(global),
-            GlobalLocation::Immortal => self.immortals.reference(global),
             GlobalLocation::SharedStatic => self.shared_statics.reference(global),
             GlobalLocation::LocalStatic => self.local_statics.reference(global),
         }
@@ -75,6 +71,7 @@ impl Memory<'_> {
         match space {
             Space::Local => self.local_heap.options().allocation_plan(shape),
             Space::Shared => self.shared_heap.options().allocation_plan(shape),
+            Space::Constant => unreachable!("constant space never allocates"),
         }
     }
 
@@ -89,6 +86,7 @@ impl Memory<'_> {
         match space {
             Space::Local => self.allocate_local(plan, payload, trace_view),
             Space::Shared => self.allocate_shared(plan, payload, trace_view),
+            Space::Constant => Err(HeapError::internal("constant space never allocates")),
         }
     }
 
