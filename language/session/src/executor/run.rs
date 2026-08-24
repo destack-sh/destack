@@ -10,10 +10,7 @@ use parking_lot::Mutex;
 use super::executor::Executor;
 use super::scheduler::Scheduler;
 use super::task::Task;
-use crate::{
-    ArtifactRunEvent, ArtifactRunEventHandler, SessionError, SessionEvent, SessionEventHandler,
-    SessionState,
-};
+use crate::{ArtifactRunEvent, SessionError, SessionEvent, SessionEventHandler, SessionState};
 
 /// Id for one artifact executor run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -249,8 +246,6 @@ pub(super) struct ArtifactRunState {
     is_trace_owner: bool,
     /// Start time retained when this run emits events.
     started_at: Option<Instant>,
-    /// Optional handler observing every artifact run.
-    run_event_handler: Option<ArtifactRunEventHandler>,
     /// Optional event handler for this run.
     event_handler: Option<SessionEventHandler>,
     /// Cooperative waiter for scheduler changes affecting this run.
@@ -273,7 +268,6 @@ impl std::fmt::Debug for ArtifactRunState {
             .field("trace", &self.trace)
             .field("is_trace_owner", &self.is_trace_owner)
             .field("started_at", &self.started_at)
-            .field("run_event_handler", &self.run_event_handler.is_some())
             .field("event_handler", &self.event_handler.is_some())
             .finish()
     }
@@ -289,11 +283,9 @@ impl ArtifactRunState {
         priority: ArtifactPriority,
         trace: Arc<Trace>,
         is_trace_owner: bool,
-        run_event_handler: Option<ArtifactRunEventHandler>,
         event_handler: Option<SessionEventHandler>,
     ) -> Self {
-        let started_at =
-            (run_event_handler.is_some() || event_handler.is_some()).then(Instant::now);
+        let started_at = event_handler.is_some().then(Instant::now);
 
         Self {
             session,
@@ -308,7 +300,6 @@ impl ArtifactRunState {
             trace,
             is_trace_owner,
             started_at,
-            run_event_handler,
             event_handler,
             waker: AtomicWaker::new(),
         }
@@ -344,16 +335,10 @@ impl ArtifactRunState {
         self.priority
     }
 
-    /// Emit one run event through the global and local handlers.
+    /// Emit one run event through this run's handler.
     pub(super) fn emit_run(&self, event: ArtifactRunEvent) {
-        match (&self.run_event_handler, &self.event_handler) {
-            (Some(executor_handler), Some(run_handler)) => {
-                executor_handler(event.clone());
-                run_handler(SessionEvent::Run(event));
-            }
-            (Some(executor_handler), None) => executor_handler(event),
-            (None, Some(run_handler)) => run_handler(SessionEvent::Run(event)),
-            (None, None) => {}
+        if let Some(handler) = &self.event_handler {
+            handler(SessionEvent::Run(event));
         }
     }
 
@@ -366,7 +351,7 @@ impl ArtifactRunState {
 
     /// Return whether this run emits run events.
     pub(super) fn emits_run_events(&self) -> bool {
-        self.run_event_handler.is_some() || self.event_handler.is_some()
+        self.event_handler.is_some()
     }
 
     /// Mark this run as cancelled.

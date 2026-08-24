@@ -67,8 +67,5 @@ pub enum SessionEvent {
     },
 }
 
-/// Thread-safe handler for artifact run events.
-pub type ArtifactRunEventHandler = std::sync::Arc<dyn Fn(ArtifactRunEvent) + Send + Sync>;
-
 /// Thread-safe handler for session events.
 pub type SessionEventHandler = std::sync::Arc<dyn Fn(SessionEvent) + Send + Sync>;
