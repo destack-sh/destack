@@ -1,7 +1,6 @@
 mod almost_complete_range;
 mod almost_swapped;
 mod ambiguous_precedence;
-mod empty_critical_section;
 mod ineffective_break_in_switch;
 mod loop_single_iteration;
 mod misrefactored_assign_op;
@@ -51,7 +50,6 @@ mod wildcard_enum_match_arm;
 pub use almost_complete_range::*;
 pub use almost_swapped::*;
 pub use ambiguous_precedence::*;
-pub use empty_critical_section::*;
 pub use ineffective_break_in_switch::*;
 pub use loop_single_iteration::*;
 pub use misrefactored_assign_op::*;
