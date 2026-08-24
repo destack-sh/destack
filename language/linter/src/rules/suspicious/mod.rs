@@ -44,7 +44,6 @@ mod only_used_in_recursion;
 mod redundant_pattern_matching;
 mod suspicious_operand_grouping;
 mod suspicious_operator_implementation;
-mod unnecessary_wraps;
 mod wildcard_enum_match_arm;
 
 pub use almost_complete_range::*;
@@ -93,5 +92,4 @@ pub use only_used_in_recursion::*;
 pub use redundant_pattern_matching::*;
 pub use suspicious_operand_grouping::*;
 pub use suspicious_operator_implementation::*;
-pub use unnecessary_wraps::*;
 pub use wildcard_enum_match_arm::*;

@@ -195,24 +195,24 @@ mod tests {
     use destack_repository::LintLevel;
 
     use super::*;
-    use crate::rules::{FOR_DIRECTION, NO_DOUBLE_LOCK};
+    use crate::rules::{FOR_DIRECTION, REDUNDANT_CLONE};
 
-    /// Expose implemented lints and omit stubs.
+    /// Expose executable lints and omit stubs.
     #[test]
-    fn test_iterates_implemented_lints() {
-        let is_implemented_listed = Lint::all().any(|lint| lint.id == FOR_DIRECTION.id);
-        let is_stub_listed = Lint::all().any(|lint| lint.id == NO_DOUBLE_LOCK.id);
+    fn test_iterates_executable_lints() {
+        let is_executable_listed = Lint::all().any(|lint| lint.id == FOR_DIRECTION.id);
+        let is_stub_listed = Lint::all().any(|lint| lint.id == REDUNDANT_CLONE.id);
 
-        assert!(is_implemented_listed);
+        assert!(is_executable_listed);
         assert!(!is_stub_listed);
     }
 
-    /// Reject an unavailable lint selected exclusively.
+    /// Reject a stub selected exclusively.
     #[test]
     fn test_rejects_selected_stub() {
         let package = PackageId::new(0);
         let options = LinterOptions {
-            only: vec!["no-double-lock".to_string()],
+            only: vec!["redundant-clone".to_string()],
             ..LinterOptions::default()
         };
         let registry = Lint::all().cloned().collect::<Vec<_>>().into();
@@ -223,19 +223,19 @@ mod tests {
             lints.errors(),
             [LinterError::UnknownConfiguredLint {
                 anchor: DiagnosticAnchor::Package(package),
-                lint: "large-stack-frame".to_string(),
+                lint: "redundant-clone".to_string(),
             }]
         );
     }
 
-    /// Reject an unavailable lint configured with an explicit level.
+    /// Reject a configured stub.
     #[test]
     fn test_rejects_configured_stub() {
         let package = PackageId::new(0);
         let mut options = LinterOptions::default();
         options
             .rules
-            .insert("large-stack-frame".to_string(), LintLevel::Error);
+            .insert("redundant-clone".to_string(), LintLevel::Error);
         let registry = Lint::all().cloned().collect::<Vec<_>>().into();
         let lints = LintSet::resolve(package, &options, registry);
 
@@ -243,7 +243,7 @@ mod tests {
             lints.errors(),
             [LinterError::UnknownConfiguredLint {
                 anchor: DiagnosticAnchor::Package(package),
-                lint: "large-stack-frame".to_string(),
+                lint: "redundant-clone".to_string(),
             }]
         );
     }

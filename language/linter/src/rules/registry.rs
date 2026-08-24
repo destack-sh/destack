@@ -132,7 +132,6 @@ static LINTS: &[&Lint] = &[
     &style::MANUAL_UNWRAP_OR_DEFAULT,
     &style::MAP_IDENTITY,
     &style::MISSING_DOCS,
-    &style::MUST_USE_CANDIDATE,
     &style::NEEDLESS_BORROW,
     &style::NEEDLESS_QUESTION_MARK,
     &style::NO_BLOCK_IN_CONDITION,
@@ -273,7 +272,6 @@ static LINTS: &[&Lint] = &[
     &suspicious::REDUNDANT_PATTERN_MATCHING,
     &suspicious::SUSPICIOUS_OPERAND_GROUPING,
     &suspicious::SUSPICIOUS_OPERATOR_IMPLEMENTATION,
-    &suspicious::UNNECESSARY_WRAPS,
     &suspicious::WILDCARD_ENUM_MATCH_ARM,
 ];
 
