@@ -8,7 +8,7 @@ use destack_artifact::{
 use destack_repository as repository;
 use destack_repository::{
     DestackLayoutOverride, Environment, Execution, Host, MemoryBlobStore, Repository, Revision,
-    RevisionPin, Settings, Trace, TraceSnapshot, TraceView,
+    RevisionPin, Settings, Trace, TraceLevel, TraceSnapshot, TraceView,
 };
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
 use futures::executor::block_on;
@@ -135,7 +135,7 @@ impl TestSession {
         let module = self.module_id(path, revision);
         let profile = self.profile_id(revision, module, target);
         let key = ArtifactKey::dir_checked(module, profile);
-        let trace = self.session.start_trace(true);
+        let trace = self.session.start_trace(TraceLevel::Timings);
         let run = self.session.provide_traced(
             revision,
             &[key],

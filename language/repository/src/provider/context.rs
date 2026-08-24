@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactBindingPin, ArtifactDependency, ArtifactKey, ArtifactSidecar, ArtifactVersion,
-    DiagnosticContext, DiagnosticError, DiagnosticLike, DiagnosticRecord,
+    ArtifactBindingPin, ArtifactDependency, ArtifactKey, ArtifactVersion, DiagnosticContext,
+    DiagnosticError, DiagnosticLike, DiagnosticRecord,
 };
 use smallvec::SmallVec;
 
-use crate::{ArtifactAttemptRecorder, Moment, Revision};
+use crate::{ArtifactAttemptRecorder, Moment, Revision, TraceEvent};
 
 /// Retained predecessor artifact selected for one provider attempt.
 #[derive(Debug)]
@@ -63,9 +63,16 @@ pub trait ProviderContext: DiagnosticContext {
         None
     }
 
-    /// Return whether this attempt should emit event traces.
-    fn emit_events(&self) -> bool {
-        false
+    /// Return whether this attempt records detailed provider events.
+    fn records_events(&self) -> bool {
+        self.recorder()
+            .is_some_and(ArtifactAttemptRecorder::records_events)
+    }
+
+    /// Return whether this attempt records timings and counters.
+    fn records_timings(&self) -> bool {
+        self.recorder()
+            .is_some_and(ArtifactAttemptRecorder::records_timings)
     }
 
     /// Return the recorder for this artifact attempt, when the run is timed.
@@ -74,16 +81,30 @@ pub trait ProviderContext: DiagnosticContext {
     }
 
     /// Record one interior phase that started at one clock reading.
-    fn emit_span(&self, name: &'static str, started: Moment) {
+    fn record_span(&self, name: &'static str, started: Moment) {
         if let Some(recorder) = self.recorder() {
             recorder.record_span(name, Some(started));
         }
     }
 
     /// Record one named counter for this attempt.
-    fn emit_counter(&self, name: &'static str, value: u64) {
+    fn record_counter(&self, name: &'static str, value: u64) {
         if let Some(recorder) = self.recorder() {
             recorder.record_counter(name, value);
+        }
+    }
+
+    /// Record several named counters for this attempt.
+    fn record_counters(&self, counters: &[(&'static str, u64)]) {
+        if let Some(recorder) = self.recorder() {
+            recorder.record_counters(counters);
+        }
+    }
+
+    /// Record ordered events for this attempt.
+    fn record_events(&self, events: Vec<TraceEvent>) {
+        if let Some(recorder) = self.recorder() {
+            recorder.record_events(events);
         }
     }
 
@@ -95,9 +116,6 @@ pub trait ProviderContext: DiagnosticContext {
 
     /// Add already-recorded diagnostics produced by this attempt.
     fn emit_diagnostics(&self, diagnostics: Vec<DiagnosticRecord>);
-
-    /// Add one sidecar produced by this attempt.
-    fn emit_sidecar(&self, sidecar: ArtifactSidecar);
 
     /// Add one diagnostic produced by this attempt.
     fn emit(&self, diagnostic: &dyn DiagnosticLike) -> Result<(), DiagnosticError>;

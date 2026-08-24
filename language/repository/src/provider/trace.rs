@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Clock, Moment, Repository, RepositoryError, Revision};
 
-use super::ArtifactAttemptRecorder;
+use super::{ArtifactAttemptRecorder, TraceEvent};
 
 /// Terminal outcome of one artifact executor attempt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -88,6 +88,8 @@ pub struct ArtifactAttempt {
     pub spans: Vec<TraceSpan>,
     /// Counters recorded by the executor or provider.
     pub counters: Vec<TraceCounter>,
+    /// Events recorded by the provider.
+    pub events: Vec<TraceEvent>,
     /// Exact artifact dependencies, present once dependency resolution completes.
     pub dependencies: Option<Box<[ArtifactKey]>>,
 }
@@ -206,11 +208,22 @@ impl TraceAggregate {
     }
 }
 
+/// Recording level for one toolchain trace.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TraceLevel {
+    /// Record nothing.
+    Disabled,
+    /// Record timings and counters.
+    Timings,
+    /// Record timings, counters, and provider events.
+    Events,
+}
+
 /// Trace of one public toolchain operation.
 #[derive(Debug)]
 pub struct Trace {
-    /// Whether this trace records anything.
-    is_enabled: bool,
+    /// The recording level.
+    level: TraceLevel,
     /// The clock used for timing samples.
     clock: Clock,
     /// The executor workers available to this operation.
@@ -228,13 +241,19 @@ pub struct Trace {
 }
 
 impl Trace {
-    /// Create an empty trace starting now, recording only when enabled.
-    pub fn new(clock: Clock, workers: usize, is_enabled: bool) -> Arc<Self> {
+    /// Create an empty trace starting now.
+    pub fn new(clock: Clock, workers: usize, level: TraceLevel) -> Arc<Self> {
+        // sample the epoch only for recorded traces
+        let epoch = match level {
+            TraceLevel::Disabled => None,
+            TraceLevel::Timings | TraceLevel::Events => clock.now(),
+        };
+
         Arc::new(Self {
-            is_enabled,
+            level,
             clock,
             workers,
-            epoch: is_enabled.then(|| clock.now()).flatten(),
+            epoch,
             spans: Mutex::new(Vec::new()),
             counters: Mutex::new(Vec::new()),
             attempts: Mutex::new(Vec::new()),
@@ -242,14 +261,19 @@ impl Trace {
         })
     }
 
-    /// Return whether this trace records anything.
-    pub fn is_enabled(&self) -> bool {
-        self.is_enabled
+    /// Return whether this trace records timings and counters.
+    pub fn records_timings(&self) -> bool {
+        self.level != TraceLevel::Disabled
+    }
+
+    /// Return whether artifact providers record detailed events.
+    pub fn records_events(&self) -> bool {
+        self.level == TraceLevel::Events
     }
 
     /// Record one timed operation-level span around a closure.
     pub fn span<T>(&self, name: &'static str, work: impl FnOnce() -> T) -> T {
-        if !self.is_enabled {
+        if !self.records_timings() {
             return work();
         }
 
@@ -262,7 +286,7 @@ impl Trace {
 
     /// Record one timed operation-level span around a future.
     pub async fn span_async<T>(&self, name: &'static str, work: impl Future<Output = T>) -> T {
-        if !self.is_enabled {
+        if !self.records_timings() {
             return work.await;
         }
 
@@ -275,7 +299,7 @@ impl Trace {
 
     /// Add to one operation-level counter.
     pub fn add_counter(&self, name: &'static str, value: u64) {
-        if !self.is_enabled {
+        if !self.records_timings() {
             return;
         }
 
@@ -299,7 +323,7 @@ impl Trace {
 
     /// Begin recording one artifact attempt on one worker.
     pub fn begin(self: &Arc<Self>, key: ArtifactKey, worker: usize) -> ArtifactAttemptRecorder {
-        let started = if self.is_enabled {
+        let started = if self.records_timings() {
             self.clock.now()
         } else {
             None
@@ -421,6 +445,7 @@ impl Trace {
                         .iter()
                         .map(TraceCounterSnapshot::from_counter)
                         .collect(),
+                    events: attempt.events.clone(),
                 });
             }
 
@@ -938,6 +963,9 @@ pub struct ArtifactAttemptSnapshot {
     /// Counters recorded by the executor or provider.
     #[serde(default)]
     pub counters: Vec<TraceCounterSnapshot>,
+    /// Events recorded by the provider.
+    #[serde(default)]
+    pub events: Vec<TraceEvent>,
 }
 
 /// Work and span measurements of one artifact trace.
@@ -1016,6 +1044,7 @@ mod tests {
                 duration,
             }],
             counters: Vec::new(),
+            events: Vec::new(),
             dependencies: dependencies.map(Vec::into_boxed_slice),
         }
     }

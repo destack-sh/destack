@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
@@ -8,8 +7,8 @@ use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{ArtifactBase, ArtifactBindingState, ArtifactResolution};
 use destack_artifact::{
     ArtifactBinding, ArtifactBindingId, ArtifactBindingPin, ArtifactDependency, ArtifactFailure,
-    ArtifactFlush, ArtifactKey, ArtifactOutcome, ArtifactPayload, ArtifactRecord, ArtifactSidecar,
-    ArtifactVersion, DeclarationReference, DiagnosticRecord, DirBound, DirParsed,
+    ArtifactFlush, ArtifactKey, ArtifactOutcome, ArtifactPayload, ArtifactRecord, ArtifactVersion,
+    DeclarationReference, DiagnosticRecord, DirBound, DirParsed,
 };
 use destack_core::Blob;
 use destack_dir::LocalSymbolId;
@@ -236,7 +235,6 @@ impl Repository {
             payload,
             dependencies,
             record.diagnostics,
-            record.sidecars,
             recorder,
         )?;
         self.bind_artifact(revision, binding.binding())?;
@@ -252,7 +250,6 @@ impl Repository {
         payload: ArtifactPayload,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: Vec<DiagnosticRecord>,
-        sidecars: Vec<ArtifactSidecar>,
         recorder: Option<&ArtifactAttemptRecorder>,
     ) -> Result<(), RepositoryError> {
         // derive the reusable identity of this dependency set
@@ -269,7 +266,6 @@ impl Repository {
             payload,
             dependencies.clone(),
             diagnostics,
-            sidecars,
             recorder,
         )?;
 
@@ -347,7 +343,6 @@ impl Repository {
         key: ArtifactKey,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: Vec<DiagnosticRecord>,
-        sidecars: Vec<ArtifactSidecar>,
         failure: ArtifactFailure,
     ) -> Result<(), RepositoryError> {
         let dependencies = dependencies.into();
@@ -356,7 +351,7 @@ impl Repository {
         // store failure before exposing the revision binding
         let binding_pin = self
             .artifact_table()
-            .fail(version, dependencies, diagnostics, sidecars, failure)
+            .fail(version, dependencies, diagnostics, failure)
             .map_err(|error| RepositoryError::InvalidArtifact {
                 message: error.to_string(),
             })?;
@@ -476,37 +471,6 @@ impl Repository {
         Ok(diagnostics)
     }
 
-    /// Return sidecars for one revision-scoped artifact key.
-    pub fn artifact_sidecars(
-        &self,
-        revision: Revision,
-        artifact_key: ArtifactKey,
-    ) -> Result<Arc<[ArtifactSidecar]>, RepositoryError> {
-        let Some(version) = self.artifact_version(revision, &artifact_key)? else {
-            return Ok(Arc::from([]));
-        };
-
-        self.artifact_table()
-            .sidecars(&version)
-            .ok_or(RepositoryError::MissingArtifact { version })
-    }
-
-    /// Return one sidecar by exact name and label set.
-    pub fn artifact_sidecar(
-        &self,
-        revision: Revision,
-        artifact_key: ArtifactKey,
-        name: &str,
-        labels: &BTreeMap<String, String>,
-    ) -> Result<Option<ArtifactSidecar>, RepositoryError> {
-        let sidecars = self.artifact_sidecars(revision, artifact_key)?;
-
-        Ok(sidecars
-            .iter()
-            .find(|sidecar| sidecar.matches(name, labels))
-            .cloned())
-    }
-
     /// Return one exact revision artifact binding.
     pub(crate) fn artifact_binding(
         &self,
@@ -574,10 +538,9 @@ impl Repository {
         payload: ArtifactPayload,
         dependencies: Arc<[ArtifactDependency]>,
         diagnostics: Vec<DiagnosticRecord>,
-        sidecars: Vec<ArtifactSidecar>,
         recorder: Option<&ArtifactAttemptRecorder>,
     ) -> Result<ArtifactBindingPin, RepositoryError> {
-        let blobs = ArtifactRecord::referenced_blobs(payload.as_ref(), &diagnostics, &sidecars);
+        let blobs = ArtifactRecord::referenced_blobs(payload.as_ref(), &diagnostics);
         let load_contents = || self.require_blobs(&blobs);
         match recorder {
             Some(recorder) => recorder.breakdown("commit.retain", load_contents),
@@ -586,7 +549,7 @@ impl Repository {
 
         let publish = || {
             self.artifact_table()
-                .publish(version, payload, dependencies, diagnostics, sidecars)
+                .publish(version, payload, dependencies, diagnostics)
                 .map_err(|error| RepositoryError::InvalidArtifact {
                     message: error.to_string(),
                 })

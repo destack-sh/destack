@@ -4,7 +4,7 @@ use std::task::{Context, Poll};
 use std::thread::{Builder, JoinHandle, available_parallelism};
 
 use destack_artifact::{ArtifactFlush, ArtifactKey, ArtifactOutcome, ArtifactVersion};
-use destack_repository::{Execution, Revision, Trace};
+use destack_repository::{Execution, Revision, Trace, TraceLevel};
 
 use super::run::{ArtifactPriority, ArtifactRun, ArtifactRunGoal, ArtifactRunId, ArtifactRunState};
 use super::scheduler::Scheduler;
@@ -135,7 +135,7 @@ impl Executor {
         artifact_keys: &[ArtifactKey],
         priority: ArtifactPriority,
     ) -> ArtifactRun {
-        let trace = self.start_trace(session, false);
+        let trace = self.start_trace(session, TraceLevel::Disabled);
 
         self.start_run(
             session,
@@ -219,14 +219,14 @@ impl Executor {
     }
 
     /// Start one trace configured for this executor.
-    pub(crate) fn start_trace(&self, session: &SessionState, is_enabled: bool) -> Arc<Trace> {
+    pub(crate) fn start_trace(&self, session: &SessionState, level: TraceLevel) -> Arc<Trace> {
         let clock = session.repository().host().clock();
         let workers = match self.execution {
             Execution::Threaded => self.workers.len(),
             Execution::Cooperative => 1,
         };
 
-        Trace::new(clock, workers, is_enabled)
+        Trace::new(clock, workers, level)
     }
 
     /// Require one artifact version for an immutable revision.
@@ -454,8 +454,8 @@ impl Drop for Executor {
 
 impl Session {
     /// Start one trace spanning multiple artifact requests.
-    pub fn start_trace(&self, is_enabled: bool) -> Arc<Trace> {
-        self.executor.start_trace(&self.state, is_enabled)
+    pub fn start_trace(&self, level: TraceLevel) -> Arc<Trace> {
+        self.executor.start_trace(&self.state, level)
     }
 
     /// Provide root artifacts for one immutable revision.

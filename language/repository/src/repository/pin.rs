@@ -352,15 +352,7 @@ mod tests {
         let key = ArtifactKey::bundle(package, target);
 
         repository
-            .complete_artifact(
-                revision,
-                key,
-                output.into(),
-                Vec::new(),
-                Vec::new(),
-                Vec::new(),
-                None,
-            )
+            .complete_artifact(revision, key, output.into(), Vec::new(), Vec::new(), None)
             .expect("bundle should publish");
         repository
             .flush_artifacts()
@@ -412,15 +404,7 @@ mod tests {
         let key = ArtifactKey::environment_bound(profile);
 
         repository
-            .complete_artifact(
-                revision,
-                key,
-                output.into(),
-                Vec::new(),
-                Vec::new(),
-                Vec::new(),
-                None,
-            )
+            .complete_artifact(revision, key, output.into(), Vec::new(), Vec::new(), None)
             .expect("environment should publish");
         repository
             .flush_artifacts()
@@ -576,7 +560,6 @@ mod tests {
                 output.clone().into(),
                 first_dependencies,
                 Vec::new(),
-                Vec::new(),
                 None,
             )
             .expect("first artifact version should publish");
@@ -617,7 +600,6 @@ mod tests {
                 key,
                 output.clone().into(),
                 second_dependencies,
-                Vec::new(),
                 Vec::new(),
                 None,
             )
@@ -692,7 +674,6 @@ mod tests {
                 key,
                 output.into(),
                 third_dependencies,
-                Vec::new(),
                 Vec::new(),
                 None,
             )
@@ -777,7 +758,6 @@ mod tests {
                 owner.clone().into(),
                 first_owner_dependencies,
                 Vec::new(),
-                Vec::new(),
                 None,
             )
             .expect("first component graph should publish");
@@ -800,7 +780,6 @@ mod tests {
                 dependent_key,
                 EnvironmentBound::default().into(),
                 vec![first_dependency],
-                Vec::new(),
                 Vec::new(),
                 None,
             )
@@ -837,7 +816,6 @@ mod tests {
                 owner_key,
                 owner.into(),
                 second_owner_dependencies,
-                Vec::new(),
                 Vec::new(),
                 None,
             )

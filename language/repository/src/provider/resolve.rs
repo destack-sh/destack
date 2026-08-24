@@ -70,7 +70,7 @@ impl Repository {
             })
             .collect::<Vec<_>>();
         let resolved_requirements = artifact_keys.len() as u64;
-        recorder.record_counters([
+        recorder.record_counters(&[
             ("assemble.requirements", artifact_requirements),
             ("assemble.sources", source_dependencies),
             ("assemble.resolved", resolved_requirements),

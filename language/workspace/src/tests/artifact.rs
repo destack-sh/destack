@@ -28,7 +28,6 @@ fn test_publish_program_artifact_as_blob() {
             ArtifactPayload::Program(Arc::new(program)),
             Vec::new(),
             Vec::new(),
-            Vec::new(),
             None,
         )
         .expect("Program artifact should publish");

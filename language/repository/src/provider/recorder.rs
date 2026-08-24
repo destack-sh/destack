@@ -7,7 +7,8 @@ use parking_lot::Mutex;
 use crate::Moment;
 
 use super::{
-    ArtifactAttempt, ArtifactAttemptOutcome, Trace, TraceCounter, TraceSpan, TraceSpanKind,
+    ArtifactAttempt, ArtifactAttemptOutcome, Trace, TraceCounter, TraceEvent, TraceSpan,
+    TraceSpanKind,
 };
 
 /// Recorder buffering one running artifact attempt.
@@ -15,8 +16,8 @@ use super::{
 pub struct ArtifactAttemptRecorder {
     /// The owning trace.
     trace: Arc<Trace>,
-    /// Whether the owning trace records this attempt.
-    is_enabled: bool,
+    /// Whether the owning trace records timings and counters.
+    records_timings: bool,
     /// The artifact key being attempted.
     key: ArtifactKey,
     /// The worker executing the attempt.
@@ -27,6 +28,8 @@ pub struct ArtifactAttemptRecorder {
     spans: Mutex<Vec<TraceSpan>>,
     /// Counters recorded so far.
     counters: Mutex<Vec<TraceCounter>>,
+    /// Events recorded so far.
+    events: Mutex<Vec<TraceEvent>>,
     /// Exact artifact dependencies resolved for this attempt.
     dependencies: Mutex<Option<Box<[ArtifactKey]>>>,
 }
@@ -40,15 +43,26 @@ impl ArtifactAttemptRecorder {
         started: Option<Moment>,
     ) -> Self {
         Self {
-            is_enabled: trace.is_enabled(),
+            records_timings: trace.records_timings(),
             trace,
             key,
             worker,
             started,
             spans: Mutex::new(Vec::new()),
             counters: Mutex::new(Vec::new()),
+            events: Mutex::new(Vec::new()),
             dependencies: Mutex::new(None),
         }
+    }
+
+    /// Return whether this attempt records detailed provider events.
+    pub fn records_events(&self) -> bool {
+        self.trace.records_events()
+    }
+
+    /// Return whether this attempt records timings and counters.
+    pub fn records_timings(&self) -> bool {
+        self.records_timings
     }
 
     /// Record one timed span around a closure.
@@ -75,7 +89,7 @@ impl ArtifactAttemptRecorder {
 
     /// Record one timed span of one kind around a closure.
     fn timed<T>(&self, name: &'static str, kind: TraceSpanKind, work: impl FnOnce() -> T) -> T {
-        if !self.is_enabled {
+        if !self.records_timings {
             return work();
         }
 
@@ -89,7 +103,7 @@ impl ArtifactAttemptRecorder {
 
     /// Record one interior span that started at one clock reading.
     pub fn record_span(&self, name: &'static str, started: Option<Moment>) {
-        if !self.is_enabled {
+        if !self.records_timings {
             return;
         }
 
@@ -102,7 +116,7 @@ impl ArtifactAttemptRecorder {
 
     /// Record one named counter.
     pub fn record_counter(&self, name: &'static str, value: u64) {
-        if !self.is_enabled {
+        if !self.records_timings {
             return;
         }
 
@@ -110,18 +124,29 @@ impl ArtifactAttemptRecorder {
     }
 
     /// Record several named counters together.
-    pub fn record_counters<const N: usize>(&self, counters: [(&'static str, u64); N]) {
-        if !self.is_enabled {
+    pub fn record_counters(&self, counters: &[(&'static str, u64)]) {
+        if !self.records_timings {
             return;
         }
 
-        let counters = counters.map(|(name, value)| TraceCounter { name, value });
+        let counters = counters
+            .iter()
+            .map(|&(name, value)| TraceCounter { name, value });
         self.counters.lock().extend(counters);
+    }
+
+    /// Record ordered events.
+    pub fn record_events(&self, events: Vec<TraceEvent>) {
+        if !self.records_events() {
+            return;
+        }
+
+        self.events.lock().extend(events);
     }
 
     /// Record per-kind counters for this attempt's dependency reads.
     pub fn record_reads(&self, reads: &[ArtifactDependency]) {
-        if !self.is_enabled {
+        if !self.records_timings {
             return;
         }
 
@@ -136,7 +161,7 @@ impl ArtifactAttemptRecorder {
             .count();
         let projections = reads.len() - sources - artifacts;
 
-        self.record_counters([
+        self.record_counters(&[
             ("reads.sources", sources as u64),
             ("reads.artifacts", artifacts as u64),
             ("reads.projections", projections as u64),
@@ -145,7 +170,7 @@ impl ArtifactAttemptRecorder {
 
     /// Record the exact artifact dependencies resolved for this attempt.
     pub fn record_dependencies(&self, dependencies: &[ArtifactDependency]) {
-        if !self.is_enabled {
+        if !self.records_timings {
             return;
         }
 
@@ -168,7 +193,7 @@ impl ArtifactAttemptRecorder {
 
     /// Finish this artifact attempt with its outcome.
     pub fn finish(&self, outcome: ArtifactAttemptOutcome) {
-        if !self.is_enabled {
+        if !self.records_timings {
             return;
         }
 
@@ -184,6 +209,7 @@ impl ArtifactAttemptRecorder {
             outcome,
             spans: mem::take(&mut self.spans.lock()),
             counters: mem::take(&mut self.counters.lock()),
+            events: mem::take(&mut self.events.lock()),
             dependencies: self.dependencies.lock().take(),
         };
 

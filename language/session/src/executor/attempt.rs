@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependency, ArtifactKey, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext,
-    DiagnosticDisplay, DiagnosticError, DiagnosticLike, DiagnosticRecord,
+    ArtifactDependency, ArtifactKey, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
+    DiagnosticError, DiagnosticLike, DiagnosticRecord,
 };
 use destack_core::Blob;
 use destack_repository::{
@@ -26,8 +26,6 @@ pub(crate) struct ProviderAttempt {
     dependencies: Option<Arc<[ArtifactDependency]>>,
     /// The diagnostics produced by this attempt.
     diagnostics: Mutex<Vec<DiagnosticRecord>>,
-    /// The sidecars produced by this attempt.
-    sidecars: Mutex<Vec<ArtifactSidecar>>,
     /// The dependencies read during provider execution.
     reads: Mutex<Vec<ArtifactDependency>>,
     /// The artifact reads blocked during dependency collection.
@@ -46,7 +44,6 @@ impl ProviderAttempt {
             base: None,
             dependencies: None,
             diagnostics: Mutex::new(Vec::new()),
-            sidecars: Mutex::new(Vec::new()),
             reads: Mutex::new(Vec::new()),
             blocked: Mutex::new(Vec::new()),
             recorder: None,
@@ -97,11 +94,6 @@ impl ProviderAttempt {
     /// Return diagnostics produced by this attempt.
     pub(super) fn diagnostics(&self) -> Vec<DiagnosticRecord> {
         self.diagnostics.lock().clone()
-    }
-
-    /// Return sidecars produced by this attempt.
-    pub(super) fn sidecars(&self) -> Vec<ArtifactSidecar> {
-        self.sidecars.lock().clone()
     }
 
     /// Build one invalid diagnostic anchor error.
@@ -318,11 +310,6 @@ impl ProviderContext for ProviderAttempt {
         }
 
         self.diagnostics.lock().extend(diagnostics);
-    }
-
-    /// Add one sidecar produced by this attempt.
-    fn emit_sidecar(&self, sidecar: ArtifactSidecar) {
-        self.sidecars.lock().push(sidecar);
     }
 
     /// Add one diagnostic produced by this attempt.

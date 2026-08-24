@@ -23,6 +23,8 @@ pub struct TraceReport {
     is_timeline_enabled: bool,
     /// Whether named span totals should be rendered.
     is_span_total_enabled: bool,
+    /// Whether provider events should be rendered.
+    is_event_enabled: bool,
     /// The number of slow attempts rendered per trace.
     slow_attempt_limit: usize,
 }
@@ -64,6 +66,13 @@ impl TraceReport {
         self
     }
 
+    /// Render provider events.
+    pub fn events(mut self) -> Self {
+        self.is_event_enabled = true;
+
+        self
+    }
+
     /// Set the number of slow attempts rendered per trace.
     pub fn slow_attempts(mut self, limit: usize) -> Self {
         self.slow_attempt_limit = limit;
@@ -93,6 +102,9 @@ impl TraceReport {
         }
         if self.slow_attempt_limit > 0 {
             self.render_slow_attempts(&mut output);
+        }
+        if self.is_event_enabled {
+            self.render_events(&mut output);
         }
 
         output
@@ -238,6 +250,9 @@ impl TraceReport {
                 table = table.row(vec![Cell::new(name), Cell::new(value.to_string())]);
             }
             table.render(&mut output);
+        }
+        if self.is_event_enabled {
+            self.render_events(&mut output);
         }
 
         output
@@ -415,6 +430,48 @@ impl TraceReport {
                 ]);
             }
         }
+        if table.rows.len() > 1 {
+            table.render(output);
+        }
+    }
+
+    /// Render provider events in attempt completion order.
+    fn render_events(&self, output: &mut String) {
+        let is_multi_trace = self.rows.len() > 1;
+        let mut header = Vec::new();
+        if is_multi_trace {
+            header.push(Cell::bold("trace"));
+        }
+        header.extend([
+            Cell::bold("stage"),
+            Cell::bold("artifact"),
+            Cell::bold("subject"),
+            Cell::bold("event"),
+        ]);
+        let mut table = TextTable::new("provider events", self.use_color).row(header);
+
+        // append each event under its owning attempt
+        for row in &self.rows {
+            for attempt in &row.trace.attempts {
+                let subject = attempt.label.as_deref().unwrap_or_default();
+                let subject = subject.strip_prefix("destack://").unwrap_or(subject);
+                for event in &attempt.events {
+                    let mut cells = Vec::new();
+                    if is_multi_trace {
+                        cells.push(Cell::new(&row.name));
+                    }
+                    cells.extend([
+                        Cell::colored(&attempt.stage, trace_stage_color(&attempt.stage)),
+                        Cell::colored(&attempt.name, trace_stage_color(&attempt.stage)),
+                        Cell::new(subject),
+                        Cell::new(event.to_string()),
+                    ]);
+                    table = table.row(cells);
+                }
+            }
+        }
+
+        // omit the section when no provider recorded events
         if table.rows.len() > 1 {
             table.render(output);
         }

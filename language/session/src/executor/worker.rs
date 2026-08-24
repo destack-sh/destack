@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactFailure, ArtifactKey, ArtifactOutcome,
-    ArtifactPayload, ArtifactProvider, ArtifactSidecar, DiagnosticRecord,
+    ArtifactPayload, ArtifactProvider, DiagnosticRecord,
 };
 use destack_repository::{
     ArtifactAttemptOutcome, ArtifactAttemptRecorder, ArtifactBase, ArtifactPlan, PendingSet,
@@ -190,15 +190,7 @@ impl Worker {
                 let failure = ArtifactFailure::requirement(failed_dependency);
                 let diagnostics = Vec::new();
                 let result = recorder.span("commit", || {
-                    self.fail(
-                        state,
-                        run,
-                        task,
-                        dependencies,
-                        diagnostics,
-                        Vec::new(),
-                        failure,
-                    )
+                    self.fail(state, run, task, dependencies, diagnostics, failure)
                 });
                 recorder.finish(ArtifactAttemptOutcome::Failed);
 
@@ -264,7 +256,6 @@ impl Worker {
                         payload,
                         Arc::clone(&dependencies),
                         attempt.diagnostics(),
-                        attempt.sidecars(),
                         Some(recorder.as_ref()),
                     )
                 });
@@ -333,31 +324,16 @@ impl Worker {
         error: ProviderError,
     ) -> Result<(), SessionError> {
         let diagnostics = attempt.diagnostics();
-        let sidecars = attempt.sidecars();
 
         match error {
             ProviderError::RequirementFailed { key } => {
                 let failure = ArtifactFailure::requirement(key);
 
-                self.fail(
-                    state,
-                    run,
-                    task,
-                    dependencies,
-                    diagnostics,
-                    sidecars,
-                    failure,
-                )
+                self.fail(state, run, task, dependencies, diagnostics, failure)
             }
-            ProviderError::Failed { failure } => self.fail(
-                state,
-                run,
-                task,
-                dependencies,
-                diagnostics,
-                sidecars,
-                failure,
-            ),
+            ProviderError::Failed { failure } => {
+                self.fail(state, run, task, dependencies, diagnostics, failure)
+            }
             ProviderError::Corrupt { version: corrupt } => Err(SessionError::Internal {
                 detail: format!(
                     "failed to provide artifact {:?}: corrupt required artifact: {corrupt:?}",
@@ -406,7 +382,6 @@ impl Worker {
         task: Task,
         dependencies: Arc<[ArtifactDependency]>,
         diagnostics: Vec<DiagnosticRecord>,
-        sidecars: Vec<ArtifactSidecar>,
         failure: ArtifactFailure,
     ) -> Result<(), SessionError> {
         state.repository().fail_artifact(
@@ -414,7 +389,6 @@ impl Worker {
             task.key,
             dependencies,
             diagnostics,
-            sidecars,
             failure,
         )?;
 
