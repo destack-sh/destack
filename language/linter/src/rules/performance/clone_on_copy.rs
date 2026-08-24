@@ -99,6 +99,7 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Remove clone from a generic value constrained by Copy.
     #[test]
     fn test_removes_generic_copy_clone() {

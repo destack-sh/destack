@@ -68,8 +68,7 @@ fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
 
             let span = spans.get(index).ok_or_else(|| {
                 ProviderError::internal(format!(
-                    "MIR function {:?} has no span for parameter {index}",
-                    function_id
+                    "MIR function {function_id:?} has no span for parameter {index}"
                 ))
             })?;
 

@@ -105,7 +105,7 @@ impl LintSet {
         &self,
     ) -> impl Iterator<Item = (&Lint, Option<DiagnosticSeverity>, DirModuleCheck)> {
         self.iter().filter_map(|(lint, severity)| match lint.check {
-            LintCheck::DirModule(Some(check)) => Some((lint, severity, check)),
+            LintCheck::DirModule(check) => Some((lint, severity, check)),
             _ => None,
         })
     }
@@ -115,7 +115,7 @@ impl LintSet {
         &self,
     ) -> impl Iterator<Item = (&Lint, Option<DiagnosticSeverity>, DirProgramCheck)> {
         self.iter().filter_map(|(lint, severity)| match lint.check {
-            LintCheck::DirProgram(Some(check)) => Some((lint, severity, check)),
+            LintCheck::DirProgram(check) => Some((lint, severity, check)),
             _ => None,
         })
     }
@@ -125,7 +125,7 @@ impl LintSet {
         &self,
     ) -> impl Iterator<Item = (&Lint, Option<DiagnosticSeverity>, MirModuleCheck)> {
         self.iter().filter_map(|(lint, severity)| match lint.check {
-            LintCheck::MirModule(Some(check)) => Some((lint, severity, check)),
+            LintCheck::MirModule(check) => Some((lint, severity, check)),
             _ => None,
         })
     }
@@ -135,7 +135,7 @@ impl LintSet {
         &self,
     ) -> impl Iterator<Item = (&Lint, Option<DiagnosticSeverity>, MirProgramCheck)> {
         self.iter().filter_map(|(lint, severity)| match lint.check {
-            LintCheck::MirProgram(Some(check)) => Some((lint, severity, check)),
+            LintCheck::MirProgram(check) => Some((lint, severity, check)),
             _ => None,
         })
     }
@@ -154,8 +154,7 @@ impl LintSet {
     pub(crate) fn dir_indexes(&self, scope: LintScope) -> impl Iterator<Item = IndexKind> + '_ {
         IndexKind::ALL.into_iter().filter(move |kind| {
             self.iter().any(|(lint, _)| {
-                lint.is_implemented()
-                    && lint.tier() == LintTier::Dir
+                lint.tier() == LintTier::Dir
                     && lint.scope() == scope
                     && lint.module_indexes.contains(kind)
             })
@@ -187,64 +186,5 @@ impl LintSet {
         self.selected
             .iter()
             .map(|(index, severity)| (&self.registry[*index], *severity))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use destack_repository::LintLevel;
-
-    use super::*;
-    use crate::rules::{FOR_DIRECTION, REDUNDANT_CLONE};
-
-    /// Expose executable lints and omit stubs.
-    #[test]
-    fn test_iterates_executable_lints() {
-        let is_executable_listed = Lint::all().any(|lint| lint.id == FOR_DIRECTION.id);
-        let is_stub_listed = Lint::all().any(|lint| lint.id == REDUNDANT_CLONE.id);
-
-        assert!(is_executable_listed);
-        assert!(!is_stub_listed);
-    }
-
-    /// Reject a stub selected exclusively.
-    #[test]
-    fn test_rejects_selected_stub() {
-        let package = PackageId::new(0);
-        let options = LinterOptions {
-            only: vec!["redundant-clone".to_string()],
-            ..LinterOptions::default()
-        };
-        let registry = Lint::all().cloned().collect::<Vec<_>>().into();
-        let lints = LintSet::resolve(package, &options, registry);
-
-        assert!(lints.iter().next().is_none());
-        assert_eq!(
-            lints.errors(),
-            [LinterError::UnknownConfiguredLint {
-                anchor: DiagnosticAnchor::Package(package),
-                lint: "redundant-clone".to_string(),
-            }]
-        );
-    }
-
-    /// Reject a configured stub.
-    #[test]
-    fn test_rejects_configured_stub() {
-        let package = PackageId::new(0);
-        let mut options = LinterOptions::default();
-        options
-            .rules
-            .insert("redundant-clone".to_string(), LintLevel::Error);
-        let registry = Lint::all().cloned().collect::<Vec<_>>().into();
-        let lints = LintSet::resolve(package, &options, registry);
-
-        assert_eq!(
-            lints.errors(),
-            [LinterError::UnknownConfiguredLint {
-                anchor: DiagnosticAnchor::Package(package),
-                lint: "redundant-clone".to_string(),
-            }]
-        );
     }
 }

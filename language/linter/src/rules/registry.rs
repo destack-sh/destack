@@ -276,8 +276,8 @@ static LINTS: &[&Lint] = &[
 ];
 
 impl Lint {
-    /// Iterate implemented lints.
+    /// Iterate registered lints.
     pub fn all() -> impl Iterator<Item = &'static Self> {
-        LINTS.iter().copied().filter(|lint| lint.is_implemented())
+        LINTS.iter().copied()
     }
 }
