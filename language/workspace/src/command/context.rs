@@ -6,8 +6,8 @@ use std::sync::Arc;
 use destack_artifact::ArtifactKey;
 use destack_repository as repository;
 use destack_repository::{
-    DestackFile, Repository, Revision, RevisionPin, Target, TargetRoot, Trace, TraceSnapshot,
-    TraceView, apply_manifest_overrides_to_json, parse_jsonc_text,
+    DestackFile, Repository, Revision, RevisionPin, Target, TargetRoot, Trace, TraceLevel,
+    TraceSnapshot, TraceView, apply_manifest_overrides_to_json, parse_jsonc_text,
 };
 use destack_session::{ArtifactPriority, Session, SessionEventHandler};
 use destack_source::{
@@ -103,7 +103,11 @@ impl<'a> CommandContext<'a> {
         let session = workspace.session();
 
         // open the trace after command source preparation
-        let trace = session.start_trace(common.trace.is_some());
+        let trace_level = match common.trace {
+            Some(_) => TraceLevel::Timings,
+            None => TraceLevel::Disabled,
+        };
+        let trace = session.start_trace(trace_level);
 
         Ok(Self {
             workspace,

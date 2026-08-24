@@ -6,7 +6,7 @@ use destack_artifact::BuildId;
 use destack_query::{QueryRequest, QueryResponse};
 use destack_repository::{
     DestackLayoutOverride, Edit, Environment, Execution, Host, MemoryBlobStore, Repository,
-    Revision, Settings, Trace, TraceSnapshot, TraceView,
+    Revision, Settings, Trace, TraceLevel, TraceSnapshot, TraceView,
 };
 use destack_session::Executor;
 use destack_source::{FileSystem, MemoryFileSystem};
@@ -170,7 +170,11 @@ impl QueryWorkspace {
                     revision: RevisionPolicy::Exact(revision),
                     request,
                 },
-                self.has_timings,
+                if self.has_timings {
+                    TraceLevel::Timings
+                } else {
+                    TraceLevel::Disabled
+                },
             )
             .map_err(|error| format!("query scheduling failed: {error}"))?;
         let trace = run.trace();
@@ -193,7 +197,7 @@ impl QueryWorkspace {
     /// Begin one fixture operation trace when timings are enabled.
     pub(super) fn begin_trace(&self) -> Option<Arc<Trace>> {
         self.has_timings
-            .then(|| Trace::new(self.repository.host().clock(), 1, true))
+            .then(|| Trace::new(self.repository.host().clock(), 1, TraceLevel::Timings))
     }
 
     /// Finish and snapshot one fixture operation trace.

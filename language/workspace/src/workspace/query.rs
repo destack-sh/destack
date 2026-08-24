@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
 use destack_query::{Module, QueryError, QueryPosition, QueryRange, QueryRequest, QueryResponse};
-use destack_repository::{ProviderError, Revision, Trace};
+use destack_repository::{ProviderError, Revision, Trace, TraceLevel};
 use destack_serde::Reflect;
 use destack_session::{ArtifactPriority, ArtifactRun, ArtifactRunId};
 use destack_source::{File, ProfileId, Span};
@@ -243,7 +243,11 @@ pub enum RevisionPolicy {
 
 impl Workspace {
     /// Schedule one semantic query for this workspace.
-    pub fn start_query(&self, request: RunQueryInput, is_tracing: bool) -> Result<QueryRun, Error> {
+    pub fn start_query(
+        &self,
+        request: RunQueryInput,
+        trace_level: TraceLevel,
+    ) -> Result<QueryRun, Error> {
         // pin the session selected by the revision policy
         let session = match request.revision {
             // select current physical workspace state
@@ -268,7 +272,7 @@ impl Workspace {
             }
         };
 
-        let trace = session.session().start_trace(is_tracing);
+        let trace = session.session().start_trace(trace_level);
 
         // select every program only when the request reads all selected programs
         let selected_profile_ids = trace.span("profiles", || {
@@ -314,6 +318,8 @@ impl Workspace {
 
     /// Run one semantic query for this workspace.
     pub async fn run_query(&self, request: RunQueryInput) -> Result<RunQueryResponse, Error> {
-        self.start_query(request, false)?.wait().await
+        self.start_query(request, TraceLevel::Disabled)?
+            .wait()
+            .await
     }
 }

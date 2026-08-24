@@ -7,7 +7,7 @@ use std::time::Instant;
 use destack_lsp_server::{Client, LanguageServer, LogRecord, LspService, Server, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
-use destack_repository::{Revision, Trace, TraceReport, TraceView};
+use destack_repository::{Revision, Trace, TraceLevel, TraceReport, TraceView};
 use destack_source::{FileId, PatchSet, TextRange};
 use destack_workspace::{
     DiagnosticRun, DiagnosticsRequest, FileDiagnostics, FileEdit, QueryFile, QueryRun,
@@ -157,10 +157,14 @@ impl DestackLanguageServer {
         workspace: &Workspace,
         request: RunQueryInput,
     ) -> jsonrpc::Result<QueryRun> {
-        let is_tracing = self.client.trace_level() == lsp::TraceValue::Verbose;
+        let trace_level = match self.client.trace_level() {
+            lsp::TraceValue::Off => TraceLevel::Disabled,
+            lsp::TraceValue::Messages => TraceLevel::Timings,
+            lsp::TraceValue::Verbose => TraceLevel::Events,
+        };
 
         workspace
-            .start_query(request, is_tracing)
+            .start_query(request, trace_level)
             .map_err(workspace_error)
     }
 
@@ -217,13 +221,14 @@ impl DestackLanguageServer {
         method: query::QueryMethod,
         trace: Arc<Trace>,
     ) -> jsonrpc::Result<()> {
-        if self.client.trace_level() != lsp::TraceValue::Verbose {
+        if !trace.records_timings() {
             return Ok(());
         }
 
-        // snapshot exact artifact labels only for an explicit detailed trace
+        let is_detailed = trace.records_events();
+        let view = TraceView::detailed(is_detailed);
         let snapshot = workspace
-            .snapshot_trace(revision, trace.as_ref(), TraceView::Detailed)
+            .snapshot_trace(revision, trace.as_ref(), view)
             .map_err(internal_error)?;
         let message = LogRecord::new("query.trace")
             .field("method", method.name())
@@ -231,15 +236,16 @@ impl DestackLanguageServer {
             .field("duration_us", snapshot.total_micros)
             .to_string();
 
-        // render the complete artifact report in the explicit verbose field
-        let verbose = Some(
+        // include the complete report only for event traces
+        let verbose = is_detailed.then(|| {
             TraceReport::new()
                 .row(method.name(), snapshot)
                 .timelines()
                 .span_totals()
                 .slow_attempts(TRACE_SLOW_ATTEMPTS)
-                .render(),
-        );
+                .events()
+                .render()
+        });
         self.client
             .log_trace(message, verbose)
             .await
