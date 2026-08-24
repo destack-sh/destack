@@ -7,7 +7,8 @@ use std::time::Instant;
 use destack_lsp_server::{Client, LanguageServer, LogRecord, LspService, Server, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
-use destack_repository::{Revision, Trace, TraceLevel, TraceReport, TraceView};
+use destack_repository::{Clock, Revision, Trace, TraceLevel, TraceReport, TraceView};
+use destack_session::Executor;
 use destack_source::{FileId, PatchSet, TextRange};
 use destack_workspace::{
     DiagnosticRun, DiagnosticsRequest, FileDiagnostics, FileEdit, QueryFile, QueryRun,
@@ -87,6 +88,22 @@ impl DestackLanguageServer {
         Ok(&self.session()?.settings)
     }
 
+    /// Return the toolchain trace level selected by the connected client.
+    fn trace_level(&self) -> TraceLevel {
+        match self.client.trace_level() {
+            lsp::TraceValue::Off => TraceLevel::Disabled,
+            lsp::TraceValue::Messages => TraceLevel::Timings,
+            lsp::TraceValue::Verbose => TraceLevel::Events,
+        }
+    }
+
+    /// Start one trace for an LSP operation.
+    fn start_trace(&self) -> jsonrpc::Result<Arc<Trace>> {
+        let workers = self.session()?.worker_count();
+
+        Ok(Trace::new(Clock::default(), workers, self.trace_level()))
+    }
+
     /// Execute one program query through the workspace.
     async fn query_program(
         &self,
@@ -157,15 +174,86 @@ impl DestackLanguageServer {
         workspace: &Workspace,
         request: RunQueryInput,
     ) -> jsonrpc::Result<QueryRun> {
-        let trace_level = match self.client.trace_level() {
-            lsp::TraceValue::Off => TraceLevel::Disabled,
-            lsp::TraceValue::Messages => TraceLevel::Timings,
-            lsp::TraceValue::Verbose => TraceLevel::Events,
-        };
-
         workspace
-            .start_query(request, trace_level)
+            .start_query(request, self.trace_level())
             .map_err(workspace_error)
+    }
+
+    /// Report one completed workspace trace through standard LSP tracing.
+    async fn report_trace(
+        &self,
+        name: &'static str,
+        record: LogRecord,
+        workspace: &Workspace,
+        revision: Revision,
+        trace: Arc<Trace>,
+    ) -> jsonrpc::Result<()> {
+        if !trace.records_timings() {
+            return Ok(());
+        }
+
+        let is_detailed = trace.records_events();
+        let view = TraceView::detailed(is_detailed);
+        let snapshot = workspace
+            .snapshot_trace(revision, trace.as_ref(), view)
+            .map_err(internal_error)?;
+        let mut record = record
+            .field("revision", revision)
+            .field("duration_us", snapshot.total_micros)
+            .field("attempts", snapshot.stats.attempts())
+            .field("built", snapshot.stats.built)
+            .field("memory_cached", snapshot.stats.memory_cached)
+            .field("store_cached", snapshot.stats.store_cached)
+            .field("parked", snapshot.stats.parked)
+            .field("failed", snapshot.stats.failed);
+
+        // sum repeated operation spans in recorded order
+        let mut span_totals = Vec::<(&str, u64)>::new();
+        for span in &snapshot.spans {
+            if let Some((_name, micros)) = span_totals
+                .iter_mut()
+                .find(|(name, _micros)| *name == span.name)
+            {
+                *micros += span.micros;
+            } else {
+                span_totals.push((&span.name, span.micros));
+            }
+        }
+
+        // append operation span totals
+        for (name, micros) in span_totals {
+            let field = format!("span.{name}_us");
+            record = record.field(&field, micros);
+        }
+
+        // append toolchain stages that performed work
+        for stage in snapshot.stages.iter().filter(|stage| stage.micros > 0) {
+            let field = format!("stage.{}_us", stage.name);
+            record = record.field(&field, stage.micros);
+        }
+
+        // append operation and artifact counters
+        for counter in &snapshot.counters {
+            record = record.field(&counter.name, counter.value);
+        }
+
+        // render the compact record
+        let message = record.to_string();
+
+        // include the complete report only for event traces
+        let verbose = is_detailed.then(|| {
+            TraceReport::new()
+                .row(name, snapshot)
+                .timelines()
+                .span_totals()
+                .slow_attempts(TRACE_SLOW_ATTEMPTS)
+                .events()
+                .render()
+        });
+        self.client
+            .log_trace(message, verbose)
+            .await
+            .map_err(internal_error)
     }
 
     /// Wait for one scheduled query without blocking the async server.
@@ -179,28 +267,18 @@ impl DestackLanguageServer {
         let trace = run.trace();
         let artifact_run_id = run.artifact_run_id();
         let diagnostic_run_id = run.diagnostic_run_id();
-        let mut record = LogRecord::new("query.started")
+
+        // complete the exact query operation
+        let response = run.wait().await;
+        let status = if response.is_ok() { "ok" } else { "error" };
+        let mut record = LogRecord::new("query.finished")
             .field("method", method.name())
-            .field("revision", revision)
-            .field("run_id", artifact_run_id);
+            .field("run_id", artifact_run_id)
+            .field("status", status);
         if let Some(diagnostic_run_id) = diagnostic_run_id {
             record = record.field("diagnostic_run_id", diagnostic_run_id);
         }
-        self.client.log(record);
-
-        // execute and report the exact query operation
-        let started = Instant::now();
-        let response = run.wait().await;
-        let status = if response.is_ok() { "ok" } else { "error" };
-        self.client.log(
-            LogRecord::new("query.finished")
-                .field("method", method.name())
-                .field("revision", revision)
-                .field("run_id", artifact_run_id)
-                .field("status", status)
-                .field("duration_us", started.elapsed().as_micros()),
-        );
-        self.report_query_trace(workspace.as_ref(), revision, method, trace)
+        self.report_trace(method.name(), record, workspace.as_ref(), revision, trace)
             .await?;
         let response = response.map_err(workspace_error)?;
 
@@ -211,45 +289,6 @@ impl DestackLanguageServer {
         }
 
         Ok(response)
-    }
-
-    /// Report one completed query through standard LSP tracing.
-    async fn report_query_trace(
-        &self,
-        workspace: &Workspace,
-        revision: Revision,
-        method: query::QueryMethod,
-        trace: Arc<Trace>,
-    ) -> jsonrpc::Result<()> {
-        if !trace.records_timings() {
-            return Ok(());
-        }
-
-        let is_detailed = trace.records_events();
-        let view = TraceView::detailed(is_detailed);
-        let snapshot = workspace
-            .snapshot_trace(revision, trace.as_ref(), view)
-            .map_err(internal_error)?;
-        let message = LogRecord::new("query.trace")
-            .field("method", method.name())
-            .field("revision", revision)
-            .field("duration_us", snapshot.total_micros)
-            .to_string();
-
-        // include the complete report only for event traces
-        let verbose = is_detailed.then(|| {
-            TraceReport::new()
-                .row(method.name(), snapshot)
-                .timelines()
-                .span_totals()
-                .slow_attempts(TRACE_SLOW_ATTEMPTS)
-                .events()
-                .render()
-        });
-        self.client
-            .log_trace(message, verbose)
-            .await
-            .map_err(internal_error)
     }
 
     /// Load documents from one query revision.
@@ -415,20 +454,28 @@ impl DestackLanguageServer {
         let uri = params.text_document.uri;
         let version = params.text_document.version;
         let content = params.text_document.text;
-        let started = Instant::now();
-        let workspace = self
-            .session()?
-            .open_document(&path, uri, version, content)?;
+        let trace = self.start_trace()?;
+        let workspace = trace.span("document.open", || {
+            self.session()?
+                .open_document(&path, uri, version, content, trace.as_ref())
+        })?;
         let revision = self.session()?.workspace_revision(workspace.as_ref())?;
-        self.client.log(
+        let result = trace.span("diagnostics.schedule", || {
+            self.schedule_diagnostics(workspace.clone())
+        });
+        trace.finish();
+        self.report_trace(
+            "document.open",
             LogRecord::new("document.opened")
                 .field("path", path.display())
-                .field("version", version)
-                .field("revision", revision)
-                .field("duration_us", started.elapsed().as_micros()),
-        );
+                .field("version", version),
+            workspace.as_ref(),
+            revision,
+            trace,
+        )
+        .await?;
 
-        self.schedule_diagnostics(workspace)
+        result
     }
 
     /// Apply one editor document change and schedule diagnostics for its source root.
@@ -454,21 +501,29 @@ impl DestackLanguageServer {
             .into_iter()
             .map(IntoSource::into_source)
             .collect::<Vec<_>>();
-        let started = Instant::now();
-        let workspace = self
-            .session()?
-            .change_document(&path, &uri, version, &changes)?;
+        let trace = self.start_trace()?;
+        let workspace = trace.span("document.change", || {
+            self.session()?
+                .change_document(&path, &uri, version, &changes, trace.as_ref())
+        })?;
         let revision = self.session()?.workspace_revision(workspace.as_ref())?;
-        self.client.log(
+        let result = trace.span("diagnostics.schedule", || {
+            self.schedule_diagnostics(workspace.clone())
+        });
+        trace.finish();
+        self.report_trace(
+            "document.change",
             LogRecord::new("document.changed")
                 .field("path", path.display())
                 .field("version", version)
-                .field("revision", revision)
-                .field("changes", change_count)
-                .field("duration_us", started.elapsed().as_micros()),
-        );
+                .field("changes", change_count),
+            workspace.as_ref(),
+            revision,
+            trace,
+        )
+        .await?;
 
-        self.schedule_diagnostics(workspace)
+        result
     }
 
     /// Save one editor document and schedule diagnostics for its source root.
@@ -479,17 +534,26 @@ impl DestackLanguageServer {
             .to_file_path()
             .map(|path| path.into_owned())
             .ok_or_else(|| jsonrpc::Error::invalid_params("document URI is not a file URI"))?;
-        let started = Instant::now();
-        let workspace = self.session()?.save_document(&path, params.text)?;
+        let trace = self.start_trace()?;
+        let workspace = trace.span("document.save", || {
+            self.session()?
+                .save_document(&path, params.text, trace.as_ref())
+        })?;
         let revision = self.session()?.workspace_revision(workspace.as_ref())?;
-        self.client.log(
-            LogRecord::new("document.saved")
-                .field("path", path.display())
-                .field("revision", revision)
-                .field("duration_us", started.elapsed().as_micros()),
-        );
+        let result = trace.span("diagnostics.schedule", || {
+            self.schedule_diagnostics(workspace.clone())
+        });
+        trace.finish();
+        self.report_trace(
+            "document.save",
+            LogRecord::new("document.saved").field("path", path.display()),
+            workspace.as_ref(),
+            revision,
+            trace,
+        )
+        .await?;
 
-        self.schedule_diagnostics(workspace)
+        result
     }
 
     /// Close one editor document and release its project ownership.
@@ -677,9 +741,14 @@ impl LanguageServer for DestackLanguageServer {
 
         // build the complete initialized session
         let started = Instant::now();
-        let session = match ServerSession::open(&params, self.client.clone()) {
+        let workers = Executor::default_worker_count();
+        let trace = Trace::new(Clock::default(), workers, self.trace_level());
+        let session = match trace.span("server.initialize", || {
+            ServerSession::open(&params, trace.as_ref())
+        }) {
             Ok(session) => session,
             Err(error) => {
+                trace.finish();
                 self.client.log(
                     LogRecord::new("server.initialize.finished")
                         .field("status", "error")
@@ -694,6 +763,7 @@ impl LanguageServer for DestackLanguageServer {
         let supports_code_lenses = session.client_capabilities.supports_code_lenses();
         let supports_pull_diagnostics = session.client_capabilities.supports_pull_diagnostics;
         if self.session.set(session).is_err() {
+            trace.finish();
             let error = internal_error("language server initialized more than once");
             self.client.log(
                 LogRecord::new("server.initialize.finished")
@@ -703,6 +773,7 @@ impl LanguageServer for DestackLanguageServer {
 
             return Err(error);
         }
+        trace.finish();
         self.client.log(
             LogRecord::new("server.initialize.finished")
                 .field("status", "ok")
@@ -710,6 +781,21 @@ impl LanguageServer for DestackLanguageServer {
                 .field("workers", workers)
                 .field("duration_us", started.elapsed().as_micros()),
         );
+
+        // report the complete initialization trace through one opened workspace
+        if let Some(workspace) = self.session()?.workspaces().into_iter().next() {
+            let revision = self.session()?.workspace_revision(workspace.as_ref())?;
+            self.report_trace(
+                "server.initialize",
+                LogRecord::new("server.initialize.trace")
+                    .field("projects", projects)
+                    .field("workers", workers),
+                workspace.as_ref(),
+                revision,
+                trace,
+            )
+            .await?;
+        }
 
         // build file operation filters for root notifications
         let file_operation_filters = Self::file_operation_filters();

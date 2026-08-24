@@ -6,7 +6,7 @@ use destack_artifact::BuildId;
 use destack_lsp_server::jsonrpc;
 use destack_lsp_types as lsp;
 use destack_repository::{
-    Commit, DestackLayoutOverride, Environment, Host, Repository, Revision, Settings,
+    Commit, DestackLayoutOverride, Environment, Host, Repository, Revision, Settings, Trace,
 };
 use destack_session::Executor;
 use destack_source::{Edit, File, FileId, FileSystem, TextChange, Uri, apply_text_changes};
@@ -103,6 +103,7 @@ impl Project {
         uri: lsp::Uri,
         version: i32,
         text: String,
+        trace: &Trace,
     ) -> jsonrpc::Result<()> {
         if self.is_open(&path) {
             return Err(jsonrpc::Error::invalid_params(format!(
@@ -112,7 +113,7 @@ impl Project {
         }
 
         // commit exact editor text before retaining its client identity
-        self.edit(path.clone(), text)?;
+        trace.span("document.publish", || self.edit(path.clone(), text, trace))?;
         let document = lsp::VersionedTextDocumentIdentifier { uri, version };
         let replaced = self.documents.insert(path.clone(), document);
         if replaced.is_some() {
@@ -132,6 +133,7 @@ impl Project {
         uri: &lsp::Uri,
         version: i32,
         changes: &[TextChange],
+        trace: &Trace,
     ) -> jsonrpc::Result<()> {
         let document = self.versioned_document(path)?;
 
@@ -147,10 +149,13 @@ impl Project {
         }
 
         // apply ordered changes against the exact editor branch text
-        let text = self.text(path)?;
-        let text = apply_text_changes(text, changes)
+        let text = trace.span("document.read", || self.text(path))?;
+        let text = trace
+            .span("document.apply", || apply_text_changes(text, changes))
             .map_err(|error| jsonrpc::Error::invalid_params(error.to_string()))?;
-        self.edit(path.to_path_buf(), text)?;
+        trace.span("document.publish", || {
+            self.edit(path.to_path_buf(), text, trace)
+        })?;
 
         // advance the client version only after committing semantic state
         let document = self.documents.get_mut(path).ok_or_else(|| {
@@ -169,12 +174,15 @@ impl Project {
         &mut self,
         path: &Path,
         text: Option<String>,
+        trace: &Trace,
     ) -> jsonrpc::Result<()> {
         self.versioned_document(path)?;
 
         // accept clients that include complete text with the save notification
         if let Some(text) = text {
-            self.edit(path.to_path_buf(), text)?;
+            trace.span("document.publish", || {
+                self.edit(path.to_path_buf(), text, trace)
+            })?;
         }
 
         // persist only this document from the private editor branch
@@ -281,10 +289,15 @@ impl Project {
     }
 
     /// Replace one editor file at the current private revision.
-    fn edit(&self, path: PathBuf, text: String) -> jsonrpc::Result<()> {
+    fn edit(&self, path: PathBuf, text: String, trace: &Trace) -> jsonrpc::Result<()> {
         let revision = self.revision()?;
         self.workspace
-            .edit_branch(LSP_BRANCH, revision, vec![Edit::SetText { path, text }])
+            .edit_branch(
+                LSP_BRANCH,
+                revision,
+                vec![Edit::SetText { path, text }],
+                trace,
+            )
             .map_err(workspace_error)?;
 
         Ok(())

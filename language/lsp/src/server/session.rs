@@ -4,11 +4,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_lsp_server::{Client, LogRecord, UriExt, jsonrpc};
+use destack_lsp_server::{Client, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
-use destack_repository::{Execution, Revision, SourceRoot};
-use destack_session::{ArtifactRunEvent, ArtifactRunEventHandler, Executor};
+use destack_repository::{Execution, Revision, SourceRoot, Trace};
+use destack_session::Executor;
 use destack_source::{File, FileSystem, PhysicalFileSystem, TextChange, Uri};
 use destack_workspace::Workspace;
 use parking_lot::RwLock;
@@ -18,8 +18,6 @@ use serde_json::from_value;
 use super::{Project, ProjectSet, internal_error};
 use crate::query::DiagnosticDelivery;
 
-/// Maximum artifact keys rendered in one run log record.
-const ARTIFACT_LOG_LIMIT: usize = 12;
 /// URI scheme served by the Destack virtual document provider.
 pub(super) const DESTACK_URI_SCHEME: &str = "destack";
 
@@ -42,19 +40,23 @@ pub(super) struct ServerSession {
 
 impl ServerSession {
     /// Open one initialized language server session.
-    pub(super) fn open(params: &lsp::InitializeParams, client: Client) -> jsonrpc::Result<Self> {
-        let mut folders = Self::editor_folders(params)?;
-        if folders.is_empty() {
-            folders.push(Self::initial_path(params)?);
-        }
+    pub(super) fn open(params: &lsp::InitializeParams, trace: &Trace) -> jsonrpc::Result<Self> {
+        let folders = trace.span("folders.resolve", || {
+            let mut folders = Self::editor_folders(params)?;
+            if folders.is_empty() {
+                folders.push(Self::initial_path(params)?);
+            }
 
-        let file_system = Arc::new(PhysicalFileSystem::new());
-        let executor = Executor::new(Execution::Threaded, Executor::default_worker_count())
-            .map_err(internal_error)?;
-        let artifact_logger = ArtifactLogger { client };
-        executor
-            .set_run_event_handler(artifact_logger.into_handler())
-            .map_err(internal_error)?;
+            Ok::<_, jsonrpc::Error>(folders)
+        })?;
+
+        let (file_system, executor) = trace.span("executor.open", || {
+            let file_system = Arc::new(PhysicalFileSystem::new());
+            let executor = Executor::new(Execution::Threaded, Executor::default_worker_count())
+                .map_err(internal_error)?;
+
+            Ok::<_, jsonrpc::Error>((file_system, executor))
+        })?;
         let client_capabilities = ClientCapabilities::try_from(params)?;
         let diagnostics = if client_capabilities.supports_pull_diagnostics {
             DiagnosticDelivery::pull(client_capabilities.supports_diagnostic_refresh)
@@ -73,7 +75,7 @@ impl ServerSession {
 
         // register editor folders and open their declared source roots
         for folder in folders {
-            session.open_editor_folder(&folder)?;
+            trace.span("project.open", || session.open_editor_folder(&folder))?;
         }
 
         Ok(session)
@@ -109,6 +111,7 @@ impl ServerSession {
         uri: lsp::Uri,
         version: i32,
         text: String,
+        trace: &Trace,
     ) -> jsonrpc::Result<Arc<Workspace>> {
         let path = Self::normalize(path)?;
         if self.projects.read().select(&path).is_none() {
@@ -127,7 +130,7 @@ impl ServerSession {
         let project = projects.select_mut(&path).ok_or_else(|| {
             jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
         })?;
-        project.open_document(path, uri, version, text)?;
+        project.open_document(path, uri, version, text, trace)?;
         let workspace = project.workspace();
 
         Ok(workspace)
@@ -140,13 +143,14 @@ impl ServerSession {
         uri: &lsp::Uri,
         version: i32,
         changes: &[TextChange],
+        trace: &Trace,
     ) -> jsonrpc::Result<Arc<Workspace>> {
         let path = Self::normalize(path)?;
         let mut projects = self.projects.write();
         let project = projects.select_mut(&path).ok_or_else(|| {
             jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
         })?;
-        project.change_document(&path, uri, version, changes)?;
+        project.change_document(&path, uri, version, changes, trace)?;
 
         Ok(project.workspace())
     }
@@ -156,13 +160,14 @@ impl ServerSession {
         &self,
         path: &Path,
         text: Option<String>,
+        trace: &Trace,
     ) -> jsonrpc::Result<Arc<Workspace>> {
         let path = Self::normalize(path)?;
         let mut projects = self.projects.write();
         let project = projects.select_mut(&path).ok_or_else(|| {
             jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
         })?;
-        project.save_document(&path, text)?;
+        project.save_document(&path, text, trace)?;
 
         Ok(project.workspace())
     }
@@ -409,76 +414,6 @@ impl ServerSession {
         }
 
         Self::canonicalize(path)
-    }
-}
-
-/// Structured LSP output for artifact executor runs.
-struct ArtifactLogger {
-    /// Client receiving artifact records.
-    client: Client,
-}
-
-impl ArtifactLogger {
-    /// Convert this logger into an executor event handler.
-    fn into_handler(self) -> ArtifactRunEventHandler {
-        Arc::new(move |event| self.write(event))
-    }
-
-    /// Write one artifact event.
-    fn write(&self, event: ArtifactRunEvent) {
-        let record = match event {
-            ArtifactRunEvent::Started {
-                run_id,
-                revision,
-                priority,
-                artifact_keys,
-            } => {
-                let shown = artifact_keys.len().min(ARTIFACT_LOG_LIMIT);
-                let omitted = artifact_keys.len() - shown;
-
-                LogRecord::new("artifact.run.started")
-                    .field("run_id", run_id)
-                    .field("revision", revision)
-                    .field("priority", priority)
-                    .field("roots", artifact_keys.len())
-                    .field("artifacts", format!("{:?}", &artifact_keys[..shown]))
-                    .field("omitted", omitted)
-            }
-            ArtifactRunEvent::Required {
-                run_id,
-                artifact_keys,
-            } => {
-                let shown = artifact_keys.len().min(ARTIFACT_LOG_LIMIT);
-                let omitted = artifact_keys.len() - shown;
-
-                LogRecord::new("artifact.run.required")
-                    .field("run_id", run_id)
-                    .field("roots", artifact_keys.len())
-                    .field("artifacts", format!("{:?}", &artifact_keys[..shown]))
-                    .field("omitted", omitted)
-            }
-            ArtifactRunEvent::Finished {
-                run_id,
-                is_cancelled,
-                is_aborted,
-                elapsed,
-            } => {
-                let status = if is_cancelled {
-                    "cancelled"
-                } else if is_aborted {
-                    "error"
-                } else {
-                    "ok"
-                };
-
-                LogRecord::new("artifact.run.finished")
-                    .field("run_id", run_id)
-                    .field("status", status)
-                    .field("duration_us", elapsed.as_micros())
-            }
-        };
-
-        self.client.log(record);
     }
 }
 

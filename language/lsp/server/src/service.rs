@@ -105,6 +105,19 @@ impl TraceRecord {
         )
     }
 
+    /// Render one completed incoming notification.
+    fn notification_finished(method: &str, duration: Duration) -> Self {
+        let message = LogRecord::new("lsp.notification.finished")
+            .field("method", method)
+            .field("duration_us", duration.as_micros())
+            .to_string();
+
+        Self {
+            message,
+            verbose: None,
+        }
+    }
+
     /// Return the compact record fields.
     pub(super) fn message(&self) -> &str {
         &self.message
@@ -299,6 +312,12 @@ impl<S: LanguageServer> Service<Request> for LspService<S> {
                         client.log_trace_record(response_trace).await?;
                     }
                 }
+            }
+            // report traced notification completion
+            else if trace != TraceValue::Off {
+                let notification_trace =
+                    TraceRecord::notification_finished(&method, started.elapsed());
+                client.log_trace_record(notification_trace).await?;
             }
 
             Ok(response)

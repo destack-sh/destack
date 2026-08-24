@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+use std::env;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::path::Path;
@@ -29,6 +31,8 @@ pub(super) const MANIFEST: &str = r#"{
 
 /// Maximum time to wait for one server initiated message.
 const CLIENT_MESSAGE_TIMEOUT: Duration = Duration::from_secs(15);
+/// Environment variable enabling timing output.
+const TIMINGS_ENV: &str = "DESTACK_TIMINGS";
 
 /// Package configuration used by LSP integration tests.
 const DESTACK_JSON: &str = r#"{
@@ -50,6 +54,8 @@ pub(super) struct TestServer {
     service: LspService<DestackLanguageServer>,
     /// Server initiated messages and client responses.
     socket: ClientSocket,
+    /// Non-trace messages retained while draining timing output.
+    messages: VecDeque<jsonrpc::Request>,
     /// Next client request identity.
     next_request_id: i64,
 }
@@ -106,6 +112,7 @@ impl TestServer {
             file_system,
             service,
             socket,
+            messages: VecDeque::new(),
             next_request_id: 1,
         }
     }
@@ -119,6 +126,7 @@ impl TestServer {
             file_system,
             service,
             socket,
+            messages: VecDeque::new(),
             next_request_id: 1,
         }
     }
@@ -161,6 +169,7 @@ impl TestServer {
             capabilities,
             initialization_options,
             root_uri: Some(uri(root)),
+            trace: Self::trace_value(),
             ..lsp::InitializeParams::default()
         };
 
@@ -281,7 +290,10 @@ impl TestServer {
     where
         R: lsp::request::Request,
     {
-        self.start_request::<R>(params).await.wait().await
+        let result = self.start_request::<R>(params).await.wait().await;
+        self.drain_output();
+
+        result
     }
 
     /// Return completion items for one document position.
@@ -370,6 +382,7 @@ impl TestServer {
         N: lsp::notification::Notification,
     {
         self.start_notification::<N>(params).await.wait().await;
+        self.drain_output();
     }
 
     /// Start one typed client notification without waiting for its handler.
@@ -434,10 +447,14 @@ impl TestServer {
 
     /// Require the server to have sent no further protocol message.
     pub(super) fn assert_no_message(&mut self) {
+        if let Some(message) = self.messages.pop_front() {
+            panic!("unexpected server message: {message:?}");
+        }
+
         loop {
             match self.socket.next().now_or_never() {
                 None => return,
-                Some(Some(message)) if Self::is_log_record(&message) => {}
+                Some(Some(message)) if self.consume_output(&message) => {}
                 Some(Some(message)) => panic!("unexpected server message: {message:?}"),
                 Some(None) => panic!("client socket closed"),
             }
@@ -490,14 +507,61 @@ impl TestServer {
     /// Receive one server initiated protocol message.
     async fn receive(&mut self) -> jsonrpc::Request {
         loop {
+            if let Some(message) = self.messages.pop_front() {
+                return message;
+            }
+
             let message = tokio::time::timeout(CLIENT_MESSAGE_TIMEOUT, self.socket.next())
                 .await
                 .unwrap()
                 .unwrap();
-            if !Self::is_log_record(&message) {
+            if !self.consume_output(&message) {
                 return message;
             }
         }
+    }
+
+    /// Drain completed trace output without consuming protocol messages.
+    fn drain_output(&mut self) {
+        loop {
+            let Some(message) = self.socket.next().now_or_never().flatten() else {
+                return;
+            };
+            if !self.consume_output(&message) {
+                self.messages.push_back(message);
+            }
+        }
+    }
+
+    /// Consume one server log or trace record.
+    fn consume_output(&self, message: &jsonrpc::Request) -> bool {
+        if Self::is_log_record(message) {
+            return true;
+        }
+        if message.method() != lsp::notification::LogTrace::METHOD {
+            return false;
+        }
+
+        let params = message
+            .params()
+            .cloned()
+            .unwrap_or_else(|| panic!("{} omitted its parameters", message.method()));
+        let params = from_value::<lsp::LogTraceParams>(params).unwrap();
+        if params.message.starts_with("event=") && !params.message.starts_with("event=lsp.") {
+            println!("\n{}", params.message);
+            if let Some(report) = params.verbose {
+                println!("{report}");
+            }
+        }
+
+        true
+    }
+
+    /// Return the fixture trace level selected by the process environment.
+    fn trace_value() -> Option<lsp::TraceValue> {
+        env::var_os(TIMINGS_ENV)
+            .is_some_and(|value| !value.is_empty() && value != "0")
+            .then_some(lsp::TraceValue::Messages)
     }
 
     /// Return whether one message is a structured informational log record.
