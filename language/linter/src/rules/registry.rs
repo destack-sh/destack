@@ -16,7 +16,7 @@ static LINTS: &[&Lint] = &[
     &correctness::NO_FLOAT_LOOP_COUNTER,
     &correctness::NO_FLOATING_POINT_EQUALITY,
     &correctness::NO_INTEGER_DIVISION_IN_FLOAT_CONTEXT,
-    &correctness::NO_INVERTED_CLAMP,
+    &correctness::NO_INVALID_CLAMP,
     &correctness::NO_NEGATED_FLOAT_COMPARISON,
     &correctness::NO_OVERFLOW_CHECK_AFTER_OVERFLOW,
     &correctness::NO_REVERSED_RANGE,

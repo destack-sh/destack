@@ -1,18 +1,16 @@
-use std::cmp::Ordering;
-
 use destack_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Disallow clamp calls with inverted constant bounds.
-    pub NO_INVERTED_CLAMP {
-        id: "no-inverted-clamp",
-        summary: "Disallow clamp calls with inverted constant bounds",
+    /// Disallow clamp calls with invalid constant bounds.
+    pub NO_INVALID_CLAMP {
+        id: "no-invalid-clamp",
+        summary: "Disallow clamp calls with invalid constant bounds",
         explanation: r#"
-A clamp whose constant lower bound exceeds its upper bound has no valid interval.
-Instead, you MUST pass the lower bound before the upper bound.
+A clamp traps when its lower bound exceeds its upper bound or either bound is NaN.
+Instead, you MUST pass ordered bounds that are not NaN.
 "#,
         example: {
             reported: r#"
@@ -33,7 +31,7 @@ function bounded(value: int32): int32 {
     }
 }
 
-/// Report canonical scalar clamp calls with reversed exact bounds.
+/// Report canonical scalar clamp calls with invalid exact bounds.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
@@ -41,16 +39,16 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     // inspect canonical scalar clamp calls
     for expression in module.call_expressions() {
         let expression = expression?;
+        let Some(call) = module.member_call(expression) else {
+            continue;
+        };
         let member = module.language_member(expression)?;
         let is_clamp = member == Some(dir::LanguageItem::Integer.member("clamp"))
             || member == Some(dir::LanguageItem::Float.member("clamp"));
         if !is_clamp {
             continue;
         }
-        let dir::Expression::Call { arguments, .. } = view.get(expression) else {
-            continue;
-        };
-        let [minimum, maximum] = arguments.as_slice() else {
+        let [minimum, maximum] = call.arguments else {
             continue;
         };
         let (
@@ -61,33 +59,29 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
 
-        // compare exact bounds from one numeric domain
-        let Some(minimum) = module.scalar_constant(*minimum)? else {
-            continue;
+        // reject exact NaN bounds before ordering the remaining constants
+        let message = if module.is_nan(*minimum)? || module.is_nan(*maximum)? {
+            "clamp bound is NaN"
+        } else {
+            let Some(minimum) = module.scalar_constant(*minimum)? else {
+                continue;
+            };
+            let Some(maximum) = module.scalar_constant(*maximum)? else {
+                continue;
+            };
+            if minimum.ordering(&maximum) != Some(std::cmp::Ordering::Greater) {
+                continue;
+            }
+
+            "clamp lower bound exceeds its upper bound"
         };
-        let Some(maximum) = module.scalar_constant(*maximum)? else {
-            continue;
-        };
-        if numeric_ordering(minimum, maximum) != Some(Ordering::Greater) {
-            continue;
-        }
 
         // report the complete invalid call
         let span = module.source_extent(expression.into_any())?;
-        output.report(lint.diagnostic("clamp lower bound exceeds its upper bound", span));
+        output.report(lint.diagnostic(message, span));
     }
 
     Ok(output)
-}
-
-/// Compare exact constants from one numeric domain.
-fn numeric_ordering(left: dir::Literal, right: dir::Literal) -> Option<Ordering> {
-    match (left, right) {
-        (dir::Literal::Integer(left), dir::Literal::Integer(right))
-        | (dir::Literal::Bigint(left), dir::Literal::Bigint(right)) => Some(left.cmp(&right)),
-        (dir::Literal::Float(left), dir::Literal::Float(right)) => left.partial_cmp(&right),
-        _ => None,
-    }
 }
 
 #[cfg(test)]
@@ -99,7 +93,7 @@ mod tests {
     #[test]
     fn test_reports_inverted_float_bounds() {
         let session = TestSession::dir(
-            &NO_INVERTED_CLAMP,
+            &NO_INVALID_CLAMP,
             r#"
 function bounded(value: float64): float64 {
     return value.clamp(1.0, -1.0);
@@ -109,7 +103,7 @@ function bounded(value: float64): float64 {
 
         session.assert_diagnostics(
             r#"
-warning[no-inverted-clamp]: clamp lower bound exceeds its upper bound
+warning[no-invalid-clamp]: clamp lower bound exceeds its upper bound
  ──▶ main.ds:2:12
   │
 1 │ function bounded(value: float64): float64 {
@@ -121,11 +115,52 @@ warning[no-inverted-clamp]: clamp lower bound exceeds its upper bound
         );
     }
 
+    /// Report canonical and computed NaN bounds.
+    #[test]
+    fn test_reports_nan_bounds() {
+        let session = TestSession::dir(
+            &NO_INVALID_CLAMP,
+            r#"
+function lower(value: float64): float64 {
+    return value.clamp(Number.NaN, 1.0);
+}
+
+function upper(value: float64): float64 {
+    return value.clamp(-1.0, 0.0 / 0.0);
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-invalid-clamp]: clamp bound is NaN
+ ──▶ main.ds:2:12
+  │
+1 │ function lower(value: float64): float64 {
+2 │     return value.clamp(Number.NaN, 1.0);
+  │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3 │ }
+4 │
+  │
+
+warning[no-invalid-clamp]: clamp bound is NaN
+ ──▶ main.ds:6:12
+  │
+4 │
+5 │ function upper(value: float64): float64 {
+6 │     return value.clamp(-1.0, 0.0 / 0.0);
+  │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+7 │ }
+  │
+"#,
+        );
+    }
+
     /// Accept a user-defined method with the same name.
     #[test]
     fn test_accepts_user_clamp() {
         let session = TestSession::dir(
-            &NO_INVERTED_CLAMP,
+            &NO_INVALID_CLAMP,
             r#"
 class Bounds {
     clamp(minimum: int32, maximum: int32): int32 {
