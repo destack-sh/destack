@@ -1277,9 +1277,9 @@ impl<'a> MemoryAccessCollector<'a> {
                 )
             }
             mir::MemoryTarget::Local(local) => MemoryRegion::Local(local),
-            mir::MemoryTarget::Global(global) => {
-                MemoryRegion::any_spaces(self.tree.get(global).storage.storage_set())
-            }
+            mir::MemoryTarget::Global(global) => MemoryRegion::any_spaces(
+                mir::Storage::global(self.tree.get(global).space).storage_set(),
+            ),
         };
 
         // map the access operation to an effect
@@ -1342,7 +1342,9 @@ impl<'a> MemoryAccessCollector<'a> {
     fn entry_storage_set(&self, access: &mir::MemoryAccess) -> mir::StorageSet {
         match access.target {
             mir::MemoryTarget::Local(_) => mir::StorageSet::FRAME,
-            mir::MemoryTarget::Global(global) => self.tree.get(global).storage.storage_set(),
+            mir::MemoryTarget::Global(global) => {
+                mir::Storage::global(self.tree.get(global).space).storage_set()
+            }
             mir::MemoryTarget::Address(pointer) => self.address_storage_set(pointer),
         }
     }

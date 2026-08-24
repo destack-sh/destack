@@ -25,17 +25,6 @@ impl ModuleBuilder {
         self.tree.insert(Global::constant(name_id, ty, init))
     }
 
-    /// Create an immortal pre-built object with reference identity.
-    pub fn immortal(
-        &mut self,
-        name: &str,
-        ty: LocalNodeId<Type>,
-        init: GlobalInitializer,
-    ) -> LocalNodeId<Global> {
-        let name_id = self.strings.intern(name);
-        self.tree.insert(Global::immortal(name_id, ty, init))
-    }
-
     /// Create a global with explicit mutability.
     pub fn global(
         &mut self,

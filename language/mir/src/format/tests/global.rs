@@ -5,7 +5,7 @@ use super::assert_format;
 fn test_format_global_variable() {
     assert_format(
         r#"
-global counter: int32 = zeroInit
+global counter: int32 = zeroinit
 
 function increment(): void {
 entry:
@@ -59,9 +59,24 @@ entry:
 fn test_format_shared_global() {
     assert_format(
         r#"
-shared global counter: int32 = zeroInit
-
+shared global counter: int32 = zeroinit
 readonly shared global limit: int32 = 42
+"#,
+    );
+}
+
+/// Formats value-form literal constants canonically.
+#[test]
+fn test_format_literal_value_constants() {
+    assert_format(
+        r#"
+@languageItem("string.String")
+type String {
+    codeUnits: slice<uint16, managed, mutable>;
+}
+
+constant bigint.0: int64 = 100n
+constant string.0: String = "vector \"quoted\""
 "#,
     );
 }

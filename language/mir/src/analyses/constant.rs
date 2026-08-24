@@ -617,7 +617,7 @@ entry:
     fn test_non_scalar_global_not_constant() {
         let test = TestProgram::new(
             r#"
-readonly global flag: boolean = zeroInit
+readonly global flag: boolean = zeroinit
 
 function test(): boolean {
 entry:

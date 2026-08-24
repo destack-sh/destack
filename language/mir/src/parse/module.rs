@@ -3,8 +3,8 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
     Attribute, AttributeArgs, AttributeIdentifier, Copy, Function, Global, GlobalInitializer,
-    GlobalStorage, Linkage, LocalNodeId, Mutability, Symbol, Type, TypeDeclaration,
-    TypeDeclarationSpans, TypeHeritage, TypeId,
+    Linkage, LocalNodeId, Mutability, Space, Symbol, Type, TypeDeclaration, TypeDeclarationSpans,
+    TypeHeritage, TypeId,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -51,7 +51,6 @@ impl Parser {
             Mutability::Mutable
         };
         let is_shared = self.eat_token_if(TokenType::Shared);
-        let is_immortal = self.eat_name_if("immortal");
 
         // item grammar
         if self.peek_is(TokenType::Type) {
@@ -80,35 +79,26 @@ impl Parser {
                 return Err(ParseError::new("constants cannot be shared", self.pos()));
             }
 
-            // immortal constants carry reference identity in immortal storage
-            let storage = if is_immortal {
-                GlobalStorage::Immortal
-            } else {
-                GlobalStorage::Constant
-            };
             self.parse_global(
                 item_start,
                 linkage,
                 Mutability::Immutable,
-                storage,
+                Space::Constant,
                 TokenType::Constant,
                 attributes,
                 attribute_spans,
             )?;
         } else if self.peek_is(TokenType::Global) {
-            if is_immortal {
-                return Err(ParseError::new("globals cannot be immortal", self.pos()));
-            }
-            let storage = if is_shared {
-                GlobalStorage::Shared
+            let space = if is_shared {
+                Space::Shared
             } else {
-                GlobalStorage::Local
+                Space::Local
             };
             self.parse_global(
                 item_start,
                 linkage,
                 mutability,
-                storage,
+                space,
                 TokenType::Global,
                 attributes,
                 attribute_spans,
@@ -116,9 +106,6 @@ impl Parser {
         } else if self.peek_is(TokenType::Function) {
             if is_shared {
                 return Err(ParseError::new("functions cannot be shared", self.pos()));
-            }
-            if is_immortal {
-                return Err(ParseError::new("functions cannot be immortal", self.pos()));
             }
             if mutability == Mutability::Immutable {
                 return Err(ParseError::new("functions cannot be readonly", self.pos()));
@@ -570,7 +557,7 @@ impl Parser {
         item_start: usize,
         linkage: Linkage,
         mutability: Mutability,
-        storage: GlobalStorage,
+        space: Space,
         keyword: TokenType,
         attributes: Vec<Attribute>,
         attribute_spans: Vec<Span>,
@@ -604,7 +591,7 @@ impl Parser {
             symbol: Symbol::named(name_id),
             ty,
             mutability,
-            storage,
+            space,
             linkage,
             initializer,
         };
@@ -640,7 +627,7 @@ impl Parser {
 
         match self.token_type(token) {
             // zero initializer
-            TokenType::Identifier if self.tree.source_text(token.span) == "zeroInit" => {
+            TokenType::Identifier if self.tree.source_text(token.span) == "zeroinit" => {
                 self.bump();
                 Ok(GlobalInitializer::Zero)
             }
@@ -660,7 +647,7 @@ impl Parser {
                 })?;
                 Ok(GlobalInitializer::Bytes(value.into_bytes()))
             }
-            // string literal
+            // string literal: a value form for nominal carriers, raw bytes otherwise
             TokenType::String => {
                 let token_text = self.tree.source_text(token.span).to_string();
                 let token_start = token.start();
@@ -668,7 +655,37 @@ impl Parser {
                 let value = self.parse_string_literal(&token_text).ok_or_else(|| {
                     ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
                 })?;
+                let is_nominal = expected_type
+                    .is_some_and(|ty| matches!(self.tree.get(ty), Type::Struct { .. }));
+                if is_nominal {
+                    let value = self.strings.intern(&value);
+
+                    return Ok(GlobalInitializer::String(value));
+                }
+
                 Ok(GlobalInitializer::Bytes(value.into_bytes()))
+            }
+            // bigint literal like 100n or -100n
+            TokenType::Integer
+                if self
+                    .tree
+                    .source_text(token.span)
+                    .strip_suffix('n')
+                    .is_some_and(|digits| {
+                        let digits = digits.strip_prefix('-').unwrap_or(digits);
+
+                        !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit())
+                    }) =>
+            {
+                let token_text = self.tree.source_text(token.span).to_string();
+                let token_start = token.start();
+                self.bump();
+                let digits = token_text.strip_suffix('n').unwrap_or(&token_text);
+                let value = digits.parse::<i64>().map_err(|_| {
+                    ParseError::invalid(&format!("bigint literal '{token_text}'"), token_start)
+                })?;
+
+                Ok(GlobalInitializer::BigInt(value))
             }
             // scalar constant
             TokenType::Identifier

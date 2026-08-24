@@ -45,15 +45,20 @@ impl<'a> Format<'a, Formatter<'a>> for Tree {
             let next_boundary = items.get(index + 1).and_then(|(start, _)| *start);
             let has_previous = index > 0;
 
+            // consecutive globals group into one tight block
+            let grouped = has_previous
+                && matches!(item, Item::Global(_))
+                && matches!(items[index - 1].1, Item::Global(_));
+
             match item {
                 Item::Type(id) => {
-                    write_item(self, *id, next_boundary, has_previous, writer)?;
+                    write_item(self, *id, next_boundary, has_previous, false, writer)?;
                 }
                 Item::Global(id) => {
-                    write_item(self, *id, next_boundary, has_previous, writer)?;
+                    write_item(self, *id, next_boundary, has_previous, grouped, writer)?;
                 }
                 Item::Function(id) => {
-                    write_item(self, *id, next_boundary, has_previous, writer)?;
+                    write_item(self, *id, next_boundary, has_previous, false, writer)?;
                 }
             }
         }
@@ -108,14 +113,18 @@ fn write_item<'a, T>(
     id: LocalNodeId<T>,
     next_boundary: Option<u32>,
     has_previous: bool,
+    grouped: bool,
     writer: &mut Writer<'a, '_>,
 ) -> FormatResult<()>
 where
     T: FormatNode,
     Tree: TreeImpl<T>,
 {
-    // separate declarations with one empty line
-    if has_previous {
+    // separate declarations with one empty line, grouped items with a plain break
+    if grouped {
+        write!(writer, [hard_line_break()])?;
+        write_node_leading_comments_after_separator(tree, id, writer)?;
+    } else if has_previous {
         write!(writer, [empty_line()])?;
         write_node_leading_comments_after_separator(tree, id, writer)?;
     } else {

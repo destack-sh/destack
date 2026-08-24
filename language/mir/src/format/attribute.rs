@@ -185,7 +185,7 @@ pub(crate) fn write_attribute_value<'a>(
 }
 
 /// Format a string literal for attributes.
-fn format_string_literal<'a>(value: &str, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+pub(super) fn format_string_literal<'a>(value: &str, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     // emit escaped string literal contents
     write!(f, [token("\"")])?;
     for ch in value.chars() {

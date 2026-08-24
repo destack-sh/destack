@@ -13,9 +13,9 @@ use crate::{
     Access, Attribute, Block, BorrowedPath, CommentSpan, ExtentSlice, Field, FieldSpan, FlagSlice,
     FloatType, Function, FunctionHeaderSpans, Global, IndexSlice, Instruction, Lifetime,
     LifetimeParameter, LifetimeTerm, Local, LocalNodeId, Node, NodeIndexEntry, NodeType,
-    Nullability, Origin, OriginTable, Path, Projection, ReferenceKind, Space, Static, StaticId,
-    Storage, SwitchCase, SwitchCaseSlice, Terminator, Type, TypeDeclaration, TypeDeclarationSpans,
-    TypeId, TypedValueSpan, Value, ValueSlice,
+    Nullability, Origin, OriginTable, Path, Projection, ReferenceKind, Static, StaticId, Storage,
+    SwitchCase, SwitchCaseSlice, Terminator, Type, TypeDeclaration, TypeDeclarationSpans, TypeId,
+    TypedValueSpan, Value, ValueSlice,
 };
 
 /// MIR tree for a single unit.
@@ -828,7 +828,7 @@ impl Tree {
                 ty,
                 Type::Reference {
                     kind: ReferenceKind::Managed,
-                    storage: Storage::Heap(Space::Local),
+                    storage: Storage::LocalHeap,
                     access: Access::Mutable,
                     pointee,
                     nullability: Nullability::Null,
@@ -857,7 +857,7 @@ impl Tree {
                 ty,
                 Type::Reference {
                     kind: ReferenceKind::Managed,
-                    storage: Storage::Heap(Space::Local),
+                    storage: Storage::LocalHeap,
                     access: Access::Mutable,
                     pointee,
                     nullability: Nullability::Null,
@@ -872,7 +872,7 @@ impl Tree {
         self.intern_type(Type::Reference {
             kind: ReferenceKind::Managed,
             lifetime: Lifetime::empty(),
-            storage: Storage::Heap(Space::Local),
+            storage: Storage::LocalHeap,
             access: Access::Mutable,
             pointee: void_type,
             nullability: Nullability::Null,
@@ -984,6 +984,16 @@ impl Tree {
             .get(&id.id)
             .map(|attrs| attrs.as_slice())
             .unwrap_or_default()
+    }
+
+    /// Append one attribute to a node.
+    pub fn push_attribute<T>(&mut self, id: LocalNodeId<T>, attribute: Attribute)
+    where
+        T: Node,
+    {
+        let mut attributes = self.attributes(id).to_vec();
+        attributes.push(attribute);
+        self.set_attributes(id, attributes);
     }
 
     /// Set the attributes for a node.

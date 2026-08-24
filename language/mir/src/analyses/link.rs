@@ -174,7 +174,9 @@ impl LinkTable {
             }
             GlobalInitializer::Zero
             | GlobalInitializer::Scalar(_)
-            | GlobalInitializer::Bytes(_) => {}
+            | GlobalInitializer::Bytes(_)
+            | GlobalInitializer::String(_)
+            | GlobalInitializer::BigInt(_) => {}
         }
     }
 

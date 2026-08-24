@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::{
     Analysis, Constant, ConstantTable, DefinitionTable, Function, FunctionCache, Global,
-    GlobalStorage, MemoryLocation, MemoryRegion, Mutation, NodeTable, Place, PlaceOrigin,
-    PlaceTable, Projection, Storage, StorageRoot, TargetLayout, Tree, Value,
+    MemoryLocation, MemoryRegion, Mutation, NodeTable, Place, PlaceOrigin, PlaceTable, Projection,
+    Space, Storage, StorageRoot, TargetLayout, Tree, Value,
 };
 
 use super::MemoryRegionBuilder;
@@ -20,7 +20,7 @@ pub struct AliasTable {
     /// Addressed storage indexed by SSA value.
     value_storage: Vec<Option<Storage>>,
     /// Static storage indexed by global identity.
-    global_storage: NodeTable<Global, Option<GlobalStorage>>,
+    global_spaces: NodeTable<Global, Option<Space>>,
 }
 
 impl AliasTable {
@@ -39,9 +39,9 @@ impl AliasTable {
             .iter_nodes::<Global>()
             .map(|(id, _)| id)
             .collect::<Vec<_>>();
-        let mut global_storage = NodeTable::from_nodes(&globals, || None);
+        let mut global_spaces = NodeTable::from_nodes(&globals, || None);
         for (id, global) in tree.iter_nodes::<Global>() {
-            *global_storage.get_mut(id) = Some(global.storage);
+            *global_spaces.get_mut(id) = Some(global.space);
         }
 
         // classify SSA roots that may alias other storage
@@ -68,7 +68,7 @@ impl AliasTable {
 
                 match places.get(value).origin {
                     PlaceOrigin::Local(_) => Some(Storage::Frame),
-                    PlaceOrigin::Global(global) => global_storage.get(global).map(Storage::Global),
+                    PlaceOrigin::Global(global) => global_spaces.get(global).map(Storage::global),
                     PlaceOrigin::Value(_) => ty.and_then(|ty| tree.get(ty).reference_storage()),
                 }
             })
@@ -79,7 +79,7 @@ impl AliasTable {
             constants,
             value_is_aliasable,
             value_storage,
-            global_storage,
+            global_spaces,
         }
     }
 
@@ -227,7 +227,7 @@ impl AliasTable {
     fn origin_storage(&self, origin: PlaceOrigin) -> Option<Storage> {
         match origin {
             PlaceOrigin::Local(_) => Some(Storage::Frame),
-            PlaceOrigin::Global(global) => self.global_storage.get(global).map(Storage::Global),
+            PlaceOrigin::Global(global) => self.global_spaces.get(global).map(Storage::global),
             PlaceOrigin::Value(value) => self.value_storage(value),
         }
     }

@@ -1,9 +1,7 @@
 use super::{
     assert_format, assert_format_eq, assert_output_eq, format_tree_with_options, parse_fixture,
 };
-use crate::{
-    Access, FormatOptions, Function, Lifetime, Nullability, ReferenceKind, Space, Storage, Type,
-};
+use crate::{Access, FormatOptions, Function, Lifetime, Nullability, ReferenceKind, Storage, Type};
 
 /// Preserves declaration comments while normalizing canonical separators and names.
 #[test]
@@ -44,7 +42,6 @@ type Pair {
 @section(".rodata")
 // global detail
 readonly global Count: int32 = 1
-
 @section(".rodata")
 // import global detail
 @align(4)
@@ -104,7 +101,7 @@ entry:
     let environment = tree.intern_type(Type::Reference {
         kind: ReferenceKind::Managed,
         lifetime: Lifetime::empty(),
-        storage: Storage::Heap(Space::Local),
+        storage: Storage::LocalHeap,
         access: Access::Mutable,
         pointee: int32,
         nullability: Nullability::None,

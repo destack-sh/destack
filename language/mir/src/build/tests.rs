@@ -4,8 +4,7 @@ use crate::build::ModuleBuilder;
 use crate::{
     Access, BinaryOperator, Callee, Copy, ExecutionScope, FenceAccess, FloatType, FormatOptions,
     Formatter, Lifetime, LifetimeParameter, MemoryOrdering, Multiplicity, Mutability, Nullability,
-    ReferenceKind, Space, Storage, StorageSet, Symbol, TargetLayout, Tree, Type, TypeHeritage,
-    TypeId,
+    ReferenceKind, Storage, StorageSet, Symbol, TargetLayout, Tree, Type, TypeHeritage, TypeId,
 };
 
 /// Format one test MIR tree.
@@ -329,7 +328,7 @@ fn test_build_function_with_panic_terminator() {
         Lifetime::empty(),
         i32_type,
         Access::Readonly,
-        Storage::Heap(Space::Local),
+        Storage::LocalHeap,
         Nullability::None,
     );
     let void_type = module.type_void();
@@ -758,7 +757,7 @@ fn test_type_construction() {
         Multiplicity::Repeatable,
         ReferenceKind::Managed,
         Lifetime::empty(),
-        Storage::Heap(Space::Local),
+        Storage::LocalHeap,
         Access::Mutable,
         Nullability::None,
     );
@@ -855,7 +854,7 @@ fn test_construct_reference_and_pointer_types() {
         Lifetime::empty(),
         i32_type,
         Access::Readonly,
-        Storage::Heap(Space::Local),
+        Storage::LocalHeap,
         Nullability::None,
     );
     let managed_mutable_type = module.type_reference(
@@ -863,7 +862,7 @@ fn test_construct_reference_and_pointer_types() {
         Lifetime::empty(),
         i32_type,
         Access::Mutable,
-        Storage::Heap(Space::Local),
+        Storage::LocalHeap,
         Nullability::None,
     );
     let managed_nullable_readonly_type = module.type_reference(
@@ -871,7 +870,7 @@ fn test_construct_reference_and_pointer_types() {
         Lifetime::empty(),
         i32_type,
         Access::Readonly,
-        Storage::Heap(Space::Local),
+        Storage::LocalHeap,
         Nullability::Null,
     );
     let managed_nullable_mutable_type = module.type_reference(
@@ -879,7 +878,7 @@ fn test_construct_reference_and_pointer_types() {
         Lifetime::empty(),
         i32_type,
         Access::Mutable,
-        Storage::Heap(Space::Local),
+        Storage::LocalHeap,
         Nullability::Null,
     );
     let pointer_readonly_type = module.type_pointer(i32_type, Access::Readonly, Nullability::None);
@@ -952,7 +951,7 @@ fn test_build_new_zeroed() {
         Lifetime::empty(),
         i32_type,
         Access::Readonly,
-        Storage::Heap(Space::Local),
+        Storage::LocalHeap,
         Nullability::None,
     );
 
@@ -990,7 +989,7 @@ fn test_build_new_slice_zeroed() {
         Lifetime::empty(),
         i32_type,
         Access::Mutable,
-        Storage::Heap(Space::Local),
+        Storage::LocalHeap,
         Nullability::None,
     );
 
@@ -1032,7 +1031,7 @@ fn test_build_slice_view() {
         Lifetime::empty(),
         i32_type,
         Access::Mutable,
-        Storage::Heap(Space::Local),
+        Storage::LocalHeap,
         Nullability::None,
     );
     let slice_type = module.type_slice(
@@ -1040,7 +1039,7 @@ fn test_build_slice_view() {
         Lifetime::slot(0),
         i32_type,
         Access::Mutable,
-        Storage::Heap(Space::Local),
+        Storage::LocalHeap,
         Nullability::None,
     );
 
@@ -1369,7 +1368,7 @@ fn test_build_field_get_from_lifetime_applied_type() {
         Lifetime::slot(0),
         user,
         Access::Readonly,
-        Storage::Heap(Space::Local),
+        Storage::LocalHeap,
         Nullability::None,
     );
     let view_field_name = module.strings().intern("user");
@@ -1406,7 +1405,7 @@ fn test_build_field_get_from_lifetime_applied_type() {
         Lifetime::static_storage(),
         user,
         Access::Readonly,
-        Storage::Heap(Space::Local),
+        Storage::LocalHeap,
         Nullability::None,
     );
     let header = module

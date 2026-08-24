@@ -1,6 +1,4 @@
-use crate::{
-    Block, Function, Global, GlobalStorage, Local, Mutability, TypeDeclaration, assert_node,
-};
+use crate::{Block, Function, Global, Local, Mutability, Space, TypeDeclaration, assert_node};
 use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType};
 
 use super::{TestParser, span_for_text, span_for_text_in, span_for_text_in_after};
@@ -17,15 +15,15 @@ shared global sharedValue: int32 = 2
     let (tree, _) = TestParser::new(source).parse();
     let globals = tree
         .iter_nodes::<Global>()
-        .map(|(_, global)| (global.storage, global.mutability))
+        .map(|(_, global)| (global.space, global.mutability))
         .collect::<Vec<_>>();
 
     assert_eq!(
         globals,
         vec![
-            (GlobalStorage::Constant, Mutability::Immutable),
-            (GlobalStorage::Local, Mutability::Immutable),
-            (GlobalStorage::Shared, Mutability::Mutable),
+            (Space::Constant, Mutability::Immutable),
+            (Space::Local, Mutability::Immutable),
+            (Space::Shared, Mutability::Mutable),
         ]
     );
 }

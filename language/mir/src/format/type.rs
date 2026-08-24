@@ -8,9 +8,9 @@ use super::value::format_type_id;
 
 use crate::{
     Access, Attribute, AttributeIdentifier, Copy, Field, FieldSpan, FormatNode, Formatter,
-    GlobalStorage, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Nullability,
-    ReferenceKind, SignatureParameter, StaticId, Storage, Type, TypeDeclaration,
-    TypeDeclarationSpans, TypeHeritage, TypeId, Writer, write_comments_before,
+    Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Nullability, ReferenceKind,
+    SignatureParameter, StaticId, Storage, Type, TypeDeclaration, TypeDeclarationSpans,
+    TypeHeritage, TypeId, Writer, write_comments_before,
 };
 
 impl FormatNode for Type {
@@ -570,14 +570,8 @@ fn format_reference_qualifiers<'a>(
 /// Format one reference storage qualifier.
 fn format_storage<'a>(storage: Storage, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     match storage {
-        Storage::Heap(space) => write!(f, [token(space.label())]),
-        Storage::Frame => write!(f, [token("frame")]),
-        Storage::Global(GlobalStorage::Constant) => write!(f, [token("constant")]),
-        Storage::Global(GlobalStorage::Immortal) => write!(f, [token("immortal")]),
-        Storage::Global(GlobalStorage::Local) => write!(f, [token("global")]),
-        Storage::Global(GlobalStorage::Shared) => {
-            write!(f, [token("shared"), space(), token("global")])
-        }
+        Storage::SharedStatic => write!(f, [token("shared"), space(), token("global")]),
+        _ => write!(f, [token(storage.label())]),
     }
 }
 

@@ -2,12 +2,11 @@ use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use super::attribute::{write_attributes, write_attributes_before_anchor};
+use super::attribute::{format_string_literal, write_attributes, write_attributes_before_anchor};
 use super::value::format_constant_for_type;
 
 use crate::{
-    FormatNode, Global, GlobalInitializer, GlobalStorage, Linkage, LocalNodeId, Mutability, Type,
-    Writer,
+    FormatNode, Global, GlobalInitializer, Linkage, LocalNodeId, Mutability, Space, Type, Writer,
 };
 
 impl FormatNode for Global {
@@ -42,10 +41,7 @@ impl FormatNode for Global {
         }
 
         // reject mutable constants
-        let is_constant = matches!(
-            self.storage,
-            GlobalStorage::Constant | GlobalStorage::Immortal
-        );
+        let is_constant = self.space == Space::Constant;
         if is_constant && self.mutability != Mutability::Immutable {
             return Err(FormatError::SyntaxError {
                 message: "constant global is mutable",
@@ -56,11 +52,8 @@ impl FormatNode for Global {
         if !is_constant && self.mutability == Mutability::Immutable {
             write!(f, [token("readonly"), space()])?;
         }
-        if self.storage == GlobalStorage::Shared {
+        if self.space == Space::Shared {
             write!(f, [token("shared"), space()])?;
-        }
-        if self.storage == GlobalStorage::Immortal {
-            write!(f, [token("immortal"), space()])?;
         }
 
         // select the declaration noun
@@ -99,7 +92,7 @@ fn format_data_init<'a>(
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     match init {
-        GlobalInitializer::Zero => write!(f, [token("zeroInit")]),
+        GlobalInitializer::Zero => write!(f, [token("zeroinit")]),
         GlobalInitializer::Scalar(constant) => {
             if let Some(ty) = ty {
                 return format_constant_for_type(constant, ty, f);
@@ -116,6 +109,12 @@ fn format_data_init<'a>(
             write!(f, [token("globalAddress"), space(), copied_text(&name)])
         }
         GlobalInitializer::Bytes(bytes) => format_byte_literal(bytes, f),
+        GlobalInitializer::String(value) => {
+            let value = f.context().strings.get(*value).to_string();
+
+            format_string_literal(&value, f)
+        }
+        GlobalInitializer::BigInt(value) => write!(f, [copied_text(&format!("{value}n"))]),
         GlobalInitializer::Aggregate(elements) => {
             write!(f, [token("{")])?;
             for (i, elem) in elements.iter().enumerate() {

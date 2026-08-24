@@ -70,7 +70,6 @@ fn test_format_import_export_declarations() {
     assert_format(
         r#"
 external readonly global Imported: int32
-
 export global Exported: int32 = 7
 
 external function imported(int32): int32

@@ -63,7 +63,7 @@ entry(v0: slice<int32, borrowed, 'a, mutable>, v1: int64, v2: int64):
 fn test_format_load_store_family() {
     assert_format(
         r#"
-global counter: int32 = zeroInit
+global counter: int32 = zeroinit
 
 function memory(v0: ref<int32, borrowed, mutable>): int32 {
     local l0: int32

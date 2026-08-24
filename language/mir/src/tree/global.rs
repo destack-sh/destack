@@ -2,19 +2,12 @@ use destack_core::StringId;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    Constant, FunctionId, GlobalId, GlobalStorage, Mutability, Node, NodeType, Symbol, TypeId,
-};
+use crate::{Constant, FunctionId, GlobalId, Mutability, Node, NodeType, Space, Symbol, TypeId};
 
 /// Symbol linkage (visibility and definition location).
-///
-/// Controls how a symbol (function or global) is linked:
-/// - Where it's defined (here or elsewhere)
-/// - Who can see it (local to module or exported)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum Linkage {
     /// Defined here, not visible outside the module (private).
-    /// This is the default.
     #[default]
     Local,
     /// Defined here, visible outside the module (public).
@@ -51,8 +44,8 @@ pub struct Global {
     pub ty: TypeId,
     /// Whether this global is mutable.
     pub mutability: Mutability,
-    /// The static storage that owns this global.
-    pub storage: GlobalStorage,
+    /// The space that owns this global.
+    pub space: Space,
     /// Linkage (local, export, or import).
     pub linkage: Linkage,
     /// Initial value. None for imported globals.
@@ -76,7 +69,7 @@ impl Global {
             symbol: Symbol::named(name),
             ty,
             mutability,
-            storage: GlobalStorage::Local,
+            space: Space::Local,
             linkage: Linkage::Local,
             initializer: Some(init),
         }
@@ -87,18 +80,10 @@ impl Global {
         Self::new(name, ty, Mutability::Mutable, init)
     }
 
-    /// Create an immutable Program constant.
+    /// Create an immutable program constant.
     pub fn constant(name: StringId, ty: TypeId, init: GlobalInitializer) -> Self {
         let mut global = Self::new(name, ty, Mutability::Immutable, init);
-        global.storage = GlobalStorage::Constant;
-
-        global
-    }
-
-    /// Create an immortal pre-built object with reference identity.
-    pub fn immortal(name: StringId, ty: TypeId, init: GlobalInitializer) -> Self {
-        let mut global = Self::new(name, ty, Mutability::Immutable, init);
-        global.storage = GlobalStorage::Immortal;
+        global.space = Space::Constant;
 
         global
     }
@@ -110,7 +95,7 @@ impl Global {
             symbol: Symbol::named(name),
             ty,
             mutability,
-            storage: GlobalStorage::Local,
+            space: Space::Local,
             linkage: Linkage::Import,
             initializer: None,
         }
@@ -142,12 +127,16 @@ pub enum GlobalInitializer {
     Scalar(Constant),
     /// Address of one function inside the program.
     FunctionAddress(FunctionId),
-    /// Address of one immortal global inside the program.
+    /// Address of one constant global inside the program.
     GlobalAddress(GlobalId),
     /// Raw bytes (blobs).
     Bytes(Vec<u8>),
     /// Aggregate (array/struct fields).
     Aggregate(Vec<GlobalInitializer>),
+    /// One string value, rewritten into its carrier's fields by the constant encoder.
+    String(StringId),
+    /// One bigint value, rewritten into its carrier's fields by the constant encoder.
+    BigInt(i64),
 }
 
 impl GlobalInitializer {
@@ -166,7 +155,7 @@ impl GlobalInitializer {
         Self::FunctionAddress(function)
     }
 
-    /// Create from an immortal global address.
+    /// Create from a constant global address.
     pub fn global_address(global: GlobalId) -> Self {
         Self::GlobalAddress(global)
     }

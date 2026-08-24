@@ -4,9 +4,9 @@ use destack_core::{StableHasher, StringId};
 
 use crate::{
     Access, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Constant, Copy, Field,
-    FloatType, GlobalStorage, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Multiplicity,
-    Nullability, ReferenceKind, SignatureParameter, Space, Static, StaticField, StaticId,
-    StaticKey, Storage, Symbol, Tree, Type, TypeFingerprint, TypeId,
+    FloatType, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Multiplicity, Nullability,
+    ReferenceKind, SignatureParameter, Static, StaticField, StaticId, StaticKey, Storage, Symbol,
+    Tree, Type, TypeFingerprint, TypeId,
 };
 
 impl Tree {
@@ -487,34 +487,17 @@ impl TypeHasher {
         self.hasher.write_u8(tag);
     }
 
-    /// Hash one MIR storage space.
-    fn hash_space(&mut self, space: Space) {
-        let tag = match space {
-            Space::Local => 0,
-            Space::Shared => 1,
-        };
-        self.hasher.write_u8(tag);
-    }
-
     /// Hash one MIR reference storage.
     fn hash_storage(&mut self, storage: Storage) {
-        match storage {
-            Storage::Heap(space) => {
-                self.hasher.write_u8(0);
-                self.hash_space(space);
-            }
-            Storage::Frame => self.hasher.write_u8(1),
-            Storage::Global(global) => {
-                self.hasher.write_u8(2);
-                let tag = match global {
-                    GlobalStorage::Constant => 0,
-                    GlobalStorage::Local => 1,
-                    GlobalStorage::Shared => 2,
-                    GlobalStorage::Immortal => 3,
-                };
-                self.hasher.write_u8(tag);
-            }
-        }
+        let tag = match storage {
+            Storage::LocalHeap => 0,
+            Storage::SharedHeap => 1,
+            Storage::Frame => 2,
+            Storage::Constant => 3,
+            Storage::LocalStatic => 4,
+            Storage::SharedStatic => 5,
+        };
+        self.hasher.write_u8(tag);
     }
 
     /// Hash one MIR reference kind.
@@ -646,8 +629,8 @@ mod tests {
     use destack_core::StringId;
 
     use crate::{
-        Access, Copy, Field, Lifetime, Nullability, ReferenceKind, Space, Static, Storage, Symbol,
-        Tree, Type,
+        Access, Copy, Field, Lifetime, Nullability, ReferenceKind, Static, Storage, Symbol, Tree,
+        Type,
     };
 
     /// Structural instance symbols are independent of local type allocation order.
@@ -736,7 +719,7 @@ mod tests {
         let local = tree.intern_type(Type::Reference {
             kind: ReferenceKind::Borrowed,
             lifetime: Lifetime::slot(0),
-            storage: Storage::Heap(Space::Local),
+            storage: Storage::LocalHeap,
             access: Access::Readonly,
             pointee,
             nullability: Nullability::None,
@@ -744,7 +727,7 @@ mod tests {
         let static_ = tree.intern_type(Type::Reference {
             kind: ReferenceKind::Borrowed,
             lifetime: Lifetime::static_storage(),
-            storage: Storage::Heap(Space::Local),
+            storage: Storage::LocalHeap,
             access: Access::Readonly,
             pointee,
             nullability: Nullability::None,

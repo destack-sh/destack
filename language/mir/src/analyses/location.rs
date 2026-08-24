@@ -273,8 +273,8 @@ pub enum StorageRoot {
     Global {
         /// The global declaration.
         global: mir::LocalNodeId<mir::Global>,
-        /// The global storage class.
-        storage: mir::GlobalStorage,
+        /// The global space.
+        space: mir::Space,
     },
     /// Heap allocation instruction.
     Allocation {
@@ -352,7 +352,7 @@ impl StorageRoot {
     pub fn spaces(&self) -> mir::StorageSet {
         match self {
             StorageRoot::LocalSlot(_) => mir::StorageSet::FRAME,
-            StorageRoot::Global { storage, .. } => storage.storage_set(),
+            StorageRoot::Global { space, .. } => mir::Storage::global(*space).storage_set(),
             StorageRoot::Allocation { space, .. } => space.space_set(),
             StorageRoot::Parameter { storage, .. } => storage.storage_set(),
         }
@@ -587,7 +587,7 @@ impl<'a> MemoryRegionBuilder<'a> {
 
                 MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Global {
                     global: global_id,
-                    storage: global.storage,
+                    space: global.space,
                 }))
             }
             mir::Instruction::LocalAddr {
@@ -688,7 +688,7 @@ impl<'a> MemoryRegionBuilder<'a> {
 
         match (ty.reference_kind(), ty.reference_storage()) {
             (Some(kind), Some(storage)) => {
-                let mir::Storage::Heap(space) = storage else {
+                let Some(space) = storage.heap_space() else {
                     return MemoryRegion::any_storage(storage);
                 };
 
@@ -878,7 +878,7 @@ mod tests {
         };
         let parameter = StorageRoot::Parameter {
             index: 0,
-            storage: mir::Storage::Heap(mir::Space::Local),
+            storage: mir::Storage::LocalHeap,
             kind: mir::ReferenceKind::Borrowed,
             access: mir::Access::Mutable,
         };
@@ -907,13 +907,13 @@ mod tests {
     fn test_storage_is_exclusive_parameter() {
         let exclusive_parameter = StorageRoot::Parameter {
             index: 0,
-            storage: mir::Storage::Heap(mir::Space::Local),
+            storage: mir::Storage::LocalHeap,
             kind: mir::ReferenceKind::Borrowed,
             access: mir::Access::Exclusive,
         };
         let mutable_parameter = StorageRoot::Parameter {
             index: 1,
-            storage: mir::Storage::Heap(mir::Space::Local),
+            storage: mir::Storage::LocalHeap,
             kind: mir::ReferenceKind::Borrowed,
             access: mir::Access::Mutable,
         };
@@ -964,7 +964,7 @@ mod tests {
     fn test_memory_place_const_offset_accumulation() {
         let mut place = MemoryPlace::from_root(StorageRoot::Global {
             global: mir::LocalNodeId::new(0),
-            storage: mir::GlobalStorage::Constant,
+            space: mir::Space::Constant,
         });
 
         place.add_const_offset(8);

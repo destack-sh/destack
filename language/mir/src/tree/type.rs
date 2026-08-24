@@ -79,6 +79,8 @@ pub enum Space {
     Local,
     /// Runtime-shared storage.
     Shared,
+    /// Immutable link-written storage, reachable from every space.
+    Constant,
 }
 
 impl Space {
@@ -92,6 +94,7 @@ impl Space {
         Some(match name {
             "local" => Space::Local,
             "shared" => Space::Shared,
+            "constant" => Space::Constant,
             _ => return None,
         })
     }
@@ -101,6 +104,7 @@ impl Space {
         match self {
             Space::Local => "local",
             Space::Shared => "shared",
+            Space::Constant => "constant",
         }
     }
 
@@ -109,11 +113,12 @@ impl Space {
         match self {
             Space::Local => StorageSet::LOCAL,
             Space::Shared => StorageSet::SHARED,
+            Space::Constant => StorageSet::GLOBAL,
         }
     }
 }
 
-/// Static storage selected by one global declaration.
+/// Backing storage addressed by one reference-like value.
 #[repr(u8)]
 #[derive(
     Debug,
@@ -130,95 +135,76 @@ impl Space {
     Reflect,
     SectionEntry,
 )]
-pub enum GlobalStorage {
-    /// Immutable Program constant storage.
-    Constant,
-    /// Immutable pre-built object storage with reference identity.
-    Immortal,
-    /// Worker-local static storage.
-    #[default]
-    Local,
-    /// Runtime-shared static storage.
-    Shared,
-}
-
-impl GlobalStorage {
-    /// Return the global storage region used by memory effects.
-    pub const fn storage_set(self) -> StorageSet {
-        match self {
-            Self::Constant | Self::Immortal => StorageSet::GLOBAL,
-            Self::Local => StorageSet::GLOBAL.union(StorageSet::LOCAL),
-            Self::Shared => StorageSet::GLOBAL.union(StorageSet::SHARED),
-        }
-    }
-}
-
-/// Backing storage addressed by one reference-like value.
-#[repr(u8)]
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
-    Reflect,
-    SectionEntry,
-)]
 pub enum Storage {
-    /// Heap storage in one ownership domain.
-    Heap(Space),
+    /// Worker-local heap storage.
+    #[default]
+    LocalHeap,
+    /// Runtime-shared heap storage.
+    SharedHeap,
     /// Frame storage inside the current activation.
     Frame,
-    /// Static storage selected by one global declaration.
-    Global(GlobalStorage),
-}
-
-impl Default for Storage {
-    fn default() -> Self {
-        Self::Heap(Space::Local)
-    }
+    /// Immutable link-written constant storage.
+    Constant,
+    /// Worker-local static storage.
+    LocalStatic,
+    /// Runtime-shared static storage.
+    SharedStatic,
 }
 
 impl Storage {
+    /// Return the heap storage of one space.
+    pub const fn heap(space: Space) -> Self {
+        match space {
+            Space::Local => Self::LocalHeap,
+            Space::Shared => Self::SharedHeap,
+            Space::Constant => Self::Constant,
+        }
+    }
+
+    /// Return the static storage of one space.
+    pub const fn global(space: Space) -> Self {
+        match space {
+            Space::Local => Self::LocalStatic,
+            Space::Shared => Self::SharedStatic,
+            Space::Constant => Self::Constant,
+        }
+    }
+
     /// Return the heap ownership domain when this is heap storage.
     pub const fn heap_space(self) -> Option<Space> {
         match self {
-            Self::Heap(space) => Some(space),
-            Self::Frame | Self::Global(_) => None,
+            Self::LocalHeap => Some(Space::Local),
+            Self::SharedHeap => Some(Space::Shared),
+            Self::Frame | Self::Constant | Self::LocalStatic | Self::SharedStatic => None,
         }
     }
 
     /// Return whether this storage is shared across workers.
     pub const fn is_shared(self) -> bool {
-        matches!(
-            self,
-            Self::Heap(Space::Shared) | Self::Global(GlobalStorage::Shared)
-        )
+        matches!(self, Self::SharedHeap | Self::SharedStatic)
     }
 
     /// Return the canonical MIR name for this storage.
     pub const fn label(self) -> &'static str {
         match self {
-            Self::Heap(space) => space.label(),
+            Self::LocalHeap => "local",
+            Self::SharedHeap => "shared",
             Self::Frame => "frame",
-            Self::Global(GlobalStorage::Constant) => "constant",
-            Self::Global(GlobalStorage::Immortal) => "immortal",
-            Self::Global(GlobalStorage::Local) => "global",
-            Self::Global(GlobalStorage::Shared) => "sharedGlobal",
+            Self::Constant => "constant",
+            Self::LocalStatic => "global",
+            Self::SharedStatic => "sharedGlobal",
         }
     }
 
     /// Return the storage region set used by memory effects.
     pub const fn storage_set(self) -> StorageSet {
         match self {
-            Self::Heap(space) => space.space_set(),
+            Self::LocalHeap => StorageSet::LOCAL,
+            Self::SharedHeap => StorageSet::SHARED,
             Self::Frame => StorageSet::FRAME,
-            Self::Global(storage) => storage.storage_set(),
+            Self::Constant => StorageSet::GLOBAL,
+            Self::LocalStatic => StorageSet::GLOBAL.union(StorageSet::LOCAL),
+            Self::SharedStatic => StorageSet::GLOBAL.union(StorageSet::SHARED),
         }
     }
 }

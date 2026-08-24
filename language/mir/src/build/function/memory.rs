@@ -87,11 +87,11 @@ impl<'a> FunctionBuilder<'a> {
     /// Load one global value through its address.
     pub fn load_global(&mut self, global: LocalNodeId<Global>) -> Value {
         let global_ty = self.tree.get(global).ty;
-        let global_storage = self.tree.get(global).storage;
+        let global_space = self.tree.get(global).space;
         let global_pointer = self.tree.intern_type(Type::Reference {
             kind: ReferenceKind::Borrowed,
             lifetime: Lifetime::empty(),
-            storage: Storage::Global(global_storage),
+            storage: Storage::global(global_space),
             access: Access::Readonly,
             pointee: global_ty,
             nullability: Nullability::None,
@@ -104,11 +104,11 @@ impl<'a> FunctionBuilder<'a> {
     /// Store one global value through its address.
     pub fn store_global(&mut self, global: LocalNodeId<Global>, value: Value) {
         let global_ty = self.tree.get(global).ty;
-        let global_storage = self.tree.get(global).storage;
+        let global_space = self.tree.get(global).space;
         let global_pointer = self.tree.intern_type(Type::Reference {
             kind: ReferenceKind::Borrowed,
             lifetime: Lifetime::empty(),
-            storage: Storage::Global(global_storage),
+            storage: Storage::global(global_space),
             access: Access::Mutable,
             pointee: global_ty,
             nullability: Nullability::None,

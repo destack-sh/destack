@@ -2,9 +2,9 @@ use crate::source::{Token, TokenType};
 use destack_source::Span;
 
 use crate::{
-    Access, Copy, Field, FieldSpan, GlobalStorage, Lifetime, LifetimeParameter, LifetimeTerm,
-    LocalNodeId, Multiplicity, Nullability, ReferenceKind, SignatureParameter, Space, StaticId,
-    Storage, Type, TypeDeclarationSpans, TypeId, VariantCase,
+    Access, Copy, Field, FieldSpan, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId,
+    Multiplicity, Nullability, ReferenceKind, SignatureParameter, StaticId, Storage, Type,
+    TypeDeclarationSpans, TypeId, VariantCase,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -31,7 +31,7 @@ impl ReferenceQualifiers {
         Self {
             kind: None,
             lifetime: Lifetime::empty(),
-            storage: Storage::Heap(Space::Local),
+            storage: Storage::LocalHeap,
             access: None,
             nullability,
         }
@@ -1046,18 +1046,17 @@ impl Parser {
         let token = self.peek()?;
         let text = self.tree.source_text(token.span);
         let storage = match text {
-            "local" => Storage::Heap(Space::Local),
+            "local" => Storage::LocalHeap,
             "frame" => Storage::Frame,
-            "constant" => Storage::Global(GlobalStorage::Constant),
-            "immortal" => Storage::Global(GlobalStorage::Immortal),
-            "global" => Storage::Global(GlobalStorage::Local),
+            "constant" => Storage::Constant,
+            "global" => Storage::LocalStatic,
             "shared" => {
                 self.bump();
                 if self.eat_token_if(TokenType::Global) {
-                    return Some(Storage::Global(GlobalStorage::Shared));
+                    return Some(Storage::SharedStatic);
                 }
 
-                return Some(Storage::Heap(Space::Shared));
+                return Some(Storage::SharedHeap);
             }
             _ => return None,
         };

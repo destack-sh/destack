@@ -645,8 +645,7 @@ mod tests {
     use destack_core::StringId;
 
     use crate::{
-        Access, Copy, Field, Lifetime, Nullability, ReferenceKind, Space, Storage, Symbol, Tree,
-        Type,
+        Access, Copy, Field, Lifetime, Nullability, ReferenceKind, Storage, Symbol, Tree, Type,
     };
 
     /// Equal structural types and fields have one canonical identity.
@@ -741,7 +740,7 @@ mod tests {
         let local = tree.intern_type(Type::Reference {
             kind: ReferenceKind::Borrowed,
             lifetime: Lifetime::slot(0),
-            storage: Storage::Heap(Space::Local),
+            storage: Storage::LocalHeap,
             access: Access::Readonly,
             pointee,
             nullability: Nullability::None,
@@ -749,7 +748,7 @@ mod tests {
         let static_ = tree.intern_type(Type::Reference {
             kind: ReferenceKind::Borrowed,
             lifetime: Lifetime::static_storage(),
-            storage: Storage::Heap(Space::Local),
+            storage: Storage::LocalHeap,
             access: Access::Readonly,
             pointee,
             nullability: Nullability::None,
