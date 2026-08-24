@@ -1,4 +1,4 @@
-use crate::{GlobalNodeIdAny, GlobalSymbolId, Postings};
+use crate::{GlobalNodeIdAny, GlobalSymbolId, MemberImplementation, Postings};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -180,13 +180,4 @@ pub struct MemberEntry {
     pub declaring: GlobalSymbolId,
     /// The member symbol.
     pub symbol: GlobalSymbolId,
-}
-
-/// One exact member implementation edge.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct MemberImplementation {
-    /// The declared member requirement.
-    pub declaration: GlobalSymbolId,
-    /// The member satisfying the declaration.
-    pub implementation: GlobalSymbolId,
 }

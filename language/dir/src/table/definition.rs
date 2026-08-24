@@ -144,18 +144,47 @@ impl<'a> DefinitionTable<'a> {
         definitions.into_iter()
     }
 
+    /// Return one symbol-backed member and its declaring definition.
+    pub fn member(
+        &self,
+        symbol: GlobalSymbolId,
+    ) -> Option<(GlobalSymbolId, &Definition, &DefinitionMember)> {
+        // resolve the member's declaring definition
+        for segment in self.segments.iter().rev() {
+            let Some(declaring) = segment.definition_by_member(symbol) else {
+                continue;
+            };
+
+            // read the effective definition
+            let definition = self.definition(declaring).unwrap_or_else(|| {
+                panic!("DIR member symbol {symbol:?} has no declaring definition")
+            });
+            let member = definition
+                .member(symbol)
+                .unwrap_or_else(|| panic!("DIR definition {declaring:?} lost member {symbol:?}"));
+
+            return Some((declaring, definition, member));
+        }
+
+        None
+    }
+
     /// Iterate checked member conformances in definition order.
     pub fn member_conformances(&self) -> impl Iterator<Item = &MemberConformance> + '_ {
         self.iter_definitions()
-            .flat_map(|(_, definition)| definition.implementations())
-            .flat_map(|conformance| &conformance.members)
+            .flat_map(|(_, definition)| definition.member_conformances())
     }
 
     /// Iterate checked override selections as overriding member and inherited base.
     pub fn member_overrides(&self) -> impl Iterator<Item = (GlobalSymbolId, GlobalSymbolId)> + '_ {
         self.iter_definitions()
-            .flat_map(|(_, definition)| definition.members())
-            .filter_map(|member| Some((member.symbol()?, member.overrides()?)))
+            .flat_map(|(_, definition)| definition.member_overrides())
+    }
+
+    /// Iterate member implementation edges.
+    pub fn member_implementations(&self) -> impl Iterator<Item = MemberImplementation> + '_ {
+        self.iter_definitions()
+            .flat_map(|(_, definition)| definition.member_implementations())
     }
 
     /// Return true when this table has no definitions.
@@ -173,6 +202,8 @@ pub struct DefinitionSegment {
     pub(crate) sources: IndexMap<GlobalSymbolId, GlobalNodeIdAny>,
     /// Definitions keyed by declaring symbol.
     pub(crate) definitions: IndexMap<GlobalSymbolId, Definition>,
+    /// Declaring definition symbols keyed by member symbol.
+    pub(crate) definitions_by_member: IndexMap<GlobalSymbolId, GlobalSymbolId>,
     /// Extension symbols by target root.
     pub(crate) extensions_by_root: IndexMap<TypeRoot, Vec<GlobalSymbolId>>,
     /// Blanket extension symbols.
@@ -206,6 +237,7 @@ impl DefinitionSegment {
             module_id,
             sources: IndexMap::default(),
             definitions: IndexMap::default(),
+            definitions_by_member: IndexMap::default(),
             extensions_by_root: IndexMap::default(),
             blanket_extensions: Vec::new(),
         }
@@ -218,7 +250,22 @@ impl DefinitionSegment {
         source: GlobalNodeIdAny,
         definition: Definition,
     ) {
-        self.sources.insert(symbol, source);
+        // index each symbol-backed member by its declaring definition
+        for member in definition
+            .members()
+            .iter()
+            .filter_map(DefinitionMember::symbol)
+        {
+            // reject reuse by another definition
+            if let Some(previous) = self.definitions_by_member.insert(member, symbol) {
+                assert_eq!(
+                    previous, symbol,
+                    "DIR member symbol {member:?} belongs to two definitions"
+                );
+            }
+        }
+
+        // index extensions by receiver root
         if let Definition::Extension(extension) = &definition {
             match extension.target.root() {
                 Some(root) => {
@@ -233,6 +280,8 @@ impl DefinitionSegment {
             }
         }
 
+        // retain the definition and its source
+        self.sources.insert(symbol, source);
         self.definitions.insert(symbol, definition);
     }
 
@@ -257,6 +306,11 @@ impl DefinitionSegment {
     /// Return one definition for in-place mutation.
     pub fn definition_mut(&mut self, symbol: GlobalSymbolId) -> Option<&mut Definition> {
         self.definitions.get_mut(&symbol)
+    }
+
+    /// Return the symbol of the definition declaring one member.
+    pub fn definition_by_member(&self, symbol: GlobalSymbolId) -> Option<GlobalSymbolId> {
+        self.definitions_by_member.get(&symbol).copied()
     }
 
     /// Get all extension symbols targeting one root.
@@ -315,6 +369,15 @@ pub enum Definition {
     Newtype(NewtypeDefinition),
     /// Extension declaration.
     Extension(ExtensionDefinition),
+}
+
+/// One exact member implementation edge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct MemberImplementation {
+    /// The declared member requirement.
+    pub declaration: GlobalSymbolId,
+    /// The member satisfying the declaration.
+    pub implementation: GlobalSymbolId,
 }
 
 impl Definition {
@@ -1085,6 +1148,30 @@ impl Definition {
         }
     }
 
+    /// Return the language item owner for this definition's members.
+    pub fn language_member_owner(&self, declaring: GlobalSymbolId) -> Option<GlobalSymbolId> {
+        let Self::Extension(extension) = self else {
+            return Some(declaring);
+        };
+
+        // resolve package-owned extensions through their target
+        match extension.target {
+            ExtensionTarget::Rooted {
+                root: TypeRoot::Declaration(target),
+                ..
+            } if extension.symbol.module_id.package_id == target.module_id.package_id => {
+                Some(target)
+            }
+            ExtensionTarget::Blanket {
+                coverage: BlanketCoverage::Interface(interface),
+                ..
+            } if extension.symbol.module_id.package_id == interface.module_id.package_id => {
+                Some(interface)
+            }
+            ExtensionTarget::Rooted { .. } | ExtensionTarget::Blanket { .. } => None,
+        }
+    }
+
     /// Return the declared generic template, when the definition has one.
     pub fn template(&self) -> Option<LocalGenericTemplateId> {
         match self {
@@ -1155,6 +1242,49 @@ impl Definition {
             Self::Extension(definition) => Some(&mut definition.implements),
             Self::TypeAlias(_) | Self::Interface(_) | Self::Newtype(_) => None,
         }
+    }
+
+    /// Iterate selected interface member conformances.
+    pub fn member_conformances(&self) -> impl Iterator<Item = &MemberConformance> + '_ {
+        self.implementations()
+            .iter()
+            .flat_map(|conformance| &conformance.members)
+    }
+
+    /// Iterate selected member overrides.
+    pub fn member_overrides(&self) -> impl Iterator<Item = (GlobalSymbolId, GlobalSymbolId)> + '_ {
+        self.members()
+            .iter()
+            .filter_map(|member| Some((member.symbol()?, member.overrides()?)))
+    }
+
+    /// Iterate selected member implementation edges.
+    pub fn member_implementations(&self) -> impl Iterator<Item = MemberImplementation> + '_ {
+        let conformances = self
+            .member_conformances()
+            .map(|conformance| MemberImplementation {
+                declaration: conformance.requirement,
+                implementation: conformance.member,
+            });
+        let overrides = self
+            .member_overrides()
+            .map(|(implementation, declaration)| MemberImplementation {
+                declaration,
+                implementation,
+            });
+
+        conformances.chain(overrides)
+    }
+
+    /// Iterate declarations satisfied by one member symbol.
+    pub fn member_declarations(
+        &self,
+        symbol: GlobalSymbolId,
+    ) -> impl Iterator<Item = GlobalSymbolId> + '_ {
+        self.member_implementations()
+            .filter_map(move |implementation| {
+                (implementation.implementation == symbol).then_some(implementation.declaration)
+            })
     }
 
     /// Return the method member symbol declared at one source node.
