@@ -11,7 +11,7 @@ declare_lint! {
         id: "prefer-is-empty",
         summary: "Prefer isEmpty over comparisons with zero length",
         explanation: r#"
-Comparing a canonical collection or string measurement with zero performs the same empty-state query as `isEmpty` or its negation.
+Zero comparisons over canonical length and size members duplicate the `isEmpty` query.
 Instead, you SHOULD use `isEmpty`, negating it when the comparison asks whether elements exist.
 "#,
         example: {
@@ -41,44 +41,25 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     // inspect builtin comparisons with an exact zero operand
     for expression in module.operator_expressions() {
         let expression = expression?;
-        let Some((operator, [left, right])) = module.builtin_binary(expression)? else {
+        let Some(test) = module.emptiness_test(expression)? else {
             continue;
         };
 
-        // normalize the canonical measurement to the left operand
-        let left = left.source.local_id;
-        let right = right.source.local_id;
-        let Some(swapped_operator) = operator.swapped() else {
+        // reserve direct filtered existence tests for prefer-array-search
+        let is_filtered = module
+            .member_call(test.receiver)
+            .is_some_and(|call| !call.is_optional() && call.arguments.len() == 1)
+            && module.language_member(test.receiver)?
+                == Some(dir::LanguageItem::Array.member("filter"));
+        if is_filtered {
             continue;
-        };
-        let mut comparison = None;
-        for (member, zero, operator) in [(left, right, operator), (right, left, swapped_operator)] {
-            let Some((receiver, language_member)) = select_collection_measurement(module, member)?
-            else {
-                continue;
-            };
-            if !matches!(
-                module.scalar_constant(zero)?,
-                Some(dir::Literal::Integer(0))
-            ) {
-                continue;
-            }
-            let Some(is_negated) = is_empty_negated(operator) else {
-                continue;
-            };
-
-            comparison = Some((receiver, language_member, is_negated));
-            break;
         }
-        let Some((receiver, language_member, is_negated)) = comparison else {
-            continue;
-        };
 
         // retain the canonical property's defining comparison
-        let is_this = matches!(view.get(receiver), dir::Expression::This);
+        let is_this = matches!(view.get(test.receiver), dir::Expression::This);
         let is_implementation = module.is_within_language_member(
             expression.into_any(),
-            language_member.owner.member("isEmpty"),
+            test.measurement.owner.member("isEmpty"),
         )?;
         if is_this && is_implementation {
             continue;
@@ -87,7 +68,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         // replace the complete comparison with the collection property
         let span = module.source_extent(expression.into_any())?;
         let mut diagnostic = lint.diagnostic("length or size is compared with zero", span);
-        if let Some(suggestion) = suggestion(module, lint, span, receiver, is_negated)? {
+        if let Some(suggestion) = suggestion(module, lint, span, test.receiver, !test.is_empty)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
 
@@ -95,57 +76,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     }
 
     Ok(output)
-}
-
-/// Return the receiver and identity of one canonical collection measurement.
-fn select_collection_measurement(
-    module: &DirModule<'_>,
-    expression: dir::LocalNodeId<dir::Expression>,
-) -> Result<Option<(dir::LocalNodeId<dir::Expression>, dir::LanguageMember)>, ProviderError> {
-    let dir::Expression::Member {
-        left: receiver,
-        is_optional: false,
-        ..
-    } = module.view().get(expression)
-    else {
-        return Ok(None);
-    };
-    let Some(member) = module.language_member(expression)? else {
-        return Ok(None);
-    };
-    if !is_length_or_size(member) {
-        return Ok(None);
-    }
-
-    Ok(Some((*receiver, member)))
-}
-
-/// Return whether an equivalent `isEmpty` query requires negation.
-fn is_empty_negated(operator: dir::BinaryOperator) -> Option<bool> {
-    match operator {
-        dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict => Some(false),
-        dir::BinaryOperator::NotEqual | dir::BinaryOperator::NotEqualStrict => Some(true),
-        dir::BinaryOperator::LessThanOrEqual => Some(false),
-        dir::BinaryOperator::GreaterThan => Some(true),
-        _ => None,
-    }
-}
-
-/// Return whether one canonical member measures a value with `isEmpty`.
-fn is_length_or_size(member: dir::LanguageMember) -> bool {
-    let owner = member.owner;
-
-    match owner {
-        dir::LanguageItem::Array
-        | dir::LanguageItem::FixedArray
-        | dir::LanguageItem::ReadonlyArray
-        | dir::LanguageItem::Slice
-        | dir::LanguageItem::String => {
-            member == owner.member("length") || member == owner.member("size")
-        }
-        dir::LanguageItem::Map | dir::LanguageItem::Set => member == owner.member("size"),
-        _ => false,
-    }
 }
 
 /// Build the equivalent collection emptiness query.
@@ -217,22 +147,32 @@ function bounded(values: int32[]): boolean {
         let session = TestSession::dir(
             &PREFER_IS_EMPTY,
             r#"
+import { LinkedList } from "destack:collections";
+
 function emptyMap(values: Map<string, int32>): boolean {
     return values.size === 0;
 }
 function emptyString(value: string): boolean {
     return value.length === 0;
 }
+function emptyList(values: LinkedList<int32>): boolean {
+    return values.length < 1;
+}
 "#,
         );
 
         session.assert_fixes(
             r#"
+import { LinkedList } from "destack:collections";
+
 function emptyMap(values: Map<string, int32>): boolean {
     return values.isEmpty;
 }
 function emptyString(value: string): boolean {
     return value.isEmpty;
+}
+function emptyList(values: LinkedList<int32>): boolean {
+    return values.isEmpty;
 }
 "#,
         );
@@ -281,6 +221,21 @@ function reduce<
             r#"
 function visit(values: int32[]): void {
     for (let index: isize = 0; index < values.length; index += 1) {}
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Leave filtered existence tests to the direct Array search rule.
+    #[test]
+    fn test_accepts_filtered_existence() {
+        let session = TestSession::dir(
+            &PREFER_IS_EMPTY,
+            r#"
+function hasPositive(values: int32[]): boolean {
+    return values.filter((value) => value > 0).length > 0;
 }
 "#,
         );

@@ -11,7 +11,8 @@ declare_lint! {
         id: "prefer-first-last",
         summary: "Prefer first and last accessors over equivalent indexing",
         explanation: r#"
-`array.at(0)`, `array.at(-1)`, and `array.at(array.length - 1)` perform the same optional endpoint lookups as `first` and `last`.
+`array.at(0)` and `array.at(-1)` duplicate the optional `first` and `last` endpoint lookups.
+`array.at(array.length - 1)` also duplicates `last`.
 Instead, you SHOULD use the corresponding endpoint accessor.
 
 Trapping subscript access has different empty-array behavior and remains unchanged.
@@ -47,6 +48,12 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
         if module.language_member(expression)? != Some(dir::LanguageItem::Array.member("at")) {
+            continue;
+        }
+
+        // reserve filtered endpoints for prefer-array-search
+        if module.language_member(call.receiver)? == Some(dir::LanguageItem::Array.member("filter"))
+        {
             continue;
         }
 
@@ -110,11 +117,11 @@ fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
     expression: dir::LocalNodeId<dir::Expression>,
-    member: dir::LocalNodeId<dir::Expression>,
+    callee: dir::LocalNodeId<dir::Expression>,
     name: &str,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let extent = module.source_extent(expression.into_any())?;
-    let member_name = module.main_span(member.into_any())?;
+    let member_name = module.main_span(callee.into_any())?;
     let arguments = module.source_region(expression.into_any(), NodeSpanRegion::Arguments)?;
     if module.has_unretained_comment(arguments, &[])? {
         return Ok(None);
@@ -197,6 +204,27 @@ function last(values: int32[]): int32 | undefined {
         );
     }
 
+    /// Preserve an optional receiver when replacing its endpoint lookup.
+    #[test]
+    fn test_replaces_optional_endpoint() {
+        let session = TestSession::dir(
+            &PREFER_FIRST_LAST,
+            r#"
+function first(values: int32[] | undefined): int32 | undefined {
+    return values?.at(0);
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function first(values: int32[] | undefined): int32 | undefined {
+    return values?.first();
+}
+"#,
+        );
+    }
+
     /// Accept trapping subscript access at index zero.
     #[test]
     fn test_accepts_trapping_first_subscript() {
@@ -205,6 +233,21 @@ function last(values: int32[]): int32 | undefined {
             r#"
 function first(values: int32[]): int32 {
     return values[0];
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Leave filtered endpoints to the direct Array search rule.
+    #[test]
+    fn test_accepts_filtered_endpoint() {
+        let session = TestSession::dir(
+            &PREFER_FIRST_LAST,
+            r#"
+function firstPositive(values: int32[]): int32 | undefined {
+    return values.filter((value) => value > 0).at(0);
 }
 "#,
         );
