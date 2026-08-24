@@ -5,7 +5,7 @@ use bytecode::{CodeBuilder, Parser, RelocationTag};
 use destack_bytecode as bytecode;
 use destack_core::{EntryRange, Optional, StringPool};
 use destack_heap::DropId;
-use destack_mir::{Space, Storage, TraceTable};
+use destack_mir::{Storage, TraceTable};
 use destack_program as program;
 use destack_program::{
     BindingAffinity, BindingBuilder, BindingEffect, BindingId, BindingProvider, BindingReplay,
@@ -171,9 +171,11 @@ impl TestProgram {
             {
                 match storage {
                     Storage::Frame => entry.frame = Optional::some(*function),
-                    Storage::Heap(Space::Local) => entry.local = Optional::some(*function),
-                    Storage::Heap(Space::Shared) => entry.shared = Optional::some(*function),
-                    Storage::Global(_) => panic!("test globals cannot carry destructors"),
+                    Storage::LocalHeap => entry.local = Optional::some(*function),
+                    Storage::SharedHeap => entry.shared = Optional::some(*function),
+                    Storage::Constant | Storage::LocalStatic | Storage::SharedStatic => {
+                        panic!("test globals cannot carry destructors")
+                    }
                 }
                 has_drop = true;
             }
@@ -220,9 +222,6 @@ impl TestProgram {
                 program::GlobalLocation::Constant => &mut constant_space,
                 program::GlobalLocation::SharedStatic => &mut shared_static_space,
                 program::GlobalLocation::LocalStatic => &mut local_static_space,
-                program::GlobalLocation::Immortal => {
-                    unreachable!("test globals use constant and static storage")
-                }
             };
             let (offset, byte_len) = allocator.allocate(Word::BYTE_LEN, &bytes);
             globals.push(program::Global::new(

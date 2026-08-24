@@ -45,8 +45,6 @@ pub(crate) struct Runtime {
     shared_mark_worker: SharedMarkWorker,
     /// Runtime constant bytes.
     constant_space: program::StaticSpace,
-    /// Runtime immortal object bytes.
-    immortal_space: program::StaticSpace,
     /// Worker-local static bytes.
     local_static: program::StaticSpace,
     /// Runtime-shared static bytes.
@@ -110,20 +108,15 @@ impl Runtime {
         .expect("benchmark shared heap should build");
         let shared_cache = shared_heap.allocation_cache();
         let shared_mark_worker = shared_heap.register_mark_worker();
-        let (constant_space, immortal_space, shared_static) = program
+        let (constant_space, shared_static) = program
             .materialize_runtime_statics(memory.clone())
             .expect("benchmark runtime statics should materialize");
         let local_static = program
-            .materialize_local_statics(
-                memory.clone(),
-                &constant_space,
-                &immortal_space,
-                &shared_static,
-            )
+            .materialize_local_statics(memory.clone(), &constant_space, &shared_static)
             .expect("benchmark local statics should materialize");
-        shared_heap.set_immortal_range(MemoryRange {
-            offset: immortal_space.offset(),
-            byte_len: immortal_space.byte_len(),
+        shared_heap.set_constant_range(MemoryRange {
+            offset: constant_space.offset(),
+            byte_len: constant_space.byte_len(),
         });
         let allocation_plans = program
             .plan_allocations(heap.options(), shared_heap.options())
@@ -148,7 +141,6 @@ impl Runtime {
             constant_space,
             local_static,
             shared_static,
-            immortal_space,
         }
     }
 
@@ -166,7 +158,6 @@ impl Runtime {
                 shared_mark_worker: &self.shared_mark_worker,
                 local_statics: &mut self.local_static,
                 shared_statics: &mut self.shared_static,
-                immortals: &self.immortal_space,
                 constants: &self.constant_space,
             },
         };

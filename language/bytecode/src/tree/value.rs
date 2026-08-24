@@ -140,8 +140,6 @@ impl Storage {
     pub const LOCAL_GLOBAL: Self = Self(4);
     /// Runtime-shared global storage.
     pub const SHARED_GLOBAL: Self = Self(5);
-    /// Immutable pre-built object storage with reference identity.
-    pub const IMMORTAL: Self = Self(6);
 
     /// Return the stable bytecode code.
     pub const fn code(self) -> u8 {
@@ -157,7 +155,6 @@ impl Storage {
             3 => Some(Self::CONSTANT),
             4 => Some(Self::LOCAL_GLOBAL),
             5 => Some(Self::SHARED_GLOBAL),
-            6 => Some(Self::IMMORTAL),
             _ => None,
         }
     }
@@ -171,14 +168,13 @@ impl Storage {
             "constant" => Some(Self::CONSTANT),
             "global" => Some(Self::LOCAL_GLOBAL),
             "shared global" => Some(Self::SHARED_GLOBAL),
-            "immortal" => Some(Self::IMMORTAL),
             _ => None,
         }
     }
 
     /// Return whether this storage is defined by the bytecode ISA.
     pub const fn is_defined(self) -> bool {
-        self.0 <= Self::IMMORTAL.0
+        self.0 <= Self::SHARED_GLOBAL.0
     }
 
     /// Return the canonical bytecode text name.
@@ -190,7 +186,6 @@ impl Storage {
             Self::CONSTANT => Some("constant"),
             Self::LOCAL_GLOBAL => Some("global"),
             Self::SHARED_GLOBAL => Some("shared global"),
-            Self::IMMORTAL => Some("immortal"),
             _ => None,
         }
     }

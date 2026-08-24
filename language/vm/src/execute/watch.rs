@@ -1,7 +1,7 @@
 use destack_bytecode::{
     Address, AtomicOperation, CodeOffset, Instruction, MemoryOperation, Scalar,
 };
-use destack_mir::{GlobalStorage, Space, Storage};
+use destack_mir::Storage;
 use destack_program::{
     GlobalLocation, MemoryAccess, MemoryRange, Outcome, Runtime, StopReason, Word,
 };
@@ -209,14 +209,14 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         byte_len: usize,
     ) -> Result<MemoryRange> {
         let range = match storage {
-            Some(Storage::Heap(space)) => {
+            Some(Storage::LocalHeap | Storage::SharedHeap) => {
                 let offset = self
                     .activation
                     .memory
                     .heap_offset(address)
                     .ok_or_else(|| self.invalid_instruction())?;
 
-                if space == Space::Local {
+                if storage == Some(Storage::LocalHeap) {
                     MemoryRange::local_heap(offset as u64, byte_len as u64)
                 } else {
                     MemoryRange::shared_heap(offset as u64, byte_len as u64)
@@ -231,7 +231,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
                 MemoryRange::frame(offset as u64, byte_len as u64)
             }
-            Some(Storage::Global(storage)) => self.global_range(storage, address, byte_len)?,
+            Some(storage @ (Storage::Constant | Storage::LocalStatic | Storage::SharedStatic)) => {
+                self.global_range(storage, address, byte_len)?
+            }
             None => MemoryRange::address(address as u64, byte_len as u64),
         };
 
@@ -241,15 +243,17 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Resolve one native global byte range to its durable location.
     fn global_range(
         &self,
-        storage: GlobalStorage,
+        storage: Storage,
         address: usize,
         byte_len: usize,
     ) -> Result<MemoryRange> {
         let location = match storage {
-            GlobalStorage::Constant => GlobalLocation::Constant,
-            GlobalStorage::Immortal => GlobalLocation::Immortal,
-            GlobalStorage::Local => GlobalLocation::LocalStatic,
-            GlobalStorage::Shared => GlobalLocation::SharedStatic,
+            Storage::Constant => GlobalLocation::Constant,
+            Storage::LocalStatic => GlobalLocation::LocalStatic,
+            Storage::SharedStatic => GlobalLocation::SharedStatic,
+            Storage::LocalHeap | Storage::SharedHeap | Storage::Frame => {
+                return Err(self.invalid_instruction());
+            }
         };
 
         // scan cold debugger metadata only when a range watchpoint is active

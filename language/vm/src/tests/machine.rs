@@ -45,8 +45,6 @@ pub(crate) struct TestMachine {
     shared_mark_worker: SharedMarkWorker,
     /// Immutable constant memory.
     constants: program::StaticSpace,
-    /// Runtime immortal object memory.
-    immortals: program::StaticSpace,
     /// Worker-local static memory.
     local_statics: program::StaticSpace,
     /// Runtime-shared static memory.
@@ -74,17 +72,17 @@ impl TestMachine {
         .expect("test shared heap should build");
         let shared_cache = shared_heap.allocation_cache();
         let shared_mark_worker = shared_heap.register_mark_worker();
-        let (constants, immortals, shared_statics) = program
+        let (constants, shared_statics) = program
             .materialize_runtime_statics(memory.clone())
             .expect("test runtime statics should materialize");
-        let immortal_range = MemoryRange {
-            offset: immortals.offset(),
-            byte_len: immortals.byte_len(),
+        let constant_range = MemoryRange {
+            offset: constants.offset(),
+            byte_len: constants.byte_len(),
         };
-        local_heap.set_immortal_range(immortal_range);
-        shared_heap.set_immortal_range(immortal_range);
+        local_heap.set_constant_range(constant_range);
+        shared_heap.set_constant_range(constant_range);
         let local_statics = program
-            .materialize_local_statics(memory.clone(), &constants, &immortals, &shared_statics)
+            .materialize_local_statics(memory.clone(), &constants, &shared_statics)
             .expect("test local statics should materialize");
         let allocation_plans = program
             .plan_allocations(local_heap.options(), shared_heap.options())
@@ -109,7 +107,6 @@ impl TestMachine {
             shared_cache,
             shared_mark_worker,
             constants,
-            immortals,
             local_statics,
             shared_statics,
         }
@@ -290,7 +287,6 @@ impl TestMachine {
                 shared_mark_worker: &self.shared_mark_worker,
                 local_statics: &mut self.local_statics,
                 shared_statics: &mut self.shared_statics,
-                immortals: &self.immortals,
                 constants: &self.constants,
             },
         };

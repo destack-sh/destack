@@ -1,4 +1,4 @@
-use destack_mir::{GlobalStorage, Space, Storage};
+use destack_mir::{Space, Storage};
 use destack_program::{
     BindingEvent, BindingId, EdgeSite, Event, EventKind, FrameEvent, FunctionId, GlobalId,
     GlobalLocation, Memory, MemoryAccess, MemoryRange, TypeId, Word,
@@ -74,10 +74,8 @@ function f1 {
 #[test]
 fn test_observe_memory() {
     let allocation = TestProgram::value_allocation(0, 0, Space::Local, 0);
-    let store =
-        TestProgram::memory_site(0, 1, MemoryAccess::Write, Some(Storage::Heap(Space::Local)));
-    let load =
-        TestProgram::memory_site(0, 2, MemoryAccess::Read, Some(Storage::Heap(Space::Local)));
+    let store = TestProgram::memory_site(0, 1, MemoryAccess::Write, Some(Storage::LocalHeap));
+    let load = TestProgram::memory_site(0, 2, MemoryAccess::Read, Some(Storage::LocalHeap));
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
@@ -121,7 +119,7 @@ function f0 {
 /// Pair multiple physical accesses with their exact ordered Program sites.
 #[test]
 fn test_observe_memory_sites() {
-    let storage = Some(Storage::Global(GlobalStorage::Local));
+    let storage = Some(Storage::LocalStatic);
     let source = TestProgram::memory_site(0, 3, MemoryAccess::Read, storage);
     let target = TestProgram::memory_site(0, 3, MemoryAccess::Write, storage);
     let mut machine = TestMachine::parse(

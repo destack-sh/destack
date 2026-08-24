@@ -38,7 +38,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .copied()
             .ok_or_else(|| self.invalid_instruction())?;
         let address = self.activation.memory.address(edge);
-        let storage = Storage::Heap(site.space);
+        let storage = Storage::heap(site.space);
         let range = self.executed_memory_range(Some(storage), address, byte_len)?;
 
         self.observe(Event::Allocation { site, range })

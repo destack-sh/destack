@@ -1,5 +1,5 @@
 use destack_bytecode::{RegisterId, RegisterSpan};
-use destack_mir::{GlobalStorage, Storage};
+use destack_mir::Storage;
 use destack_program::{DynamicEntry, FunctionId, MemoryAccess, StopReason, TypeId, WatchSet, Word};
 
 use super::{TestMachine, TestProgram};
@@ -40,18 +40,8 @@ function f1 {
 /// Read one concrete field through an erased dynamic value.
 #[test]
 fn test_execute_dynamic_read() {
-    let write = TestProgram::memory_site(
-        0,
-        1,
-        MemoryAccess::Write,
-        Some(Storage::Global(GlobalStorage::Local)),
-    );
-    let read = TestProgram::memory_site(
-        0,
-        3,
-        MemoryAccess::Read,
-        Some(Storage::Global(GlobalStorage::Local)),
-    );
+    let write = TestProgram::memory_site(0, 1, MemoryAccess::Write, Some(Storage::LocalStatic));
+    let read = TestProgram::memory_site(0, 3, MemoryAccess::Read, Some(Storage::LocalStatic));
     let watch = TestProgram::watchpoint(0, 3, 19, MemoryAccess::Read);
     let watchpoint_id = watch.watchpoint_id;
     let watches = WatchSet::new(vec![watch]);

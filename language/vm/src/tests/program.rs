@@ -425,12 +425,12 @@ impl TestProgram {
     /// Return the exact trace map for one reference carrier.
     fn reference_trace(kind: ReferenceKind, storage: Storage) -> TraceMap {
         match (kind, storage) {
-            (ReferenceKind::Managed, Storage::Heap(Space::Local)) => TraceMap::Fixed {
+            (ReferenceKind::Managed, Storage::LocalHeap) => TraceMap::Fixed {
                 local_offsets: Box::new([0]),
                 shared_offsets: Box::new([]),
                 frame_offsets: Box::new([]),
             },
-            (ReferenceKind::Managed, Storage::Heap(Space::Shared)) => TraceMap::Fixed {
+            (ReferenceKind::Managed, Storage::SharedHeap) => TraceMap::Fixed {
                 local_offsets: Box::new([]),
                 shared_offsets: Box::new([0]),
                 frame_offsets: Box::new([]),
