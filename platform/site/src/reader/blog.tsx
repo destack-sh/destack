@@ -1,11 +1,13 @@
 import { A } from "@solidjs/router";
-import { type Accessor, Show } from "solid-js";
+import { type Accessor, For, Show } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 
 import { type Post, type PostContent } from "../generated/posts";
 import { ContentsTree, type ContentsEntry } from "./contents";
 import { tokens } from "../style/tokens.stylex";
 import { Reader } from "./reader";
+
+const mobile = "@media (max-width: 767px)";
 
 /// Properties for one rendered blog article.
 type BlogArticleProps = {
@@ -29,6 +31,8 @@ export function BlogArticle(props: BlogArticleProps) {
                 <BlogNavigation
                     activeHeading={activeHeading}
                     contents={props.post.tableOfContents}
+                    current={props.post}
+                    posts={props.posts}
                 />
             )}
             publication="journal"
@@ -47,35 +51,68 @@ type BlogLocationProps = {
     post: Post;
 };
 
-/// Render the post path and publication metadata.
+/// Render the post publication details.
 function BlogLocation(props: BlogLocationProps) {
     return (
-        <div {...stylex.attrs(styles.location)}>
-            <span>
-                <time {...stylex.attrs(styles.locationDate)}>{props.post.date}</time>
-                {" / "}{props.post.author}
-            </span>
-        </div>
+        <span>
+            <time>{props.post.date}</time>
+            {" / "}
+            {props.post.author}
+        </span>
     );
 }
 
 /// Properties for the blog article navigation.
-type BlogNavigationProps = {
+export type BlogNavigationProps = {
     /// The currently active heading identifier.
     activeHeading: Accessor<string>;
 
     /// The headings in the current article.
     contents: readonly ContentsEntry[];
+
+    /// The current post when rendering an article.
+    current?: Post;
+
+    /// Every post in reverse chronological order.
+    posts: readonly Post[];
 };
 
-/// Render the blog article navigation.
-function BlogNavigation(props: BlogNavigationProps) {
+/// Render the blog archive and current article headings.
+export function BlogNavigation(props: BlogNavigationProps) {
     return (
         <nav aria-label="blog" {...stylex.attrs(styles.book)}>
             <A {...stylex.attrs(styles.bookTitle)} href="/blog/">
                 blog
             </A>
-            <ContentsTree activeId={props.activeHeading} entries={props.contents} />
+
+            <ol {...stylex.attrs(styles.bookList)}>
+                <For each={props.posts}>
+                    {(post) => (
+                        <li>
+                            <A
+                                {...stylex.attrs(
+                                    styles.bookLink,
+                                    post.route === props.current?.route &&
+                                        styles.active,
+                                )}
+                                href={post.route}
+                            >
+                                {post.title}
+                            </A>
+
+                            <Show when={post.route === props.current?.route}>
+                                <div {...stylex.attrs(styles.bookContents)}>
+                                    <ContentsTree
+                                        activeId={props.activeHeading}
+                                        entries={props.contents}
+                                        isNested
+                                    />
+                                </div>
+                            </Show>
+                        </li>
+                    )}
+                </For>
+            </ol>
         </nav>
     );
 }
@@ -86,12 +123,14 @@ type BlogArticleHeaderProps = {
     post: Post;
 };
 
-/// Render the post title and metadata.
+/// Render the post title and subtitle.
 function BlogArticleHeader(props: BlogArticleHeaderProps) {
     return (
         <header {...stylex.attrs(styles.articleHeader)}>
             <h1 {...stylex.attrs(styles.articleTitle)}>{props.post.title}</h1>
-            <p {...stylex.attrs(styles.articleSubtitle)}>{props.post.subtitle}</p>
+            <p {...stylex.attrs(styles.articleSubtitle)}>
+                {props.post.subtitle}
+            </p>
         </header>
     );
 }
@@ -108,18 +147,23 @@ type PostNavigationProps = {
 /// Render adjacent posts when they exist.
 function PostNavigation(props: PostNavigationProps) {
     // resolve neighbors from the canonical post order
-    const index = () => props.posts.findIndex((post) => post.slug === props.post.slug);
+    const index = () =>
+        props.posts.findIndex((post) => post.slug === props.post.slug);
     const newer = () => props.posts[index() - 1];
     const older = () => props.posts[index() + 1];
 
     return (
         <nav aria-label="post navigation" {...stylex.attrs(styles.pagination)}>
             <Show when={newer()}>
-                {(post) => <PostNavigationLink direction="newer" post={post()} />}
+                {(post) => (
+                    <PostNavigationLink direction="newer" post={post()} />
+                )}
             </Show>
 
             <Show when={older()}>
-                {(post) => <PostNavigationLink direction="older" post={post()} />}
+                {(post) => (
+                    <PostNavigationLink direction="older" post={post()} />
+                )}
             </Show>
         </nav>
     );
@@ -147,14 +191,21 @@ function PostNavigationLink(props: PostNavigationLinkProps) {
 
 /// Journal navigation and article styles.
 const styles = stylex.create({
+    active: {
+        color: tokens.ink,
+        fontWeight: 600,
+    },
     articleHeader: {
         borderBottomColor: tokens.ink,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
         display: "grid",
-        gap: `calc(${tokens.publicationSpace} * 2)`,
-        paddingBottom: `calc(${tokens.publicationSpace} * 4)`,
-        paddingTop: `calc(${tokens.publicationSpace} * 3)`,
+        gap: tokens.publicationSpace,
+        paddingBlock: `calc(${tokens.publicationSpace} * 3)`,
+        [mobile]: {
+            gap: tokens.publicationSpace,
+            paddingBlock: "1rem",
+        },
     },
     articleSubtitle: {
         color: tokens.soft,
@@ -165,17 +216,38 @@ const styles = stylex.create({
         maxWidth: "44rem",
     },
     articleTitle: {
-        fontFamily: tokens.textFont,
+        fontFamily: tokens.displayFont,
         fontSize: "var(--size-page-title)",
-        fontWeight: 300,
-        letterSpacing: "-0.035em",
+        fontWeight: 400,
+        letterSpacing: "-0.03em",
         lineHeight: 1,
         margin: 0,
+        textIndent: "-0.04em",
     },
     book: {
         alignContent: "start",
         display: "grid",
-        gap: "0.75rem",
+        gap: 0,
+    },
+    bookContents: {
+        paddingBottom: `calc(${tokens.publicationSpace} * 1.5)`,
+        paddingTop: `calc(${tokens.publicationSpace} * 0.5)`,
+    },
+    bookLink: {
+        color: tokens.soft,
+        display: "block",
+        lineHeight: 1.3,
+        paddingBlock: "0.25rem",
+        ":hover": {
+            color: tokens.ink,
+        },
+    },
+    bookList: {
+        display: "grid",
+        gap: 0,
+        listStyle: "none",
+        margin: 0,
+        padding: `calc(${tokens.publicationSpace} * 4) 0 0`,
     },
     bookTitle: {
         alignItems: "center",
@@ -194,16 +266,6 @@ const styles = stylex.create({
         ":hover": {
             color: tokens.accent,
         },
-    },
-    location: {
-        alignItems: "baseline",
-        display: "flex",
-        flexWrap: "wrap",
-        gap: "0.5rem 1.5rem",
-    },
-    locationDate: {
-        fontFamily: tokens.monoFont,
-        fontSize: "var(--size-navigation)",
     },
     pagination: {
         borderTopColor: tokens.ink,

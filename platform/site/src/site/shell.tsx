@@ -1,9 +1,12 @@
 import * as stylex from "@stylexjs/stylex";
 import type { JSX } from "solid-js";
 
+import { Footer } from "../navigation/footer";
 import { KeyboardShortcuts } from "../navigation/shortcut";
 import { TopBar } from "../navigation/topbar";
 import { tokens } from "../style/tokens.stylex";
+
+const mobile = "@media (max-width: 767px)";
 
 /// Properties for the persistent site frame.
 type ShellProps = {
@@ -17,17 +20,23 @@ type ShellProps = {
 /// Render the persistent site frame around one page.
 export function Shell(props: ShellProps) {
     return (
-        <div {...stylex.attrs(styles.root, !props.isHome && styles.paper)}>
+        <div
+            {...stylex.attrs(
+                styles.root,
+                props.isHome ? styles.home : styles.paper,
+            )}
+        >
             <KeyboardShortcuts />
             {!props.isHome && <div aria-hidden="true" {...stylex.attrs(styles.paperGrain)} />}
-            {!props.isHome && (
-                <div {...stylex.attrs(styles.paperLayer)}>
-                    <TopBar />
-                </div>
-            )}
+            <div {...stylex.attrs(styles.paperLayer)}>
+                <TopBar />
+            </div>
             <main {...stylex.attrs(styles.main, !props.isHome && styles.paperLayer)}>
                 {props.children}
             </main>
+            <div {...stylex.attrs(styles.paperLayer)}>
+                <Footer />
+            </div>
         </div>
     );
 }
@@ -38,6 +47,14 @@ const styles = stylex.create({
         minHeight: 0,
         minWidth: 0,
         width: "100%",
+    },
+    home: {
+        height: "100svh",
+        minHeight: 0,
+        [mobile]: {
+            height: "auto",
+            minHeight: "100svh",
+        },
     },
     paper: {
         isolation: "isolate",
@@ -55,6 +72,7 @@ const styles = stylex.create({
         zIndex: 0,
     },
     paperLayer: {
+        minWidth: 0,
         position: "relative",
         zIndex: 1,
     },
@@ -63,9 +81,10 @@ const styles = stylex.create({
         color: tokens.text,
         display: "grid",
         fontFamily: tokens.textFont,
-        gridTemplateRows: "auto minmax(0, 1fr)",
+        gridTemplateRows: "auto minmax(0, 1fr) auto",
         minHeight: "100svh",
         minWidth: 0,
         overflowX: "clip",
+        width: "100%",
     },
 });

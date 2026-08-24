@@ -1,24 +1,19 @@
 import * as stylex from "@stylexjs/stylex";
 
-import { CommandPalette } from "../command/palette";
 import { tokens } from "../style/tokens.stylex";
 import { SiteLink } from "./link";
-import { primaryLinks } from "./navigation";
+import { socialLinks } from "./navigation";
 
 const mobile = "@media (max-width: 767px)";
 
-/// Render the global site navigation.
-export function TopBar() {
+/// Render the site publication footer.
+export function Footer() {
     return (
-        <header {...stylex.attrs(styles.root)}>
+        <footer {...stylex.attrs(styles.root)}>
             <div {...stylex.attrs(styles.frame)}>
                 <div {...stylex.attrs(styles.body)}>
-                    <SiteLink href="/" shortcut="h" style={styles.brand} title="Alt+H: home">
-                        destack.sh
-                    </SiteLink>
-
-                    <nav aria-label="Primary navigation" {...stylex.attrs(styles.navigation)}>
-                        {primaryLinks.map(({ label, href, shortcut }) => (
+                    <nav aria-label="Social navigation" {...stylex.attrs(styles.navigation)}>
+                        {socialLinks.map(({ label, href, shortcut }) => (
                             <SiteLink
                                 href={href}
                                 shortcut={shortcut}
@@ -28,22 +23,20 @@ export function TopBar() {
                                 {label}
                             </SiteLink>
                         ))}
-                        <CommandPalette />
                     </nav>
+                    <span {...stylex.attrs(styles.location)}>zurich, switzerland</span>
                 </div>
             </div>
-        </header>
+        </footer>
     );
 }
-
-const hover = { color: tokens.accent };
 
 const styles = stylex.create({
     body: {
         alignItems: "center",
-        borderBottomColor: tokens.ink,
-        borderBottomStyle: "solid",
-        borderBottomWidth: tokens.hairline,
+        borderTopColor: tokens.ink,
+        borderTopStyle: "solid",
+        borderTopWidth: tokens.hairline,
         display: "grid",
         fontFamily: tokens.monoFont,
         fontSize: "var(--size-label)",
@@ -55,18 +48,7 @@ const styles = stylex.create({
         textTransform: "uppercase",
         width: "100%",
         [mobile]: {
-            gap: "0.75rem",
             gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            paddingBlock: "0.75rem",
-        },
-    },
-    brand: {
-        color: tokens.ink,
-        gridColumn: "1 / span 8",
-        ":hover": hover,
-        [mobile]: {
-            gridColumn: 1,
-            gridRow: 1,
         },
     },
     frame: {
@@ -76,30 +58,37 @@ const styles = stylex.create({
         paddingInline: `${tokens.gutterLeft} ${tokens.gutterRight}`,
         width: "100%",
     },
-    navigation: {
-        alignItems: "center",
-        display: "flex",
-        flexWrap: "wrap",
-        gap: "1.5rem",
-        gridColumn: "9 / -1",
-        justifyContent: "flex-end",
-        minWidth: 0,
-        [mobile]: {
-            gap: "1rem",
-            gridColumn: 2,
-            gridRow: 1,
-        },
-    },
     link: {
         color: tokens.ink,
-        ":hover": hover,
+        ":hover": {
+            color: tokens.accent,
+        },
     },
     root: {
         backgroundColor: tokens.page,
-        borderTopColor: tokens.accent,
-        borderTopStyle: "solid",
-        borderTopWidth: tokens.stroke,
-        color: tokens.text,
+        borderBottomColor: tokens.accent,
+        borderBottomStyle: "solid",
+        borderBottomWidth: tokens.stroke,
+        color: tokens.ink,
         maxWidth: "100vw",
+    },
+    location: {
+        gridColumn: "9 / -1",
+        justifySelf: "end",
+        whiteSpace: "nowrap",
+        [mobile]: {
+            gridColumn: 2,
+        },
+    },
+    navigation: {
+        alignItems: "center",
+        display: "flex",
+        gap: "1.5rem",
+        gridColumn: "1 / span 8",
+        minWidth: 0,
+        [mobile]: {
+            gap: "1rem",
+            gridColumn: 1,
+        },
     },
 });

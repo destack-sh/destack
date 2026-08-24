@@ -1,4 +1,4 @@
-import type { Accessor, JSX } from "solid-js";
+import { type Accessor, type JSX, onCleanup, onMount } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 
 import type { PageSource } from "../content/source";
@@ -36,12 +36,6 @@ type ReaderToolbarProps = {
     /// The currently active heading identifier.
     activeHeading: Accessor<string>;
 
-    /// The toolbar placement.
-    placement: "bottom" | "top";
-
-    /// The current article headings.
-    contents: readonly ContentsEntry[];
-
     /// The current location rendered in the article toolbar.
     location: () => JSX.Element;
 
@@ -56,6 +50,29 @@ type ReaderToolbarProps = {
 export function Reader(props: ReaderProps) {
     const activeHeading = trackActiveHeading(props.contents);
     const sourceCommands = createPageSourceCommands(props.source);
+
+    // align direct links after responsive layout and webfonts settle
+    onMount(() => {
+        const scrollToHeading = () => {
+            const identifier = decodeURIComponent(window.location.hash.slice(1));
+            if (identifier === "") {
+                return;
+            }
+
+            document.getElementById(identifier)?.scrollIntoView({ block: "start" });
+        };
+        const scrollAfterLayout = () => {
+            window.requestAnimationFrame(scrollToHeading);
+        };
+
+        void document.fonts.ready.then(scrollAfterLayout);
+        window.addEventListener("hashchange", scrollAfterLayout);
+
+        // detach the route listener with the reader
+        onCleanup(() => {
+            window.removeEventListener("hashchange", scrollAfterLayout);
+        });
+    });
 
     return (
         <div
@@ -74,23 +91,12 @@ export function Reader(props: ReaderProps) {
             >
                 <ReaderToolbar
                     activeHeading={activeHeading}
-                    contents={props.contents}
                     location={props.location}
                     navigation={props.navigation}
-                    placement="top"
                     sourceCommands={sourceCommands}
                 />
 
                 {props.children}
-
-                <ReaderToolbar
-                    activeHeading={activeHeading}
-                    contents={props.contents}
-                    location={props.location}
-                    navigation={props.navigation}
-                    placement="bottom"
-                    sourceCommands={sourceCommands}
-                />
             </article>
         </div>
     );
@@ -103,7 +109,7 @@ function ReaderToolbar(props: ReaderToolbarProps) {
             {...stylex.attrs(
                 styles.toolbar,
                 styles.toolbarPublication,
-                props.placement === "top" ? styles.toolbarTop : styles.toolbarBottom,
+                styles.toolbarTop,
             )}
         >
             <details {...stylex.attrs(styles.menu)} name="reader-tools">
@@ -113,12 +119,7 @@ function ReaderToolbar(props: ReaderToolbarProps) {
                 </div>
             </details>
 
-            <div
-                {...stylex.attrs(
-                    styles.location,
-                    props.placement === "bottom" && styles.locationBottom,
-                )}
-            >
+            <div {...stylex.attrs(styles.location)}>
                 {props.location()}
             </div>
             <SourceActions commands={props.sourceCommands} />
@@ -150,11 +151,6 @@ const styles = stylex.create({
             gridRow: 2,
         },
     },
-    locationBottom: {
-        [mobile]: {
-            display: "none",
-        },
-    },
     menu: {
         minWidth: 0,
         "@media (min-width: 60rem)": {
@@ -178,7 +174,11 @@ const styles = stylex.create({
         color: tokens.text,
         cursor: "pointer",
         display: "flex",
+        fontFamily: tokens.monoFont,
+        fontSize: "var(--size-label)",
         fontWeight: 600,
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
         gap: "0.75rem",
         justifyContent: "flex-start",
         listStyle: "none",
@@ -191,14 +191,15 @@ const styles = stylex.create({
         gridTemplateColumns: "repeat(16, minmax(0, 1fr))",
         marginInline: "auto",
         maxWidth: tokens.siteWidth,
-        padding: `3rem ${tokens.gutterRight} 6rem ${tokens.gutterLeft}`,
+        padding: `1.5rem ${tokens.gutterRight} 4rem ${tokens.gutterLeft}`,
         width: "100%",
         [narrow]: {
             display: "block",
             maxWidth: "48rem",
-            padding: `1.25rem ${tokens.gutterRight} 4rem ${tokens.gutterLeft}`,
+            padding: `1rem ${tokens.gutterRight} 3rem ${tokens.gutterLeft}`,
         },
         [mobile]: {
+            paddingTop: "0.75rem",
             paddingBottom: "2rem",
         },
     },
@@ -213,11 +214,11 @@ const styles = stylex.create({
         "@media (min-width: 60rem)": {
             display: "grid",
             position: "sticky",
-            top: "2rem",
+            top: "1.5rem",
         },
     },
     toolbar: {
-        alignItems: "baseline",
+        alignItems: "center",
         borderBottomColor: tokens.ink,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
@@ -231,25 +232,13 @@ const styles = stylex.create({
         gap: "0.5rem",
         justifyContent: "space-between",
         minHeight: tokens.publicationRow,
-        paddingBlock: `calc(${tokens.publicationSpace} * 1.5)`,
+        paddingBlock: 0,
         [narrow]: {
             alignItems: "start",
             display: "grid",
             gap: "0.25rem 0.75rem",
             gridTemplateColumns: "minmax(0, 1fr) auto",
             justifyContent: "stretch",
-        },
-    },
-    toolbarBottom: {
-        display: "none",
-        [mobile]: {
-            borderTopColor: tokens.ink,
-            borderTopStyle: "solid",
-            borderTopWidth: tokens.hairline,
-            display: "grid",
-            marginTop: "1rem",
-            paddingBottom: 0,
-            paddingTop: "0.75rem",
         },
     },
     toolbarPublication: {

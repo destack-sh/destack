@@ -2,11 +2,17 @@ import { A } from "@solidjs/router";
 import { type Accessor, For, Show } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 
-import { type Document, type DocumentContent, documents } from "../generated/documents";
+import {
+    type Document,
+    type DocumentContent,
+    documents,
+} from "../generated/documents";
 import { Breadcrumbs, type Breadcrumb } from "./breadcrumbs";
 import { ContentsTree, type ContentsEntry } from "./contents";
 import { tokens } from "../style/tokens.stylex";
 import { Reader } from "./reader";
+
+const mobile = "@media (max-width: 767px)";
 
 const standardLibraryPath = "language/library/";
 const standardLibraryIndex = `${standardLibraryPath}index.md`;
@@ -37,9 +43,15 @@ export function DocumentArticle(props: DocumentArticleProps) {
             source={props.document}
         >
             <header {...stylex.attrs(styles.articleHeader)}>
-                <h1 {...stylex.attrs(styles.articleTitle)}>{props.document.title}</h1>
+                <h1 {...stylex.attrs(styles.articleTitle)}>
+                    {props.document.title}
+                </h1>
                 <Show when={props.document.lead}>
-                    {(lead) => <p {...stylex.attrs(styles.articleDescription)}>{lead()}</p>}
+                    {(lead) => (
+                        <p {...stylex.attrs(styles.articleDescription)}>
+                            {lead()}
+                        </p>
+                    )}
                 </Show>
             </header>
             <div class="markdown" innerHTML={props.content.html} />
@@ -63,15 +75,18 @@ type DocumentNavigationProps = {
 /// Render the manual chapters and current article headings.
 function DocumentNavigation(props: DocumentNavigationProps) {
     // keep the generated module catalog within the language section
-    const isStandardLibrary = props.current.path.startsWith(standardLibraryPath);
-    const chapters = documents.filter((document) =>
-        !document.path.startsWith(standardLibraryPath) || document.path === standardLibraryIndex
+    const isStandardLibrary =
+        props.current.path.startsWith(standardLibraryPath);
+    const chapters = documents.filter(
+        (document) =>
+            !document.path.startsWith(standardLibraryPath) ||
+            document.path === standardLibraryIndex,
     );
 
     return (
         <nav aria-label="manual" {...stylex.attrs(styles.book)}>
             <A {...stylex.attrs(styles.bookTitle)} href="/docs/">
-                <span>technical field manual</span>
+                <span>documentation</span>
             </A>
 
             <ol {...stylex.attrs(styles.bookList)}>
@@ -82,11 +97,13 @@ function DocumentNavigation(props: DocumentNavigationProps) {
                                 {...stylex.attrs(
                                     styles.bookLink,
                                     documentIndent(document),
-                                    documentDepth(document) === 0 && styles.section,
-                                    (
-                                        document.route === props.current.route ||
-                                        (document.path === standardLibraryIndex && isStandardLibrary)
-                                    ) && styles.active,
+                                    documentDepth(document) === 0 &&
+                                        styles.section,
+                                    (document.route === props.current.route ||
+                                        (document.path ===
+                                            standardLibraryIndex &&
+                                            isStandardLibrary)) &&
+                                        styles.active,
                                 )}
                                 end
                                 href={document.route}
@@ -95,7 +112,12 @@ function DocumentNavigation(props: DocumentNavigationProps) {
                             </A>
 
                             <Show when={document.route === props.current.route}>
-                                <div {...stylex.attrs(documentIndent(document))}>
+                                <div
+                                    {...stylex.attrs(
+                                        styles.documentContents,
+                                        documentIndent(document),
+                                    )}
+                                >
                                     <ContentsTree
                                         activeId={props.activeHeading}
                                         entries={props.contents}
@@ -107,12 +129,13 @@ function DocumentNavigation(props: DocumentNavigationProps) {
                             <Show
                                 when={
                                     document.path === standardLibraryIndex &&
-                                    props.current.path !== standardLibraryIndex &&
+                                    props.current.path !==
+                                        standardLibraryIndex &&
                                     isStandardLibrary
                                 }
                             >
                                 <Show
-                                    fallback={(
+                                    fallback={
                                         <>
                                             <A
                                                 {...stylex.attrs(
@@ -125,21 +148,31 @@ function DocumentNavigation(props: DocumentNavigationProps) {
                                             >
                                                 {props.current.title}
                                             </A>
-                                            <div {...stylex.attrs(styles.depth2)}>
+                                            <div
+                                                {...stylex.attrs(
+                                                    styles.documentContents,
+                                                    styles.depth2,
+                                                )}
+                                            >
                                                 <ContentsTree
-                                                    activeId={props.activeHeading}
+                                                    activeId={
+                                                        props.activeHeading
+                                                    }
                                                     entries={props.contents}
                                                     isNested
                                                 />
                                             </div>
                                         </>
-                                    )}
+                                    }
                                     when={props.current.moduleRoute}
                                 >
                                     {(moduleRoute) => (
                                         <>
                                             <A
-                                                {...stylex.attrs(styles.bookLink, styles.depth2)}
+                                                {...stylex.attrs(
+                                                    styles.bookLink,
+                                                    styles.depth2,
+                                                )}
                                                 end
                                                 href={moduleRoute()}
                                             >
@@ -156,9 +189,16 @@ function DocumentNavigation(props: DocumentNavigationProps) {
                                             >
                                                 {props.current.title}
                                             </A>
-                                            <div {...stylex.attrs(styles.depth3)}>
+                                            <div
+                                                {...stylex.attrs(
+                                                    styles.documentContents,
+                                                    styles.depth3,
+                                                )}
+                                            >
                                                 <ContentsTree
-                                                    activeId={props.activeHeading}
+                                                    activeId={
+                                                        props.activeHeading
+                                                    }
                                                     entries={props.contents}
                                                     isNested
                                                 />
@@ -216,25 +256,31 @@ type DocumentLocationProps = {
 function DocumentLocation(props: DocumentLocationProps) {
     const items = (): readonly Breadcrumb[] => {
         // describe generated items through their public module
-        if (props.document.moduleRoute != undefined && props.document.moduleTitle != undefined) {
+        if (
+            props.document.moduleRoute != undefined &&
+            props.document.moduleTitle != undefined
+        ) {
             return [
-                { href: "/docs/", label: "docs" },
                 { href: "/docs/language/", label: "language" },
                 { href: "/docs/language/library/", label: "library" },
-                { href: props.document.moduleRoute, label: props.document.moduleTitle },
-                { label: props.document.title },
+                {
+                    href: props.document.moduleRoute,
+                    label: props.document.moduleTitle,
+                },
             ];
         }
 
-        // begin every chapter path at the manual root
-        const segments = props.document.route.split("/").filter(Boolean).slice(1);
-        const breadcrumbs: Breadcrumb[] = [{ href: "/docs/", label: "docs" }];
+        // retain only the navigable ancestors
+        const segments = props.document.route
+            .split("/")
+            .filter(Boolean)
+            .slice(1, -1);
+        const breadcrumbs: Breadcrumb[] = [];
 
-        // link each ancestor while leaving the current chapter inert
+        // link each ancestor from the documentation root
         for (let index = 0; index < segments.length; index += 1) {
-            const isCurrent = index === segments.length - 1;
-            const label = isCurrent ? props.document.title : segments[index];
-            const href = isCurrent ? undefined : `/docs/${segments.slice(0, index + 1).join("/")}/`;
+            const label = segments[index];
+            const href = `/docs/${segments.slice(0, index + 1).join("/")}/`;
             breadcrumbs.push({ href, label });
         }
 
@@ -252,19 +298,29 @@ type DocumentPaginationProps = {
 
 /// Link to the adjacent chapters in manual order.
 function DocumentPagination(props: DocumentPaginationProps) {
-    const index = () => documents.findIndex((document) => document.route === props.current.route);
+    const index = () =>
+        documents.findIndex(
+            (document) => document.route === props.current.route,
+        );
     const previous = () => documents[index() - 1];
     const next = () => documents[index() + 1];
 
     return (
         <Show when={index() >= 0}>
-            <nav aria-label="chapter navigation" {...stylex.attrs(styles.pagination)}>
+            <nav
+                aria-label="chapter navigation"
+                {...stylex.attrs(styles.pagination)}
+            >
                 <Show when={previous()}>
-                    {(document) => <A href={document().route}>← {document().title}</A>}
+                    {(document) => (
+                        <A href={document().route}>← {document().title}</A>
+                    )}
                 </Show>
 
                 <Show when={next()}>
-                    {(document) => <A href={document().route}>{document().title} →</A>}
+                    {(document) => (
+                        <A href={document().route}>{document().title} →</A>
+                    )}
                 </Show>
             </nav>
         </Show>
@@ -282,7 +338,7 @@ const styles = stylex.create({
         fontFamily: tokens.textFont,
         fontSize: "var(--size-page-description)",
         lineHeight: 1.4,
-        margin: `calc(${tokens.publicationSpace} * 2) 0 0`,
+        margin: 0,
         maxWidth: "42rem",
     },
     articleHeader: {
@@ -290,16 +346,21 @@ const styles = stylex.create({
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
         display: "grid",
-        gap: 0,
-        paddingBottom: `calc(${tokens.publicationSpace} * 4)`,
+        gap: tokens.publicationSpace,
+        paddingBlock: `calc(${tokens.publicationSpace} * 3)`,
+        [mobile]: {
+            gap: tokens.publicationSpace,
+            paddingBlock: "1rem",
+        },
     },
     articleTitle: {
-        fontFamily: tokens.textFont,
+        fontFamily: tokens.displayFont,
         fontSize: "var(--size-page-title)",
-        fontWeight: 300,
-        letterSpacing: "-0.035em",
+        fontWeight: 400,
+        letterSpacing: "-0.03em",
         lineHeight: 1,
-        margin: `calc(${tokens.publicationSpace} * 3) 0 0`,
+        margin: 0,
+        textIndent: "-0.04em",
     },
     book: {
         alignContent: "start",
@@ -322,7 +383,7 @@ const styles = stylex.create({
         gap: 0,
         listStyle: "none",
         margin: 0,
-        padding: `calc(${tokens.publicationSpace} * 5) 0 0`,
+        padding: `calc(${tokens.publicationSpace} * 4) 0 0`,
     },
     bookTitle: {
         alignItems: "center",
@@ -356,6 +417,10 @@ const styles = stylex.create({
     depth3: {
         paddingLeft: "3rem",
     },
+    documentContents: {
+        paddingBottom: `calc(${tokens.publicationSpace} * 1.5)`,
+        paddingTop: `calc(${tokens.publicationSpace} * 0.5)`,
+    },
     pagination: {
         borderTopColor: tokens.ink,
         borderTopStyle: "solid",
@@ -372,5 +437,6 @@ const styles = stylex.create({
     section: {
         color: tokens.ink,
         fontWeight: 600,
+        paddingTop: `calc(${tokens.publicationSpace} * 1.5)`,
     },
 });

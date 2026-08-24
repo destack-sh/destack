@@ -143,6 +143,7 @@ const styles = stylex.create({
         fontWeight: 600,
     },
     link: {
+        color: tokens.soft,
         display: "block",
         paddingBlock: "0.25rem",
         ":hover": {

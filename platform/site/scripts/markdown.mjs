@@ -127,12 +127,17 @@ export function renderMarkdown(markdown, context) {
     return `${html}${notes}`;
 }
 
-/// Render one horizontally scrollable GFM table.
+/// Render one responsive GFM table.
 function renderTable(token, renderer) {
+    const labels = token.header.map((cell) => searchTextFor(cell.text));
     const header = token.header.map((cell) => renderer.tablecell(cell)).join("");
     const head = renderer.tablerow({ text: header });
     const rows = token.rows.map((row) => {
-        const cells = row.map((cell) => renderer.tablecell(cell)).join("");
+        const cells = row.map((cell, index) => {
+            const label = escapeAttribute(labels[index] ?? "");
+
+            return renderer.tablecell(cell).replace("<td", `<td data-label="${label}"`);
+        }).join("");
 
         return renderer.tablerow({ text: cells });
     }).join("");
