@@ -61,7 +61,6 @@ static LINTS: &[&Lint] = &[
     &performance::PREFER_MAP_KEYS_VALUES,
     &performance::PREFER_MULTIPLICATION_OVER_POWER,
     &performance::PREFER_REGEXP_TEST,
-    &performance::PREFER_SET_HAS,
     &performance::PREFER_SINGLE_CALL,
     &performance::PREFER_SLICE_PARAMETER,
     &performance::PREFER_SOME,
