@@ -6,7 +6,6 @@ use super::{correctness, performance, security, style, suspicious};
 #[rustfmt::skip]
 static LINTS: &[&Lint] = &[
     // correctness
-    &correctness::BLOCKING_CALL_IN_ASYNC,
     &correctness::FLOAT_EQUALITY_WITHOUT_ABS,
     &correctness::FOR_DIRECTION,
     &correctness::IMPRECISE_FLOAT_OPERATION,
@@ -23,8 +22,6 @@ static LINTS: &[&Lint] = &[
     &correctness::NO_OVERFLOW_CHECK_AFTER_OVERFLOW,
     &correctness::NO_REVERSED_RANGE,
     &correctness::NO_SELF_COMPARE,
-    &correctness::STALE_UPDATE_ACROSS_SUSPENSION,
-    &correctness::SUSPENSION_HOLDING_GUARD,
     &correctness::USE_ISNAN,
 
     // performance
@@ -33,8 +30,6 @@ static LINTS: &[&Lint] = &[
     &performance::DRAIN_COLLECT,
     &performance::ITER_CLONED_COLLECT,
     &performance::ITER_OVEREAGER_CLONED,
-    &performance::LARGE_COROUTINE_STATE,
-    &performance::LARGE_STACK_FRAME,
     &performance::LARGE_VARIANT,
     &performance::LINEAR_OPERATION_IN_LOOP,
     &performance::MANUAL_COPY,
@@ -71,7 +66,6 @@ static LINTS: &[&Lint] = &[
     &performance::PREFER_SLICE_PARAMETER,
     &performance::PREFER_SOME,
     &performance::PREFER_WITH_CAPACITY,
-    &performance::REDUNDANT_ALLOCATION,
     &performance::REDUNDANT_CLONE,
     &performance::REDUNDANT_CLOSURE,
     &performance::REDUNDANT_ITER_CLONED,

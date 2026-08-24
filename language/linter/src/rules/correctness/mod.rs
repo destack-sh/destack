@@ -1,4 +1,3 @@
-mod blocking_call_in_async;
 mod float_equality_without_abs;
 mod for_direction;
 mod imprecise_float_operation;
@@ -15,11 +14,8 @@ mod no_negated_float_comparison;
 mod no_overflow_check_after_overflow;
 mod no_reversed_range;
 mod no_self_compare;
-mod stale_update_across_suspension;
-mod suspension_holding_guard;
 mod use_isnan;
 
-pub use blocking_call_in_async::*;
 pub use float_equality_without_abs::*;
 pub use for_direction::*;
 pub use imprecise_float_operation::*;
@@ -36,6 +32,4 @@ pub use no_negated_float_comparison::*;
 pub use no_overflow_check_after_overflow::*;
 pub use no_reversed_range::*;
 pub use no_self_compare::*;
-pub use stale_update_across_suspension::*;
-pub use suspension_holding_guard::*;
 pub use use_isnan::*;

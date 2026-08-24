@@ -195,13 +195,13 @@ mod tests {
     use destack_repository::LintLevel;
 
     use super::*;
-    use crate::rules::{FOR_DIRECTION, LARGE_STACK_FRAME};
+    use crate::rules::{FOR_DIRECTION, NO_DOUBLE_LOCK};
 
     /// Expose implemented lints and omit stubs.
     #[test]
     fn test_iterates_implemented_lints() {
         let is_implemented_listed = Lint::all().any(|lint| lint.id == FOR_DIRECTION.id);
-        let is_stub_listed = Lint::all().any(|lint| lint.id == LARGE_STACK_FRAME.id);
+        let is_stub_listed = Lint::all().any(|lint| lint.id == NO_DOUBLE_LOCK.id);
 
         assert!(is_implemented_listed);
         assert!(!is_stub_listed);
@@ -212,7 +212,7 @@ mod tests {
     fn test_rejects_selected_stub() {
         let package = PackageId::new(0);
         let options = LinterOptions {
-            only: vec!["large-stack-frame".to_string()],
+            only: vec!["no-double-lock".to_string()],
             ..LinterOptions::default()
         };
         let registry = Lint::all().cloned().collect::<Vec<_>>().into();
