@@ -295,6 +295,7 @@ impl TestSession {
             tree,
             target,
             layouts,
+            language: mir::LanguageTable::default(),
             dispatch,
             drops,
             accesses,
@@ -307,7 +308,7 @@ impl TestSession {
             Arc::new(lowered),
             Arc::new(strings),
         );
-        let LintCheck::MirModule(Some(check)) = lint.check else {
+        let LintCheck::MirModule(check) = lint.check else {
             panic!("lint '{}' is not a MIR module lint", lint.id);
         };
         let output = check(&mut module, lint).expect("MIR lint should run");

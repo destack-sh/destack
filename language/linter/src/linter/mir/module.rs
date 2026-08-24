@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{DiagnosticAnchor, MirLowered, MirVerified};
 use destack_core::StringPool;
+use destack_dir as dir;
 use destack_mir as mir;
 use destack_repository::{ArtifactReader, ProfileId, ProviderError};
 use destack_source::{ModuleId, Span, TargetId};
@@ -65,5 +66,46 @@ impl MirModule {
         let span = self.span(node)?;
 
         Ok(DiagnosticAnchor::Span(span))
+    }
+
+    /// Return one call operation when it invokes a canonical language member.
+    pub fn language_call<'a>(
+        &'a self,
+        instruction: mir::LocalNodeId<mir::Instruction>,
+        member: dir::LanguageMember,
+        resolution: &mir::ResolutionTable,
+    ) -> Option<&'a mir::Call> {
+        let operation = self.lowered.tree.get(instruction);
+        let mir::Instruction::Call { call, .. } = operation else {
+            return None;
+        };
+
+        // resolve direct and statically dispatched calls
+        let callsite = mir::CallSite::Instruction(instruction);
+        let target = operation
+            .call_direct_target()
+            .or_else(|| resolution.target(callsite))?;
+
+        self.implements_language_member(target, member)
+            .then_some(call)
+    }
+
+    /// Return whether one MIR declaration implements a canonical language member.
+    fn implements_language_member<T>(
+        &self,
+        node: mir::LocalNodeId<T>,
+        member: dir::LanguageMember,
+    ) -> bool
+    where
+        T: mir::Node,
+    {
+        let owner = destack_core::StringId::for_text(&member.owner.key());
+        let key = match member.key {
+            dir::StaticKey::Name(name) => mir::StaticKey::Name(name),
+            dir::StaticKey::Index(index) => mir::StaticKey::Index(index as u64),
+        };
+        let member = mir::LanguageMember { owner, key };
+
+        self.lowered.language.implements_member(node, member)
     }
 }
