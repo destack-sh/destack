@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use destack_dir as dir;
 
 use crate::rules::declare_lint;
@@ -54,7 +52,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(end_value) = module.scalar_constant(*end)? else {
             continue;
         };
-        if scalar_ordering(start_value, end_value) != Some(Ordering::Greater) {
+        if start_value.interval_ordering(&end_value) != Some(std::cmp::Ordering::Greater) {
             continue;
         }
 
@@ -64,16 +62,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     }
 
     Ok(output)
-}
-
-/// Compare exact constants from one discrete range domain.
-fn scalar_ordering(left: dir::Literal, right: dir::Literal) -> Option<Ordering> {
-    match (left, right) {
-        (dir::Literal::Integer(left), dir::Literal::Integer(right))
-        | (dir::Literal::Bigint(left), dir::Literal::Bigint(right)) => Some(left.cmp(&right)),
-        (dir::Literal::Character(left), dir::Literal::Character(right)) => Some(left.cmp(&right)),
-        _ => None,
-    }
 }
 
 #[cfg(test)]
@@ -89,6 +77,7 @@ mod tests {
             r#"
 const Start: int32 = 10;
 const integers = Start..0;
+const bigints = 10n..0n;
 const characters = 'z'..='a';
 "#,
         );
@@ -101,15 +90,26 @@ warning[no-reversed-range]: range start exceeds its end
 1 │ const Start: int32 = 10;
 2 │ const integers = Start..0;
   │                  ^^^^^^^^
-3 │ const characters = 'z'..='a';
+3 │ const bigints = 10n..0n;
+4 │ const characters = 'z'..='a';
   │
 
 warning[no-reversed-range]: range start exceeds its end
- ──▶ main.ds:3:20
+ ──▶ main.ds:3:17
   │
 1 │ const Start: int32 = 10;
 2 │ const integers = Start..0;
-3 │ const characters = 'z'..='a';
+3 │ const bigints = 10n..0n;
+  │                 ^^^^^^^
+4 │ const characters = 'z'..='a';
+  │
+
+warning[no-reversed-range]: range start exceeds its end
+ ──▶ main.ds:4:20
+  │
+2 │ const integers = Start..0;
+3 │ const bigints = 10n..0n;
+4 │ const characters = 'z'..='a';
   │                    ^^^^^^^^^
   │
 "#,

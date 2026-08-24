@@ -50,6 +50,21 @@ enum ImplementationKind {
 }
 
 impl ImplementationKind {
+    /// Select the equality or hashing behavior of one conformance.
+    fn select(
+        conformance: &dir::NominalConformance,
+        module: &DirModule<'_>,
+    ) -> Result<Option<Self>, ProviderError> {
+        let item = module.dir.representation_item(conformance.interface)?;
+        let kind = match item {
+            Some(dir::LanguageItem::Equal | dir::LanguageItem::Compare) => Some(Self::Equality),
+            Some(dir::LanguageItem::Hash) => Some(Self::Hash),
+            _ => None,
+        };
+
+        Ok(kind)
+    }
+
     /// Return the protocol name used in diagnostics.
     fn name(self) -> &'static str {
         match self {
@@ -70,6 +85,39 @@ struct WrittenImplementation {
     source: dir::GlobalNodeIdAny,
 }
 
+impl WrittenImplementation {
+    /// Return the derived behavior that conflicts with this written implementation.
+    fn conflicting_derive(
+        self,
+        module: &DirModule<'_>,
+    ) -> Result<Option<ImplementationKind>, ProviderError> {
+        let derives = module.dir.written_derives(self.target)?;
+
+        // absence of an explicit selection enables every automatic conformance
+        let has_derived = |interface| {
+            derives
+                .as_ref()
+                .is_none_or(|derives| derives.contains(&interface))
+        };
+
+        // select the generated counterpart of the written implementation
+        let conflicting = match self.kind {
+            ImplementationKind::Equality if has_derived(dir::AutoInterface::Hash) => {
+                Some(ImplementationKind::Hash)
+            }
+            ImplementationKind::Hash
+                if has_derived(dir::AutoInterface::Equal)
+                    || has_derived(dir::AutoInterface::Compare) =>
+            {
+                Some(ImplementationKind::Equality)
+            }
+            ImplementationKind::Equality | ImplementationKind::Hash => None,
+        };
+
+        Ok(conflicting)
+    }
+}
+
 /// Report targets that mix derived hashing with written equality or the reverse.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
@@ -77,7 +125,11 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
     // collect authored equality and hashing conformances
     for (symbol, definition) in module.definitions.iter_definitions() {
-        let Some(target) = implementation_target(symbol, definition) else {
+        let target = match definition {
+            dir::Definition::Extension(extension) => extension.target.declaration(),
+            _ => Some(symbol),
+        };
+        let Some(target) = target else {
             continue;
         };
 
@@ -89,7 +141,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             {
                 continue;
             }
-            let Some(kind) = conformance_kind(implementation, module)? else {
+            let Some(kind) = ImplementationKind::select(implementation, module)? else {
                 continue;
             };
             written.push(WrittenImplementation {
@@ -109,8 +161,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         {
             continue;
         }
-        let Some(derived) = conflicting_derive(implementation.target, implementation.kind, module)?
-        else {
+        let Some(derived) = implementation.conflicting_derive(module)? else {
             continue;
         };
 
@@ -124,66 +175,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     }
 
     Ok(output)
-}
-
-/// Return the equality or hashing behavior selected by one written conformance.
-fn conformance_kind(
-    conformance: &dir::NominalConformance,
-    module: &DirModule<'_>,
-) -> Result<Option<ImplementationKind>, ProviderError> {
-    let item = module.dir.representation_item(conformance.interface)?;
-    let kind = match item {
-        Some(dir::LanguageItem::Equal | dir::LanguageItem::Compare) => {
-            Some(ImplementationKind::Equality)
-        }
-        Some(dir::LanguageItem::Hash) => Some(ImplementationKind::Hash),
-        _ => None,
-    };
-
-    Ok(kind)
-}
-
-/// Return the derived behavior that conflicts with one written implementation.
-fn conflicting_derive(
-    target: dir::GlobalSymbolId,
-    written: ImplementationKind,
-    module: &DirModule<'_>,
-) -> Result<Option<ImplementationKind>, ProviderError> {
-    let derives = module.dir.written_derives(target)?;
-
-    // absence of an explicit selection enables every automatic conformance
-    let has_derived = |interface| {
-        derives
-            .as_ref()
-            .is_none_or(|derives| derives.contains(&interface))
-    };
-
-    // select the generated counterpart of the written implementation
-    let conflicting = match written {
-        ImplementationKind::Equality if has_derived(dir::AutoInterface::Hash) => {
-            Some(ImplementationKind::Hash)
-        }
-        ImplementationKind::Hash
-            if has_derived(dir::AutoInterface::Equal)
-                || has_derived(dir::AutoInterface::Compare) =>
-        {
-            Some(ImplementationKind::Equality)
-        }
-        ImplementationKind::Equality | ImplementationKind::Hash => None,
-    };
-
-    Ok(conflicting)
-}
-
-/// Return the nominal declaration that receives one definition's implementations.
-fn implementation_target(
-    symbol: dir::GlobalSymbolId,
-    definition: &dir::Definition,
-) -> Option<dir::GlobalSymbolId> {
-    match definition {
-        dir::Definition::Extension(extension) => extension.target.declaration(),
-        _ => Some(symbol),
-    }
 }
 
 #[cfg(test)]
@@ -221,6 +212,40 @@ warning[inconsistent-equality-implementation]: written equality conflicts with d
   │                             ^^^^^
 7 │     equal(&readonly this, other: &readonly Key): boolean {
 8 │         return this.value % 10 == other.value % 10;
+  │
+"#,
+        );
+    }
+
+    /// Report written equality paired with implicit automatic hashing.
+    #[test]
+    fn test_reports_written_equality_with_automatic_hashing() {
+        let session = TestSession::dir(
+            &INCONSISTENT_EQUALITY_IMPLEMENTATION,
+            r#"
+struct Key {
+    value: int32;
+}
+
+extension of Key implements Equal<Key> {
+    equal(&readonly this, other: &readonly Key): boolean {
+        return this.value % 10 == other.value % 10;
+    }
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[inconsistent-equality-implementation]: written equality conflicts with derived hashing
+ ──▶ main.ds:5:29
+  │
+3 │ }
+4 │
+5 │ extension of Key implements Equal<Key> {
+  │                             ^^^^^
+6 │     equal(&readonly this, other: &readonly Key): boolean {
+7 │         return this.value % 10 == other.value % 10;
   │
 "#,
         );

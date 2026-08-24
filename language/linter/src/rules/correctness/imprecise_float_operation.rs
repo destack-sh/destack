@@ -43,13 +43,91 @@ struct FloatOperation {
     message: &'static str,
 }
 
+impl FloatOperation {
+    /// Select one expanded cube-root, logarithm, or exponential operation.
+    fn select(
+        module: &DirModule<'_>,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<Self>, ProviderError> {
+        // recognize `(1 + value).log()` and `(value + 1).log()`
+        if let Some(call) = module.member_call(expression)
+            && !call.is_optional()
+            && call.generic_arguments.is_empty()
+            && call.arguments.is_empty()
+            && module.language_member(expression)? == Some(dir::LanguageItem::Float.member("log"))
+            && let Some((dir::BinaryOperator::Add, [left, right])) =
+                module.builtin_binary(call.receiver)?
+        {
+            let receiver = if module.is_numeric_constant(left.source.local_id, 1.0)? {
+                Some(right.source.local_id)
+            } else if module.is_numeric_constant(right.source.local_id, 1.0)? {
+                Some(left.source.local_id)
+            } else {
+                None
+            };
+            if let Some(receiver) = receiver {
+                return Ok(Some(Self {
+                    receiver,
+                    method: "log1p",
+                    message: "expanded logarithm loses precision near zero",
+                }));
+            }
+        }
+
+        // recognize `value.pow(1 / 3)`
+        if let Some(call) = module.member_call(expression)
+            && !call.is_optional()
+            && call.generic_arguments.is_empty()
+            && module.language_member(expression)? == Some(dir::LanguageItem::Float.member("pow"))
+            && let [argument] = call.arguments
+            && let Some(exponent) = module.view().get(*argument).value()
+            && let Some((dir::BinaryOperator::Divide, [numerator, denominator])) =
+                module.builtin_binary(exponent)?
+            && matches!(
+                module.scalar_constant(numerator.source.local_id)?,
+                Some(dir::Literal::Float(value)) if value == 1.0
+            )
+            && matches!(
+                module.scalar_constant(denominator.source.local_id)?,
+                Some(dir::Literal::Float(value)) if value == 3.0
+            )
+        {
+            return Ok(Some(Self {
+                receiver: call.receiver,
+                method: "cbrt",
+                message: "fractional power is less accurate than cube root",
+            }));
+        }
+
+        // recognize `value.exp() - 1`
+        if let Some((dir::BinaryOperator::Subtract, [left, right])) =
+            module.builtin_binary(expression)?
+            && module.is_numeric_constant(right.source.local_id, 1.0)?
+            && let Some(call) = module.member_call(left.source.local_id)
+            && !call.is_optional()
+            && call.generic_arguments.is_empty()
+            && call.arguments.is_empty()
+            && module.language_member(left.source.local_id)?
+                == Some(dir::LanguageItem::Float.member("exp"))
+        {
+            return Ok(Some(Self {
+                receiver: call.receiver,
+                method: "expm1",
+                message: "subtracting one from exp loses precision near zero",
+            }));
+        }
+
+        Ok(None)
+    }
+}
+
 /// Report expanded floating-point operations with more accurate methods.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
     // inspect every expression as one possible expanded operation
     for (expression, _) in module.view().iter_nodes::<dir::Expression>() {
-        let Some(operation) = float_operation(module, expression)? else {
+        let Some(operation) = FloatOperation::select(module, expression)? else {
             continue;
         };
 
@@ -63,82 +141,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     }
 
     Ok(output)
-}
-
-/// Select one expanded cube-root, logarithm, or exponential operation.
-fn float_operation(
-    module: &DirModule<'_>,
-    expression: dir::LocalNodeId<dir::Expression>,
-) -> Result<Option<FloatOperation>, ProviderError> {
-    // recognize `(1 + value).log()` and `(value + 1).log()`
-    if let Some(call) = module.member_call(expression)
-        && !call.is_optional()
-        && call.generic_arguments.is_empty()
-        && call.arguments.is_empty()
-        && module.language_member(expression)? == Some(dir::LanguageItem::Float.member("log"))
-        && let Some((dir::BinaryOperator::Add, [left, right])) =
-            module.builtin_binary(call.receiver)?
-    {
-        let receiver = if module.is_numeric_constant(left.source.local_id, 1.0)? {
-            Some(right.source.local_id)
-        } else if module.is_numeric_constant(right.source.local_id, 1.0)? {
-            Some(left.source.local_id)
-        } else {
-            None
-        };
-        if let Some(receiver) = receiver {
-            return Ok(Some(FloatOperation {
-                receiver,
-                method: "log1p",
-                message: "expanded logarithm loses precision near zero",
-            }));
-        }
-    }
-
-    // recognize `value.pow(1 / 3)`
-    if let Some(call) = module.member_call(expression)
-        && !call.is_optional()
-        && call.generic_arguments.is_empty()
-        && module.language_member(expression)? == Some(dir::LanguageItem::Float.member("pow"))
-        && let [argument] = call.arguments
-        && let Some(exponent) = module.view().get(*argument).value()
-        && let Some((dir::BinaryOperator::Divide, [numerator, denominator])) =
-            module.builtin_binary(exponent)?
-        && matches!(
-            module.scalar_constant(numerator.source.local_id)?,
-            Some(dir::Literal::Float(value)) if value == 1.0
-        )
-        && matches!(
-            module.scalar_constant(denominator.source.local_id)?,
-            Some(dir::Literal::Float(value)) if value == 3.0
-        )
-    {
-        return Ok(Some(FloatOperation {
-            receiver: call.receiver,
-            method: "cbrt",
-            message: "fractional power is less accurate than cube root",
-        }));
-    }
-
-    // recognize `value.exp() - 1`
-    if let Some((dir::BinaryOperator::Subtract, [left, right])) =
-        module.builtin_binary(expression)?
-        && module.is_numeric_constant(right.source.local_id, 1.0)?
-        && let Some(call) = module.member_call(left.source.local_id)
-        && !call.is_optional()
-        && call.generic_arguments.is_empty()
-        && call.arguments.is_empty()
-        && module.language_member(left.source.local_id)?
-            == Some(dir::LanguageItem::Float.member("exp"))
-    {
-        return Ok(Some(FloatOperation {
-            receiver: call.receiver,
-            method: "expm1",
-            message: "subtracting one from exp loses precision near zero",
-        }));
-    }
-
-    Ok(None)
 }
 
 /// Replace one expanded formula with its dedicated floating-point method.
