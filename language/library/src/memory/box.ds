@@ -3,6 +3,7 @@ import { Result, todo } from "destack:error";
 import { Dereference } from "destack:ops";
 
 import { Access } from "./access.ds";
+import { Place } from "./place.ds";
 import { Borrowed } from "./borrow.ds";
 import { Clone, Default, Unpin, Zeroable } from "./capability.ds";
 import { AllocationError } from "./error.ds";
@@ -137,4 +138,4 @@ export extension<T> of Box<T> implements Default where T: Default {
 
 /// Leak one unique allocation and borrow it for static lifetime.
 @intrinsic("memory.unique.leak")
-declare function leakUnique<T>(unique: Unique<Owned<T>>): Borrowed<T, 'static>;
+declare function leakUnique<T, const P: Place>(unique: Unique<Owned<T>>): Borrowed<T, 'static, "mutable", P>;

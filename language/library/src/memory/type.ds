@@ -1,169 +1,19 @@
 import { Access } from "./access.ds";
-import { Borrowed, ExclusiveBorrowed, ReadonlyBorrowed } from "./borrow.ds";
-import { Lifetime } from "./lifetime.ds";
-import { Managed } from "./managed.ds";
-import { Owned } from "./owned.ds";
-import { Place, Placed, Space } from "./place.ds";
-import { Raw } from "./raw.ds";
+import { Placed } from "./place.ds";
 
 /// Ownership kind for qualified storage.
 @languageItem("memory.Ownership")
 export type Ownership = "managed" | "owned" | "borrowed" | "raw";
 
 /// Place `T` in shared space.
-export type Shared<T> = WithPlace<T, "shared">;
+export type Shared<T> = Placed<T, "shared">;
 
 /// Place `T` in local space.
-export type Local<T> = WithPlace<T, "local">;
+export type Local<T> = Placed<T, "local">;
 
 /// Restore relative placement of `T`.
-export type Relative<T> = WithPlace<T, "relative">;
-
-/// Extract the payload under the outermost memory form.
-@languageItem("memory.PayloadOf")
-export newtype PayloadOf<T> = intrinsic;
-
-/// Extract the unqualified base type of `T`.
-@languageItem("memory.BaseOf")
-export newtype BaseOf<T> = intrinsic;
-
-/// Extract the outer ownership form of `T`.
-@languageItem("memory.OwnershipOf")
-export newtype OwnershipOf<T> = intrinsic;
-
-/// Extract the ownership of `T`, or fall back to `D`.
-@languageItem("memory.OwnershipOr")
-export newtype OwnershipOr<T, const D: Ownership> = intrinsic;
-
-/// Extract the placement of `T`.
-@languageItem("memory.PlaceOf")
-export newtype PlaceOf<T> = intrinsic;
-
-/// Extract the placement of `T`, or fall back to `D`.
-@languageItem("memory.PlaceOr")
-export newtype PlaceOr<T, const D: Place> = intrinsic;
-
-/// Resolve relative placement in concrete space `S`.
-@languageItem("memory.PlaceIn")
-export newtype PlaceIn<T, const S: Space> = intrinsic;
-
-/// Extract the explicit concrete space of `T`.
-@languageItem("memory.SpaceOf")
-export newtype SpaceOf<T> = intrinsic;
-
-/// Extract the explicit concrete space of `T`, or fall back to `D`.
-@languageItem("memory.SpaceOr")
-export newtype SpaceOr<T, const D: Space> = intrinsic;
-
-/// Extract the borrow lifetime of `T`.
-@languageItem("memory.LifetimeOf")
-export newtype LifetimeOf<T> = intrinsic;
-
-/// Extract the borrow lifetime of `T`, or fall back to `D`.
-@languageItem("memory.LifetimeOr")
-export newtype LifetimeOr<T, const D: Lifetime> = intrinsic;
-
-/// Extract the access mode of `T`.
-@languageItem("memory.AccessOf")
-export newtype AccessOf<T> = intrinsic;
-
-/// Extract the access mode of `T`, or fall back to `D`.
-@languageItem("memory.AccessOr")
-export newtype AccessOr<T, const D: Access> = intrinsic;
-
-/// Return whether `T` is managed.
-@languageItem("memory.IsManaged")
-export newtype IsManaged<T> = intrinsic;
-
-/// Return whether `T` is owned.
-@languageItem("memory.IsOwned")
-export newtype IsOwned<T> = intrinsic;
-
-/// Return whether `T` is borrowed.
-@languageItem("memory.IsBorrowed")
-export newtype IsBorrowed<T> = intrinsic;
-
-/// Return whether `T` is raw.
-@languageItem("memory.IsRaw")
-export newtype IsRaw<T> = intrinsic;
-
-/// Return whether `T` is explicitly placed in shared space.
-@languageItem("memory.IsShared")
-export newtype IsShared<T> = intrinsic;
-
-/// Return whether `T` resolves to shared space in concrete space `S`.
-@languageItem("memory.IsSharedIn")
-export newtype IsSharedIn<T, const S: Space> = intrinsic;
-
-/// Replace the unqualified base type of `Q` with `T`.
-@languageItem("memory.WithBase")
-export newtype WithBase<Q, T> = intrinsic;
-
-/// Add ownership form `O` around `Q`.
-@languageItem("memory.WithOwnership")
-export newtype WithOwnership<
-    Q,
-    const O: Ownership,
-    const L: Lifetime = LifetimeOr<Q, 'static>,
-> = intrinsic;
-
-/// Replace placement of `Q` with place `P`.
-@languageItem("memory.WithPlace")
-export newtype WithPlace<Q, const P: Place> = intrinsic;
-
-/// Resolve relative placement of `Q` in concrete space `S`.
-@languageItem("memory.WithSpace")
-export newtype WithSpace<Q, const S: Space> = intrinsic;
-
-/// Reborrow `Q` with lifetime `L`.
-@languageItem("memory.WithLifetime")
-export newtype WithLifetime<Q, const L: Lifetime> = intrinsic;
+export type Relative<T> = Placed<T, "relative">;
 
 /// Reborrow `Q` with access mode `A`.
 @languageItem("memory.WithAccess")
 export newtype WithAccess<Q, const A: Access> = intrinsic;
-
-/// Rebase each field of `T` into managed form.
-export type ManagedFields<T> = {
-    [K in keyof T]: Managed<T[K]>;
-};
-
-/// Rebase each field of `T` into owned form.
-export type OwnedFields<T> = {
-    [K in keyof T]: Owned<T[K]>;
-};
-
-/// Rebase each field of `T` into borrowed form.
-export type BorrowedFields<T, const L: Lifetime> = {
-    [K in keyof T]: Borrowed<T[K], L>;
-};
-
-/// Rebase each field of `T` into readonly borrowed form.
-export type ReadonlyBorrowedFields<T, const L: Lifetime> = {
-    [K in keyof T]: ReadonlyBorrowed<T[K], L>;
-};
-
-/// Rebase each field of `T` into exclusive borrowed form.
-export type ExclusiveBorrowedFields<T, const L: Lifetime> = {
-    [K in keyof T]: ExclusiveBorrowed<T[K], L>;
-};
-
-/// Rebase each field of `T` into raw pointer form.
-export type RawFields<T> = {
-    [K in keyof T]: Raw<T[K]>;
-};
-
-/// Rebase each field of `T` into shared space.
-export type SharedFields<T> = {
-    [K in keyof T]: Shared<T[K]>;
-};
-
-/// Rebase each field of `T` into local space.
-export type LocalFields<T> = {
-    [K in keyof T]: Local<T[K]>;
-};
-
-/// Rebase each field of `T` into relative placement.
-export type RelativeFields<T> = {
-    [K in keyof T]: Relative<T[K]>;
-};
