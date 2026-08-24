@@ -297,7 +297,6 @@ impl<'a> TypeTable<'a> {
             | Type::Primitive(_)
             | Type::Literal(_)
             | Type::Key(_)
-            | Type::Memory(_)
             | Type::Static(_)
             | Type::Intrinsic
             | Type::Erased(_)
@@ -329,20 +328,29 @@ impl<'a> TypeTable<'a> {
                 visit(refined.value);
             }
 
+            // regions visit both coordinates
+            Type::Region(region) => {
+                visit(region.extent);
+                visit(region.spaces);
+            }
+
             // memory forms
             Type::Form(form) => {
                 visit(form.value);
                 match &form.form {
                     Form::Borrowed(borrow) => {
                         let borrow = self.borrow_form(*borrow);
-                        visit(borrow.lifetime);
+                        visit(borrow.region);
                         visit(borrow.access);
                     }
-                    Form::Placed { place } => visit(*place),
-                    Form::Managed | Form::Owned | Form::Raw | Form::Readonly => {}
+                    Form::Managed { place } => visit(*place),
+                    Form::Owned | Form::Raw | Form::Readonly => {}
                 }
             }
-            Type::Dynamic(dynamic) => visit(dynamic.constraint),
+            Type::Dynamic(dynamic) => {
+                visit(dynamic.constraint);
+                visit(dynamic.place);
+            }
 
             // type operations resolve their interned payload
             Type::Operation(operation) => match self.operation(*operation) {
@@ -400,7 +408,10 @@ impl<'a> TypeTable<'a> {
                 visit(array.element);
                 visit(array.count);
             }
-            Type::Slice(slice) => visit(slice.element),
+            Type::Slice(slice) => {
+                visit(slice.element);
+                visit(slice.place);
+            }
             Type::Tuple(tuple) => {
                 for element in self.elements(tuple.elements) {
                     visit(element.ty);
@@ -442,6 +453,7 @@ impl<'a> TypeTable<'a> {
             }
             Type::Function(function) => {
                 visit(function.signature);
+                visit(function.place);
             }
             Type::FunctionPointer(function) => {
                 visit(function.signature);

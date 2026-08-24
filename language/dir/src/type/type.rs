@@ -11,7 +11,7 @@ use crate::{
     ScalarDomain, StaticKey, StringId, TypeFold, TypeLiteral, UnaryOperator,
 };
 
-use super::{FloatType, IntegerType, MemoryParameter, PrimitiveType};
+use super::{FloatType, IntegerType, PrimitiveType};
 
 /// A canonical solved type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -43,8 +43,6 @@ pub enum Type {
     Literal(Literal),
     /// Singleton static property key type.
     Key(StaticKey),
-    /// Singleton type of one normalized memory value.
-    Memory(MemoryLiteral),
     /// Singleton type of one committed static value.
     Static(GlobalStaticId),
     /// Compiler intrinsic type body.
@@ -67,6 +65,8 @@ pub enum Type {
     /// One selected enum variant, like `Mode.Read`.
     Variant(VariantType),
 
+    /// One reference region: the referent's lifetime extent and space set.
+    Region(RegionType),
     /// Canonical memory or access form, like `^User` or `&exclusive User`.
     Form(FormType),
     /// Explicit runtime `Dynamic<T>` representation, like `Dynamic<Printable>`.
@@ -166,19 +166,19 @@ impl Type {
             Self::Primitive(_) => "Primitive",
             Self::Literal(_) => "Literal",
             Self::Key(_) => "Key",
-            Self::Memory(_) => "Memory",
+            Self::Reference(_) => "Reference",
             Self::Static(_) => "Static",
             Self::Intrinsic => "Intrinsic",
             Self::Parameter(_) => "Parameter",
             Self::Erased(_) => "Erased",
             Self::This => "This",
             Self::Range(_) => "Range",
-            Self::Reference(_) => "Reference",
             Self::Application(_) => "Application",
             Self::Refined(_) => "Refined",
             Self::Member(_) => "Member",
             Self::Variant(_) => "Variant",
             Self::Form(_) => "Form",
+            Self::Region(_) => "Region",
             Self::Dynamic(_) => "Dynamic",
             Self::Operation(_) => "Operation",
             Self::FixedArray(_) => "FixedArray",
@@ -359,12 +359,12 @@ impl Type {
             | Self::Primitive(_)
             | Self::Literal(_)
             | Self::Key(_)
-            | Self::Memory(_)
             | Self::Static(_)
             | Self::Intrinsic
             | Self::Application(_)
             | Self::Variant(_)
             | Self::Form(_)
+            | Self::Region(_)
             | Self::Dynamic(_)
             | Self::FixedArray(_)
             | Self::Range(_)
@@ -399,6 +399,10 @@ impl Type {
 
             // wrapped value heads
             Self::Form(form) => collect(form.value.module_id),
+            Self::Region(region) => {
+                collect(region.extent.module_id);
+                collect(region.spaces.module_id);
+            }
             Self::Dynamic(dynamic) => collect(dynamic.constraint.module_id),
             Self::FixedArray(array) => {
                 collect(array.element.module_id);
@@ -429,7 +433,6 @@ impl Type {
             | Self::Primitive(_)
             | Self::Literal(_)
             | Self::Key(_)
-            | Self::Memory(_)
             | Self::Intrinsic
             | Self::Range(_)
             | Self::This => {}
@@ -624,11 +627,11 @@ impl BorrowFormId {
     }
 }
 
-/// One borrow form's solved lifetime and access pair.
+/// One borrow form's solved region and access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct BorrowForm {
-    /// The solved borrow lifetime singleton.
-    pub lifetime: GlobalTypeId,
+    /// The solved borrow region: a region pair, parameter, or variable.
+    pub region: GlobalTypeId,
     /// The solved borrow access singleton.
     pub access: GlobalTypeId,
 }
@@ -786,71 +789,6 @@ impl TypeListId {
 /// Singleton type of one normalized memory value.
 /// Literal spellings at language-item-typed positions normalize here:
 /// the `"exclusive"` in `Borrowed<User, L, "exclusive">` commits as
-/// `MemoryLiteral::Access(Access::Exclusive)`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum MemoryLiteral {
-    /// Memory access singleton, like `"readonly"` or `"exclusive"`.
-    Access(Access),
-    /// Ownership singleton, like `"managed"` or `"owned"`.
-    Ownership(Ownership),
-    /// Storage space singleton, like `"local"` or `"shared"`.
-    Space(Space),
-    /// Placement singleton, like `"relative"` or a concrete space.
-    Place(Place),
-    /// Lifetime singleton, like `"static"` or a lifetime parameter.
-    Lifetime(Lifetime),
-}
-
-impl MemoryLiteral {
-    /// Parse one canonical singleton in the requested memory domain.
-    pub fn from_text(kind: MemoryParameter, text: &str) -> Option<Self> {
-        match (kind, text) {
-            (MemoryParameter::Access, "readonly") => Some(Self::Access(Access::Readonly)),
-            (MemoryParameter::Access, "mutable") => Some(Self::Access(Access::Mutable)),
-            (MemoryParameter::Access, "exclusive") => Some(Self::Access(Access::Exclusive)),
-            (MemoryParameter::Ownership, "managed") => Some(Self::Ownership(Ownership::Managed)),
-            (MemoryParameter::Ownership, "owned") => Some(Self::Ownership(Ownership::Owned)),
-            (MemoryParameter::Ownership, "borrowed") => Some(Self::Ownership(Ownership::Borrowed)),
-            (MemoryParameter::Ownership, "raw") => Some(Self::Ownership(Ownership::Raw)),
-            (MemoryParameter::Place, "relative") => Some(Self::Place(Place::Relative)),
-            (MemoryParameter::Place, "local") => Some(Self::Place(Place::Space(Space::Local))),
-            (MemoryParameter::Place, "shared") => Some(Self::Place(Place::Space(Space::Shared))),
-            (MemoryParameter::Space, "local") => Some(Self::Space(Space::Local)),
-            (MemoryParameter::Space, "shared") => Some(Self::Space(Space::Shared)),
-            (MemoryParameter::Lifetime, "static") => Some(Self::Lifetime(Lifetime::Static)),
-            (MemoryParameter::Lifetime, "frame") => Some(Self::Lifetime(Lifetime::Frame)),
-            _ => None,
-        }
-    }
-
-    /// Return the language item naming this literal's singleton kind.
-    pub fn kind_language_item(&self) -> LanguageItem {
-        match self {
-            Self::Access(_) => LanguageItem::Access,
-            Self::Ownership(_) => LanguageItem::Ownership,
-            Self::Space(_) => LanguageItem::Space,
-            Self::Place(_) => LanguageItem::Place,
-            Self::Lifetime(_) => LanguageItem::Lifetime,
-        }
-    }
-
-    /// Return the canonical source text of one memory literal.
-    pub fn text(&self) -> &'static str {
-        match self {
-            Self::Access(Access::Readonly) => "readonly",
-            Self::Access(Access::Mutable) => "mutable",
-            Self::Access(Access::Exclusive) => "exclusive",
-            Self::Ownership(ownership) => ownership.text(),
-            Self::Space(Space::Local) | Self::Place(Place::Space(Space::Local)) => "local",
-            Self::Space(Space::Shared) | Self::Place(Place::Space(Space::Shared)) => "shared",
-            Self::Space(Space::Constant) | Self::Place(Place::Space(Space::Constant)) => "constant",
-            Self::Place(Place::Relative) => "relative",
-            Self::Lifetime(Lifetime::Frame) => "frame",
-            Self::Lifetime(_) => "static",
-        }
-    }
-}
-
 /// Normalized memory access value, ordered from the weakest to the strongest access.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
@@ -865,6 +803,13 @@ pub enum Access {
 }
 
 impl Access {
+    /// Parse one canonical access name.
+    pub fn from_text(value: StringId) -> Option<Self> {
+        [Self::Readonly, Self::Mutable, Self::Exclusive]
+            .into_iter()
+            .find(|access| value == StringId::for_text(access.text()))
+    }
+
     /// Return whether this access grants one requested access mode.
     pub fn grants(self, requested: Self) -> bool {
         self == requested
@@ -902,15 +847,13 @@ impl Space {
             Self::Constant => "constant",
         }
     }
-}
 
-/// Normalized memory placement value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum Place {
-    /// Placement relative to the containing runtime value.
-    Relative,
-    /// Concrete storage space.
-    Space(Space),
+    /// Parse one canonical space name.
+    pub fn from_text(value: StringId) -> Option<Self> {
+        [Self::Local, Self::Shared, Self::Constant]
+            .into_iter()
+            .find(|space| value == StringId::for_text(space.text()))
+    }
 }
 
 /// Normalized lifetime value.
@@ -922,13 +865,30 @@ pub enum Lifetime {
     Frame,
 }
 
+impl Lifetime {
+    /// Return the canonical spelling of this lifetime.
+    pub const fn text(self) -> &'static str {
+        match self {
+            Self::Static => "static",
+            Self::Frame => "frame",
+        }
+    }
+
+    /// Parse one canonical lifetime name.
+    pub fn from_text(value: StringId) -> Option<Self> {
+        [Self::Static, Self::Frame]
+            .into_iter()
+            .find(|lifetime| value == StringId::for_text(lifetime.text()))
+    }
+}
+
 /// One written reference to a type declaration before application.
 ///
 /// Examples:
 /// ```ds
 /// Box                 // static declaration receiver in `Box.empty`
 /// Box.Output          // owner of a static associated type projection
-/// ```
+/// One type declaration reference before generic application.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct TypeReference {
     /// The referenced declaration symbol.
@@ -1002,9 +962,16 @@ pub struct VariantType {
     pub variant: GlobalSymbolId,
 }
 
+/// One region pair: the lifetime extent and the referent space set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct RegionType {
+    /// The lifetime extent: a lifetime singleton, parameter, or variable.
+    pub extent: GlobalTypeId,
+    /// The referent spaces: a space literal or union of space literals.
+    pub spaces: GlobalTypeId,
+}
+
 /// Canonical memory or access form.
-/// Surface sigils spell these forms: `^User` is `Owned<User>`,
-/// `&exclusive User` is `Borrowed<User, L, "exclusive">`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct FormType {
     /// The form constructor.
@@ -1027,6 +994,13 @@ pub enum Ownership {
 }
 
 impl Ownership {
+    /// Parse one canonical ownership name.
+    pub fn from_text(value: StringId) -> Option<Self> {
+        [Self::Managed, Self::Owned, Self::Borrowed, Self::Raw]
+            .into_iter()
+            .find(|ownership| value == StringId::for_text(ownership.text()))
+    }
+
     /// Return the canonical singleton spelling.
     pub fn text(self) -> &'static str {
         match self {
@@ -1041,20 +1015,19 @@ impl Ownership {
 /// Canonical memory or access form constructor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Form {
-    /// Automatically managed runtime value, the unqualified `User`.
-    Managed,
+    /// Automatically managed runtime value with its referent place,
+    /// the unqualified `User` or the qualified `shared User`.
+    Managed {
+        /// The solved concrete or ambient referent place singleton.
+        place: GlobalTypeId,
+    },
     /// Owned value, like `^User`.
     Owned,
     /// Borrowed value, like `&User`, `&readonly User`, or `&exclusive User`,
-    /// with its lifetime and access pair interned in the segment.
+    /// with its lifetime, access, and referent place interned in the segment.
     Borrowed(BorrowFormId),
     /// Raw pointer value, like `*User`.
     Raw,
-    /// Placed value, like `local User` or `shared User`.
-    Placed {
-        /// The solved concrete or ambient place singleton.
-        place: GlobalTypeId,
-    },
     /// Readonly view, like `readonly User`.
     Readonly,
 }
@@ -1068,11 +1041,10 @@ impl Form {
     /// Return the language item constructing this form.
     pub fn language_item(self) -> LanguageItem {
         match self {
-            Self::Managed => LanguageItem::Managed,
+            Self::Managed { .. } => LanguageItem::Managed,
             Self::Owned => LanguageItem::Owned,
             Self::Borrowed(_) => LanguageItem::Borrowed,
             Self::Raw => LanguageItem::Raw,
-            Self::Placed { .. } => LanguageItem::Placed,
             Self::Readonly => LanguageItem::Readonly,
         }
     }
@@ -1081,12 +1053,12 @@ impl Form {
     pub fn adjusts_to(self, target: Form) -> bool {
         match (self, target) {
             // family-default targets accept every receiver
-            (_, Form::Managed) => true,
+            (_, Form::Managed { .. }) => true,
             // owned targets consume, only owned receivers reach them
             (Form::Owned, Form::Owned) => true,
             (_, Form::Owned) => false,
             // borrow targets accept reborrowable receivers
-            (Form::Owned | Form::Managed, Form::Borrowed(_)) => true,
+            (Form::Owned | Form::Managed { .. }, Form::Borrowed(_)) => true,
             (Form::Borrowed(_), Form::Borrowed(_)) => true,
             // raw pointers only reach raw targets
             (Form::Raw, Form::Raw) => true,
@@ -1097,11 +1069,11 @@ impl Form {
     /// Return this form's ownership constructor, when it carries one.
     pub fn ownership(self) -> Option<Ownership> {
         match self {
-            Self::Managed => Some(Ownership::Managed),
+            Self::Managed { .. } => Some(Ownership::Managed),
             Self::Owned => Some(Ownership::Owned),
             Self::Borrowed(_) => Some(Ownership::Borrowed),
             Self::Raw => Some(Ownership::Raw),
-            Self::Placed { .. } | Self::Readonly => None,
+            Self::Readonly => None,
         }
     }
 
@@ -1121,6 +1093,8 @@ impl Form {
 pub struct DynamicType {
     /// The `Dynamic<T>` constraint.
     pub constraint: GlobalTypeId,
+    /// The place of the erased referent.
+    pub place: GlobalTypeId,
 }
 
 /// Type-level operation preserved by check.
@@ -2196,6 +2170,8 @@ impl RangeType {
 pub struct SliceType {
     /// The element type.
     pub element: GlobalTypeId,
+    /// The place of the sliced elements.
+    pub place: GlobalTypeId,
 }
 
 /// A tuple type.
@@ -2478,6 +2454,8 @@ pub struct FunctionType {
     pub signature: GlobalTypeId,
     /// The permitted number of invocations.
     pub multiplicity: Multiplicity,
+    /// The place of the captured environment.
+    pub place: GlobalTypeId,
 }
 
 /// Permitted invocation count for a callable value.
