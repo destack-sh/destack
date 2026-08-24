@@ -1,9 +1,10 @@
-use destack_serde::Reflect;
+use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 
 use serde::{Deserialize, Serialize};
 
 use destack_core::StringPool;
+use destack_serde::Reflect;
 
 use crate::{
     Argument, Expression, FloatType, IntegerType, LanguageItem, LocalNodeId, Name, Node, NodeFold,
@@ -77,6 +78,27 @@ impl Literal {
     /// Return whether this literal is a floating-point NaN.
     pub fn is_nan(&self) -> bool {
         matches!(self, Self::Float(value) if value.is_nan())
+    }
+
+    /// Return the ordering between literals from the same ordered scalar domain.
+    pub fn ordering(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (Self::Integer(left), Self::Integer(right))
+            | (Self::Bigint(left), Self::Bigint(right)) => Some(left.cmp(right)),
+            (Self::Float(left), Self::Float(right)) => left.partial_cmp(right),
+            (Self::Character(left), Self::Character(right)) => Some(left.cmp(right)),
+            _ => None,
+        }
+    }
+
+    /// Return the ordering between literals from the same interval domain.
+    pub fn interval_ordering(&self, other: &Self) -> Option<Ordering> {
+        let domain = self.interval_domain()?;
+        if other.interval_domain() != Some(domain) {
+            return None;
+        }
+
+        self.ordering(other)
     }
 
     /// Return this literal's variant name.

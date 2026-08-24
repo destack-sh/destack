@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
@@ -1655,14 +1657,12 @@ impl StaticBinaryOperator {
                 left,
                 right,
             ) => {
-                let ordering = match (left, right) {
-                    (Literal::Integer(left), Literal::Integer(right)) => left.cmp(&right),
-                    (Literal::Float(left), Literal::Float(right)) => left
-                        .partial_cmp(&right)
-                        .ok_or("float comparison is undefined for nan")?,
-                    (Literal::Character(left), Literal::Character(right)) => left.cmp(&right),
-                    _ => return Err("static comparison requires matching operand kinds"),
+                let invalid = if left.is_nan() || right.is_nan() {
+                    "float comparison is undefined for nan"
+                } else {
+                    "static comparison requires matching operand kinds"
                 };
+                let ordering = left.ordering(&right).ok_or(invalid)?;
 
                 Literal::Boolean(match self {
                     Operator::LessThan => ordering.is_lt(),
@@ -2133,16 +2133,10 @@ impl RangeType {
             (None, None) => None,
             (Some(left), None) => Some(*left),
             (None, Some(right)) => Some(*right),
-            (Some(Literal::Integer(left)), Some(Literal::Integer(right))) => {
-                Some(Literal::Integer((*left).max(*right)))
-            }
-            (Some(Literal::Bigint(left)), Some(Literal::Bigint(right))) => {
-                Some(Literal::Bigint((*left).max(*right)))
-            }
-            (Some(Literal::Character(left)), Some(Literal::Character(right))) => {
-                Some(Literal::Character((*left).max(*right)))
-            }
-            (Some(_), Some(_)) => return None,
+            (Some(left), Some(right)) => match left.interval_ordering(right)? {
+                Ordering::Less => Some(*right),
+                Ordering::Equal | Ordering::Greater => Some(*left),
+            },
         };
 
         Some(start)
@@ -2159,43 +2153,11 @@ impl RangeType {
             (None, None) => (None, left_is_inclusive && right_is_inclusive),
             (Some(left), None) => (Some(*left), left_is_inclusive),
             (None, Some(right)) => (Some(*right), right_is_inclusive),
-            (Some(Literal::Integer(left)), Some(Literal::Integer(right))) => {
-                if left < right {
-                    (Some(Literal::Integer(*left)), left_is_inclusive)
-                } else if right < left {
-                    (Some(Literal::Integer(*right)), right_is_inclusive)
-                } else {
-                    (
-                        Some(Literal::Integer(*left)),
-                        left_is_inclusive && right_is_inclusive,
-                    )
-                }
-            }
-            (Some(Literal::Bigint(left)), Some(Literal::Bigint(right))) => {
-                if left < right {
-                    (Some(Literal::Bigint(*left)), left_is_inclusive)
-                } else if right < left {
-                    (Some(Literal::Bigint(*right)), right_is_inclusive)
-                } else {
-                    (
-                        Some(Literal::Bigint(*left)),
-                        left_is_inclusive && right_is_inclusive,
-                    )
-                }
-            }
-            (Some(Literal::Character(left)), Some(Literal::Character(right))) => {
-                if left < right {
-                    (Some(Literal::Character(*left)), left_is_inclusive)
-                } else if right < left {
-                    (Some(Literal::Character(*right)), right_is_inclusive)
-                } else {
-                    (
-                        Some(Literal::Character(*left)),
-                        left_is_inclusive && right_is_inclusive,
-                    )
-                }
-            }
-            (Some(_), Some(_)) => return None,
+            (Some(left), Some(right)) => match left.interval_ordering(right)? {
+                Ordering::Less => (Some(*left), left_is_inclusive),
+                Ordering::Greater => (Some(*right), right_is_inclusive),
+                Ordering::Equal => (Some(*left), left_is_inclusive && right_is_inclusive),
+            },
         };
 
         Some(end)
@@ -2208,16 +2170,12 @@ impl RangeType {
         start: &Option<Literal>,
     ) -> bool {
         match (end, start) {
-            (Some(Literal::Integer(end)), Some(Literal::Integer(start))) => {
-                end < start || (end == start && !is_inclusive)
-            }
-            (Some(Literal::Bigint(end)), Some(Literal::Bigint(start))) => {
-                end < start || (end == start && !is_inclusive)
-            }
-            (Some(Literal::Character(end)), Some(Literal::Character(start))) => {
-                end < start || (end == start && !is_inclusive)
-            }
-            (Some(_), Some(_)) => true,
+            (Some(end), Some(start)) => match end.interval_ordering(start) {
+                Some(Ordering::Less) => true,
+                Some(Ordering::Equal) => !is_inclusive,
+                Some(Ordering::Greater) => false,
+                None => true,
+            },
             _ => false,
         }
     }
