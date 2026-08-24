@@ -15,6 +15,8 @@ use crate::{
 pub enum AutoInterface {
     /// Values supported by atomic storage.
     AtomicSafe,
+    /// Values safe to hold across a suspension point.
+    SuspendSafe,
     /// Ordered comparison interface.
     Compare,
     /// Complete by-value storage representation.
@@ -65,8 +67,9 @@ pub enum AutoInterface {
 
 impl AutoInterface {
     /// Every auto interface in declaration order.
-    const ALL: [Self; 24] = [
+    const ALL: [Self; 25] = [
         Self::AtomicSafe,
+        Self::SuspendSafe,
         Self::Compare,
         Self::Concrete,
         Self::Copy,
@@ -93,9 +96,10 @@ impl AutoInterface {
     ];
 
     /// The representation markers sealed on every concrete nominal.
-    pub const REPRESENTATION: [Self; 4] = [
+    pub const REPRESENTATION: [Self; 5] = [
         Self::Copy,
         Self::SharedSafe,
+        Self::SuspendSafe,
         Self::OverwriteStable,
         Self::DynamicSafe,
     ];
@@ -104,6 +108,7 @@ impl AutoInterface {
     pub fn from_language_item(item: LanguageItem) -> Option<Self> {
         match item {
             LanguageItem::AtomicSafe => Some(Self::AtomicSafe),
+            LanguageItem::SuspendSafe => Some(Self::SuspendSafe),
             LanguageItem::Compare => Some(Self::Compare),
             LanguageItem::Concrete => Some(Self::Concrete),
             LanguageItem::Copy => Some(Self::Copy),
@@ -135,6 +140,7 @@ impl AutoInterface {
     pub fn name(self) -> &'static str {
         match self {
             Self::AtomicSafe => "AtomicSafe",
+            Self::SuspendSafe => "SuspendSafe",
             Self::Compare => "Compare",
             Self::Concrete => "Concrete",
             Self::Copy => "Copy",
@@ -165,6 +171,7 @@ impl AutoInterface {
     pub fn is_marker(self) -> bool {
         match self {
             Self::AtomicSafe
+            | Self::SuspendSafe
             | Self::Concrete
             | Self::Copy
             | Self::DynamicSafe
@@ -206,6 +213,7 @@ impl AutoInterface {
             | Self::PartialEqual
             | Self::Serialize => true,
             Self::AtomicSafe
+            | Self::SuspendSafe
             | Self::Copy
             | Self::DynamicSafe
             | Self::OverwriteStable
@@ -225,7 +233,11 @@ impl AutoInterface {
     pub fn permits_unsafe_implementation(self) -> bool {
         matches!(
             self,
-            Self::OverwriteStable | Self::SharedSafe | Self::Unpin | Self::Zeroable
+            Self::SuspendSafe
+                | Self::OverwriteStable
+                | Self::SharedSafe
+                | Self::Unpin
+                | Self::Zeroable
         )
     }
 
@@ -287,6 +299,7 @@ impl From<AutoInterface> for LanguageItem {
     fn from(interface: AutoInterface) -> Self {
         match interface {
             AutoInterface::AtomicSafe => Self::AtomicSafe,
+            AutoInterface::SuspendSafe => Self::SuspendSafe,
             AutoInterface::Compare => Self::Compare,
             AutoInterface::Concrete => Self::Concrete,
             AutoInterface::Copy => Self::Copy,

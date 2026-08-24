@@ -10,6 +10,10 @@ export newtype interface DynamicSafe {}
 @languageItem("memory.OverwriteStable")
 export newtype interface OverwriteStable {}
 
+/// Mark a type as safe to hold across a suspension point.
+@languageItem("memory.SuspendSafe")
+export newtype interface SuspendSafe {}
+
 /// Mark a type as safe to store in shared space.
 @languageItem("memory.SharedSafe")
 export newtype interface SharedSafe {}

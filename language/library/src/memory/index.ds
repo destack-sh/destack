@@ -60,6 +60,7 @@ export {
     Default,
     DynamicSafe,
     OverwriteStable,
+    SuspendSafe,
     SharedSafe,
     Unpin,
     Zeroable,

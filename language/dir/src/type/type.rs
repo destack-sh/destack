@@ -843,6 +843,7 @@ impl MemoryLiteral {
             Self::Ownership(ownership) => ownership.text(),
             Self::Space(Space::Local) | Self::Place(Place::Space(Space::Local)) => "local",
             Self::Space(Space::Shared) | Self::Place(Place::Space(Space::Shared)) => "shared",
+            Self::Space(Space::Constant) | Self::Place(Place::Space(Space::Constant)) => "constant",
             Self::Place(Place::Relative) => "relative",
             Self::Lifetime(Lifetime::Frame) => "frame",
             Self::Lifetime(_) => "static",
@@ -888,14 +889,17 @@ pub enum Space {
     Local,
     /// Shared storage.
     Shared,
+    /// Immutable link-written storage, derived and never spelled in source.
+    Constant,
 }
 
 impl Space {
-    /// Return the source spelling of this space.
+    /// Return the canonical spelling of this space.
     pub const fn text(self) -> &'static str {
         match self {
             Self::Local => "local",
             Self::Shared => "shared",
+            Self::Constant => "constant",
         }
     }
 }
