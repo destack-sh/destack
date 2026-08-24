@@ -262,6 +262,7 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Retain a fallible reducer result.
     #[test]
     fn test_replaces_fallible_reducer() {

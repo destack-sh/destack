@@ -43,8 +43,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(call) = module.member_call(expression) else {
             continue;
         };
-        if call.is_optional()
-            || !call.arguments.is_empty()
+        if !call.arguments.is_empty()
             || module.implemented_language_member(expression)?
                 != Some(dir::LanguageItem::Clone.member("clone"))
         {
@@ -136,5 +135,52 @@ function duplicate(value: rc.Rc<int32>): rc.Rc<int32> {
         );
 
         session.assert_no_diagnostics();
+    }
+
+    /// Preserve an optional Copy receiver while removing clone.
+    #[test]
+    fn test_removes_optional_copy_clone() {
+        let session = TestSession::dir(
+            &CLONE_ON_COPY,
+            r#"
+function duplicate(value: int32 | undefined): int32 | undefined {
+    return value?.clone();
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function duplicate(value: int32 | undefined): int32 | undefined {
+    return value;
+}
+"#,
+        );
+    }
+
+    /// Preserve comments inside a removed clone call.
+    #[test]
+    fn test_reports_commented_clone_without_fix() {
+        let session = TestSession::dir(
+            &CLONE_ON_COPY,
+            r#"
+function duplicate(value: int32): int32 {
+    return value.clone(/* retain */);
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[clone-on-copy]: Copy value is cloned explicitly
+ ──▶ main.ds:2:12
+  │
+1 │ function duplicate(value: int32): int32 {
+2 │     return value.clone(/* retain */);
+  │            ^^^^^^^^^^^^^^^^^^^^^^^^^
+3 │ }
+  │
+"#,
+        );
     }
 }

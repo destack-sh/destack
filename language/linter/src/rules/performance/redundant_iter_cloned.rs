@@ -59,8 +59,6 @@ function lengths(values: Iterator<&readonly Label>): Iterator<isize> {
 
 /// Report cloned adapters followed only by borrowing or nonobserving operations.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    let binding_occurrences = module.flows.binding_occurrences().collect::<Vec<_>>();
-    let access_occurrences = module.flows.access_occurrences().collect::<Vec<_>>();
     let mut output = LintOutput::default();
 
     // inspect canonical iterator operations whose receiver is cloned
@@ -98,12 +96,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             member if member == dir::LanguageItem::Iterator.member("count") => {
                 operation.arguments.is_empty()
             }
-            _ if has_borrowing_callback => callback_borrows_element(
-                module,
-                operation.arguments,
-                &binding_occurrences,
-                &access_occurrences,
-            )?,
+            _ if has_borrowing_callback => callback_borrows_element(module, operation.arguments)?,
             _ => false,
         };
         if !is_redundant {
@@ -126,8 +119,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 fn callback_borrows_element(
     module: &DirModule<'_>,
     arguments: &[dir::LocalNodeId<dir::Argument>],
-    binding_occurrences: &[dir::BindingOccurrence],
-    access_occurrences: &[dir::AccessOccurrence],
 ) -> Result<bool, ProviderError> {
     // select one direct lambda argument with one inferred parameter
     let [argument] = arguments else {
@@ -139,8 +130,8 @@ fn callback_borrows_element(
     let Some(lambda) = module.lambda(*callback) else {
         return Ok(false);
     };
-    let [parameter, ..] = lambda.signature.parameters.as_slice() else {
-        return Ok(false);
+    let Some(parameter) = lambda.signature.parameters.first() else {
+        return Ok(true);
     };
     let dir::Parameter::Named {
         declared_type: None,
@@ -155,30 +146,10 @@ fn callback_borrows_element(
         return Ok(false);
     };
 
-    // reject mutation and capture of the inferred parameter
+    // require every element use to accept a readonly borrow
     let symbol = module.declaration_symbol(*parameter)?;
-    let uses = module.binding_uses_within(symbol, body.into_any(), binding_occurrences);
-    if uses.may_mutate() || uses.contains(dir::BindingUse::CAPTURE) {
-        return Ok(false);
-    }
 
-    // require every direct read to observe the element where it lives
-    let root = dir::AccessPath::symbol(symbol);
-    let mut has_read = false;
-    for occurrence in access_occurrences {
-        if occurrence.path != root || !module.view().is_inside(occurrence.node, body.into_any()) {
-            continue;
-        }
-        if !occurrence.uses.contains(dir::BindingUse::READ) {
-            continue;
-        }
-        has_read = true;
-        if !module.reads_in_place(occurrence.node)? {
-            return Ok(false);
-        }
-    }
-
-    Ok(has_read || uses.is_empty())
+    module.binding_accepts_readonly_borrow(symbol, body.into_any(), None)
 }
 
 /// Remove one cloned adapter suffix.
@@ -212,6 +183,7 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Remove cloning before counting values without observing them.
     #[test]
     fn test_removes_cloned_before_count() {

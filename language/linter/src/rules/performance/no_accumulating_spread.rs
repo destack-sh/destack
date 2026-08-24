@@ -14,7 +14,7 @@ Spreading an accumulator into its replacement copies every value accumulated so 
 Repeating the replacement in a loop or reduction callback can make total copying grow quadratically.
 Instead, you SHOULD use an operation that extends storage without rebuilding the preceding values.
 
-Changing replacement into mutation can affect aliases, so this rule does not rewrite the operation.
+Aliasing can make in-place mutation observably different, so the diagnostic requires a manual rewrite.
 "#,
         example: {
             reported: r#"
@@ -74,6 +74,11 @@ fn report_loop_spreads(
         if !view.is_inside(expression.into_any(), body.into_any()) {
             continue;
         }
+        if module.enclosing_callable(expression.into_any())
+            != module.enclosing_callable(iteration.into_any())
+        {
+            continue;
+        }
         let Some(assignment) = module.place_assignment(expression) else {
             continue;
         };
@@ -107,16 +112,16 @@ fn report_reduction_spreads(
 ) -> Result<(), ProviderError> {
     let view = module.view();
 
-    // inspect canonical Array.reduce callbacks
+    // inspect canonical Array and Iterator reduce callbacks
     for expression in module.call_expressions() {
         let expression = expression?;
         let Some(call) = module.member_call(expression) else {
             continue;
         };
-        if call.is_optional()
-            || module.language_member(expression)?
-                != Some(dir::LanguageItem::Array.member("reduce"))
-        {
+        let member = module.language_member(expression)?;
+        let is_reduction = member == Some(dir::LanguageItem::Array.member("reduce"))
+            || member == Some(dir::LanguageItem::Iterator.member("reduce"));
+        if call.is_optional() || !is_reduction {
             continue;
         }
 
@@ -399,6 +404,62 @@ function copy(input: int32[], condition: boolean): int32[] {
     }
 
     return output;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Report an Iterator reduction that spreads its accumulator.
+    #[test]
+    fn test_reports_iterator_reduction_accumulator() {
+        let session = TestSession::dir(
+            &NO_ACCUMULATING_SPREAD,
+            r#"
+import { Iterator } from "destack:iter";
+
+function copy(source: Iterator<int32>): int32[] {
+    return source.reduce<int32[]>((output, value) => [...output, value], []);
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-accumulating-spread]: reduction accumulator is copied on every iteration
+ ──▶ main.ds:4:55
+  │
+2 │
+3 │ function copy(source: Iterator<int32>): int32[] {
+4 │     return source.reduce<int32[]>((output, value) => [...output, value], []);
+  │                                                       ^^^^^^^^^
+5 │ }
+  │
+
+ = help: extend the accumulator without rebuilding its preceding values
+"#,
+        );
+    }
+
+    /// Accept a deferred spread nested within a loop.
+    #[test]
+    fn test_accepts_nested_callback_spread() {
+        let session = TestSession::dir(
+            &NO_ACCUMULATING_SPREAD,
+            r#"
+function callbacks(source: int32[]): (() => int32[])[] {
+    let output: int32[] = [];
+    const callbacks: (() => int32[])[] = [];
+    for (const value of source) {
+        callbacks.push(() => {
+            output = [...output, value];
+
+            return output;
+        });
+    }
+
+    return callbacks;
 }
 "#,
         );

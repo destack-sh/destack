@@ -43,8 +43,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(flat) = module.member_call(expression) else {
             continue;
         };
-        if flat.is_optional()
-            || !flat.arguments.is_empty()
+        if !flat.arguments.is_empty()
             || module.language_member(expression)? != Some(dir::LanguageItem::Array.member("flat"))
         {
             continue;
@@ -54,8 +53,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(map) = module.member_call(flat.receiver) else {
             continue;
         };
-        if map.is_optional()
-            || map.arguments.len() != 1
+        if map.arguments.len() != 1
             || module.language_member(flat.receiver)?
                 != Some(dir::LanguageItem::Array.member("map"))
         {
@@ -80,7 +78,7 @@ fn suggestion(
     lint: &Lint,
     expression: dir::LocalNodeId<dir::Expression>,
     map: dir::LocalNodeId<dir::Expression>,
-    map_member: dir::LocalNodeId<dir::Expression>,
+    map_callee: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let extent = module.source_extent(expression.into_any())?;
     let map_extent = module.source_extent(map.into_any())?;
@@ -96,7 +94,7 @@ fn suggestion(
     // replace the mapping member and remove the trailing flatten call
     let suffix = Span::new(extent.file, map_extent.end, extent.end);
     let mut file = FilePatch::new(extent.file);
-    file.replace(module.main_span(map_member.into_any())?, "flatMap");
+    file.replace(module.main_span(map_callee.into_any())?, "flatMap");
     file.delete(suffix);
     file.sort();
     let suggestion = lint.fix("map and flatten in one operation", file)?;
@@ -145,6 +143,27 @@ warning[prefer-flat-map]: mapped array is immediately flattened
             r#"
 function pairs(values: int32[]): int32[] {
     return values.flatMap((value) => [value, value]);
+}
+"#,
+        );
+    }
+
+    /// Preserve optional chaining while fusing map and flat.
+    #[test]
+    fn test_replaces_optional_map_flat() {
+        let session = TestSession::dir(
+            &PREFER_FLAT_MAP,
+            r#"
+function pairs(values: int32[] | undefined): int32[] | undefined {
+    return values?.map((value) => [value, value]).flat();
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function pairs(values: int32[] | undefined): int32[] | undefined {
+    return values?.flatMap((value) => [value, value]);
 }
 "#,
         );

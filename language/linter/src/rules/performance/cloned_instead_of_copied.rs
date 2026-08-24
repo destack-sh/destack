@@ -47,8 +47,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(call) = module.member_call(expression) else {
             continue;
         };
-        if call.is_optional()
-            || !call.generic_arguments.is_empty()
+        if !call.generic_arguments.is_empty()
             || !call.arguments.is_empty()
             || module.language_member(expression)?
                 != Some(dir::LanguageItem::Iterator.member("cloned"))
@@ -87,6 +86,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Replace cloned for a directly declared borrowed iterator.
     #[test]
     fn test_replaces_direct_iterator_clone() {
@@ -158,5 +158,30 @@ function copy(values: &readonly Label[]): Label[] {
         );
 
         session.assert_no_diagnostics();
+    }
+
+    /// Preserve an optional Iterator receiver while selecting copied.
+    #[test]
+    fn test_replaces_optional_iterator_clone() {
+        let session = TestSession::dir(
+            &CLONED_INSTEAD_OF_COPIED,
+            r#"
+import { Iterator } from "destack:iter";
+
+function copy(values: Iterator<&readonly int32> | undefined): int32[] | undefined {
+    return values?.cloned().toArray();
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+import { Iterator } from "destack:iter";
+
+function copy(values: Iterator<&readonly int32> | undefined): int32[] | undefined {
+    return values?.copied().toArray();
+}
+"#,
+        );
     }
 }

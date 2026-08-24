@@ -137,17 +137,33 @@ impl IndexLoop {
         let Some(source_start) = self.start.checked_add(source.offset) else {
             return Ok(false);
         };
-        let has_distinct_target =
-            !module.is_same_computation(target.collection, source.collection)?;
-        if target_start < 0 || source_start < 0 || !has_distinct_target {
+        if target_start < 0
+            || source_start < 0
+            || module.is_same_computation(target.collection, source.collection)?
+        {
             return Ok(false);
         }
 
-        // require canonical contiguous source and target collections
+        // require equal elements in canonical contiguous collections
+        let target_type = module.node_type_id(assignment.target.into_any())?;
+        let source_type = module.node_type_id(assignment.value.into_any())?;
         let is_target_contiguous = is_contiguous_collection(module, target.collection)?;
         let is_source_contiguous = is_contiguous_collection(module, source.collection)?;
+        if !is_target_contiguous
+            || !is_source_contiguous
+            || !module.dir.types_match(target_type, source_type)?
+        {
+            return Ok(false);
+        }
 
-        Ok(is_target_contiguous && is_source_contiguous)
+        // require ownership or exclusive borrowing to rule out target aliases
+        let target_type = module.node_type_id(target.collection.into_any())?;
+        let ownership = module.dir.default_ownership(target_type)?;
+        let has_unique_target = ownership == Some(dir::Ownership::Owned)
+            || ownership == Some(dir::Ownership::Borrowed)
+                && module.dir.borrow_access(target_type)? == Some(dir::Access::Exclusive);
+
+        Ok(has_unique_target)
     }
 }
 
@@ -262,7 +278,7 @@ mod tests {
         let session = TestSession::dir(
             &MANUAL_COPY,
             r#"
-function copy(target: int32[], source: int32[]): void {
+function copy(target: &exclusive int32[], source: &readonly int32[]): void {
     for (let index: isize = 0; index < source.length; index++) {
         target[index] = source[index];
     }
@@ -275,7 +291,7 @@ function copy(target: int32[], source: int32[]): void {
 warning[manual-copy]: index loop copies corresponding collection elements
  ──▶ main.ds:2:5
   │
-1 │ function copy(target: int32[], source: int32[]): void {
+1 │ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
 2 │     for (let index: isize = 0; index < source.length; index++) {
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │         target[index] = source[index];
@@ -294,7 +310,7 @@ warning[manual-copy]: index loop copies corresponding collection elements
         let session = TestSession::dir(
             &MANUAL_COPY,
             r#"
-function copy(target: int32[], source: int32[]): void {
+function copy(target: &exclusive int32[], source: &readonly int32[]): void {
     for (const index of 0..source.length) {
         target[index] = source[index];
     }
@@ -307,7 +323,7 @@ function copy(target: int32[], source: int32[]): void {
 warning[manual-copy]: index loop copies corresponding collection elements
  ──▶ main.ds:2:5
   │
-1 │ function copy(target: int32[], source: int32[]): void {
+1 │ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
 2 │     for (const index of 0..source.length) {
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │         target[index] = source[index];
@@ -326,7 +342,7 @@ warning[manual-copy]: index loop copies corresponding collection elements
         let session = TestSession::dir(
             &MANUAL_COPY,
             r#"
-function copy(target: int32[], source: int32[]): void {
+function copy(target: &exclusive int32[], source: &readonly int32[]): void {
     for (let index: isize = 0; index < source.length; index++) {
         target[index + 1] = source[index];
     }
@@ -339,7 +355,7 @@ function copy(target: int32[], source: int32[]): void {
 warning[manual-copy]: index loop copies corresponding collection elements
  ──▶ main.ds:2:5
   │
-1 │ function copy(target: int32[], source: int32[]): void {
+1 │ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
 2 │     for (let index: isize = 0; index < source.length; index++) {
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │         target[index + 1] = source[index];
@@ -358,7 +374,7 @@ warning[manual-copy]: index loop copies corresponding collection elements
         let session = TestSession::dir(
             &MANUAL_COPY,
             r#"
-function copy(target: int32[], source: int32[]): void {
+function copy(target: &exclusive int32[], source: &readonly int32[]): void {
     for (let index: isize = 2; index < source.length; index++) {
         target[index] = source[index];
     }
@@ -371,7 +387,7 @@ function copy(target: int32[], source: int32[]): void {
 warning[manual-copy]: index loop copies corresponding collection elements
  ──▶ main.ds:2:5
   │
-1 │ function copy(target: int32[], source: int32[]): void {
+1 │ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
 2 │     for (let index: isize = 2; index < source.length; index++) {
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │         target[index] = source[index];
@@ -390,7 +406,7 @@ warning[manual-copy]: index loop copies corresponding collection elements
         let session = TestSession::dir(
             &MANUAL_COPY,
             r#"
-function copy(target: int32[], source: int32[]): void {
+function copy(target: &exclusive int32[], source: &readonly int32[]): void {
     for (const index of 2..=source.length - 2) {
         target[index - 2] = source[index + 1];
     }
@@ -403,7 +419,7 @@ function copy(target: int32[], source: int32[]): void {
 warning[manual-copy]: index loop copies corresponding collection elements
  ──▶ main.ds:2:5
   │
-1 │ function copy(target: int32[], source: int32[]): void {
+1 │ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
 2 │     for (const index of 2..=source.length - 2) {
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │         target[index - 2] = source[index + 1];
@@ -422,7 +438,11 @@ warning[manual-copy]: index loop copies corresponding collection elements
         let session = TestSession::dir(
             &MANUAL_COPY,
             r#"
-function copy(left: int32[], right: int32[], source: int32[]): void {
+function copy(
+    left: &exclusive int32[],
+    right: &exclusive int32[],
+    source: &readonly int32[],
+): void {
     for (let index: isize = 0; index < source.length; index++) {
         left[index] = source[index];
         right[index] = source[index];
@@ -434,19 +454,20 @@ function copy(left: int32[], right: int32[], source: int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[manual-copy]: index loop copies corresponding collection elements
- ──▶ main.ds:2:5
-  │
-1 │ function copy(left: int32[], right: int32[], source: int32[]): void {
-2 │     for (let index: isize = 0; index < source.length; index++) {
-  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-3 │         left[index] = source[index];
-  │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-4 │         right[index] = source[index];
-  │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-5 │     }
-  │     ^
-6 │ }
-  │
+  ──▶ main.ds:6:5
+   │
+ 4 │     source: &readonly int32[],
+ 5 │ ): void {
+ 6 │     for (let index: isize = 0; index < source.length; index++) {
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 7 │         left[index] = source[index];
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 8 │         right[index] = source[index];
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 9 │     }
+   │     ^
+10 │ }
+   │
 "#,
         );
     }
@@ -457,7 +478,7 @@ warning[manual-copy]: index loop copies corresponding collection elements
         let session = TestSession::dir(
             &MANUAL_COPY,
             r#"
-function double(target: int32[], source: int32[]): void {
+function double(target: &exclusive int32[], source: &readonly int32[]): void {
     for (let index: isize = 0; index < source.length; index++) {
         target[index] = source[index] * 2;
     }
@@ -474,10 +495,44 @@ function double(target: int32[], source: int32[]): void {
         let session = TestSession::dir(
             &MANUAL_COPY,
             r#"
-function copy(target: int32[], source: int32[]): void {
+function copy(target: &exclusive int32[], source: &readonly int32[]): void {
     for (let index: isize = 0; index < source.length; index++) {
         target[index] = source[index];
         target[index] += 1;
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept potentially aliased managed arrays.
+    #[test]
+    fn test_accepts_managed_collections() {
+        let session = TestSession::dir(
+            &MANUAL_COPY,
+            r#"
+function copy(target: int32[], source: int32[]): void {
+    for (let index: isize = 0; index < source.length; index++) {
+        target[index] = source[index];
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept element assignments that perform a conversion.
+    #[test]
+    fn test_accepts_converting_copy() {
+        let session = TestSession::dir(
+            &MANUAL_COPY,
+            r#"
+function copy(target: &exclusive unknown[], source: &readonly int32[]): void {
+    for (let index: isize = 0; index < source.length; index++) {
+        target[index] = source[index];
     }
 }
 "#,

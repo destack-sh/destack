@@ -113,6 +113,18 @@ impl DiscardingOperation {
         }
     }
 
+    /// Return the predicate whose element access changes, if any.
+    fn predicate(self) -> Option<dir::LocalNodeId<dir::Expression>> {
+        match self {
+            Self::Adapter {
+                method: "filter" | "takeWhile" | "dropWhile",
+                argument,
+            } => Some(argument),
+            Self::Selector { predicate, .. } => predicate,
+            _ => None,
+        }
+    }
+
     /// Return the selected method name from one candidate set.
     fn select_method(
         member: dir::LanguageMember,
@@ -160,6 +172,11 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         else {
             continue;
         };
+        if let Some(predicate) = discarding.predicate()
+            && !predicate_accepts_readonly_borrow(module, predicate)?
+        {
+            continue;
+        }
 
         // require one canonical zero-argument cloned receiver
         let Some(cloned) = module.member_call(operation.receiver) else {
@@ -201,6 +218,38 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     }
 
     Ok(output)
+}
+
+/// Return whether one inferred predicate remains valid over a readonly borrow.
+fn predicate_accepts_readonly_borrow(
+    module: &DirModule<'_>,
+    predicate: dir::LocalNodeId<dir::Expression>,
+) -> Result<bool, ProviderError> {
+    let Some(lambda) = module.lambda(predicate) else {
+        return Ok(false);
+    };
+    let Some(parameter) = lambda.signature.parameters.first() else {
+        return Ok(true);
+    };
+    if !matches!(
+        module.view().get(*parameter),
+        dir::Parameter::Named {
+            declared_type: None,
+            default: None,
+            is_optional: false,
+            ..
+        }
+    ) {
+        return Ok(false);
+    }
+    let Some(body) = lambda.body else {
+        return Ok(false);
+    };
+
+    // require every element use to accept another readonly borrow
+    let symbol = module.declaration_symbol(*parameter)?;
+
+    module.binding_accepts_readonly_borrow(symbol, body.into_any(), None)
 }
 
 /// Move one cloned call after an operation that can discard elements.
@@ -254,6 +303,7 @@ fn suggestion(
 
     Ok(Some(suggestion))
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;

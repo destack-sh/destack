@@ -67,6 +67,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let source_type = module.adjusted_type_id(clone.receiver.into_any())?;
         let source_type = module.dir.strip_form(source_type)?;
         if target_type != source_type
+            || module.satisfies_copy(clone.receiver.into_any(), source_type)?
             || module
                 .coercions
                 .coercion(assignment.value.into_global_any(module.id))
@@ -132,6 +133,7 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Accept a self clone that would create overlapping borrows.
     #[test]
     fn test_accepts_self_clone() {
@@ -204,5 +206,39 @@ function replace(pair: &exclusive Pair): void {
 }
 "#,
         );
+    }
+
+    /// Leave Copy clone assignments to clone-on-copy.
+    #[test]
+    fn test_accepts_copy_clone_assignment() {
+        let session = TestSession::dir(
+            &PREFER_CLONE_FROM,
+            r#"
+function replace(target: &exclusive int32, source: int32): void {
+    *target = source.clone();
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept the default implementation of a clone interface.
+    #[test]
+    fn test_accepts_default_clone_implementation() {
+        let session = TestSession::dir(
+            &PREFER_CLONE_FROM,
+            r#"
+newtype interface Duplicate {
+    clone(&readonly this): ^this;
+
+    cloneFrom(&exclusive this, source: &readonly this): void {
+        *this = source.clone();
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
     }
 }

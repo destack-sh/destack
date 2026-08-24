@@ -13,6 +13,8 @@ declare_lint! {
         explanation: r#"
 Materializing an Iterator before a terminal operation allocates storage for values that are immediately discarded.
 Instead, you SHOULD apply the terminal operation to the Iterator directly.
+
+Materialization may intentionally isolate the terminal operation from later mutations, so the rewrite requires review.
 "#,
         example: {
             reported: r#"
@@ -28,7 +30,7 @@ function length(values: Iterator<int32>): isize {
         },
         category: Performance,
         level: Warning,
-        fixable: Automatic,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }
@@ -112,7 +114,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // remove the intermediate Array while retaining the terminal call
+        // suggest direct iteration because collection may establish a snapshot
         let span = module.source_extent(terminal.receiver.into_any())?;
         let mut diagnostic = lint.diagnostic(
             "Iterator is materialized before an equivalent terminal operation",
@@ -198,7 +200,7 @@ fn remove_collection(
     let suffix = Span::new(collection.file, iterator.end, collection.end);
     let mut file = FilePatch::new(collection.file);
     file.delete(suffix);
-    let suggestion = lint.fix("apply the terminal operation to the Iterator", file)?;
+    let suggestion = lint.suggestion("apply the terminal operation to the Iterator", file)?;
 
     Ok(Some(suggestion))
 }
@@ -251,7 +253,7 @@ function length(values: Iterator<int32>): isize {
 
     /// Remove collection before equivalent Iterator terminal operations.
     #[test]
-    fn test_removes_collection_before_terminal_operations() {
+    fn test_suggests_direct_terminal_operations() {
         let session = TestSession::dir(
             &NEEDLESS_COLLECT,
             r#"
@@ -278,7 +280,7 @@ function lastValue(values: int32[]): int32 | undefined {
 "#,
         );
 
-        session.assert_fixes(
+        session.assert_suggestions(
             r#"
 function inspect(first: int32[], second: int32[]): boolean {
     first.iterator().forEach((value, index) => {
@@ -415,5 +417,24 @@ warning[needless-collect]: Iterator is materialized only to read its length
   │
 "#,
         );
+    }
+
+    /// Accept a stored field initialized by its constructor.
+    #[test]
+    fn test_accepts_field_initialization() {
+        let session = TestSession::dir(
+            &NEEDLESS_COLLECT,
+            r#"
+class Holder {
+    readonly value: int32;
+
+    constructor(value: int32) {
+        this.value = value;
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
     }
 }

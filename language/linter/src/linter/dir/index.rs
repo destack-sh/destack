@@ -59,6 +59,33 @@ impl<'a> Dir<'a> {
         })
     }
 
+    /// Return one positional argument from a checked nominal application.
+    pub(crate) fn application_argument(
+        &self,
+        type_id: dir::GlobalTypeId,
+        index: usize,
+    ) -> Result<Option<dir::GlobalTypeId>, ProviderError> {
+        let type_id = self.strip_form(type_id)?;
+        let dir::Type::Application(application) = self.get_type(type_id)? else {
+            return Ok(None);
+        };
+
+        // read the complete checked argument list from its owning interner
+        self.read_types(type_id.module_id, |types| {
+            let argument = types
+                .type_ids(application.arguments)
+                .get(index)
+                .copied()
+                .ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "checked application {type_id:?} has no argument at index {index}"
+                    ))
+                })?;
+
+            Ok(Some(argument))
+        })
+    }
+
     /// Return whether two checked types have equal structural content.
     pub fn types_match(
         &self,
@@ -509,6 +536,20 @@ impl<'a> Dir<'a> {
         type_id: dir::GlobalTypeId,
     ) -> Result<bool, ProviderError> {
         self.type_includes(type_id, dir::Type::is_undefined)
+    }
+
+    /// Return one checked type's union elements, or the type itself.
+    pub fn union_elements(
+        &self,
+        type_id: dir::GlobalTypeId,
+    ) -> Result<Vec<dir::GlobalTypeId>, ProviderError> {
+        let dir::Type::Union(union) = self.get_type(type_id)? else {
+            return Ok(vec![type_id]);
+        };
+
+        self.read_types(type_id.module_id, |types| {
+            Ok(types.type_ids(union.elements).to_vec())
+        })
     }
 
     /// Return one checked type's intersection elements, or the type itself.

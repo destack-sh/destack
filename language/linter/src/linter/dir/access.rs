@@ -39,7 +39,7 @@ impl DirModule<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
         within: dir::LocalNodeIdAny,
-        excluded: dir::LocalNodeIdAny,
+        excluded: Option<dir::LocalNodeIdAny>,
     ) -> Result<bool, ProviderError> {
         let view = self.view();
 
@@ -61,7 +61,7 @@ impl DirModule<'_> {
             if occurrence.path != root
                 || !occurrence.uses.contains(dir::BindingUse::READ)
                 || !view.is_inside(occurrence.node, within)
-                || view.is_inside(occurrence.node, excluded)
+                || excluded.is_some_and(|excluded| view.is_inside(occurrence.node, excluded))
             {
                 continue;
             }
@@ -116,32 +116,6 @@ impl DirModule<'_> {
                 _ => return Ok(None),
             };
         }
-    }
-
-    /// Return whether one read observes its value in place instead of taking it.
-    pub(crate) fn reads_in_place(&self, node: dir::LocalNodeIdAny) -> Result<bool, ProviderError> {
-        // a readonly borrow observes the value through a reference
-        let adjusted = self.adjusted_type_id(node)?;
-        if self.dir.borrow_access(adjusted)? == Some(dir::Access::Readonly) {
-            return Ok(true);
-        }
-
-        // projecting a member or an element observes the value where it lives
-        let view = self.view();
-        let Some(parent) = view.get_parent_any(node) else {
-            return Ok(false);
-        };
-        if parent.ty != dir::NodeType::Expression {
-            return Ok(false);
-        }
-        let parent = dir::LocalNodeId::<dir::Expression>::new(parent.id);
-
-        Ok(match view.get(parent) {
-            dir::Expression::Member { left, .. } | dir::Expression::Index { left, .. } => {
-                left.into_any() == node
-            }
-            _ => false,
-        })
     }
 
     /// Return the place beneath one explicit dereference.

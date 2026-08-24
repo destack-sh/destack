@@ -11,8 +11,8 @@ declare_lint! {
         id: "no-allocation-for-comparison",
         summary: "Disallow allocating conversions performed only to compare",
         explanation: r#"
-Converting a borrowed string slice into owned storage solely for equality performs an allocation without changing the comparison.
-Instead, you SHOULD compare the borrowed and owned string representations directly.
+Converting a borrowed string or path into owned storage solely for equality performs an allocation without changing the comparison.
+Instead, you SHOULD compare the borrowed and owned representations directly.
 "#,
         example: {
             reported: r#"
@@ -37,7 +37,7 @@ function matches(value: &readonly StringSlice, expected: string): boolean {
     }
 }
 
-/// Report StringSlice ownership conversions used only by equality.
+/// Report ownership conversions used only by equality.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
@@ -54,17 +54,14 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
         // report either allocating operand independently
         for (allocated, other) in [(*left, *right), (*right, *left)] {
-            let Some(receiver) = to_owned_receiver(module, allocated)? else {
+            let Some(receiver) = to_owned_receiver(module, allocated, other)? else {
                 continue;
             };
-            if module.representation_item(other.into_any())? != Some(dir::LanguageItem::String) {
-                continue;
-            }
 
             let span = module.source_extent(allocated.into_any())?;
             let mut diagnostic = lint
-                .diagnostic("comparison allocates an owned string", span)
-                .help("compare the string slice directly");
+                .diagnostic("comparison allocates an owned representation", span)
+                .help("compare the borrowed representation directly");
             if let Some(suggestion) = replacement(module, lint, allocated, receiver)? {
                 diagnostic = diagnostic.suggestion(suggestion);
             }
@@ -75,10 +72,11 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Return the StringSlice receiver copied by one canonical ToOwned call.
+/// Return the borrowed receiver copied by one canonical ToOwned call.
 fn to_owned_receiver(
     module: &DirModule<'_>,
     expression: dir::LocalNodeId<dir::Expression>,
+    other: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<dir::LocalNodeId<dir::Expression>>, ProviderError> {
     let Some(call) = module.member_call(expression) else {
         return Ok(None);
@@ -88,9 +86,30 @@ fn to_owned_receiver(
         || !call.arguments.is_empty()
         || module.implemented_language_member(expression)?
             != Some(dir::LanguageItem::ToOwned.member("toOwned"))
-        || module.representation_item(call.receiver.into_any())?
-            != Some(dir::LanguageItem::StringSlice)
     {
+        return Ok(None);
+    }
+
+    // require one canonical borrowed and owned representation pair
+    let borrowed = module.representation_item(call.receiver.into_any())?;
+    let owned = module.representation_item(other.into_any())?;
+    let is_comparable = matches!(
+        (borrowed, owned),
+        (
+            Some(dir::LanguageItem::StringSlice),
+            Some(dir::LanguageItem::String)
+        ) | (
+            Some(dir::LanguageItem::CStringSlice),
+            Some(dir::LanguageItem::CString)
+        ) | (
+            Some(dir::LanguageItem::OsStringSlice),
+            Some(dir::LanguageItem::OsString)
+        ) | (
+            Some(dir::LanguageItem::PathSlice),
+            Some(dir::LanguageItem::Path)
+        )
+    );
+    if !is_comparable {
         return Ok(None);
     }
 
@@ -113,7 +132,7 @@ fn replacement(
     let source = module.expression_source(receiver, dir::OperatorPrecedence::Equality)?;
     let mut file = FilePatch::new(extent.file);
     file.replace(extent, source);
-    let suggestion = lint.suggestion("compare the string slice directly", file)?;
+    let suggestion = lint.suggestion("compare the borrowed representation directly", file)?;
 
     Ok(Some(suggestion))
 }
@@ -122,12 +141,6 @@ fn replacement(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Replace an owned conversion on the left operand.
-    #[test]
-    fn test_replaces_left_allocation() {
-        TestSession::assert_example(&NO_ALLOCATION_FOR_COMPARISON);
-    }
 
     /// Replace an owned conversion on the right operand.
     #[test]
@@ -194,5 +207,80 @@ function matches(value: &readonly Value, expected: Value): boolean {
         );
 
         session.assert_no_diagnostics();
+    }
+
+    /// Replace owned conversions for C strings.
+    #[test]
+    fn test_replaces_c_string_allocation() {
+        let session = TestSession::dir(
+            &NO_ALLOCATION_FOR_COMPARISON,
+            r#"
+import { CString, CStringSlice } from "destack:string";
+
+function matches(value: &readonly CStringSlice, expected: CString): boolean {
+    return value.toOwned() == expected;
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+import { CString, CStringSlice } from "destack:string";
+
+function matches(value: &readonly CStringSlice, expected: CString): boolean {
+    return value == expected;
+}
+"#,
+        );
+    }
+
+    /// Replace owned conversions for platform strings.
+    #[test]
+    fn test_replaces_os_string_allocation() {
+        let session = TestSession::dir(
+            &NO_ALLOCATION_FOR_COMPARISON,
+            r#"
+import { OsString, OsStringSlice } from "destack:string";
+
+function matches(value: &readonly OsStringSlice, expected: OsString): boolean {
+    return value.toOwned() == expected;
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+import { OsString, OsStringSlice } from "destack:string";
+
+function matches(value: &readonly OsStringSlice, expected: OsString): boolean {
+    return value == expected;
+}
+"#,
+        );
+    }
+
+    /// Replace owned conversions for paths.
+    #[test]
+    fn test_replaces_path_allocation() {
+        let session = TestSession::dir(
+            &NO_ALLOCATION_FOR_COMPARISON,
+            r#"
+import { Path, PathSlice } from "destack:fs";
+
+function matches(value: &readonly PathSlice, expected: Path): boolean {
+    return value.toOwned() == expected;
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+import { Path, PathSlice } from "destack:fs";
+
+function matches(value: &readonly PathSlice, expected: Path): boolean {
+    return value == expected;
+}
+"#,
+        );
     }
 }

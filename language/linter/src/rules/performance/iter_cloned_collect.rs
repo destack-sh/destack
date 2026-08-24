@@ -6,12 +6,12 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Prefer direct collection cloning over iterating, cloning, and collecting.
+    /// Prefer direct collection copying over iterating elements into a new array.
     pub ITER_CLONED_COLLECT {
         id: "iter-cloned-collect",
-        summary: "Prefer direct collection cloning over iterating, cloning, and collecting",
+        summary: "Prefer direct collection copying over iterator collection",
         explanation: r#"
-Iterating a borrowed contiguous collection, cloning every element, and collecting them rebuilds the same owned array indirectly.
+Iterating a borrowed contiguous collection, copying every element, and collecting them rebuilds the same owned array indirectly.
 Instead, you SHOULD create the owned array directly from the collection.
 "#,
         example: {
@@ -41,45 +41,61 @@ function copy(values: &readonly Label[]): Label[] {
     }
 }
 
-/// Report borrowed contiguous collections cloned completely into a new array.
-fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
-    let mut output = LintOutput::default();
+/// One contiguous collection copied indirectly through its Iterator.
+#[derive(Debug, Clone, Copy)]
+struct CollectionCopy {
+    /// The complete collection expression.
+    expression: dir::LocalNodeId<dir::Expression>,
+    /// The contiguous source collection.
+    source: dir::LocalNodeId<dir::Expression>,
+    /// The direct ownership method.
+    method: &'static str,
+    /// Whether direct ownership must retain an optional chain.
+    is_optional: bool,
+}
 
-    // inspect canonical iterator collection into arrays
-    for expression in module.call_expressions() {
-        let expression = expression?;
-        let Some(collect) = module.member_call(expression) else {
-            continue;
+impl CollectionCopy {
+    /// Select one complete copied or cloned Iterator collection.
+    fn select(
+        module: &DirModule<'_>,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<Self>, ProviderError> {
+        let Some(collection) = module.member_call(expression) else {
+            return Ok(None);
         };
-        let collection = module.language_member(expression)?;
-        let is_collection = collection == Some(dir::LanguageItem::Iterator.member("toArray"))
-            || collection == Some(dir::LanguageItem::Iterator.member("collect"));
-        if collect.is_optional()
-            || !collect.arguments.is_empty()
+        let member = module.language_member(expression)?;
+        let is_collection = member == Some(dir::LanguageItem::Iterator.member("toArray"))
+            || member == Some(dir::LanguageItem::Iterator.member("collect"));
+        if !collection.arguments.is_empty()
             || !is_collection
             || module.representation_item(expression.into_any())? != Some(dir::LanguageItem::Array)
         {
-            continue;
+            return Ok(None);
         }
 
-        // require one canonical cloned adapter
-        let Some(cloned) = module.member_call(collect.receiver) else {
-            continue;
-        };
-        if cloned.is_optional()
-            || !cloned.generic_arguments.is_empty()
-            || !cloned.arguments.is_empty()
-            || module.language_member(collect.receiver)?
-                != Some(dir::LanguageItem::Iterator.member("cloned"))
-        {
-            continue;
-        }
+        // peel one canonical copied or cloned adapter when present
+        let possible_copy = module.member_call(collection.receiver);
+        let copy_member = module.language_member(collection.receiver)?;
+        let is_copy = copy_member == Some(dir::LanguageItem::Iterator.member("cloned"))
+            || copy_member == Some(dir::LanguageItem::Iterator.member("copied"));
+        let iterator_expression = if is_copy {
+            let Some(copy) = possible_copy else {
+                return Ok(None);
+            };
+            if !copy.generic_arguments.is_empty() || !copy.arguments.is_empty() {
+                return Ok(None);
+            }
 
-        // require one direct canonical borrowed contiguous iterator
-        let Some(iterator) = module.member_call(cloned.receiver) else {
-            continue;
+            copy.receiver
+        } else {
+            collection.receiver
         };
-        let iterator_member = module.language_member(cloned.receiver)?;
+
+        // require one direct canonical contiguous iterator
+        let Some(iterator) = module.member_call(iterator_expression) else {
+            return Ok(None);
+        };
+        let iterator_member = module.language_member(iterator_expression)?;
         let method = match iterator_member {
             Some(member)
                 if member == dir::LanguageItem::Array.member("iterator")
@@ -88,19 +104,85 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 "clone"
             }
             Some(member) if member == dir::LanguageItem::Slice.member("iterator") => "toOwned",
-            _ => continue,
+            _ => return Ok(None),
         };
-        if iterator.is_optional()
-            || !iterator.generic_arguments.is_empty()
-            || !iterator.arguments.is_empty()
-        {
-            continue;
+        if !iterator.generic_arguments.is_empty() || !iterator.arguments.is_empty() {
+            return Ok(None);
         }
 
-        // replace the indirect element clone with direct collection ownership
+        // require the direct ownership operation to preserve element type
+        let source_type = module.adjusted_type_id(iterator.receiver.into_any())?;
+        let source_element = Self::element_type(module, source_type)?;
+        let result_type = module.adjusted_type_id(expression.into_any())?;
+        let result_element = Self::element_type(module, result_type)?;
+        let (Some(source_element), Some(result_element)) = (source_element, result_element) else {
+            return Ok(None);
+        };
+        if !module.dir.types_match(source_element, result_element)? {
+            return Ok(None);
+        }
+
+        Ok(Some(Self {
+            expression,
+            source: iterator.receiver,
+            method,
+            is_optional: iterator.is_optional(),
+        }))
+    }
+
+    /// Return the common element type of one possibly optional contiguous collection.
+    fn element_type(
+        module: &DirModule<'_>,
+        collection: dir::GlobalTypeId,
+    ) -> Result<Option<dir::GlobalTypeId>, ProviderError> {
+        let mut selected = None;
+
+        // inspect every defined arm of an optional collection
+        for element in module.dir.union_elements(collection)? {
+            if matches!(module.dir.get_type(element)?, dir::Type::Undefined) {
+                continue;
+            }
+            let element = module.dir.strip_form(element)?;
+            let element = match module.dir.get_type(element)? {
+                dir::Type::Slice(slice) => slice.element,
+                dir::Type::Application(_) => {
+                    let Some(argument) = module.dir.application_argument(element, 0)? else {
+                        return Ok(None);
+                    };
+
+                    argument
+                }
+                _ => return Ok(None),
+            };
+
+            // require every represented collection to carry the same element
+            if let Some(current) = selected
+                && !module.dir.types_match(current, element)?
+            {
+                return Ok(None);
+            }
+            selected = Some(element);
+        }
+
+        Ok(selected)
+    }
+}
+
+/// Report borrowed contiguous collections copied completely into a new array.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let mut output = LintOutput::default();
+
+    // inspect canonical iterator collection into arrays
+    for expression in module.call_expressions() {
+        let expression = expression?;
+        let Some(copy) = CollectionCopy::select(module, expression)? else {
+            continue;
+        };
+
+        // replace the indirect element copy with direct collection ownership
         let span = module.source_extent(expression.into_any())?;
-        let mut diagnostic = lint.diagnostic("collection is cloned through its iterator", span);
-        if let Some(suggestion) = suggestion(module, lint, expression, iterator.receiver, method)? {
+        let mut diagnostic = lint.diagnostic("collection is copied through its iterator", span);
+        if let Some(suggestion) = suggestion(module, lint, copy)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
         output.report(diagnostic);
@@ -113,12 +195,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
-    expression: dir::LocalNodeId<dir::Expression>,
-    collection: dir::LocalNodeId<dir::Expression>,
-    method: &str,
+    copy: CollectionCopy,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
-    let extent = module.source_extent(expression.into_any())?;
-    let collection_extent = module.source_extent(collection.into_any())?;
+    let extent = module.source_extent(copy.expression.into_any())?;
+    let collection_extent = module.source_extent(copy.source.into_any())?;
     if !extent.contains_span(collection_extent) {
         return Err(ProviderError::internal(
             "iterator collection extent does not contain its collection receiver",
@@ -128,10 +208,11 @@ fn suggestion(
         return Ok(None);
     }
 
-    // preserve authored grouping around the cloned collection expression
-    let collection = module.expression_source(collection, dir::OperatorPrecedence::Postfix)?;
-    let patch = Patch::replace(extent, format!("{collection}.{method}()"));
-    let suggestion = lint.fix("clone the collection directly", patch)?;
+    // preserve authored grouping around the copied collection expression
+    let collection = module.expression_source(copy.source, dir::OperatorPrecedence::Postfix)?;
+    let access = if copy.is_optional { "?." } else { "." };
+    let patch = Patch::replace(extent, format!("{collection}{access}{}()", copy.method));
+    let suggestion = lint.fix("copy the collection directly", patch)?;
 
     Ok(Some(suggestion))
 }
@@ -159,7 +240,7 @@ function copy(values: &readonly Label[]): Label[] {
 
         session.assert_diagnostics(
             r#"
-warning[iter-cloned-collect]: collection is cloned through its iterator
+warning[iter-cloned-collect]: collection is copied through its iterator
  ──▶ main.ds:6:12
   │
 4 │
@@ -169,7 +250,7 @@ warning[iter-cloned-collect]: collection is cloned through its iterator
 7 │ }
   │
 
- = fix: clone the collection directly
+ = fix: copy the collection directly
 --- a/main.ds
 +++ b/main.ds
 
@@ -244,6 +325,56 @@ struct Label {
 
 function copy(values: &readonly [Label]): Label[] {
     return values.toOwned();
+}
+"#,
+        );
+    }
+
+    /// Replace copied slice iteration with direct owned collection creation.
+    #[test]
+    fn test_replaces_copied_slice() {
+        let session = TestSession::dir(
+            &ITER_CLONED_COLLECT,
+            r#"
+function copy(values: &readonly [int32]): int32[] {
+    return values.iterator().toArray();
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function copy(values: &readonly [int32]): int32[] {
+    return values.toOwned();
+}
+"#,
+        );
+    }
+
+    /// Preserve an optional collection receiver during direct copying.
+    #[test]
+    fn test_replaces_optional_array_copy() {
+        let session = TestSession::dir(
+            &ITER_CLONED_COLLECT,
+            r#"
+struct Label {
+    values: ^int32[];
+}
+
+function copy(values: Label[] | undefined): Label[] | undefined {
+    return values?.iterator().cloned().toArray();
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+struct Label {
+    values: ^int32[];
+}
+
+function copy(values: Label[] | undefined): Label[] | undefined {
+    return values?.clone();
 }
 "#,
         );
@@ -336,7 +467,7 @@ function copy(values: &readonly Label[]): Label[] {
 
         session.assert_diagnostics(
             r#"
-warning[iter-cloned-collect]: collection is cloned through its iterator
+warning[iter-cloned-collect]: collection is copied through its iterator
  ──▶ main.ds:6:12
   │
 4 │

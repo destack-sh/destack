@@ -52,8 +52,17 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         // require a discarded complete drain of a canonical collection
         let is_complete_drain = [
             dir::LanguageItem::Array,
+            dir::LanguageItem::BinaryHeap,
+            dir::LanguageItem::ConcurrentMap,
+            dir::LanguageItem::ConcurrentSet,
+            dir::LanguageItem::Deque,
+            dir::LanguageItem::LinkedList,
             dir::LanguageItem::Map,
             dir::LanguageItem::Set,
+            dir::LanguageItem::Slab,
+            dir::LanguageItem::SmallArray,
+            dir::LanguageItem::SortedMap,
+            dir::LanguageItem::SortedSet,
         ]
         .into_iter()
         .any(|item| member == item.member("drain"));
@@ -196,5 +205,55 @@ function reset(values: Values): void {
         );
 
         session.assert_no_diagnostics();
+    }
+
+    /// Replace a discarded complete BinaryHeap drain.
+    #[test]
+    fn test_replaces_binary_heap_drain() {
+        let session = TestSession::dir(
+            &PREFER_CLEAR,
+            r#"
+import { BinaryHeap } from "destack:collections";
+
+function reset(values: BinaryHeap<int32>): void {
+    values.drain();
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+import { BinaryHeap } from "destack:collections";
+
+function reset(values: BinaryHeap<int32>): void {
+    values.clear();
+}
+"#,
+        );
+    }
+
+    /// Replace a discarded complete ConcurrentMap drain.
+    #[test]
+    fn test_replaces_concurrent_map_drain() {
+        let session = TestSession::dir(
+            &PREFER_CLEAR,
+            r#"
+import { ConcurrentMap } from "destack:collections";
+
+function reset(values: ConcurrentMap<string, int32>): void {
+    values.drain();
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+import { ConcurrentMap } from "destack:collections";
+
+function reset(values: ConcurrentMap<string, int32>): void {
+    values.clear();
+}
+"#,
+        );
     }
 }

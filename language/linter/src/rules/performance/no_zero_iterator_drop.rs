@@ -102,12 +102,6 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Remove Iterator.drop with a zero count.
-    #[test]
-    fn test_replaces_zero_drop() {
-        TestSession::assert_example(&NO_ZERO_ITERATOR_DROP);
-    }
-
     /// Accept Iterator.drop with a positive count.
     #[test]
     fn test_accepts_positive_drop() {

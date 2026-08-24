@@ -247,4 +247,23 @@ function keep(input: Values): Values {
 
         session.assert_no_diagnostics();
     }
+
+    /// Accept the default implementation of a clone interface.
+    #[test]
+    fn test_accepts_default_clone_implementation() {
+        let session = TestSession::dir(
+            &MANUAL_RETAIN,
+            r#"
+newtype interface Duplicate {
+    clone(&readonly this): ^this;
+
+    cloneFrom(&exclusive this, source: &readonly this): void {
+        *this = source.clone();
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
 }

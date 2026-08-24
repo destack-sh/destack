@@ -119,6 +119,7 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Replace a readonly boolean borrow with its value type.
     #[test]
     fn test_replaces_readonly_boolean() {
@@ -212,6 +213,24 @@ struct Holder<'a> {
 
 function store<'a>(holder: &exclusive Holder<'a>, value: &'a readonly int32): void {
     holder.value = value;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept a readonly borrowed slice on a disabled method.
+    #[test]
+    fn test_accepts_disabled_borrowed_slice_parameter() {
+        let session = TestSession::dir(
+            &NEEDLESS_BORROW_OF_COPY,
+            r#"
+class NativeString {
+    @if(false)
+    static fromBytes(value: &readonly [uint8]): ^NativeString {
+        // intentionally empty
+    }
 }
 "#,
         );

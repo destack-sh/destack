@@ -121,7 +121,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             || !module.binding_accepts_readonly_borrow(
                 parameter,
                 body.into_any(),
-                removed.into_any(),
+                Some(removed.into_any()),
             )?
         {
             continue;
