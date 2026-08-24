@@ -832,7 +832,7 @@ extension of Tag implements Seed<int32> {
     }
 }
 
-function mark(tag: Tag): Tag.Mark {
+function mark(tag: Tag): string {
     return "x";
 }
 
@@ -1025,7 +1025,7 @@ extension of Token implements TryFrom<string> {
     }
 }
 
-function parse(value: string): Result<Token, Token.Error> {
+function parse(value: string): Result<Token, Error> {
     return Token.tryFrom(value);
 }
 

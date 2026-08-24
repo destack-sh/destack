@@ -9,7 +9,7 @@ use crate::sema::CheckState;
 const REIFY_DEPTH: usize = 32;
 
 /// Synthesizes type and static expression nodes from solved check types.
-pub(in crate::sema) struct TypeReifier<'a, 'b> {
+pub(super) struct TypeReifier<'a, 'b> {
     /// The solved module state read for type structure.
     check: &'a CheckState<'b>,
     /// The amended output tree receiving synthesized nodes.
@@ -22,11 +22,7 @@ pub(in crate::sema) struct TypeReifier<'a, 'b> {
 
 impl<'a, 'b> TypeReifier<'a, 'b> {
     /// Create a type reifier for one cloned module tree.
-    pub(in crate::sema) fn new(
-        check: &'a CheckState<'b>,
-        tree: dir::Tree,
-        strings: &'a StringPool,
-    ) -> Self {
+    pub(super) fn new(check: &'a CheckState<'b>, tree: dir::Tree, strings: &'a StringPool) -> Self {
         Self {
             check,
             tree,
@@ -36,17 +32,17 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
     }
 
     /// Anchor synthesized nodes at one source position.
-    pub(in crate::sema) fn anchor(&mut self, span: Span) {
+    pub(super) fn anchor(&mut self, span: Span) {
         self.span = Span::new(span.file, span.end, span.end);
     }
 
     /// Return the current synthesized-node span.
-    pub(in crate::sema) fn span(&self) -> Span {
+    pub(super) fn span(&self) -> Span {
         self.span
     }
 
     /// Reify one solved type into a synthesized type expression.
-    pub(in crate::sema) fn reify(
+    pub(super) fn reify(
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::LocalNodeId<dir::TypeExpression>>> {
@@ -54,7 +50,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
     }
 
     /// Reify one parameter type, omitting undefined when `?` already implies it.
-    pub(in crate::sema) fn reify_parameter_type(
+    pub(super) fn reify_parameter_type(
         &mut self,
         id: dir::GlobalTypeId,
         is_optional: bool,
@@ -63,7 +59,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
     }
 
     /// Reify selected generic argument bindings into synthesized generic arguments.
-    pub(in crate::sema) fn reify_generic_argument_bindings(
+    pub(super) fn reify_generic_argument_bindings(
         &mut self,
         bindings: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<Option<Vec<dir::LocalNodeId<dir::GenericArgument>>>> {
@@ -237,7 +233,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
     }
 
     /// Reify one solved static singleton into a synthesized expression.
-    pub(in crate::sema) fn reify_static(
+    pub(super) fn reify_static(
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::LocalNodeId<dir::Expression>>> {
@@ -438,7 +434,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 }
             }
             dir::Type::Object(shape) => {
-                // TODO #Incomplete: reify index and call signatures as object members
+                // FUGU #Incomplete: reify index and call signatures as object members
                 if shape.declares_signatures() {
                     return Ok(None);
                 }
@@ -1108,7 +1104,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
     }
 
     /// Allocate one synthesized node at the anchor span.
-    pub(in crate::sema) fn insert<T>(&mut self, node: T) -> dir::LocalNodeId<T>
+    pub(super) fn insert<T>(&mut self, node: T) -> dir::LocalNodeId<T>
     where
         T: dir::Node,
         dir::Tree: dir::TreeStore<T>,
@@ -1117,7 +1113,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
     }
 
     /// Reify one symbol as a value expression.
-    pub(in crate::sema) fn reify_symbol_expression(
+    pub(super) fn reify_symbol_expression(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> Option<dir::LocalNodeId<dir::Expression>> {

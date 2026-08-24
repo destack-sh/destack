@@ -21,7 +21,7 @@ if (route != undefined) {
 === annotated ===
 type Route = `api:${string}`;
 
-declare const route: Route | undefined;
+declare const route: `api:${string}` | undefined;
 
 if (route != undefined) {
     route satisfies Route;

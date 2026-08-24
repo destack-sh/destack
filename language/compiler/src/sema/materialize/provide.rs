@@ -6,7 +6,7 @@ use destack_repository::{ArtifactAttemptRecorder, ProfileId, ProviderContext};
 use destack_source::ModuleId;
 use std::sync::Arc;
 
-use crate::sema::{CheckState, Pass};
+use crate::sema::{CheckModuleState, CheckState, Pass};
 use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
@@ -58,9 +58,20 @@ impl Compiler {
         let environment = self.environment(context.revision())?;
 
         // load the evaluation state over the module's checked artifacts
-        let mut check =
-            ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "load", || {
-                CheckState::new(
+        let mut check = ArtifactAttemptRecorder::breakdown_maybe(
+            context.recorder(),
+            "load",
+            || -> CompilerResult<_> {
+                let module = CheckModuleState::load(
+                    self,
+                    context,
+                    &artifacts,
+                    profile,
+                    module,
+                    Pass::Materialize,
+                )?;
+
+                Ok(CheckState::new(
                     self,
                     context,
                     &artifacts,
@@ -71,8 +82,9 @@ impl Compiler {
                     module,
                     Pass::Materialize,
                     false,
-                )
-            })?;
+                ))
+            },
+        )?;
 
         // run the pass
         ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "run", || {

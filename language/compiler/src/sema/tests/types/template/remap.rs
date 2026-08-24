@@ -34,10 +34,7 @@ type Events = {
     message: string;
 };
 
-declare const handlers: {
-    on-ready: (arg0: Events["ready"]) => void;
-    on-message: (arg0: Events["message"]) => void;
-};
+declare const handlers: { on-ready: (arg0: boolean) => void; on-message: (arg0: string) => void };
 
 handlers["on-ready"] satisfies (value: boolean) => void;
 handlers["on-message"] satisfies (value: string) => void;
@@ -129,7 +126,7 @@ type Person = {
     age: int32;
 };
 
-declare const getters: { getName: () => Person["name"]; getAge: () => Person["age"] };
+declare const getters: { getName: () => string; getAge: () => int32 };
 
 getters.getName satisfies () => string;
 getters.getAge satisfies () => int32;

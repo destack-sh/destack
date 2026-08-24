@@ -265,7 +265,7 @@ function tag<T>(value: T): Choice<T> {
     return choose<T>();
 }
 
-const chosen: Choice<string> = tag<string>("name");
+const chosen: int32 = tag<string>("name");
 
 === dir ===
 type Choice<T> = T extends string ? int32 : boolean;

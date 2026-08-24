@@ -1666,8 +1666,8 @@ class Values<T> {
 
 declare const values: Values<int32>;
 
-const once: Element<int32, 1>[] = values.flat<int32, 1>();
-const twice: Element<int32, 2>[] = values.flat<int32, 2>(2 as 2 | undefined);
+const once: int32[][] = values.flat<int32, 1>();
+const twice: int32[][] = values.flat<int32, 2>(2 as 2 | undefined);
 
 === dir ===
 type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
@@ -1780,7 +1780,7 @@ extension<T> of Values<T> {
 
 declare const values: Values<int32>;
 
-const twice: Element<int32, 2>[] = values.flat<int32, 2>(2 as 2 | undefined);
+const twice: int32[][] = values.flat<int32, 2>(2 as 2 | undefined);
 
 === dir ===
 type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
@@ -1976,7 +1976,7 @@ extension<T> of Values<T> {
 
 declare const values: Values<int32 | int32[]>;
 
-const once: Element<int32 | int32[], 1>[] = values.flat<int32 | int32[], 1>(1 as 1 | undefined);
+const once: (int32 | int32[])[][] = values.flat<int32 | int32[], 1>(1 as 1 | undefined);
 
 === dir ===
 type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];

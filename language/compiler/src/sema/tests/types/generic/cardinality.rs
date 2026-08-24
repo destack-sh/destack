@@ -50,7 +50,7 @@ type Buffer<const N: uint> = [uint8; N];
 
 type Halved<const M: uint> = Buffer<M / 2>;
 
-declare const halved: Halved<1024>;
+declare const halved: [uint8; 512];
 
 === dir ===
 type Buffer<const N: uint> = [uint8; N];

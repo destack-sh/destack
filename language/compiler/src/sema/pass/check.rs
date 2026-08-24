@@ -3,7 +3,7 @@ use destack_repository::ArtifactAttemptRecorder;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::sema::{AnnotatedSource, CheckState};
+use crate::sema::CheckState;
 
 impl CheckState<'_> {
     /// Run the check pass: infer the module's bodies against the elaborated entries.
@@ -28,13 +28,7 @@ impl CheckState<'_> {
     pub(in crate::sema) fn finish_check(
         mut self,
         module: ModuleId,
-        format_annotations: bool,
-    ) -> CompilerResult<(DirChecked, Vec<DiagnosticRecord>, Vec<AnnotatedSource>)> {
-        // format annotations from the live working state
-        let annotated = match format_annotations {
-            true => self.format_annotated_sources()?,
-            false => Vec::new(),
-        };
+    ) -> CompilerResult<(DirChecked, Vec<DiagnosticRecord>)> {
         self.write_back()?;
 
         let recorder = self.recorder;
@@ -52,6 +46,6 @@ impl CheckState<'_> {
 
         let checked = self.into_checked(module)?;
 
-        Ok((checked, diagnostics, annotated))
+        Ok((checked, diagnostics))
     }
 }

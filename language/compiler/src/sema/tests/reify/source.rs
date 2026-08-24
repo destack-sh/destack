@@ -1,68 +1,66 @@
-use std::sync::Arc;
-
+use destack_artifact::{
+    ArtifactKey, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
+    DiagnosticLike, DiagnosticRecord, EnvironmentBound, EnvironmentDeclared,
+};
 use destack_dir as dir;
 use destack_formatter::format_file_tree;
-use destack_repository::{FormatterOptions, Module};
-use destack_source::ModuleId;
-use rustc_hash::FxHashMap;
+use destack_repository::{FormatterOptions, ProviderContext, Revision};
+use destack_source::{DiagnosticLabel, ModuleId, ProfileId};
 
-use crate::sema::reify::r#type::TypeReifier;
-use crate::sema::{CheckModuleState, CheckState, Origin};
-use crate::{CompilerError, CompilerResult};
+use crate::sema::{CheckModuleState, CheckState, Pass};
+use crate::{Compiler, CompilerError, CompilerResult};
 
-/// One module formatted with solved checked types.
-pub(in crate::sema) struct AnnotatedSource {
-    /// The formatted module.
-    pub(in crate::sema) module: Arc<Module>,
-    /// The formatted source text.
-    pub(in crate::sema) content: String,
-}
+use super::r#type::TypeReifier;
 
 impl CheckState<'_> {
-    /// Format the checked module's source with solved types.
-    pub(in crate::sema) fn format_annotated_sources(
-        &mut self,
-    ) -> CompilerResult<Vec<AnnotatedSource>> {
+    /// Render the checked module source with solved types.
+    fn render_checked_source(&mut self) -> CompilerResult<String> {
         let module_id = self.module_id;
-        let coercions = self.source_coercions(module_id)?;
-        let source = self.format_annotated_source(module_id, &coercions)?;
+        let state = self.module(module_id);
+        let checked = state
+            .checked
+            .as_ref()
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("checked source has no checked DIR: {module_id}"),
+            })?;
+        let declared = state
+            .declared
+            .as_ref()
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("checked source has no declared DIR: {module_id}"),
+            })?;
+        let elaborated = state
+            .elaborated
+            .as_ref()
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("checked source has no elaborated DIR: {module_id}"),
+            })?;
+        let decisions = checked.decision_table(declared, elaborated);
+        let coercions = checked.coercion_table();
+        let generics = checked.generic_table(declared, elaborated);
 
-        Ok(source.into_iter().collect())
+        self.render_source(module_id, decisions, coercions, generics)
     }
 
-    /// Return one module's committed coercions for source formatting.
-    fn source_coercions(
-        &mut self,
-        module: ModuleId,
-    ) -> CompilerResult<Vec<(dir::GlobalNodeIdAny, dir::Coercion)>> {
-        let coercions = self
-            .module(module)
-            .coercions
-            .coercions()
-            .map(|(node, coercion)| (node, coercion.clone()))
-            .collect::<Vec<_>>();
-
-        Ok(coercions)
-    }
-
-    /// Format one member module's source with solved checked types.
-    fn format_annotated_source(
+    /// Render one module source with solved checked types.
+    fn render_source(
         &mut self,
         module_id: ModuleId,
-        coercions: &[(dir::GlobalNodeIdAny, dir::Coercion)],
-    ) -> CompilerResult<Option<AnnotatedSource>> {
-        // reduce unnamed operation heads for added annotations up front
-        let annotation_reductions = self.annotation_reductions(module_id)?;
-
+        decisions: dir::DecisionTable<'static>,
+        coercions: dir::CoercionTable<'static>,
+        generics: dir::GenericTable<'static>,
+    ) -> CompilerResult<String> {
         let state = self.module(module_id);
         let file_id = state.module.file_id;
         let Some(parsed_file) = state.parsed.file(file_id) else {
-            return Ok(None);
+            return Err(CompilerError::Internal {
+                message: format!("checked module has no parsed source: {}", state.module.uri),
+            });
         };
         let roots = parsed_file.roots.as_slice();
 
         // write solved types into a cloned source tree
-        let tree = SourceReifier::new(self, state, annotation_reductions).run(coercions)?;
+        let tree = SourceReifier::new(self, state, decisions, coercions, generics).run()?;
 
         // print the amended tree through the canonical formatter
         let file = self.compiler.file(self.context, file_id)?;
@@ -83,49 +81,110 @@ impl CheckState<'_> {
             ),
         })?;
 
-        Ok(Some(AnnotatedSource {
-            module: Arc::clone(&state.module),
-            content,
-        }))
+        Ok(content)
+    }
+}
+
+impl Compiler {
+    /// Render one checked module from its retained DIR artifacts.
+    pub(crate) fn render_checked_source(
+        &self,
+        revision: Revision,
+        artifact: ArtifactKey,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> CompilerResult<String> {
+        let context = SourceRenderContext { revision, artifact };
+        let artifacts = self.repository.artifact_reader(revision);
+        let environment_bound = artifacts
+            .read_content::<EnvironmentBound>(profile)
+            .map_err(CompilerError::from)?;
+        let environment_declared = artifacts
+            .read::<EnvironmentDeclared>(profile)
+            .map_err(CompilerError::from)?;
+        let environment = self.environment(context.revision())?;
+
+        // load the retained checked module
+        let module_state = CheckModuleState::load(
+            self,
+            &context,
+            &artifacts,
+            profile,
+            module,
+            Pass::Materialize,
+        )?;
+
+        // open check lookup over the retained tables
+        let mut check = CheckState::new(
+            self,
+            &context,
+            &artifacts,
+            profile,
+            environment_bound,
+            Some(environment_declared),
+            environment,
+            module_state,
+            Pass::Check,
+            false,
+        );
+        check.import_external_modules()?;
+
+        check.render_checked_source()
+    }
+}
+
+/// Provider context for one checked-source render.
+struct SourceRenderContext {
+    /// The exact repository revision being rendered.
+    revision: Revision,
+    /// The checked artifact being rendered.
+    artifact: ArtifactKey,
+}
+
+impl DiagnosticContext for SourceRenderContext {
+    /// Reject diagnostic labels from source rendering.
+    fn label(
+        &self,
+        _anchor: &DiagnosticAnchor,
+        _message: Option<String>,
+    ) -> Result<DiagnosticLabel, DiagnosticError> {
+        Err(DiagnosticError::InvalidDiagnostic {
+            message: "checked source rendering produced a diagnostic label".to_string(),
+        })
     }
 
-    /// Return the reductions shown for one module's added annotations.
-    fn annotation_reductions(
-        &mut self,
-        module_id: ModuleId,
-    ) -> CompilerResult<FxHashMap<dir::GlobalTypeId, dir::GlobalTypeId>> {
-        // collect the bindings an added annotation would print
-        let unannotated = {
-            let state = self.module(module_id);
-            let view = dir::View::new(state.source_tree());
-            view.iter_nodes::<dir::Declarator>()
-                .filter(|(_, declarator)| declarator.ty.is_none())
-                .filter_map(|(_, declarator)| {
-                    state
-                        .bindings
-                        .declaration_symbol(declarator.pattern.into_any().into_global(module_id))
-                })
-                .collect::<Vec<_>>()
-        };
+    /// Reject diagnostic displays from source rendering.
+    fn display(&self, _display: DiagnosticDisplay) -> Result<String, DiagnosticError> {
+        Err(DiagnosticError::InvalidDiagnostic {
+            message: "checked source rendering produced a diagnostic display".to_string(),
+        })
+    }
+}
 
-        // reduce the unnamed operation heads among them
-        let mut reductions = FxHashMap::default();
-        for symbol in unannotated {
-            let Some(ty) = self.symbol_type_maybe(symbol.into_global(module_id)) else {
-                continue;
-            };
-            let head = self.shallow_resolve(ty)?;
-            if matches!(
-                self.ty(head)?,
-                dir::Type::Member(_) | dir::Type::Operation(_)
-            ) {
-                let reduced =
-                    self.deeply_resolve(Origin::Symbol(symbol.into_global(module_id)), ty)?;
-                reductions.insert(ty, reduced);
-            }
-        }
+impl ProviderContext for SourceRenderContext {
+    /// Return the exact repository revision being rendered.
+    fn revision(&self) -> Revision {
+        self.revision
+    }
 
-        Ok(reductions)
+    /// Return the checked artifact being rendered.
+    fn artifact_key(&self) -> ArtifactKey {
+        self.artifact
+    }
+
+    /// Reject diagnostics from source rendering.
+    fn emit_diagnostics(&self, diagnostics: Vec<DiagnosticRecord>) {
+        assert!(
+            diagnostics.is_empty(),
+            "checked source rendering produced diagnostics"
+        );
+    }
+
+    /// Reject diagnostics from source rendering.
+    fn emit(&self, _diagnostic: &dyn DiagnosticLike) -> Result<(), DiagnosticError> {
+        Err(DiagnosticError::InvalidDiagnostic {
+            message: "checked source rendering produced a diagnostic".to_string(),
+        })
     }
 }
 
@@ -137,8 +196,12 @@ struct SourceReifier<'a, 'b> {
     state: &'a CheckModuleState,
     /// The type-expression reifier writing synthesized nodes.
     types: TypeReifier<'a, 'b>,
-    /// Reductions shown for added annotations, keyed by written type.
-    annotation_reductions: FxHashMap<dir::GlobalTypeId, dir::GlobalTypeId>,
+    /// The exact inference decisions retained by checked DIR.
+    decisions: dir::DecisionTable<'static>,
+    /// The exact implicit coercions retained by checked DIR.
+    coercions: dir::CoercionTable<'static>,
+    /// The generic entries retained by checked DIR.
+    generics: dir::GenericTable<'static>,
 }
 
 impl<'a, 'b> SourceReifier<'a, 'b> {
@@ -146,31 +209,32 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
     fn new(
         check: &'a CheckState<'b>,
         state: &'a CheckModuleState,
-        annotation_reductions: FxHashMap<dir::GlobalTypeId, dir::GlobalTypeId>,
+        decisions: dir::DecisionTable<'static>,
+        coercions: dir::CoercionTable<'static>,
+        generics: dir::GenericTable<'static>,
     ) -> Self {
-        let tree = state.source_tree().clone();
+        let tree = state.parsed.tree.clone();
         let types = TypeReifier::new(check, tree, check.strings());
 
         Self {
             check,
             state,
-            annotation_reductions,
+            decisions,
+            coercions,
+            generics,
             types,
         }
     }
 
     /// Run source reification and return the amended tree.
-    fn run(
-        mut self,
-        coercions: &[(dir::GlobalNodeIdAny, dir::Coercion)],
-    ) -> CompilerResult<dir::Tree> {
+    fn run(mut self) -> CompilerResult<dir::Tree> {
         self.reify_type_expressions()?;
         self.reify_declarations()?;
         self.reify_declarators()?;
         self.reify_parameters()?;
         self.reify_members()?;
         self.reify_expressions()?;
-        self.reify_coercions(coercions)?;
+        self.reify_coercions()?;
 
         Ok(self.types.tree)
     }
@@ -178,7 +242,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
     /// Reify type expression holes from their solved check results.
     fn reify_type_expressions(&mut self) -> CompilerResult<()> {
         let module_id = self.state.module.id;
-        let view = dir::View::new(self.state.source_tree());
+        let view = dir::View::new(&self.state.parsed.tree);
         for (hole_id, expression) in view.iter_nodes::<dir::TypeExpression>() {
             if !matches!(
                 expression,
@@ -209,7 +273,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
     /// Reify declaration-level checked types and induced lifetime parameters.
     fn reify_declarations(&mut self) -> CompilerResult<()> {
         let module_id = self.state.module.id;
-        let view = dir::View::new(self.state.source_tree());
+        let view = dir::View::new(&self.state.parsed.tree);
         for (declaration_id, declaration) in view.iter_nodes::<dir::Declaration>() {
             self.reify_declaration_generic_parameters(module_id, declaration_id)?;
             self.reify_declaration_return(declaration_id, declaration)?;
@@ -231,35 +295,30 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             .module(module_id)
             .declaration_symbol(declaration_id.into_any());
         let template = match symbol {
-            Some(symbol) => self.check.template_by_symbol(symbol),
-            None => self.check.template_by_source(source),
+            Some(symbol) => self.generics.template_by_symbol(symbol),
+            None => self.generics.template_by_source(source),
         };
-        let Some(template) = template else {
+        let Some(template_id) = template else {
             return Ok(());
         };
-        let Some(template) = self.check.generic_template(template) else {
-            return Ok(());
-        };
+        let parameters = self.generics.get_template(template_id).parameters.clone();
 
-        let mut parameters = Vec::new();
-        for parameter in &template.parameters {
-            let parameter = dir::GlobalGenericParameterId::new(module_id, *parameter);
-            let Some(binding) = self.check.generic_parameter(parameter) else {
-                continue;
-            };
+        let mut induced = Vec::new();
+        for parameter in &parameters {
+            let binding = self.generics.get_parameter(*parameter).clone();
             if !binding.is_induced_lifetime_parameter() {
                 continue;
             }
 
             self.anchor(declaration_id.into_any());
-            let Some(parameter) = self.types.reify_generic_parameter(binding)? else {
+            let Some(parameter) = self.types.reify_generic_parameter(&binding)? else {
                 continue;
             };
-            parameters.push(parameter);
+            induced.push(parameter);
         }
 
-        self.reify_declared_parameter_variance(module_id, declaration_id, &template.parameters)?;
-        if parameters.is_empty() {
+        self.reify_declared_parameter_variance(declaration_id, &parameters)?;
+        if induced.is_empty() {
             return Ok(());
         }
 
@@ -271,7 +330,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         else {
             return Ok(());
         };
-        generic_parameters.extend(parameters);
+        generic_parameters.extend(induced);
 
         Ok(())
     }
@@ -279,7 +338,6 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
     /// Fill derived variance onto written type parameters.
     fn reify_declared_parameter_variance(
         &mut self,
-        module_id: ModuleId,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
         parameters: &[dir::LocalGenericParameterId],
     ) -> CompilerResult<()> {
@@ -301,7 +359,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
 
         for (node, parameter) in written.iter().zip(parameters.iter()) {
             // written modifiers and unmeasured parameters stay as written
-            let Some(modifier) = self.check.committed_variance(module_id, *parameter) else {
+            let Some(modifier) = self.generics.variance(*parameter) else {
                 continue;
             };
 
@@ -346,7 +404,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
 
     /// Reify binding declarator checked types.
     fn reify_declarators(&mut self) -> CompilerResult<()> {
-        let view = dir::View::new(self.state.source_tree());
+        let view = dir::View::new(&self.state.parsed.tree);
         for (declarator_id, declarator) in view.iter_nodes::<dir::Declarator>() {
             if !matches!(view.get(declarator.pattern), dir::Pattern::Binding { .. }) {
                 continue;
@@ -356,11 +414,6 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
                 continue;
             };
 
-            // show the carried reduction only for an added annotation
-            let ty = match declarator.ty {
-                Some(_) => ty,
-                None => self.reduced_annotation_type(ty),
-            };
             self.anchor(declarator.pattern.into_any());
             let Some(annotation) = self.types.reify(ty)? else {
                 continue;
@@ -374,7 +427,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
 
     /// Reify named parameter checked types.
     fn reify_parameters(&mut self) -> CompilerResult<()> {
-        let view = dir::View::new(self.state.source_tree());
+        let view = dir::View::new(&self.state.parsed.tree);
         for (parameter_id, parameter) in view.iter_nodes::<dir::Parameter>() {
             if let Some(dir::StaticKey::Name(name)) = parameter.symbol_key()
                 && self.check.strings().get(name) == "this"
@@ -413,7 +466,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
 
     /// Reify member checked types.
     fn reify_members(&mut self) -> CompilerResult<()> {
-        let view = dir::View::new(self.state.source_tree());
+        let view = dir::View::new(&self.state.parsed.tree);
         for (member_id, member) in view.iter_nodes::<dir::Member>() {
             match member {
                 // reify field types
@@ -457,7 +510,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
     /// Reify expression-level selected arguments.
     fn reify_expressions(&mut self) -> CompilerResult<()> {
         let module_id = self.state.module.id;
-        let view = dir::View::new(self.state.source_tree());
+        let view = dir::View::new(&self.state.parsed.tree);
         for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
             match expression {
                 dir::Expression::Call { .. } => {
@@ -519,8 +572,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             return Ok(());
         }
         let Some(resolution) = self
-            .check
-            .decisions(module_id)
+            .decisions
             .construct_decision(expression_id.into_global_any(module_id))
         else {
             return Ok(());
@@ -528,9 +580,10 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         let dir::ConstructTarget::Newtype { selection, .. } = &resolution.target else {
             return Ok(());
         };
+        let symbol = selection.symbol;
 
         self.anchor((*left).into_any());
-        let Some(reified) = self.types.reify_symbol_expression(selection.symbol) else {
+        let Some(reified) = self.types.reify_symbol_expression(symbol) else {
             return Ok(());
         };
         let dir::Expression::Call { left, .. } = self.types.tree.get_mut(expression_id) else {
@@ -566,8 +619,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             return Ok(());
         }
         let Some(resolution) = self
-            .check
-            .decisions(module_id)
+            .decisions
             .call_decision(expression_id.into_global_any(module_id))
         else {
             return Ok(());
@@ -587,18 +639,19 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
                         generic_arguments, ..
                     },
                 ..
-            } => generic_arguments.as_slice(),
+            } => generic_arguments.clone(),
             dir::Call {
                 target: dir::CallableTarget::Symbol { function, .. },
                 ..
-            } => function.selection.arguments.as_slice(),
+            } => function.selection.arguments.clone(),
         };
         if arguments.is_empty() {
             return Ok(());
         }
 
         self.anchor(expression_id.into_any());
-        let Some(generic_arguments) = self.types.reify_generic_argument_bindings(arguments)? else {
+        let Some(generic_arguments) = self.types.reify_generic_argument_bindings(&arguments)?
+        else {
             return Ok(());
         };
         let instantiation = self.types.insert(dir::Expression::Instantiation {
@@ -655,21 +708,21 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         ty: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<()> {
         let node = expression_id.into_global_any(module_id);
-        let Some(resolution) = self.check.decisions(module_id).construct_decision(node) else {
+        let Some(resolution) = self.decisions.construct_decision(node) else {
             return Ok(());
         };
 
         let arguments = match &resolution.target {
             dir::ConstructTarget::Class { selection, .. }
-            | dir::ConstructTarget::Newtype { selection, .. } => selection.arguments.as_slice(),
-            dir::ConstructTarget::Dynamic { .. } => &[],
+            | dir::ConstructTarget::Newtype { selection, .. } => selection.arguments.clone(),
+            dir::ConstructTarget::Dynamic { .. } => Vec::new(),
         };
         if arguments.is_empty() {
             return Ok(());
         }
 
         self.anchor(ty.into_any());
-        self.types.fill_type_arguments(ty, arguments)?;
+        self.types.fill_type_arguments(ty, &arguments)?;
 
         Ok(())
     }
@@ -706,11 +759,6 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         }
     }
 
-    /// Return the reduction shown for one added annotation.
-    fn reduced_annotation_type(&self, ty: dir::GlobalTypeId) -> dir::GlobalTypeId {
-        self.annotation_reductions.get(&ty).copied().unwrap_or(ty)
-    }
-
     /// Return the solved type bound at one declaration site.
     fn declaration_site_type(&self, site: dir::LocalNodeIdAny) -> Option<dir::GlobalTypeId> {
         let module_id = self.state.module.id;
@@ -723,16 +771,19 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
 
     /// Anchor synthesized nodes at one source site.
     fn anchor(&mut self, site: dir::LocalNodeIdAny) {
-        self.types.anchor(self.state.authored_span(site));
+        let span = self
+            .state
+            .parsed
+            .tree
+            .source_index
+            .get_main_or_enclosing(site.id);
+        self.types.anchor(span);
     }
 
     /// Reify implicit coercions as explicit cast expressions.
-    fn reify_coercions(
-        &mut self,
-        coercions: &[(dir::GlobalNodeIdAny, dir::Coercion)],
-    ) -> CompilerResult<()> {
-        for (node, coercion) in coercions {
-            let node = *node;
+    fn reify_coercions(&mut self) -> CompilerResult<()> {
+        let coercions = self.coercions.clone();
+        for (node, coercion) in coercions.coercions() {
             if node.local_id.ty != dir::NodeType::Expression {
                 continue;
             }
@@ -745,7 +796,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             if !renders {
                 continue;
             }
-            if !self.state.source_tree().has_node_id(node.local_id.id) {
+            if !self.state.parsed.tree.has_node_id(node.local_id.id) {
                 continue;
             }
 

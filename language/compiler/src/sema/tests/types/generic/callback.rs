@@ -985,7 +985,7 @@ function choose(result: Result<string, string>): Result<int32, string> {
 === annotated ===
 function parse(result: Result<string, string>): Result<int32, string> {
     return result.andThen<string, string, int32, string>((value: string): Result<int32, string> => {
-        const parsed: Result<int32, string> | Result<int32, string> = value.isEmpty
+        const parsed: Result<int32, string> = value.isEmpty
             ? Result.err<int32, string>("empty")
             : Result.ok<int32, string>(1);
         return parsed as Result<int32, string>;

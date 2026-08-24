@@ -12,13 +12,14 @@ use destack_dir as dir;
 use destack_mir::{FormatOptions, Formatter};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, MemoryBlobStore,
-    Repository, Revision, RevisionPin, Settings, Trace, TraceAggregate, TraceReport, TraceSnapshot,
-    TraceView,
+    Repository, Revision, RevisionPin, Settings, Trace, TraceAggregate, TraceLevel, TraceReport,
+    TraceSnapshot, TraceView,
 };
 use destack_session::{ArtifactPriority, Executor, Session, SessionError};
 use destack_source::{MemoryFileSystem, ModuleId, ProfileId, TargetId};
 use futures::executor::block_on;
 
+use crate::Compiler;
 use crate::tests::snapshot::{
     DirRows, DirSnapshotBuilder, assert_snapshot, render_diagnostics, render_source_diagnostics,
 };
@@ -26,12 +27,7 @@ use crate::tests::snapshot::{
 use super::module::{TestModule, parse_module, parsed_dependencies};
 
 const DEFAULT_DESTACK_JSON: &str = r#"{
-  "name": "test",
-  "compiler": {
-    "emitStats": true,
-    "emitEvents": true,
-    "emitCheckedTypes": true
-  }
+  "name": "test"
 }"#;
 const WORKERS_ENV: &str = "DESTACK_TEST_WORKERS";
 const TRACE_ENV: &str = "DESTACK_TEST_TRACE";
@@ -101,6 +97,8 @@ pub(crate) struct TestSession {
     revision: RevisionPin,
     /// Production artifact session.
     session: Session,
+    /// Compiler used to render checked source snapshots.
+    compiler: Compiler,
     /// Whether artifact runs record detailed traces.
     is_tracing: bool,
     /// The latest detailed artifact trace.
@@ -168,6 +166,8 @@ impl TestSession {
         Self::seed_parsed_artifacts(repository.as_ref(), revision_id, &modules_by_path);
         let session = Session::new(repository.clone(), test_executor())
             .expect("compiler test session should start");
+        let diagnostics = destack_source::DiagnosticRegistry::new([]);
+        let compiler = Compiler::new(repository.clone(), Arc::new(diagnostics));
         let is_tracing = env::var_os(TRACE_ENV).is_some()
             || env::var_os(TIMINGS_ENV).is_some()
             || env::var_os(TRACE_SLOW_MS_ENV).is_some()
@@ -177,6 +177,7 @@ impl TestSession {
             repository,
             revision,
             session,
+            compiler,
             is_tracing,
             last_trace: Mutex::new(None),
             modules_by_path,
@@ -326,30 +327,34 @@ impl TestSession {
         )
     }
 
-    /// Return one text artifact sidecar.
-    pub(crate) fn artifact_text_sidecar(
-        &self,
-        key: ArtifactKey,
-        name: &str,
-        labels: &BTreeMap<String, String>,
-    ) -> String {
-        self.require_artifact(key);
+    /// Render selected counters recorded while building one artifact.
+    pub(crate) fn artifact_counters(&self, key: ArtifactKey, prefix: &str) -> String {
+        self.require_all_traced([key])
+            .expect("artifact should build under a timed trace");
+        let trace = self
+            .last_trace
+            .lock()
+            .expect("test trace should lock")
+            .clone()
+            .expect("test session should retain the timed trace");
+        let attempts = trace.attempts();
+        let attempt = attempts
+            .iter()
+            .rev()
+            .find(|attempt| attempt.key == key)
+            .unwrap_or_else(|| panic!("timed trace should contain {key:?}"));
 
-        let sidecar = self
-            .repository
-            .artifact_sidecar(self.revision(), key, name, labels)
-            .expect("test artifact sidecar should be readable")
-            .unwrap_or_else(|| panic!("test artifact sidecar `{name}` should exist"));
+        let counters = attempt
+            .counters
+            .iter()
+            .filter(|counter| counter.name.starts_with(prefix))
+            .collect::<Vec<_>>();
 
-        let memory = self
-            .repository
-            .blob_store()
-            .open(sidecar.blob)
-            .unwrap_or_else(|error| panic!("test artifact sidecar `{name}` should load: {error}"));
-
-        String::from_utf8(memory.bytes().to_vec()).unwrap_or_else(|error| {
-            panic!("test artifact sidecar `{name}` should be text: {error}")
-        })
+        counters
+            .into_iter()
+            .map(|counter| format!("{}={}", counter.name, counter.value))
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     /// Assert bound DIR rows for one module.
@@ -762,7 +767,6 @@ impl TestSession {
     /// Assert rendered DIR snapshots through the materialized artifacts.
     #[track_caller]
     fn assert_dir_modules(&self, paths: &[&str], rows: DirRows, expected: &str) {
-        let rows = rows.with_environment();
         let dir = self.render_dir_snapshots(paths, rows, DirStage::Materialized);
 
         // require every stage without diagnostics
@@ -855,7 +859,6 @@ impl TestSession {
                     ArtifactPayload::DirParsed(Arc::new(entry.dir_parsed.clone())),
                     dependencies,
                     Vec::new(),
-                    Vec::new(),
                     None,
                 )
                 .expect("test parsed artifact should publish");
@@ -902,7 +905,7 @@ impl TestSession {
     }
 
     /// Render one module snapshot.
-    fn render_module_snapshot(&self, path: &str, entry: &TestModule, selection: DirRows) -> String {
+    fn render_module_snapshot(&self, entry: &TestModule, selection: DirRows) -> String {
         let parsed = self.dir_parsed(entry);
         let bound = self.dir_bound(entry);
         let bindings = bound.binding_table();
@@ -941,32 +944,6 @@ impl TestSession {
             builder.add_resolved(selection, &resolved);
         }
 
-        if selection.includes_metadata() {
-            let metadata_rows = selection.metadata_rows();
-
-            for phase in sidecar_phases(metadata_rows) {
-                let key = self.phase_artifact_key(path, phase);
-                let labels = BTreeMap::from([("phase".to_string(), phase.to_string())]);
-                let metadata = self.artifact_text_sidecar(key, "metadata", &labels);
-                let rows = sidecar_rows_for_phase(metadata_rows, phase);
-
-                builder.add_metadata(&rows, &metadata);
-            }
-        }
-
-        if selection.includes_events() {
-            let event_rows = selection.event_rows();
-
-            for phase in sidecar_phases(event_rows) {
-                let key = self.phase_artifact_key(path, phase);
-                let labels = BTreeMap::from([("phase".to_string(), phase.to_string())]);
-                let events = self.artifact_text_sidecar(key, "events", &labels);
-                let rows = sidecar_rows_for_phase(event_rows, phase);
-
-                builder.add_events(&rows, &events);
-            }
-        }
-
         builder.render()
     }
 
@@ -979,7 +956,6 @@ impl TestSession {
         expected: &str,
         artifact_key: fn(&Self, &str) -> ArtifactKey,
     ) {
-        let rows = rows.with_environment();
         let dir = self.render_dir_snapshots(paths, rows, DirStage::Stage);
 
         // require artifacts without diagnostics
@@ -1000,7 +976,6 @@ impl TestSession {
         expected: &str,
         artifact_key: fn(&Self, &str) -> ArtifactKey,
     ) {
-        let rows = rows.with_environment();
         let dir = self.render_dir_snapshots(&[path], rows, DirStage::Stage);
 
         // require the artifact without diagnostics
@@ -1039,7 +1014,7 @@ impl TestSession {
         stage: DirStage,
     ) -> String {
         match stage {
-            DirStage::Stage => self.render_module_snapshot(path, entry, rows),
+            DirStage::Stage => self.render_module_snapshot(entry, rows),
             DirStage::Checked => self.render_checked_module_snapshot(path, entry, rows, false),
             DirStage::Materialized => self.render_checked_module_snapshot(path, entry, rows, true),
         }
@@ -1142,32 +1117,6 @@ impl TestSession {
             );
         }
 
-        if selection.includes_metadata() {
-            let metadata_rows = selection.metadata_rows();
-
-            for phase in sidecar_phases(metadata_rows) {
-                let key = self.phase_artifact_key(path, phase);
-                let labels = BTreeMap::from([("phase".to_string(), phase.to_string())]);
-                let metadata = self.artifact_text_sidecar(key, "metadata", &labels);
-                let rows = sidecar_rows_for_phase(metadata_rows, phase);
-
-                builder.add_metadata(&rows, &metadata);
-            }
-        }
-
-        if selection.includes_events() {
-            let event_rows = selection.event_rows();
-
-            for phase in sidecar_phases(event_rows) {
-                let key = self.phase_artifact_key(path, phase);
-                let labels = BTreeMap::from([("phase".to_string(), phase.to_string())]);
-                let events = self.artifact_text_sidecar(key, "events", &labels);
-                let rows = sidecar_rows_for_phase(event_rows, phase);
-
-                builder.add_events(&rows, &events);
-            }
-        }
-
         if let Some(resolved) = &resolved
             && selection.includes_import()
         {
@@ -1184,12 +1133,10 @@ impl TestSession {
     /// Return the annotated source render for one checked module.
     fn annotated_snapshot(&self, path: &str, entry: &TestModule) -> String {
         let key = self.dir_checked_key(path);
-        let labels = BTreeMap::from([
-            ("phase".to_string(), "check".to_string()),
-            ("module".to_string(), entry.module.uri.to_string()),
-        ]);
-
-        self.artifact_text_sidecar(key, "annotated", &labels)
+        self.require_artifact(key);
+        self.compiler
+            .render_checked_source(self.revision(), key, entry.module.id, entry.profile)
+            .expect("checked source should render")
             .trim_matches('\n')
             .to_string()
     }
@@ -1360,7 +1307,12 @@ impl TestSession {
 
     /// Provide artifact roots through one explicitly traced run.
     fn provide(&self, keys: &[ArtifactKey]) -> Result<(), SessionError> {
-        let trace = self.session.start_trace(self.is_tracing);
+        let trace_level = if self.is_tracing {
+            TraceLevel::Timings
+        } else {
+            TraceLevel::Disabled
+        };
+        let trace = self.session.start_trace(trace_level);
         let run = self.session.provide_traced(
             self.revision(),
             keys,
@@ -1396,7 +1348,7 @@ impl TestSession {
     ) -> Result<(), SessionError> {
         // record one detailed trace around the whole run
         let keys = keys.into_iter().collect::<Vec<_>>();
-        let trace = self.session.start_trace(true);
+        let trace = self.session.start_trace(TraceLevel::Timings);
         let run = self.session.provide_traced(
             self.revision(),
             &keys,
@@ -1493,18 +1445,6 @@ impl TestSession {
         let name = trace_name(label);
 
         self.print_trace(&name, slow_attempts);
-    }
-
-    /// Return the artifact key that owns one phase sidecar.
-    fn phase_artifact_key(&self, path: &str, phase: &str) -> ArtifactKey {
-        match phase {
-            "bind" => self.dir_bound_key(path),
-            "import" => self.dir_imported_key(path),
-            "export" => self.dir_exported_key(path),
-            "resolve" => self.dir_resolved_key(path),
-            "check" => self.dir_checked_key(path),
-            _ => panic!("unsupported sidecar phase `{phase}`"),
-        }
     }
 
     /// Return the repository artifact table.
@@ -1941,30 +1881,6 @@ fn test_executor() -> Arc<Executor> {
                 .expect("compiler test artifact executor should start")
         })
         .clone()
-}
-
-/// Return selected sidecar phases in stable order.
-fn sidecar_phases(rows: &[&'static str]) -> Vec<&'static str> {
-    rows.iter()
-        .map(|row| sidecar_phase(row))
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect()
-}
-
-/// Return selected sidecar rows for one phase.
-fn sidecar_rows_for_phase(rows: &[&'static str], phase: &'static str) -> Vec<&'static str> {
-    rows.iter()
-        .copied()
-        .filter(|row| sidecar_phase(row) == phase)
-        .collect()
-}
-
-/// Return the phase prefix for one sidecar row.
-fn sidecar_phase(row: &'static str) -> &'static str {
-    row.split_once('.')
-        .map(|(phase, _)| phase)
-        .unwrap_or_else(|| panic!("sidecar row `{row}` must include a phase prefix"))
 }
 
 /// Return one rendered MIR type reference.

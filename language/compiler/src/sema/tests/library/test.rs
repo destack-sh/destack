@@ -37,10 +37,10 @@ describe("arithmetic", ((): void => {
         expect<2>((1 + 1) as &'frame readonly 2).toEqual<2, int64>(2 as &'frame readonly int64);
         expect<int64>(2 as &'frame readonly int64).toBe<int64>(2 as &'frame readonly int64);
         expect.soft<string>("pineapple" as &'frame readonly string).toContain<string>("apple");
-    }) as Body<TestContext<{}, {}, {}>> | undefined);
+    }) as Body<CaseContext & {}> | undefined);
 
-    test.only("focused", ((): BodyResult => {}) as Body<TestContext<{}, {}, {}>> | undefined);
-    test.skip("skipped", ((): BodyResult => {}) as Body<TestContext<{}, {}, {}>> | undefined);
+    test.only("focused", ((): BodyResult => {}) as Body<CaseContext & {}> | undefined);
+    test.skip("skipped", ((): BodyResult => {}) as Body<CaseContext & {}> | undefined);
     test.todo("pending");
 }) as SuiteBody | undefined);
 

@@ -7,26 +7,29 @@ use destack_artifact::{
 };
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
-use destack_repository::{Module, Package};
+use destack_repository::{ArtifactReader, Module, Package, ProviderContext};
 
-use destack_source::{ModuleId, Span};
+use destack_source::{ModuleId, ProfileId, Span};
 use smallvec::SmallVec;
 
 use crate::sema::{
     Capture, Cause, CauseKind, CheckError, CheckEvent, CheckState, CheckWarning, FlowPoint,
-    FlowPointId, FlowSite, Origin, Relation, RelationCheck, StaticPresence, VariableRole, Wake,
+    FlowPointId, FlowSite, Origin, Pass, Relation, RelationCheck, StaticPresence, VariableRole,
+    Wake,
 };
-use crate::{CompilerError, CompilerResult};
+use crate::{Compiler, CompilerError, CompilerResult};
 
 /// Working state owned by one checked module.
 pub(in crate::sema) struct CheckModuleState {
-    // inherited inputs from upstream phases, read-only
+    // module context
     /// The requested source module.
     pub(in crate::sema) module: Arc<Module>,
     /// The package containing the requested module.
     pub(in crate::sema) package: Arc<Package>,
     /// The active target profile.
     pub(in crate::sema) profile: ProfileKey,
+
+    // retained stages in phase order
     /// The parsed DIR input.
     pub(in crate::sema) parsed: Arc<DirParsed>,
     /// The bound DIR input.
@@ -35,22 +38,22 @@ pub(in crate::sema) struct CheckModuleState {
     pub(in crate::sema) resolved: Arc<DirResolved>,
     /// The expanded DIR input.
     pub(in crate::sema) expanded: Arc<DirExpanded>,
-    /// The foreign modules the stored entries mention, accumulated at store time.
-    pub(in crate::sema) references: FxIndexSet<ModuleId>,
     /// The declared DIR artifact seeding this check, absent while declaring.
     pub(in crate::sema) declared: Option<Arc<DirDeclared>>,
     /// The elaborated stage backing this check, when elaborating is done.
     pub(in crate::sema) elaborated: Option<Arc<DirElaborated>>,
     /// The checked artifact materialization layers over.
     pub(in crate::sema) checked: Option<Arc<DirChecked>>,
-    /// The cumulative binding table built once at load.
-    pub(in crate::sema) bindings: dir::BindingTable<'static>,
-    /// Checked symbols synthesized from resolved language features.
-    pub(in crate::sema) bindings_tail: dir::BindingSegment,
+
+    // referenced modules
+    /// The foreign modules the stored entries mention, accumulated at store time.
+    pub(in crate::sema) references: FxIndexSet<ModuleId>,
     /// External modules visible from this module.
     pub(in crate::sema) external_modules: FxIndexSet<ModuleId>,
 
     // committed bases built once at load
+    /// The cumulative binding table.
+    pub(in crate::sema) bindings: dir::BindingTable<'static>,
     /// The committed base type table.
     pub(in crate::sema) types: dir::TypeTable<'static>,
     /// The committed base static table.
@@ -61,6 +64,8 @@ pub(in crate::sema) struct CheckModuleState {
     pub(in crate::sema) members: Vec<Arc<dir::MemberSegment>>,
 
     // open tails this pass writes over the committed bases
+    /// Checked symbols synthesized from resolved language features.
+    pub(in crate::sema) bindings_tail: dir::BindingSegment,
     /// Open inference types layered over the committed base.
     pub(in crate::sema) types_tail: dir::TypeTail,
     /// The static terms this pass evaluated.
@@ -119,6 +124,59 @@ pub(in crate::sema) struct CheckModuleState {
 }
 
 impl CheckModuleState {
+    /// Load the module state required by one compiler pass.
+    pub(in crate::sema) fn load(
+        compiler: &Compiler,
+        context: &dyn ProviderContext,
+        artifacts: &ArtifactReader<'_>,
+        profile: ProfileId,
+        module: ModuleId,
+        pass: Pass,
+    ) -> CompilerResult<Self> {
+        let profile_key = compiler.profile(context.revision(), profile)?.key;
+        let repository_module = compiler.module(context.revision(), module)?;
+        let package = compiler.package(context.revision(), repository_module.package_id)?;
+        let parsed = artifacts
+            .read::<DirParsed>(module)
+            .map_err(CompilerError::from)?;
+        let bound = artifacts
+            .read::<DirBound>((module, profile))
+            .map_err(CompilerError::from)?;
+        let resolved = artifacts
+            .read::<DirResolved>((module, profile))
+            .map_err(CompilerError::from)?;
+        let expanded = artifacts
+            .read::<DirExpanded>((module, profile))
+            .map_err(CompilerError::from)?;
+
+        // read the retained layers preceding this pass
+        let declared = (pass != Pass::Declare)
+            .then(|| artifacts.read::<DirDeclared>((module, profile)))
+            .transpose()
+            .map_err(CompilerError::from)?;
+        let elaborated = matches!(pass, Pass::Check | Pass::Materialize)
+            .then(|| artifacts.read::<DirElaborated>((module, profile)))
+            .transpose()
+            .map_err(CompilerError::from)?;
+        let checked = (pass == Pass::Materialize)
+            .then(|| artifacts.read::<DirChecked>((module, profile)))
+            .transpose()
+            .map_err(CompilerError::from)?;
+
+        Ok(Self::new(
+            repository_module,
+            package,
+            profile_key,
+            parsed,
+            bound,
+            resolved,
+            expanded,
+            declared,
+            elaborated,
+            checked,
+        ))
+    }
+
     /// Create module state from loaded inputs and empty checked state.
     pub(in crate::sema) fn new(
         module: Arc<Module>,
@@ -259,16 +317,17 @@ impl CheckModuleState {
             bound,
             resolved,
             expanded,
-            references: FxIndexSet::default(),
             declared,
             elaborated,
             checked,
+            references: FxIndexSet::default(),
+            external_modules: FxIndexSet::default(),
             bindings,
-            bindings_tail,
             types,
             statics,
             definitions,
             members,
+            bindings_tail,
             types_tail,
             statics_tail,
             definitions_tail,
@@ -285,7 +344,6 @@ impl CheckModuleState {
             static_values: FxIndexMap::default(),
             static_presence: FxIndexMap::default(),
             absent_symbols: FxIndexSet::default(),
-            external_modules: FxIndexSet::default(),
             pending_captures: Vec::new(),
             flow_points: Vec::new(),
             node_flows: FxIndexMap::default(),
@@ -299,16 +357,6 @@ impl CheckModuleState {
     /// Return the post-expansion DIR tree view visible to check.
     pub(in crate::sema) fn view(&self) -> dir::View<'_> {
         dir::View::with_patches(&self.parsed.tree, from_ref(&self.expanded.patch))
-    }
-
-    /// Return the authored source tree used for source rendering.
-    pub(in crate::sema) fn source_tree(&self) -> &dir::Tree {
-        &self.parsed.tree
-    }
-
-    /// Return the authored source span of one node.
-    pub(in crate::sema) fn authored_span(&self, node: dir::LocalNodeIdAny) -> Span {
-        self.parsed.tree.source_index.get_main_or_enclosing(node.id)
     }
 
     /// Return the full source span of one visible node's authored origin.
@@ -1419,7 +1467,7 @@ impl CheckState<'_> {
         self.module_mut(node.module_id)
             .decisions
             .set_decision(node, resolution);
-        self.push_event(CheckEvent::NodeDecided { node });
+        self.record_event(CheckEvent::NodeDecided { node });
 
         Ok(())
     }
@@ -1442,7 +1490,7 @@ impl CheckState<'_> {
         self.module_mut(node.module_id)
             .resolutions
             .set_name_resolution(node, resolution);
-        self.push_event(CheckEvent::NodeDecided { node });
+        self.record_event(CheckEvent::NodeDecided { node });
 
         Ok(())
     }
