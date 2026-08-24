@@ -20,6 +20,10 @@ impl Parser {
                 self.bump();
                 Ok(self.tree.intern_static(Static::Null))
             }
+            TokenType::Identifier if let Some(space) = crate::Space::from_name(&text) => {
+                self.bump();
+                Ok(self.tree.intern_static(Static::Space(space)))
+            }
             TokenType::Identifier if text == "undefined" => {
                 self.bump();
                 Ok(self.tree.intern_static(Static::Undefined))

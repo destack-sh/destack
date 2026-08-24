@@ -94,6 +94,10 @@ impl TypeHasher {
                 self.hasher.write_u64(content.raw());
                 self.hash_string_maybe(*flags);
             }
+            Static::Space(space) => {
+                self.hasher.write_u8(16);
+                self.hasher.write_u8(*space as u8);
+            }
             Static::Type(ty) => {
                 self.hasher.write_u8(9);
                 self.hash_type(*ty, tree);

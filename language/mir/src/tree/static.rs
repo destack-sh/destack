@@ -2,7 +2,7 @@ use destack_core::StringId;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Tree, TypeId};
+use crate::{Space, Tree, TypeId};
 
 /// Compact identity of one interned compile-time value.
 #[repr(transparent)]
@@ -39,6 +39,8 @@ pub enum Static {
     },
     /// A type reflected as a compile-time value.
     Type(TypeId),
+    /// A storage space bound as a compile-time value.
+    Space(Space),
     /// A homogeneous array value.
     Array(Vec<StaticId>),
     /// A compact repeated fixed-array value.

@@ -435,6 +435,7 @@ fn walk_static<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, id: Static
             }
         }
         Static::Null
+        | Static::Space(_)
         | Static::Undefined
         | Static::Boolean(_)
         | Static::Integer(_)
