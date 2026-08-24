@@ -66,8 +66,6 @@ pub(crate) struct VmMachine {
     local_static: StaticSpace,
     /// Runtime shared static byte space.
     shared_static: StaticSpace,
-    /// Runtime immortal object byte space.
-    immortal_space: StaticSpace,
     /// Worker-local heap.
     heap: Heap,
     /// Runtime shared heap.
@@ -187,20 +185,15 @@ impl VmMachine {
         let mut shared = setup.shared_heap(memory.clone());
         let shared_mark_worker = shared.register_mark_worker();
         let shared_cache = shared.allocation_cache();
-        let (constant_space, immortal_space, shared_static) = program
+        let (constant_space, shared_static) = program
             .materialize_runtime_statics(memory.clone())
             .expect("footprint runtime statics should build");
         let local_static = program
-            .materialize_local_statics(
-                memory.clone(),
-                &constant_space,
-                &immortal_space,
-                &shared_static,
-            )
+            .materialize_local_statics(memory.clone(), &constant_space, &shared_static)
             .expect("footprint local statics should build");
-        shared.set_immortal_range(MemoryRange {
-            offset: immortal_space.offset(),
-            byte_len: immortal_space.byte_len(),
+        shared.set_constant_range(MemoryRange {
+            offset: constant_space.offset(),
+            byte_len: constant_space.byte_len(),
         });
         let allocation_plans = program
             .plan_allocations(heap.options(), shared.options())
@@ -224,7 +217,6 @@ impl VmMachine {
             constant_space,
             local_static,
             shared_static,
-            immortal_space,
             heap,
             shared,
             shared_cache,
@@ -246,7 +238,6 @@ impl VmMachine {
                 shared_mark_worker: &self.shared_mark_worker,
                 local_statics: &mut self.local_static,
                 shared_statics: &mut self.shared_static,
-                immortals: &self.immortal_space,
                 constants: &self.constant_space,
             },
         };

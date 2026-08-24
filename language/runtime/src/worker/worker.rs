@@ -158,9 +158,8 @@ impl Worker {
         shared_heap: &Arc<heap::SharedHeap>,
         allocation_plans: &Arc<[heap::AllocationPlan]>,
         constants: &program::StaticSpace,
-        immortals: &program::StaticSpace,
         shared_statics: &program::StaticSpace,
-        immortal_range: MemoryRange,
+        constant_range: MemoryRange,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
         binding_table: Arc<BindingTable>,
@@ -187,13 +186,12 @@ impl Worker {
             heap_options,
         )
         .map_err(Box::<RuntimeError>::from)?;
-        heap.set_immortal_range(immortal_range);
+        heap.set_constant_range(constant_range);
         let machine = engine.spawn(shared_heap.memory().clone())?;
         let handshake = Arc::new(Handshake::new());
         let local_static = program.materialize_local_statics(
             shared_heap.memory().clone(),
             constants,
-            immortals,
             shared_statics,
         )?;
         let shared_mark_worker = shared_heap.register_mark_worker();
@@ -508,7 +506,7 @@ impl Worker {
         world: &mut WorldState,
         shared_heap: &Arc<heap::SharedHeap>,
         allocation_plans: &Arc<[heap::AllocationPlan]>,
-        immortal_range: MemoryRange,
+        constant_range: MemoryRange,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
         environment: Arc<Environment>,
@@ -540,7 +538,7 @@ impl Worker {
             program.trace_view(),
         )
         .map_err(Box::<RuntimeError>::from)?;
-        heap.set_immortal_range(immortal_range);
+        heap.set_constant_range(constant_range);
         let mut machine = engine.spawn(shared_heap.memory().clone())?;
         machine.restore(&image.machine)?;
         let handshake = Arc::new(Handshake::new());

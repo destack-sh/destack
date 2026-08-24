@@ -35,8 +35,6 @@ pub enum RegionKind {
     Program,
     /// Immutable Program constant bytes.
     Constant,
-    /// Runtime immortal allocations.
-    Immortal,
     /// Runtime shared static storage.
     SharedStatic,
     /// Worker local static storage.

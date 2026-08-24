@@ -34,8 +34,6 @@ pub struct RuntimeImage {
     pub shared_heap: heap::SharedHeapImage,
     /// Captured immutable constant bytes.
     pub constant_space: program::StaticSpaceImage,
-    /// Captured runtime-owned immortal object bytes.
-    pub immortal_space: program::StaticSpaceImage,
     /// Captured runtime-owned shared static bytes.
     pub shared_static: program::StaticSpaceImage,
     /// Default worker identifier for this runtime.
@@ -56,7 +54,6 @@ impl PartialEq for RuntimeImage {
             && self.engine == other.engine
             && self.shared_heap == other.shared_heap
             && self.constant_space == other.constant_space
-            && self.immortal_space == other.immortal_space
             && self.shared_static == other.shared_static
             && self.default_worker_id == other.default_worker_id
             && self.next_worker_cursor == other.next_worker_cursor
@@ -82,7 +79,6 @@ impl Runtime {
             engine: self.engine.image(),
             shared_heap: self.shared_heap.image(),
             constant_space: self.constant_space.image(),
-            immortal_space: self.immortal_space.image(),
             shared_static: self.shared_static.image(),
             next_worker_cursor: self.next_worker_cursor,
         });
@@ -133,7 +129,7 @@ impl Runtime {
             world,
             &self.shared_heap,
             &self.allocation_plans,
-            self.immortal_range(),
+            self.constant_range(),
             self.id,
             worker_id,
             self.environment.clone(),
@@ -166,7 +162,6 @@ impl Runtime {
         let shared_collection = SharedCollectionState::new(&collector);
         let allocation_plans = self.allocation_plans.clone();
         let constant_space = self.constant_space.fork(memory.clone());
-        let immortal_space = self.immortal_space.fork(memory.clone());
         let shared_static = self.shared_static.fork(memory.clone());
 
         // fork each owned worker first
@@ -198,7 +193,6 @@ impl Runtime {
             shared_collection,
             allocation_plans,
             constant_space,
-            immortal_space,
             shared_static,
             workers,
             default_worker_id: self.default_worker_id,
@@ -234,11 +228,9 @@ impl Runtime {
             .heap
             .local_heap_options()
             .map_err(Box::<RuntimeError>::from)?;
-        let immortal_space =
-            program::StaticSpace::from_image(memory.clone(), &image.immortal_space);
-        let immortal_range = MemoryRange {
-            offset: immortal_space.offset(),
-            byte_len: immortal_space.byte_len(),
+        let constant_range = MemoryRange {
+            offset: constant_space.offset(),
+            byte_len: constant_space.byte_len(),
         };
         let mut shared_heap = heap::SharedHeap::from_image_with_limits(
             &image.shared_heap,
@@ -246,7 +238,7 @@ impl Runtime {
             image.options.heap.shared.limits(),
         )
         .map_err(Box::<RuntimeError>::from)?;
-        shared_heap.set_immortal_range(immortal_range);
+        shared_heap.set_constant_range(constant_range);
         let shared_heap = Arc::new(shared_heap);
         let shared_collection = SharedCollectionState::new(&collector);
         let allocation_plans = program
@@ -261,7 +253,7 @@ impl Runtime {
                 world,
                 &shared_heap,
                 &allocation_plans,
-                immortal_range,
+                constant_range,
                 runtime_id,
                 *worker_id,
                 environment.clone(),
@@ -300,7 +292,6 @@ impl Runtime {
             shared_collection,
             allocation_plans,
             constant_space,
-            immortal_space,
             shared_static,
             workers,
             default_worker_id: image.default_worker_id,

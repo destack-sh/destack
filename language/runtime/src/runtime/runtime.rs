@@ -43,8 +43,6 @@ pub struct Runtime {
     pub(crate) allocation_plans: Arc<[heap::AllocationPlan]>,
     /// Immutable program constant space.
     pub(crate) constant_space: program::StaticSpace,
-    /// Runtime-owned immortal object space.
-    pub(crate) immortal_space: program::StaticSpace,
     /// Runtime-owned shared static space.
     pub(crate) shared_static: program::StaticSpace,
 
@@ -109,7 +107,7 @@ impl Runtime {
         let worker_options = WorkerOptions::default();
 
         // materialize runtime-owned storage before publishing topology
-        let (constant_space, immortal_space, shared_static) =
+        let (constant_space, shared_static) =
             program.materialize_runtime_statics(memory.clone())?;
         let local_heap_options = options
             .heap
@@ -119,14 +117,14 @@ impl Runtime {
             .heap
             .shared_heap_options()
             .map_err(Box::<RuntimeError>::from)?;
-        let immortal_range = MemoryRange {
-            offset: immortal_space.offset(),
-            byte_len: immortal_space.byte_len(),
+        let constant_range = MemoryRange {
+            offset: constant_space.offset(),
+            byte_len: constant_space.byte_len(),
         };
         let mut shared_heap =
             heap::SharedHeap::new(memory, options.heap.shared.limits(), shared_heap_options)
                 .map_err(Box::<RuntimeError>::from)?;
-        shared_heap.set_immortal_range(immortal_range);
+        shared_heap.set_constant_range(constant_range);
         let shared_heap = Arc::new(shared_heap);
         let shared_collection = SharedCollectionState::new(&collector);
         let allocation_plans = program
@@ -140,9 +138,8 @@ impl Runtime {
             &shared_heap,
             &allocation_plans,
             &constant_space,
-            &immortal_space,
             &shared_static,
-            immortal_range,
+            constant_range,
             runtime_id,
             default_worker_id,
             binding_table.clone(),
@@ -185,7 +182,6 @@ impl Runtime {
             shared_collection,
             allocation_plans,
             constant_space,
-            immortal_space,
             shared_static,
             workers,
             default_worker_id,
@@ -193,11 +189,11 @@ impl Runtime {
         })
     }
 
-    /// Return the immortal object range inside world memory.
-    pub(crate) fn immortal_range(&self) -> MemoryRange {
+    /// Return the constant range inside world memory.
+    pub(crate) fn constant_range(&self) -> MemoryRange {
         MemoryRange {
-            offset: self.immortal_space.offset(),
-            byte_len: self.immortal_space.byte_len(),
+            offset: self.constant_space.offset(),
+            byte_len: self.constant_space.byte_len(),
         }
     }
 
@@ -323,9 +319,8 @@ impl Runtime {
             &self.shared_heap,
             &self.allocation_plans,
             &self.constant_space,
-            &self.immortal_space,
             &self.shared_static,
-            self.immortal_range(),
+            self.constant_range(),
             self.id,
             worker_id,
             self.binding_table.clone(),

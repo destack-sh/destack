@@ -39,8 +39,6 @@ pub(crate) struct TestWorker {
     collection: Arc<SharedCollectionState>,
     /// Immutable program constant space used by the worker.
     constant_space: program::StaticSpace,
-    /// Immortal space used by the worker.
-    immortal_space: program::StaticSpace,
     /// Runtime-owned shared static bytes used by the worker.
     shared_static: program::StaticSpace,
 }
@@ -104,7 +102,7 @@ impl TestWorker {
             .plan_allocations(&local_heap_options, shared_heap.options())
             .expect("allocation plans should build")
             .into();
-        let (constant_space, immortal_space, shared_static) = program
+        let (constant_space, shared_static) = program
             .materialize_runtime_statics(world.memory.clone())
             .expect("test runtime statics should materialize");
 
@@ -137,11 +135,10 @@ impl TestWorker {
             &shared_heap,
             &allocation_plans,
             &constant_space,
-            &immortal_space,
             &shared_static,
             MemoryRange {
-                offset: immortal_space.offset(),
-                byte_len: immortal_space.byte_len(),
+                offset: constant_space.offset(),
+                byte_len: constant_space.byte_len(),
             },
             runtime_id,
             worker_id,
@@ -160,7 +157,6 @@ impl TestWorker {
             world,
             collection,
             constant_space,
-            immortal_space,
             shared_static,
             worker,
         }
@@ -203,7 +199,6 @@ impl TestWorker {
             &mut self.world.state,
             &self.collection,
             &mut self.shared_static,
-            &self.immortal_space,
             &self.constant_space,
             self.world.host.as_ref(),
             &self.world.host_queue,
@@ -312,7 +307,6 @@ impl TestWorker {
             &mut self.world.state,
             &self.collection,
             &mut self.shared_static,
-            &self.immortal_space,
             &self.constant_space,
             self.world.host.as_ref(),
             &self.world.host_queue,
@@ -325,7 +319,6 @@ impl TestWorker {
             &mut self.world.state,
             &self.collection,
             &mut self.shared_static,
-            &self.immortal_space,
             &self.constant_space,
             self.world.host.as_ref(),
             &self.world.host_queue,
@@ -378,7 +371,6 @@ impl TestWorker {
             &mut self.world.state,
             &self.collection,
             &mut self.shared_static,
-            &self.immortal_space,
             &self.constant_space,
             self.world.host.as_ref(),
             &self.world.host_queue,
