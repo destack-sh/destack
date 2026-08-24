@@ -174,6 +174,28 @@ impl DirModule<'_> {
         uses
     }
 
+    /// Return whether one expression selects the same storage throughout a node subtree.
+    pub(crate) fn is_stable_access(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        within: dir::LocalNodeIdAny,
+        occurrences: &[dir::AccessOccurrence],
+    ) -> bool {
+        let Some(selected) = self.access_resolution(expression) else {
+            return false;
+        };
+        let view = self.view();
+        let expression = expression.into_any();
+
+        // reject other writes that replace the selected value or one of its prefixes
+        !occurrences.iter().any(|occurrence| {
+            occurrence.node != expression
+                && occurrence.uses.may_mutate()
+                && selected.path().starts_with(&occurrence.path)
+                && view.is_inside(occurrence.node, within)
+        })
+    }
+
     /// Return the weakest access sufficient for one binding's checked uses.
     pub(crate) fn weakest_binding_access(
         &self,

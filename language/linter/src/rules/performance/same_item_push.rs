@@ -39,6 +39,7 @@ function append(values: int32[], count: isize): void {
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let occurrences = module.flows.binding_occurrences().collect::<Vec<_>>();
+    let access_occurrences = module.flows.access_occurrences().collect::<Vec<_>>();
     let mut output = LintOutput::default();
 
     // inspect finite counted loops with one direct action
@@ -46,17 +47,15 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(iteration) = module.counted_iteration(expression)? else {
             continue;
         };
+
         // skip bounds known to execute fewer than twice
-        if let Some(end) = module.integral_constant(iteration.end)? {
-            let distance = i128::from(end) - i128::from(iteration.start);
-            let count = match iteration.end_kind {
-                dir::RangeEnd::Open => distance.max(0),
-                dir::RangeEnd::Inclusive => (distance + 1).max(0),
-            };
-            if count <= 1 {
-                continue;
-            }
+        if module
+            .integral_constant(iteration.end)?
+            .is_some_and(|end| iteration.count(end) <= 1)
+        {
+            continue;
         }
+
         let Some(action) = view.get(iteration.body).only_expression() else {
             continue;
         };
@@ -76,16 +75,18 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
 
-        // require a duplicable receiver and loop-invariant pushed value
+        // require a stable receiver and loop-invariant pushed value
         let excluded = iteration.binding.into_iter().collect::<Vec<_>>();
-        if !module.is_duplicable_expression(push.receiver)?
-            || !module.is_invariant_expression(
-                *value,
-                iteration.body.into_any(),
-                &excluded,
-                &occurrences,
-            )?
-        {
+        if !module.is_stable_access(
+            push.receiver,
+            iteration.body.into_any(),
+            &access_occurrences,
+        ) || !module.is_invariant_expression(
+            *value,
+            iteration.body.into_any(),
+            &excluded,
+            &occurrences,
+        )? {
             continue;
         }
 
@@ -183,6 +184,23 @@ function append(values: int32[], count: isize): void {
     for (const _ of 0..count) {
         value++;
         values.push(value);
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept pushes into a different array on each iteration.
+    #[test]
+    fn test_accepts_changed_receiver() {
+        let session = TestSession::dir(
+            &SAME_ITEM_PUSH,
+            r#"
+function fill(values: int32[][]): void {
+    for (const index of 0..values.length) {
+        values[index].push(0);
     }
 }
 "#,

@@ -53,7 +53,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // leave boolean-only consumption to prefer-regexp-test
+        // retain boolean-only consumption because it ignores the match record
         if is_only_tested(module, expression)? {
             continue;
         }
@@ -164,7 +164,7 @@ function matches(text: string): unknown {
         session.assert_no_diagnostics();
     }
 
-    /// Leave boolean-only matching to prefer-regexp-test.
+    /// Accept boolean-only match consumption.
     #[test]
     fn test_accepts_match_test() {
         let session = TestSession::dir(

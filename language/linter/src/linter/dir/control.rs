@@ -51,6 +51,18 @@ pub(crate) struct CountedIteration {
     pub(crate) body: dir::LocalNodeId<dir::Block>,
 }
 
+impl CountedIteration {
+    /// Return the iteration count for one constant upper bound.
+    pub(crate) fn count(self, end: i64) -> i128 {
+        let distance = i128::from(end) - i128::from(self.start);
+
+        match self.end_kind {
+            dir::RangeEnd::Open => distance.max(0),
+            dir::RangeEnd::Inclusive => (distance + 1).max(0),
+        }
+    }
+}
+
 impl DirModule<'_> {
     /// Return whether one if expression continues a direct else-if chain.
     pub(crate) fn is_else_if(&self, expression: dir::LocalNodeId<dir::Expression>) -> bool {
