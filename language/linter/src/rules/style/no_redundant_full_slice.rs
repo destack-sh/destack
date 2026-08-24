@@ -34,7 +34,7 @@ function consume(values: &readonly [int32]): void {
 }
 "#,
         },
-        category: Performance,
+        category: Style,
         level: Warning,
         fixable: Automatic,
         check: DirModule(check),
