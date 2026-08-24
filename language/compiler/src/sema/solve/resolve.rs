@@ -36,7 +36,7 @@ impl CheckState<'_> {
         role: VariableRole,
     ) -> dir::TypeVariableId {
         let variable = self.infer.open_variable(origin, kind, role);
-        self.push_event(CheckEvent::VariableAllocated { variable, kind });
+        self.record_event(CheckEvent::VariableAllocated { variable, kind });
 
         variable
     }
@@ -864,7 +864,7 @@ impl CheckState<'_> {
         // forward the producers onto the solution's still-open variables
         let successors = self.type_variables(ty)?;
         self.fulfill.forward_producers(variable, &successors);
-        self.push_event(CheckEvent::VariableSolved {
+        self.record_event(CheckEvent::VariableSolved {
             variable,
             bounds: Box::new(bounds.clone()),
             solution: ty,
@@ -978,7 +978,7 @@ impl CheckState<'_> {
         }
 
         // trace the pushed bound
-        self.push_event(match side {
+        self.record_event(match side {
             BoundSide::Lower => CheckEvent::LowerBoundPushed { variable, bound },
             BoundSide::Upper => CheckEvent::UpperBoundPushed { variable, bound },
         });

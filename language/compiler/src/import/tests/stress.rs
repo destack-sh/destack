@@ -1,9 +1,7 @@
-use std::collections::BTreeMap;
-
 use crate::tests::TestSession;
 
 #[test]
-fn test_import_stats_ignore_function_body_size() {
+fn test_import_counters_ignore_function_body_size() {
     const BODY_ITEMS: usize = 50_000;
 
     let body = (0..BODY_ITEMS)
@@ -14,25 +12,25 @@ fn test_import_stats_ignore_function_body_size() {
     let compiler = TestSession::builder()
         .module("main.ds", &source)
         .module("dep.ds", "export const dep = 1;")
+        .cold()
         .build();
-    let metadata = compiler.artifact_text_sidecar(
-        compiler.dir_imported_key("main.ds"),
-        "metadata",
-        &BTreeMap::from([("phase".to_string(), "import".to_string())]),
-    );
-    let expected = "import.stats.roots=2\n\
-import.stats.expressions=2\n\
-import.stats.clauses=import:1,reexport:0\n\
-import.stats.resolve.specifiers=1\n\
-import.stats.resolve.package_exports=0\n\
-import.stats.resolve.candidates=2\n\
-import.stats.resolve.probes=2";
+    let counters = compiler.artifact_counters(compiler.dir_imported_key("main.ds"), "import.");
+    let expected = "import.roots=2\n\
+import.expressions=2\n\
+import.import_clauses=1\n\
+import.reexport_clauses=0\n\
+import.guards=0\n\
+import.skipped=0\n\
+import.specifiers=1\n\
+import.package_exports=0\n\
+import.candidates=2\n\
+import.probes=2";
 
-    assert_eq!(metadata, expected);
+    assert_eq!(counters, expected);
 }
 
 #[test]
-fn test_import_stats_scale_with_many_module_clauses() {
+fn test_import_counters_scale_with_many_module_clauses() {
     const ITEMS: usize = 50_000;
 
     let source = (0..ITEMS)
@@ -42,23 +40,23 @@ fn test_import_stats_scale_with_many_module_clauses() {
     let compiler = TestSession::builder()
         .module("main.ds", &source)
         .module("dep.ds", "export const dep = 1;")
+        .cold()
         .build();
-    let metadata = compiler.artifact_text_sidecar(
-        compiler.dir_imported_key("main.ds"),
-        "metadata",
-        &BTreeMap::from([("phase".to_string(), "import".to_string())]),
-    );
+    let counters = compiler.artifact_counters(compiler.dir_imported_key("main.ds"), "import.");
     let expected = format!(
-        "import.stats.roots={ITEMS}\n\
-import.stats.expressions={ITEMS}\n\
-import.stats.clauses=import:{ITEMS},reexport:0\n\
-import.stats.resolve.specifiers={ITEMS}\n\
-import.stats.resolve.package_exports=0\n\
-import.stats.resolve.candidates={}\n\
-import.stats.resolve.probes={}",
+        "import.roots={ITEMS}\n\
+import.expressions={ITEMS}\n\
+import.import_clauses={ITEMS}\n\
+import.reexport_clauses=0\n\
+import.guards=0\n\
+import.skipped=0\n\
+import.specifiers={ITEMS}\n\
+import.package_exports=0\n\
+import.candidates={}\n\
+import.probes={}",
         ITEMS * 2,
         ITEMS * 2,
     );
 
-    assert_eq!(metadata, expected);
+    assert_eq!(counters, expected);
 }

@@ -1,4 +1,4 @@
-use super::stats::assert_check_stats;
+use super::counters::assert_check_counters;
 
 const ITEMS: usize = 1_000;
 
@@ -13,28 +13,28 @@ fn test_repeated_generic_calls_type_each_site() {
         "function pick<T>(a: T, b: T): T {{\n    a\n}}\n\nfunction heavy(): void {{\n{body}\n}}"
     );
 
-    assert_check_stats(
+    assert_check_counters(
         &source,
         r#"
-check.stats.solve.variables=3000
-check.stats.solve.constraints=5000
-check.stats.solve.obligations=1000
-check.stats.solve.solutions=3000
-check.stats.solve.bounds=4000
-check.stats.solve.decisions=2000
-check.stats.relations.decided=2
-check.stats.relations.reused=1998
-check.stats.bindings.built=0
-check.stats.bindings.reused=0
-check.stats.members.derived=0
-check.stats.members.reused=0
-check.stats.members.refused=0
-check.stats.probes.total=4003
-check.stats.probes.selections=0
-check.stats.probes.extensions=0
-check.stats.instantiations=1000
-check.stats.interns=18012
-check.stats.reduces=45008
+check.solve.variables=3000
+check.solve.constraints=5000
+check.solve.obligations=1000
+check.solve.solutions=3000
+check.solve.bounds=4000
+check.solve.decisions=2000
+check.relations.decided=2
+check.relations.reused=1998
+check.bindings.built=0
+check.bindings.reused=0
+check.members.derived=0
+check.members.reused=0
+check.members.refused=0
+check.probes.total=4003
+check.probes.selections=0
+check.probes.extensions=0
+check.instantiations=1000
+check.interns=18012
+check.reduces=45008
 "#,
     );
 }
@@ -50,28 +50,28 @@ fn test_distinct_literal_calls_instantiate_per_site() {
         "function pick<T>(a: T, b: T): T {{\n    a\n}}\n\nfunction heavy(): void {{\n{body}\n}}"
     );
 
-    assert_check_stats(
+    assert_check_counters(
         &source,
         r#"
-check.stats.solve.variables=3000
-check.stats.solve.constraints=5000
-check.stats.solve.obligations=1000
-check.stats.solve.solutions=3000
-check.stats.solve.bounds=4000
-check.stats.solve.decisions=2000
-check.stats.relations.decided=1000
-check.stats.relations.reused=1000
-check.stats.bindings.built=0
-check.stats.bindings.reused=0
-check.stats.members.derived=0
-check.stats.members.reused=0
-check.stats.members.refused=0
-check.stats.probes.total=4003
-check.stats.probes.selections=0
-check.stats.probes.extensions=0
-check.stats.instantiations=1000
-check.stats.interns=18012
-check.stats.reduces=45008
+check.solve.variables=3000
+check.solve.constraints=5000
+check.solve.obligations=1000
+check.solve.solutions=3000
+check.solve.bounds=4000
+check.solve.decisions=2000
+check.relations.decided=1000
+check.relations.reused=1000
+check.bindings.built=0
+check.bindings.reused=0
+check.members.derived=0
+check.members.reused=0
+check.members.refused=0
+check.probes.total=4003
+check.probes.selections=0
+check.probes.extensions=0
+check.instantiations=1000
+check.interns=18012
+check.reduces=45008
 "#,
     );
 }

@@ -1,4 +1,3 @@
-use std::iter;
 use std::sync::Arc;
 
 use destack_artifact::{
@@ -75,12 +74,7 @@ impl Compiler {
             .map_err(CompilerError::from)?;
         let stats = state.stats;
         let (exported, diagnostics) = state.finish();
-        let metadata = stats.render_metadata();
-        context.emit_sidecar(self.put_sidecar(
-            "metadata",
-            iter::once(("phase", "export")),
-            metadata.as_bytes(),
-        )?);
+        stats.record(context);
         for diagnostic in diagnostics {
             self.emit_diagnostic::<ExportError>(context, diagnostic)?;
         }

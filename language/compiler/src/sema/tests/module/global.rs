@@ -9,8 +9,7 @@ fn test_global_binding_resolves_without_import() {
 {
     "name": "test",
     "compiler": {
-        "globals": ["globals.ds"],
-        "emitCheckedTypes": true
+        "globals": ["globals.ds"]
     }
 }
 

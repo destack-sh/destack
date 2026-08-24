@@ -1,4 +1,3 @@
-use std::iter;
 use std::sync::Arc;
 
 use destack_artifact::{
@@ -73,12 +72,7 @@ impl Compiler {
         self.collect_modules(&mut state, &bound.roots)?;
         let stats = state.stats;
         let (imported, diagnostics) = state.finish();
-        let metadata = stats.render_metadata();
-        context.emit_sidecar(self.put_sidecar(
-            "metadata",
-            iter::once(("phase", "import")),
-            metadata.as_bytes(),
-        )?);
+        stats.record(context);
         for diagnostic in diagnostics {
             self.emit_diagnostic(context, diagnostic)?;
         }

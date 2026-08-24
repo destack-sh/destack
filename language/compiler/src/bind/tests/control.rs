@@ -189,7 +189,7 @@ let output: number = if (let Some(value) = maybe) {
 
     compiler.assert_dir_bound(
         "main.ds",
-        DirRows::binding().with_summaries().with_bind_stats(),
+        DirRows::binding().with_summaries(),
         r#"
 for (let index: number = 0; index < 10; index = index + 1) {
 /// @binding.scope scope=scope2 kind=block parent=<module>@1
@@ -219,7 +219,6 @@ let output: number = if (let Some(value) = maybe) {
 /// @binding.scope scope=scope1 kind=global
 
 /// @binding.summary symbols=5 scopes=7 declarations=4 node_scopes=38
-/// @bind.stats files=1 roots=2
 "#,
     );
 }
@@ -238,10 +237,7 @@ let x: number = x;
 
     compiler.assert_dir_bound(
         "main.ds",
-        DirRows::binding()
-            .with_binding_nodes()
-            .with_summaries()
-            .with_bind_stats(),
+        DirRows::binding().with_binding_nodes().with_summaries(),
         r#"
 let x: number = 1;
 /// @binding.node node=expression scope=<module>@1 source="let x: number = 1"
@@ -264,7 +260,6 @@ let x: number = x;
 /// @binding.scope scope=scope1 kind=global
 
 /// @binding.summary symbols=3 scopes=2 declarations=2 node_scopes=10
-/// @bind.stats files=1 roots=2
 "#,
     );
 }

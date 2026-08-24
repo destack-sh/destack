@@ -258,7 +258,7 @@ impl CheckState<'_> {
         attempt: impl FnOnce(&mut Self) -> CompilerResult<bool>,
     ) -> CompilerResult<Verdict> {
         self.counters.probes += 1;
-        self.push_event(CheckEvent::ProbeStarted {
+        self.record_event(CheckEvent::ProbeStarted {
             variables: self.infer.variable_count(),
         });
         let trail = self.infer.mark(&mut self.fulfill);
@@ -288,7 +288,7 @@ impl CheckState<'_> {
             let poison = self.intern_type(dir::Type::Error)?;
             self.infer.rollback(trail, poison, &mut self.fulfill)?;
             self.fulfill.failures.truncate(failures);
-            self.push_event(CheckEvent::ProbeFinished {
+            self.record_event(CheckEvent::ProbeFinished {
                 verdict: Some(Verdict::Fails),
             });
 
@@ -304,7 +304,7 @@ impl CheckState<'_> {
             false => Verdict::Ambiguous,
         };
         self.infer.commit(trail, &mut self.fulfill);
-        self.push_event(CheckEvent::ProbeFinished {
+        self.record_event(CheckEvent::ProbeFinished {
             verdict: Some(verdict),
         });
 
@@ -359,7 +359,7 @@ impl CheckState<'_> {
                         message: "confirmed candidate has no accepted outcome".into(),
                     });
                 };
-                self.push_event(CheckEvent::ProbeFinished {
+                self.record_event(CheckEvent::ProbeFinished {
                     verdict: Some(verdict),
                 });
                 self.commit_probe(mark)?;
@@ -376,7 +376,7 @@ impl CheckState<'_> {
 
     /// Close one probe whose solved constraints failed.
     fn fail_probe(&mut self, mark: ProbeMark) -> CompilerResult<Verdict> {
-        self.push_event(CheckEvent::ProbeFinished {
+        self.record_event(CheckEvent::ProbeFinished {
             verdict: Some(Verdict::Fails),
         });
         self.end_probe(mark)?;
@@ -407,7 +407,7 @@ impl CheckState<'_> {
             }
         };
 
-        self.push_event(CheckEvent::ProbeFinished {
+        self.record_event(CheckEvent::ProbeFinished {
             verdict: Some(verdict),
         });
         self.end_probe(mark)?;
@@ -440,7 +440,7 @@ impl CheckState<'_> {
     /// Begin one probe, tracing its start event.
     fn open_probe(&mut self) -> ProbeMark {
         self.counters.probes += 1;
-        self.push_event(CheckEvent::ProbeStarted {
+        self.record_event(CheckEvent::ProbeStarted {
             variables: self.infer.variable_count(),
         });
 
@@ -465,7 +465,7 @@ impl CheckState<'_> {
             binding_types: self.binding_types.len(),
             symbol_variables: self.infer.symbol_variables.len(),
             expected_types: self.expected_types.open_probe(),
-            events: self.trace_events().len(),
+            events: self.recorded_event_count(),
             failures: self.fulfill.failures.len(),
             module,
         }

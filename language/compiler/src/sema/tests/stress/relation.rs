@@ -1,4 +1,4 @@
-use super::stats::assert_check_stats;
+use super::counters::assert_check_counters;
 
 const ITEMS: usize = 1_000;
 
@@ -11,28 +11,28 @@ fn test_repeated_union_conversions_reuse_one_relation_answer() {
         .join("\n");
     let source = format!("function heavy(): void {{\n{body}\n}}");
 
-    assert_check_stats(
+    assert_check_counters(
         &source,
         r#"
-check.stats.solve.variables=0
-check.stats.solve.constraints=0
-check.stats.solve.obligations=1000
-check.stats.solve.solutions=0
-check.stats.solve.bounds=0
-check.stats.solve.decisions=1000
-check.stats.relations.decided=4
-check.stats.relations.reused=1000
-check.stats.bindings.built=0
-check.stats.bindings.reused=0
-check.stats.members.derived=0
-check.stats.members.reused=0
-check.stats.members.refused=0
-check.stats.probes.total=3007
-check.stats.probes.selections=0
-check.stats.probes.extensions=0
-check.stats.instantiations=0
-check.stats.interns=8009
-check.stats.reduces=16018
+check.solve.variables=0
+check.solve.constraints=0
+check.solve.obligations=1000
+check.solve.solutions=0
+check.solve.bounds=0
+check.solve.decisions=1000
+check.relations.decided=4
+check.relations.reused=1000
+check.bindings.built=0
+check.bindings.reused=0
+check.members.derived=0
+check.members.reused=0
+check.members.refused=0
+check.probes.total=3007
+check.probes.selections=0
+check.probes.extensions=0
+check.instantiations=0
+check.interns=8009
+check.reduces=16018
 "#,
     );
 }

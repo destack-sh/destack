@@ -1,3 +1,5 @@
+use destack_repository::ProviderContext;
+
 /// Counted work metrics for one import attempt.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(in crate::import) struct ImportStats {
@@ -24,42 +26,19 @@ pub(in crate::import) struct ImportStats {
 }
 
 impl ImportStats {
-    /// Render these stats as stable metadata lines.
-    pub(in crate::import) fn render_metadata(self) -> String {
-        let mut lines = vec![
-            format!("import.stats.roots={}", self.roots),
-            format!("import.stats.expressions={}", self.expressions),
-            format!(
-                "import.stats.clauses=import:{},reexport:{}",
-                self.import_clauses, self.reexport_clauses
-            ),
-        ];
-
-        // include only static guard work
-        if self.guards != 0 || self.skipped != 0 {
-            lines.push(format!(
-                "import.stats.guards=evaluated:{},skipped:{}",
-                self.guards, self.skipped
-            ));
-        }
-
-        // include resolver work when present
-        if self.specifiers != 0 || self.package_exports != 0 || self.candidates != 0 {
-            lines.push(format!(
-                "import.stats.resolve.specifiers={}",
-                self.specifiers
-            ));
-            lines.push(format!(
-                "import.stats.resolve.package_exports={}",
-                self.package_exports
-            ));
-            lines.push(format!(
-                "import.stats.resolve.candidates={}",
-                self.candidates
-            ));
-            lines.push(format!("import.stats.resolve.probes={}", self.probes));
-        }
-
-        lines.join("\n")
+    /// Record these stats in one provider attempt.
+    pub(in crate::import) fn record(self, context: &dyn ProviderContext) {
+        context.record_counters(&[
+            ("import.roots", self.roots as u64),
+            ("import.expressions", self.expressions as u64),
+            ("import.import_clauses", self.import_clauses as u64),
+            ("import.reexport_clauses", self.reexport_clauses as u64),
+            ("import.guards", self.guards as u64),
+            ("import.skipped", self.skipped as u64),
+            ("import.specifiers", self.specifiers as u64),
+            ("import.package_exports", self.package_exports as u64),
+            ("import.candidates", self.candidates as u64),
+            ("import.probes", self.probes as u64),
+        ]);
     }
 }

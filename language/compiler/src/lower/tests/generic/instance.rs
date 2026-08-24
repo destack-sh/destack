@@ -397,12 +397,7 @@ fn test_lower_instance_names_under_a_named_package() {
         .module(
             "destack.json",
             r#"{
-  "name": "app",
-  "compiler": {
-    "emitStats": true,
-    "emitEvents": true,
-    "emitCheckedTypes": true
-  }
+  "name": "app"
 }"#,
         )
         .module(

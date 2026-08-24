@@ -3,8 +3,7 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactDependencySet, SourceDependency};
 use destack_repository::{
-    CompilerOptions, DestackFile, Environment, Module, Package, Profile, ProviderContext, Revision,
-    Target,
+    DestackFile, Environment, Module, Package, Profile, ProviderContext, Revision, Target,
 };
 use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, TargetId, Uri};
 
@@ -154,21 +153,6 @@ impl Compiler {
         }
 
         Ok(())
-    }
-
-    /// Return workspace compiler options for one module.
-    pub(crate) fn workspace_compiler_options(
-        &self,
-        context: &dyn ProviderContext,
-        module: &Module,
-    ) -> CompilerResult<CompilerOptions> {
-        let config = self.destack_for_package(context, module.package_id)?;
-        let options = config
-            .as_ref()
-            .map(|config| config.compiler.clone())
-            .unwrap_or_default();
-
-        Ok(options)
     }
 
     /// Return one target or built-in.

@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 
 use crate::sema::{
-    AssignmentSelection, Check, CheckEvent, CheckId, CheckState, ExpectedType, GenericTemplateId,
-    Origin, Variance,
+    AssignmentSelection, Check, CheckId, CheckState, ExpectedType, GenericTemplateId, Origin,
+    Variance,
 };
 
 /// One active match arm used for coverage.
@@ -692,10 +692,7 @@ impl CheckState<'_> {
         for failure in check.into_failures() {
             self.report_obligation_failure(failure)?;
         }
-        self.push_event(CheckEvent::Checked {
-            check: id,
-            is_finished: true,
-        });
+        self.record_check_event(id, true)?;
 
         Ok(None)
     }

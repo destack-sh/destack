@@ -19,14 +19,13 @@ export let value = 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 export * as api from "./dep.ds";
 /// @reference.declaration source=<namespace> kind=bound targets=[api]
 /// @reference.target source=<namespace> kind=namespace module=dep.ds
 
 /// @import.summary
-/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:0,reexport:1
 /// @reference.summary references=1 declarations=1
 "#,
     );
@@ -58,7 +57,7 @@ export let value = 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 import { renamed } from "./mid.ds";
 /// @import.resolved symbol=renamed declarations=[mid.renamed] targets=[dep.value]
@@ -66,7 +65,6 @@ import { renamed } from "./mid.ds";
 /// @reference.declaration source=renamed kind=bound targets=[mid.renamed]
 
 /// @import.summary symbols=1
-/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:2,hit:0,cycle:0
 /// @reference.summary references=1 declarations=1
 "#,
     );
@@ -98,7 +96,7 @@ export { value as default };
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 import { renamed } from "./mid.ds";
 /// @import.resolved symbol=renamed declarations=[mid.renamed] targets=[dep.value]
@@ -106,7 +104,6 @@ import { renamed } from "./mid.ds";
 /// @reference.declaration source=renamed kind=bound targets=[mid.renamed]
 
 /// @import.summary symbols=1
-/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:2,hit:0,cycle:0
 /// @reference.summary references=1 declarations=1
 "#,
     );
@@ -137,14 +134,13 @@ export let value = 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 import { value } from "./mid.ds";
 /// @import.resolved symbol=value declarations=[dep.value] targets=[dep.value]
 /// @reference.target source=value kind=bound targets=[dep.value]
 
 /// @import.summary symbols=1
-/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:2,hit:0,cycle:0
 /// @reference.summary references=1
 "#,
     );
@@ -182,14 +178,13 @@ export let value = 2;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 import { value } from "./mid.ds";
 /// @import.resolved symbol=value declarations=[explicit.value] targets=[explicit.value]
 /// @reference.target source=value kind=bound targets=[explicit.value]
 
 /// @import.summary symbols=1
-/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:2,hit:0,cycle:0
 /// @reference.summary references=1
 "#,
     );
@@ -227,14 +222,13 @@ export let value = 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 import { value } from "./a.ds";
 /// @import.resolved symbol=value declarations=[c.value] targets=[c.value]
 /// @reference.target source=value kind=bound targets=[c.value]
 
 /// @import.summary symbols=1
-/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:3,hit:1,cycle:1
 /// @reference.summary references=1
 "#,
     );

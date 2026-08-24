@@ -1,4 +1,3 @@
-use std::iter;
 use std::sync::Arc;
 
 use destack_artifact::{
@@ -52,12 +51,7 @@ impl Compiler {
         )?;
         let stats = state.stats;
         let dir_bound = state.finish();
-        let metadata = stats.render_metadata();
-        context.emit_sidecar(self.put_sidecar(
-            "metadata",
-            iter::once(("phase", "bind")),
-            metadata.as_bytes(),
-        )?);
+        stats.record(context);
 
         Ok(ArtifactPayload::DirBound(Arc::new(dir_bound)))
     }

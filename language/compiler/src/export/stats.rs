@@ -1,3 +1,5 @@
+use destack_repository::ProviderContext;
+
 /// Counted work metrics for one export attempt.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(in crate::export) struct ExportStats {
@@ -20,34 +22,20 @@ pub(in crate::export) struct ExportStats {
 }
 
 impl ExportStats {
-    /// Render these stats as stable metadata lines.
-    pub(in crate::export) fn render_metadata(self) -> String {
-        let mut lines = vec![
-            format!("export.stats.roots={}", self.roots),
-            format!(
-                "export.stats.expressions=visibility:{},export:{}",
-                self.visibility_expressions, self.export_expressions
+    /// Record these stats in one provider attempt.
+    pub(in crate::export) fn record(self, context: &dyn ProviderContext) {
+        context.record_counters(&[
+            ("export.roots", self.roots as u64),
+            (
+                "export.visibility_expressions",
+                self.visibility_expressions as u64,
             ),
-            format!("export.stats.symbols=scanned:{}", self.scanned_symbols),
-        ];
-
-        // include only static guard work
-        if self.guards != 0 || self.skipped != 0 {
-            lines.push(format!(
-                "export.stats.guards=evaluated:{},skipped:{}",
-                self.guards, self.skipped
-            ));
-        }
-
-        // include static visibility cache work when present
-        if self.static_checks != 0 || self.static_cache_hits != 0 {
-            lines.push(format!("export.stats.static.checks={}", self.static_checks));
-            lines.push(format!(
-                "export.stats.static.cache_hits={}",
-                self.static_cache_hits
-            ));
-        }
-
-        lines.join("\n")
+            ("export.export_expressions", self.export_expressions as u64),
+            ("export.scanned_symbols", self.scanned_symbols as u64),
+            ("export.guards", self.guards as u64),
+            ("export.skipped", self.skipped as u64),
+            ("export.static_checks", self.static_checks as u64),
+            ("export.static_cache_hits", self.static_cache_hits as u64),
+        ]);
     }
 }

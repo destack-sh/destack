@@ -1735,9 +1735,6 @@ fn test_check_a_tree_literal_through_the_default_builder() {
 {
     "name": "test",
     "compiler": {
-        "emitStats": true,
-        "emitEvents": true,
-        "emitCheckedTypes": true,
         "tree": "panel.ds#Panel"
     }
 }

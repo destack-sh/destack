@@ -13,13 +13,12 @@ import { Math } from "destack:math";
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries().with_import_stats(),
+        DirRows::modules().with_summaries(),
         r#"
 import { Math } from "destack:math";
 /// @module.edge relation=import specifier=destack:math module=destack://math/index.ds
 
 /// @module.summary edges=1
-/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 "#,
     );
 }
@@ -58,7 +57,7 @@ export const relative = 2;
 
     compiler.assert_dir_imported(
         "src/main.ds",
-        DirRows::modules().with_summaries().with_import_stats(),
+        DirRows::modules().with_summaries(),
         r#"
 import { absolute } from "destack:absolute";
 /// @module.edge relation=import specifier=destack:absolute module=destack://absolute.ds
@@ -67,7 +66,6 @@ import { relative } from "./relative.ds";
 /// @module.edge relation=import specifier=./relative.ds module=destack://relative.ds
 
 /// @module.summary edges=2
-/// @import.stats roots=2 expressions=2 clauses=import:2,reexport:0
 "#,
     );
 }

@@ -1,4 +1,4 @@
-use super::stats::assert_check_stats;
+use super::counters::assert_check_counters;
 
 const ITEMS: usize = 1_000;
 
@@ -14,28 +14,28 @@ fn test_repeated_extension_method_calls_reuse_one_member_decision() {
          function heavy(): void {{\n{body}\n}}"
     );
 
-    assert_check_stats(
+    assert_check_counters(
         &source,
         r#"
-check.stats.solve.variables=10
-check.stats.solve.constraints=0
-check.stats.solve.obligations=1000
-check.stats.solve.solutions=10
-check.stats.solve.bounds=0
-check.stats.solve.decisions=3003
-check.stats.relations.decided=5
-check.stats.relations.reused=1003
-check.stats.bindings.built=1
-check.stats.bindings.reused=1003
-check.stats.members.derived=4
-check.stats.members.reused=3996
-check.stats.members.refused=0
-check.stats.probes.total=2036
-check.stats.probes.selections=0
-check.stats.probes.extensions=0
-check.stats.instantiations=22
-check.stats.interns=15127
-check.stats.reduces=28063
+check.solve.variables=10
+check.solve.constraints=0
+check.solve.obligations=1000
+check.solve.solutions=10
+check.solve.bounds=0
+check.solve.decisions=3003
+check.relations.decided=5
+check.relations.reused=1003
+check.bindings.built=1
+check.bindings.reused=1003
+check.members.derived=4
+check.members.reused=3996
+check.members.refused=0
+check.probes.total=2036
+check.probes.selections=0
+check.probes.extensions=0
+check.instantiations=22
+check.interns=15127
+check.reduces=28063
 "#,
     );
 }

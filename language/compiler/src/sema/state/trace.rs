@@ -1,8 +1,9 @@
-use destack_artifact::{ArtifactEvent, ArtifactEventLog};
 use destack_dir as dir;
+use destack_repository::{ProviderContext, TraceEvent};
 use smallvec::SmallVec;
 
-use crate::sema::{Check, CheckId, CheckState, DumpContext, TypeBound, VariableKind, Verdict};
+use crate::CompilerResult;
+use crate::sema::{Check, CheckId, CheckState, EventFormatter, TypeBound, VariableKind, Verdict};
 
 /// Environment variable naming the file check events stream into.
 const CHECK_EVENT_STREAM_ENV: &str = "DESTACK_CHECK_EVENT_STREAM";
@@ -40,23 +41,6 @@ pub(in crate::sema) struct CheckCounters {
     pub(in crate::sema) extension_reentries: u64,
 }
 
-/// Derived size counters for one checked module.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::sema) struct CheckStats {
-    /// The number of allocated variables.
-    pub(in crate::sema) variables: usize,
-    /// The number of collected constraints.
-    pub(in crate::sema) constraints: usize,
-    /// The number of collected obligations.
-    pub(in crate::sema) obligations: usize,
-    /// The number of solved variables.
-    pub(in crate::sema) solutions: usize,
-    /// The total number of bounds.
-    pub(in crate::sema) bounds: usize,
-    /// The number of node decisions.
-    pub(in crate::sema) decisions: usize,
-}
-
 /// The bounds visible when one variable event was traced.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::sema) struct VariableBounds {
@@ -66,8 +50,8 @@ pub(in crate::sema) struct VariableBounds {
     pub(in crate::sema) upper: SmallVec<[TypeBound; 2]>,
 }
 
-/// One event emitted by check.
-#[derive(Debug, Clone, PartialEq)]
+/// One event recorded by check.
+#[derive(Debug)]
 pub(in crate::sema) enum CheckEvent {
     /// One speculative probe started.
     ProbeStarted {
@@ -100,13 +84,6 @@ pub(in crate::sema) enum CheckEvent {
         /// The pushed bound.
         bound: TypeBound,
     },
-    /// One check was stepped.
-    Checked {
-        /// The stepped check.
-        check: CheckId,
-        /// Whether the check finished.
-        is_finished: bool,
-    },
     /// One node was decided.
     NodeDecided {
         /// The decided node.
@@ -125,88 +102,91 @@ pub(in crate::sema) enum CheckEvent {
 
 /// Trace state kept while checking.
 pub(in crate::sema) struct CheckTrace {
-    /// Trace events kept while checking.
-    pub(in crate::sema) events: Vec<CheckEvent>,
-    /// Whether events are kept for artifact output.
-    pub(in crate::sema) emit: bool,
+    /// Events recorded while checking.
+    pub(in crate::sema) events: Vec<TraceEvent>,
+    /// Whether events are retained by the provider trace.
+    pub(in crate::sema) records_events: bool,
     /// Whether events print as they arrive.
-    pub(in crate::sema) stream: bool,
+    pub(in crate::sema) is_streaming: bool,
 }
 
 impl CheckTrace {
-    /// Create trace state when emitting or streaming is requested.
-    pub(in crate::sema) fn new(emit: bool, stream: bool) -> Option<Box<Self>> {
-        if !emit && !stream {
+    /// Create trace state when recording or streaming is requested.
+    pub(in crate::sema) fn new(records_events: bool) -> Option<Box<Self>> {
+        let is_streaming = std::env::var_os(CHECK_EVENT_STREAM_ENV)
+            .is_some_and(|value| !value.is_empty() && value != "0");
+        if !records_events && !is_streaming {
             return None;
         }
 
         Some(Box::new(Self {
             events: Vec::new(),
-            emit,
-            stream,
+            records_events,
+            is_streaming,
         }))
+    }
+
+    /// Stream and retain one formatted event.
+    fn record(&mut self, event: TraceEvent) {
+        // print the event as it happens
+        if self.is_streaming {
+            eprintln!("{event}");
+        }
+
+        // retain the event for the provider trace
+        if self.records_events {
+            self.events.push(event);
+        }
     }
 }
 
 impl CheckState<'_> {
-    /// Return the kept trace events, empty without a trace.
-    pub(in crate::sema) fn trace_events(&self) -> &[CheckEvent] {
-        match &self.trace {
-            Some(trace) => &trace.events,
-            None => &[],
-        }
+    /// Return the number of recorded check events.
+    pub(in crate::sema) fn recorded_event_count(&self) -> usize {
+        self.trace.as_ref().map_or(0, |trace| trace.events.len())
     }
 
-    /// Push one check event onto the trace.
-    pub(in crate::sema) fn push_event(&mut self, event: CheckEvent) {
-        let Some(trace) = &self.trace else {
+    /// Record one check event.
+    pub(in crate::sema) fn record_event(&mut self, event: CheckEvent) {
+        if self.trace.is_none() {
             return;
-        };
-
-        // print the event as it happens
-        if trace.stream {
-            self.stream_event(&event);
         }
 
-        // keep the event for artifact output
-        if let Some(trace) = &mut self.trace
-            && trace.emit
-        {
-            trace.events.push(event);
+        // format against the exact state visible when recorded
+        let event = EventFormatter::new(self).format(&event);
+
+        if let Some(trace) = &mut self.trace {
+            trace.record(event);
         }
     }
 
-    /// Print one check event immediately.
-    fn stream_event(&self, event: &CheckEvent) {
-        let context = DumpContext::new(self);
-        let mut log = ArtifactEventLog::new();
-        event.format_event(&context, &mut log);
-
-        eprint!("{}", log.render_plain());
-    }
-
-    /// Return the formatted event lines for this module.
-    pub(in crate::sema) fn events(&self) -> ArtifactEventLog {
-        let context = DumpContext::new(self);
-        let mut log = ArtifactEventLog::new();
-
-        // summarize the kept trace state
-        log.push(
-            ArtifactEvent::new("trace.summary")
-                .info()
-                .usize("events", self.trace_events().len()),
-        );
-
-        // format the kept events in order
-        for event in self.trace_events() {
-            event.format_event(&context, &mut log);
+    /// Record one check step against its exact retained check.
+    pub(in crate::sema) fn record_check_event(
+        &mut self,
+        id: CheckId,
+        is_finished: bool,
+    ) -> CompilerResult<()> {
+        if self.trace.is_none() {
+            return Ok(());
         }
 
-        log
+        // format the check before mutating its trace buffer
+        let check = self.fulfill.checks.get(id)?;
+        let event = EventFormatter::new(self).format_check(check, id, is_finished);
+
+        if let Some(trace) = &mut self.trace {
+            trace.record(event);
+        }
+
+        Ok(())
     }
 
-    /// Return derived size counters for this module.
-    pub(in crate::sema) fn stats(&self) -> CheckStats {
+    /// Record this check's counters and retained events.
+    pub(in crate::sema) fn record_trace(&mut self, context: &dyn ProviderContext) {
+        if !context.records_timings() {
+            return;
+        }
+
         // count the variables that already reached a solution
         let bounds = self.infer.variables.bound_count();
         let mut solutions = 0;
@@ -229,65 +209,46 @@ impl CheckState<'_> {
             }
         }
 
-        CheckStats {
-            variables: self.infer.variable_count(),
-            constraints,
-            obligations,
-            solutions,
-            bounds,
-            decisions: self.module.decisions.decision_entries().count(),
+        // record current table sizes and accumulated work
+        context.record_counters(&[
+            ("check.solve.variables", self.infer.variable_count() as u64),
+            ("check.solve.constraints", constraints as u64),
+            ("check.solve.obligations", obligations as u64),
+            ("check.solve.solutions", solutions as u64),
+            ("check.solve.bounds", bounds as u64),
+            (
+                "check.solve.decisions",
+                self.module.decisions.decision_entries().count() as u64,
+            ),
+        ]);
+        self.counters.record(context);
+
+        // move detailed events into their owning attempt
+        if context.records_events()
+            && let Some(trace) = &mut self.trace
+        {
+            context.record_events(std::mem::take(&mut trace.events));
         }
     }
 }
 
-/// Return whether check events stream as they arrive.
-pub(in crate::sema) fn is_check_event_streaming() -> bool {
-    std::env::var_os(CHECK_EVENT_STREAM_ENV).is_some_and(|value| !value.is_empty() && value != "0")
-}
-
-impl CheckStats {
-    /// Format these stats with their counters as stable metadata lines.
-    pub(in crate::sema) fn format_metadata(self, counters: CheckCounters) -> String {
-        format!(
-            "\
-check.stats.solve.variables={}
-check.stats.solve.constraints={}
-check.stats.solve.obligations={}
-check.stats.solve.solutions={}
-check.stats.solve.bounds={}
-check.stats.solve.decisions={}
-check.stats.relations.decided={}
-check.stats.relations.reused={}
-check.stats.bindings.built={}
-check.stats.bindings.reused={}
-check.stats.members.derived={}
-check.stats.members.reused={}
-check.stats.members.refused={}
-check.stats.probes.total={}
-check.stats.probes.selections={}
-check.stats.probes.extensions={}
-check.stats.instantiations={}
-check.stats.interns={}
-check.stats.reduces={}",
-            self.variables,
-            self.constraints,
-            self.obligations,
-            self.solutions,
-            self.bounds,
-            self.decisions,
-            counters.relation_decisions,
-            counters.relation_reuses,
-            counters.binding_derivations,
-            counters.binding_reuses,
-            counters.member_derivations,
-            counters.member_reuses,
-            counters.member_refusals,
-            counters.probes,
-            counters.selection_probes,
-            counters.extension_probes,
-            counters.instantiations,
-            counters.interns,
-            counters.reduces,
-        )
+impl CheckCounters {
+    /// Record these counters in one provider attempt.
+    pub(in crate::sema) fn record(self, context: &dyn ProviderContext) {
+        context.record_counters(&[
+            ("check.relations.decided", self.relation_decisions),
+            ("check.relations.reused", self.relation_reuses),
+            ("check.bindings.built", self.binding_derivations),
+            ("check.bindings.reused", self.binding_reuses),
+            ("check.members.derived", self.member_derivations),
+            ("check.members.reused", self.member_reuses),
+            ("check.members.refused", self.member_refusals),
+            ("check.probes.total", self.probes),
+            ("check.probes.selections", self.selection_probes),
+            ("check.probes.extensions", self.extension_probes),
+            ("check.instantiations", self.instantiations),
+            ("check.interns", self.interns),
+            ("check.reduces", self.reduces),
+        ]);
     }
 }

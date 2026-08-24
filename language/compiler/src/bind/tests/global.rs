@@ -21,7 +21,7 @@ let process: string = "local";
         )
         .build();
 
-    compiler.assert_dir_bound("main.ds", DirRows::binding().with_summaries().with_bind_stats(), r#"
+    compiler.assert_dir_bound("main.ds", DirRows::binding().with_summaries(), r#"
 import { Process, Task } from "runtime";
 /// @binding.symbol symbol=Process role=local kind=import scope=<module>@1
 /// @binding.symbol symbol=Task role=local kind=import scope=<module>@2
@@ -50,7 +50,6 @@ let process: string = "local";
 /// @binding.scope scope=<module> kind=module parent=scope1@end owner=<module>
 
 /// @binding.summary symbols=7 scopes=4 declarations=6 node_scopes=21 owner_scopes=1
-/// @bind.stats files=1 roots=3
 "#,
     );
 }

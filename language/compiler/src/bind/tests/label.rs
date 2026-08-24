@@ -20,7 +20,7 @@ outer: for (let index = 0; index < 3; index = index + 1) {
 
     compiler.assert_dir_bound(
         "main.ds",
-        DirRows::binding().with_summaries().with_bind_stats(),
+        DirRows::binding().with_summaries(),
         r#"
 let done: boolean = false;
 /// @binding.symbol symbol=done role=local kind=variable scope=<module>@1 mutability=mutable
@@ -45,7 +45,6 @@ outer: for (let index = 0; index < 3; index = index + 1) {
 /// @binding.scope scope=scope1 kind=global
 
 /// @binding.summary symbols=5 scopes=5 declarations=4 node_scopes=25
-/// @bind.stats files=1 roots=2
 "#,
     );
 }

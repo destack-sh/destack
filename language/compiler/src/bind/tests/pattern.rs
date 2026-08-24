@@ -52,10 +52,7 @@ declare const point: { x: int32; y: string };
 
     compiler.assert_dir_bound(
         "main.ds",
-        DirRows::binding()
-            .with_binding_nodes()
-            .with_summaries()
-            .with_bind_stats(),
+        DirRows::binding().with_binding_nodes().with_summaries(),
         r#"
 let x: int32 = 0;
 /// @binding.node node=expression scope=<module>@1 source="let x: int32 = 0"
@@ -106,7 +103,6 @@ declare const point: { x: int32; y: string };
 /// @binding.scope scope=scope1 kind=global
 
 /// @binding.summary symbols=8 scopes=2 declarations=5 receivers=2 node_scopes=27
-/// @bind.stats files=1 roots=4
 "#,
     );
 }
@@ -130,7 +126,7 @@ function visit({ id }: User, [first]: Items) {
 
     compiler.assert_dir_bound(
         "main.ds",
-        DirRows::binding().with_summaries().with_bind_stats(),
+        DirRows::binding().with_summaries(),
         r#"
 let { id, name: displayName }: User = user;
 /// @binding.symbol symbol=id#1 role=local kind=variable scope=<module>@1 mutability=mutable
@@ -157,7 +153,6 @@ function visit({ id }: User, [first]: Items) {
 /// @binding.scope scope=scope1 kind=global
 
 /// @binding.summary symbols=8 scopes=4 declarations=7 node_scopes=33 owner_scopes=1
-/// @bind.stats files=1 roots=3
 "#,
     );
 }

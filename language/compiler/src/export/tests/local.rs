@@ -13,13 +13,12 @@ export let value: number = 1;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries().with_export_stats(),
+        DirRows::exports().with_summaries(),
         r#"
 export let value: number = 1;
 /// @export.local key=value symbols=[value]
 
 /// @export.summary exports=1
-/// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:2
 "#,
     );
 }
@@ -74,14 +73,13 @@ export { value as renamed };
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries().with_export_stats(),
+        DirRows::exports().with_summaries(),
         r#"
 let value = 1;
 export { value as renamed };
 /// @export.local key=renamed symbols=[value] declaration=renamed
 
 /// @export.summary exports=1
-/// @export.stats roots=2 expressions=visibility:2,export:2 symbols=scanned:3
 "#,
     );
 }
@@ -106,10 +104,7 @@ export const value = 1;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::modules()
-            .with_export()
-            .with_summaries()
-            .with_export_stats(),
+        DirRows::modules().with_export().with_summaries(),
         r#"
 import * as api from "./api.ds";
 /// @module.edge relation=import specifier=./api.ds module=api.ds
@@ -119,7 +114,6 @@ export { api };
 
 /// @module.summary edges=1
 /// @export.summary exports=1
-/// @export.stats roots=2 expressions=visibility:2,export:2 symbols=scanned:2
 "#,
     );
 }
@@ -139,7 +133,7 @@ export { value };
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries().with_export_stats(),
+        DirRows::exports().with_summaries(),
         r#"
 let value = 1;
 let value = 2;
@@ -147,7 +141,6 @@ export { value };
 /// @export.local key=value symbols=[value#2]
 
 /// @export.summary exports=1
-/// @export.stats roots=3 expressions=visibility:3,export:3 symbols=scanned:3
 "#,
     );
 }
@@ -168,7 +161,7 @@ global {
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries().with_export_stats(),
+        DirRows::exports().with_summaries(),
         r#"
 global {
     let process: string;
@@ -180,7 +173,6 @@ global {
 }
 
 /// @export.summary
-/// @export.stats roots=1 expressions=visibility:3,export:3 symbols=scanned:3
 /// @global.summary keys=2 entries=2
 "#,
     );
@@ -208,7 +200,7 @@ export type Option = string;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries().with_export_stats(),
+        DirRows::exports().with_summaries(),
         r#"
 global {
     export { Function, Option as Maybe } from "./types.ds";
@@ -218,7 +210,6 @@ global {
 }
 
 /// @export.summary
-/// @export.stats roots=1 expressions=visibility:2,export:2 symbols=scanned:2
 /// @global.summary keys=2 entries=2
 "#,
     );
@@ -245,7 +236,7 @@ export const value = 1;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries().with_export_stats(),
+        DirRows::exports().with_summaries(),
         r#"
 global {
     export * as api from "./api.ds";
@@ -254,7 +245,6 @@ global {
 }
 
 /// @export.summary
-/// @export.stats roots=1 expressions=visibility:2,export:2 symbols=scanned:2
 /// @global.summary keys=1 entries=1
 "#,
     );
@@ -277,7 +267,7 @@ global {
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries().with_export_stats(),
+        DirRows::exports().with_summaries(),
         r#"
 const value: int32 = 1;
 
@@ -288,7 +278,6 @@ global {
 }
 
 /// @export.summary
-/// @export.stats roots=2 expressions=visibility:3,export:3 symbols=scanned:3
 /// @global.summary keys=1 entries=1
 "#,
     );
@@ -317,10 +306,7 @@ export const value = 1;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::modules()
-            .with_export()
-            .with_summaries()
-            .with_export_stats(),
+        DirRows::modules().with_export().with_summaries(),
         r#"
 import * as api from "./api.ds";
 /// @module.edge relation=import specifier=./api.ds module=api.ds
@@ -333,7 +319,6 @@ global {
 
 /// @module.summary edges=1
 /// @export.summary
-/// @export.stats roots=2 expressions=visibility:3,export:3 symbols=scanned:2
 /// @global.summary keys=1 entries=1
 "#,
     );

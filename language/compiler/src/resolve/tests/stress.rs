@@ -1,9 +1,7 @@
-use std::collections::BTreeMap;
-
 use crate::tests::TestSession;
 
 #[test]
-fn test_resolve_stats_dedupe_repeated_global_references() {
+fn test_resolve_counters_dedupe_repeated_global_references() {
     const ITEMS: usize = 50_000;
 
     let source = (0..ITEMS)
@@ -31,28 +29,32 @@ global {
 }
 "#,
         )
+        .cold()
         .build();
-    let metadata = compiler.artifact_text_sidecar(
-        compiler.dir_resolved_key("main.ds"),
-        "metadata",
-        &BTreeMap::from([("phase".to_string(), "resolve".to_string())]),
-    );
+    let counters = compiler.artifact_counters(compiler.dir_resolved_key("main.ds"), "resolve.");
     let expected = format!(
-        "resolve.stats.roots={ITEMS}\n\
-resolve.stats.expressions={}\n\
-resolve.stats.types=0\n\
-resolve.stats.globals=required:1\n\
-resolve.stats.lookups.local={ITEMS}\n\
-resolve.stats.lookups.import_items=0\n\
-resolve.stats.lookups.reexport_items=0",
+        "resolve.roots={ITEMS}\n\
+resolve.expressions={}\n\
+resolve.type_expressions=0\n\
+resolve.import_clauses=0\n\
+resolve.reexport_clauses=0\n\
+resolve.required_globals=1\n\
+resolve.language_item_uses=0\n\
+resolve.export_cache_misses=0\n\
+resolve.export_cache_hits=0\n\
+resolve.export_cycle_hits=0\n\
+resolve.local_binding_lookups={ITEMS}\n\
+resolve.import_items=0\n\
+resolve.reexport_items=0\n\
+resolve.export_table_loads=0",
         ITEMS * 2
     );
 
-    assert_eq!(metadata, expected);
+    assert_eq!(counters, expected);
 }
 
 #[test]
-fn test_resolve_stats_cache_repeated_export_lookups() {
+fn test_resolve_counters_cache_repeated_export_lookups() {
     const ITEMS: usize = 50_000;
 
     let imports = (0..ITEMS)
@@ -63,30 +65,32 @@ fn test_resolve_stats_cache_repeated_export_lookups() {
     let compiler = TestSession::builder()
         .module("main.ds", &source)
         .module("dep.ds", "export const target = 1;")
+        .cold()
         .build();
-    let metadata = compiler.artifact_text_sidecar(
-        compiler.dir_resolved_key("main.ds"),
-        "metadata",
-        &BTreeMap::from([("phase".to_string(), "resolve".to_string())]),
-    );
+    let counters = compiler.artifact_counters(compiler.dir_resolved_key("main.ds"), "resolve.");
     let expected = format!(
-        "resolve.stats.roots=1\n\
-resolve.stats.expressions=1\n\
-resolve.stats.types=0\n\
-resolve.stats.clauses=import:1,reexport:0\n\
-resolve.stats.exports=miss:1,hit:{},cycle:0\n\
-resolve.stats.lookups.local=0\n\
-resolve.stats.lookups.import_items={ITEMS}\n\
-resolve.stats.lookups.reexport_items=0\n\
-resolve.stats.loads.exports=1",
+        "resolve.roots=1\n\
+resolve.expressions=1\n\
+resolve.type_expressions=0\n\
+resolve.import_clauses=1\n\
+resolve.reexport_clauses=0\n\
+resolve.required_globals=0\n\
+resolve.language_item_uses=0\n\
+resolve.export_cache_misses=1\n\
+resolve.export_cache_hits={}\n\
+resolve.export_cycle_hits=0\n\
+resolve.local_binding_lookups=0\n\
+resolve.import_items={ITEMS}\n\
+resolve.reexport_items=0\n\
+resolve.export_table_loads=1",
         ITEMS - 1
     );
 
-    assert_eq!(metadata, expected);
+    assert_eq!(counters, expected);
 }
 
 #[test]
-fn test_resolve_stats_load_export_table_once_for_distinct_imports() {
+fn test_resolve_counters_load_export_table_once_for_distinct_imports() {
     const ITEMS: usize = 50_000;
 
     let imports = (0..ITEMS)
@@ -101,29 +105,31 @@ fn test_resolve_stats_load_export_table_once_for_distinct_imports() {
     let compiler = TestSession::builder()
         .module("main.ds", &source)
         .module("dep.ds", &exports)
+        .cold()
         .build();
-    let metadata = compiler.artifact_text_sidecar(
-        compiler.dir_resolved_key("main.ds"),
-        "metadata",
-        &BTreeMap::from([("phase".to_string(), "resolve".to_string())]),
-    );
+    let counters = compiler.artifact_counters(compiler.dir_resolved_key("main.ds"), "resolve.");
     let expected = format!(
-        "resolve.stats.roots=1\n\
-resolve.stats.expressions=1\n\
-resolve.stats.types=0\n\
-resolve.stats.clauses=import:1,reexport:0\n\
-resolve.stats.exports=miss:{ITEMS},hit:0,cycle:0\n\
-resolve.stats.lookups.local=0\n\
-resolve.stats.lookups.import_items={ITEMS}\n\
-resolve.stats.lookups.reexport_items=0\n\
-resolve.stats.loads.exports=1",
+        "resolve.roots=1\n\
+resolve.expressions=1\n\
+resolve.type_expressions=0\n\
+resolve.import_clauses=1\n\
+resolve.reexport_clauses=0\n\
+resolve.required_globals=0\n\
+resolve.language_item_uses=0\n\
+resolve.export_cache_misses={ITEMS}\n\
+resolve.export_cache_hits=0\n\
+resolve.export_cycle_hits=0\n\
+resolve.local_binding_lookups=0\n\
+resolve.import_items={ITEMS}\n\
+resolve.reexport_items=0\n\
+resolve.export_table_loads=1",
     );
 
-    assert_eq!(metadata, expected);
+    assert_eq!(counters, expected);
 }
 
 #[test]
-fn test_resolve_stats_cache_repeated_namespace_paths() {
+fn test_resolve_counters_cache_repeated_namespace_paths() {
     const ITEMS: usize = 50_000;
 
     let references = (0..ITEMS)
@@ -137,33 +143,34 @@ fn test_resolve_stats_cache_repeated_namespace_paths() {
     let compiler = TestSession::builder()
         .module("main.ds", &source)
         .module("dep.ds", "export const target = 1;")
+        .cold()
         .build();
-    let metadata = compiler.artifact_text_sidecar(
-        compiler.dir_resolved_key("main.ds"),
-        "metadata",
-        &BTreeMap::from([("phase".to_string(), "resolve".to_string())]),
-    );
+    let counters = compiler.artifact_counters(compiler.dir_resolved_key("main.ds"), "resolve.");
     let expected = format!(
-        "resolve.stats.roots={}\n\
-resolve.stats.expressions={}\n\
-resolve.stats.types=0\n\
-resolve.stats.clauses=import:1,reexport:0\n\
-resolve.stats.language=uses:6\n\
-resolve.stats.exports=miss:1,hit:{},cycle:0\n\
-resolve.stats.lookups.local={ITEMS}\n\
-resolve.stats.lookups.import_items=1\n\
-resolve.stats.lookups.reexport_items=0\n\
-resolve.stats.loads.exports=1",
+        "resolve.roots={}\n\
+resolve.expressions={}\n\
+resolve.type_expressions=0\n\
+resolve.import_clauses=1\n\
+resolve.reexport_clauses=0\n\
+resolve.required_globals=0\n\
+resolve.language_item_uses=6\n\
+resolve.export_cache_misses=1\n\
+resolve.export_cache_hits={}\n\
+resolve.export_cycle_hits=0\n\
+resolve.local_binding_lookups={ITEMS}\n\
+resolve.import_items=1\n\
+resolve.reexport_items=0\n\
+resolve.export_table_loads=1",
         ITEMS + 1,
         ITEMS * 2 + 1,
-        ITEMS - 1
+        ITEMS - 1,
     );
 
-    assert_eq!(metadata, expected);
+    assert_eq!(counters, expected);
 }
 
 #[test]
-fn test_resolve_stats_cache_repeated_nested_namespace_paths() {
+fn test_resolve_counters_cache_repeated_nested_namespace_paths() {
     const ITEMS: usize = 50_000;
 
     let references = (0..ITEMS)
@@ -178,27 +185,28 @@ fn test_resolve_stats_cache_repeated_nested_namespace_paths() {
         .module("main.ds", &source)
         .module("dep.ds", "export * as api from \"./api\";")
         .module("api.ds", "export const target = 1;")
+        .cold()
         .build();
-    let metadata = compiler.artifact_text_sidecar(
-        compiler.dir_resolved_key("main.ds"),
-        "metadata",
-        &BTreeMap::from([("phase".to_string(), "resolve".to_string())]),
-    );
+    let counters = compiler.artifact_counters(compiler.dir_resolved_key("main.ds"), "resolve.");
     let expected = format!(
-        "resolve.stats.roots={}\n\
-resolve.stats.expressions={}\n\
-resolve.stats.types=0\n\
-resolve.stats.clauses=import:1,reexport:0\n\
-resolve.stats.language=uses:6\n\
-resolve.stats.exports=miss:2,hit:{},cycle:0\n\
-resolve.stats.lookups.local={ITEMS}\n\
-resolve.stats.lookups.import_items=1\n\
-resolve.stats.lookups.reexport_items=0\n\
-resolve.stats.loads.exports=2",
+        "resolve.roots={}\n\
+resolve.expressions={}\n\
+resolve.type_expressions=0\n\
+resolve.import_clauses=1\n\
+resolve.reexport_clauses=0\n\
+resolve.required_globals=0\n\
+resolve.language_item_uses=6\n\
+resolve.export_cache_misses=2\n\
+resolve.export_cache_hits={}\n\
+resolve.export_cycle_hits=0\n\
+resolve.local_binding_lookups={ITEMS}\n\
+resolve.import_items=1\n\
+resolve.reexport_items=0\n\
+resolve.export_table_loads=2",
         ITEMS + 1,
         ITEMS * 3 + 1,
-        (ITEMS - 1) * 2
+        (ITEMS - 1) * 2,
     );
 
-    assert_eq!(metadata, expected);
+    assert_eq!(counters, expected);
 }

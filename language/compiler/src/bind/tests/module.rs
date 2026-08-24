@@ -34,7 +34,7 @@ type Pick<T> = {
 
     compiler.assert_dir_bound(
         "main.ds",
-        DirRows::binding().with_summaries().with_bind_stats(),
+        DirRows::binding().with_summaries(),
         r#"
 import { dep as local, TypeDep } from "dep";
 /// @binding.symbol symbol=local role=local kind=import scope=<module>@1
@@ -97,7 +97,6 @@ type Pick<T> = {
 /// @binding.scope scope=<module> kind=module parent=scope1@end owner=<module>
 
 /// @binding.summary symbols=15 scopes=9 declarations=14 node_scopes=63 owner_scopes=2
-/// @bind.stats files=1 roots=6
 "#,
     );
 }
@@ -119,7 +118,7 @@ let renderer: string = "local";
 
     compiler.assert_dir_bound(
         "main.ds",
-        DirRows::binding().with_summaries().with_bind_stats(),
+        DirRows::binding().with_summaries(),
         r#"
 module {
 /// @binding.scope scope=scope2 kind=namespace parent=<module>@1
@@ -137,7 +136,6 @@ let renderer: string = "local";
 /// @binding.scope scope=scope1 kind=global
 
 /// @binding.summary symbols=3 scopes=3 declarations=2 node_scopes=13
-/// @bind.stats files=1 roots=2
 "#,
     );
 }

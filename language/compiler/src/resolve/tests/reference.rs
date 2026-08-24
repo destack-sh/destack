@@ -17,7 +17,7 @@ declare const point: { x: int32; y: string };
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 let x: int32 = 0;
 let label: string = "";
@@ -36,7 +36,6 @@ declare const point: { x: int32; y: string };
 /// @import.language item=string.String symbol=string.string.String
 
 /// @import.summary language=6
-/// @resolve.stats roots=4 expressions=9 types=5 language=uses:6
 /// @reference.summary references=3
 "#,
     );
@@ -56,7 +55,7 @@ let value: User;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 type User = string;
 let value: User;
@@ -65,7 +64,6 @@ let value: User;
 /// @import.language item=string.String symbol=string.string.String
 
 /// @import.summary language=1
-/// @resolve.stats roots=2 expressions=2 types=2 language=uses:1
 /// @reference.summary references=1
 "#,
     );
@@ -84,14 +82,13 @@ type Args<T> = T extends (...parameters: infer P) => unknown ? P : never;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 type Args<T> = T extends (...parameters: infer P) => unknown ? P : never;
 /// @reference.target source=T kind=bound targets=[Args.T]
 /// @reference.target source=P kind=bound targets=[Args.P]
 
 /// @import.summary
-/// @resolve.stats roots=1 expressions=1 types=7
 /// @reference.summary references=2
 "#,
     );
@@ -111,7 +108,7 @@ type User = string;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 let value: User;
 /// @reference.target source=User kind=bound targets=[User]
@@ -121,7 +118,6 @@ type User = string;
 /// @import.language item=string.String symbol=string.string.String
 
 /// @import.summary language=1
-/// @resolve.stats roots=2 expressions=2 types=2 language=uses:1
 /// @reference.summary references=1
 "#,
     );
@@ -141,7 +137,7 @@ const answer = 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 const value = answer;
 /// @reference.target source=answer kind=bound targets=[answer]
@@ -149,7 +145,6 @@ const value = answer;
 const answer = 1;
 
 /// @import.summary
-/// @resolve.stats roots=2 expressions=4 types=0
 /// @reference.summary references=1
 "#,
     );
@@ -168,13 +163,12 @@ const value = missing;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 const value = missing;
 /// @reference.target source=missing kind=missing
 
 /// @import.summary
-/// @resolve.stats roots=1 expressions=2 types=0 globals=required:1
 /// @reference.summary references=1
 "#,
     );
@@ -193,13 +187,12 @@ let value: Missing;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 let value: Missing;
 /// @reference.target source=Missing kind=missing
 
 /// @import.summary
-/// @resolve.stats roots=1 expressions=1 types=1 globals=required:1
 /// @reference.summary references=1
 "#,
     );

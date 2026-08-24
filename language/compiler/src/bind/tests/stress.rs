@@ -1,36 +1,33 @@
-use std::collections::BTreeMap;
-
 use crate::tests::TestSession;
 
 #[test]
-fn test_bind_stats_scale_with_visited_nodes() {
+fn test_bind_counters_scale_with_visited_nodes() {
     const ITEMS: usize = 50_000;
 
     let source = (0..ITEMS)
         .map(|index| format!("let value{index}: number = {index};"))
         .collect::<Vec<_>>()
         .join("\n");
-    let compiler = TestSession::single(&source);
-    let metadata = compiler.artifact_text_sidecar(
-        compiler.dir_bound_key("main.ds"),
-        "metadata",
-        &BTreeMap::from([("phase".to_string(), "bind".to_string())]),
-    );
+    let compiler = TestSession::builder()
+        .module("main.ds", &source)
+        .cold()
+        .build();
+    let counters = compiler.artifact_counters(compiler.dir_bound_key("main.ds"), "bind.");
     let expected = format!(
-        "bind.stats.files=1\n\
-bind.stats.roots={ITEMS}\n\
-bind.stats.visited.expressions={}\n\
-bind.stats.visited.declarations=0\n\
-bind.stats.visited.patterns={ITEMS}\n\
-bind.stats.visited.types={ITEMS}",
+        "bind.files=1\n\
+bind.roots={ITEMS}\n\
+bind.expressions={}\n\
+bind.declarations=0\n\
+bind.patterns={ITEMS}\n\
+bind.type_expressions={ITEMS}",
         ITEMS * 2
     );
 
-    assert_eq!(metadata, expected);
+    assert_eq!(counters, expected);
 }
 
 #[test]
-fn test_bind_stats_scale_with_large_function_body() {
+fn test_bind_counters_scale_with_large_function_body() {
     const ITEMS: usize = 50_000;
 
     let body = (0..ITEMS)
@@ -38,21 +35,20 @@ fn test_bind_stats_scale_with_large_function_body() {
         .collect::<Vec<_>>()
         .join("\n");
     let source = format!("function heavy() {{\n{body}\n}}");
-    let compiler = TestSession::single(&source);
-    let metadata = compiler.artifact_text_sidecar(
-        compiler.dir_bound_key("main.ds"),
-        "metadata",
-        &BTreeMap::from([("phase".to_string(), "bind".to_string())]),
-    );
+    let compiler = TestSession::builder()
+        .module("main.ds", &source)
+        .cold()
+        .build();
+    let counters = compiler.artifact_counters(compiler.dir_bound_key("main.ds"), "bind.");
     let expected = format!(
-        "bind.stats.files=1\n\
-bind.stats.roots=1\n\
-bind.stats.visited.expressions={}\n\
-bind.stats.visited.declarations=1\n\
-bind.stats.visited.patterns={ITEMS}\n\
-bind.stats.visited.types={ITEMS}",
+        "bind.files=1\n\
+bind.roots=1\n\
+bind.expressions={}\n\
+bind.declarations=1\n\
+bind.patterns={ITEMS}\n\
+bind.type_expressions={ITEMS}",
         ITEMS * 2 + 2
     );
 
-    assert_eq!(metadata, expected);
+    assert_eq!(counters, expected);
 }

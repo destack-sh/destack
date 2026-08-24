@@ -1,3 +1,5 @@
+use destack_repository::ProviderContext;
+
 /// Counted work metrics for one resolve attempt.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(in crate::resolve) struct ResolveStats {
@@ -32,7 +34,6 @@ pub(in crate::resolve) struct ResolveStats {
 }
 
 impl ResolveStats {
-    /// Render these stats as stable metadata lines.
     /// Fold observed export lookup counters into this record.
     pub(in crate::resolve) fn record_exports(&mut self, exports: crate::export::ExportLookupStats) {
         self.export_cache_hits = exports.cache_hits;
@@ -41,72 +42,29 @@ impl ResolveStats {
         self.export_table_loads = exports.table_loads;
     }
 
-    pub(in crate::resolve) fn render_metadata(self) -> String {
-        let mut lines = vec![
-            format!("resolve.stats.roots={}", self.roots),
-            format!("resolve.stats.expressions={}", self.expressions),
-            format!("resolve.stats.types={}", self.type_expressions),
-        ];
-
-        // include only active work classes
-        if self.import_clauses != 0 || self.reexport_clauses != 0 {
-            lines.push(format!(
-                "resolve.stats.clauses=import:{},reexport:{}",
-                self.import_clauses, self.reexport_clauses
-            ));
-        }
-
-        // include only required global work
-        if self.required_globals != 0 {
-            lines.push(format!(
-                "resolve.stats.globals=required:{}",
-                self.required_globals
-            ));
-        }
-
-        // include recorded language item work
-        if self.language_item_uses != 0 {
-            lines.push(format!(
-                "resolve.stats.language=uses:{}",
-                self.language_item_uses
-            ));
-        }
-
-        // include only export lookup work
-        if self.export_cache_misses != 0
-            || self.export_cache_hits != 0
-            || self.export_cycle_hits != 0
-        {
-            lines.push(format!(
-                "resolve.stats.exports=miss:{},hit:{},cycle:{}",
-                self.export_cache_misses, self.export_cache_hits, self.export_cycle_hits
-            ));
-        }
-
-        // include lookup work when present
-        if self.local_binding_lookups != 0 || self.import_items != 0 || self.reexport_items != 0 {
-            lines.push(format!(
-                "resolve.stats.lookups.local={}",
-                self.local_binding_lookups
-            ));
-            lines.push(format!(
-                "resolve.stats.lookups.import_items={}",
-                self.import_items
-            ));
-            lines.push(format!(
-                "resolve.stats.lookups.reexport_items={}",
-                self.reexport_items
-            ));
-        }
-
-        // include artifact load work when present
-        if self.export_table_loads != 0 {
-            lines.push(format!(
-                "resolve.stats.loads.exports={}",
-                self.export_table_loads
-            ));
-        }
-
-        lines.join("\n")
+    /// Record these stats in one provider attempt.
+    pub(in crate::resolve) fn record(self, context: &dyn ProviderContext) {
+        context.record_counters(&[
+            ("resolve.roots", self.roots as u64),
+            ("resolve.expressions", self.expressions as u64),
+            ("resolve.type_expressions", self.type_expressions as u64),
+            ("resolve.import_clauses", self.import_clauses as u64),
+            ("resolve.reexport_clauses", self.reexport_clauses as u64),
+            ("resolve.required_globals", self.required_globals as u64),
+            ("resolve.language_item_uses", self.language_item_uses as u64),
+            (
+                "resolve.export_cache_misses",
+                self.export_cache_misses as u64,
+            ),
+            ("resolve.export_cache_hits", self.export_cache_hits as u64),
+            ("resolve.export_cycle_hits", self.export_cycle_hits as u64),
+            (
+                "resolve.local_binding_lookups",
+                self.local_binding_lookups as u64,
+            ),
+            ("resolve.import_items", self.import_items as u64),
+            ("resolve.reexport_items", self.reexport_items as u64),
+            ("resolve.export_table_loads", self.export_table_loads as u64),
+        ]);
     }
 }

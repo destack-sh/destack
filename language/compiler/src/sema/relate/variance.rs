@@ -940,6 +940,7 @@ impl CheckState<'_> {
         parameter: dir::GlobalGenericParameterId,
     ) -> Option<dir::Cardinality> {
         let state = self.module_maybe(parameter.module_id)?;
+
         if let Some(cardinality) = state.generics_tail.cardinality(parameter.local_id) {
             return Some(cardinality);
         }
@@ -1002,24 +1003,5 @@ impl CheckState<'_> {
         };
 
         Ok(is_one)
-    }
-
-    /// Return the derived variance committed for one parameter, if any.
-    pub(in crate::sema) fn committed_variance(
-        &self,
-        module: ModuleId,
-        parameter: dir::LocalGenericParameterId,
-    ) -> Option<dir::VarianceModifier> {
-        let state = self.module_maybe(module)?;
-        if let Some(modifier) = state.generics_tail.variance(parameter) {
-            return Some(modifier);
-        }
-        if let Some(elaborated) = &state.elaborated
-            && let Some(modifier) = elaborated.generics.variance(parameter)
-        {
-            return Some(modifier);
-        }
-
-        None
     }
 }

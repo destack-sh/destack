@@ -32,12 +32,11 @@ global {
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 let local = 1;
 
 /// @import.summary
-/// @resolve.stats roots=1 expressions=2 types=0
 "#,
     );
 }
@@ -74,7 +73,7 @@ global {
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 const value = answer;
 /// @reference.target source=answer kind=bound targets=[globals.answer]
@@ -82,7 +81,6 @@ const value = answer;
 /// @import.global key=answer declarations=[globals.answer] targets=[globals.answer]
 
 /// @import.summary globals=1
-/// @resolve.stats roots=1 expressions=2 types=0 globals=required:1
 /// @reference.summary references=1
 "#,
     );
@@ -128,7 +126,7 @@ export type Option = string;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 let value = Function;
 /// @reference.target source=Function kind=ambiguous targets=[types.function.Function, types.Function]
@@ -139,7 +137,6 @@ let projected: Function.Member;
 /// @import.global key=Function declarations=[types.function.Function, types.Function] targets=[types.function.Function, types.Function]
 
 /// @import.summary globals=1
-/// @resolve.stats roots=2 expressions=3 types=1 globals=required:1
 /// @reference.summary references=2
 "#,
     );
@@ -183,7 +180,7 @@ export const value = 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 let local = api;
 /// @reference.declaration source=api kind=bound targets=[globals.api]
@@ -192,7 +189,6 @@ let local = api;
 /// @import.global key=api declarations=[globals.api] targets=[api.ds]
 
 /// @import.summary globals=1
-/// @resolve.stats roots=1 expressions=2 types=0 globals=required:1
 /// @reference.summary references=1 declarations=1
 "#,
     );
@@ -236,7 +232,7 @@ export const value = 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 let local = api.value;
 /// @reference.declaration source=api kind=bound targets=[globals.api]
@@ -252,7 +248,6 @@ let local = api.value;
 /// @import.global key=api declarations=[globals.api] targets=[api.ds]
 
 /// @import.summary globals=1 language=6
-/// @resolve.stats roots=1 expressions=3 types=0 globals=required:1 language=uses:6 exports=miss:1,hit:0,cycle:0
 /// @reference.summary references=2 declarations=1
 "#,
     );
@@ -296,7 +291,7 @@ export class Promise<T> {}
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 let promise: Promise<string>;
 /// @reference.target source=Promise kind=ambiguous targets=[async.promise.Promise, async.Promise]
@@ -305,7 +300,6 @@ let promise: Promise<string>;
 /// @import.global key=Promise declarations=[async.promise.Promise, async.Promise] targets=[async.promise.Promise, async.Promise]
 
 /// @import.summary globals=1 language=1
-/// @resolve.stats roots=1 expressions=1 types=2 globals=required:1 language=uses:1
 /// @reference.summary references=1
 "#,
     );
@@ -324,7 +318,7 @@ let promise: Promise<string>;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 let promise: Promise<string>;
 /// @reference.target source=Promise kind=bound targets=[async.promise.Promise]
@@ -333,7 +327,6 @@ let promise: Promise<string>;
 /// @import.global key=Promise declarations=[async.promise.Promise] targets=[async.promise.Promise]
 
 /// @import.summary globals=1 language=1
-/// @resolve.stats roots=1 expressions=1 types=2 globals=required:1 language=uses:1
 /// @reference.summary references=1
 "#,
     );
@@ -352,14 +345,13 @@ const load = async () => 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 const load = async () => 1;
 
 /// @import.language item=async.Promise symbol=async.promise.Promise
 
 /// @import.summary language=1
-/// @resolve.stats roots=1 expressions=3 types=0 language=uses:1
 "#,
     );
 }
@@ -378,7 +370,7 @@ const load = async () => 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 class Promise {}
 const load = async () => 1;
@@ -386,7 +378,6 @@ const load = async () => 1;
 /// @import.language item=async.Promise symbol=async.promise.Promise
 
 /// @import.summary language=1
-/// @resolve.stats roots=2 expressions=4 types=0 language=uses:1
 "#,
     );
 }
@@ -404,7 +395,7 @@ const runtime = import.meta.runtime;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 const runtime = import.meta.runtime;
 
@@ -417,7 +408,6 @@ const runtime = import.meta.runtime;
 /// @import.language item=string.String symbol=string.string.String
 
 /// @import.summary language=7
-/// @resolve.stats roots=1 expressions=3 types=0 language=uses:7
 "#,
     );
 }
@@ -437,7 +427,7 @@ const value = left + right;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 const left = 1;
 const right = 2;
@@ -448,7 +438,6 @@ const value = left + right;
 /// @import.language item=ops.Add symbol=ops.plus.Add
 
 /// @import.summary language=1
-/// @resolve.stats roots=3 expressions=8 types=0 language=uses:1
 /// @reference.summary references=2
 "#,
     );
@@ -470,7 +459,7 @@ const different = left !== right;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 declare const left: int32;
 declare const right: int32;
@@ -485,7 +474,6 @@ const different = left !== right;
 /// @import.language item=ops.StrictEqual symbol=ops.equality.StrictEqual
 
 /// @import.summary language=1
-/// @resolve.stats roots=4 expressions=10 types=2 language=uses:1
 /// @reference.summary references=4
 "#,
     );
@@ -524,14 +512,13 @@ global {
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 const answer = 1;
 const value = answer;
 /// @reference.target source=answer kind=bound targets=[answer]
 
 /// @import.summary
-/// @resolve.stats roots=2 expressions=4 types=0
 /// @reference.summary references=1
 "#,
     );
@@ -572,7 +559,7 @@ global {
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 function read() {
     const answer = 1;
@@ -582,7 +569,6 @@ function read() {
 }
 
 /// @import.summary
-/// @resolve.stats roots=1 expressions=6 types=0
 /// @reference.summary references=1
 "#,
     );
@@ -627,7 +613,7 @@ export const value = 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 const api = {};
 const value = api.value;
@@ -641,7 +627,6 @@ const value = api.value;
 /// @import.language item=string.String symbol=string.string.String
 
 /// @import.summary language=6
-/// @resolve.stats roots=2 expressions=5 types=0 language=uses:6
 /// @reference.summary references=1
 "#,
     );
@@ -668,12 +653,11 @@ global {
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 import "./dep.ds";
 
 /// @import.summary
-/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0
 "#,
     );
 }
@@ -701,14 +685,13 @@ global {
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 import { value } from "./dep.ds";
 /// @import.resolved symbol=value declarations=[dep.value] targets=[dep.value]
 /// @reference.target source=value kind=bound targets=[dep.value]
 
 /// @import.summary symbols=1
-/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:1,hit:0,cycle:0
 /// @reference.summary references=1
 "#,
     );

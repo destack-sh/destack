@@ -1,11 +1,3 @@
-const CHECK_STATS_ROWS: &[&str] = &["check.stats.solve"];
-const CHECK_EVENT_ROWS: &[&str] = &["check.events"];
-const CHECK_EVENT_ENV: &str = "DESTACK_TEST_CHECK_EVENTS";
-const BIND_STATS_ROWS: &[&str] = &["bind.stats"];
-const IMPORT_STATS_ROWS: &[&str] = &["import.stats"];
-const EXPORT_STATS_ROWS: &[&str] = &["export.stats"];
-const RESOLVE_STATS_ROWS: &[&str] = &["resolve.stats"];
-
 /// Rows to render into a DIR snapshot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct DirRows {
@@ -43,10 +35,6 @@ pub(crate) struct DirRows {
     pub(super) flow: bool,
     /// Whether to render macro table rows.
     pub(super) macros: bool,
-    /// Tables row prefixes to render.
-    pub(super) metadata_rows: &'static [&'static str],
-    /// Event row prefixes to render.
-    pub(super) event_rows: &'static [&'static str],
     /// Whether to render summary rows.
     pub(super) summaries: bool,
 }
@@ -72,8 +60,6 @@ impl DirRows {
             capture: false,
             flow: false,
             macros: false,
-            metadata_rows: &[],
-            event_rows: &[],
             summaries: false,
         }
     }
@@ -178,66 +164,6 @@ impl DirRows {
     pub(crate) const fn with_export(mut self) -> Self {
         self.export = true;
         self
-    }
-
-    /// Include check stats rows.
-    pub(crate) const fn with_check_stats(mut self) -> Self {
-        self.metadata_rows = CHECK_STATS_ROWS;
-        self
-    }
-
-    /// Apply test-runner row overrides from the environment.
-    pub(crate) fn with_environment(mut self) -> Self {
-        if std::env::var_os(CHECK_EVENT_ENV).is_some_and(|value| !value.is_empty() && value != "0")
-        {
-            self.event_rows = CHECK_EVENT_ROWS;
-        }
-
-        self
-    }
-
-    /// Include bind stats rows.
-    pub(crate) const fn with_bind_stats(mut self) -> Self {
-        self.metadata_rows = BIND_STATS_ROWS;
-        self
-    }
-
-    /// Include import stats rows.
-    pub(crate) const fn with_import_stats(mut self) -> Self {
-        self.metadata_rows = IMPORT_STATS_ROWS;
-        self
-    }
-
-    /// Include export stats rows.
-    pub(crate) const fn with_export_stats(mut self) -> Self {
-        self.metadata_rows = EXPORT_STATS_ROWS;
-        self
-    }
-
-    /// Include resolve stats rows.
-    pub(crate) const fn with_resolve_stats(mut self) -> Self {
-        self.metadata_rows = RESOLVE_STATS_ROWS;
-        self
-    }
-
-    /// Return whether tables rows are selected.
-    pub(crate) const fn includes_metadata(self) -> bool {
-        !self.metadata_rows.is_empty()
-    }
-
-    /// Return whether event rows are selected.
-    pub(crate) const fn includes_events(self) -> bool {
-        !self.event_rows.is_empty()
-    }
-
-    /// Return selected tables row prefixes.
-    pub(crate) const fn metadata_rows(self) -> &'static [&'static str] {
-        self.metadata_rows
-    }
-
-    /// Return selected event row prefixes.
-    pub(crate) const fn event_rows(self) -> &'static [&'static str] {
-        self.event_rows
     }
 
     /// Include coercion table rows.

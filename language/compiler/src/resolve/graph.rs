@@ -188,9 +188,9 @@ impl Compiler {
         let started = self.repository.host().clock().now();
         let modules = self.repository.module_ids(context.revision())?;
         if let Some(started) = started {
-            context.emit_span("provide.modules", started);
+            context.record_span("provide.modules", started);
         }
-        context.emit_counter("graph.modules", modules.len() as u64);
+        context.record_counter("graph.modules", modules.len() as u64);
 
         // build or reuse the profile graph
         let base = self.module_graph_base(context)?;
@@ -227,9 +227,9 @@ impl Compiler {
             }
 
             if let Some(started) = started {
-                context.emit_span("provide.edges", started);
+                context.record_span("provide.edges", started);
             }
-            context.emit_counter("graph.edges", edge_count);
+            context.record_counter("graph.edges", edge_count);
 
             let graph = ModuleGraph::from_edges(profile, edges_by_module, implementations)
                 .map_err(|module| CompilerError::Internal {
@@ -283,14 +283,14 @@ impl Compiler {
         let changed = changed_modules.len();
         let reused = modules.len().saturating_sub(changed);
 
-        context.emit_counter("graph.changed", changed as u64);
-        context.emit_counter("graph.added", base.added_modules.len() as u64);
-        context.emit_counter("graph.removed", base.removed_modules.len() as u64);
-        context.emit_counter("graph.reused", reused as u64);
+        context.record_counter("graph.changed", changed as u64);
+        context.record_counter("graph.added", base.added_modules.len() as u64);
+        context.record_counter("graph.removed", base.removed_modules.len() as u64);
+        context.record_counter("graph.reused", reused as u64);
         if let Some(started) = started {
-            context.emit_span("provide.edges", started);
+            context.record_span("provide.edges", started);
         }
-        context.emit_counter("graph.edges", edge_count);
+        context.record_counter("graph.edges", edge_count);
 
         // return the predecessor graph when its inputs still match
         if !is_edges_changed && !is_implementations_changed {

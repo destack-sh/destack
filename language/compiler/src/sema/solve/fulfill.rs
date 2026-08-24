@@ -3,10 +3,10 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Cause, CauseKind, Check, CheckEvent, CheckFailure, CheckId, CheckOutcome, CheckState,
-    CheckTable, ConversionCheck, EqualityCheck, FailedCheck, FlowNarrowing, NarrowingCheck,
-    NodeCheck, ObligationEntry, ObligationPhase, Relation, RelationCheck, Resolve, SelectionCheck,
-    Verdict, WorkState,
+    Cause, CauseKind, Check, CheckFailure, CheckId, CheckOutcome, CheckState, CheckTable,
+    ConversionCheck, EqualityCheck, FailedCheck, FlowNarrowing, NarrowingCheck, NodeCheck,
+    ObligationEntry, ObligationPhase, Relation, RelationCheck, Resolve, SelectionCheck, Verdict,
+    WorkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -718,10 +718,7 @@ impl CheckState<'_> {
             .set_check_result(&mut self.fulfill.checks, id, Some(outcome))?;
 
         // trace the finished check
-        self.push_event(CheckEvent::Checked {
-            check: id,
-            is_finished: true,
-        });
+        self.record_check_event(id, true)?;
 
         Ok(())
     }

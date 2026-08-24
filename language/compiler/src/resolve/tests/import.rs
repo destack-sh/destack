@@ -60,7 +60,7 @@ export let value = 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 import { value as local } from "./dep.ds";
 /// @import.resolved symbol=local declarations=[dep.value] targets=[dep.value]
@@ -71,7 +71,6 @@ local;
 /// @reference.declaration source=local kind=bound targets=[local]
 
 /// @import.summary symbols=1
-/// @resolve.stats roots=2 expressions=2 types=0 clauses=import:1,reexport:0 exports=miss:1,hit:0,cycle:0
 /// @reference.summary references=2 declarations=1
 "#,
     );
@@ -134,14 +133,13 @@ export let value = 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 import * as dep from "./dep.ds";
 /// @import.resolved symbol=dep declarations=[dep.ds] targets=[dep.ds]
 /// @reference.target source=<namespace> kind=namespace module=dep.ds
 
 /// @import.summary symbols=1
-/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0
 /// @reference.summary references=1
 "#,
     );
@@ -168,7 +166,7 @@ export let value = 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 import * as dep from "./dep.ds";
 /// @import.resolved symbol=dep declarations=[dep.ds] targets=[dep.ds]
@@ -187,7 +185,6 @@ dep.value;
 /// @import.language item=string.String symbol=string.string.String
 
 /// @import.summary symbols=1 language=6
-/// @resolve.stats roots=2 expressions=3 types=0 clauses=import:1,reexport:0 language=uses:6 exports=miss:1,hit:0,cycle:0
 /// @reference.summary references=3 declarations=1
 "#,
     );
@@ -214,7 +211,7 @@ export declare function make(): { value: number };
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 import * as dep from "./dep.ds";
 /// @import.resolved symbol=dep declarations=[dep.ds] targets=[dep.ds]
@@ -233,7 +230,6 @@ dep.make().value;
 /// @import.language item=string.String symbol=string.string.String
 
 /// @import.summary symbols=1 language=6
-/// @resolve.stats roots=2 expressions=5 types=0 clauses=import:1,reexport:0 language=uses:6 exports=miss:1,hit:0,cycle:0
 /// @reference.summary references=3 declarations=1
 "#,
     );
@@ -266,7 +262,7 @@ export let value = 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 import * as dep from "./dep.ds";
 /// @import.resolved symbol=dep declarations=[dep.ds] targets=[dep.ds]
@@ -287,7 +283,6 @@ dep.api.value;
 /// @import.language item=string.String symbol=string.string.String
 
 /// @import.summary symbols=1 language=6
-/// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 language=uses:6 exports=miss:2,hit:0,cycle:0
 /// @reference.summary references=4 declarations=2
 "#,
     );
@@ -321,7 +316,7 @@ export let value = 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 import * as dep from "./dep.ds";
 /// @import.resolved symbol=dep declarations=[dep.ds] targets=[dep.ds]
@@ -342,7 +337,6 @@ dep.api.value;
 /// @import.language item=string.String symbol=string.string.String
 
 /// @import.summary symbols=1 language=6
-/// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 language=uses:6 exports=miss:2,hit:0,cycle:0
 /// @reference.summary references=4 declarations=2
 "#,
     );
@@ -368,7 +362,7 @@ export { value as default };
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 import value from "./dep.ds";
 /// @import.resolved symbol=value declarations=[dep.default] targets=[dep.value]
@@ -376,7 +370,6 @@ import value from "./dep.ds";
 /// @reference.target source=<default> kind=bound targets=[dep.value]
 
 /// @import.summary symbols=1
-/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:1,hit:0,cycle:0
 /// @reference.summary references=1 declarations=1
 "#,
     );
@@ -401,14 +394,13 @@ export type Foo = string;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 import { Foo } from "./dep.ds";
 /// @import.resolved symbol=Foo declarations=[dep.Foo] targets=[dep.Foo]
 /// @reference.target source=Foo kind=bound targets=[dep.Foo]
 
 /// @import.summary symbols=1
-/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:1,hit:0,cycle:0
 /// @reference.summary references=1
 "#,
     );
@@ -427,14 +419,13 @@ import { todo } from "destack:error";
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries().with_resolve_stats(),
+        DirRows::imports().with_summaries(),
         r#"
 import { todo } from "destack:error";
 /// @import.resolved symbol=todo declarations=[error.panic.todo] targets=[error.panic.todo]
 /// @reference.target source=todo kind=bound targets=[error.panic.todo]
 
 /// @import.summary symbols=1
-/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:9,hit:0,cycle:0
 /// @reference.summary references=1
 "#,
     );

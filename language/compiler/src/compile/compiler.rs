@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactSidecar, DiagnosticBuilder, DiagnosticLike};
+use destack_artifact::{DiagnosticBuilder, DiagnosticLike};
 use destack_core::StringPool;
 use destack_repository::{ArtifactReader, ProviderContext, Repository, Target};
 use destack_source::DiagnosticRegistry;
@@ -41,18 +41,6 @@ impl Compiler {
     /// Return the shared string pool.
     pub(crate) fn strings(&self) -> &StringPool {
         self.repository.string_pool().as_ref()
-    }
-
-    /// Store exact bytes as one named artifact sidecar.
-    pub(crate) fn put_sidecar(
-        &self,
-        name: impl Into<String>,
-        labels: impl IntoIterator<Item = (impl Into<String>, impl Into<String>)>,
-        bytes: &[u8],
-    ) -> CompilerResult<ArtifactSidecar> {
-        let blob = self.repository.put_blob(bytes)?;
-
-        Ok(ArtifactSidecar::new(name, labels, blob))
     }
 
     /// Return the artifact reader for one provider attempt.

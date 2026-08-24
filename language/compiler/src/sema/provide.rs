@@ -1,5 +1,4 @@
 use destack_core::FxIndexSet;
-use std::iter;
 use std::sync::Arc;
 
 use destack_artifact::{
@@ -10,7 +9,7 @@ use destack_dir as dir;
 use destack_repository::{ArtifactAttemptRecorder, ProfileId, ProviderContext, ProviderError};
 use destack_source::ModuleId;
 
-use crate::sema::{CheckState, Pass};
+use crate::sema::{CheckModuleState, CheckState, Pass};
 use crate::{Compiler, CompilerError, CompilerResult};
 
 /// The foreign modules one module's check reads through resolution targets.
@@ -58,10 +57,6 @@ impl Compiler {
             ArtifactProjectionKey::Content,
         );
 
-        // observe package config for check options
-        let repository_module = self.module(context.revision(), module)?;
-        self.observe_package_config(context, repository_module.package_id, &mut dependencies)?;
-
         // require the stage contents of resolution targets
         let artifacts = self.artifact_reader(context);
         let Some(references) = referenced_modules(&artifacts, module, profile)? else {
@@ -95,20 +90,27 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        // read the profile's environment and this module's compiler options
+        // read the profile's environment
         let artifacts = self.artifact_reader(context);
         let global = artifacts
             .read_content::<EnvironmentBound>(profile)
             .map_err(CompilerError::from)?;
         let environment = self.environment(context.revision())?;
-        let repository_module = self.module(context.revision(), module)?;
-        let options = self.workspace_compiler_options(context, repository_module.as_ref())?;
-
         // declare the module without walking callable bodies
-        let emit_events = options.emit_events || context.emit_events();
-        let mut check =
-            ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "load", || {
-                CheckState::new(
+        let mut check = ArtifactAttemptRecorder::breakdown_maybe(
+            context.recorder(),
+            "load",
+            || -> CompilerResult<_> {
+                let module = CheckModuleState::load(
+                    self,
+                    context,
+                    &artifacts,
+                    profile,
+                    module,
+                    Pass::Declare,
+                )?;
+
+                Ok(CheckState::new(
                     self,
                     context,
                     &artifacts,
@@ -118,19 +120,18 @@ impl Compiler {
                     environment,
                     module,
                     Pass::Declare,
-                    emit_events,
-                )
-            })?;
+                    context.records_events(),
+                ))
+            },
+        )?;
 
         // run the pass
         ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "run", || {
             check.run_declare()
         })?;
 
-        // emit solver counters for the declaration pass
-        let stats = check.stats();
-        context.emit_counter("solve.variables", stats.variables as u64);
-        context.emit_counter("solve.constraints", stats.constraints as u64);
+        // record solver counters and detailed events
+        check.record_trace(context);
 
         // package declared DIR tables and report the pass's diagnostics
         let (declared, diagnostics) =
@@ -164,10 +165,6 @@ impl Compiler {
             ArtifactKey::environment_declared(profile),
             ArtifactProjectionKey::Content,
         );
-
-        // observe package config for check options
-        let repository_module = self.module(context.revision(), module)?;
-        self.observe_package_config(context, repository_module.package_id, &mut dependencies)?;
 
         // require declared artifacts of direct imports and implicit globals
         let artifacts = self.artifact_reader(context);
@@ -206,7 +203,7 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        // read the profile's environment and this module's compiler options
+        // read the profile's environment
         let artifacts = self.artifact_reader(context);
         let global = artifacts
             .read::<EnvironmentBound>(profile)
@@ -215,14 +212,21 @@ impl Compiler {
             .read::<EnvironmentDeclared>(profile)
             .map_err(CompilerError::from)?;
         let environment = self.environment(context.revision())?;
-        let repository_module = self.module(context.revision(), module)?;
-        let options = self.workspace_compiler_options(context, repository_module.as_ref())?;
-
         // flatten the module's declared owners
-        let emit_events = options.emit_events || context.emit_events();
-        let mut check =
-            ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "load", || {
-                CheckState::new(
+        let mut check = ArtifactAttemptRecorder::breakdown_maybe(
+            context.recorder(),
+            "load",
+            || -> CompilerResult<_> {
+                let module = CheckModuleState::load(
+                    self,
+                    context,
+                    &artifacts,
+                    profile,
+                    module,
+                    Pass::Elaborate,
+                )?;
+
+                Ok(CheckState::new(
                     self,
                     context,
                     &artifacts,
@@ -232,14 +236,18 @@ impl Compiler {
                     environment,
                     module,
                     Pass::Elaborate,
-                    emit_events,
-                )
-            })?;
+                    context.records_events(),
+                ))
+            },
+        )?;
 
         // run the pass
         ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "run", || {
             check.run_elaborate()
         })?;
+
+        // record solver counters and detailed events
+        check.record_trace(context);
 
         // package elaborated DIR tables and report the pass's diagnostics
         let (elaborated, diagnostics) =
@@ -278,10 +286,6 @@ impl Compiler {
         // seed the checking pass from the module's own committed artifacts
         dependencies.require(ArtifactKey::dir_declared(module, profile));
         dependencies.require(ArtifactKey::dir_elaborated(module, profile));
-
-        // observe package config for check options
-        let repository_module = self.module(context.revision(), module)?;
-        self.observe_package_config(context, repository_module.package_id, &mut dependencies)?;
 
         // require declared artifacts of direct imports and implicit globals
         let artifacts = self.artifact_reader(context);
@@ -324,7 +328,7 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        // read the profile's environment and this module's compiler options
+        // read the profile's environment
         let artifacts = self.artifact_reader(context);
         let global = artifacts
             .read_content::<EnvironmentBound>(profile)
@@ -333,14 +337,21 @@ impl Compiler {
             .read::<EnvironmentDeclared>(profile)
             .map_err(CompilerError::from)?;
         let environment = self.environment(context.revision())?;
-        let repository_module = self.module(context.revision(), module)?;
-        let options = self.workspace_compiler_options(context, repository_module.as_ref())?;
-
         // check the module's declarations and bodies
-        let emit_events = options.emit_events || context.emit_events();
-        let mut check =
-            ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "load", || {
-                CheckState::new(
+        let mut check = ArtifactAttemptRecorder::breakdown_maybe(
+            context.recorder(),
+            "load",
+            || -> CompilerResult<_> {
+                let module = CheckModuleState::load(
+                    self,
+                    context,
+                    &artifacts,
+                    profile,
+                    module,
+                    Pass::Check,
+                )?;
+
+                Ok(CheckState::new(
                     self,
                     context,
                     &artifacts,
@@ -350,71 +361,22 @@ impl Compiler {
                     environment,
                     module,
                     Pass::Check,
-                    emit_events,
-                )
-            })?;
+                    context.records_events(),
+                ))
+            },
+        )?;
 
         // run the pass
         ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "run", || check.run_check())?;
 
-        // emit solver counters and optional trace sidecars
-        let stats = check.stats();
-        context.emit_counter("solve.variables", stats.variables as u64);
-        context.emit_counter("solve.constraints", stats.constraints as u64);
-        context.emit_counter("solve.bounds", stats.bounds as u64);
-        context.emit_counter("solve.decisions", stats.decisions as u64);
-        let counters = check.counters;
-        context.emit_counter("check.relation_decisions", counters.relation_decisions);
-        context.emit_counter("check.relation_reuses", counters.relation_reuses);
-        context.emit_counter("check.binding_derivations", counters.binding_derivations);
-        context.emit_counter("check.binding_reuses", counters.binding_reuses);
-        context.emit_counter("check.probes", counters.probes);
-        context.emit_counter("check.selection_probes", counters.selection_probes);
-        context.emit_counter("check.extension_probes", counters.extension_probes);
-        context.emit_counter("check.interns", counters.interns);
-        context.emit_counter("check.reduces", counters.reduces);
-        context.emit_counter("check.instantiations", counters.instantiations);
-        context.emit_counter("check.member_derivations", counters.member_derivations);
-        context.emit_counter("check.member_reuses", counters.member_reuses);
-        context.emit_counter("check.member_refusals", counters.member_refusals);
+        // record solver counters and detailed events
+        check.record_trace(context);
 
-        // emit the stats sidecar when the options ask for it
-        if options.emit_stats {
-            let content = stats.format_metadata(counters);
-            context.emit_sidecar(self.put_sidecar(
-                "metadata",
-                iter::once(("phase", "check")),
-                content.as_bytes(),
-            )?);
-        }
-
-        // emit the recorded trace events as their own sidecar
-        let events = emit_events.then(|| check.events());
-        if let Some(events) = events {
-            let content = events.render();
-            context.emit_sidecar(self.put_sidecar(
-                "events",
-                iter::once(("phase", "check")),
-                content.as_bytes(),
-            )?);
-        }
-
-        // write checked DIR tables, render annotations, and report the pass's diagnostics
-        let (checked, diagnostics, annotated) =
+        // write checked DIR tables and report the pass's diagnostics
+        let (checked, diagnostics) =
             ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "finish", || {
-                check.finish_check(module, options.emit_checked_types)
+                check.finish_check(module)
             })?;
-        for source in annotated {
-            let labels = [
-                ("phase", "check".to_string()),
-                ("module", source.module.uri.to_string()),
-            ];
-            context.emit_sidecar(self.put_sidecar(
-                "annotated",
-                labels,
-                source.content.as_bytes(),
-            )?);
-        }
         context.emit_diagnostics(diagnostics);
 
         Ok(ArtifactPayload::DirChecked(Arc::new(checked)))

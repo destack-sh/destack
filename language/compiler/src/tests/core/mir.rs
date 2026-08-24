@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use bytecode::{BytecodeFormatOptions, format_bytecode};
 use destack_artifact::{
-    ArtifactKey, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
-    DiagnosticError, DiagnosticLike, DiagnosticRecord, MirLowered, MirOptimized,
+    ArtifactKey, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
+    DiagnosticLike, DiagnosticRecord, MirLowered, MirOptimized,
 };
 use destack_bytecode as bytecode;
 use destack_core::StringPool;
@@ -286,9 +286,6 @@ impl ProviderContext for TestMirProvider {
 
     /// Emit already-recorded diagnostics produced by this attempt.
     fn emit_diagnostics(&self, _diagnostics: Vec<DiagnosticRecord>) {}
-
-    /// Emit one sidecar.
-    fn emit_sidecar(&self, _sidecar: ArtifactSidecar) {}
 
     /// Emit one diagnostic.
     fn emit(&self, _diagnostic: &dyn DiagnosticLike) -> Result<(), DiagnosticError> {

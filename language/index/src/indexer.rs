@@ -304,9 +304,9 @@ impl Indexer {
         module_ids.sort_unstable();
         module_ids.dedup();
         if let Some(started) = started {
-            context.emit_span("modules", started);
+            context.record_span("modules", started);
         }
-        context.emit_counter("modules", module_ids.len() as u64);
+        context.record_counter("modules", module_ids.len() as u64);
 
         // read the exact current module versions
         let started = repository.host().clock().now();
@@ -316,7 +316,7 @@ impl Indexer {
         let versions = Self::program_module_versions(dependencies, profile_id, kind)?;
         Self::require_program_modules(&versions, &module_ids)?;
         if let Some(started) = started {
-            context.emit_span("index_owners", started);
+            context.record_span("index_owners", started);
         }
 
         // update a matching predecessor or build the complete index
@@ -339,7 +339,7 @@ impl Indexer {
             }
         };
         if let Some(started) = started {
-            context.emit_span("index", started);
+            context.record_span("index", started);
         }
 
         Ok(ArtifactPayload::ProgramIndex(Arc::new(payload)))
@@ -498,7 +498,7 @@ impl Indexer {
             let index = Self::load_program_module(repository, *module_id, version, kind)?;
             changed.push((ordinal as u32, index));
         }
-        context.emit_counter("changed_modules", changed.len() as u64);
+        context.record_counter("changed_modules", changed.len() as u64);
 
         // replace changed postings in the predecessor
         let changed = changed

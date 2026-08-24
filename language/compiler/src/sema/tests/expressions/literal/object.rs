@@ -669,7 +669,7 @@ const store = {
 
     session.assert_dir(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const store: { readonly value: string } = {
@@ -690,7 +690,6 @@ const store = {
 
 };
 
-/// @check.stats.solve variables=0 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -708,7 +707,7 @@ const store = {
 
     session.assert_dir(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const store: { value: string } = {
@@ -727,7 +726,6 @@ const store = {
 
 };
 
-/// @check.stats.solve variables=0 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -746,7 +744,7 @@ const store = {
 
     session.assert_dir(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 const store: { value: string | int32 } = {
@@ -772,7 +770,6 @@ const store = {
 
 };
 
-/// @check.stats.solve variables=0 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -795,7 +792,7 @@ const store: Store = {
 
     session.assert_dir(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
 interface Store {
@@ -840,7 +837,6 @@ const store: Store = {
 
 };
 
-/// @check.stats.solve variables=0 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }

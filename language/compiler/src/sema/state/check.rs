@@ -1,10 +1,7 @@
 use std::panic::Location;
 use std::sync::Arc;
 
-use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirParsed, DirResolved,
-    EnvironmentBound, EnvironmentDeclared,
-};
+use destack_artifact::{DirResolved, EnvironmentBound, EnvironmentDeclared};
 use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 use destack_dir as dir;
 use destack_repository::{ArtifactAttemptRecorder, ArtifactReader, Environment, ProviderContext};
@@ -17,7 +14,6 @@ use crate::sema::{
     CheckModuleState, CheckTrace, DecoratorApplication, ExternalModuleTable, FlowBranch, FlowState,
     Fulfillment, FunctionBody, GenericParameterId, HeritageReach, InducedParameterSite,
     InferContext, Origin, OriginId, Premise, Relation, VarianceForm, VarianceState,
-    is_check_event_streaming,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -279,7 +275,7 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) constructor_branches: FxIndexMap<dir::GlobalSymbolId, Vec<FlowBranch>>,
 
     // stats
-    /// Work counters for the stats sidecar.
+    /// Work counters for the provider trace.
     pub(in crate::sema) counters: CheckCounters,
     /// Trace state kept only when tracing is requested.
     pub(in crate::sema) trace: Option<Box<CheckTrace>>,
@@ -291,7 +287,7 @@ impl<'a> CheckState<'a> {
         self.compiler.repository.string_pool()
     }
 
-    /// Create a module check state.
+    /// Create check state over one loaded module.
     pub(in crate::sema) fn new(
         compiler: &'a Compiler,
         context: &'a dyn ProviderContext,
@@ -300,57 +296,13 @@ impl<'a> CheckState<'a> {
         environment_bound: Arc<EnvironmentBound>,
         environment_declared: Option<Arc<EnvironmentDeclared>>,
         environment: Arc<Environment>,
-        module_id: ModuleId,
+        module: CheckModuleState,
         pass: Pass,
-        emit_events: bool,
-    ) -> CompilerResult<Self> {
-        // load the module's working state from its committed artifacts
-        let profile_key = compiler.profile(context.revision(), profile)?.key;
-        let repository_module = compiler.module(context.revision(), module_id)?;
-        let package = compiler.package(context.revision(), repository_module.package_id)?;
-        let parsed = artifacts
-            .read::<DirParsed>(module_id)
-            .map_err(CompilerError::from)?;
-        let bound = artifacts
-            .read::<DirBound>((module_id, profile))
-            .map_err(CompilerError::from)?;
-        let resolved = artifacts
-            .read::<DirResolved>((module_id, profile))
-            .map_err(CompilerError::from)?;
-        let expanded = artifacts
-            .read::<DirExpanded>((module_id, profile))
-            .map_err(CompilerError::from)?;
+        records_events: bool,
+    ) -> Self {
+        let module_id = module.module.id;
 
-        // seed later passes from the module's own committed artifacts
-        let declared = (pass != Pass::Declare)
-            .then(|| artifacts.read::<DirDeclared>((module_id, profile)))
-            .transpose()
-            .map_err(CompilerError::from)?;
-        let elaborated = matches!(pass, Pass::Check | Pass::Materialize)
-            .then(|| artifacts.read::<DirElaborated>((module_id, profile)))
-            .transpose()
-            .map_err(CompilerError::from)?;
-        let checked = (pass == Pass::Materialize)
-            .then(|| artifacts.read::<DirChecked>((module_id, profile)))
-            .transpose()
-            .map_err(CompilerError::from)?;
-
-        // assemble the module's working tables over those artifacts
-        let module = CheckModuleState::new(
-            repository_module,
-            package,
-            profile_key,
-            parsed,
-            bound,
-            resolved,
-            Arc::clone(&expanded),
-            declared,
-            elaborated,
-            checked,
-        );
-
-        // open every decision, inference, and trace table empty
-        let state = Self {
+        Self {
             // context
             compiler,
             context,
@@ -414,10 +366,8 @@ impl<'a> CheckState<'a> {
             constructor_branches: FxIndexMap::default(),
             // stats
             counters: CheckCounters::default(),
-            trace: CheckTrace::new(emit_events, is_check_event_streaming()),
-        };
-
-        Ok(state)
+            trace: CheckTrace::new(records_events),
+        }
     }
 
     /// Return whether this check infers one module's bodies.

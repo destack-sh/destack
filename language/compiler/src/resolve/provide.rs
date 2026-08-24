@@ -1,4 +1,3 @@
-use std::iter;
 use std::sync::Arc;
 
 use destack_artifact::{
@@ -86,15 +85,10 @@ impl Compiler {
             state.record_tree_builder(environment.tree);
         }
 
-        // emit resolve stats before diagnostics are drained
+        // record resolve stats before diagnostics are drained
         let mut stats = state.stats;
         stats.record_exports(state.exports.stats());
-        let metadata = stats.render_metadata();
-        context.emit_sidecar(self.put_sidecar(
-            "metadata",
-            iter::once(("phase", "resolve")),
-            metadata.as_bytes(),
-        )?);
+        stats.record(context);
 
         // emit resolve diagnostics
         for error in state.take_errors() {

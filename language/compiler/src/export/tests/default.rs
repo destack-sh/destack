@@ -15,7 +15,7 @@ export default function main(): number {
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries().with_export_stats(),
+        DirRows::exports().with_summaries(),
         r#"
 export default function main(): number {
 /// @export.local key=<default> symbols=[main]
@@ -24,7 +24,6 @@ export default function main(): number {
 }
 
 /// @export.summary exports=1
-/// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:2
 "#,
     );
 }
@@ -42,13 +41,12 @@ export default 1;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries().with_export_stats(),
+        DirRows::exports().with_summaries(),
         r#"
 export default 1;
 /// @export.local key=<default> symbols=[symbol1]
 
 /// @export.summary exports=1
-/// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:2
 "#,
     );
 }

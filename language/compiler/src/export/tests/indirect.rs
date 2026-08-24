@@ -19,10 +19,7 @@ export let Foo = 1;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::modules()
-            .with_export()
-            .with_summaries()
-            .with_export_stats(),
+        DirRows::modules().with_export().with_summaries(),
         r#"
 export { Foo as Bar } from "./dep.ds";
 /// @module.edge relation=re_export specifier=./dep.ds module=dep.ds
@@ -30,7 +27,6 @@ export { Foo as Bar } from "./dep.ds";
 
 /// @module.summary edges=1
 /// @export.summary exports=1
-/// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:2
 "#,
     );
 }
@@ -55,10 +51,7 @@ export let named = 2;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::modules()
-            .with_export()
-            .with_summaries()
-            .with_export_stats(),
+        DirRows::modules().with_export().with_summaries(),
         r#"
 export { default as value, named as default } from "./dep.ds";
 /// @module.edge relation=re_export specifier=./dep.ds module=dep.ds
@@ -67,7 +60,6 @@ export { default as value, named as default } from "./dep.ds";
 
 /// @module.summary edges=1
 /// @export.summary exports=2
-/// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:3
 "#,
     );
 }

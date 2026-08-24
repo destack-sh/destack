@@ -1,3 +1,5 @@
+use destack_repository::ProviderContext;
+
 /// Counted work metrics for one bind attempt.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(in crate::bind) struct BindStats {
@@ -16,34 +18,15 @@ pub(in crate::bind) struct BindStats {
 }
 
 impl BindStats {
-    /// Render these stats as stable metadata lines.
-    pub(in crate::bind) fn render_metadata(self) -> String {
-        let mut lines = vec![
-            format!("bind.stats.files={}", self.files),
-            format!("bind.stats.roots={}", self.roots),
-        ];
-
-        // include visit work when present
-        if self.expressions != 0
-            || self.declarations != 0
-            || self.patterns != 0
-            || self.type_expressions != 0
-        {
-            lines.push(format!(
-                "bind.stats.visited.expressions={}",
-                self.expressions
-            ));
-            lines.push(format!(
-                "bind.stats.visited.declarations={}",
-                self.declarations
-            ));
-            lines.push(format!("bind.stats.visited.patterns={}", self.patterns));
-            lines.push(format!(
-                "bind.stats.visited.types={}",
-                self.type_expressions
-            ));
-        }
-
-        lines.join("\n")
+    /// Record these stats in one provider attempt.
+    pub(in crate::bind) fn record(self, context: &dyn ProviderContext) {
+        context.record_counters(&[
+            ("bind.files", self.files as u64),
+            ("bind.roots", self.roots as u64),
+            ("bind.expressions", self.expressions as u64),
+            ("bind.declarations", self.declarations as u64),
+            ("bind.patterns", self.patterns as u64),
+            ("bind.type_expressions", self.type_expressions as u64),
+        ]);
     }
 }

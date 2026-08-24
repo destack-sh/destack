@@ -3,25 +3,25 @@ use destack_source::{ModuleId, Span};
 
 use crate::sema::{CheckId, CheckState, ExpectedType, Origin, Relation, TypeBound};
 
-/// Formatting context for check trace values.
-pub(in crate::sema) struct DumpContext<'a, 'b> {
+/// Formatter for values recorded in check trace events.
+pub(in crate::sema) struct EventFormatter<'a, 'b> {
     /// The check state that owns tables referenced by trace ids.
-    pub(in crate::sema) check: &'a CheckState<'b>,
+    pub(super) check: &'a CheckState<'b>,
 }
 
-impl<'a, 'b> DumpContext<'a, 'b> {
-    /// Create a dump context for one check state.
+impl<'a, 'b> EventFormatter<'a, 'b> {
+    /// Create an event formatter for one check state.
     pub(in crate::sema) fn new(check: &'a CheckState<'b>) -> Self {
         Self { check }
     }
 
     /// Return a compact check id label.
-    pub(in crate::sema) fn check_label(&self, id: CheckId) -> String {
+    pub(super) fn check_label(&self, id: CheckId) -> String {
         format!("k{}", id.index())
     }
 
     /// Return a compact type variable label.
-    pub(in crate::sema) fn variable_label(&self, id: dir::TypeVariableId) -> String {
+    pub(super) fn variable_label(&self, id: dir::TypeVariableId) -> String {
         match self.check.infer.variable(id) {
             Ok(state) => {
                 let origin = self.check.infer.origin(state.origin);
@@ -34,7 +34,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     }
 
     /// Return a compact node label.
-    pub(in crate::sema) fn node_label(&self, node: dir::GlobalNodeIdAny) -> String {
+    pub(super) fn node_label(&self, node: dir::GlobalNodeIdAny) -> String {
         let module = self.module_label(node.module_id);
         let kind = node.local_id.ty.name().replace(' ', "_");
 
@@ -42,14 +42,14 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     }
 
     /// Return the source location for one node.
-    pub(in crate::sema) fn node_source_label(&self, node: dir::GlobalNodeIdAny) -> String {
+    pub(super) fn node_source_label(&self, node: dir::GlobalNodeIdAny) -> String {
         self.node_span(node)
             .and_then(|span| self.span_label(span))
             .unwrap_or_else(|| "unknown".to_string())
     }
 
     /// Return a compact symbol label.
-    pub(in crate::sema) fn symbol_label(&self, symbol: dir::GlobalSymbolId) -> String {
+    pub(super) fn symbol_label(&self, symbol: dir::GlobalSymbolId) -> String {
         let module = self.module_label(symbol.module_id);
         let name = self.check.format_symbol(symbol);
 
@@ -57,7 +57,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     }
 
     /// Return a compact type label.
-    pub(in crate::sema) fn type_label(&self, ty: dir::GlobalTypeId) -> String {
+    pub(super) fn type_label(&self, ty: dir::GlobalTypeId) -> String {
         if let Ok(dir::Type::Variable(variable)) = self.check.ty_raw(ty) {
             return self.variable_label(variable);
         }
@@ -66,7 +66,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     }
 
     /// Return a compact expected type label.
-    pub(in crate::sema) fn expected_type_label(&self, expected: ExpectedType) -> String {
+    pub(super) fn expected_type_label(&self, expected: ExpectedType) -> String {
         match expected {
             ExpectedType::Type(ty) => self.type_label(ty),
             ExpectedType::Node(node) => format!("node({})", self.node_label(node)),
@@ -74,7 +74,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     }
 
     /// Return a compact type-bound list label.
-    pub(in crate::sema) fn type_bound_list_label(&self, bounds: &[TypeBound]) -> String {
+    pub(super) fn type_bound_list_label(&self, bounds: &[TypeBound]) -> String {
         if bounds.is_empty() {
             return "none".to_string();
         }
@@ -87,7 +87,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     }
 
     /// Return one variable's origin label.
-    pub(in crate::sema) fn variable_origin_label(&self, variable: dir::TypeVariableId) -> String {
+    pub(super) fn variable_origin_label(&self, variable: dir::TypeVariableId) -> String {
         let Ok(state) = self.check.infer.variable(variable) else {
             return "unknown".to_string();
         };
@@ -96,7 +96,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     }
 
     /// Return one variable's source location.
-    pub(in crate::sema) fn variable_source_label(&self, variable: dir::TypeVariableId) -> String {
+    pub(super) fn variable_source_label(&self, variable: dir::TypeVariableId) -> String {
         let Ok(state) = self.check.infer.variable(variable) else {
             return "unknown".to_string();
         };
@@ -105,12 +105,12 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     }
 
     /// Return a compact static key label.
-    pub(in crate::sema) fn static_key_label(&self, key: &dir::StaticKey) -> String {
+    pub(super) fn static_key_label(&self, key: &dir::StaticKey) -> String {
         self.check.format_static_key(key)
     }
 
     /// Return a compact origin label.
-    pub(in crate::sema) fn origin_label(&self, origin: Origin) -> String {
+    pub(super) fn origin_label(&self, origin: Origin) -> String {
         match origin {
             Origin::Node(node, _) => self.node_label(node),
             Origin::Symbol(symbol) => self.symbol_label(symbol),
@@ -118,7 +118,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     }
 
     /// Return the source location for one origin.
-    pub(in crate::sema) fn origin_source_label(&self, origin: Origin) -> String {
+    pub(super) fn origin_source_label(&self, origin: Origin) -> String {
         match origin {
             Origin::Node(node, _) => self.node_source_label(node),
             Origin::Symbol(symbol) => self
@@ -129,7 +129,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     }
 
     /// Return a compact relation label.
-    pub(in crate::sema) fn relation_label(&self, relation: Relation) -> &'static str {
+    pub(super) fn relation_label(&self, relation: Relation) -> &'static str {
         match relation {
             Relation::Equal => "equal",
             Relation::Subtype => "subtype",
@@ -144,7 +144,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     /// Return a compact module label.
     fn module_label(&self, module: ModuleId) -> String {
         if let Some(module) = self.check.module_maybe(module) {
-            return trim_builtin_uri(module.module.uri.as_ref());
+            return self.uri_label(module.module.uri.as_ref());
         }
 
         if let Ok(Some(module)) = self
@@ -153,7 +153,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             .repository
             .module(self.check.context.revision(), module)
         {
-            return trim_builtin_uri(module.uri.as_ref());
+            return self.uri_label(module.uri.as_ref());
         }
 
         format!("module#{module}")
@@ -197,14 +197,14 @@ impl<'a, 'b> DumpContext<'a, 'b> {
 
         Some(format!(
             "{}:{line}:{column}",
-            trim_builtin_uri(file.uri.as_ref())
+            self.uri_label(file.uri.as_ref())
         ))
     }
-}
 
-/// Trim builtin URIs in human trace output.
-fn trim_builtin_uri(uri: &str) -> String {
-    uri.strip_prefix("destack://")
-        .map(|path| format!("/{path}"))
-        .unwrap_or_else(|| uri.to_string())
+    /// Return a compact URI label.
+    fn uri_label(&self, uri: &str) -> String {
+        uri.strip_prefix("destack://")
+            .map(|path| format!("/{path}"))
+            .unwrap_or_else(|| uri.to_string())
+    }
 }
