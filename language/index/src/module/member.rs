@@ -21,23 +21,9 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
         // collect symbol-backed definition members
         indexer.collect_members();
 
-        // retain exact checked interface conformance and class override edges
+        // retain member implementation edges
         let definitions = module.definitions();
-        let conformances =
-            definitions
-                .member_conformances()
-                .map(|conformance| dir::MemberImplementation {
-                    declaration: conformance.requirement,
-                    implementation: conformance.member,
-                });
-        let overrides =
-            definitions
-                .member_overrides()
-                .map(|(member, base)| dir::MemberImplementation {
-                    declaration: base,
-                    implementation: member,
-                });
-        let implementations = conformances.chain(overrides).collect();
+        let implementations = definitions.member_implementations().collect();
 
         dir::MemberIndex::new(indexer.entries, implementations)
     }
