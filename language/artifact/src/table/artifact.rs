@@ -14,7 +14,7 @@ use rustc_hash::{FxBuildHasher, FxHasher};
 use super::binding::ArtifactBindingIndex;
 use super::dependency::{ArtifactDependencyOwner, ArtifactDependent};
 use super::entry::{
-    ArtifactBinding, ArtifactBindingId, ArtifactEntry, ArtifactId, ArtifactOutcome, ArtifactSidecar,
+    ArtifactBinding, ArtifactBindingId, ArtifactEntry, ArtifactId, ArtifactOutcome,
 };
 use super::pin::ArtifactBindingPin;
 use crate::{
@@ -189,13 +189,6 @@ impl ArtifactTable {
         }
     }
 
-    /// Return the recorded sidecars for one exact artifact version.
-    pub fn sidecars(&self, version: &ArtifactVersion) -> Option<Arc<[ArtifactSidecar]>> {
-        self.entries
-            .get(version)
-            .map(|entry| Arc::clone(&entry.sidecars))
-    }
-
     /// Return the exact terminal outcome for one artifact version.
     pub fn outcome(&self, version: &ArtifactVersion) -> Option<ArtifactOutcome> {
         self.entries
@@ -224,7 +217,6 @@ impl ArtifactTable {
 
         let dependencies = dependencies.to_vec();
         let diagnostics = entry.diagnostics.to_vec();
-        let sidecars = entry.sidecars.iter().cloned().collect();
         let record = ArtifactRecord::new(
             version,
             blob,
@@ -232,7 +224,6 @@ impl ArtifactTable {
             strings,
             dependencies,
             diagnostics,
-            sidecars,
         )?;
 
         Ok(record)
@@ -245,7 +236,6 @@ impl ArtifactTable {
         payload: ArtifactPayload,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: impl Into<Arc<[DiagnosticRecord]>>,
-        sidecars: impl Into<Arc<[ArtifactSidecar]>>,
     ) -> Result<ArtifactBindingPin, ArtifactError> {
         if !payload.matches_key(&version.key) {
             return Err(ArtifactError::Invalid(
@@ -255,9 +245,8 @@ impl ArtifactTable {
 
         let dependencies = dependencies.into();
         let diagnostics = diagnostics.into();
-        let sidecars = sidecars.into();
         let _retention = self.retention.read();
-        self.insert_result(version, payload, diagnostics, sidecars);
+        self.insert_result(version, payload, diagnostics);
         let binding = self.intern_binding(version, dependencies)?;
         self.retain_binding(binding);
 
@@ -292,16 +281,14 @@ impl ArtifactTable {
         version: ArtifactVersion,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: impl Into<Arc<[DiagnosticRecord]>>,
-        sidecars: impl Into<Arc<[ArtifactSidecar]>>,
         failure: ArtifactFailure,
     ) -> Result<ArtifactBindingPin, ArtifactError> {
         let dependencies = dependencies.into();
         let diagnostics = diagnostics.into();
-        let sidecars = sidecars.into();
         let _retention = self.retention.read();
         self.entries
             .entry(version)
-            .or_insert_with(|| ArtifactEntry::failed(diagnostics, sidecars, failure));
+            .or_insert_with(|| ArtifactEntry::failed(diagnostics, failure));
         let binding = self.intern_binding(version, dependencies)?;
         self.retain_binding(binding);
 
@@ -330,11 +317,10 @@ impl ArtifactTable {
         version: ArtifactVersion,
         payload: ArtifactPayload,
         diagnostics: Arc<[DiagnosticRecord]>,
-        sidecars: Arc<[ArtifactSidecar]>,
     ) {
         self.entries
             .entry(version)
-            .or_insert_with(|| ArtifactEntry::ok(payload, diagnostics, sidecars));
+            .or_insert_with(|| ArtifactEntry::ok(payload, diagnostics));
     }
 
     /// Return the stable fingerprint of one projected artifact value.
@@ -386,14 +372,13 @@ impl ArtifactTable {
             None => Vec::new(),
         };
 
-        // include diagnostics and sidecars for every terminal result
+        // include diagnostics for every terminal result
         blobs.extend(
             entry
                 .diagnostics
                 .iter()
                 .flat_map(|record| record.diagnostic.blobs()),
         );
-        blobs.extend(entry.sidecars.iter().map(|sidecar| sidecar.blob));
 
         // canonicalize the retained closure
         blobs.sort_unstable();

@@ -8,8 +8,8 @@ use super::string::collect_string_ids;
 
 use crate::{
     ArtifactDependency, ArtifactError, ArtifactPayload, ArtifactPayloadRef,
-    ArtifactProjectionFingerprint, ArtifactProjectionKey, ArtifactSidecar, ArtifactVersion,
-    BuildId, DiagnosticRecord,
+    ArtifactProjectionFingerprint, ArtifactProjectionKey, ArtifactVersion, BuildId,
+    DiagnosticRecord,
 };
 
 /// One persistent artifact record.
@@ -27,8 +27,6 @@ pub struct ArtifactRecord {
     pub dependencies: Vec<ArtifactDependency>,
     /// Diagnostics recorded for this artifact version.
     pub diagnostics: Vec<DiagnosticRecord>,
-    /// Artifact sidecars recorded for this artifact version.
-    pub sidecars: Vec<ArtifactSidecar>,
     /// Observable payload projections by exact projection key.
     pub projections: Vec<(ArtifactProjectionKey, ArtifactProjectionFingerprint)>,
 }
@@ -42,7 +40,6 @@ impl ArtifactRecord {
         string_pool: &StringPool,
         dependencies: Vec<ArtifactDependency>,
         diagnostics: Vec<DiagnosticRecord>,
-        sidecars: Vec<ArtifactSidecar>,
     ) -> Result<Self, ArtifactError> {
         // fingerprint observable payload projections
         let projections = payload.fingerprint_projections().map_err(|_| {
@@ -50,7 +47,7 @@ impl ArtifactRecord {
         })?;
 
         // collect the complete retained Blob closure
-        let mut blobs = Self::referenced_blobs(payload, &diagnostics, &sidecars);
+        let mut blobs = Self::referenced_blobs(payload, &diagnostics);
         blobs.push(blob);
         blobs.sort_unstable();
         blobs.dedup();
@@ -69,7 +66,6 @@ impl ArtifactRecord {
             strings,
             dependencies,
             diagnostics,
-            sidecars,
             projections,
         })
     }
@@ -121,7 +117,7 @@ impl ArtifactRecord {
         }
 
         // reproduce the complete retained Blob closure
-        let mut blobs = Self::referenced_blobs(payload.as_ref(), &self.diagnostics, &self.sidecars);
+        let mut blobs = Self::referenced_blobs(payload.as_ref(), &self.diagnostics);
         blobs.push(self.payload);
         blobs.sort_unstable();
         blobs.dedup();
@@ -150,7 +146,6 @@ impl ArtifactRecord {
     pub fn referenced_blobs(
         payload: ArtifactPayloadRef<'_>,
         diagnostics: &[DiagnosticRecord],
-        sidecars: &[ArtifactSidecar],
     ) -> Vec<Blob> {
         // collect payload and attached value Blobs
         let mut blobs = payload.blobs();
@@ -159,7 +154,6 @@ impl ArtifactRecord {
                 .iter()
                 .flat_map(|record| record.diagnostic.blobs()),
         );
-        blobs.extend(sidecars.iter().map(|sidecar| sidecar.blob));
 
         // canonicalize the closure
         blobs.sort_unstable();

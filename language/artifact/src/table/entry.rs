@@ -1,10 +1,6 @@
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_core::Blob;
-use destack_serde::Reflect;
 use destack_source::DiagnosticSeverity;
-use serde::{Deserialize, Serialize};
 
 use crate::{
     ArtifactDependency, ArtifactFailure, ArtifactPayload, ArtifactVersion, DiagnosticRecord,
@@ -39,8 +35,6 @@ pub(crate) struct ArtifactEntry {
     pub(crate) result: ArtifactResult,
     /// The diagnostics for this exact artifact version.
     pub(crate) diagnostics: Arc<[DiagnosticRecord]>,
-    /// The sidecars for this exact artifact version.
-    pub(crate) sidecars: Arc<[ArtifactSidecar]>,
     /// Whether any diagnostic for this version carries error severity.
     pub(crate) has_errors: bool,
 }
@@ -59,7 +53,6 @@ impl ArtifactEntry {
     pub(crate) fn ok(
         payload: ArtifactPayload,
         diagnostics: impl Into<Arc<[DiagnosticRecord]>>,
-        sidecars: impl Into<Arc<[ArtifactSidecar]>>,
     ) -> Self {
         let diagnostics = diagnostics.into();
 
@@ -69,14 +62,12 @@ impl ArtifactEntry {
                 .iter()
                 .any(|record| record.diagnostic.severity == DiagnosticSeverity::Error),
             diagnostics,
-            sidecars: sidecars.into(),
         }
     }
 
     /// Create one failed artifact entry.
     pub(crate) fn failed(
         diagnostics: impl Into<Arc<[DiagnosticRecord]>>,
-        sidecars: impl Into<Arc<[ArtifactSidecar]>>,
         failure: ArtifactFailure,
     ) -> Self {
         let diagnostics = diagnostics.into();
@@ -87,7 +78,6 @@ impl ArtifactEntry {
                 .iter()
                 .any(|record| record.diagnostic.severity == DiagnosticSeverity::Error),
             diagnostics,
-            sidecars: sidecars.into(),
         }
     }
 }
@@ -116,42 +106,6 @@ impl ArtifactResult {
             Self::Ok(payload) => Some(payload.clone()),
             Self::Failed(_failure) => None,
         }
-    }
-}
-
-/// One named artifact sidecar.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct ArtifactSidecar {
-    /// The sidecar name.
-    pub name: String,
-    /// The stable labels describing this sidecar.
-    pub labels: BTreeMap<String, String>,
-    /// The exact sidecar bytes.
-    pub blob: Blob,
-}
-
-impl ArtifactSidecar {
-    /// Create one artifact sidecar.
-    pub fn new(
-        name: impl Into<String>,
-        labels: impl IntoIterator<Item = (impl Into<String>, impl Into<String>)>,
-        blob: Blob,
-    ) -> Self {
-        let labels = labels
-            .into_iter()
-            .map(|(key, value)| (key.into(), value.into()))
-            .collect();
-
-        Self {
-            name: name.into(),
-            labels,
-            blob,
-        }
-    }
-
-    /// Return whether this sidecar matches one name and label set.
-    pub fn matches(&self, name: &str, labels: &BTreeMap<String, String>) -> bool {
-        self.name == name && &self.labels == labels
     }
 }
 
