@@ -150,25 +150,17 @@ impl<'a> QueryRun<'a> {
     /// Advance through one exact workspace change batch.
     fn advance(&mut self, changes: &[QueryChange]) -> Result<Option<TraceSnapshot>, String> {
         let trace = self.workspace.begin_trace();
-        let revision = match &trace {
-            Some(trace) => trace.span("publish", || {
-                self.workspace.fork_changes(self.revision, changes)
-            }),
-            None => self.workspace.fork_changes(self.revision, changes),
-        }?;
+        let revision = self
+            .workspace
+            .fork_changes(self.revision, changes, trace.as_ref())?;
         let mut values = self.files.values.clone();
         for change in changes {
             change.apply(&mut values)?;
         }
-        let files = match &trace {
-            Some(trace) => trace.span("resolve files", || {
-                QueryFiles::resolve(values, self.workspace, revision)
-            }),
-            None => QueryFiles::resolve(values, self.workspace, revision),
-        }?;
-        let trace = trace
-            .map(|trace| self.workspace.finish_trace(revision, trace))
-            .transpose()?;
+        let files = trace.span("files.resolve", || {
+            QueryFiles::resolve(values, self.workspace, revision)
+        })?;
+        let trace = self.workspace.finish_trace(revision, trace)?;
 
         self.revision = revision;
         self.files = files;

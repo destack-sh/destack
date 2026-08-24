@@ -1,7 +1,7 @@
 use destack_artifact::ArtifactPayload;
 use destack_core::Blob;
 use destack_repository as repository;
-use destack_repository::{Commit, Revision};
+use destack_repository::{Commit, Revision, TraceLevel};
 use destack_rpc::{Request, Response, ResponseSender, Status};
 use futures::{FutureExt, pin_mut, select_biased};
 
@@ -317,7 +317,14 @@ impl WorkspaceService for Workspace {
     ) -> Result<Response<Commit>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let commit = Workspace::edit_branch(self, &request.name, request.revision, request.edits)?;
+        let trace = self.start_trace(TraceLevel::Disabled);
+        let commit = Workspace::edit_branch(
+            self,
+            &request.name,
+            request.revision,
+            request.edits,
+            trace.as_ref(),
+        )?;
 
         Ok(Response::new(commit))
     }

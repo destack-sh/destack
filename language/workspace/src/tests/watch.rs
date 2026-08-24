@@ -1,5 +1,6 @@
 use futures::executor::block_on;
 
+use destack_repository::TraceLevel;
 use destack_source::{Edit, FileSystem};
 
 use crate::tests::harness::TestWorkspace;
@@ -53,6 +54,7 @@ fn test_watch_selects_and_removes_branch() {
         .expect("create branch");
     let mut watch = test.workspace.watch_branch(&branch).expect("watch branch");
     let _ready = block_on(watch.next()).expect("receive ready event");
+    let trace = test.workspace.start_trace(TraceLevel::Disabled);
 
     let commit = test
         .workspace
@@ -63,6 +65,7 @@ fn test_watch_selects_and_removes_branch() {
                 path: test.path_for("main.ds"),
                 text: "export const value = 1;\n".to_string(),
             }],
+            trace.as_ref(),
         )
         .expect("edit branch");
 

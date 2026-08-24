@@ -6,7 +6,7 @@ use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactReference, Bundle, BundleFile, Product,
 };
 use destack_core::Blob;
-use destack_repository::{Repository, Revision, Trace, TraceSnapshot, TraceView};
+use destack_repository::{Repository, Revision, Trace, TraceLevel, TraceSnapshot, TraceView};
 use destack_session::{ArtifactRun, Executor, Session};
 use destack_source::{File, FileId, Uri};
 use futures::future::BoxFuture;
@@ -89,6 +89,11 @@ impl Workspace {
     /// Return this workspace's canonical root.
     pub fn root(&self) -> &Path {
         &self.root
+    }
+
+    /// Start one trace configured for this workspace executor.
+    pub fn start_trace(&self, level: TraceLevel) -> Arc<Trace> {
+        self.session.start_trace(level)
     }
 
     /// Snapshot one workspace operation trace with repository display names.

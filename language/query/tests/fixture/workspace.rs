@@ -145,14 +145,18 @@ impl QueryWorkspace {
         &self,
         revision: Revision,
         changes: &[QueryChange],
+        trace: &Trace,
     ) -> Result<Revision, String> {
-        let edits = changes
-            .iter()
-            .map(|change| self.change_edit(change))
-            .collect::<Result<Vec<_>, _>>()?;
+        trace.add_counter("edit.changes", changes.len() as u64);
+        let edits = trace.span("edit.lower", || {
+            changes
+                .iter()
+                .map(|change| self.change_edit(change))
+                .collect::<Result<Vec<_>, _>>()
+        })?;
 
-        self.repository
-            .edit(revision, edits)
+        trace
+            .span("revision.edit", || self.repository.edit(revision, edits))
             .map(|commit| commit.after)
             .map_err(|error| format!("failed to edit query revision: {error}"))
     }
@@ -194,21 +198,28 @@ impl QueryWorkspace {
         self.has_timings
     }
 
-    /// Begin one fixture operation trace when timings are enabled.
-    pub(super) fn begin_trace(&self) -> Option<Arc<Trace>> {
-        self.has_timings
-            .then(|| Trace::new(self.repository.host().clock(), 1, TraceLevel::Timings))
+    /// Start one fixture operation trace.
+    pub(super) fn begin_trace(&self) -> Arc<Trace> {
+        let level = if self.has_timings {
+            TraceLevel::Timings
+        } else {
+            TraceLevel::Disabled
+        };
+
+        self.workspace.start_trace(level)
     }
 
-    /// Finish and snapshot one fixture operation trace.
+    /// Finish one fixture operation trace and retain requested timings.
     pub(super) fn finish_trace(
         &self,
         revision: Revision,
         trace: Arc<Trace>,
-    ) -> Result<TraceSnapshot, String> {
+    ) -> Result<Option<TraceSnapshot>, String> {
         trace.finish();
 
-        self.snapshot_trace(revision, trace)
+        self.has_timings
+            .then(|| self.snapshot_trace(revision, trace))
+            .transpose()
     }
 
     /// Snapshot one completed query trace.

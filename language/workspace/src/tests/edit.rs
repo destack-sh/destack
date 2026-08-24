@@ -1,4 +1,5 @@
 use destack_core::Blob;
+use destack_repository::TraceLevel;
 use destack_source::{Edit, FileSystem};
 
 use crate::tests::harness::TestWorkspace;
@@ -64,6 +65,7 @@ fn test_edit_save_and_restore_branch() {
         .expect("create branch");
     let branches = test.workspace.branches().expect("list branches");
     assert_eq!(branches[0].name, branch);
+    let trace = test.workspace.start_trace(TraceLevel::Disabled);
 
     // edit both files without changing physical state
     let commit = test
@@ -81,6 +83,7 @@ fn test_edit_save_and_restore_branch() {
                     text: "export const second = 2;\n".to_string(),
                 },
             ],
+            trace.as_ref(),
         )
         .expect("edit branch");
     assert_eq!(
@@ -218,6 +221,7 @@ fn test_edit_rejects_escaping_path() {
     test.workspace
         .create_branch(branch.clone(), physical)
         .expect("create branch");
+    let trace = test.workspace.start_trace(TraceLevel::Disabled);
 
     let error = test
         .workspace
@@ -228,6 +232,7 @@ fn test_edit_rejects_escaping_path() {
                 path: "../outside.ds".into(),
                 text: "export const escaped = true;\n".to_string(),
             }],
+            trace.as_ref(),
         )
         .expect_err("reject escaping source path");
 

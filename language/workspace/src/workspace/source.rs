@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use destack_repository as repository;
-use destack_repository::{Change, Commit, Revision, RevisionPin};
+use destack_repository::{Change, Commit, Revision, RevisionPin, Trace};
 use destack_source::{Edit, FileId, FilePatch, ModuleId, Patch, Span, TextPatch, apply_file_patch};
 
 use crate::Error;
@@ -31,8 +31,9 @@ impl Workspace {
         name: &str,
         revision: Revision,
         edits: Vec<Edit>,
+        trace: &Trace,
     ) -> Result<Commit, Error> {
-        let mut state = self.lock()?;
+        let mut state = trace.span("branch.lock", || self.lock())?;
         let current = state.branch(name)?.revision();
         if current != revision {
             return Err(Error::StaleRevision {
@@ -41,18 +42,25 @@ impl Workspace {
             });
         }
 
-        let edits = edits
-            .into_iter()
-            .map(|edit| self.resolve_edit(edit))
-            .collect::<Result<Vec<_>, _>>()?;
-        let edits = edits
-            .into_iter()
-            .map(|edit| self.lower(revision, edit))
-            .collect::<Result<Vec<_>, _>>()?;
-        let commit = self.repository.edit(revision, edits)?;
-        let after = self.repository.pin(commit.after)?;
-        state.branches.insert(name.to_string(), after.clone());
-        self.publish(Some(name), &commit, after);
+        trace.add_counter("edit.changes", edits.len() as u64);
+        let edits = trace.span("edit.resolve", || {
+            edits
+                .into_iter()
+                .map(|edit| self.resolve_edit(edit))
+                .collect::<Result<Vec<_>, _>>()
+        })?;
+        let edits = trace.span("edit.lower", || {
+            edits
+                .into_iter()
+                .map(|edit| self.lower(revision, edit))
+                .collect::<Result<Vec<_>, _>>()
+        })?;
+        let commit = trace.span("revision.edit", || self.repository.edit(revision, edits))?;
+        let after = trace.span("revision.pin", || self.repository.pin(commit.after))?;
+        trace.span("branch.publish", || {
+            state.branches.insert(name.to_string(), after.clone());
+            self.publish(Some(name), &commit, after);
+        });
 
         Ok(commit)
     }
