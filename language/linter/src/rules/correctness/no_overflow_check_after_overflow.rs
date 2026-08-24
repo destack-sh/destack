@@ -43,6 +43,71 @@ struct OverflowTest {
     method: &'static str,
 }
 
+impl OverflowTest {
+    /// Select one exact unsigned overflow idiom.
+    fn select(
+        module: &DirModule<'_>,
+        comparison: dir::BinaryOperator,
+        left: &dir::BuiltinOperand,
+        right: &dir::BuiltinOperand,
+    ) -> Result<Option<Self>, ProviderError> {
+        // consider the arithmetic result on either comparison side
+        let candidates = match comparison {
+            dir::BinaryOperator::LessThan => [
+                (dir::BinaryOperator::LessThan, left.source.local_id, right),
+                (
+                    dir::BinaryOperator::GreaterThan,
+                    right.source.local_id,
+                    left,
+                ),
+            ],
+            dir::BinaryOperator::GreaterThan => [
+                (
+                    dir::BinaryOperator::GreaterThan,
+                    left.source.local_id,
+                    right,
+                ),
+                (dir::BinaryOperator::LessThan, right.source.local_id, left),
+            ],
+            _ => return Ok(None),
+        };
+
+        // require one canonical comparison against the minuend or either addend
+        for (comparison, result, compared) in candidates {
+            let Some((arithmetic, operands @ [first, second])) = module.builtin_binary(result)?
+            else {
+                continue;
+            };
+            let is_unsigned = matches!(
+                module.primitive_type(result.into_any())?,
+                Some(dir::PrimitiveType::Integer(integer)) if !integer.is_signed()
+            );
+            if !operands.iter().all(dir::BuiltinOperand::is_integral) || !is_unsigned {
+                continue;
+            }
+            let method = match (arithmetic, comparison) {
+                (dir::BinaryOperator::Add, dir::BinaryOperator::LessThan) => "checkedAdd",
+                (dir::BinaryOperator::Subtract, dir::BinaryOperator::GreaterThan) => {
+                    "checkedSubtract"
+                }
+                _ => continue,
+            };
+            let is_compared = module.is_same_operand(first, compared)?
+                || arithmetic == dir::BinaryOperator::Add
+                    && module.is_same_operand(second, compared)?;
+            if is_compared {
+                return Ok(Some(Self {
+                    receiver: first.source.local_id,
+                    argument: second.source.local_id,
+                    method,
+                }));
+            }
+        }
+
+        Ok(None)
+    }
+}
+
 /// Report unsigned overflow tests that first evaluate the fallible operation.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
@@ -53,7 +118,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some((comparison, [left, right])) = module.builtin_binary(expression)? else {
             continue;
         };
-        let Some(test) = overflow_test(module, comparison, left, right)? else {
+        let Some(test) = OverflowTest::select(module, comparison, left, right)? else {
             continue;
         };
 
@@ -67,70 +132,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     }
 
     Ok(output)
-}
-
-/// Select one exact unsigned overflow idiom.
-fn overflow_test(
-    module: &DirModule<'_>,
-    comparison: dir::BinaryOperator,
-    left: &dir::BuiltinOperand,
-    right: &dir::BuiltinOperand,
-) -> Result<Option<OverflowTest>, ProviderError> {
-    // consider the arithmetic result on either comparison side
-    let candidates = match comparison {
-        dir::BinaryOperator::LessThan => [
-            (dir::BinaryOperator::LessThan, left.source.local_id, right),
-            (
-                dir::BinaryOperator::GreaterThan,
-                right.source.local_id,
-                left,
-            ),
-        ],
-        dir::BinaryOperator::GreaterThan => [
-            (
-                dir::BinaryOperator::GreaterThan,
-                left.source.local_id,
-                right,
-            ),
-            (dir::BinaryOperator::LessThan, right.source.local_id, left),
-        ],
-        _ => return Ok(None),
-    };
-
-    // require one canonical comparison against the minuend or either addend
-    for (comparison, result, compared) in candidates {
-        let Some((arithmetic, operands @ [first, second])) = module.builtin_binary(result)? else {
-            continue;
-        };
-        let is_unsigned = matches!(
-            module.primitive_type(result.into_any())?,
-            Some(dir::PrimitiveType::Integer(integer)) if !integer.is_signed()
-        );
-        if !operands.iter().all(dir::BuiltinOperand::is_integral) || !is_unsigned {
-            continue;
-        }
-        let method = match (arithmetic, comparison) {
-            (dir::BinaryOperator::Add, dir::BinaryOperator::LessThan) => "checkedAdd",
-            (dir::BinaryOperator::Subtract, dir::BinaryOperator::GreaterThan) => "checkedSubtract",
-            _ => continue,
-        };
-        if module.is_same_operand(first, compared)? {
-            return Ok(Some(OverflowTest {
-                receiver: first.source.local_id,
-                argument: second.source.local_id,
-                method,
-            }));
-        }
-        if arithmetic == dir::BinaryOperator::Add && module.is_same_operand(second, compared)? {
-            return Ok(Some(OverflowTest {
-                receiver: second.source.local_id,
-                argument: first.source.local_id,
-                method,
-            }));
-        }
-    }
-
-    Ok(None)
 }
 
 /// Build a checked-arithmetic overflow predicate.
@@ -178,7 +179,32 @@ function overflows(left: uint32, right: uint32): boolean {
         session.assert_suggestions(
             r#"
 function overflows(left: uint32, right: uint32): boolean {
-    return right.checkedAdd(left) === undefined;
+    return left.checkedAdd(right) === undefined;
+}
+"#,
+        );
+    }
+
+    /// Preserve arithmetic operand evaluation order when testing the second addend.
+    #[test]
+    fn test_preserves_addition_evaluation_order() {
+        let session = TestSession::dir(
+            &NO_OVERFLOW_CHECK_AFTER_OVERFLOW,
+            r#"
+declare function next(): uint32;
+
+function overflows(limit: uint32): boolean {
+    return next() + limit < limit;
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+declare function next(): uint32;
+
+function overflows(limit: uint32): boolean {
+    return next().checkedAdd(limit) === undefined;
 }
 "#,
         );
