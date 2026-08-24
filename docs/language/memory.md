@@ -13,6 +13,7 @@ Destack has a broader, more explicit memory model with four dimensions of *opt-i
 - **Ownership**: managed `T`, (explicitly) owned `^T`, borrowed `&T`, or raw `*T`.
 - **Access**: readonly, mutable, or exclusive.
 - **Placement**: relative inside stored type definitions, otherwise `local` by default or explicitly `shared` across Workers.
+  Literal and link-time constant values live in a third, program-wide `constant` space that every space may reference and that is never collected.
 - **Lifetime**: provenance of a borrow, such as `"static"` or `"frame"`.
 
 Ownership and placement compose freely, e.g. `shared ^T` and `^shared T` both mean an owned value in shared space, and `shared &T` is a borrow of a shared value.
@@ -748,13 +749,14 @@ for (const point of ownedPoints) {
 
 ## Capabilities
 
-Destack encodes memory capabilities as trait-like interfaces, usable as ordinary bounds:
+Destack encodes memory capabilities as trait-like interfaces, usable as ordinary bounds. In general, their application is derived automatically by the compiler, but they may be implemented manually as well (including when @unsafe).
 
 | Capability | Meaning |
 |------------|---------|
 | `Copy` | Value can be duplicated implicitly without changing ownership responsibilities. |
 | `Clone` | Code can explicitly create another value, possibly by running code or allocating. |
 | `SharedSafe` | Values of the type may be stored in [shared space](#shared-space). |
+| `SuspendSafe` | Values of the type may stay live across a suspension point, `await` and `yield` alike. |
 | `OverwriteStable` | Place can be [overwritten](#stability) through a non-exclusive mutable access. |
 | `DynamicSafe` | Type can be erased behind a [`Dynamic<T>`](./types.md#representation) carrier. |
 | `AtomicSafe` | Value has a supported atomic storage representation. |
@@ -762,9 +764,6 @@ Destack encodes memory capabilities as trait-like interfaces, usable as ordinary
 | `Zeroable` | Type is valid when all bytes are zero. |
 | `Unpin` | Value may move out of pinned storage. |
 | `Default` | Type has a conventional `default()` value. |
-
-The compiler derives representation markers such as `Copy`, `SharedSafe`, `OverwriteStable`, and `DynamicSafe` structurally.
-Member-bearing capabilities such as `Clone` and `Default` use ordinary extension implementations.
 
 ## Synchronization
 
