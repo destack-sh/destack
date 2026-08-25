@@ -177,12 +177,12 @@ dep.value;
 /// @reference.target source=dep kind=namespace module=dep.ds
 /// @reference.target source=dep.value kind=bound targets=[dep.value]
 
-/// @import.language item=collections.Array symbol=collections.array.Array
-/// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
-/// @import.language item=collections.Slice symbol=collections.slice.Slice
-/// @import.language item=math.BigInt symbol=math.bigint.BigInt
-/// @import.language item=math.Number symbol=math.number.Number
-/// @import.language item=string.String symbol=string.string.String
+/// @import.language item=collections.Array symbol=Array
+/// @import.language item=collections.FixedArray symbol=FixedArray
+/// @import.language item=collections.Slice symbol=Slice
+/// @import.language item=math.BigInt symbol=BigInt
+/// @import.language item=math.Number symbol=Number
+/// @import.language item=string.String symbol=String
 
 /// @import.summary symbols=1 language=6
 /// @reference.summary references=3 declarations=1
@@ -222,12 +222,12 @@ dep.make().value;
 /// @reference.target source=dep kind=namespace module=dep.ds
 /// @reference.target source=dep.make kind=bound targets=[dep.make]
 
-/// @import.language item=collections.Array symbol=collections.array.Array
-/// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
-/// @import.language item=collections.Slice symbol=collections.slice.Slice
-/// @import.language item=math.BigInt symbol=math.bigint.BigInt
-/// @import.language item=math.Number symbol=math.number.Number
-/// @import.language item=string.String symbol=string.string.String
+/// @import.language item=collections.Array symbol=Array
+/// @import.language item=collections.FixedArray symbol=FixedArray
+/// @import.language item=collections.Slice symbol=Slice
+/// @import.language item=math.BigInt symbol=BigInt
+/// @import.language item=math.Number symbol=Number
+/// @import.language item=string.String symbol=String
 
 /// @import.summary symbols=1 language=6
 /// @reference.summary references=3 declarations=1
@@ -275,12 +275,12 @@ dep.api.value;
 /// @reference.target source=dep.api kind=namespace module=api.ds
 /// @reference.target source=dep.api.value kind=bound targets=[api.value]
 
-/// @import.language item=collections.Array symbol=collections.array.Array
-/// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
-/// @import.language item=collections.Slice symbol=collections.slice.Slice
-/// @import.language item=math.BigInt symbol=math.bigint.BigInt
-/// @import.language item=math.Number symbol=math.number.Number
-/// @import.language item=string.String symbol=string.string.String
+/// @import.language item=collections.Array symbol=Array
+/// @import.language item=collections.FixedArray symbol=FixedArray
+/// @import.language item=collections.Slice symbol=Slice
+/// @import.language item=math.BigInt symbol=BigInt
+/// @import.language item=math.Number symbol=Number
+/// @import.language item=string.String symbol=String
 
 /// @import.summary symbols=1 language=6
 /// @reference.summary references=4 declarations=2
@@ -329,12 +329,12 @@ dep.api.value;
 /// @reference.target source=dep.api kind=namespace module=api.ds
 /// @reference.target source=dep.api.value kind=bound targets=[api.value]
 
-/// @import.language item=collections.Array symbol=collections.array.Array
-/// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
-/// @import.language item=collections.Slice symbol=collections.slice.Slice
-/// @import.language item=math.BigInt symbol=math.bigint.BigInt
-/// @import.language item=math.Number symbol=math.number.Number
-/// @import.language item=string.String symbol=string.string.String
+/// @import.language item=collections.Array symbol=Array
+/// @import.language item=collections.FixedArray symbol=FixedArray
+/// @import.language item=collections.Slice symbol=Slice
+/// @import.language item=math.BigInt symbol=BigInt
+/// @import.language item=math.Number symbol=Number
+/// @import.language item=string.String symbol=String
 
 /// @import.summary symbols=1 language=6
 /// @reference.summary references=4 declarations=2
@@ -422,8 +422,8 @@ import { todo } from "destack:error";
         DirRows::imports().with_summaries(),
         r#"
 import { todo } from "destack:error";
-/// @import.resolved symbol=todo declarations=[error.panic.todo] targets=[error.panic.todo]
-/// @reference.target source=todo kind=bound targets=[error.panic.todo]
+/// @import.resolved symbol=todo declarations=[todo] targets=[todo]
+/// @reference.target source=todo kind=bound targets=[todo]
 
 /// @import.summary symbols=1
 /// @reference.summary references=1

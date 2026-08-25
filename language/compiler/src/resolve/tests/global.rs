@@ -129,12 +129,12 @@ export type Option = string;
         DirRows::imports().with_summaries(),
         r#"
 let value = Function;
-/// @reference.target source=Function kind=ambiguous targets=[types.function.Function, types.Function]
+/// @reference.target source=Function kind=ambiguous targets=[Function, types.Function]
 
 let projected: Function.Member;
-/// @reference.target source=Function.Member kind=ambiguous targets=[types.function.Function, types.Function]
+/// @reference.target source=Function.Member kind=ambiguous targets=[Function, types.Function]
 
-/// @import.global key=Function declarations=[types.function.Function, types.Function] targets=[types.function.Function, types.Function]
+/// @import.global key=Function declarations=[Function, types.Function] targets=[Function, types.Function]
 
 /// @import.summary globals=1
 /// @reference.summary references=2
@@ -239,12 +239,12 @@ let local = api.value;
 /// @reference.target source=api kind=namespace module=api.ds
 /// @reference.target source=api.value kind=bound targets=[api.value]
 
-/// @import.language item=collections.Array symbol=collections.array.Array
-/// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
-/// @import.language item=collections.Slice symbol=collections.slice.Slice
-/// @import.language item=math.BigInt symbol=math.bigint.BigInt
-/// @import.language item=math.Number symbol=math.number.Number
-/// @import.language item=string.String symbol=string.string.String
+/// @import.language item=collections.Array symbol=Array
+/// @import.language item=collections.FixedArray symbol=FixedArray
+/// @import.language item=collections.Slice symbol=Slice
+/// @import.language item=math.BigInt symbol=BigInt
+/// @import.language item=math.Number symbol=Number
+/// @import.language item=string.String symbol=String
 /// @import.global key=api declarations=[globals.api] targets=[api.ds]
 
 /// @import.summary globals=1 language=6
@@ -294,10 +294,10 @@ export class Promise<T> {}
         DirRows::imports().with_summaries(),
         r#"
 let promise: Promise<string>;
-/// @reference.target source=Promise kind=ambiguous targets=[async.promise.Promise, async.Promise]
+/// @reference.target source=Promise kind=ambiguous targets=[Promise, async.Promise]
 
-/// @import.language item=string.String symbol=string.string.String
-/// @import.global key=Promise declarations=[async.promise.Promise, async.Promise] targets=[async.promise.Promise, async.Promise]
+/// @import.language item=string.String symbol=String
+/// @import.global key=Promise declarations=[Promise, async.Promise] targets=[Promise, async.Promise]
 
 /// @import.summary globals=1 language=1
 /// @reference.summary references=1
@@ -321,10 +321,10 @@ let promise: Promise<string>;
         DirRows::imports().with_summaries(),
         r#"
 let promise: Promise<string>;
-/// @reference.target source=Promise kind=bound targets=[async.promise.Promise]
+/// @reference.target source=Promise kind=bound targets=[Promise]
 
-/// @import.language item=string.String symbol=string.string.String
-/// @import.global key=Promise declarations=[async.promise.Promise] targets=[async.promise.Promise]
+/// @import.language item=string.String symbol=String
+/// @import.global key=Promise declarations=[Promise] targets=[Promise]
 
 /// @import.summary globals=1 language=1
 /// @reference.summary references=1
@@ -349,7 +349,7 @@ const load = async () => 1;
         r#"
 const load = async () => 1;
 
-/// @import.language item=async.Promise symbol=async.promise.Promise
+/// @import.language item=async.Promise symbol=Promise
 
 /// @import.summary language=1
 "#,
@@ -375,7 +375,7 @@ const load = async () => 1;
 class Promise {}
 const load = async () => 1;
 
-/// @import.language item=async.Promise symbol=async.promise.Promise
+/// @import.language item=async.Promise symbol=Promise
 
 /// @import.summary language=1
 "#,
@@ -399,13 +399,13 @@ const runtime = import.meta.runtime;
         r#"
 const runtime = import.meta.runtime;
 
-/// @import.language item=collections.Array symbol=collections.array.Array
-/// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
-/// @import.language item=collections.Slice symbol=collections.slice.Slice
-/// @import.language item=math.BigInt symbol=math.bigint.BigInt
-/// @import.language item=math.Number symbol=math.number.Number
-/// @import.language item=module.ImportMeta symbol=module.meta.ImportMeta
-/// @import.language item=string.String symbol=string.string.String
+/// @import.language item=collections.Array symbol=Array
+/// @import.language item=collections.FixedArray symbol=FixedArray
+/// @import.language item=collections.Slice symbol=Slice
+/// @import.language item=math.BigInt symbol=BigInt
+/// @import.language item=math.Number symbol=Number
+/// @import.language item=module.ImportMeta symbol=ImportMeta
+/// @import.language item=string.String symbol=String
 
 /// @import.summary language=7
 "#,
@@ -435,7 +435,7 @@ const value = left + right;
 /// @reference.target source=left kind=bound targets=[left]
 /// @reference.target source=right kind=bound targets=[right]
 
-/// @import.language item=ops.Add symbol=ops.plus.Add
+/// @import.language item=ops.Add symbol=Add
 
 /// @import.summary language=1
 /// @reference.summary references=2
@@ -471,7 +471,7 @@ const different = left !== right;
 /// @reference.target source=left kind=bound targets=[left]
 /// @reference.target source=right kind=bound targets=[right]
 
-/// @import.language item=ops.StrictEqual symbol=ops.equality.StrictEqual
+/// @import.language item=ops.StrictEqual symbol=StrictEqual
 
 /// @import.summary language=1
 /// @reference.summary references=4
@@ -619,12 +619,12 @@ const api = {};
 const value = api.value;
 /// @reference.target source=api kind=bound targets=[api]
 
-/// @import.language item=collections.Array symbol=collections.array.Array
-/// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
-/// @import.language item=collections.Slice symbol=collections.slice.Slice
-/// @import.language item=math.BigInt symbol=math.bigint.BigInt
-/// @import.language item=math.Number symbol=math.number.Number
-/// @import.language item=string.String symbol=string.string.String
+/// @import.language item=collections.Array symbol=Array
+/// @import.language item=collections.FixedArray symbol=FixedArray
+/// @import.language item=collections.Slice symbol=Slice
+/// @import.language item=math.BigInt symbol=BigInt
+/// @import.language item=math.Number symbol=Number
+/// @import.language item=string.String symbol=String
 
 /// @import.summary language=6
 /// @reference.summary references=1

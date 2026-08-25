@@ -28,12 +28,12 @@ declare const point: { x: int32; y: string };
 /// @reference.target source=label kind=bound targets=[label]
 /// @reference.target source=point kind=bound targets=[point]
 
-/// @import.language item=collections.Array symbol=collections.array.Array
-/// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
-/// @import.language item=collections.Slice symbol=collections.slice.Slice
-/// @import.language item=math.BigInt symbol=math.bigint.BigInt
-/// @import.language item=math.Number symbol=math.number.Number
-/// @import.language item=string.String symbol=string.string.String
+/// @import.language item=collections.Array symbol=Array
+/// @import.language item=collections.FixedArray symbol=FixedArray
+/// @import.language item=collections.Slice symbol=Slice
+/// @import.language item=math.BigInt symbol=BigInt
+/// @import.language item=math.Number symbol=Number
+/// @import.language item=string.String symbol=String
 
 /// @import.summary language=6
 /// @reference.summary references=3
@@ -61,7 +61,7 @@ type User = string;
 let value: User;
 /// @reference.target source=User kind=bound targets=[User]
 
-/// @import.language item=string.String symbol=string.string.String
+/// @import.language item=string.String symbol=String
 
 /// @import.summary language=1
 /// @reference.summary references=1
@@ -115,7 +115,7 @@ let value: User;
 
 type User = string;
 
-/// @import.language item=string.String symbol=string.string.String
+/// @import.language item=string.String symbol=String
 
 /// @import.summary language=1
 /// @reference.summary references=1
