@@ -3,12 +3,12 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonBigint, jsonField, jsonInteger, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 import type { StaticKey } from "../symbol/key.js";
 import type { FunctionSignature } from "./function.js";
-import type { ScalarLiteral } from "./literal.js";
+import type { Literal } from "./literal.js";
 import type { GlobalTypeId } from "../type/type.js";
 import type { ModuleId } from "../../source/file/model/module.js";
 import { decodeStaticKey, encodeStaticKey, fromJsonStaticKey, toJsonStaticKey } from "../symbol/key.js";
 import { decodeFunctionSignature, encodeFunctionSignature, fromJsonFunctionSignature, toJsonFunctionSignature } from "./function.js";
-import { decodeScalarLiteral, encodeScalarLiteral, fromJsonScalarLiteral, toJsonScalarLiteral } from "./literal.js";
+import { decodeLiteral, encodeLiteral, fromJsonLiteral, toJsonLiteral } from "./literal.js";
 import { decodeGlobalTypeId, encodeGlobalTypeId, fromJsonGlobalTypeId, toJsonGlobalTypeId } from "../type/type.js";
 import { decodeModuleId, encodeModuleId, fromJsonModuleId, toJsonModuleId } from "../../source/file/model/module.js";
 
@@ -142,12 +142,6 @@ export type StaticProperty =
           /** The method body. */
           readonly body: StaticTerm;
       }
-    /** Static spread. */
-    | {
-          readonly kind: "spread";
-          /** The spread value. */
-          readonly value: StaticTerm;
-      }
 ;
 
 export const StaticProperty = {
@@ -159,11 +153,6 @@ export const StaticProperty = {
     /** Static member function. */
     method(key: StaticKey | undefined, signature: FunctionSignature, body: StaticTerm): StaticProperty {
         return { kind: "method", key, signature, body };
-    },
-
-    /** Static spread. */
-    spread(value: StaticTerm): StaticProperty {
-        return { kind: "spread", value };
     },
 
     /** Encode this value. */
@@ -203,10 +192,6 @@ export function encodeStaticProperty(writer: BinaryWriter, value: StaticProperty
             encodeFunctionSignature(writer, value.signature);
             encodeStaticTerm(writer, value.body);
             return;
-        case "spread":
-            writer.writeUnsigned(2);
-            encodeStaticTerm(writer, value.value);
-            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -239,14 +224,6 @@ export function decodeStaticProperty(reader: BinaryReader): StaticProperty {
                 body,
             };
         }
-        case 2: {
-            const value = decodeStaticTerm(reader);
-
-            return {
-                kind: "spread",
-                value,
-            };
-        }
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -267,11 +244,6 @@ export function toJsonStaticProperty(value: StaticProperty): Json {
                 ...(value.key === undefined ? {} : { key: toJsonStaticKey(value.key) }),
                 signature: toJsonFunctionSignature(value.signature),
                 body: toJsonStaticTerm(value.body),
-            };
-        case "spread":
-            return {
-                kind: "spread",
-                value: toJsonStaticTerm(value.value),
             };
     }
 
@@ -297,11 +269,6 @@ export function fromJsonStaticProperty(value: Json): StaticProperty {
                 signature: fromJsonFunctionSignature(jsonField(object, "signature")),
                 body: fromJsonStaticTerm(jsonField(object, "body")),
             };
-        case "spread":
-            return {
-                kind,
-                value: fromJsonStaticTerm(jsonField(object, "value")),
-            };
     }
 
     throw new SerdeError(`unknown enum variant: ${kind}`);
@@ -311,8 +278,8 @@ export function fromJsonStaticProperty(value: Json): StaticProperty {
 export type StaticTerm =
     /** Scalar literal. */
     | {
-          readonly kind: "scalarLiteral";
-          readonly value: ScalarLiteral;
+          readonly kind: "literal";
+          readonly value: Literal;
       }
     /** Type value. */
     | {
@@ -363,8 +330,8 @@ export type StaticTerm =
 
 export const StaticTerm = {
     /** Scalar literal. */
-    scalarLiteral(value: ScalarLiteral): StaticTerm {
-        return { kind: "scalarLiteral", value };
+    literal(value: Literal): StaticTerm {
+        return { kind: "literal", value };
     },
 
     /** Type value. */
@@ -426,9 +393,9 @@ export const StaticTerm = {
 /** Encode one StaticTerm. */
 export function encodeStaticTerm(writer: BinaryWriter, value: StaticTerm): void {
     switch (value.kind) {
-        case "scalarLiteral":
+        case "literal":
             writer.writeUnsigned(0);
-            encodeScalarLiteral(writer, value.value);
+            encodeLiteral(writer, value.value);
             return;
         case "type":
             writer.writeUnsigned(1);
@@ -484,10 +451,10 @@ export function decodeStaticTerm(reader: BinaryReader): StaticTerm {
 
     switch (variant) {
         case 0: {
-            const value = decodeScalarLiteral(reader);
+            const value = decodeLiteral(reader);
 
             return {
-                kind: "scalarLiteral",
+                kind: "literal",
                 value,
             };
         }
@@ -561,10 +528,10 @@ export function decodeStaticTerm(reader: BinaryReader): StaticTerm {
 /** Return one JSON value for one StaticTerm. */
 export function toJsonStaticTerm(value: StaticTerm): Json {
     switch (value.kind) {
-        case "scalarLiteral":
+        case "literal":
             return {
-                kind: "scalarLiteral",
-                value: toJsonScalarLiteral(value.value),
+                kind: "literal",
+                value: toJsonLiteral(value.value),
             };
         case "type":
             return {
@@ -615,10 +582,10 @@ export function fromJsonStaticTerm(value: Json): StaticTerm {
     const kind = jsonString(jsonField(object, "kind"));
 
     switch (kind) {
-        case "scalarLiteral":
+        case "literal":
             return {
                 kind,
-                value: fromJsonScalarLiteral(jsonField(object, "value")),
+                value: fromJsonLiteral(jsonField(object, "value")),
             };
         case "type":
             return {

@@ -6,14 +6,14 @@ import type { ExportResolution } from "../dir/symbol/export.js";
 import type { StaticKey } from "../dir/symbol/key.js";
 import type { LanguageItem } from "../dir/symbol/language.js";
 import type { GlobalSymbolId } from "../dir/symbol/symbol.js";
-import type { PrimitiveType } from "../dir/type/primitive.js";
+import type { TypeRoot } from "../dir/table/definition.js";
 import type { ModuleId } from "../source/file/model/module.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../core/string.js";
 import { decodeExportResolution, encodeExportResolution, fromJsonExportResolution, toJsonExportResolution } from "../dir/symbol/export.js";
 import { decodeStaticKey, encodeStaticKey, fromJsonStaticKey, toJsonStaticKey } from "../dir/symbol/key.js";
 import { decodeLanguageItem, encodeLanguageItem, fromJsonLanguageItem, toJsonLanguageItem } from "../dir/symbol/language.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../dir/symbol/symbol.js";
-import { decodePrimitiveType, encodePrimitiveType, fromJsonPrimitiveType, toJsonPrimitiveType } from "../dir/type/primitive.js";
+import { decodeTypeRoot, encodeTypeRoot, fromJsonTypeRoot, toJsonTypeRoot } from "../dir/table/definition.js";
 import { decodeModuleId, encodeModuleId, fromJsonModuleId, toJsonModuleId } from "../source/file/model/module.js";
 
 /** Bound-stage aggregate over the implicit modules. */
@@ -117,13 +117,11 @@ export function fromJsonEnvironmentBound(value: Json): EnvironmentBound {
 /** Declared-stage aggregate over the implicit modules. */
 export type EnvironmentDeclared = {
     /** Extension declarations keyed by their resolved target root. */
-    readonly extensionsByRoot: ReadonlyMap<GlobalSymbolId, ReadonlyArray<GlobalSymbolId>>;
-    /** Ground extension declarations keyed by their primitive target. */
-    readonly extensionsByPrimitive: ReadonlyMap<PrimitiveType, ReadonlyArray<GlobalSymbolId>>;
+    readonly extensionsByRoot: ReadonlyMap<TypeRoot, ReadonlyArray<GlobalSymbolId>>;
     /** Blanket extension declarations over open parameter targets. */
     readonly blanketExtensions: ReadonlyArray<GlobalSymbolId>;
-    /** Implementing declarations keyed by their implemented interface. */
-    readonly implementationsByInterface: ReadonlyMap<GlobalSymbolId, ReadonlyArray<GlobalSymbolId>>;
+    /** Implementing declarations keyed by their implemented interface, with their target roots. */
+    readonly implementationsByInterface: ReadonlyMap<GlobalSymbolId, ReadonlyArray<readonly [GlobalSymbolId, TypeRoot | undefined]>>;
 };
 
 export const EnvironmentDeclared = {
@@ -152,65 +150,51 @@ export const EnvironmentDeclared = {
 export function encodeEnvironmentDeclared(writer: BinaryWriter, value: EnvironmentDeclared): void {
     const entries0 = Array.from(value.extensionsByRoot.entries()).map(([key0, item0]) => {
         const keyBytes = nestedBytes((writer) => {
-            encodeGlobalSymbolId(writer, key0);
+            encodeTypeRoot(writer, key0);
         });
         return { key0, item0, keyBytes };
     });
     entries0.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
     writer.writeUnsigned(entries0.length);
     for (const entry0 of entries0) {
-        encodeGlobalSymbolId(writer, entry0.key0);
+        encodeTypeRoot(writer, entry0.key0);
         writer.writeUnsigned(entry0.item0.length);
         for (const item1 of entry0.item0) {
             encodeGlobalSymbolId(writer, item1);
         }
     }
-    const entries1 = Array.from(value.extensionsByPrimitive.entries()).map(([key1, item1]) => {
-        const keyBytes = nestedBytes((writer) => {
-            encodePrimitiveType(writer, key1);
-        });
-        return { key1, item1, keyBytes };
-    });
-    entries1.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
-    writer.writeUnsigned(entries1.length);
-    for (const entry1 of entries1) {
-        encodePrimitiveType(writer, entry1.key1);
-        writer.writeUnsigned(entry1.item1.length);
-        for (const item2 of entry1.item1) {
-            encodeGlobalSymbolId(writer, item2);
-        }
-    }
     writer.writeUnsigned(value.blanketExtensions.length);
-    for (const item2 of value.blanketExtensions) {
-        encodeGlobalSymbolId(writer, item2);
+    for (const item1 of value.blanketExtensions) {
+        encodeGlobalSymbolId(writer, item1);
     }
-    const entries3 = Array.from(value.implementationsByInterface.entries()).map(([key3, item3]) => {
+    const entries2 = Array.from(value.implementationsByInterface.entries()).map(([key2, item2]) => {
         const keyBytes = nestedBytes((writer) => {
-            encodeGlobalSymbolId(writer, key3);
+            encodeGlobalSymbolId(writer, key2);
         });
-        return { key3, item3, keyBytes };
+        return { key2, item2, keyBytes };
     });
-    entries3.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
-    writer.writeUnsigned(entries3.length);
-    for (const entry3 of entries3) {
-        encodeGlobalSymbolId(writer, entry3.key3);
-        writer.writeUnsigned(entry3.item3.length);
-        for (const item4 of entry3.item3) {
-            encodeGlobalSymbolId(writer, item4);
+    entries2.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
+    writer.writeUnsigned(entries2.length);
+    for (const entry2 of entries2) {
+        encodeGlobalSymbolId(writer, entry2.key2);
+        writer.writeUnsigned(entry2.item2.length);
+        for (const item3 of entry2.item2) {
+            encodeGlobalSymbolId(writer, item3[0]);
+            writer.writeOption(item3[1], (value5) => {
+                encodeTypeRoot(writer, value5);
+            });
         }
     }
 }
 
 /** Decode one EnvironmentDeclared. */
 export function decodeEnvironmentDeclared(reader: BinaryReader): EnvironmentDeclared {
-    const extensionsByRoot = (() => { const length0 = reader.readNumber(); const items0 = new Map<GlobalSymbolId, ReadonlyArray<GlobalSymbolId>>(); for (let index = 0; index < length0; index += 1) { items0.set(decodeGlobalSymbolId(reader), (() => { const length2 = reader.readNumber(); const items2: Array<GlobalSymbolId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeGlobalSymbolId(reader)); } return items2; })()); } return items0; })();
-    const extensionsByPrimitive = (() => { const length1 = reader.readNumber(); const items1 = new Map<PrimitiveType, ReadonlyArray<GlobalSymbolId>>(); for (let index = 0; index < length1; index += 1) { items1.set(decodePrimitiveType(reader), (() => { const length3 = reader.readNumber(); const items3: Array<GlobalSymbolId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeGlobalSymbolId(reader)); } return items3; })()); } return items1; })();
-    const blanketExtensions = (() => { const length2 = reader.readNumber(); const items2: Array<GlobalSymbolId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeGlobalSymbolId(reader)); } return items2; })();
-    const implementationsByInterface = (() => { const length3 = reader.readNumber(); const items3 = new Map<GlobalSymbolId, ReadonlyArray<GlobalSymbolId>>(); for (let index = 0; index < length3; index += 1) { items3.set(decodeGlobalSymbolId(reader), (() => { const length5 = reader.readNumber(); const items5: Array<GlobalSymbolId> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeGlobalSymbolId(reader)); } return items5; })()); } return items3; })();
+    const extensionsByRoot = (() => { const length0 = reader.readNumber(); const items0 = new Map<TypeRoot, ReadonlyArray<GlobalSymbolId>>(); for (let index = 0; index < length0; index += 1) { items0.set(decodeTypeRoot(reader), (() => { const length2 = reader.readNumber(); const items2: Array<GlobalSymbolId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeGlobalSymbolId(reader)); } return items2; })()); } return items0; })();
+    const blanketExtensions = (() => { const length1 = reader.readNumber(); const items1: Array<GlobalSymbolId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGlobalSymbolId(reader)); } return items1; })();
+    const implementationsByInterface = (() => { const length2 = reader.readNumber(); const items2 = new Map<GlobalSymbolId, ReadonlyArray<readonly [GlobalSymbolId, TypeRoot | undefined]>>(); for (let index = 0; index < length2; index += 1) { items2.set(decodeGlobalSymbolId(reader), (() => { const length4 = reader.readNumber(); const items4: Array<readonly [GlobalSymbolId, TypeRoot | undefined]> = []; for (let index = 0; index < length4; index += 1) { items4.push([decodeGlobalSymbolId(reader), reader.readOption(() => decodeTypeRoot(reader))] as const); } return items4; })()); } return items2; })();
 
     return {
         extensionsByRoot,
-        extensionsByPrimitive,
         blanketExtensions,
         implementationsByInterface,
     };
@@ -219,10 +203,9 @@ export function decodeEnvironmentDeclared(reader: BinaryReader): EnvironmentDecl
 /** Return one JSON value for one EnvironmentDeclared. */
 export function toJsonEnvironmentDeclared(value: EnvironmentDeclared): Json {
     return {
-        extensionsByRoot: Array.from(value.extensionsByRoot.entries()).map(([key0, item0]) => [toJsonGlobalSymbolId(key0), item0.map((item1) => toJsonGlobalSymbolId(item1))] as const),
-        extensionsByPrimitive: Array.from(value.extensionsByPrimitive.entries()).map(([key0, item0]) => [toJsonPrimitiveType(key0), item0.map((item1) => toJsonGlobalSymbolId(item1))] as const),
+        extensionsByRoot: Array.from(value.extensionsByRoot.entries()).map(([key0, item0]) => [toJsonTypeRoot(key0), item0.map((item1) => toJsonGlobalSymbolId(item1))] as const),
         blanketExtensions: value.blanketExtensions.map((item0) => toJsonGlobalSymbolId(item0)),
-        implementationsByInterface: Array.from(value.implementationsByInterface.entries()).map(([key0, item0]) => [toJsonGlobalSymbolId(key0), item0.map((item1) => toJsonGlobalSymbolId(item1))] as const),
+        implementationsByInterface: Array.from(value.implementationsByInterface.entries()).map(([key0, item0]) => [toJsonGlobalSymbolId(key0), item0.map((item1) => [toJsonGlobalSymbolId(item1[0]), item1[1] === undefined ? null : toJsonTypeRoot(item1[1])])] as const),
     };
 }
 
@@ -231,10 +214,9 @@ export function fromJsonEnvironmentDeclared(value: Json): EnvironmentDeclared {
     const object = jsonObject(value);
 
     return {
-        extensionsByRoot: new Map(jsonArray(jsonField(object, "extensionsByRoot")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalSymbolId(key0), jsonArray(item0).map((item1) => fromJsonGlobalSymbolId(item1))] as const; })),
-        extensionsByPrimitive: new Map(jsonArray(jsonField(object, "extensionsByPrimitive")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonPrimitiveType(key0), jsonArray(item0).map((item1) => fromJsonGlobalSymbolId(item1))] as const; })),
+        extensionsByRoot: new Map(jsonArray(jsonField(object, "extensionsByRoot")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonTypeRoot(key0), jsonArray(item0).map((item1) => fromJsonGlobalSymbolId(item1))] as const; })),
         blanketExtensions: jsonArray(jsonField(object, "blanketExtensions")).map((item0) => fromJsonGlobalSymbolId(item0)),
-        implementationsByInterface: new Map(jsonArray(jsonField(object, "implementationsByInterface")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalSymbolId(key0), jsonArray(item0).map((item1) => fromJsonGlobalSymbolId(item1))] as const; })),
+        implementationsByInterface: new Map(jsonArray(jsonField(object, "implementationsByInterface")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalSymbolId(key0), jsonArray(item0).map((item1) => (() => { const items = jsonArray(item1); if (items.length !== 2) { throw new SerdeError(`expected JSON tuple length 2: ${items.length}`); } return [fromJsonGlobalSymbolId(items[0]), items[1] === null ? undefined : fromJsonTypeRoot(items[1])] as const; })())] as const; })),
     };
 }
 

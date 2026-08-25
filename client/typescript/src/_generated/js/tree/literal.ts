@@ -8,8 +8,8 @@ import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
 import { decodePath, encodePath, fromJsonPath, toJsonPath } from "./path.js";
 
-/** A ScalarLiteral is literal scalar value. */
-export type ScalarLiteral =
+/** A Literal is literal scalar value. */
+export type Literal =
     /** Null value. */
     | {
           readonly kind: "null";
@@ -46,65 +46,65 @@ export type ScalarLiteral =
       }
 ;
 
-export const ScalarLiteral = {
+export const Literal = {
     /** Null value. */
-    "null"(): ScalarLiteral {
+    "null"(): Literal {
         return { kind: "null" };
     },
 
     /** Undefined value. */
-    "undefined"(): ScalarLiteral {
+    "undefined"(): Literal {
         return { kind: "undefined" };
     },
 
     /** Boolean value. */
-    "boolean"(boolean_: boolean): ScalarLiteral {
+    "boolean"(boolean_: boolean): Literal {
         return { kind: "boolean", boolean: boolean_ };
     },
 
     /** Number value. */
-    "number"(number_: number): ScalarLiteral {
+    "number"(number_: number): Literal {
         return { kind: "number", number: number_ };
     },
 
     /** Bigint value. */
-    "bigint"(bigint_: bigint): ScalarLiteral {
+    "bigint"(bigint_: bigint): Literal {
         return { kind: "bigint", bigint: bigint_ };
     },
 
     /** String value. */
-    "string"(string_: StringId): ScalarLiteral {
+    "string"(string_: StringId): Literal {
         return { kind: "string", string: string_ };
     },
 
     /** Regex string value. */
-    regexString(content: StringId, flags: StringId | undefined): ScalarLiteral {
+    regexString(content: StringId, flags: StringId | undefined): Literal {
         return { kind: "regexString", content, flags };
     },
 
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: ScalarLiteral): void {
-        encodeScalarLiteral(writer, value);
+    encode(writer: BinaryWriter, value: Literal): void {
+        encodeLiteral(writer, value);
     },
 
-    /** Decode one ScalarLiteral. */
-    decode(reader: BinaryReader): ScalarLiteral {
-        return decodeScalarLiteral(reader);
+    /** Decode one Literal. */
+    decode(reader: BinaryReader): Literal {
+        return decodeLiteral(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: ScalarLiteral): Json {
-        return toJsonScalarLiteral(value);
+    toJson(value: Literal): Json {
+        return toJsonLiteral(value);
     },
 
-    /** Return one ScalarLiteral from one JSON value. */
-    fromJson(value: Json): ScalarLiteral {
-        return fromJsonScalarLiteral(value);
+    /** Return one Literal from one JSON value. */
+    fromJson(value: Json): Literal {
+        return fromJsonLiteral(value);
     },
 };
 
-/** Encode one ScalarLiteral. */
-export function encodeScalarLiteral(writer: BinaryWriter, value: ScalarLiteral): void {
+/** Encode one Literal. */
+export function encodeLiteral(writer: BinaryWriter, value: Literal): void {
     switch (value.kind) {
         case "null":
             writer.writeUnsigned(0);
@@ -140,8 +140,8 @@ export function encodeScalarLiteral(writer: BinaryWriter, value: ScalarLiteral):
     throw new SerdeError("unknown enum variant");
 }
 
-/** Decode one ScalarLiteral. */
-export function decodeScalarLiteral(reader: BinaryReader): ScalarLiteral {
+/** Decode one Literal. */
+export function decodeLiteral(reader: BinaryReader): Literal {
     const variant = reader.readNumber();
 
     switch (variant) {
@@ -186,8 +186,8 @@ export function decodeScalarLiteral(reader: BinaryReader): ScalarLiteral {
     throw new SerdeError(`unknown enum variant index: ${variant}`);
 }
 
-/** Return one JSON value for one ScalarLiteral. */
-export function toJsonScalarLiteral(value: ScalarLiteral): Json {
+/** Return one JSON value for one Literal. */
+export function toJsonLiteral(value: Literal): Json {
     switch (value.kind) {
         case "null":
             return {
@@ -228,8 +228,8 @@ export function toJsonScalarLiteral(value: ScalarLiteral): Json {
     throw new SerdeError("unknown enum variant");
 }
 
-/** Return one ScalarLiteral from one JSON value. */
-export function fromJsonScalarLiteral(value: Json): ScalarLiteral {
+/** Return one Literal from one JSON value. */
+export function fromJsonLiteral(value: Json): Literal {
     const object = jsonObject(value);
     const kind = jsonString(jsonField(object, "kind"));
 

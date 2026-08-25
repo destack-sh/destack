@@ -7,6 +7,7 @@ import type { GlobalNodeIdAny } from "../tree/node.js";
 import type { Type } from "../type/type.js";
 import type { TypeFlags } from "../type/type.js";
 import type { GlobalTypeId } from "../type/type.js";
+import type { TypeListId } from "../type/type.js";
 import type { ModuleId } from "../../source/file/model/module.js";
 import { decodeValuePool, encodeValuePool, fromJsonValuePool, toJsonValuePool } from "../../core/pool.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
@@ -14,6 +15,7 @@ import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, 
 import { decodeType, encodeType, fromJsonType, toJsonType } from "../type/type.js";
 import { decodeTypeFlags, encodeTypeFlags, fromJsonTypeFlags, toJsonTypeFlags } from "../type/type.js";
 import { decodeGlobalTypeId, encodeGlobalTypeId, fromJsonGlobalTypeId, toJsonGlobalTypeId } from "../type/type.js";
+import { decodeTypeListId, encodeTypeListId, fromJsonTypeListId, toJsonTypeListId } from "../type/type.js";
 import { decodeModuleId, encodeModuleId, fromJsonModuleId, toJsonModuleId } from "../../source/file/model/module.js";
 
 /** Interned lists of one type payload kind. */
@@ -22,6 +24,8 @@ export type ListPool = {
     readonly first: number;
     /** The stored list elements. */
     readonly elements: ReadonlyArray<GlobalTypeId>;
+    /** The lists allocated in this segment, in order. */
+    readonly lists: ReadonlyArray<TypeListId>;
 };
 
 export const ListPool = {
@@ -53,16 +57,22 @@ export function encodeListPool(writer: BinaryWriter, value: ListPool): void {
     for (const item1 of value.elements) {
         encodeGlobalTypeId(writer, item1);
     }
+    writer.writeUnsigned(value.lists.length);
+    for (const item2 of value.lists) {
+        encodeTypeListId(writer, item2);
+    }
 }
 
 /** Decode one ListPool. */
 export function decodeListPool(reader: BinaryReader): ListPool {
     const first = reader.readNumber();
     const elements = (() => { const length1 = reader.readNumber(); const items1: Array<GlobalTypeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGlobalTypeId(reader)); } return items1; })();
+    const lists = (() => { const length2 = reader.readNumber(); const items2: Array<TypeListId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeTypeListId(reader)); } return items2; })();
 
     return {
         first,
         elements,
+        lists,
     };
 }
 
@@ -71,6 +81,7 @@ export function toJsonListPool(value: ListPool): Json {
     return {
         first: value.first,
         elements: value.elements.map((item0) => toJsonGlobalTypeId(item0)),
+        lists: value.lists.map((item0) => toJsonTypeListId(item0)),
     };
 }
 
@@ -81,6 +92,7 @@ export function fromJsonListPool(value: Json): ListPool {
     return {
         first: jsonInteger(jsonField(object, "first")),
         elements: jsonArray(jsonField(object, "elements")).map((item0) => fromJsonGlobalTypeId(item0)),
+        lists: jsonArray(jsonField(object, "lists")).map((item0) => fromJsonTypeListId(item0)),
     };
 }
 

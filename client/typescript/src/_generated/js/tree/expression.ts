@@ -2,7 +2,7 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonBool, jsonField, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 import type { StringId } from "../../core/string.js";
-import type { ScalarLiteral } from "./literal.js";
+import type { Literal } from "./literal.js";
 import type { TemplateLiteral } from "./literal.js";
 import type { Asynchrony } from "./node.js";
 import type { LocalNodeId } from "./node.js";
@@ -12,7 +12,7 @@ import type { UnaryOperator } from "./operator.js";
 import type { Path } from "./path.js";
 import type { ModuleId } from "../../source/file/model/module.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
-import { decodeScalarLiteral, encodeScalarLiteral, fromJsonScalarLiteral, toJsonScalarLiteral } from "./literal.js";
+import { decodeLiteral, encodeLiteral, fromJsonLiteral, toJsonLiteral } from "./literal.js";
 import { decodeTemplateLiteral, encodeTemplateLiteral, fromJsonTemplateLiteral, toJsonTemplateLiteral } from "./literal.js";
 import { decodeAsynchrony, encodeAsynchrony, fromJsonAsynchrony, toJsonAsynchrony } from "./node.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
@@ -324,8 +324,8 @@ export type Expression =
       }
     /** Scalar literal. */
     | {
-          readonly kind: "scalarLiteral";
-          readonly value: ScalarLiteral;
+          readonly kind: "literal";
+          readonly value: Literal;
       }
     /** Template literal. */
     | {
@@ -487,8 +487,8 @@ export const Expression = {
     },
 
     /** Scalar literal. */
-    scalarLiteral(value: ScalarLiteral): Expression {
-        return { kind: "scalarLiteral", value };
+    literal(value: Literal): Expression {
+        return { kind: "literal", value };
     },
 
     /** Template literal. */
@@ -641,9 +641,9 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             writer.writeUnsigned(5);
             encodeStringId(writer, value.name);
             return;
-        case "scalarLiteral":
+        case "literal":
             writer.writeUnsigned(6);
-            encodeScalarLiteral(writer, value.value);
+            encodeLiteral(writer, value.value);
             return;
         case "templateLiteral":
             writer.writeUnsigned(7);
@@ -819,10 +819,10 @@ export function decodeExpression(reader: BinaryReader): Expression {
             };
         }
         case 6: {
-            const value = decodeScalarLiteral(reader);
+            const value = decodeLiteral(reader);
 
             return {
-                kind: "scalarLiteral",
+                kind: "literal",
                 value,
             };
         }
@@ -1068,10 +1068,10 @@ export function toJsonExpression(value: Expression): Json {
                 kind: "privateIdentifier",
                 name: toJsonStringId(value.name),
             };
-        case "scalarLiteral":
+        case "literal":
             return {
-                kind: "scalarLiteral",
-                value: toJsonScalarLiteral(value.value),
+                kind: "literal",
+                value: toJsonLiteral(value.value),
             };
         case "templateLiteral":
             return {
@@ -1237,10 +1237,10 @@ export function fromJsonExpression(value: Json): Expression {
                 kind,
                 name: fromJsonStringId(jsonField(object, "name")),
             };
-        case "scalarLiteral":
+        case "literal":
             return {
                 kind,
-                value: fromJsonScalarLiteral(jsonField(object, "value")),
+                value: fromJsonLiteral(jsonField(object, "value")),
             };
         case "templateLiteral":
             return {

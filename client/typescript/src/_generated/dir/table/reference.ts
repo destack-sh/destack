@@ -2,9 +2,11 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, compareBytes, jsonArray, jsonField, jsonInteger, jsonObject, jsonOptional, jsonString, nestedBytes } from "../../../protocol/serde.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
+import type { TypeLiteral } from "../tree/literal.js";
 import type { GlobalNodeIdAny } from "../tree/node.js";
 import type { ModuleId } from "../../source/file/model/module.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
+import { decodeTypeLiteral, encodeTypeLiteral, fromJsonTypeLiteral, toJsonTypeLiteral } from "../tree/literal.js";
 import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
 import { decodeModuleId, encodeModuleId, fromJsonModuleId, toJsonModuleId } from "../../source/file/model/module.js";
 
@@ -22,6 +24,11 @@ export type Reference =
           readonly module: ModuleId;
           /** The alias or clause declaring the namespace name, when one names it. */
           readonly declaration?: GlobalNodeIdAny;
+      }
+    /** A bare name spelling a builtin type literal, with no declaration behind it. */
+    | {
+          readonly kind: "typeLiteral";
+          readonly type_literal: TypeLiteral;
       }
     /** A flat path named through its first segments; `segments[from..]` project from `base`. */
     | {
@@ -51,6 +58,11 @@ export const Reference = {
     /** Resolved to a namespace: a prefix awaiting a further segment, or a bare namespace value. */
     "namespace"(module_: ModuleId, declaration: GlobalNodeIdAny | undefined): Reference {
         return { kind: "namespace", module: module_, declaration };
+    },
+
+    /** A bare name spelling a builtin type literal, with no declaration behind it. */
+    typeLiteral(type_literal: TypeLiteral): Reference {
+        return { kind: "typeLiteral", type_literal };
     },
 
     /** A flat path named through its first segments; `segments[from..]` project from `base`. */
@@ -106,20 +118,24 @@ export function encodeReference(writer: BinaryWriter, value: Reference): void {
                 encodeGlobalNodeIdAny(writer, value1);
             });
             return;
-        case "projected":
+        case "typeLiteral":
             writer.writeUnsigned(2);
+            encodeTypeLiteral(writer, value.type_literal);
+            return;
+        case "projected":
+            writer.writeUnsigned(3);
             encodeReferenceTarget(writer, value.base);
             writer.writeUnsigned(value.from);
             return;
         case "ambiguous":
-            writer.writeUnsigned(3);
+            writer.writeUnsigned(4);
             writer.writeUnsigned(value.ambiguous.length);
             for (const item0 of value.ambiguous) {
                 encodeReferenceTarget(writer, item0);
             }
             return;
         case "missing":
-            writer.writeUnsigned(4);
+            writer.writeUnsigned(5);
             return;
     }
 
@@ -147,6 +163,11 @@ export function decodeReference(reader: BinaryReader): Reference {
             };
         }
         case 2: {
+            const type_literal = decodeTypeLiteral(reader);
+
+            return { kind: "typeLiteral", type_literal };
+        }
+        case 3: {
             const base = decodeReferenceTarget(reader);
             const from_ = reader.readNumber();
 
@@ -156,12 +177,12 @@ export function decodeReference(reader: BinaryReader): Reference {
                 from: from_,
             };
         }
-        case 3: {
+        case 4: {
             const ambiguous = (() => { const length0 = reader.readNumber(); const items0: Array<ReferenceTarget> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeReferenceTarget(reader)); } return items0; })();
 
             return { kind: "ambiguous", ambiguous };
         }
-        case 4: {
+        case 5: {
             return { kind: "missing" };
         }
     }
@@ -182,6 +203,11 @@ export function toJsonReference(value: Reference): Json {
                 kind: "namespace",
                 module: toJsonModuleId(value.module),
                 ...(value.declaration === undefined ? {} : { declaration: toJsonGlobalNodeIdAny(value.declaration) }),
+            };
+        case "typeLiteral":
+            return {
+                kind: "typeLiteral",
+                type_literal: toJsonTypeLiteral(value.type_literal),
             };
         case "projected":
             return {
@@ -219,6 +245,11 @@ export function fromJsonReference(value: Json): Reference {
                 kind,
                 module: fromJsonModuleId(jsonField(object, "module")),
                 declaration: jsonOptional(object, "declaration", (value) => fromJsonGlobalNodeIdAny(value)),
+            };
+        case "typeLiteral":
+            return {
+                kind,
+                type_literal: fromJsonTypeLiteral(jsonField(object, "type_literal")),
             };
         case "projected":
             return {

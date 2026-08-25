@@ -32,8 +32,10 @@ export type BindingSegment = {
     readonly symbolByDeclaration: ReadonlyMap<GlobalNodeIdAny, LocalSymbolId>;
     /** Implicit receiver symbols keyed by their owner node. */
     readonly implicitReceiverByNode: ReadonlyMap<GlobalNodeIdAny, LocalSymbolId>;
-    /** Scopes keyed by their owner or member node. */
+    /** The scope in effect at each bound node. */
     readonly scopeByNode: ReadonlyMap<GlobalNodeIdAny, LocalScope>;
+    /** Scopes keyed by the node introducing them. */
+    readonly scopeByIntroducer: ReadonlyMap<GlobalNodeIdAny, LocalScopeId>;
     /** Scopes keyed by their owner symbol. */
     readonly scopeByOwner: ReadonlyMap<LocalSymbolId, LocalScopeId>;
     /** Replacements for visible symbols copied into this segment. */
@@ -113,19 +115,19 @@ export function encodeBindingSegment(writer: BinaryWriter, value: BindingSegment
         encodeGlobalNodeIdAny(writer, entry7.key7);
         encodeLocalScope(writer, entry7.item7);
     }
-    const entries8 = Array.from(value.scopeByOwner.entries()).map(([key8, item8]) => {
+    const entries8 = Array.from(value.scopeByIntroducer.entries()).map(([key8, item8]) => {
         const keyBytes = nestedBytes((writer) => {
-            encodeLocalSymbolId(writer, key8);
+            encodeGlobalNodeIdAny(writer, key8);
         });
         return { key8, item8, keyBytes };
     });
     entries8.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
     writer.writeUnsigned(entries8.length);
     for (const entry8 of entries8) {
-        encodeLocalSymbolId(writer, entry8.key8);
+        encodeGlobalNodeIdAny(writer, entry8.key8);
         encodeLocalScopeId(writer, entry8.item8);
     }
-    const entries9 = Array.from(value.replacedSymbolById.entries()).map(([key9, item9]) => {
+    const entries9 = Array.from(value.scopeByOwner.entries()).map(([key9, item9]) => {
         const keyBytes = nestedBytes((writer) => {
             encodeLocalSymbolId(writer, key9);
         });
@@ -135,19 +137,31 @@ export function encodeBindingSegment(writer: BinaryWriter, value: BindingSegment
     writer.writeUnsigned(entries9.length);
     for (const entry9 of entries9) {
         encodeLocalSymbolId(writer, entry9.key9);
-        encodeSymbol(writer, entry9.item9);
+        encodeLocalScopeId(writer, entry9.item9);
     }
-    const entries10 = Array.from(value.replacedScopeById.entries()).map(([key10, item10]) => {
+    const entries10 = Array.from(value.replacedSymbolById.entries()).map(([key10, item10]) => {
         const keyBytes = nestedBytes((writer) => {
-            encodeLocalScopeId(writer, key10);
+            encodeLocalSymbolId(writer, key10);
         });
         return { key10, item10, keyBytes };
     });
     entries10.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
     writer.writeUnsigned(entries10.length);
     for (const entry10 of entries10) {
-        encodeLocalScopeId(writer, entry10.key10);
-        encodeScope(writer, entry10.item10);
+        encodeLocalSymbolId(writer, entry10.key10);
+        encodeSymbol(writer, entry10.item10);
+    }
+    const entries11 = Array.from(value.replacedScopeById.entries()).map(([key11, item11]) => {
+        const keyBytes = nestedBytes((writer) => {
+            encodeLocalScopeId(writer, key11);
+        });
+        return { key11, item11, keyBytes };
+    });
+    entries11.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
+    writer.writeUnsigned(entries11.length);
+    for (const entry11 of entries11) {
+        encodeLocalScopeId(writer, entry11.key11);
+        encodeScope(writer, entry11.item11);
     }
 }
 
@@ -161,9 +175,10 @@ export function decodeBindingSegment(reader: BinaryReader): BindingSegment {
     const symbolByDeclaration = (() => { const length5 = reader.readNumber(); const items5 = new Map<GlobalNodeIdAny, LocalSymbolId>(); for (let index = 0; index < length5; index += 1) { items5.set(decodeGlobalNodeIdAny(reader), decodeLocalSymbolId(reader)); } return items5; })();
     const implicitReceiverByNode = (() => { const length6 = reader.readNumber(); const items6 = new Map<GlobalNodeIdAny, LocalSymbolId>(); for (let index = 0; index < length6; index += 1) { items6.set(decodeGlobalNodeIdAny(reader), decodeLocalSymbolId(reader)); } return items6; })();
     const scopeByNode = (() => { const length7 = reader.readNumber(); const items7 = new Map<GlobalNodeIdAny, LocalScope>(); for (let index = 0; index < length7; index += 1) { items7.set(decodeGlobalNodeIdAny(reader), decodeLocalScope(reader)); } return items7; })();
-    const scopeByOwner = (() => { const length8 = reader.readNumber(); const items8 = new Map<LocalSymbolId, LocalScopeId>(); for (let index = 0; index < length8; index += 1) { items8.set(decodeLocalSymbolId(reader), decodeLocalScopeId(reader)); } return items8; })();
-    const replacedSymbolById = (() => { const length9 = reader.readNumber(); const items9 = new Map<LocalSymbolId, Symbol>(); for (let index = 0; index < length9; index += 1) { items9.set(decodeLocalSymbolId(reader), decodeSymbol(reader)); } return items9; })();
-    const replacedScopeById = (() => { const length10 = reader.readNumber(); const items10 = new Map<LocalScopeId, Scope>(); for (let index = 0; index < length10; index += 1) { items10.set(decodeLocalScopeId(reader), decodeScope(reader)); } return items10; })();
+    const scopeByIntroducer = (() => { const length8 = reader.readNumber(); const items8 = new Map<GlobalNodeIdAny, LocalScopeId>(); for (let index = 0; index < length8; index += 1) { items8.set(decodeGlobalNodeIdAny(reader), decodeLocalScopeId(reader)); } return items8; })();
+    const scopeByOwner = (() => { const length9 = reader.readNumber(); const items9 = new Map<LocalSymbolId, LocalScopeId>(); for (let index = 0; index < length9; index += 1) { items9.set(decodeLocalSymbolId(reader), decodeLocalScopeId(reader)); } return items9; })();
+    const replacedSymbolById = (() => { const length10 = reader.readNumber(); const items10 = new Map<LocalSymbolId, Symbol>(); for (let index = 0; index < length10; index += 1) { items10.set(decodeLocalSymbolId(reader), decodeSymbol(reader)); } return items10; })();
+    const replacedScopeById = (() => { const length11 = reader.readNumber(); const items11 = new Map<LocalScopeId, Scope>(); for (let index = 0; index < length11; index += 1) { items11.set(decodeLocalScopeId(reader), decodeScope(reader)); } return items11; })();
 
     return {
         moduleId,
@@ -174,6 +189,7 @@ export function decodeBindingSegment(reader: BinaryReader): BindingSegment {
         symbolByDeclaration,
         implicitReceiverByNode,
         scopeByNode,
+        scopeByIntroducer,
         scopeByOwner,
         replacedSymbolById,
         replacedScopeById,
@@ -191,6 +207,7 @@ export function toJsonBindingSegment(value: BindingSegment): Json {
         symbolByDeclaration: Array.from(value.symbolByDeclaration.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonLocalSymbolId(item0)] as const),
         implicitReceiverByNode: Array.from(value.implicitReceiverByNode.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonLocalSymbolId(item0)] as const),
         scopeByNode: Array.from(value.scopeByNode.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonLocalScope(item0)] as const),
+        scopeByIntroducer: Array.from(value.scopeByIntroducer.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonLocalScopeId(item0)] as const),
         scopeByOwner: Array.from(value.scopeByOwner.entries()).map(([key0, item0]) => [toJsonLocalSymbolId(key0), toJsonLocalScopeId(item0)] as const),
         replacedSymbolById: Array.from(value.replacedSymbolById.entries()).map(([key0, item0]) => [toJsonLocalSymbolId(key0), toJsonSymbol(item0)] as const),
         replacedScopeById: Array.from(value.replacedScopeById.entries()).map(([key0, item0]) => [toJsonLocalScopeId(key0), toJsonScope(item0)] as const),
@@ -210,6 +227,7 @@ export function fromJsonBindingSegment(value: Json): BindingSegment {
         symbolByDeclaration: new Map(jsonArray(jsonField(object, "symbolByDeclaration")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonLocalSymbolId(item0)] as const; })),
         implicitReceiverByNode: new Map(jsonArray(jsonField(object, "implicitReceiverByNode")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonLocalSymbolId(item0)] as const; })),
         scopeByNode: new Map(jsonArray(jsonField(object, "scopeByNode")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonLocalScope(item0)] as const; })),
+        scopeByIntroducer: new Map(jsonArray(jsonField(object, "scopeByIntroducer")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonLocalScopeId(item0)] as const; })),
         scopeByOwner: new Map(jsonArray(jsonField(object, "scopeByOwner")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonLocalSymbolId(key0), fromJsonLocalScopeId(item0)] as const; })),
         replacedSymbolById: new Map(jsonArray(jsonField(object, "replacedSymbolById")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonLocalSymbolId(key0), fromJsonSymbol(item0)] as const; })),
         replacedScopeById: new Map(jsonArray(jsonField(object, "replacedScopeById")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonLocalScopeId(key0), fromJsonScope(item0)] as const; })),

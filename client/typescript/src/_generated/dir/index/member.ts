@@ -3,9 +3,11 @@
 import { BinaryReader, BinaryWriter, Json, jsonArray, jsonField, jsonInteger, jsonObject } from "../../../protocol/serde.js";
 import type { Postings } from "./postings.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
+import type { MemberImplementation } from "../table/definition.js";
 import type { GlobalNodeIdAny } from "../tree/node.js";
 import { decodePostings, encodePostings, fromJsonPostings, toJsonPostings } from "./postings.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
+import { decodeMemberImplementation, encodeMemberImplementation, fromJsonMemberImplementation, toJsonMemberImplementation } from "../table/definition.js";
 import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
 
 /** One symbol-backed member declaration. */
@@ -77,71 +79,6 @@ export function fromJsonMemberEntry(value: Json): MemberEntry {
         source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
         declaring: fromJsonGlobalSymbolId(jsonField(object, "declaring")),
         symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
-    };
-}
-
-/** One exact member implementation edge. */
-export type MemberImplementation = {
-    /** The declared member requirement. */
-    readonly declaration: GlobalSymbolId;
-    /** The member satisfying the declaration. */
-    readonly implementation: GlobalSymbolId;
-};
-
-export const MemberImplementation = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: MemberImplementation): void {
-        encodeMemberImplementation(writer, value);
-    },
-
-    /** Decode one MemberImplementation. */
-    decode(reader: BinaryReader): MemberImplementation {
-        return decodeMemberImplementation(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: MemberImplementation): Json {
-        return toJsonMemberImplementation(value);
-    },
-
-    /** Return one MemberImplementation from one JSON value. */
-    fromJson(value: Json): MemberImplementation {
-        return fromJsonMemberImplementation(value);
-    },
-};
-
-/** Encode one MemberImplementation. */
-export function encodeMemberImplementation(writer: BinaryWriter, value: MemberImplementation): void {
-    encodeGlobalSymbolId(writer, value.declaration);
-    encodeGlobalSymbolId(writer, value.implementation);
-}
-
-/** Decode one MemberImplementation. */
-export function decodeMemberImplementation(reader: BinaryReader): MemberImplementation {
-    const declaration = decodeGlobalSymbolId(reader);
-    const implementation = decodeGlobalSymbolId(reader);
-
-    return {
-        declaration,
-        implementation,
-    };
-}
-
-/** Return one JSON value for one MemberImplementation. */
-export function toJsonMemberImplementation(value: MemberImplementation): Json {
-    return {
-        declaration: toJsonGlobalSymbolId(value.declaration),
-        implementation: toJsonGlobalSymbolId(value.implementation),
-    };
-}
-
-/** Return one MemberImplementation from one JSON value. */
-export function fromJsonMemberImplementation(value: Json): MemberImplementation {
-    const object = jsonObject(value);
-
-    return {
-        declaration: fromJsonGlobalSymbolId(jsonField(object, "declaration")),
-        implementation: fromJsonGlobalSymbolId(jsonField(object, "implementation")),
     };
 }
 

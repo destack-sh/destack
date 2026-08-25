@@ -192,6 +192,8 @@ export type DirChecked = {
     readonly captures: CaptureSegment;
     /** Flow conclusions. */
     readonly flows: FlowSegment;
+    /** The auto conformances the check pass decided. */
+    readonly auto: AutoSegment;
 };
 
 export const DirChecked = {
@@ -236,6 +238,7 @@ export function encodeDirChecked(writer: BinaryWriter, value: DirChecked): void 
     encodeCoercionSegment(writer, value.coercions);
     encodeCaptureSegment(writer, value.captures);
     encodeFlowSegment(writer, value.flows);
+    encodeAutoSegment(writer, value.auto);
 }
 
 /** Decode one DirChecked. */
@@ -255,6 +258,7 @@ export function decodeDirChecked(reader: BinaryReader): DirChecked {
     const coercions = decodeCoercionSegment(reader);
     const captures = decodeCaptureSegment(reader);
     const flows = decodeFlowSegment(reader);
+    const auto = decodeAutoSegment(reader);
 
     return {
         fingerprint,
@@ -272,6 +276,7 @@ export function decodeDirChecked(reader: BinaryReader): DirChecked {
         coercions,
         captures,
         flows,
+        auto,
     };
 }
 
@@ -293,6 +298,7 @@ export function toJsonDirChecked(value: DirChecked): Json {
         coercions: toJsonCoercionSegment(value.coercions),
         captures: toJsonCaptureSegment(value.captures),
         flows: toJsonFlowSegment(value.flows),
+        auto: toJsonAutoSegment(value.auto),
     };
 }
 
@@ -316,6 +322,7 @@ export function fromJsonDirChecked(value: Json): DirChecked {
         coercions: fromJsonCoercionSegment(jsonField(object, "coercions")),
         captures: fromJsonCaptureSegment(jsonField(object, "captures")),
         flows: fromJsonFlowSegment(jsonField(object, "flows")),
+        auto: fromJsonAutoSegment(jsonField(object, "auto")),
     };
 }
 

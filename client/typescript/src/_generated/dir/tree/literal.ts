@@ -14,8 +14,8 @@ import { decodeFloatType, encodeFloatType, fromJsonFloatType, toJsonFloatType } 
 import { decodeIntegerType, encodeIntegerType, fromJsonIntegerType, toJsonIntegerType } from "../type/primitive.js";
 import { decodeScalarAlias, encodeScalarAlias, fromJsonScalarAlias, toJsonScalarAlias } from "../type/primitive.js";
 
-/** A ScalarLiteral is literal scalar value. */
-export type ScalarLiteral =
+/** A Literal is literal scalar value. */
+export type Literal =
     /** Null value. */
     | {
           readonly kind: "null";
@@ -62,75 +62,75 @@ export type ScalarLiteral =
       }
 ;
 
-export const ScalarLiteral = {
+export const Literal = {
     /** Null value. */
-    "null"(): ScalarLiteral {
+    "null"(): Literal {
         return { kind: "null" };
     },
 
     /** Undefined value. */
-    "undefined"(): ScalarLiteral {
+    "undefined"(): Literal {
         return { kind: "undefined" };
     },
 
     /** Boolean value. */
-    "boolean"(boolean_: boolean): ScalarLiteral {
+    "boolean"(boolean_: boolean): Literal {
         return { kind: "boolean", boolean: boolean_ };
     },
 
     /** Integer value. */
-    integer(integer: bigint): ScalarLiteral {
+    integer(integer: bigint): Literal {
         return { kind: "integer", integer };
     },
 
     /** Bigint value. */
-    "bigint"(bigint_: bigint): ScalarLiteral {
+    "bigint"(bigint_: bigint): Literal {
         return { kind: "bigint", bigint: bigint_ };
     },
 
     /** Float value. */
-    float(float: number): ScalarLiteral {
+    float(float: number): Literal {
         return { kind: "float", float };
     },
 
     /** Character value. */
-    character(character: string): ScalarLiteral {
+    character(character: string): Literal {
         return { kind: "character", character };
     },
 
     /** String value. */
-    "string"(string_: StringId): ScalarLiteral {
+    "string"(string_: StringId): Literal {
         return { kind: "string", string: string_ };
     },
 
     /** Regex string value. */
-    regexString(content: StringId, flags: StringId | undefined): ScalarLiteral {
+    regexString(content: StringId, flags: StringId | undefined): Literal {
         return { kind: "regexString", content, flags };
     },
 
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: ScalarLiteral): void {
-        encodeScalarLiteral(writer, value);
+    encode(writer: BinaryWriter, value: Literal): void {
+        encodeLiteral(writer, value);
     },
 
-    /** Decode one ScalarLiteral. */
-    decode(reader: BinaryReader): ScalarLiteral {
-        return decodeScalarLiteral(reader);
+    /** Decode one Literal. */
+    decode(reader: BinaryReader): Literal {
+        return decodeLiteral(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: ScalarLiteral): Json {
-        return toJsonScalarLiteral(value);
+    toJson(value: Literal): Json {
+        return toJsonLiteral(value);
     },
 
-    /** Return one ScalarLiteral from one JSON value. */
-    fromJson(value: Json): ScalarLiteral {
-        return fromJsonScalarLiteral(value);
+    /** Return one Literal from one JSON value. */
+    fromJson(value: Json): Literal {
+        return fromJsonLiteral(value);
     },
 };
 
-/** Encode one ScalarLiteral. */
-export function encodeScalarLiteral(writer: BinaryWriter, value: ScalarLiteral): void {
+/** Encode one Literal. */
+export function encodeLiteral(writer: BinaryWriter, value: Literal): void {
     switch (value.kind) {
         case "null":
             writer.writeUnsigned(0);
@@ -174,8 +174,8 @@ export function encodeScalarLiteral(writer: BinaryWriter, value: ScalarLiteral):
     throw new SerdeError("unknown enum variant");
 }
 
-/** Decode one ScalarLiteral. */
-export function decodeScalarLiteral(reader: BinaryReader): ScalarLiteral {
+/** Decode one Literal. */
+export function decodeLiteral(reader: BinaryReader): Literal {
     const variant = reader.readNumber();
 
     switch (variant) {
@@ -230,8 +230,8 @@ export function decodeScalarLiteral(reader: BinaryReader): ScalarLiteral {
     throw new SerdeError(`unknown enum variant index: ${variant}`);
 }
 
-/** Return one JSON value for one ScalarLiteral. */
-export function toJsonScalarLiteral(value: ScalarLiteral): Json {
+/** Return one JSON value for one Literal. */
+export function toJsonLiteral(value: Literal): Json {
     switch (value.kind) {
         case "null":
             return {
@@ -282,8 +282,8 @@ export function toJsonScalarLiteral(value: ScalarLiteral): Json {
     throw new SerdeError("unknown enum variant");
 }
 
-/** Return one ScalarLiteral from one JSON value. */
-export function fromJsonScalarLiteral(value: Json): ScalarLiteral {
+/** Return one Literal from one JSON value. */
+export function fromJsonLiteral(value: Json): Literal {
     const object = jsonObject(value);
     const kind = jsonString(jsonField(object, "kind"));
 
@@ -337,30 +337,97 @@ export function fromJsonScalarLiteral(value: Json): ScalarLiteral {
     throw new SerdeError(`unknown enum variant: ${kind}`);
 }
 
+/** One literal run of a template, decoded and as written. */
+export type TemplateChunk = {
+    /** The decoded text, absent when a tagged template keeps an invalid escape. */
+    readonly cooked?: StringId;
+    /** The text as written between the delimiters. */
+    readonly raw: StringId;
+};
+
+export const TemplateChunk = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TemplateChunk): void {
+        encodeTemplateChunk(writer, value);
+    },
+
+    /** Decode one TemplateChunk. */
+    decode(reader: BinaryReader): TemplateChunk {
+        return decodeTemplateChunk(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TemplateChunk): Json {
+        return toJsonTemplateChunk(value);
+    },
+
+    /** Return one TemplateChunk from one JSON value. */
+    fromJson(value: Json): TemplateChunk {
+        return fromJsonTemplateChunk(value);
+    },
+};
+
+/** Encode one TemplateChunk. */
+export function encodeTemplateChunk(writer: BinaryWriter, value: TemplateChunk): void {
+    writer.writeOption(value.cooked, (value0) => {
+        encodeStringId(writer, value0);
+    });
+    encodeStringId(writer, value.raw);
+}
+
+/** Decode one TemplateChunk. */
+export function decodeTemplateChunk(reader: BinaryReader): TemplateChunk {
+    const cooked = reader.readOption(() => decodeStringId(reader));
+    const raw = decodeStringId(reader);
+
+    return {
+        ...(cooked === undefined ? {} : { cooked }),
+        raw,
+    };
+}
+
+/** Return one JSON value for one TemplateChunk. */
+export function toJsonTemplateChunk(value: TemplateChunk): Json {
+    return {
+        ...(value.cooked === undefined ? {} : { cooked: toJsonStringId(value.cooked) }),
+        raw: toJsonStringId(value.raw),
+    };
+}
+
+/** Return one TemplateChunk from one JSON value. */
+export function fromJsonTemplateChunk(value: Json): TemplateChunk {
+    const object = jsonObject(value);
+
+    return {
+        cooked: jsonOptional(object, "cooked", (value) => fromJsonStringId(value)),
+        raw: fromJsonStringId(jsonField(object, "raw")),
+    };
+}
+
 /** A TemplateLiteral is literal template value. */
 export type TemplateLiteral =
     /** Template string value. */
     | {
           readonly kind: "string";
-          readonly string: StringId;
+          readonly chunk: TemplateChunk;
       }
     /** Interpolated template literal value. */
     | {
           readonly kind: "interpolatedString";
-          readonly strings: ReadonlyArray<StringId>;
+          readonly chunks: ReadonlyArray<TemplateChunk>;
           readonly arguments: ReadonlyArray<LocalNodeId>;
       }
 ;
 
 export const TemplateLiteral = {
     /** Template string value. */
-    "string"(string_: StringId): TemplateLiteral {
-        return { kind: "string", string: string_ };
+    "string"(chunk: TemplateChunk): TemplateLiteral {
+        return { kind: "string", chunk };
     },
 
     /** Interpolated template literal value. */
-    interpolatedString(strings: ReadonlyArray<StringId>, arguments_: ReadonlyArray<LocalNodeId>): TemplateLiteral {
-        return { kind: "interpolatedString", strings, arguments: arguments_ };
+    interpolatedString(chunks: ReadonlyArray<TemplateChunk>, arguments_: ReadonlyArray<LocalNodeId>): TemplateLiteral {
+        return { kind: "interpolatedString", chunks, arguments: arguments_ };
     },
 
     /** Encode this value. */
@@ -389,13 +456,13 @@ export function encodeTemplateLiteral(writer: BinaryWriter, value: TemplateLiter
     switch (value.kind) {
         case "string":
             writer.writeUnsigned(0);
-            encodeStringId(writer, value.string);
+            encodeTemplateChunk(writer, value.chunk);
             return;
         case "interpolatedString":
             writer.writeUnsigned(1);
-            writer.writeUnsigned(value.strings.length);
-            for (const item0 of value.strings) {
-                encodeStringId(writer, item0);
+            writer.writeUnsigned(value.chunks.length);
+            for (const item0 of value.chunks) {
+                encodeTemplateChunk(writer, item0);
             }
             writer.writeUnsigned(value.arguments.length);
             for (const item1 of value.arguments) {
@@ -413,20 +480,20 @@ export function decodeTemplateLiteral(reader: BinaryReader): TemplateLiteral {
 
     switch (variant) {
         case 0: {
-            const string_ = decodeStringId(reader);
+            const chunk = decodeTemplateChunk(reader);
 
             return {
                 kind: "string",
-                string: string_,
+                chunk,
             };
         }
         case 1: {
-            const strings = (() => { const length0 = reader.readNumber(); const items0: Array<StringId> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeStringId(reader)); } return items0; })();
+            const chunks = (() => { const length0 = reader.readNumber(); const items0: Array<TemplateChunk> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeTemplateChunk(reader)); } return items0; })();
             const arguments_ = (() => { const length1 = reader.readNumber(); const items1: Array<LocalNodeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeLocalNodeId(reader)); } return items1; })();
 
             return {
                 kind: "interpolatedString",
-                strings,
+                chunks,
                 arguments: arguments_,
             };
         }
@@ -441,12 +508,12 @@ export function toJsonTemplateLiteral(value: TemplateLiteral): Json {
         case "string":
             return {
                 kind: "string",
-                string: toJsonStringId(value.string),
+                chunk: toJsonTemplateChunk(value.chunk),
             };
         case "interpolatedString":
             return {
                 kind: "interpolatedString",
-                strings: value.strings.map((item0) => toJsonStringId(item0)),
+                chunks: value.chunks.map((item0) => toJsonTemplateChunk(item0)),
                 arguments: value.arguments.map((item0) => toJsonLocalNodeId(item0)),
             };
     }
@@ -463,12 +530,12 @@ export function fromJsonTemplateLiteral(value: Json): TemplateLiteral {
         case "string":
             return {
                 kind,
-                string: fromJsonStringId(jsonField(object, "string")),
+                chunk: fromJsonTemplateChunk(jsonField(object, "chunk")),
             };
         case "interpolatedString":
             return {
                 kind,
-                strings: jsonArray(jsonField(object, "strings")).map((item0) => fromJsonStringId(item0)),
+                chunks: jsonArray(jsonField(object, "chunks")).map((item0) => fromJsonTemplateChunk(item0)),
                 arguments: jsonArray(jsonField(object, "arguments")).map((item0) => fromJsonLocalNodeId(item0)),
             };
     }
@@ -1039,12 +1106,12 @@ export type TypeLiteral =
           readonly kind: "alias";
           readonly alias: ScalarAlias;
       }
-    /** Width-spelled integer type, like `int32` or `usize`. */
+    /** Integer type written with its width, like `int32` or `usize`. */
     | {
           readonly kind: "integer";
           readonly integer: IntegerType;
       }
-    /** Width-spelled floating-point type, like `float32`. */
+    /** Floating-point type written with its width, like `float32`. */
     | {
           readonly kind: "float";
           readonly float: FloatType;
@@ -1107,12 +1174,12 @@ export const TypeLiteral = {
         return { kind: "alias", alias };
     },
 
-    /** Width-spelled integer type, like `int32` or `usize`. */
+    /** Integer type written with its width, like `int32` or `usize`. */
     integer(integer: IntegerType): TypeLiteral {
         return { kind: "integer", integer };
     },
 
-    /** Width-spelled floating-point type, like `float32`. */
+    /** Floating-point type written with its width, like `float32`. */
     float(float: FloatType): TypeLiteral {
         return { kind: "float", float };
     },

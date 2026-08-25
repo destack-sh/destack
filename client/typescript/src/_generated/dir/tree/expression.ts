@@ -4,9 +4,8 @@ import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonBool, json
 import type { StringId } from "../../core/string.js";
 import type { PlaceModifier } from "./declaration.js";
 import type { ExportKind } from "./dependency.js";
-import type { DependencyForm } from "./dependency.js";
 import type { ImportAttributeClause } from "./import.js";
-import type { ScalarLiteral } from "./literal.js";
+import type { Literal } from "./literal.js";
 import type { TemplateLiteral } from "./literal.js";
 import type { Asynchrony } from "./node.js";
 import type { LocalNodeId } from "./node.js";
@@ -19,9 +18,8 @@ import type { InferForm } from "./type.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
 import { decodePlaceModifier, encodePlaceModifier, fromJsonPlaceModifier, toJsonPlaceModifier } from "./declaration.js";
 import { decodeExportKind, encodeExportKind, fromJsonExportKind, toJsonExportKind } from "./dependency.js";
-import { decodeDependencyForm, encodeDependencyForm, fromJsonDependencyForm, toJsonDependencyForm } from "./dependency.js";
 import { decodeImportAttributeClause, encodeImportAttributeClause, fromJsonImportAttributeClause, toJsonImportAttributeClause } from "./import.js";
-import { decodeScalarLiteral, encodeScalarLiteral, fromJsonScalarLiteral, toJsonScalarLiteral } from "./literal.js";
+import { decodeLiteral, encodeLiteral, fromJsonLiteral, toJsonLiteral } from "./literal.js";
 import { decodeTemplateLiteral, encodeTemplateLiteral, fromJsonTemplateLiteral, toJsonTemplateLiteral } from "./literal.js";
 import { decodeAsynchrony, encodeAsynchrony, fromJsonAsynchrony, toJsonAsynchrony } from "./node.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
@@ -398,7 +396,6 @@ export type Expression =
     /** An Import is an import declaration for dependency management. */
     | {
           readonly kind: "import";
-          readonly form: DependencyForm;
           readonly target: StringId;
           readonly items?: ReadonlyArray<LocalNodeId>;
           readonly attributes?: ImportAttributeClause;
@@ -406,7 +403,6 @@ export type Expression =
     /** An Export is an explicit export declaration for dependency management. */
     | {
           readonly kind: "export";
-          readonly form: DependencyForm;
           readonly target?: StringId;
           readonly items: ReadonlyArray<LocalNodeId>;
           readonly attributes?: ImportAttributeClause;
@@ -450,7 +446,7 @@ export type Expression =
           readonly kind: "while";
           readonly label?: StringId;
           readonly form: WhileForm;
-          readonly condition: LocalNodeId;
+          readonly condition: Condition;
           readonly body: LocalNodeId;
       }
     /** A ForEach is a for loop over an iterator with a binding. */
@@ -561,8 +557,8 @@ export type Expression =
       }
     /** Literal scalar value. */
     | {
-          readonly kind: "scalarLiteral";
-          readonly scalar_literal: ScalarLiteral;
+          readonly kind: "literal";
+          readonly literal: Literal;
       }
     /** Range expression. */
     | {
@@ -766,13 +762,13 @@ export const Expression = {
     },
 
     /** An Import is an import declaration for dependency management. */
-    "import"(form: DependencyForm, target: StringId, items: ReadonlyArray<LocalNodeId> | undefined, attributes: ImportAttributeClause | undefined): Expression {
-        return { kind: "import", form, target, items, attributes };
+    "import"(target: StringId, items: ReadonlyArray<LocalNodeId> | undefined, attributes: ImportAttributeClause | undefined): Expression {
+        return { kind: "import", target, items, attributes };
     },
 
     /** An Export is an explicit export declaration for dependency management. */
-    "export"(form: DependencyForm, target: StringId | undefined, items: ReadonlyArray<LocalNodeId>, attributes: ImportAttributeClause | undefined): Expression {
-        return { kind: "export", form, target, items, attributes };
+    "export"(target: StringId | undefined, items: ReadonlyArray<LocalNodeId>, attributes: ImportAttributeClause | undefined): Expression {
+        return { kind: "export", target, items, attributes };
     },
 
     /** Let binding for mutable and immutable variables. */
@@ -796,7 +792,7 @@ export const Expression = {
     },
 
     /** A While is while or do-while loop. */
-    "while"(label: StringId | undefined, form: WhileForm, condition: LocalNodeId, body: LocalNodeId): Expression {
+    "while"(label: StringId | undefined, form: WhileForm, condition: Condition, body: LocalNodeId): Expression {
         return { kind: "while", label, form, condition, body };
     },
 
@@ -891,8 +887,8 @@ export const Expression = {
     },
 
     /** Literal scalar value. */
-    scalarLiteral(scalar_literal: ScalarLiteral): Expression {
-        return { kind: "scalarLiteral", scalar_literal };
+    literal(literal: Literal): Expression {
+        return { kind: "literal", literal };
     },
 
     /** Range expression. */
@@ -1084,30 +1080,28 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             return;
         case "import":
             writer.writeUnsigned(2);
-            encodeDependencyForm(writer, value.form);
             encodeStringId(writer, value.target);
-            writer.writeOption(value.items, (value2) => {
-                writer.writeUnsigned(value2.length);
-                for (const item3 of value2) {
-                    encodeLocalNodeId(writer, item3);
+            writer.writeOption(value.items, (value1) => {
+                writer.writeUnsigned(value1.length);
+                for (const item2 of value1) {
+                    encodeLocalNodeId(writer, item2);
                 }
             });
-            writer.writeOption(value.attributes, (value3) => {
-                encodeImportAttributeClause(writer, value3);
+            writer.writeOption(value.attributes, (value2) => {
+                encodeImportAttributeClause(writer, value2);
             });
             return;
         case "export":
             writer.writeUnsigned(3);
-            encodeDependencyForm(writer, value.form);
-            writer.writeOption(value.target, (value1) => {
-                encodeStringId(writer, value1);
+            writer.writeOption(value.target, (value0) => {
+                encodeStringId(writer, value0);
             });
             writer.writeUnsigned(value.items.length);
-            for (const item2 of value.items) {
-                encodeLocalNodeId(writer, item2);
+            for (const item1 of value.items) {
+                encodeLocalNodeId(writer, item1);
             }
-            writer.writeOption(value.attributes, (value3) => {
-                encodeImportAttributeClause(writer, value3);
+            writer.writeOption(value.attributes, (value2) => {
+                encodeImportAttributeClause(writer, value2);
             });
             return;
         case "let":
@@ -1160,7 +1154,7 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
                 encodeStringId(writer, value0);
             });
             encodeWhileForm(writer, value.form);
-            encodeLocalNodeId(writer, value.condition);
+            encodeCondition(writer, value.condition);
             encodeLocalNodeId(writer, value.body);
             return;
         case "forEach":
@@ -1279,9 +1273,9 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
         case "importSource":
             writer.writeUnsigned(26);
             return;
-        case "scalarLiteral":
+        case "literal":
             writer.writeUnsigned(27);
-            encodeScalarLiteral(writer, value.scalar_literal);
+            encodeLiteral(writer, value.literal);
             return;
         case "rangeExpression":
             writer.writeUnsigned(28);
@@ -1515,28 +1509,24 @@ export function decodeExpression(reader: BinaryReader): Expression {
             return { kind: "block", block };
         }
         case 2: {
-            const form = decodeDependencyForm(reader);
             const target = decodeStringId(reader);
-            const items = reader.readOption(() => (() => { const length3 = reader.readNumber(); const items3: Array<LocalNodeId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalNodeId(reader)); } return items3; })());
+            const items = reader.readOption(() => (() => { const length2 = reader.readNumber(); const items2: Array<LocalNodeId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeLocalNodeId(reader)); } return items2; })());
             const attributes = reader.readOption(() => decodeImportAttributeClause(reader));
 
             return {
                 kind: "import",
-                form,
                 target,
                 ...(items === undefined ? {} : { items }),
                 ...(attributes === undefined ? {} : { attributes }),
             };
         }
         case 3: {
-            const form = decodeDependencyForm(reader);
             const target = reader.readOption(() => decodeStringId(reader));
-            const items = (() => { const length2 = reader.readNumber(); const items2: Array<LocalNodeId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeLocalNodeId(reader)); } return items2; })();
+            const items = (() => { const length1 = reader.readNumber(); const items1: Array<LocalNodeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeLocalNodeId(reader)); } return items1; })();
             const attributes = reader.readOption(() => decodeImportAttributeClause(reader));
 
             return {
                 kind: "export",
-                form,
                 ...(target === undefined ? {} : { target }),
                 items,
                 ...(attributes === undefined ? {} : { attributes }),
@@ -1605,7 +1595,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
         case 8: {
             const label = reader.readOption(() => decodeStringId(reader));
             const form = decodeWhileForm(reader);
-            const condition = decodeLocalNodeId(reader);
+            const condition = decodeCondition(reader);
             const body = decodeLocalNodeId(reader);
 
             return {
@@ -1773,9 +1763,9 @@ export function decodeExpression(reader: BinaryReader): Expression {
             return { kind: "importSource" };
         }
         case 27: {
-            const scalar_literal = decodeScalarLiteral(reader);
+            const literal = decodeLiteral(reader);
 
-            return { kind: "scalarLiteral", scalar_literal };
+            return { kind: "literal", literal };
         }
         case 28: {
             const start = reader.readOption(() => decodeLocalNodeId(reader));
@@ -2099,7 +2089,6 @@ export function toJsonExpression(value: Expression): Json {
         case "import":
             return {
                 kind: "import",
-                form: toJsonDependencyForm(value.form),
                 target: toJsonStringId(value.target),
                 ...(value.items === undefined ? {} : { items: value.items.map((item0) => toJsonLocalNodeId(item0)) }),
                 ...(value.attributes === undefined ? {} : { attributes: toJsonImportAttributeClause(value.attributes) }),
@@ -2107,7 +2096,6 @@ export function toJsonExpression(value: Expression): Json {
         case "export":
             return {
                 kind: "export",
-                form: toJsonDependencyForm(value.form),
                 ...(value.target === undefined ? {} : { target: toJsonStringId(value.target) }),
                 items: value.items.map((item0) => toJsonLocalNodeId(item0)),
                 ...(value.attributes === undefined ? {} : { attributes: toJsonImportAttributeClause(value.attributes) }),
@@ -2151,7 +2139,7 @@ export function toJsonExpression(value: Expression): Json {
                 kind: "while",
                 ...(value.label === undefined ? {} : { label: toJsonStringId(value.label) }),
                 form: toJsonWhileForm(value.form),
-                condition: toJsonLocalNodeId(value.condition),
+                condition: toJsonCondition(value.condition),
                 body: toJsonLocalNodeId(value.body),
             };
         case "forEach":
@@ -2256,10 +2244,10 @@ export function toJsonExpression(value: Expression): Json {
             return {
                 kind: "importSource",
             };
-        case "scalarLiteral":
+        case "literal":
             return {
-                kind: "scalarLiteral",
-                scalar_literal: toJsonScalarLiteral(value.scalar_literal),
+                kind: "literal",
+                literal: toJsonLiteral(value.literal),
             };
         case "rangeExpression":
             return {
@@ -2471,7 +2459,6 @@ export function fromJsonExpression(value: Json): Expression {
         case "import":
             return {
                 kind,
-                form: fromJsonDependencyForm(jsonField(object, "form")),
                 target: fromJsonStringId(jsonField(object, "target")),
                 items: jsonOptional(object, "items", (value) => jsonArray(value).map((item0) => fromJsonLocalNodeId(item0))),
                 attributes: jsonOptional(object, "attributes", (value) => fromJsonImportAttributeClause(value)),
@@ -2479,7 +2466,6 @@ export function fromJsonExpression(value: Json): Expression {
         case "export":
             return {
                 kind,
-                form: fromJsonDependencyForm(jsonField(object, "form")),
                 target: jsonOptional(object, "target", (value) => fromJsonStringId(value)),
                 items: jsonArray(jsonField(object, "items")).map((item0) => fromJsonLocalNodeId(item0)),
                 attributes: jsonOptional(object, "attributes", (value) => fromJsonImportAttributeClause(value)),
@@ -2523,7 +2509,7 @@ export function fromJsonExpression(value: Json): Expression {
                 kind,
                 label: jsonOptional(object, "label", (value) => fromJsonStringId(value)),
                 form: fromJsonWhileForm(jsonField(object, "form")),
-                condition: fromJsonLocalNodeId(jsonField(object, "condition")),
+                condition: fromJsonCondition(jsonField(object, "condition")),
                 body: fromJsonLocalNodeId(jsonField(object, "body")),
             };
         case "forEach":
@@ -2628,10 +2614,10 @@ export function fromJsonExpression(value: Json): Expression {
             return {
                 kind,
             };
-        case "scalarLiteral":
+        case "literal":
             return {
                 kind,
-                scalar_literal: fromJsonScalarLiteral(jsonField(object, "scalar_literal")),
+                literal: fromJsonLiteral(jsonField(object, "literal")),
             };
         case "rangeExpression":
             return {

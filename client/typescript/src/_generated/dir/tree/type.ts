@@ -5,7 +5,7 @@ import type { StringId } from "../../core/string.js";
 import type { VarianceBound } from "./expression.js";
 import type { FunctionSignature } from "./function.js";
 import type { ThisForm } from "./function.js";
-import type { ScalarLiteral } from "./literal.js";
+import type { Literal } from "./literal.js";
 import type { TypeLiteral } from "./literal.js";
 import type { Name } from "./name.js";
 import type { LocalNodeId } from "./node.js";
@@ -17,7 +17,7 @@ import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from
 import { decodeVarianceBound, encodeVarianceBound, fromJsonVarianceBound, toJsonVarianceBound } from "./expression.js";
 import { decodeFunctionSignature, encodeFunctionSignature, fromJsonFunctionSignature, toJsonFunctionSignature } from "./function.js";
 import { decodeThisForm, encodeThisForm, fromJsonThisForm, toJsonThisForm } from "./function.js";
-import { decodeScalarLiteral, encodeScalarLiteral, fromJsonScalarLiteral, toJsonScalarLiteral } from "./literal.js";
+import { decodeLiteral, encodeLiteral, fromJsonLiteral, toJsonLiteral } from "./literal.js";
 import { decodeTypeLiteral, encodeTypeLiteral, fromJsonTypeLiteral, toJsonTypeLiteral } from "./literal.js";
 import { decodeName, encodeName, fromJsonName, toJsonName } from "./name.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
@@ -393,12 +393,12 @@ export function fromJsonMappedTypeModifier(value: Json): MappedTypeModifier {
 export type TypeExpression =
     /** Scalar literal type. */
     | {
-          readonly kind: "scalarLiteral";
-          readonly value: ScalarLiteral;
-      }
-    /** Literal type. */
-    | {
           readonly kind: "literal";
+          readonly value: Literal;
+      }
+    /** Keyword type. */
+    | {
+          readonly kind: "keyword";
           readonly value: TypeLiteral;
       }
     /** Lifetime name. */
@@ -610,13 +610,13 @@ export type TypeExpression =
 
 export const TypeExpression = {
     /** Scalar literal type. */
-    scalarLiteral(value: ScalarLiteral): TypeExpression {
-        return { kind: "scalarLiteral", value };
+    literal(value: Literal): TypeExpression {
+        return { kind: "literal", value };
     },
 
-    /** Literal type. */
-    literal(value: TypeLiteral): TypeExpression {
-        return { kind: "literal", value };
+    /** Keyword type. */
+    keyword(value: TypeLiteral): TypeExpression {
+        return { kind: "keyword", value };
     },
 
     /** Lifetime name. */
@@ -823,11 +823,11 @@ export const TypeExpression = {
 /** Encode one TypeExpression. */
 export function encodeTypeExpression(writer: BinaryWriter, value: TypeExpression): void {
     switch (value.kind) {
-        case "scalarLiteral":
-            writer.writeUnsigned(0);
-            encodeScalarLiteral(writer, value.value);
-            return;
         case "literal":
+            writer.writeUnsigned(0);
+            encodeLiteral(writer, value.value);
+            return;
+        case "keyword":
             writer.writeUnsigned(1);
             encodeTypeLiteral(writer, value.value);
             return;
@@ -1052,10 +1052,10 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
 
     switch (variant) {
         case 0: {
-            const value = decodeScalarLiteral(reader);
+            const value = decodeLiteral(reader);
 
             return {
-                kind: "scalarLiteral",
+                kind: "literal",
                 value,
             };
         }
@@ -1063,7 +1063,7 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
             const value = decodeTypeLiteral(reader);
 
             return {
-                kind: "literal",
+                kind: "keyword",
                 value,
             };
         }
@@ -1382,14 +1382,14 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
 /** Return one JSON value for one TypeExpression. */
 export function toJsonTypeExpression(value: TypeExpression): Json {
     switch (value.kind) {
-        case "scalarLiteral":
-            return {
-                kind: "scalarLiteral",
-                value: toJsonScalarLiteral(value.value),
-            };
         case "literal":
             return {
                 kind: "literal",
+                value: toJsonLiteral(value.value),
+            };
+        case "keyword":
+            return {
+                kind: "keyword",
                 value: toJsonTypeLiteral(value.value),
             };
         case "lifetime":
@@ -1603,12 +1603,12 @@ export function fromJsonTypeExpression(value: Json): TypeExpression {
     const kind = jsonString(jsonField(object, "kind"));
 
     switch (kind) {
-        case "scalarLiteral":
+        case "literal":
             return {
                 kind,
-                value: fromJsonScalarLiteral(jsonField(object, "value")),
+                value: fromJsonLiteral(jsonField(object, "value")),
             };
-        case "literal":
+        case "keyword":
             return {
                 kind,
                 value: fromJsonTypeLiteral(jsonField(object, "value")),

@@ -2905,10 +2905,10 @@ export type MemberTarget =
           readonly kind: "symbol";
           readonly symbol: MemberCandidate;
       }
-    /** Existential symbol-backed candidates deferred to call selection. */
+    /** An overload set of symbol-backed candidates contributed by one member key. */
     | {
-          readonly kind: "existential";
-          readonly existential: ReadonlyArray<MemberTarget>;
+          readonly kind: "overloadSet";
+          readonly overload_set: ReadonlyArray<MemberTarget>;
       }
     /** Simultaneous member requirements contributed by an intersection receiver. */
     | {
@@ -2943,9 +2943,9 @@ export const MemberTarget = {
         return { kind: "symbol", symbol: symbol_ };
     },
 
-    /** Existential symbol-backed candidates deferred to call selection. */
-    existential(existential: ReadonlyArray<MemberTarget>): MemberTarget {
-        return { kind: "existential", existential };
+    /** An overload set of symbol-backed candidates contributed by one member key. */
+    overloadSet(overload_set: ReadonlyArray<MemberTarget>): MemberTarget {
+        return { kind: "overloadSet", overload_set };
     },
 
     /** Simultaneous member requirements contributed by an intersection receiver. */
@@ -2999,10 +2999,10 @@ export function encodeMemberTarget(writer: BinaryWriter, value: MemberTarget): v
             writer.writeUnsigned(4);
             encodeMemberCandidate(writer, value.symbol);
             return;
-        case "existential":
+        case "overloadSet":
             writer.writeUnsigned(5);
-            writer.writeUnsigned(value.existential.length);
-            for (const item0 of value.existential) {
+            writer.writeUnsigned(value.overload_set.length);
+            for (const item0 of value.overload_set) {
                 encodeMemberTarget(writer, item0);
             }
             return;
@@ -3056,9 +3056,9 @@ export function decodeMemberTarget(reader: BinaryReader): MemberTarget {
             return { kind: "symbol", symbol: symbol_ };
         }
         case 5: {
-            const existential = (() => { const length0 = reader.readNumber(); const items0: Array<MemberTarget> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeMemberTarget(reader)); } return items0; })();
+            const overload_set = (() => { const length0 = reader.readNumber(); const items0: Array<MemberTarget> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeMemberTarget(reader)); } return items0; })();
 
-            return { kind: "existential", existential };
+            return { kind: "overloadSet", overload_set };
         }
         case 6: {
             const intersection = (() => { const length0 = reader.readNumber(); const items0: Array<MemberTarget> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeMemberTarget(reader)); } return items0; })();
@@ -3100,10 +3100,10 @@ export function toJsonMemberTarget(value: MemberTarget): Json {
                 kind: "symbol",
                 symbol: toJsonMemberCandidate(value.symbol),
             };
-        case "existential":
+        case "overloadSet":
             return {
-                kind: "existential",
-                existential: value.existential.map((item0) => toJsonMemberTarget(item0)),
+                kind: "overloadSet",
+                overload_set: value.overload_set.map((item0) => toJsonMemberTarget(item0)),
             };
         case "intersection":
             return {
@@ -3148,10 +3148,10 @@ export function fromJsonMemberTarget(value: Json): MemberTarget {
                 kind,
                 symbol: fromJsonMemberCandidate(jsonField(object, "symbol")),
             };
-        case "existential":
+        case "overloadSet":
             return {
                 kind,
-                existential: jsonArray(jsonField(object, "existential")).map((item0) => fromJsonMemberTarget(item0)),
+                overload_set: jsonArray(jsonField(object, "overload_set")).map((item0) => fromJsonMemberTarget(item0)),
             };
         case "intersection":
             return {
@@ -3164,12 +3164,30 @@ export function fromJsonMemberTarget(value: Json): MemberTarget {
 }
 
 /** Target selected by lexical or path lookup. */
-export type NameResolution = {
-    /** The selected symbols in declaration order. */
-    readonly symbols: ReadonlyArray<GlobalSymbolId>;
-};
+export type NameResolution =
+    /** The selected declaration symbols in declaration order. */
+    | {
+          readonly kind: "symbols";
+          readonly symbols: ReadonlyArray<GlobalSymbolId>;
+      }
+    /** The type a type-literal name denotes in expression position. */
+    | {
+          readonly kind: "type";
+          readonly type: GlobalTypeId;
+      }
+;
 
 export const NameResolution = {
+    /** The selected declaration symbols in declaration order. */
+    symbols(symbols: ReadonlyArray<GlobalSymbolId>): NameResolution {
+        return { kind: "symbols", symbols };
+    },
+
+    /** The type a type-literal name denotes in expression position. */
+    "type"(type_: GlobalTypeId): NameResolution {
+        return { kind: "type", type: type_ };
+    },
+
     /** Encode this value. */
     encode(writer: BinaryWriter, value: NameResolution): void {
         encodeNameResolution(writer, value);
@@ -3193,35 +3211,80 @@ export const NameResolution = {
 
 /** Encode one NameResolution. */
 export function encodeNameResolution(writer: BinaryWriter, value: NameResolution): void {
-    writer.writeUnsigned(value.symbols.length);
-    for (const item0 of value.symbols) {
-        encodeGlobalSymbolId(writer, item0);
+    switch (value.kind) {
+        case "symbols":
+            writer.writeUnsigned(0);
+            writer.writeUnsigned(value.symbols.length);
+            for (const item0 of value.symbols) {
+                encodeGlobalSymbolId(writer, item0);
+            }
+            return;
+        case "type":
+            writer.writeUnsigned(1);
+            encodeGlobalTypeId(writer, value.type);
+            return;
     }
+
+    throw new SerdeError("unknown enum variant");
 }
 
 /** Decode one NameResolution. */
 export function decodeNameResolution(reader: BinaryReader): NameResolution {
-    const symbols = (() => { const length0 = reader.readNumber(); const items0: Array<GlobalSymbolId> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeGlobalSymbolId(reader)); } return items0; })();
+    const variant = reader.readNumber();
 
-    return {
-        symbols,
-    };
+    switch (variant) {
+        case 0: {
+            const symbols = (() => { const length0 = reader.readNumber(); const items0: Array<GlobalSymbolId> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeGlobalSymbolId(reader)); } return items0; })();
+
+            return { kind: "symbols", symbols };
+        }
+        case 1: {
+            const type_ = decodeGlobalTypeId(reader);
+
+            return { kind: "type", type: type_ };
+        }
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
 }
 
 /** Return one JSON value for one NameResolution. */
 export function toJsonNameResolution(value: NameResolution): Json {
-    return {
-        symbols: value.symbols.map((item0) => toJsonGlobalSymbolId(item0)),
-    };
+    switch (value.kind) {
+        case "symbols":
+            return {
+                kind: "symbols",
+                symbols: value.symbols.map((item0) => toJsonGlobalSymbolId(item0)),
+            };
+        case "type":
+            return {
+                kind: "type",
+                type: toJsonGlobalTypeId(value.type),
+            };
+    }
+
+    throw new SerdeError("unknown enum variant");
 }
 
 /** Return one NameResolution from one JSON value. */
 export function fromJsonNameResolution(value: Json): NameResolution {
     const object = jsonObject(value);
+    const kind = jsonString(jsonField(object, "kind"));
 
-    return {
-        symbols: jsonArray(jsonField(object, "symbols")).map((item0) => fromJsonGlobalSymbolId(item0)),
-    };
+    switch (kind) {
+        case "symbols":
+            return {
+                kind,
+                symbols: jsonArray(jsonField(object, "symbols")).map((item0) => fromJsonGlobalSymbolId(item0)),
+            };
+        case "type":
+            return {
+                kind,
+                type: fromJsonGlobalTypeId(jsonField(object, "type")),
+            };
+    }
+
+    throw new SerdeError(`unknown enum variant: ${kind}`);
 }
 
 /** One operation or the operations selected for every runtime union arm. */
@@ -4068,6 +4131,8 @@ export function fromJsonPatternFieldResolution(value: Json): PatternFieldResolut
 export type PatternMustResolution = {
     /** The nested pattern that must match. */
     readonly pattern: GlobalNodeIdAny;
+    /** The non-nullish type the requirement accepts. */
+    readonly ty: GlobalTypeId;
 };
 
 export const PatternMustResolution = {
@@ -4095,14 +4160,17 @@ export const PatternMustResolution = {
 /** Encode one PatternMustResolution. */
 export function encodePatternMustResolution(writer: BinaryWriter, value: PatternMustResolution): void {
     encodeGlobalNodeIdAny(writer, value.pattern);
+    encodeGlobalTypeId(writer, value.ty);
 }
 
 /** Decode one PatternMustResolution. */
 export function decodePatternMustResolution(reader: BinaryReader): PatternMustResolution {
     const pattern = decodeGlobalNodeIdAny(reader);
+    const ty = decodeGlobalTypeId(reader);
 
     return {
         pattern,
+        ty,
     };
 }
 
@@ -4110,6 +4178,7 @@ export function decodePatternMustResolution(reader: BinaryReader): PatternMustRe
 export function toJsonPatternMustResolution(value: PatternMustResolution): Json {
     return {
         pattern: toJsonGlobalNodeIdAny(value.pattern),
+        ty: toJsonGlobalTypeId(value.ty),
     };
 }
 
@@ -4119,6 +4188,7 @@ export function fromJsonPatternMustResolution(value: Json): PatternMustResolutio
 
     return {
         pattern: fromJsonGlobalNodeIdAny(jsonField(object, "pattern")),
+        ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
     };
 }
 

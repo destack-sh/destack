@@ -3,7 +3,7 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonString } from "../../../protocol/serde.js";
 
 /** Machine intrinsic operations. */
-export type Intrinsic = "leadingZeroCount" | "trailingZeroCount" | "populationCount" | "byteSwap" | "bitReverse" | "rotateLeft" | "rotateRight" | "isolateLowestOne" | "midpoint" | "clamp" | "divideCeil" | "remainderEuclidean" | "isMultipleOf" | "absDiff" | "addOverflow" | "subOverflow" | "mulOverflow" | "addUnchecked" | "subUnchecked" | "mulUnchecked" | "divUnchecked" | "remUnchecked" | "shlUnchecked" | "shrUnchecked" | "satAdd" | "satSub" | "memcpy" | "memmove" | "memset" | "memcmp" | "prefetchRead" | "prefetchWrite" | "transmute" | "spaceCast" | "pointerByteOffsetFrom" | "volatileLoad" | "volatileStore" | "rawEq" | "sqrt" | "abs" | "isFinite" | "isInfinite" | "fma" | "copySign" | "min" | "max" | "sin" | "cos" | "tan" | "asin" | "acos" | "atan" | "atan2" | "exp" | "exp2" | "log" | "log2" | "log10" | "pow" | "floor" | "ceil" | "trunc" | "round" | "roundTiesEven" | "roundTiesAway" | "spinLoop" | "expect" | "blackBox";
+export type Intrinsic = "leadingZeroCount" | "trailingZeroCount" | "populationCount" | "byteSwap" | "bitReverse" | "rotateLeft" | "rotateRight" | "isolateLowestOne" | "midpoint" | "clamp" | "divideCeil" | "remainderEuclidean" | "isMultipleOf" | "absDiff" | "addOverflow" | "subOverflow" | "mulOverflow" | "addUnchecked" | "subUnchecked" | "mulUnchecked" | "divUnchecked" | "remUnchecked" | "shlUnchecked" | "shrUnchecked" | "satAdd" | "satSub" | "memcpy" | "memmove" | "memset" | "memcmp" | "prefetchRead" | "prefetchWrite" | "transmute" | "spaceCast" | "pointerByteOffsetFrom" | "volatileLoad" | "volatileStore" | "rawEq" | "sqrt" | "cbrt" | "abs" | "isFinite" | "isInfinite" | "fma" | "copySign" | "min" | "max" | "sin" | "cos" | "tan" | "asin" | "acos" | "atan" | "atan2" | "exp" | "expm1" | "exp2" | "log" | "log1p" | "log2" | "log10" | "pow" | "floor" | "ceil" | "trunc" | "round" | "roundTiesEven" | "roundTiesAway" | "spinLoop" | "expect" | "blackBox";
 
 export const Intrinsic = {
     /** Encode this value. */
@@ -147,92 +147,101 @@ export function encodeIntrinsic(writer: BinaryWriter, value: Intrinsic): void {
         case "sqrt":
             writer.writeUnsigned(38);
             return;
-        case "abs":
+        case "cbrt":
             writer.writeUnsigned(39);
             return;
-        case "isFinite":
+        case "abs":
             writer.writeUnsigned(40);
             return;
-        case "isInfinite":
+        case "isFinite":
             writer.writeUnsigned(41);
             return;
-        case "fma":
+        case "isInfinite":
             writer.writeUnsigned(42);
             return;
-        case "copySign":
+        case "fma":
             writer.writeUnsigned(43);
             return;
-        case "min":
+        case "copySign":
             writer.writeUnsigned(44);
             return;
-        case "max":
+        case "min":
             writer.writeUnsigned(45);
             return;
-        case "sin":
+        case "max":
             writer.writeUnsigned(46);
             return;
-        case "cos":
+        case "sin":
             writer.writeUnsigned(47);
             return;
-        case "tan":
+        case "cos":
             writer.writeUnsigned(48);
             return;
-        case "asin":
+        case "tan":
             writer.writeUnsigned(49);
             return;
-        case "acos":
+        case "asin":
             writer.writeUnsigned(50);
             return;
-        case "atan":
+        case "acos":
             writer.writeUnsigned(51);
             return;
-        case "atan2":
+        case "atan":
             writer.writeUnsigned(52);
             return;
-        case "exp":
+        case "atan2":
             writer.writeUnsigned(53);
             return;
-        case "exp2":
+        case "exp":
             writer.writeUnsigned(54);
             return;
-        case "log":
+        case "expm1":
             writer.writeUnsigned(55);
             return;
-        case "log2":
+        case "exp2":
             writer.writeUnsigned(56);
             return;
-        case "log10":
+        case "log":
             writer.writeUnsigned(57);
             return;
-        case "pow":
+        case "log1p":
             writer.writeUnsigned(58);
             return;
-        case "floor":
+        case "log2":
             writer.writeUnsigned(59);
             return;
-        case "ceil":
+        case "log10":
             writer.writeUnsigned(60);
             return;
-        case "trunc":
+        case "pow":
             writer.writeUnsigned(61);
             return;
-        case "round":
+        case "floor":
             writer.writeUnsigned(62);
             return;
-        case "roundTiesEven":
+        case "ceil":
             writer.writeUnsigned(63);
             return;
-        case "roundTiesAway":
+        case "trunc":
             writer.writeUnsigned(64);
             return;
-        case "spinLoop":
+        case "round":
             writer.writeUnsigned(65);
             return;
-        case "expect":
+        case "roundTiesEven":
             writer.writeUnsigned(66);
             return;
-        case "blackBox":
+        case "roundTiesAway":
             writer.writeUnsigned(67);
+            return;
+        case "spinLoop":
+            writer.writeUnsigned(68);
+            return;
+        case "expect":
+            writer.writeUnsigned(69);
+            return;
+        case "blackBox":
+            writer.writeUnsigned(70);
             return;
     }
 
@@ -323,62 +332,68 @@ export function decodeIntrinsic(reader: BinaryReader): Intrinsic {
         case 38:
             return "sqrt";
         case 39:
-            return "abs";
+            return "cbrt";
         case 40:
-            return "isFinite";
+            return "abs";
         case 41:
-            return "isInfinite";
+            return "isFinite";
         case 42:
-            return "fma";
+            return "isInfinite";
         case 43:
-            return "copySign";
+            return "fma";
         case 44:
-            return "min";
+            return "copySign";
         case 45:
-            return "max";
+            return "min";
         case 46:
-            return "sin";
+            return "max";
         case 47:
-            return "cos";
+            return "sin";
         case 48:
-            return "tan";
+            return "cos";
         case 49:
-            return "asin";
+            return "tan";
         case 50:
-            return "acos";
+            return "asin";
         case 51:
-            return "atan";
+            return "acos";
         case 52:
-            return "atan2";
+            return "atan";
         case 53:
-            return "exp";
+            return "atan2";
         case 54:
-            return "exp2";
+            return "exp";
         case 55:
-            return "log";
+            return "expm1";
         case 56:
-            return "log2";
+            return "exp2";
         case 57:
-            return "log10";
+            return "log";
         case 58:
-            return "pow";
+            return "log1p";
         case 59:
-            return "floor";
+            return "log2";
         case 60:
-            return "ceil";
+            return "log10";
         case 61:
-            return "trunc";
+            return "pow";
         case 62:
-            return "round";
+            return "floor";
         case 63:
-            return "roundTiesEven";
+            return "ceil";
         case 64:
-            return "roundTiesAway";
+            return "trunc";
         case 65:
-            return "spinLoop";
+            return "round";
         case 66:
-            return "expect";
+            return "roundTiesEven";
         case 67:
+            return "roundTiesAway";
+        case 68:
+            return "spinLoop";
+        case 69:
+            return "expect";
+        case 70:
             return "blackBox";
     }
 
@@ -473,6 +488,8 @@ export function fromJsonIntrinsic(value: Json): Intrinsic {
             return "rawEq";
         case "sqrt":
             return "sqrt";
+        case "cbrt":
+            return "cbrt";
         case "abs":
             return "abs";
         case "isFinite":
@@ -503,10 +520,14 @@ export function fromJsonIntrinsic(value: Json): Intrinsic {
             return "atan2";
         case "exp":
             return "exp";
+        case "expm1":
+            return "expm1";
         case "exp2":
             return "exp2";
         case "log":
             return "log";
+        case "log1p":
+            return "log1p";
         case "log2":
             return "log2";
         case "log10":

@@ -141,14 +141,14 @@ export type ArtifactKey =
           readonly profile: ProfileId;
           readonly target: TargetId;
       }
-    /** One query index for a module profile. */
+    /** One index for a module profile. */
     | {
           readonly kind: "moduleIndex";
           readonly module: ModuleId;
           readonly profile: ProfileId;
           readonly kindValue: IndexKind;
       }
-    /** One query index for a program profile. */
+    /** One index for a program profile. */
     | {
           readonly kind: "programIndex";
           readonly profile: ProfileId;
@@ -311,12 +311,12 @@ export const ArtifactKey = {
         return { kind: "programAnalysis", profile, target };
     },
 
-    /** One query index for a module profile. */
+    /** One index for a module profile. */
     moduleIndex(module_: ModuleId, profile: ProfileId, kind: IndexKind): ArtifactKey {
         return { kind: "moduleIndex", module: module_, profile, kindValue: kind };
     },
 
-    /** One query index for a program profile. */
+    /** One index for a program profile. */
     programIndex(profile: ProfileId, kind: IndexKind): ArtifactKey {
         return { kind: "programIndex", profile, kindValue: kind };
     },

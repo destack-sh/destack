@@ -10,11 +10,11 @@ import type { GlobalNodeIdAny } from "../tree/node.js";
 import type { FunctionRole } from "../tree/property.js";
 import type { MemberSlot } from "../tree/property.js";
 import type { MethodAbstraction } from "../tree/property.js";
-import type { GlobalStaticId } from "../tree/static.js";
 import type { LocalGenericTemplateId } from "../type/generic.js";
 import type { EnumBackingType } from "../type/primitive.js";
 import type { EnumVariantValue } from "../type/primitive.js";
 import type { IntegerType } from "../type/primitive.js";
+import type { PrimitiveType } from "../type/primitive.js";
 import type { GlobalTypeId } from "../type/type.js";
 import type { Space } from "../type/type.js";
 import type { ModuleId } from "../../source/file/model/module.js";
@@ -27,11 +27,11 @@ import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, 
 import { decodeFunctionRole, encodeFunctionRole, fromJsonFunctionRole, toJsonFunctionRole } from "../tree/property.js";
 import { decodeMemberSlot, encodeMemberSlot, fromJsonMemberSlot, toJsonMemberSlot } from "../tree/property.js";
 import { decodeMethodAbstraction, encodeMethodAbstraction, fromJsonMethodAbstraction, toJsonMethodAbstraction } from "../tree/property.js";
-import { decodeGlobalStaticId, encodeGlobalStaticId, fromJsonGlobalStaticId, toJsonGlobalStaticId } from "../tree/static.js";
 import { decodeLocalGenericTemplateId, encodeLocalGenericTemplateId, fromJsonLocalGenericTemplateId, toJsonLocalGenericTemplateId } from "../type/generic.js";
 import { decodeEnumBackingType, encodeEnumBackingType, fromJsonEnumBackingType, toJsonEnumBackingType } from "../type/primitive.js";
 import { decodeEnumVariantValue, encodeEnumVariantValue, fromJsonEnumVariantValue, toJsonEnumVariantValue } from "../type/primitive.js";
 import { decodeIntegerType, encodeIntegerType, fromJsonIntegerType, toJsonIntegerType } from "../type/primitive.js";
+import { decodePrimitiveType, encodePrimitiveType, fromJsonPrimitiveType, toJsonPrimitiveType } from "../type/primitive.js";
 import { decodeGlobalTypeId, encodeGlobalTypeId, fromJsonGlobalTypeId, toJsonGlobalTypeId } from "../type/type.js";
 import { decodeSpace, encodeSpace, fromJsonSpace, toJsonSpace } from "../type/type.js";
 import { decodeModuleId, encodeModuleId, fromJsonModuleId, toJsonModuleId } from "../../source/file/model/module.js";
@@ -44,8 +44,6 @@ export type AssociatedConstDefinition = {
     readonly source: GlobalNodeIdAny;
     /** The associated const key. */
     readonly key: StaticKey;
-    /** The checked static value. */
-    readonly value?: GlobalStaticId;
 };
 
 export const AssociatedConstDefinition = {
@@ -75,9 +73,6 @@ export function encodeAssociatedConstDefinition(writer: BinaryWriter, value: Ass
     encodeGlobalSymbolId(writer, value.symbol);
     encodeGlobalNodeIdAny(writer, value.source);
     encodeStaticKey(writer, value.key);
-    writer.writeOption(value.value, (value3) => {
-        encodeGlobalStaticId(writer, value3);
-    });
 }
 
 /** Decode one AssociatedConstDefinition. */
@@ -85,13 +80,11 @@ export function decodeAssociatedConstDefinition(reader: BinaryReader): Associate
     const symbol_ = decodeGlobalSymbolId(reader);
     const source = decodeGlobalNodeIdAny(reader);
     const key = decodeStaticKey(reader);
-    const value = reader.readOption(() => decodeGlobalStaticId(reader));
 
     return {
         symbol: symbol_,
         source,
         key,
-        ...(value === undefined ? {} : { value }),
     };
 }
 
@@ -101,7 +94,6 @@ export function toJsonAssociatedConstDefinition(value: AssociatedConstDefinition
         symbol: toJsonGlobalSymbolId(value.symbol),
         source: toJsonGlobalNodeIdAny(value.source),
         key: toJsonStaticKey(value.key),
-        ...(value.value === undefined ? {} : { value: toJsonGlobalStaticId(value.value) }),
     };
 }
 
@@ -113,7 +105,6 @@ export function fromJsonAssociatedConstDefinition(value: Json): AssociatedConstD
         symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
         source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
         key: fromJsonStaticKey(jsonField(object, "key")),
-        value: jsonOptional(object, "value", (value) => fromJsonGlobalStaticId(value)),
     };
 }
 
@@ -1312,8 +1303,10 @@ export type DefinitionSegment = {
     readonly sources: ReadonlyMap<GlobalSymbolId, GlobalNodeIdAny>;
     /** Definitions keyed by declaring symbol. */
     readonly definitions: ReadonlyMap<GlobalSymbolId, Definition>;
-    /** Extension symbols by target symbol. */
-    readonly extensionsByTargetSymbol: ReadonlyMap<GlobalSymbolId, ReadonlyArray<GlobalSymbolId>>;
+    /** Declaring definition symbols keyed by member symbol. */
+    readonly definitionsByMember: ReadonlyMap<GlobalSymbolId, GlobalSymbolId>;
+    /** Extension symbols by target root. */
+    readonly extensionsByRoot: ReadonlyMap<TypeRoot, ReadonlyArray<GlobalSymbolId>>;
     /** Blanket extension symbols. */
     readonly blanketExtensions: ReadonlyArray<GlobalSymbolId>;
 };
@@ -1367,7 +1360,7 @@ export function encodeDefinitionSegment(writer: BinaryWriter, value: DefinitionS
         encodeGlobalSymbolId(writer, entry2.key2);
         encodeDefinition(writer, entry2.item2);
     }
-    const entries3 = Array.from(value.extensionsByTargetSymbol.entries()).map(([key3, item3]) => {
+    const entries3 = Array.from(value.definitionsByMember.entries()).map(([key3, item3]) => {
         const keyBytes = nestedBytes((writer) => {
             encodeGlobalSymbolId(writer, key3);
         });
@@ -1377,14 +1370,26 @@ export function encodeDefinitionSegment(writer: BinaryWriter, value: DefinitionS
     writer.writeUnsigned(entries3.length);
     for (const entry3 of entries3) {
         encodeGlobalSymbolId(writer, entry3.key3);
-        writer.writeUnsigned(entry3.item3.length);
-        for (const item4 of entry3.item3) {
-            encodeGlobalSymbolId(writer, item4);
+        encodeGlobalSymbolId(writer, entry3.item3);
+    }
+    const entries4 = Array.from(value.extensionsByRoot.entries()).map(([key4, item4]) => {
+        const keyBytes = nestedBytes((writer) => {
+            encodeTypeRoot(writer, key4);
+        });
+        return { key4, item4, keyBytes };
+    });
+    entries4.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
+    writer.writeUnsigned(entries4.length);
+    for (const entry4 of entries4) {
+        encodeTypeRoot(writer, entry4.key4);
+        writer.writeUnsigned(entry4.item4.length);
+        for (const item5 of entry4.item4) {
+            encodeGlobalSymbolId(writer, item5);
         }
     }
     writer.writeUnsigned(value.blanketExtensions.length);
-    for (const item4 of value.blanketExtensions) {
-        encodeGlobalSymbolId(writer, item4);
+    for (const item5 of value.blanketExtensions) {
+        encodeGlobalSymbolId(writer, item5);
     }
 }
 
@@ -1393,14 +1398,16 @@ export function decodeDefinitionSegment(reader: BinaryReader): DefinitionSegment
     const moduleId = decodeModuleId(reader);
     const sources = (() => { const length1 = reader.readNumber(); const items1 = new Map<GlobalSymbolId, GlobalNodeIdAny>(); for (let index = 0; index < length1; index += 1) { items1.set(decodeGlobalSymbolId(reader), decodeGlobalNodeIdAny(reader)); } return items1; })();
     const definitions = (() => { const length2 = reader.readNumber(); const items2 = new Map<GlobalSymbolId, Definition>(); for (let index = 0; index < length2; index += 1) { items2.set(decodeGlobalSymbolId(reader), decodeDefinition(reader)); } return items2; })();
-    const extensionsByTargetSymbol = (() => { const length3 = reader.readNumber(); const items3 = new Map<GlobalSymbolId, ReadonlyArray<GlobalSymbolId>>(); for (let index = 0; index < length3; index += 1) { items3.set(decodeGlobalSymbolId(reader), (() => { const length5 = reader.readNumber(); const items5: Array<GlobalSymbolId> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeGlobalSymbolId(reader)); } return items5; })()); } return items3; })();
-    const blanketExtensions = (() => { const length4 = reader.readNumber(); const items4: Array<GlobalSymbolId> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeGlobalSymbolId(reader)); } return items4; })();
+    const definitionsByMember = (() => { const length3 = reader.readNumber(); const items3 = new Map<GlobalSymbolId, GlobalSymbolId>(); for (let index = 0; index < length3; index += 1) { items3.set(decodeGlobalSymbolId(reader), decodeGlobalSymbolId(reader)); } return items3; })();
+    const extensionsByRoot = (() => { const length4 = reader.readNumber(); const items4 = new Map<TypeRoot, ReadonlyArray<GlobalSymbolId>>(); for (let index = 0; index < length4; index += 1) { items4.set(decodeTypeRoot(reader), (() => { const length6 = reader.readNumber(); const items6: Array<GlobalSymbolId> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeGlobalSymbolId(reader)); } return items6; })()); } return items4; })();
+    const blanketExtensions = (() => { const length5 = reader.readNumber(); const items5: Array<GlobalSymbolId> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeGlobalSymbolId(reader)); } return items5; })();
 
     return {
         moduleId,
         sources,
         definitions,
-        extensionsByTargetSymbol,
+        definitionsByMember,
+        extensionsByRoot,
         blanketExtensions,
     };
 }
@@ -1411,7 +1418,8 @@ export function toJsonDefinitionSegment(value: DefinitionSegment): Json {
         moduleId: toJsonModuleId(value.moduleId),
         sources: Array.from(value.sources.entries()).map(([key0, item0]) => [toJsonGlobalSymbolId(key0), toJsonGlobalNodeIdAny(item0)] as const),
         definitions: Array.from(value.definitions.entries()).map(([key0, item0]) => [toJsonGlobalSymbolId(key0), toJsonDefinition(item0)] as const),
-        extensionsByTargetSymbol: Array.from(value.extensionsByTargetSymbol.entries()).map(([key0, item0]) => [toJsonGlobalSymbolId(key0), item0.map((item1) => toJsonGlobalSymbolId(item1))] as const),
+        definitionsByMember: Array.from(value.definitionsByMember.entries()).map(([key0, item0]) => [toJsonGlobalSymbolId(key0), toJsonGlobalSymbolId(item0)] as const),
+        extensionsByRoot: Array.from(value.extensionsByRoot.entries()).map(([key0, item0]) => [toJsonTypeRoot(key0), item0.map((item1) => toJsonGlobalSymbolId(item1))] as const),
         blanketExtensions: value.blanketExtensions.map((item0) => toJsonGlobalSymbolId(item0)),
     };
 }
@@ -1424,7 +1432,8 @@ export function fromJsonDefinitionSegment(value: Json): DefinitionSegment {
         moduleId: fromJsonModuleId(jsonField(object, "moduleId")),
         sources: new Map(jsonArray(jsonField(object, "sources")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalSymbolId(key0), fromJsonGlobalNodeIdAny(item0)] as const; })),
         definitions: new Map(jsonArray(jsonField(object, "definitions")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalSymbolId(key0), fromJsonDefinition(item0)] as const; })),
-        extensionsByTargetSymbol: new Map(jsonArray(jsonField(object, "extensionsByTargetSymbol")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalSymbolId(key0), jsonArray(item0).map((item1) => fromJsonGlobalSymbolId(item1))] as const; })),
+        definitionsByMember: new Map(jsonArray(jsonField(object, "definitionsByMember")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalSymbolId(key0), fromJsonGlobalSymbolId(item0)] as const; })),
+        extensionsByRoot: new Map(jsonArray(jsonField(object, "extensionsByRoot")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonTypeRoot(key0), jsonArray(item0).map((item1) => fromJsonGlobalSymbolId(item1))] as const; })),
         blanketExtensions: jsonArray(jsonField(object, "blanketExtensions")).map((item0) => fromJsonGlobalSymbolId(item0)),
     };
 }
@@ -1798,11 +1807,11 @@ export function fromJsonExtensionForm(value: Json): ExtensionForm {
 
 /** Extension lookup target. */
 export type ExtensionTarget =
-    /** Extension whose receiver type has a lookup root. */
+    /** Extension whose receiver type names one indexable root. */
     | {
           readonly kind: "rooted";
-          /** The declaration root used for member lookup. */
-          readonly root: GlobalSymbolId;
+          /** The root used for member lookup and conflicts. */
+          readonly root: TypeRoot;
           /** The checked receiver type. */
           readonly ty: GlobalTypeId;
       }
@@ -1817,8 +1826,8 @@ export type ExtensionTarget =
 ;
 
 export const ExtensionTarget = {
-    /** Extension whose receiver type has a lookup root. */
-    rooted(root: GlobalSymbolId, ty: GlobalTypeId): ExtensionTarget {
+    /** Extension whose receiver type names one indexable root. */
+    rooted(root: TypeRoot, ty: GlobalTypeId): ExtensionTarget {
         return { kind: "rooted", root, ty };
     },
 
@@ -1853,7 +1862,7 @@ export function encodeExtensionTarget(writer: BinaryWriter, value: ExtensionTarg
     switch (value.kind) {
         case "rooted":
             writer.writeUnsigned(0);
-            encodeGlobalSymbolId(writer, value.root);
+            encodeTypeRoot(writer, value.root);
             encodeGlobalTypeId(writer, value.ty);
             return;
         case "blanket":
@@ -1872,7 +1881,7 @@ export function decodeExtensionTarget(reader: BinaryReader): ExtensionTarget {
 
     switch (variant) {
         case 0: {
-            const root = decodeGlobalSymbolId(reader);
+            const root = decodeTypeRoot(reader);
             const ty = decodeGlobalTypeId(reader);
 
             return {
@@ -1902,7 +1911,7 @@ export function toJsonExtensionTarget(value: ExtensionTarget): Json {
         case "rooted":
             return {
                 kind: "rooted",
-                root: toJsonGlobalSymbolId(value.root),
+                root: toJsonTypeRoot(value.root),
                 ty: toJsonGlobalTypeId(value.ty),
             };
         case "blanket":
@@ -1925,7 +1934,7 @@ export function fromJsonExtensionTarget(value: Json): ExtensionTarget {
         case "rooted":
             return {
                 kind,
-                root: fromJsonGlobalSymbolId(jsonField(object, "root")),
+                root: fromJsonTypeRoot(jsonField(object, "root")),
                 ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
             };
         case "blanket":
@@ -2315,6 +2324,71 @@ export function fromJsonMemberConformance(value: Json): MemberConformance {
     return {
         member: fromJsonGlobalSymbolId(jsonField(object, "member")),
         requirement: fromJsonGlobalSymbolId(jsonField(object, "requirement")),
+    };
+}
+
+/** One exact member implementation edge. */
+export type MemberImplementation = {
+    /** The declared member requirement. */
+    readonly declaration: GlobalSymbolId;
+    /** The member satisfying the declaration. */
+    readonly implementation: GlobalSymbolId;
+};
+
+export const MemberImplementation = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: MemberImplementation): void {
+        encodeMemberImplementation(writer, value);
+    },
+
+    /** Decode one MemberImplementation. */
+    decode(reader: BinaryReader): MemberImplementation {
+        return decodeMemberImplementation(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: MemberImplementation): Json {
+        return toJsonMemberImplementation(value);
+    },
+
+    /** Return one MemberImplementation from one JSON value. */
+    fromJson(value: Json): MemberImplementation {
+        return fromJsonMemberImplementation(value);
+    },
+};
+
+/** Encode one MemberImplementation. */
+export function encodeMemberImplementation(writer: BinaryWriter, value: MemberImplementation): void {
+    encodeGlobalSymbolId(writer, value.declaration);
+    encodeGlobalSymbolId(writer, value.implementation);
+}
+
+/** Decode one MemberImplementation. */
+export function decodeMemberImplementation(reader: BinaryReader): MemberImplementation {
+    const declaration = decodeGlobalSymbolId(reader);
+    const implementation = decodeGlobalSymbolId(reader);
+
+    return {
+        declaration,
+        implementation,
+    };
+}
+
+/** Return one JSON value for one MemberImplementation. */
+export function toJsonMemberImplementation(value: MemberImplementation): Json {
+    return {
+        declaration: toJsonGlobalSymbolId(value.declaration),
+        implementation: toJsonGlobalSymbolId(value.implementation),
+    };
+}
+
+/** Return one MemberImplementation from one JSON value. */
+export function fromJsonMemberImplementation(value: Json): MemberImplementation {
+    const object = jsonObject(value);
+
+    return {
+        declaration: fromJsonGlobalSymbolId(jsonField(object, "declaration")),
+        implementation: fromJsonGlobalSymbolId(jsonField(object, "implementation")),
     };
 }
 
@@ -3310,4 +3384,148 @@ export function fromJsonTypeAliasDefinition(value: Json): TypeAliasDefinition {
         template: jsonOptional(object, "template", (value) => fromJsonLocalGenericTemplateId(value)),
         value: fromJsonGlobalTypeId(jsonField(object, "value")),
     };
+}
+
+/** One indexable receiver root, keying extension lookup and conflicts. */
+export type TypeRoot =
+    /** A declared nominal root. */
+    | {
+          readonly kind: "declaration";
+          readonly declaration: GlobalSymbolId;
+      }
+    /** A builtin primitive root. */
+    | {
+          readonly kind: "primitive";
+          readonly primitive: PrimitiveType;
+      }
+    /** The tuple constructor root. */
+    | {
+          readonly kind: "tuple";
+      }
+;
+
+export const TypeRoot = {
+    /** A declared nominal root. */
+    declaration(declaration: GlobalSymbolId): TypeRoot {
+        return { kind: "declaration", declaration };
+    },
+
+    /** A builtin primitive root. */
+    primitive(primitive: PrimitiveType): TypeRoot {
+        return { kind: "primitive", primitive };
+    },
+
+    /** The tuple constructor root. */
+    tuple(): TypeRoot {
+        return { kind: "tuple" };
+    },
+
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TypeRoot): void {
+        encodeTypeRoot(writer, value);
+    },
+
+    /** Decode one TypeRoot. */
+    decode(reader: BinaryReader): TypeRoot {
+        return decodeTypeRoot(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TypeRoot): Json {
+        return toJsonTypeRoot(value);
+    },
+
+    /** Return one TypeRoot from one JSON value. */
+    fromJson(value: Json): TypeRoot {
+        return fromJsonTypeRoot(value);
+    },
+};
+
+/** Encode one TypeRoot. */
+export function encodeTypeRoot(writer: BinaryWriter, value: TypeRoot): void {
+    switch (value.kind) {
+        case "declaration":
+            writer.writeUnsigned(0);
+            encodeGlobalSymbolId(writer, value.declaration);
+            return;
+        case "primitive":
+            writer.writeUnsigned(1);
+            encodePrimitiveType(writer, value.primitive);
+            return;
+        case "tuple":
+            writer.writeUnsigned(2);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one TypeRoot. */
+export function decodeTypeRoot(reader: BinaryReader): TypeRoot {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0: {
+            const declaration = decodeGlobalSymbolId(reader);
+
+            return { kind: "declaration", declaration };
+        }
+        case 1: {
+            const primitive = decodePrimitiveType(reader);
+
+            return { kind: "primitive", primitive };
+        }
+        case 2: {
+            return { kind: "tuple" };
+        }
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one TypeRoot. */
+export function toJsonTypeRoot(value: TypeRoot): Json {
+    switch (value.kind) {
+        case "declaration":
+            return {
+                kind: "declaration",
+                declaration: toJsonGlobalSymbolId(value.declaration),
+            };
+        case "primitive":
+            return {
+                kind: "primitive",
+                primitive: toJsonPrimitiveType(value.primitive),
+            };
+        case "tuple":
+            return {
+                kind: "tuple",
+            };
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Return one TypeRoot from one JSON value. */
+export function fromJsonTypeRoot(value: Json): TypeRoot {
+    const object = jsonObject(value);
+    const kind = jsonString(jsonField(object, "kind"));
+
+    switch (kind) {
+        case "declaration":
+            return {
+                kind,
+                declaration: fromJsonGlobalSymbolId(jsonField(object, "declaration")),
+            };
+        case "primitive":
+            return {
+                kind,
+                primitive: fromJsonPrimitiveType(jsonField(object, "primitive")),
+            };
+        case "tuple":
+            return {
+                kind,
+            };
+    }
+
+    throw new SerdeError(`unknown enum variant: ${kind}`);
 }

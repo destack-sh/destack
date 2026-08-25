@@ -3,6 +3,8 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonField, jsonObject, jsonString } from "../../protocol/serde.js";
 import type { CallIndex } from "../dir/index/call.js";
 import type { CallPostings } from "../dir/index/call.js";
+import type { CodeIndex } from "../dir/index/code.js";
+import type { CodePostings } from "../dir/index/code.js";
 import type { DecoratorIndex } from "../dir/index/decorator.js";
 import type { DecoratorPostings } from "../dir/index/decorator.js";
 import type { ExportIndex } from "../dir/index/export.js";
@@ -17,6 +19,8 @@ import type { SymbolIndex } from "../dir/index/symbol.js";
 import type { SymbolPostings } from "../dir/index/symbol.js";
 import { decodeCallIndex, encodeCallIndex, fromJsonCallIndex, toJsonCallIndex } from "../dir/index/call.js";
 import { decodeCallPostings, encodeCallPostings, fromJsonCallPostings, toJsonCallPostings } from "../dir/index/call.js";
+import { decodeCodeIndex, encodeCodeIndex, fromJsonCodeIndex, toJsonCodeIndex } from "../dir/index/code.js";
+import { decodeCodePostings, encodeCodePostings, fromJsonCodePostings, toJsonCodePostings } from "../dir/index/code.js";
 import { decodeDecoratorIndex, encodeDecoratorIndex, fromJsonDecoratorIndex, toJsonDecoratorIndex } from "../dir/index/decorator.js";
 import { decodeDecoratorPostings, encodeDecoratorPostings, fromJsonDecoratorPostings, toJsonDecoratorPostings } from "../dir/index/decorator.js";
 import { decodeExportIndex, encodeExportIndex, fromJsonExportIndex, toJsonExportIndex } from "../dir/index/export.js";
@@ -30,8 +34,8 @@ import { decodeReferencePostings, encodeReferencePostings, fromJsonReferencePost
 import { decodeSymbolIndex, encodeSymbolIndex, fromJsonSymbolIndex, toJsonSymbolIndex } from "../dir/index/symbol.js";
 import { decodeSymbolPostings, encodeSymbolPostings, fromJsonSymbolPostings, toJsonSymbolPostings } from "../dir/index/symbol.js";
 
-/** One query index kind shared by module and program artifacts. */
-export type IndexKind = "symbols" | "exports" | "members" | "references" | "calls" | "heritage" | "decorators";
+/** One index kind shared by module and program artifacts. */
+export type IndexKind = "symbols" | "exports" | "members" | "references" | "calls" | "heritage" | "decorators" | "code";
 
 export const IndexKind = {
     /** Encode this value. */
@@ -79,6 +83,9 @@ export function encodeIndexKind(writer: BinaryWriter, value: IndexKind): void {
         case "decorators":
             writer.writeUnsigned(6);
             return;
+        case "code":
+            writer.writeUnsigned(7);
+            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -103,6 +110,8 @@ export function decodeIndexKind(reader: BinaryReader): IndexKind {
             return "heritage";
         case 6:
             return "decorators";
+        case 7:
+            return "code";
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -132,12 +141,14 @@ export function fromJsonIndexKind(value: Json): IndexKind {
             return "heritage";
         case "decorators":
             return "decorators";
+        case "code":
+            return "code";
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** One persisted module query index. */
+/** One module query index. */
 export type ModuleIndex =
     /** Declared symbols. */
     | {
@@ -173,6 +184,11 @@ export type ModuleIndex =
     | {
           readonly kind: "decorators";
           readonly decorators: DecoratorIndex;
+      }
+    /** Code fingerprints and adjacent pairs. */
+    | {
+          readonly kind: "code";
+          readonly code: CodeIndex;
       }
 ;
 
@@ -210,6 +226,11 @@ export const ModuleIndex = {
     /** Decorator applications. */
     decorators(decorators: DecoratorIndex): ModuleIndex {
         return { kind: "decorators", decorators };
+    },
+
+    /** Code fingerprints and adjacent pairs. */
+    code(code: CodeIndex): ModuleIndex {
+        return { kind: "code", code };
     },
 
     /** Encode this value. */
@@ -264,6 +285,10 @@ export function encodeModuleIndex(writer: BinaryWriter, value: ModuleIndex): voi
             writer.writeUnsigned(6);
             encodeDecoratorIndex(writer, value.decorators);
             return;
+        case "code":
+            writer.writeUnsigned(7);
+            encodeCodeIndex(writer, value.code);
+            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -309,6 +334,11 @@ export function decodeModuleIndex(reader: BinaryReader): ModuleIndex {
 
             return { kind: "decorators", decorators };
         }
+        case 7: {
+            const code = decodeCodeIndex(reader);
+
+            return { kind: "code", code };
+        }
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -351,6 +381,11 @@ export function toJsonModuleIndex(value: ModuleIndex): Json {
             return {
                 kind: "decorators",
                 decorators: toJsonDecoratorIndex(value.decorators),
+            };
+        case "code":
+            return {
+                kind: "code",
+                code: toJsonCodeIndex(value.code),
             };
     }
 
@@ -398,12 +433,17 @@ export function fromJsonModuleIndex(value: Json): ModuleIndex {
                 kind,
                 decorators: fromJsonDecoratorIndex(jsonField(object, "decorators")),
             };
+        case "code":
+            return {
+                kind,
+                code: fromJsonCodeIndex(jsonField(object, "code")),
+            };
     }
 
     throw new SerdeError(`unknown enum variant: ${kind}`);
 }
 
-/** One persisted program query index. */
+/** One program query index. */
 export type ProgramIndex =
     /** Symbol name postings. */
     | {
@@ -439,6 +479,11 @@ export type ProgramIndex =
     | {
           readonly kind: "decorators";
           readonly decorators: DecoratorPostings;
+      }
+    /** Code fingerprint postings. */
+    | {
+          readonly kind: "code";
+          readonly code: CodePostings;
       }
 ;
 
@@ -476,6 +521,11 @@ export const ProgramIndex = {
     /** Decorator name postings. */
     decorators(decorators: DecoratorPostings): ProgramIndex {
         return { kind: "decorators", decorators };
+    },
+
+    /** Code fingerprint postings. */
+    code(code: CodePostings): ProgramIndex {
+        return { kind: "code", code };
     },
 
     /** Encode this value. */
@@ -530,6 +580,10 @@ export function encodeProgramIndex(writer: BinaryWriter, value: ProgramIndex): v
             writer.writeUnsigned(6);
             encodeDecoratorPostings(writer, value.decorators);
             return;
+        case "code":
+            writer.writeUnsigned(7);
+            encodeCodePostings(writer, value.code);
+            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -575,6 +629,11 @@ export function decodeProgramIndex(reader: BinaryReader): ProgramIndex {
 
             return { kind: "decorators", decorators };
         }
+        case 7: {
+            const code = decodeCodePostings(reader);
+
+            return { kind: "code", code };
+        }
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -617,6 +676,11 @@ export function toJsonProgramIndex(value: ProgramIndex): Json {
             return {
                 kind: "decorators",
                 decorators: toJsonDecoratorPostings(value.decorators),
+            };
+        case "code":
+            return {
+                kind: "code",
+                code: toJsonCodePostings(value.code),
             };
     }
 
@@ -663,6 +727,11 @@ export function fromJsonProgramIndex(value: Json): ProgramIndex {
             return {
                 kind,
                 decorators: fromJsonDecoratorPostings(jsonField(object, "decorators")),
+            };
+        case "code":
+            return {
+                kind,
+                code: fromJsonCodePostings(jsonField(object, "code")),
             };
     }
 

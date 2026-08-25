@@ -8,6 +8,7 @@ import type { AccessTable } from "../mir/table/access.js";
 import type { DispatchTable } from "../mir/table/dispatch.js";
 import type { DropTable } from "../mir/table/drop.js";
 import type { EffectTable } from "../mir/table/effect.js";
+import type { LanguageTable } from "../mir/table/language.js";
 import type { LayoutTable } from "../mir/table/layout.js";
 import type { ProfileTable } from "../mir/table/profile.js";
 import type { RetentionTable } from "../mir/table/retention.js";
@@ -22,6 +23,7 @@ import { decodeAccessTable, encodeAccessTable, fromJsonAccessTable, toJsonAccess
 import { decodeDispatchTable, encodeDispatchTable, fromJsonDispatchTable, toJsonDispatchTable } from "../mir/table/dispatch.js";
 import { decodeDropTable, encodeDropTable, fromJsonDropTable, toJsonDropTable } from "../mir/table/drop.js";
 import { decodeEffectTable, encodeEffectTable, fromJsonEffectTable, toJsonEffectTable } from "../mir/table/effect.js";
+import { decodeLanguageTable, encodeLanguageTable, fromJsonLanguageTable, toJsonLanguageTable } from "../mir/table/language.js";
 import { decodeLayoutTable, encodeLayoutTable, fromJsonLayoutTable, toJsonLayoutTable } from "../mir/table/layout.js";
 import { decodeProfileTable, encodeProfileTable, fromJsonProfileTable, toJsonProfileTable } from "../mir/table/profile.js";
 import { decodeRetentionTable, encodeRetentionTable, fromJsonRetentionTable, toJsonRetentionTable } from "../mir/table/retention.js";
@@ -88,7 +90,7 @@ export function fromJsonMirAnalyzed(value: Json): MirAnalyzed {
     };
 }
 
-/** MIR after required elaboration. */
+/** MIR produced by drop elaboration. */
 export type MirElaborated = {
     /** The elaborated MIR tree. */
     readonly tree: Tree;
@@ -167,7 +169,7 @@ export function fromJsonMirElaborated(value: Json): MirElaborated {
     };
 }
 
-/** Lowered MIR payload before optimization. */
+/** MIR produced by lowering. */
 export type MirLowered = {
     /** The MIR tree. */
     readonly tree: Tree;
@@ -177,6 +179,8 @@ export type MirLowered = {
     readonly initializer?: LocalNodeId;
     /** Canonical MIR layout table. */
     readonly layouts: LayoutTable;
+    /** Canonical language identities. */
+    readonly language: LanguageTable;
     /** Canonical MIR dispatch table. */
     readonly dispatch: DispatchTable;
     /** Canonical MIR drop table. */
@@ -219,6 +223,7 @@ export function encodeMirLowered(writer: BinaryWriter, value: MirLowered): void 
         encodeLocalNodeId(writer, value2);
     });
     encodeLayoutTable(writer, value.layouts);
+    encodeLanguageTable(writer, value.language);
     encodeDispatchTable(writer, value.dispatch);
     encodeDropTable(writer, value.drops);
     encodeAccessTable(writer, value.accesses);
@@ -232,6 +237,7 @@ export function decodeMirLowered(reader: BinaryReader): MirLowered {
     const target = decodeTargetLayout(reader);
     const initializer = reader.readOption(() => decodeLocalNodeId(reader));
     const layouts = decodeLayoutTable(reader);
+    const language = decodeLanguageTable(reader);
     const dispatch = decodeDispatchTable(reader);
     const drops = decodeDropTable(reader);
     const accesses = decodeAccessTable(reader);
@@ -243,6 +249,7 @@ export function decodeMirLowered(reader: BinaryReader): MirLowered {
         target,
         ...(initializer === undefined ? {} : { initializer }),
         layouts,
+        language,
         dispatch,
         drops,
         accesses,
@@ -258,6 +265,7 @@ export function toJsonMirLowered(value: MirLowered): Json {
         target: toJsonTargetLayout(value.target),
         ...(value.initializer === undefined ? {} : { initializer: toJsonLocalNodeId(value.initializer) }),
         layouts: toJsonLayoutTable(value.layouts),
+        language: toJsonLanguageTable(value.language),
         dispatch: toJsonDispatchTable(value.dispatch),
         drops: toJsonDropTable(value.drops),
         accesses: toJsonAccessTable(value.accesses),
@@ -275,6 +283,7 @@ export function fromJsonMirLowered(value: Json): MirLowered {
         target: fromJsonTargetLayout(jsonField(object, "target")),
         initializer: jsonOptional(object, "initializer", (value) => fromJsonLocalNodeId(value)),
         layouts: fromJsonLayoutTable(jsonField(object, "layouts")),
+        language: fromJsonLanguageTable(jsonField(object, "language")),
         dispatch: fromJsonDispatchTable(jsonField(object, "dispatch")),
         drops: fromJsonDropTable(jsonField(object, "drops")),
         accesses: fromJsonAccessTable(jsonField(object, "accesses")),
@@ -283,7 +292,7 @@ export function fromJsonMirLowered(value: Json): MirLowered {
     };
 }
 
-/** Optimized MIR payload after pipeline transforms. */
+/** MIR produced by optimization. */
 export type MirOptimized = {
     /** The optimized MIR tree. */
     readonly tree: Tree;
@@ -383,7 +392,7 @@ export function fromJsonMirOptimized(value: Json): MirOptimized {
     };
 }
 
-/** Verified MIR ownership retention. */
+/** Ownership retention produced by MIR verification. */
 export type MirVerified = {
     /** Ownership retention required by drop elaboration. */
     readonly retention: RetentionTable;

@@ -2,13 +2,13 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonField, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 import type { StaticKey } from "../symbol/key.js";
-import type { ScalarLiteral } from "../tree/literal.js";
+import type { Literal } from "../tree/literal.js";
 import type { RangeEnd } from "../tree/operator.js";
 import type { PrimitiveType } from "./primitive.js";
 import type { Projection } from "./projection.js";
 import type { GlobalTypeId } from "./type.js";
 import { decodeStaticKey, encodeStaticKey, fromJsonStaticKey, toJsonStaticKey } from "../symbol/key.js";
-import { decodeScalarLiteral, encodeScalarLiteral, fromJsonScalarLiteral, toJsonScalarLiteral } from "../tree/literal.js";
+import { decodeLiteral, encodeLiteral, fromJsonLiteral, toJsonLiteral } from "../tree/literal.js";
 import { decodeRangeEnd, encodeRangeEnd, fromJsonRangeEnd, toJsonRangeEnd } from "../tree/operator.js";
 import { decodePrimitiveType, encodePrimitiveType, fromJsonPrimitiveType, toJsonPrimitiveType } from "./primitive.js";
 import { decodeProjection, encodeProjection, fromJsonProjection, toJsonProjection } from "./projection.js";
@@ -103,7 +103,7 @@ export type PredicateCondition =
     /** Scalar literal condition, like `"ready"` or `0`. */
     | {
           readonly kind: "literal";
-          readonly literal: ScalarLiteral;
+          readonly literal: Literal;
       }
     /** Scalar interval condition, like `0..=255`. */
     | {
@@ -139,7 +139,7 @@ export const PredicateCondition = {
     },
 
     /** Scalar literal condition, like `"ready"` or `0`. */
-    literal(literal: ScalarLiteral): PredicateCondition {
+    literal(literal: Literal): PredicateCondition {
         return { kind: "literal", literal };
     },
 
@@ -195,7 +195,7 @@ export function encodePredicateCondition(writer: BinaryWriter, value: PredicateC
             return;
         case "literal":
             writer.writeUnsigned(2);
-            encodeScalarLiteral(writer, value.literal);
+            encodeLiteral(writer, value.literal);
             return;
         case "range":
             writer.writeUnsigned(3);
@@ -230,7 +230,7 @@ export function decodePredicateCondition(reader: BinaryReader): PredicateConditi
             return { kind: "never" };
         }
         case 2: {
-            const literal = decodeScalarLiteral(reader);
+            const literal = decodeLiteral(reader);
 
             return { kind: "literal", literal };
         }
@@ -273,7 +273,7 @@ export function toJsonPredicateCondition(value: PredicateCondition): Json {
         case "literal":
             return {
                 kind: "literal",
-                literal: toJsonScalarLiteral(value.literal),
+                literal: toJsonLiteral(value.literal),
             };
         case "range":
             return {
@@ -317,7 +317,7 @@ export function fromJsonPredicateCondition(value: Json): PredicateCondition {
         case "literal":
             return {
                 kind,
-                literal: fromJsonScalarLiteral(jsonField(object, "literal")),
+                literal: fromJsonLiteral(jsonField(object, "literal")),
             };
         case "range":
             return {
@@ -656,9 +656,9 @@ export type PredicateRange = {
     /** The scalar domain constrained by the range. */
     readonly domain: GlobalTypeId;
     /** The optional committed lower bound. */
-    readonly start?: ScalarLiteral;
+    readonly start?: Literal;
     /** The optional committed upper bound. */
-    readonly end?: ScalarLiteral;
+    readonly end?: Literal;
     /** Whether the upper bound is inclusive. */
     readonly endBound: RangeEnd;
 };
@@ -689,10 +689,10 @@ export const PredicateRange = {
 export function encodePredicateRange(writer: BinaryWriter, value: PredicateRange): void {
     encodeGlobalTypeId(writer, value.domain);
     writer.writeOption(value.start, (value1) => {
-        encodeScalarLiteral(writer, value1);
+        encodeLiteral(writer, value1);
     });
     writer.writeOption(value.end, (value2) => {
-        encodeScalarLiteral(writer, value2);
+        encodeLiteral(writer, value2);
     });
     encodeRangeEnd(writer, value.endBound);
 }
@@ -700,8 +700,8 @@ export function encodePredicateRange(writer: BinaryWriter, value: PredicateRange
 /** Decode one PredicateRange. */
 export function decodePredicateRange(reader: BinaryReader): PredicateRange {
     const domain = decodeGlobalTypeId(reader);
-    const start = reader.readOption(() => decodeScalarLiteral(reader));
-    const end = reader.readOption(() => decodeScalarLiteral(reader));
+    const start = reader.readOption(() => decodeLiteral(reader));
+    const end = reader.readOption(() => decodeLiteral(reader));
     const endBound = decodeRangeEnd(reader);
 
     return {
@@ -716,8 +716,8 @@ export function decodePredicateRange(reader: BinaryReader): PredicateRange {
 export function toJsonPredicateRange(value: PredicateRange): Json {
     return {
         domain: toJsonGlobalTypeId(value.domain),
-        ...(value.start === undefined ? {} : { start: toJsonScalarLiteral(value.start) }),
-        ...(value.end === undefined ? {} : { end: toJsonScalarLiteral(value.end) }),
+        ...(value.start === undefined ? {} : { start: toJsonLiteral(value.start) }),
+        ...(value.end === undefined ? {} : { end: toJsonLiteral(value.end) }),
         endBound: toJsonRangeEnd(value.endBound),
     };
 }
@@ -728,8 +728,8 @@ export function fromJsonPredicateRange(value: Json): PredicateRange {
 
     return {
         domain: fromJsonGlobalTypeId(jsonField(object, "domain")),
-        start: jsonOptional(object, "start", (value) => fromJsonScalarLiteral(value)),
-        end: jsonOptional(object, "end", (value) => fromJsonScalarLiteral(value)),
+        start: jsonOptional(object, "start", (value) => fromJsonLiteral(value)),
+        end: jsonOptional(object, "end", (value) => fromJsonLiteral(value)),
         endBound: fromJsonRangeEnd(jsonField(object, "endBound")),
     };
 }

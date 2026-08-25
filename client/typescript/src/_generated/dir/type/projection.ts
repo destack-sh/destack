@@ -2,7 +2,7 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonField, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 import type { StaticKey } from "../symbol/key.js";
-import type { ScalarLiteral } from "../tree/literal.js";
+import type { Literal } from "../tree/literal.js";
 import type { Call } from "./resolution.js";
 import type { Dereference } from "./resolution.js";
 import type { FieldResolution } from "./resolution.js";
@@ -12,7 +12,7 @@ import type { Selection } from "./selection.js";
 import type { Access } from "./type.js";
 import type { GlobalTypeId } from "./type.js";
 import { decodeStaticKey, encodeStaticKey, fromJsonStaticKey, toJsonStaticKey } from "../symbol/key.js";
-import { decodeScalarLiteral, encodeScalarLiteral, fromJsonScalarLiteral, toJsonScalarLiteral } from "../tree/literal.js";
+import { decodeLiteral, encodeLiteral, fromJsonLiteral, toJsonLiteral } from "../tree/literal.js";
 import { decodeCall, encodeCall, fromJsonCall, toJsonCall } from "./resolution.js";
 import { decodeDereference, encodeDereference, fromJsonDereference, toJsonDereference } from "./resolution.js";
 import { decodeFieldResolution, encodeFieldResolution, fromJsonFieldResolution, toJsonFieldResolution } from "./resolution.js";
@@ -27,7 +27,7 @@ export type DiscriminantCase = {
     /** The physical union arm selected by this value. */
     readonly arm: GlobalTypeId;
     /** The source property value represented by this arm. */
-    readonly value: ScalarLiteral;
+    readonly value: Literal;
 };
 
 export const DiscriminantCase = {
@@ -55,13 +55,13 @@ export const DiscriminantCase = {
 /** Encode one DiscriminantCase. */
 export function encodeDiscriminantCase(writer: BinaryWriter, value: DiscriminantCase): void {
     encodeGlobalTypeId(writer, value.arm);
-    encodeScalarLiteral(writer, value.value);
+    encodeLiteral(writer, value.value);
 }
 
 /** Decode one DiscriminantCase. */
 export function decodeDiscriminantCase(reader: BinaryReader): DiscriminantCase {
     const arm = decodeGlobalTypeId(reader);
-    const value = decodeScalarLiteral(reader);
+    const value = decodeLiteral(reader);
 
     return {
         arm,
@@ -73,7 +73,7 @@ export function decodeDiscriminantCase(reader: BinaryReader): DiscriminantCase {
 export function toJsonDiscriminantCase(value: DiscriminantCase): Json {
     return {
         arm: toJsonGlobalTypeId(value.arm),
-        value: toJsonScalarLiteral(value.value),
+        value: toJsonLiteral(value.value),
     };
 }
 
@@ -83,7 +83,7 @@ export function fromJsonDiscriminantCase(value: Json): DiscriminantCase {
 
     return {
         arm: fromJsonGlobalTypeId(jsonField(object, "arm")),
-        value: fromJsonScalarLiteral(jsonField(object, "value")),
+        value: fromJsonLiteral(jsonField(object, "value")),
     };
 }
 

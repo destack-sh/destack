@@ -4,7 +4,7 @@ import { BinaryReader, BinaryWriter, Json, SerdeError, jsonBool, jsonField, json
 import type { StringId } from "../../core/string.js";
 import type { StaticKey } from "../symbol/key.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
-import type { ScalarLiteral } from "../tree/literal.js";
+import type { Literal } from "../tree/literal.js";
 import type { GlobalNodeIdAny } from "../tree/node.js";
 import type { GlobalStaticId } from "../tree/static.js";
 import type { MappedTypeModifier } from "../tree/type.js";
@@ -14,7 +14,7 @@ import type { ModuleId } from "../../source/file/model/module.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
 import { decodeStaticKey, encodeStaticKey, fromJsonStaticKey, toJsonStaticKey } from "../symbol/key.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
-import { decodeScalarLiteral, encodeScalarLiteral, fromJsonScalarLiteral, toJsonScalarLiteral } from "../tree/literal.js";
+import { decodeLiteral, encodeLiteral, fromJsonLiteral, toJsonLiteral } from "../tree/literal.js";
 import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
 import { decodeGlobalStaticId, encodeGlobalStaticId, fromJsonGlobalStaticId, toJsonGlobalStaticId } from "../tree/static.js";
 import { decodeMappedTypeModifier, encodeMappedTypeModifier, fromJsonMappedTypeModifier, toJsonMappedTypeModifier } from "../tree/type.js";
@@ -22,7 +22,7 @@ import { decodeGlobalGenericParameterId, encodeGlobalGenericParameterId, fromJso
 import { decodePrimitiveType, encodePrimitiveType, fromJsonPrimitiveType, toJsonPrimitiveType } from "./primitive.js";
 import { decodeModuleId, encodeModuleId, fromJsonModuleId, toJsonModuleId } from "../../source/file/model/module.js";
 
-/** Normalized memory access value. */
+/** Normalized memory access value, ordered from the weakest to the strongest access. */
 export type Access = "readonly" | "mutable" | "exclusive";
 
 export const Access = {
@@ -99,64 +99,6 @@ export function fromJsonAccess(value: Json): Access {
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);
-}
-
-/** Homogeneous array type. */
-export type ArrayType = {
-    /** The element type. */
-    readonly element: GlobalTypeId;
-};
-
-export const ArrayType = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: ArrayType): void {
-        encodeArrayType(writer, value);
-    },
-
-    /** Decode one ArrayType. */
-    decode(reader: BinaryReader): ArrayType {
-        return decodeArrayType(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: ArrayType): Json {
-        return toJsonArrayType(value);
-    },
-
-    /** Return one ArrayType from one JSON value. */
-    fromJson(value: Json): ArrayType {
-        return fromJsonArrayType(value);
-    },
-};
-
-/** Encode one ArrayType. */
-export function encodeArrayType(writer: BinaryWriter, value: ArrayType): void {
-    encodeGlobalTypeId(writer, value.element);
-}
-
-/** Decode one ArrayType. */
-export function decodeArrayType(reader: BinaryReader): ArrayType {
-    const element = decodeGlobalTypeId(reader);
-
-    return {
-        element,
-    };
-}
-
-/** Return one JSON value for one ArrayType. */
-export function toJsonArrayType(value: ArrayType): Json {
-    return {
-        element: toJsonGlobalTypeId(value.element),
-    };
-}
-
-/** Return one ArrayType from one JSON value. */
-export function fromJsonArrayType(value: Json): ArrayType {
-    const object = jsonObject(value);
-
-    return {
-        element: fromJsonGlobalTypeId(jsonField(object, "element")),
-    };
 }
 
 /** Unique identifier for one interned borrow form payload. */
@@ -991,6 +933,51 @@ export function fromJsonGlobalTypeId(value: Json): GlobalTypeId {
         moduleId: fromJsonModuleId(jsonField(object, "moduleId")),
         localId: fromJsonLocalTypeId(jsonField(object, "localId")),
     };
+}
+
+/** One canonical hole number, assigned in first-visit order. */
+export type HoleIndex = number;
+
+export const HoleIndex = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: HoleIndex): void {
+        encodeHoleIndex(writer, value);
+    },
+
+    /** Decode one HoleIndex. */
+    decode(reader: BinaryReader): HoleIndex {
+        return decodeHoleIndex(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: HoleIndex): Json {
+        return toJsonHoleIndex(value);
+    },
+
+    /** Return one HoleIndex from one JSON value. */
+    fromJson(value: Json): HoleIndex {
+        return fromJsonHoleIndex(value);
+    },
+};
+
+/** Encode one HoleIndex. */
+export function encodeHoleIndex(writer: BinaryWriter, value: HoleIndex): void {
+    writer.writeUnsigned(value);
+}
+
+/** Decode one HoleIndex. */
+export function decodeHoleIndex(reader: BinaryReader): HoleIndex {
+    return reader.readNumber();
+}
+
+/** Return one JSON value for one HoleIndex. */
+export function toJsonHoleIndex(value: HoleIndex): Json {
+    return value;
+}
+
+/** Return one HoleIndex from one JSON value. */
+export function fromJsonHoleIndex(value: Json): HoleIndex {
+    return jsonInteger(value);
 }
 
 /** Indexed access type. */
@@ -1935,6 +1922,85 @@ export function fromJsonNarrowType(value: Json): NarrowType {
     };
 }
 
+/** The members one anonymous object type declares. */
+export type ObjectType = {
+    /** The declared property list. */
+    readonly properties: TypeListId;
+    /** The call signature list. */
+    readonly callSignatures: TypeListId;
+    /** The construct signature list. */
+    readonly constructSignatures: TypeListId;
+    /** The index signature list. */
+    readonly indexSignatures: TypeListId;
+};
+
+export const ObjectType = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: ObjectType): void {
+        encodeObjectType(writer, value);
+    },
+
+    /** Decode one ObjectType. */
+    decode(reader: BinaryReader): ObjectType {
+        return decodeObjectType(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: ObjectType): Json {
+        return toJsonObjectType(value);
+    },
+
+    /** Return one ObjectType from one JSON value. */
+    fromJson(value: Json): ObjectType {
+        return fromJsonObjectType(value);
+    },
+};
+
+/** Encode one ObjectType. */
+export function encodeObjectType(writer: BinaryWriter, value: ObjectType): void {
+    encodeTypeListId(writer, value.properties);
+    encodeTypeListId(writer, value.callSignatures);
+    encodeTypeListId(writer, value.constructSignatures);
+    encodeTypeListId(writer, value.indexSignatures);
+}
+
+/** Decode one ObjectType. */
+export function decodeObjectType(reader: BinaryReader): ObjectType {
+    const properties = decodeTypeListId(reader);
+    const callSignatures = decodeTypeListId(reader);
+    const constructSignatures = decodeTypeListId(reader);
+    const indexSignatures = decodeTypeListId(reader);
+
+    return {
+        properties,
+        callSignatures,
+        constructSignatures,
+        indexSignatures,
+    };
+}
+
+/** Return one JSON value for one ObjectType. */
+export function toJsonObjectType(value: ObjectType): Json {
+    return {
+        properties: toJsonTypeListId(value.properties),
+        callSignatures: toJsonTypeListId(value.callSignatures),
+        constructSignatures: toJsonTypeListId(value.constructSignatures),
+        indexSignatures: toJsonTypeListId(value.indexSignatures),
+    };
+}
+
+/** Return one ObjectType from one JSON value. */
+export function fromJsonObjectType(value: Json): ObjectType {
+    const object = jsonObject(value);
+
+    return {
+        properties: fromJsonTypeListId(jsonField(object, "properties")),
+        callSignatures: fromJsonTypeListId(jsonField(object, "callSignatures")),
+        constructSignatures: fromJsonTypeListId(jsonField(object, "constructSignatures")),
+        indexSignatures: fromJsonTypeListId(jsonField(object, "indexSignatures")),
+    };
+}
+
 /** Canonical memory or access form constructor. */
 export type Ownership = "managed" | "owned" | "borrowed" | "raw";
 
@@ -2300,9 +2366,9 @@ export function fromJsonPropertyAccess(value: Json): PropertyAccess {
 /** Compact discrete scalar interval type. */
 export type RangeType = {
     /** The inclusive lower bound. */
-    readonly start?: ScalarLiteral;
+    readonly start?: Literal;
     /** The upper bound. */
-    readonly end?: ScalarLiteral;
+    readonly end?: Literal;
     /** Whether the upper bound is included. */
     readonly isInclusive: boolean;
 };
@@ -2332,18 +2398,18 @@ export const RangeType = {
 /** Encode one RangeType. */
 export function encodeRangeType(writer: BinaryWriter, value: RangeType): void {
     writer.writeOption(value.start, (value0) => {
-        encodeScalarLiteral(writer, value0);
+        encodeLiteral(writer, value0);
     });
     writer.writeOption(value.end, (value1) => {
-        encodeScalarLiteral(writer, value1);
+        encodeLiteral(writer, value1);
     });
     writer.writeBool(value.isInclusive);
 }
 
 /** Decode one RangeType. */
 export function decodeRangeType(reader: BinaryReader): RangeType {
-    const start = reader.readOption(() => decodeScalarLiteral(reader));
-    const end = reader.readOption(() => decodeScalarLiteral(reader));
+    const start = reader.readOption(() => decodeLiteral(reader));
+    const end = reader.readOption(() => decodeLiteral(reader));
     const isInclusive = reader.readBool();
 
     return {
@@ -2356,8 +2422,8 @@ export function decodeRangeType(reader: BinaryReader): RangeType {
 /** Return one JSON value for one RangeType. */
 export function toJsonRangeType(value: RangeType): Json {
     return {
-        ...(value.start === undefined ? {} : { start: toJsonScalarLiteral(value.start) }),
-        ...(value.end === undefined ? {} : { end: toJsonScalarLiteral(value.end) }),
+        ...(value.start === undefined ? {} : { start: toJsonLiteral(value.start) }),
+        ...(value.end === undefined ? {} : { end: toJsonLiteral(value.end) }),
         isInclusive: value.isInclusive,
     };
 }
@@ -2367,8 +2433,8 @@ export function fromJsonRangeType(value: Json): RangeType {
     const object = jsonObject(value);
 
     return {
-        start: jsonOptional(object, "start", (value) => fromJsonScalarLiteral(value)),
-        end: jsonOptional(object, "end", (value) => fromJsonScalarLiteral(value)),
+        start: jsonOptional(object, "start", (value) => fromJsonLiteral(value)),
+        end: jsonOptional(object, "end", (value) => fromJsonLiteral(value)),
         isInclusive: jsonBool(jsonField(object, "isInclusive")),
     };
 }
@@ -2418,83 +2484,49 @@ export function fromJsonRefinedTypeId(value: Json): RefinedTypeId {
     return jsonInteger(value);
 }
 
-/** The members one anonymous object type declares. */
-export type ShapeType = {
-    /** The declared property list. */
-    readonly properties: TypeListId;
-    /** The call signature list. */
-    readonly callSignatures: TypeListId;
-    /** The construct signature list. */
-    readonly constructSignatures: TypeListId;
-    /** The index signature list. */
-    readonly indexSignatures: TypeListId;
-};
+/** One canonical rigid-parameter number, assigned in first-visit order. */
+export type RigidIndex = number;
 
-export const ShapeType = {
+export const RigidIndex = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: ShapeType): void {
-        encodeShapeType(writer, value);
+    encode(writer: BinaryWriter, value: RigidIndex): void {
+        encodeRigidIndex(writer, value);
     },
 
-    /** Decode one ShapeType. */
-    decode(reader: BinaryReader): ShapeType {
-        return decodeShapeType(reader);
+    /** Decode one RigidIndex. */
+    decode(reader: BinaryReader): RigidIndex {
+        return decodeRigidIndex(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: ShapeType): Json {
-        return toJsonShapeType(value);
+    toJson(value: RigidIndex): Json {
+        return toJsonRigidIndex(value);
     },
 
-    /** Return one ShapeType from one JSON value. */
-    fromJson(value: Json): ShapeType {
-        return fromJsonShapeType(value);
+    /** Return one RigidIndex from one JSON value. */
+    fromJson(value: Json): RigidIndex {
+        return fromJsonRigidIndex(value);
     },
 };
 
-/** Encode one ShapeType. */
-export function encodeShapeType(writer: BinaryWriter, value: ShapeType): void {
-    encodeTypeListId(writer, value.properties);
-    encodeTypeListId(writer, value.callSignatures);
-    encodeTypeListId(writer, value.constructSignatures);
-    encodeTypeListId(writer, value.indexSignatures);
+/** Encode one RigidIndex. */
+export function encodeRigidIndex(writer: BinaryWriter, value: RigidIndex): void {
+    writer.writeUnsigned(value);
 }
 
-/** Decode one ShapeType. */
-export function decodeShapeType(reader: BinaryReader): ShapeType {
-    const properties = decodeTypeListId(reader);
-    const callSignatures = decodeTypeListId(reader);
-    const constructSignatures = decodeTypeListId(reader);
-    const indexSignatures = decodeTypeListId(reader);
-
-    return {
-        properties,
-        callSignatures,
-        constructSignatures,
-        indexSignatures,
-    };
+/** Decode one RigidIndex. */
+export function decodeRigidIndex(reader: BinaryReader): RigidIndex {
+    return reader.readNumber();
 }
 
-/** Return one JSON value for one ShapeType. */
-export function toJsonShapeType(value: ShapeType): Json {
-    return {
-        properties: toJsonTypeListId(value.properties),
-        callSignatures: toJsonTypeListId(value.callSignatures),
-        constructSignatures: toJsonTypeListId(value.constructSignatures),
-        indexSignatures: toJsonTypeListId(value.indexSignatures),
-    };
+/** Return one JSON value for one RigidIndex. */
+export function toJsonRigidIndex(value: RigidIndex): Json {
+    return value;
 }
 
-/** Return one ShapeType from one JSON value. */
-export function fromJsonShapeType(value: Json): ShapeType {
-    const object = jsonObject(value);
-
-    return {
-        properties: fromJsonTypeListId(jsonField(object, "properties")),
-        callSignatures: fromJsonTypeListId(jsonField(object, "callSignatures")),
-        constructSignatures: fromJsonTypeListId(jsonField(object, "constructSignatures")),
-        indexSignatures: fromJsonTypeListId(jsonField(object, "indexSignatures")),
-    };
+/** Return one RigidIndex from one JSON value. */
+export function fromJsonRigidIndex(value: Json): RigidIndex {
+    return jsonInteger(value);
 }
 
 /** Runtime-length homogeneous view type. */
@@ -3350,6 +3382,16 @@ export type Type =
           readonly kind: "variable";
           readonly variable: TypeVariableId;
       }
+    /** One canonical goal hole, numbered in first-visit order. */
+    | {
+          readonly kind: "hole";
+          readonly hole: HoleIndex;
+      }
+    /** One canonical rigid parameter, numbered in first-visit order. */
+    | {
+          readonly kind: "rigid";
+          readonly rigid: RigidIndex;
+      }
     /** Placeholder type for an already-reported error. */
     | {
           readonly kind: "error";
@@ -3377,7 +3419,7 @@ export type Type =
     /** Concrete object class of one exact shape. */
     | {
           readonly kind: "object";
-          readonly object: ShapeType;
+          readonly object: ObjectType;
       }
     /** Primitive type, like `string` or `int32`. */
     | {
@@ -3387,7 +3429,7 @@ export type Type =
     /** Scalar literal type, like `"id"` or `42`. */
     | {
           readonly kind: "literal";
-          readonly literal: ScalarLiteral;
+          readonly literal: Literal;
       }
     /** Singleton static property key type. */
     | {
@@ -3462,11 +3504,6 @@ export type Type =
           readonly kind: "operation";
           readonly operation: TypeOperationId;
       }
-    /** Homogeneous array type, like `int32[]`. */
-    | {
-          readonly kind: "array";
-          readonly array: ArrayType;
-      }
     /** Fixed-length array type, like `[uint8; 4]`. */
     | {
           readonly kind: "fixedArray";
@@ -3520,6 +3557,16 @@ export const Type = {
         return { kind: "variable", variable };
     },
 
+    /** One canonical goal hole, numbered in first-visit order. */
+    hole(hole: HoleIndex): Type {
+        return { kind: "hole", hole };
+    },
+
+    /** One canonical rigid parameter, numbered in first-visit order. */
+    rigid(rigid: RigidIndex): Type {
+        return { kind: "rigid", rigid };
+    },
+
     /** Placeholder type for an already-reported error. */
     error(): Type {
         return { kind: "error" };
@@ -3551,7 +3598,7 @@ export const Type = {
     },
 
     /** Concrete object class of one exact shape. */
-    "object"(object_: ShapeType): Type {
+    "object"(object_: ObjectType): Type {
         return { kind: "object", object: object_ };
     },
 
@@ -3561,7 +3608,7 @@ export const Type = {
     },
 
     /** Scalar literal type, like `"id"` or `42`. */
-    literal(literal: ScalarLiteral): Type {
+    literal(literal: Literal): Type {
         return { kind: "literal", literal };
     },
 
@@ -3640,11 +3687,6 @@ export const Type = {
         return { kind: "operation", operation };
     },
 
-    /** Homogeneous array type, like `int32[]`. */
-    array(array: ArrayType): Type {
-        return { kind: "array", array };
-    },
-
     /** Fixed-length array type, like `[uint8; 4]`. */
     fixedArray(fixed_array: FixedArrayType): Type {
         return { kind: "fixedArray", fixed_array };
@@ -3718,132 +3760,136 @@ export function encodeType(writer: BinaryWriter, value: Type): void {
             writer.writeUnsigned(0);
             encodeTypeVariableId(writer, value.variable);
             return;
-        case "error":
+        case "hole":
             writer.writeUnsigned(1);
+            encodeHoleIndex(writer, value.hole);
             return;
-        case "never":
+        case "rigid":
             writer.writeUnsigned(2);
+            encodeRigidIndex(writer, value.rigid);
             return;
-        case "unknown":
+        case "error":
             writer.writeUnsigned(3);
             return;
-        case "void":
+        case "never":
             writer.writeUnsigned(4);
             return;
-        case "null":
+        case "unknown":
             writer.writeUnsigned(5);
             return;
-        case "undefined":
+        case "void":
             writer.writeUnsigned(6);
             return;
-        case "object":
+        case "null":
             writer.writeUnsigned(7);
-            encodeShapeType(writer, value.object);
+            return;
+        case "undefined":
+            writer.writeUnsigned(8);
+            return;
+        case "object":
+            writer.writeUnsigned(9);
+            encodeObjectType(writer, value.object);
             return;
         case "primitive":
-            writer.writeUnsigned(8);
+            writer.writeUnsigned(10);
             encodePrimitiveType(writer, value.primitive);
             return;
         case "literal":
-            writer.writeUnsigned(9);
-            encodeScalarLiteral(writer, value.literal);
+            writer.writeUnsigned(11);
+            encodeLiteral(writer, value.literal);
             return;
         case "key":
-            writer.writeUnsigned(10);
+            writer.writeUnsigned(12);
             encodeStaticKey(writer, value.key);
             return;
         case "memory":
-            writer.writeUnsigned(11);
+            writer.writeUnsigned(13);
             encodeMemoryLiteral(writer, value.memory);
             return;
         case "static":
-            writer.writeUnsigned(12);
+            writer.writeUnsigned(14);
             encodeGlobalStaticId(writer, value.static);
             return;
         case "intrinsic":
-            writer.writeUnsigned(13);
+            writer.writeUnsigned(15);
             return;
         case "erased":
-            writer.writeUnsigned(14);
+            writer.writeUnsigned(16);
             encodeGlobalGenericParameterId(writer, value.erased);
             return;
         case "parameter":
-            writer.writeUnsigned(15);
+            writer.writeUnsigned(17);
             encodeGlobalGenericParameterId(writer, value.parameter);
             return;
         case "reference":
-            writer.writeUnsigned(16);
+            writer.writeUnsigned(18);
             encodeTypeReference(writer, value.reference);
             return;
         case "application":
-            writer.writeUnsigned(17);
+            writer.writeUnsigned(19);
             encodeGenericApplication(writer, value.application);
             return;
         case "this":
-            writer.writeUnsigned(18);
+            writer.writeUnsigned(20);
             return;
         case "member":
-            writer.writeUnsigned(19);
+            writer.writeUnsigned(21);
             encodeMemberTypeId(writer, value.member);
             return;
         case "refined":
-            writer.writeUnsigned(20);
+            writer.writeUnsigned(22);
             encodeRefinedTypeId(writer, value.refined);
             return;
         case "variant":
-            writer.writeUnsigned(21);
+            writer.writeUnsigned(23);
             encodeVariantType(writer, value.variant);
             return;
         case "form":
-            writer.writeUnsigned(22);
+            writer.writeUnsigned(24);
             encodeFormType(writer, value.form);
             return;
         case "dynamic":
-            writer.writeUnsigned(23);
+            writer.writeUnsigned(25);
             encodeDynamicType(writer, value.dynamic);
             return;
         case "operation":
-            writer.writeUnsigned(24);
+            writer.writeUnsigned(26);
             encodeTypeOperationId(writer, value.operation);
             return;
-        case "array":
-            writer.writeUnsigned(25);
-            encodeArrayType(writer, value.array);
-            return;
         case "fixedArray":
-            writer.writeUnsigned(26);
+            writer.writeUnsigned(27);
             encodeFixedArrayType(writer, value.fixed_array);
             return;
         case "range":
-            writer.writeUnsigned(27);
+            writer.writeUnsigned(28);
             encodeRangeType(writer, value.range);
             return;
         case "slice":
-            writer.writeUnsigned(28);
+            writer.writeUnsigned(29);
             encodeSliceType(writer, value.slice);
             return;
         case "tuple":
-            writer.writeUnsigned(29);
+            writer.writeUnsigned(30);
             encodeTupleType(writer, value.tuple);
             return;
         case "functionSignature":
-            writer.writeUnsigned(30);
+            writer.writeUnsigned(31);
             encodeFunctionSignatureId(writer, value.function_signature);
             return;
         case "function":
-            writer.writeUnsigned(31);
+            writer.writeUnsigned(32);
             encodeFunctionType(writer, value.function);
             return;
         case "functionPointer":
-            writer.writeUnsigned(32);
+            writer.writeUnsigned(33);
             encodeFunctionPointerType(writer, value.function_pointer);
             return;
         case "union":
-            writer.writeUnsigned(33);
+            writer.writeUnsigned(34);
             encodeUnionType(writer, value.union);
             return;
         case "intersection":
-            writer.writeUnsigned(34);
+            writer.writeUnsigned(35);
             encodeIntersectionType(writer, value.intersection);
             return;
     }
@@ -3862,155 +3908,160 @@ export function decodeType(reader: BinaryReader): Type {
             return { kind: "variable", variable };
         }
         case 1: {
-            return { kind: "error" };
+            const hole = decodeHoleIndex(reader);
+
+            return { kind: "hole", hole };
         }
         case 2: {
-            return { kind: "never" };
+            const rigid = decodeRigidIndex(reader);
+
+            return { kind: "rigid", rigid };
         }
         case 3: {
-            return { kind: "unknown" };
+            return { kind: "error" };
         }
         case 4: {
-            return { kind: "void" };
+            return { kind: "never" };
         }
         case 5: {
-            return { kind: "null" };
+            return { kind: "unknown" };
         }
         case 6: {
-            return { kind: "undefined" };
+            return { kind: "void" };
         }
         case 7: {
-            const object_ = decodeShapeType(reader);
+            return { kind: "null" };
+        }
+        case 8: {
+            return { kind: "undefined" };
+        }
+        case 9: {
+            const object_ = decodeObjectType(reader);
 
             return { kind: "object", object: object_ };
         }
-        case 8: {
+        case 10: {
             const primitive = decodePrimitiveType(reader);
 
             return { kind: "primitive", primitive };
         }
-        case 9: {
-            const literal = decodeScalarLiteral(reader);
+        case 11: {
+            const literal = decodeLiteral(reader);
 
             return { kind: "literal", literal };
         }
-        case 10: {
+        case 12: {
             const key = decodeStaticKey(reader);
 
             return { kind: "key", key };
         }
-        case 11: {
+        case 13: {
             const memory = decodeMemoryLiteral(reader);
 
             return { kind: "memory", memory };
         }
-        case 12: {
+        case 14: {
             const static_ = decodeGlobalStaticId(reader);
 
             return { kind: "static", static: static_ };
         }
-        case 13: {
+        case 15: {
             return { kind: "intrinsic" };
         }
-        case 14: {
+        case 16: {
             const erased = decodeGlobalGenericParameterId(reader);
 
             return { kind: "erased", erased };
         }
-        case 15: {
+        case 17: {
             const parameter = decodeGlobalGenericParameterId(reader);
 
             return { kind: "parameter", parameter };
         }
-        case 16: {
+        case 18: {
             const reference = decodeTypeReference(reader);
 
             return { kind: "reference", reference };
         }
-        case 17: {
+        case 19: {
             const application = decodeGenericApplication(reader);
 
             return { kind: "application", application };
         }
-        case 18: {
+        case 20: {
             return { kind: "this" };
         }
-        case 19: {
+        case 21: {
             const member = decodeMemberTypeId(reader);
 
             return { kind: "member", member };
         }
-        case 20: {
+        case 22: {
             const refined = decodeRefinedTypeId(reader);
 
             return { kind: "refined", refined };
         }
-        case 21: {
+        case 23: {
             const variant = decodeVariantType(reader);
 
             return { kind: "variant", variant };
         }
-        case 22: {
+        case 24: {
             const form = decodeFormType(reader);
 
             return { kind: "form", form };
         }
-        case 23: {
+        case 25: {
             const dynamic = decodeDynamicType(reader);
 
             return { kind: "dynamic", dynamic };
         }
-        case 24: {
+        case 26: {
             const operation = decodeTypeOperationId(reader);
 
             return { kind: "operation", operation };
         }
-        case 25: {
-            const array = decodeArrayType(reader);
-
-            return { kind: "array", array };
-        }
-        case 26: {
+        case 27: {
             const fixed_array = decodeFixedArrayType(reader);
 
             return { kind: "fixedArray", fixed_array };
         }
-        case 27: {
+        case 28: {
             const range = decodeRangeType(reader);
 
             return { kind: "range", range };
         }
-        case 28: {
+        case 29: {
             const slice = decodeSliceType(reader);
 
             return { kind: "slice", slice };
         }
-        case 29: {
+        case 30: {
             const tuple = decodeTupleType(reader);
 
             return { kind: "tuple", tuple };
         }
-        case 30: {
+        case 31: {
             const function_signature = decodeFunctionSignatureId(reader);
 
             return { kind: "functionSignature", function_signature };
         }
-        case 31: {
+        case 32: {
             const function_ = decodeFunctionType(reader);
 
             return { kind: "function", function: function_ };
         }
-        case 32: {
+        case 33: {
             const function_pointer = decodeFunctionPointerType(reader);
 
             return { kind: "functionPointer", function_pointer };
         }
-        case 33: {
+        case 34: {
             const union = decodeUnionType(reader);
 
             return { kind: "union", union };
         }
-        case 34: {
+        case 35: {
             const intersection = decodeIntersectionType(reader);
 
             return { kind: "intersection", intersection };
@@ -4027,6 +4078,16 @@ export function toJsonType(value: Type): Json {
             return {
                 kind: "variable",
                 variable: toJsonTypeVariableId(value.variable),
+            };
+        case "hole":
+            return {
+                kind: "hole",
+                hole: toJsonHoleIndex(value.hole),
+            };
+        case "rigid":
+            return {
+                kind: "rigid",
+                rigid: toJsonRigidIndex(value.rigid),
             };
         case "error":
             return {
@@ -4055,7 +4116,7 @@ export function toJsonType(value: Type): Json {
         case "object":
             return {
                 kind: "object",
-                object: toJsonShapeType(value.object),
+                object: toJsonObjectType(value.object),
             };
         case "primitive":
             return {
@@ -4065,7 +4126,7 @@ export function toJsonType(value: Type): Json {
         case "literal":
             return {
                 kind: "literal",
-                literal: toJsonScalarLiteral(value.literal),
+                literal: toJsonLiteral(value.literal),
             };
         case "key":
             return {
@@ -4140,11 +4201,6 @@ export function toJsonType(value: Type): Json {
                 kind: "operation",
                 operation: toJsonTypeOperationId(value.operation),
             };
-        case "array":
-            return {
-                kind: "array",
-                array: toJsonArrayType(value.array),
-            };
         case "fixedArray":
             return {
                 kind: "fixedArray",
@@ -4206,6 +4262,16 @@ export function fromJsonType(value: Json): Type {
                 kind,
                 variable: fromJsonTypeVariableId(jsonField(object, "variable")),
             };
+        case "hole":
+            return {
+                kind,
+                hole: fromJsonHoleIndex(jsonField(object, "hole")),
+            };
+        case "rigid":
+            return {
+                kind,
+                rigid: fromJsonRigidIndex(jsonField(object, "rigid")),
+            };
         case "error":
             return {
                 kind,
@@ -4233,7 +4299,7 @@ export function fromJsonType(value: Json): Type {
         case "object":
             return {
                 kind,
-                object: fromJsonShapeType(jsonField(object, "object")),
+                object: fromJsonObjectType(jsonField(object, "object")),
             };
         case "primitive":
             return {
@@ -4243,7 +4309,7 @@ export function fromJsonType(value: Json): Type {
         case "literal":
             return {
                 kind,
-                literal: fromJsonScalarLiteral(jsonField(object, "literal")),
+                literal: fromJsonLiteral(jsonField(object, "literal")),
             };
         case "key":
             return {
@@ -4317,11 +4383,6 @@ export function fromJsonType(value: Json): Type {
             return {
                 kind,
                 operation: fromJsonTypeOperationId(jsonField(object, "operation")),
-            };
-        case "array":
-            return {
-                kind,
-                array: fromJsonArrayType(jsonField(object, "array")),
             };
         case "fixedArray":
             return {

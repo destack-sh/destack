@@ -87,78 +87,6 @@ export function fromJsonDependencyBinding(value: Json): DependencyBinding {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** The source form of one dependency declaration. */
-export type DependencyForm = "plain" | "type";
-
-export const DependencyForm = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: DependencyForm): void {
-        encodeDependencyForm(writer, value);
-    },
-
-    /** Decode one DependencyForm. */
-    decode(reader: BinaryReader): DependencyForm {
-        return decodeDependencyForm(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: DependencyForm): Json {
-        return toJsonDependencyForm(value);
-    },
-
-    /** Return one DependencyForm from one JSON value. */
-    fromJson(value: Json): DependencyForm {
-        return fromJsonDependencyForm(value);
-    },
-};
-
-/** Encode one DependencyForm. */
-export function encodeDependencyForm(writer: BinaryWriter, value: DependencyForm): void {
-    switch (value) {
-        case "plain":
-            writer.writeUnsigned(0);
-            return;
-        case "type":
-            writer.writeUnsigned(1);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one DependencyForm. */
-export function decodeDependencyForm(reader: BinaryReader): DependencyForm {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0:
-            return "plain";
-        case 1:
-            return "type";
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one DependencyForm. */
-export function toJsonDependencyForm(value: DependencyForm): Json {
-    return value;
-}
-
-/** Return one DependencyForm from one JSON value. */
-export function fromJsonDependencyForm(value: Json): DependencyForm {
-    const variant = jsonString(value);
-
-    switch (variant) {
-        case "plain":
-            return "plain";
-        case "type":
-            return "type";
-    }
-
-    throw new SerdeError(`unknown enum variant: ${variant}`);
-}
-
 /** A dependency item imports or exports one binding from a target. */
 export type DependencyItem =
     /** One valid dependency binding. */
@@ -166,8 +94,6 @@ export type DependencyItem =
           readonly kind: "binding";
           /** How the item binds into the local module. */
           readonly binding: DependencyBinding;
-          /** The source form of the item, when specified. */
-          readonly form?: DependencyForm;
           /** The name of the item (like `foo` in `foo as bar`, None if default). */
           readonly name?: Name;
           /** The alias to use for the item (like `bar` in `foo as bar`). */
@@ -183,8 +109,8 @@ export type DependencyItem =
 
 export const DependencyItem = {
     /** One valid dependency binding. */
-    binding(binding: DependencyBinding, form: DependencyForm | undefined, name: Name | undefined, alias: StringId | undefined, value: LocalNodeId | undefined): DependencyItem {
-        return { kind: "binding", binding, form, name, alias, value };
+    binding(binding: DependencyBinding, name: Name | undefined, alias: StringId | undefined, value: LocalNodeId | undefined): DependencyItem {
+        return { kind: "binding", binding, name, alias, value };
     },
 
     /** One malformed dependency item slot. */
@@ -219,17 +145,14 @@ export function encodeDependencyItem(writer: BinaryWriter, value: DependencyItem
         case "binding":
             writer.writeUnsigned(0);
             encodeDependencyBinding(writer, value.binding);
-            writer.writeOption(value.form, (value1) => {
-                encodeDependencyForm(writer, value1);
+            writer.writeOption(value.name, (value1) => {
+                encodeName(writer, value1);
             });
-            writer.writeOption(value.name, (value2) => {
-                encodeName(writer, value2);
+            writer.writeOption(value.alias, (value2) => {
+                encodeStringId(writer, value2);
             });
-            writer.writeOption(value.alias, (value3) => {
-                encodeStringId(writer, value3);
-            });
-            writer.writeOption(value.value, (value4) => {
-                encodeLocalNodeId(writer, value4);
+            writer.writeOption(value.value, (value3) => {
+                encodeLocalNodeId(writer, value3);
             });
             return;
         case "error":
@@ -247,7 +170,6 @@ export function decodeDependencyItem(reader: BinaryReader): DependencyItem {
     switch (variant) {
         case 0: {
             const binding = decodeDependencyBinding(reader);
-            const form = reader.readOption(() => decodeDependencyForm(reader));
             const name = reader.readOption(() => decodeName(reader));
             const alias = reader.readOption(() => decodeStringId(reader));
             const value = reader.readOption(() => decodeLocalNodeId(reader));
@@ -255,7 +177,6 @@ export function decodeDependencyItem(reader: BinaryReader): DependencyItem {
             return {
                 kind: "binding",
                 binding,
-                ...(form === undefined ? {} : { form }),
                 ...(name === undefined ? {} : { name }),
                 ...(alias === undefined ? {} : { alias }),
                 ...(value === undefined ? {} : { value }),
@@ -276,7 +197,6 @@ export function toJsonDependencyItem(value: DependencyItem): Json {
             return {
                 kind: "binding",
                 binding: toJsonDependencyBinding(value.binding),
-                ...(value.form === undefined ? {} : { form: toJsonDependencyForm(value.form) }),
                 ...(value.name === undefined ? {} : { name: toJsonName(value.name) }),
                 ...(value.alias === undefined ? {} : { alias: toJsonStringId(value.alias) }),
                 ...(value.value === undefined ? {} : { value: toJsonLocalNodeId(value.value) }),
@@ -300,7 +220,6 @@ export function fromJsonDependencyItem(value: Json): DependencyItem {
             return {
                 kind,
                 binding: fromJsonDependencyBinding(jsonField(object, "binding")),
-                form: jsonOptional(object, "form", (value) => fromJsonDependencyForm(value)),
                 name: jsonOptional(object, "name", (value) => fromJsonName(value)),
                 alias: jsonOptional(object, "alias", (value) => fromJsonStringId(value)),
                 value: jsonOptional(object, "value", (value) => fromJsonLocalNodeId(value)),

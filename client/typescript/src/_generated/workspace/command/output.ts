@@ -10,6 +10,7 @@ import type { CleanPayload } from "./clean.js";
 import type { CommandMessagePayload } from "./common.js";
 import type { CommandOutputChunk } from "./common.js";
 import type { CommandOutputFile } from "./common.js";
+import type { DocPayload } from "./doc.js";
 import type { DoctorPayload } from "./doctor.js";
 import type { FormatPayload } from "./format.js";
 import type { InfoPayload } from "./info.js";
@@ -29,6 +30,7 @@ import { decodeCleanPayload, encodeCleanPayload, fromJsonCleanPayload, toJsonCle
 import { decodeCommandMessagePayload, encodeCommandMessagePayload, fromJsonCommandMessagePayload, toJsonCommandMessagePayload } from "./common.js";
 import { decodeCommandOutputChunk, encodeCommandOutputChunk, fromJsonCommandOutputChunk, toJsonCommandOutputChunk } from "./common.js";
 import { decodeCommandOutputFile, encodeCommandOutputFile, fromJsonCommandOutputFile, toJsonCommandOutputFile } from "./common.js";
+import { decodeDocPayload, encodeDocPayload, fromJsonDocPayload, toJsonDocPayload } from "./doc.js";
 import { decodeDoctorPayload, encodeDoctorPayload, fromJsonDoctorPayload, toJsonDoctorPayload } from "./doctor.js";
 import { decodeFormatPayload, encodeFormatPayload, fromJsonFormatPayload, toJsonFormatPayload } from "./format.js";
 import { decodeInfoPayload, encodeInfoPayload, fromJsonInfoPayload, toJsonInfoPayload } from "./info.js";
@@ -855,7 +857,7 @@ export type DocOutput = {
     /** Timing trace when requested by the command. */
     readonly trace?: TraceSnapshot;
     /** Operation payload. */
-    readonly data: CommandMessagePayload;
+    readonly data: DocPayload;
     /** Count of modules involved. */
     readonly moduleCount: number;
     /** Count of profiles involved. */
@@ -914,7 +916,7 @@ export function encodeDocOutput(writer: BinaryWriter, value: DocOutput): void {
     writer.writeOption(value.trace, (value8) => {
         encodeTraceSnapshot(writer, value8);
     });
-    encodeCommandMessagePayload(writer, value.data);
+    encodeDocPayload(writer, value.data);
     writer.writeUnsigned(value.moduleCount);
     writer.writeUnsigned(value.profileCount);
     writer.writeUnsigned(value.targetCount);
@@ -931,7 +933,7 @@ export function decodeDocOutput(reader: BinaryReader): DocOutput {
     const output = (() => { const length6 = reader.readNumber(); const items6: Array<CommandOutputChunk> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeCommandOutputChunk(reader)); } return items6; })();
     const outputs = (() => { const length7 = reader.readNumber(); const items7: Array<CommandOutputFile> = []; for (let index = 0; index < length7; index += 1) { items7.push(decodeCommandOutputFile(reader)); } return items7; })();
     const trace = reader.readOption(() => decodeTraceSnapshot(reader));
-    const data = decodeCommandMessagePayload(reader);
+    const data = decodeDocPayload(reader);
     const moduleCount = reader.readNumber();
     const profileCount = reader.readNumber();
     const targetCount = reader.readNumber();
@@ -965,7 +967,7 @@ export function toJsonDocOutput(value: DocOutput): Json {
         output: value.output.map((item0) => toJsonCommandOutputChunk(item0)),
         outputs: value.outputs.map((item0) => toJsonCommandOutputFile(item0)),
         ...(value.trace === undefined ? {} : { trace: toJsonTraceSnapshot(value.trace) }),
-        data: toJsonCommandMessagePayload(value.data),
+        data: toJsonDocPayload(value.data),
         moduleCount: value.moduleCount,
         profileCount: value.profileCount,
         targetCount: value.targetCount,
@@ -986,7 +988,7 @@ export function fromJsonDocOutput(value: Json): DocOutput {
         output: jsonArray(jsonField(object, "output")).map((item0) => fromJsonCommandOutputChunk(item0)),
         outputs: jsonArray(jsonField(object, "outputs")).map((item0) => fromJsonCommandOutputFile(item0)),
         trace: jsonOptional(object, "trace", (value) => fromJsonTraceSnapshot(value)),
-        data: fromJsonCommandMessagePayload(jsonField(object, "data")),
+        data: fromJsonDocPayload(jsonField(object, "data")),
         moduleCount: jsonInteger(jsonField(object, "moduleCount")),
         profileCount: jsonInteger(jsonField(object, "profileCount")),
         targetCount: jsonInteger(jsonField(object, "targetCount")),

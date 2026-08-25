@@ -169,12 +169,12 @@ export type ArtifactPayload =
           readonly kind: "programAnalysis";
           readonly program_analysis: ProgramAnalysis;
       }
-    /** One query index for a module profile. */
+    /** One index for a module profile. */
     | {
           readonly kind: "moduleIndex";
           readonly module_index: ModuleIndex;
       }
-    /** One query index for a program profile. */
+    /** One index for a program profile. */
     | {
           readonly kind: "programIndex";
           readonly program_index: ProgramIndex;
@@ -327,12 +327,12 @@ export const ArtifactPayload = {
         return { kind: "programAnalysis", program_analysis };
     },
 
-    /** One query index for a module profile. */
+    /** One index for a module profile. */
     moduleIndex(module_index: ModuleIndex): ArtifactPayload {
         return { kind: "moduleIndex", module_index };
     },
 
-    /** One query index for a program profile. */
+    /** One index for a program profile. */
     programIndex(program_index: ProgramIndex): ArtifactPayload {
         return { kind: "programIndex", program_index };
     },

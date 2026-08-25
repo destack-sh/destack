@@ -117,7 +117,10 @@ export type ArgumentSource =
     /** Remaining source arguments were supplied to a rest parameter. */
     | {
           readonly kind: "rest";
-          readonly rest: ReadonlyArray<GlobalNodeIdAny>;
+          /** The packed source arguments in call order. */
+          readonly elements: ReadonlyArray<GlobalNodeIdAny>;
+          /** The selected pack constructor, absent for slice parameters. */
+          readonly pack?: Selection;
       }
 ;
 
@@ -143,8 +146,8 @@ export const ArgumentSource = {
     },
 
     /** Remaining source arguments were supplied to a rest parameter. */
-    rest(rest: ReadonlyArray<GlobalNodeIdAny>): ArgumentSource {
-        return { kind: "rest", rest };
+    rest(elements: ReadonlyArray<GlobalNodeIdAny>, pack: Selection | undefined): ArgumentSource {
+        return { kind: "rest", elements, pack };
     },
 
     /** Encode this value. */
@@ -187,10 +190,13 @@ export function encodeArgumentSource(writer: BinaryWriter, value: ArgumentSource
             return;
         case "rest":
             writer.writeUnsigned(4);
-            writer.writeUnsigned(value.rest.length);
-            for (const item0 of value.rest) {
+            writer.writeUnsigned(value.elements.length);
+            for (const item0 of value.elements) {
                 encodeGlobalNodeIdAny(writer, item0);
             }
+            writer.writeOption(value.pack, (value1) => {
+                encodeSelection(writer, value1);
+            });
             return;
     }
 
@@ -219,9 +225,14 @@ export function decodeArgumentSource(reader: BinaryReader): ArgumentSource {
             return { kind: "omitted" };
         }
         case 4: {
-            const rest = (() => { const length0 = reader.readNumber(); const items0: Array<GlobalNodeIdAny> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeGlobalNodeIdAny(reader)); } return items0; })();
+            const elements = (() => { const length0 = reader.readNumber(); const items0: Array<GlobalNodeIdAny> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeGlobalNodeIdAny(reader)); } return items0; })();
+            const pack = reader.readOption(() => decodeSelection(reader));
 
-            return { kind: "rest", rest };
+            return {
+                kind: "rest",
+                elements,
+                ...(pack === undefined ? {} : { pack }),
+            };
         }
     }
 
@@ -252,7 +263,8 @@ export function toJsonArgumentSource(value: ArgumentSource): Json {
         case "rest":
             return {
                 kind: "rest",
-                rest: value.rest.map((item0) => toJsonGlobalNodeIdAny(item0)),
+                elements: value.elements.map((item0) => toJsonGlobalNodeIdAny(item0)),
+                ...(value.pack === undefined ? {} : { pack: toJsonSelection(value.pack) }),
             };
     }
 
@@ -286,7 +298,8 @@ export function fromJsonArgumentSource(value: Json): ArgumentSource {
         case "rest":
             return {
                 kind,
-                rest: jsonArray(jsonField(object, "rest")).map((item0) => fromJsonGlobalNodeIdAny(item0)),
+                elements: jsonArray(jsonField(object, "elements")).map((item0) => fromJsonGlobalNodeIdAny(item0)),
+                pack: jsonOptional(object, "pack", (value) => fromJsonSelection(value)),
             };
     }
 

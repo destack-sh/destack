@@ -5,12 +5,14 @@ import type { Postings } from "./postings.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
 import type { SymbolKind } from "../symbol/symbol.js";
 import type { MemberKind } from "../table/member.js";
+import type { LocalNodeIdAny } from "../tree/node.js";
 import type { Mutability } from "../tree/node.js";
 import type { Span } from "../../source/file/model/span.js";
 import { decodePostings, encodePostings, fromJsonPostings, toJsonPostings } from "./postings.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
 import { decodeSymbolKind, encodeSymbolKind, fromJsonSymbolKind, toJsonSymbolKind } from "../symbol/symbol.js";
 import { decodeMemberKind, encodeMemberKind, fromJsonMemberKind, toJsonMemberKind } from "../table/member.js";
+import { decodeLocalNodeIdAny, encodeLocalNodeIdAny, fromJsonLocalNodeIdAny, toJsonLocalNodeIdAny } from "../tree/node.js";
 import { decodeMutability, encodeMutability, fromJsonMutability, toJsonMutability } from "../tree/node.js";
 import { decodeSpan, encodeSpan, fromJsonSpan, toJsonSpan } from "../../source/file/model/span.js";
 
@@ -22,6 +24,8 @@ export type SymbolEntry = {
     readonly kind: SymbolKind;
     /** The declaration member kind when present. */
     readonly memberKind?: MemberKind;
+    /** The declaring node. */
+    readonly declaration: LocalNodeIdAny;
     /** The symbol id. */
     readonly symbol: GlobalSymbolId;
     /** The source range. */
@@ -63,14 +67,15 @@ export function encodeSymbolEntry(writer: BinaryWriter, value: SymbolEntry): voi
     writer.writeOption(value.memberKind, (value2) => {
         encodeMemberKind(writer, value2);
     });
+    encodeLocalNodeIdAny(writer, value.declaration);
     encodeGlobalSymbolId(writer, value.symbol);
     encodeSpan(writer, value.span);
     encodeSpan(writer, value.selection);
-    writer.writeOption(value.container, (value6) => {
-        writer.writeString(value6);
+    writer.writeOption(value.container, (value7) => {
+        writer.writeString(value7);
     });
-    writer.writeOption(value.mutability, (value7) => {
-        encodeMutability(writer, value7);
+    writer.writeOption(value.mutability, (value8) => {
+        encodeMutability(writer, value8);
     });
 }
 
@@ -79,6 +84,7 @@ export function decodeSymbolEntry(reader: BinaryReader): SymbolEntry {
     const name = reader.readString();
     const kind = decodeSymbolKind(reader);
     const memberKind = reader.readOption(() => decodeMemberKind(reader));
+    const declaration = decodeLocalNodeIdAny(reader);
     const symbol_ = decodeGlobalSymbolId(reader);
     const span = decodeSpan(reader);
     const selection = decodeSpan(reader);
@@ -89,6 +95,7 @@ export function decodeSymbolEntry(reader: BinaryReader): SymbolEntry {
         name,
         kind,
         ...(memberKind === undefined ? {} : { memberKind }),
+        declaration,
         symbol: symbol_,
         span,
         selection,
@@ -103,6 +110,7 @@ export function toJsonSymbolEntry(value: SymbolEntry): Json {
         name: value.name,
         kind: toJsonSymbolKind(value.kind),
         ...(value.memberKind === undefined ? {} : { memberKind: toJsonMemberKind(value.memberKind) }),
+        declaration: toJsonLocalNodeIdAny(value.declaration),
         symbol: toJsonGlobalSymbolId(value.symbol),
         span: toJsonSpan(value.span),
         selection: toJsonSpan(value.selection),
@@ -119,6 +127,7 @@ export function fromJsonSymbolEntry(value: Json): SymbolEntry {
         name: jsonString(jsonField(object, "name")),
         kind: fromJsonSymbolKind(jsonField(object, "kind")),
         memberKind: jsonOptional(object, "memberKind", (value) => fromJsonMemberKind(value)),
+        declaration: fromJsonLocalNodeIdAny(jsonField(object, "declaration")),
         symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
         span: fromJsonSpan(jsonField(object, "span")),
         selection: fromJsonSpan(jsonField(object, "selection")),
