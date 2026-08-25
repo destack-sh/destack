@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::task::{Context, Poll};
 use std::thread::{Builder, JoinHandle, available_parallelism};
 
-use destack_artifact::{ArtifactFlush, ArtifactKey, ArtifactOutcome, ArtifactVersion};
+use destack_artifact::{ArtifactKey, ArtifactOutcome, ArtifactVersion};
 use destack_repository::{Execution, Revision, Trace, TraceLevel};
 
 use super::run::{ArtifactPriority, ArtifactRun, ArtifactRunGoal, ArtifactRunId, ArtifactRunState};
@@ -204,7 +204,7 @@ impl Executor {
         artifact_key: ArtifactKey,
     ) -> Result<ArtifactVersion, SessionError> {
         let repository = session.repository();
-        let pending = repository.unclean_artifact_keys(revision, &[artifact_key])?;
+        let pending = repository.unresolved_artifact_keys(revision, &[artifact_key])?;
         if pending.is_empty() {
             return self.ready_version(session, revision, artifact_key);
         }
@@ -239,7 +239,7 @@ impl Executor {
             }),
 
             None => Err(SessionError::Internal {
-                detail: format!("artifact version is missing from store: {version:?}"),
+                detail: format!("artifact version is not live: {version:?}"),
             }),
         }
     }
@@ -464,12 +464,5 @@ impl Session {
         self.executor
             .require_version(&self.state, revision, artifact_key)
             .await
-    }
-
-    /// Persist queued artifact records for this session repository.
-    pub fn flush_artifacts(&self) -> Result<ArtifactFlush, SessionError> {
-        self.repository()
-            .flush_artifacts()
-            .map_err(SessionError::from)
     }
 }

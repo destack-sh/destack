@@ -106,7 +106,7 @@ impl Worker {
     ) {
         let state = run.session().clone();
 
-        // finish tasks whose revision binding is already resolved
+        // finish tasks whose revision artifact is already resolved
         match state.artifact_outcome(task) {
             Ok(Some(_)) => {
                 self.scheduler.mark_done(task);

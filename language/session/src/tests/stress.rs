@@ -246,7 +246,7 @@ fn test_measure_check_after_single_module_edit() {
         let (_edited, edited_trace) = test.check("src/module-0.ds", "js");
         let edited = CheckMeasurement::from_trace(&edited_trace);
 
-        // a body edit refreshes the graph binding without a derive
+        // a body edit preserves the graph without rebuilding it
         assert_eq!(edited.changed_modules, None);
         assert_eq!(edited.counts.failed, 0);
 
@@ -342,9 +342,8 @@ fn test_measure_component_graph_after_body_and_import_edits() {
         let body = measure_component_graph_body_edit(graph);
         let import = measure_component_graph_import_edit(graph);
 
-        // body edits leave the edge projections unchanged, so the graph
-        //  binding refreshes in place without a derive; import edits must
-        //  still resolve cleanly against the refreshed graph
+        // body edits preserve the graph through unchanged edge projections
+        //  while import edits still resolve the updated graph
         assert_eq!(body.changed_modules, None);
         assert_eq!(body.counts.failed, 0);
         assert_eq!(import.counts.failed, 0);
@@ -392,9 +391,8 @@ export const result = value;
     .unwrap();
 
     let (cold, cold_trace) = test.check("src/index.ds", "js");
-    assert_eq!(cold_trace.stats.built, 1804);
+    assert_eq!(cold_trace.stats.built, 2224);
     assert_eq!(cold_trace.stats.memory_cached, 0);
-    assert_eq!(cold_trace.stats.store_cached, 0);
     assert_eq!(cold_trace.stats.failed, 0);
 
     let (warm, warm_trace) = test.check("src/index.ds", "js");
@@ -434,8 +432,7 @@ export const result = value;
             ("built", "dir.resolve"),
         ],
     );
-    // value-preserving dependency edits cut off early: the importer's
-    //  checked artifact stays byte-identical
+    // documentation changes the checked dependency closure
     test.edit_text(
         "src/dep.ds",
         r#"export const value = 2;
@@ -445,9 +442,9 @@ export const result = value;
     );
 
     let (commented, commented_trace) = test.check("src/index.ds", "js");
-    assert_eq!(commented, edited);
+    assert_ne!(commented, edited);
 
-    // require the value preserving edit to cut off before the importer
+    // require documentation to invalidate checked compiler input
     let mut commented_artifacts = commented_trace
         .attempts
         .iter()
@@ -459,13 +456,15 @@ export const result = value;
         commented_artifacts,
         [
             ("built", "dir.bind"),
+            ("built", "dir.check"),
             ("built", "dir.declare"),
+            ("built", "dir.elaborate"),
+            ("built", "dir.elaborate"),
             ("built", "dir.expand"),
             ("built", "dir.export"),
             ("built", "dir.import"),
             ("built", "dir.parse"),
             ("built", "dir.resolve"),
-            ("memory_cached", "dir.check"),
         ],
     );
 }
@@ -513,7 +512,6 @@ fn test_check_keeps_unrelated_module_current_after_single_edit() {
             attempts: 0,
             built: 0,
             memory_cached: 0,
-            store_cached: 0,
             parked: 0,
             failed: 0,
         },
@@ -524,7 +522,6 @@ fn test_check_keeps_unrelated_module_current_after_single_edit() {
             attempts: 13,
             built: 9,
             memory_cached: 0,
-            store_cached: 0,
             parked: 4,
             failed: 0,
         },

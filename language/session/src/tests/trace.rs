@@ -173,8 +173,6 @@ pub(crate) struct TraceCounts {
     pub(crate) built: usize,
     /// The attempts reused from the in-memory table.
     pub(crate) memory_cached: usize,
-    /// The attempts restored from the artifact store.
-    pub(crate) store_cached: usize,
     /// The attempts that parked on missing dependencies.
     pub(crate) parked: usize,
     /// The attempts that failed.
@@ -194,7 +192,6 @@ impl TraceCounts {
             match artifact.outcome.as_str() {
                 "built" => counts.built += 1,
                 "memory_cached" => counts.memory_cached += 1,
-                "store_cached" => counts.store_cached += 1,
                 "parked" => counts.parked += 1,
                 "failed" => counts.failed += 1,
                 outcome => panic!("unknown artifact trace outcome {outcome}"),

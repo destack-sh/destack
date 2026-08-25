@@ -7,8 +7,8 @@ use destack_artifact::{
 };
 use destack_repository as repository;
 use destack_repository::{
-    DestackLayoutOverride, Environment, Execution, Host, MemoryBlobStore, Repository, Revision,
-    RevisionPin, Settings, Trace, TraceLevel, TraceSnapshot, TraceView,
+    DestackLayoutOverride, Environment, Execution, Host, Repository, Revision, RevisionPin,
+    Settings, Trace, TraceLevel, TraceSnapshot, TraceView,
 };
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
 use futures::executor::block_on;
@@ -88,7 +88,6 @@ impl TestSession {
         }
 
         let host = Host::new(BuildId::test(), Environment::default(), fs.clone())
-            .with_blob_store(Arc::new(MemoryBlobStore::new()))
             .with_execution(execution);
         let (repository, revision) = Repository::open(
             root.clone(),
@@ -114,7 +113,7 @@ impl TestSession {
         let before = self.revision();
         let blob = self
             .repository
-            .put_blob(text.as_bytes())
+            .retain_blob(text.as_bytes())
             .expect("test source Blob should store");
         let edit = repository::Edit::set_file(path, blob);
         let after = self
