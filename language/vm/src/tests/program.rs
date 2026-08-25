@@ -422,7 +422,7 @@ impl TestProgram {
         self
     }
 
-    /// Return the exact trace map for one reference carrier.
+    /// Return the exact trace map for one reference representation.
     fn reference_trace(kind: ReferenceKind, storage: Storage) -> TraceMap {
         match (kind, storage) {
             (ReferenceKind::Managed, Storage::LocalHeap) => TraceMap::Fixed {
