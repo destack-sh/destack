@@ -11,26 +11,28 @@ export newtype FileVolumeFlags = uint64;
 @languageItem("fs.binding.FileVolumeMask")
 export newtype FileVolumeMask = uint32;
 
-/// Request transfer size fields.
-export const FILE_VOLUME_TRANSFER: FileVolumeMask = FileVolumeMask(0x0003);
+export extension of FileVolumeMask {
+    /// Request transfer size fields.
+    const transfer = FileVolumeMask(0x0003);
 
-/// Request block count fields.
-export const FILE_VOLUME_BLOCKS: FileVolumeMask = FileVolumeMask(0x001c);
+    /// Request block count fields.
+    const blocks = FileVolumeMask(0x001c);
 
-/// Request file node count fields.
-export const FILE_VOLUME_FILES: FileVolumeMask = FileVolumeMask(0x0060);
+    /// Request file node count fields.
+    const files = FileVolumeMask(0x0060);
 
-/// Request volume identifier.
-export const FILE_VOLUME_ID: FileVolumeMask = FileVolumeMask(0x0080);
+    /// Request volume identifier.
+    const id = FileVolumeMask(0x0080);
 
-/// Request mount flags.
-export const FILE_VOLUME_FLAGS: FileVolumeMask = FileVolumeMask(0x0100);
+    /// Request mount flags.
+    const flags = FileVolumeMask(0x0100);
 
-/// Request maximum filename length.
-export const FILE_VOLUME_NAME_LENGTH: FileVolumeMask = FileVolumeMask(0x0200);
+    /// Request maximum filename length.
+    const nameLength = FileVolumeMask(0x0200);
 
-/// Request all fields the host can provide.
-export const FILE_VOLUME_ALL: FileVolumeMask = FileVolumeMask(0x03ff);
+    /// Request all fields the host can provide.
+    const all = FileVolumeMask(0x03ff);
+}
 
 /// Volume status returned by host metadata operations.
 export struct FileVolumeStatus {

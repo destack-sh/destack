@@ -8,17 +8,19 @@ import { FileMode, FileOwner, FileTimes } from "./status.ds";
 @languageItem("fs.binding.FileAccessMask")
 export newtype FileAccessMask = uint32;
 
-/// Check only for entry existence.
-export const FILE_ACCESS_EXISTS: FileAccessMask = FileAccessMask(0);
+export extension of FileAccessMask {
+    /// Check only for entry existence.
+    const exists = FileAccessMask(0);
 
-/// Check for execute permission.
-export const FILE_ACCESS_EXECUTE: FileAccessMask = FileAccessMask(0x1);
+    /// Check for execute permission.
+    const execute = FileAccessMask(0x1);
 
-/// Check for write permission.
-export const FILE_ACCESS_WRITE: FileAccessMask = FileAccessMask(0x2);
+    /// Check for write permission.
+    const write = FileAccessMask(0x2);
 
-/// Check for read permission.
-export const FILE_ACCESS_READ: FileAccessMask = FileAccessMask(0x4);
+    /// Check for read permission.
+    const read = FileAccessMask(0x4);
+}
 
 /// Filesystem attribute binding family.
 @languageItem("fs.binding.AttributeBinding")

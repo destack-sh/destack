@@ -28,11 +28,13 @@ export newtype SocketProtocol = int32;
 @languageItem("net.binding.SocketFlags")
 export newtype SocketFlags = uint32;
 
-/// Create the socket in nonblocking mode.
-export const SOCKET_NONBLOCK: SocketFlags = SocketFlags(0x1);
+export extension of SocketFlags {
+    /// Create the socket in nonblocking mode.
+    const nonblocking = SocketFlags(0x1);
 
-/// Create the socket as close-on-exec or non-inheritable.
-export const SOCKET_CLOEXEC: SocketFlags = SocketFlags(0x2);
+    /// Create the socket as close-on-exec or non-inheritable.
+    const closeOnExec = SocketFlags(0x2);
+}
 
 /// Socket open options.
 export struct SocketOpenOptions {
@@ -50,27 +52,31 @@ export struct SocketOpenOptions {
 @languageItem("net.binding.SocketAcceptFlags")
 export newtype SocketAcceptFlags = uint32;
 
-/// Accept the socket in nonblocking mode.
-export const SOCKET_ACCEPT_NONBLOCK: SocketAcceptFlags = SocketAcceptFlags(0x1);
+export extension of SocketAcceptFlags {
+    /// Accept the socket in nonblocking mode.
+    const nonblocking = SocketAcceptFlags(0x1);
 
-/// Accept the socket as close-on-exec or non-inheritable.
-export const SOCKET_ACCEPT_CLOEXEC: SocketAcceptFlags = SocketAcceptFlags(0x2);
+    /// Accept the socket as close-on-exec or non-inheritable.
+    const closeOnExec = SocketAcceptFlags(0x2);
+}
 
 /// Message flags for send and receive operations.
 @languageItem("net.binding.SocketMessageFlags")
 export newtype SocketMessageFlags = uint32;
 
-/// Read without consuming queued data.
-export const SOCKET_MESSAGE_PEEK: SocketMessageFlags = SocketMessageFlags(0x1);
+export extension of SocketMessageFlags {
+    /// Read without consuming queued data.
+    const peek = SocketMessageFlags(0x1);
 
-/// Process out-of-band data.
-export const SOCKET_MESSAGE_OUT_OF_BAND: SocketMessageFlags = SocketMessageFlags(0x2);
+    /// Process out-of-band data.
+    const outOfBand = SocketMessageFlags(0x2);
 
-/// Send without routing table lookup where supported.
-export const SOCKET_MESSAGE_DONT_ROUTE: SocketMessageFlags = SocketMessageFlags(0x4);
+    /// Send without routing table lookup where supported.
+    const doNotRoute = SocketMessageFlags(0x4);
 
-/// Wait until the receive buffer is full where supported.
-export const SOCKET_MESSAGE_WAIT_ALL: SocketMessageFlags = SocketMessageFlags(0x8);
+    /// Wait until the receive buffer is full where supported.
+    const waitAll = SocketMessageFlags(0x8);
+}
 
 /// Shutdown mode for sockets.
 @languageItem("net.binding.SocketShutdown")

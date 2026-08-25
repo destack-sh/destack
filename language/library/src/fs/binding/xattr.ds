@@ -7,11 +7,13 @@ import { Entry } from "./entry.ds";
 @languageItem("fs.binding.XattrFlags")
 export newtype XattrFlags = uint32;
 
-/// Create an attribute and fail if it already exists.
-export const XATTR_CREATE: XattrFlags = XattrFlags(0x1);
+export extension of XattrFlags {
+    /// Create an attribute and fail if it already exists.
+    const create = XattrFlags(0x1);
 
-/// Replace an attribute and fail if it does not exist.
-export const XATTR_REPLACE: XattrFlags = XattrFlags(0x2);
+    /// Replace an attribute and fail if it does not exist.
+    const replace = XattrFlags(0x2);
+}
 
 /// Filesystem entry extended attribute target.
 export struct XattrTargetEntry {

@@ -5,25 +5,29 @@ import { Entry } from "./entry.ds";
 import { PathBuffer } from "./path.ds";
 import { FileMode } from "./status.ds";
 
-/// Reject replacing an existing destination.
-export const RENAME_NO_REPLACE: RenameFlags = RenameFlags(0x1);
-
-/// Exchange the source and destination entries atomically.
-export const RENAME_EXCHANGE: RenameFlags = RenameFlags(0x2);
-
-/// Create a whiteout entry as part of the rename when supported.
-export const RENAME_WHITEOUT: RenameFlags = RenameFlags(0x4);
-
-/// Follow a symlink source where the host operation supports it.
-export const LINK_FOLLOW: LinkFlags = LinkFlags(0x1);
-
 /// Rename operation flags.
 @languageItem("fs.binding.RenameFlags")
 export newtype RenameFlags = uint32;
 
+export extension of RenameFlags {
+    /// Reject replacing an existing destination.
+    const noReplace = RenameFlags(0x1);
+
+    /// Exchange the source and destination entries atomically.
+    const exchange = RenameFlags(0x2);
+
+    /// Create a whiteout entry as part of the rename when supported.
+    const whiteout = RenameFlags(0x4);
+}
+
 /// Link operation flags.
 @languageItem("fs.binding.LinkFlags")
 export newtype LinkFlags = uint32;
+
+export extension of LinkFlags {
+    /// Follow a symlink source where the host operation supports it.
+    const follow = LinkFlags(0x1);
+}
 
 /// Symlink target type hint.
 @languageItem("fs.binding.SymlinkKind")

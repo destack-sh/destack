@@ -26,27 +26,25 @@ export enum NetworkPacketBackend {
 @languageItem("net.binding.NetworkPacketBackendFeatures")
 export newtype NetworkPacketBackendFeatures = uint64;
 
-/// Backend supports packet capture.
-export const NETWORK_PACKET_CAPTURE: NetworkPacketBackendFeatures =
-    NetworkPacketBackendFeatures(0x1);
+export extension of NetworkPacketBackendFeatures {
+    /// Backend supports packet capture.
+    const capture = NetworkPacketBackendFeatures(0x1);
 
-/// Backend supports packet injection.
-export const NETWORK_PACKET_SEND: NetworkPacketBackendFeatures = NetworkPacketBackendFeatures(0x2);
+    /// Backend supports packet injection.
+    const send = NetworkPacketBackendFeatures(0x2);
 
-/// Backend supports packet timestamps.
-export const NETWORK_PACKET_TIMESTAMP: NetworkPacketBackendFeatures =
-    NetworkPacketBackendFeatures(0x4);
+    /// Backend supports packet timestamps.
+    const timestamp = NetworkPacketBackendFeatures(0x4);
 
-/// Backend supports packet filters.
-export const NETWORK_PACKET_FILTER: NetworkPacketBackendFeatures =
-    NetworkPacketBackendFeatures(0x8);
+    /// Backend supports packet filters.
+    const filter = NetworkPacketBackendFeatures(0x8);
 
-/// Backend supports fanout groups.
-export const NETWORK_PACKET_FANOUT: NetworkPacketBackendFeatures =
-    NetworkPacketBackendFeatures(0x10);
+    /// Backend supports fanout groups.
+    const fanout = NetworkPacketBackendFeatures(0x10);
 
-/// Backend supports packet rings.
-export const NETWORK_PACKET_RING: NetworkPacketBackendFeatures = NetworkPacketBackendFeatures(0x20);
+    /// Backend supports packet rings.
+    const ring = NetworkPacketBackendFeatures(0x20);
+}
 
 /// Network packet backend status.
 export struct NetworkPacketBackendStatus {

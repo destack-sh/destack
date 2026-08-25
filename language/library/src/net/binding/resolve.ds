@@ -8,20 +8,22 @@ import { SocketProtocol, SocketType } from "./socket.ds";
 @languageItem("net.binding.AddressLookupFlags")
 export newtype AddressLookupFlags = uint32;
 
-/// Return socket addresses that can be used for bind.
-export const ADDRESS_LOOKUP_PASSIVE: AddressLookupFlags = AddressLookupFlags(0x1);
+export extension of AddressLookupFlags {
+    /// Return socket addresses that can be used for bind.
+    const passive = AddressLookupFlags(0x1);
 
-/// Return canonical names when available.
-export const ADDRESS_LOOKUP_CANONICAL_NAME: AddressLookupFlags = AddressLookupFlags(0x2);
+    /// Return canonical names when available.
+    const canonicalName = AddressLookupFlags(0x2);
 
-/// Return only addresses configured on this host.
-export const ADDRESS_LOOKUP_ADDRESS_CONFIGURED: AddressLookupFlags = AddressLookupFlags(0x4);
+    /// Return only addresses configured on this host.
+    const addressConfigured = AddressLookupFlags(0x4);
 
-/// Return numeric host results only.
-export const ADDRESS_LOOKUP_NUMERIC_HOST: AddressLookupFlags = AddressLookupFlags(0x8);
+    /// Return numeric host results only.
+    const numericHost = AddressLookupFlags(0x8);
 
-/// Return numeric service results only.
-export const ADDRESS_LOOKUP_NUMERIC_SERVICE: AddressLookupFlags = AddressLookupFlags(0x10);
+    /// Return numeric service results only.
+    const numericService = AddressLookupFlags(0x10);
+}
 
 /// Host and service lookup query.
 export struct AddressLookupQuery {
@@ -51,38 +53,40 @@ export struct AddressLookupResult {
 @languageItem("net.binding.DnsRecordType")
 export newtype DnsRecordType = uint16;
 
-/// IPv4 address record.
-export const DNS_A: DnsRecordType = DnsRecordType(1);
+export extension of DnsRecordType {
+    /// IPv4 address record.
+    const a = DnsRecordType(1);
 
-/// Authoritative name server record.
-export const DNS_NS: DnsRecordType = DnsRecordType(2);
+    /// Authoritative name server record.
+    const ns = DnsRecordType(2);
 
-/// Canonical name record.
-export const DNS_CNAME: DnsRecordType = DnsRecordType(5);
+    /// Canonical name record.
+    const cname = DnsRecordType(5);
 
-/// Start of authority record.
-export const DNS_SOA: DnsRecordType = DnsRecordType(6);
+    /// Start of authority record.
+    const soa = DnsRecordType(6);
 
-/// Pointer record.
-export const DNS_PTR: DnsRecordType = DnsRecordType(12);
+    /// Pointer record.
+    const ptr = DnsRecordType(12);
 
-/// Mail exchange record.
-export const DNS_MX: DnsRecordType = DnsRecordType(15);
+    /// Mail exchange record.
+    const mx = DnsRecordType(15);
 
-/// Text record.
-export const DNS_TXT: DnsRecordType = DnsRecordType(16);
+    /// Text record.
+    const txt = DnsRecordType(16);
 
-/// IPv6 address record.
-export const DNS_AAAA: DnsRecordType = DnsRecordType(28);
+    /// IPv6 address record.
+    const aaaa = DnsRecordType(28);
 
-/// Service locator record.
-export const DNS_SRV: DnsRecordType = DnsRecordType(33);
+    /// Service locator record.
+    const srv = DnsRecordType(33);
 
-/// Naming authority pointer record.
-export const DNS_NAPTR: DnsRecordType = DnsRecordType(35);
+    /// Naming authority pointer record.
+    const naptr = DnsRecordType(35);
 
-/// Certification authority authorization record.
-export const DNS_CAA: DnsRecordType = DnsRecordType(257);
+    /// Certification authority authorization record.
+    const caa = DnsRecordType(257);
+}
 
 /// DNS resolver options.
 export struct DnsOptions {
@@ -265,13 +269,13 @@ export newtype DnsRecord =
 @languageItem("net.binding.ReverseAddressLookupFlags")
 export newtype ReverseAddressLookupFlags = uint32;
 
-/// Return numeric host results.
-export const REVERSE_ADDRESS_LOOKUP_NUMERIC_HOST: ReverseAddressLookupFlags =
-    ReverseAddressLookupFlags(0x1);
+export extension of ReverseAddressLookupFlags {
+    /// Return numeric host results.
+    const numericHost = ReverseAddressLookupFlags(0x1);
 
-/// Return numeric service results.
-export const REVERSE_ADDRESS_LOOKUP_NUMERIC_SERVICE: ReverseAddressLookupFlags =
-    ReverseAddressLookupFlags(0x2);
+    /// Return numeric service results.
+    const numericService = ReverseAddressLookupFlags(0x2);
+}
 
 /// Reverse lookup result.
 export struct ReverseAddressLookupResult {
