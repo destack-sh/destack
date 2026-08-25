@@ -4,7 +4,7 @@ use std::slice;
 use destack_artifact::DiagnosticAnchor;
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{File, FileId, NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{File, FileId, NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Patch, Span};
 
 use super::DirModule;
 
@@ -233,6 +233,80 @@ impl DirModule<'_> {
         }
 
         Ok(Span::new(span.file, start as u32, end as u32))
+    }
+
+    /// Build a patch that removes one statement while preserving required bodies.
+    pub fn statement_removal_patch(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Patch, ProviderError> {
+        let view = self.view();
+        let replacement = match view.get_parent_for(expression) {
+            // root statements can disappear completely
+            None => None,
+            // inspect the structural role of a containing block
+            Some(parent) if parent.ty == dir::NodeType::Block => {
+                let block_id = dir::LocalNodeId::<dir::Block>::new(parent.id);
+                let block = view.get(block_id);
+                let is_required = block.form == dir::BlockForm::Implicit
+                    && block.only_expression() == Some(expression);
+
+                // delete ordinary block statements
+                if !is_required {
+                    None
+                }
+                // preserve the required implicit body
+                else {
+                    let owner = view.get_parent_for(block_id).ok_or_else(|| {
+                        ProviderError::internal(format!(
+                            "implicit block {} in module {:?} has no DIR parent",
+                            block_id.id, self.id
+                        ))
+                    })?;
+
+                    // switch cases permit an empty statement list
+                    (owner.ty != dir::NodeType::SwitchCase)
+                        .then_some("{ /* intentionally empty */ }")
+                }
+            }
+            // preserve required expression bodies
+            Some(parent) if matches!(parent.ty, dir::NodeType::MatchArm | dir::NodeType::Catch) => {
+                Some("{ /* intentionally empty */ }")
+            }
+            // preserve a directly authored finally body
+            Some(parent) if parent.ty == dir::NodeType::Expression => {
+                let parent = dir::LocalNodeId::<dir::Expression>::new(parent.id);
+                let is_finally = matches!(
+                    view.get(parent),
+                    dir::Expression::Try {
+                        finally: Some(finally),
+                        ..
+                    } if *finally == expression
+                );
+                if !is_finally {
+                    return Err(ProviderError::internal(format!(
+                        "statement {} in module {:?} has invalid DIR parent {parent:?}",
+                        expression.id, self.id
+                    )));
+                }
+
+                Some("{ /* intentionally empty */ }")
+            }
+            Some(parent) => {
+                return Err(ProviderError::internal(format!(
+                    "statement {} in module {:?} has invalid DIR parent {parent:?}",
+                    expression.id, self.id
+                )));
+            }
+        };
+
+        // replace required bodies and delete ordinary statements
+        let patch = match replacement {
+            Some(replacement) => Patch::replace(self.statement_span(expression)?, replacement),
+            None => Patch::delete(self.statement_removal_span(expression)?),
+        };
+
+        Ok(patch)
     }
 
     /// Return a source anchor for one DIR node.

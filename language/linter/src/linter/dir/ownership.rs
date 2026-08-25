@@ -4,10 +4,61 @@ use destack_repository::ProviderError;
 use super::Dir;
 
 impl Dir<'_> {
+    /// Return whether one checked type is a mutable managed reference.
+    pub(crate) fn is_mutable_reference(
+        &self,
+        type_id: dir::GlobalTypeId,
+    ) -> Result<bool, ProviderError> {
+        let ty = self.get_type(type_id)?;
+
+        // readonly views cannot expose mutation through repeated aliases
+        if matches!(ty, dir::Type::Form(form) if form.form == dir::Form::Readonly) {
+            return Ok(false);
+        }
+
+        // unknown and dynamic values expose no mutable members
+        if matches!(ty, dir::Type::Unknown | dir::Type::Dynamic(_)) {
+            return Ok(false);
+        }
+
+        // inspect every union element
+        if matches!(ty, dir::Type::Union(_)) {
+            for element in self.union_elements(type_id)? {
+                if self.is_mutable_reference(element)? {
+                    return Ok(true);
+                }
+            }
+
+            return Ok(false);
+        }
+
+        // inspect every intersection element
+        if matches!(ty, dir::Type::Intersection(_)) {
+            for element in self.intersection_elements(type_id)? {
+                if self.is_mutable_reference(element)? {
+                    return Ok(true);
+                }
+            }
+
+            return Ok(false);
+        }
+
+        // require managed storage with a mutable runtime representation
+        if self.default_ownership(type_id)? != Some(dir::Ownership::Managed) {
+            return Ok(false);
+        }
+        let representation = self.representation_item(type_id)?;
+        let is_immutable = matches!(
+            representation,
+            Some(
+                dir::LanguageItem::BigInt | dir::LanguageItem::Function | dir::LanguageItem::String
+            )
+        );
+
+        Ok(!is_immutable)
+    }
+
     /// Return the runtime ownership one persisted checked type defaults to.
-    ///
-    /// The checked type table stores reduced memory forms, so a bare nominal
-    /// carries its declaration family's ownership.
     pub fn default_ownership(
         &self,
         type_id: dir::GlobalTypeId,
@@ -30,10 +81,10 @@ impl Dir<'_> {
             | dir::Type::Tuple(_)
             | dir::Type::FixedArray(_)
             | dir::Type::FunctionPointer(_) => Some(dir::Ownership::Owned),
-            dir::Type::Primitive(primitive) => Some(primitive_ownership(primitive)),
+            dir::Type::Primitive(primitive) => Some(primitive.ownership()),
             // literals share the ownership of their runtime scalar carrier
             dir::Type::Literal(literal) => match literal.widen() {
-                dir::Type::Primitive(primitive) => Some(primitive_ownership(primitive)),
+                dir::Type::Primitive(primitive) => Some(primitive.ownership()),
                 _ => Some(dir::Ownership::Owned),
             },
             dir::Type::Application(instance) => {
@@ -93,14 +144,5 @@ impl Dir<'_> {
             }
             _ => Ok(None),
         }
-    }
-}
-
-/// Return the ownership one primitive scalar defaults to.
-fn primitive_ownership(primitive: dir::PrimitiveType) -> dir::Ownership {
-    if primitive.representation_item().is_some() {
-        dir::Ownership::Managed
-    } else {
-        dir::Ownership::Owned
     }
 }

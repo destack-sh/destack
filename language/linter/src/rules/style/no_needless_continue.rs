@@ -1,5 +1,4 @@
 use destack_dir as dir;
-use destack_source::Patch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -55,19 +54,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // remove statements and preserve required value positions
+        // remove the statement while preserving required bodies
         let span = module.span(expression.into_any())?;
-        let patch = if view
-            .get_parent_for(expression)
-            .is_some_and(|parent| parent.ty == dir::NodeType::Block)
-        {
-            Patch::delete(module.statement_removal_span(expression)?)
-        } else {
-            Patch::replace(
-                module.source_extent(expression.into_any())?,
-                "{ /* intentionally empty */ }",
-            )
-        };
+        let patch = module.statement_removal_patch(expression)?;
         let suggestion = lint.fix("remove the redundant continue", patch)?;
         let diagnostic = lint
             .diagnostic("continue repeats the end of this iteration", span)
@@ -82,6 +71,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Remove a continue at the end of a loop body.
     #[test]
     fn test_removes_terminal_continue() {

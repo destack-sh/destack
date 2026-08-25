@@ -1,6 +1,4 @@
 use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -49,7 +47,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         let span = module.span(expression_id.into_any())?;
-        let suggestion = suggest_removal(module, expression_id, lint)?;
+        let patch = module.statement_removal_patch(expression_id)?;
+        let suggestion = lint.fix("remove the debugger statement", patch)?;
         let diagnostic = lint
             .diagnostic("`debugger` statement is not allowed", span)
             .suggestion(suggestion);
@@ -57,80 +56,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     }
 
     Ok(output)
-}
-
-/// Build an automatic debugger removal.
-fn suggest_removal(
-    module: &DirModule<'_>,
-    expression: dir::LocalNodeId<dir::Expression>,
-    lint: &Lint,
-) -> Result<DiagnosticSuggestion, ProviderError> {
-    let view = module.view();
-    let replacement = match view.get_parent_for(expression) {
-        // root statements can disappear completely
-        None => "",
-        // classify the statement's structural position
-        Some(parent) => match parent.ty {
-            // preserve required implicit control bodies
-            dir::NodeType::Block => {
-                let block_id = dir::LocalNodeId::<dir::Block>::new(parent.id);
-                let block = view.get(block_id);
-                let is_implicit_body = block.form == dir::BlockForm::Implicit
-                    && block.only_expression() == Some(expression);
-
-                // remove statements from explicit or multi-statement blocks
-                if !is_implicit_body {
-                    ""
-                }
-                // preserve required bodies except switch case statements
-                else {
-                    let owner = view.get_parent_for(block_id).ok_or_else(|| {
-                        ProviderError::internal(format!(
-                            "debugger block {} in module {:?} has no DIR parent",
-                            block_id.id, module.id
-                        ))
-                    })?;
-
-                    match owner.ty {
-                        dir::NodeType::SwitchCase => "",
-                        _ => "{}",
-                    }
-                }
-            }
-            // preserve required match arm expressions
-            dir::NodeType::MatchArm => "{}",
-            // catch and finally clauses require bodies
-            dir::NodeType::Catch => "{}",
-            dir::NodeType::Expression
-                if matches!(
-                    view.get(dir::LocalNodeId::<dir::Expression>::new(parent.id)),
-                    dir::Expression::Try {
-                        finally: Some(finally),
-                        ..
-                    } if *finally == expression
-                ) =>
-            {
-                "{}"
-            }
-            _ => {
-                return Err(ProviderError::internal(format!(
-                    "debugger statement {} in module {:?} has invalid DIR parent {parent:?}",
-                    expression.id, module.id
-                )));
-            }
-        },
-    };
-
-    // replace the complete statement
-    let span = if replacement.is_empty() {
-        module.statement_removal_span(expression)?
-    } else {
-        module.statement_span(expression)?
-    };
-    let patch = Patch::replace(span, replacement);
-    let suggestion = lint.fix("remove the debugger statement", patch)?;
-
-    Ok(suggestion)
 }
 
 #[cfg(test)]
@@ -220,12 +145,12 @@ warning[no-debugger]: `debugger` statement is not allowed
 
     1│ try {
 -   2│ } catch (error) debugger
-+   2│ } catch (error) {}
++   2│ } catch (error) { /* intentionally empty */ }
 "#,
         );
         session.assert_fixes(
             r#"try {
-} catch (error) {}
+} catch (error) { /* intentionally empty */ }
 "#,
         );
     }
@@ -243,7 +168,7 @@ try {
 
         session.assert_fixes(
             r#"try {
-} finally {}
+} finally { /* intentionally empty */ }
 "#,
         );
     }
@@ -283,7 +208,7 @@ match (undefined) {
 
         session.assert_fixes(
             r#"match (undefined) {
-    _ => {}
+    _ => { /* intentionally empty */ }
 }
 "#,
         );
