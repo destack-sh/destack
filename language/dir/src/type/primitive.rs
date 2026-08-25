@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_core::{FloatFormat, roundtrip_float};
 
-use crate::{LanguageItem, Literal, RangeType, ScalarDomain, StringId};
+use crate::{LanguageItem, Literal, Ownership, RangeType, ScalarDomain, StringId};
 
 /// A primitive type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -44,6 +44,14 @@ impl PrimitiveType {
             Self::Bigint => ScalarDomain::Bigint,
             Self::Integer(_) => ScalarDomain::Integer,
             Self::Float(_) => ScalarDomain::Float,
+        }
+    }
+
+    /// Return this primitive's default ownership.
+    pub fn ownership(self) -> Ownership {
+        match self {
+            Self::String | Self::Bigint => Ownership::Managed,
+            Self::Boolean | Self::Character | Self::Integer(_) | Self::Float(_) => Ownership::Owned,
         }
     }
 
