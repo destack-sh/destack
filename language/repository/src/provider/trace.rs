@@ -21,8 +21,6 @@ pub enum ArtifactAttemptOutcome {
     Built,
     /// The artifact was already present in memory.
     MemoryCached,
-    /// The artifact was restored from the persistent artifact store.
-    StoreCached,
     /// The attempt parked on missing requirements.
     Parked,
     /// The attempt failed.
@@ -35,7 +33,6 @@ impl ArtifactAttemptOutcome {
         match self {
             Self::Built => "built",
             Self::MemoryCached => "memory_cached",
-            Self::StoreCached => "store_cached",
             Self::Parked => "parked",
             Self::Failed => "failed",
         }
@@ -112,7 +109,7 @@ pub struct TraceAggregate {
 struct TraceAggregateAttempts {
     /// Attempts that executed a provider.
     built: u64,
-    /// Attempts served from memory or the artifact store.
+    /// Attempts served from memory.
     cached: u64,
     /// Attempts that parked or failed.
     stalled: u64,
@@ -142,7 +139,7 @@ impl TraceAggregate {
                     row.built += 1;
                     row.time += attempt.span.duration;
                 }
-                ArtifactAttemptOutcome::MemoryCached | ArtifactAttemptOutcome::StoreCached => {
+                ArtifactAttemptOutcome::MemoryCached => {
                     row.cached += 1;
                     row.time += attempt.span.duration;
                 }
@@ -830,8 +827,6 @@ pub struct TraceStats {
     pub built: u64,
     /// Attempts served from memory.
     pub memory_cached: u64,
-    /// Attempts restored from the persistent store.
-    pub store_cached: u64,
     /// Attempts parked on missing requirements.
     pub parked: u64,
     /// Attempts that failed.
@@ -841,7 +836,7 @@ pub struct TraceStats {
 impl TraceStats {
     /// Return the total artifact attempts.
     pub fn attempts(&self) -> u64 {
-        self.built + self.memory_cached + self.store_cached + self.parked + self.failed
+        self.built + self.memory_cached + self.parked + self.failed
     }
 
     /// Add one terminal attempt outcome.
@@ -849,7 +844,6 @@ impl TraceStats {
         match outcome {
             ArtifactAttemptOutcome::Built => self.built += 1,
             ArtifactAttemptOutcome::MemoryCached => self.memory_cached += 1,
-            ArtifactAttemptOutcome::StoreCached => self.store_cached += 1,
             ArtifactAttemptOutcome::Parked => self.parked += 1,
             ArtifactAttemptOutcome::Failed => self.failed += 1,
         }

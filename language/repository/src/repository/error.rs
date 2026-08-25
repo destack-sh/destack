@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
 
-use destack_artifact::{ArtifactBindingId, ArtifactKey, ArtifactVersion};
+use destack_artifact::{ArtifactKey, ArtifactVersion};
 use destack_source::{FileId, ModuleId, PackageId, ProfileId, TargetId};
 
 use crate::repository::Revision;
@@ -40,8 +40,6 @@ pub enum RepositoryError {
         /// The validation failure.
         message: String,
     },
-    /// The repository artifact store failed.
-    ArtifactStore { message: String },
     /// The requested module does not exist in the given revision.
     MissingModule { module: ModuleId },
     /// The requested package does not exist in the given revision.
@@ -80,25 +78,12 @@ pub enum RepositoryError {
     AmbiguousProductTarget { product: String, target: String },
     /// The requested profile does not exist in the repository.
     MissingProfile { profile: ProfileId },
-    /// The requested artifact entry does not exist in the repository store.
+    /// The requested artifact result is not live.
     MissingArtifact { version: ArtifactVersion },
-    /// The requested artifact binding does not exist in the repository table.
-    MissingArtifactBindingId { binding: ArtifactBindingId },
-    /// The artifact table does not contain one required dense artifact id.
-    MissingArtifactId { key: ArtifactKey },
-    /// An artifact binding does not contain one recorded dependency ordinal.
-    MissingArtifactDependency {
-        /// The artifact binding.
-        key: ArtifactKey,
-        /// The missing dependency ordinal.
-        dependency: usize,
-    },
-    /// Artifact bindings form a dependency cycle.
-    CircularArtifactBinding { key: ArtifactKey },
+    /// Artifact dependencies form a cycle.
+    CircularArtifactDependency { key: ArtifactKey },
     /// Artifact state violates an internal invariant.
     InvalidArtifact { message: String },
-    /// Artifact resolution exhausted its commit attempts under contention.
-    ContendedResolution { detail: String },
     /// The requested file does not exist in the base revision.
     MissingFile { path: String },
     /// The requested file already exists in the base revision.
@@ -174,9 +159,6 @@ impl fmt::Display for RepositoryError {
             Self::InvalidFile { file, message } => {
                 write!(formatter, "invalid repository File '{file}': {message}")
             }
-            Self::ArtifactStore { message } => {
-                write!(formatter, "repository artifact store failed: {message}")
-            }
             Self::MissingModule { module } => {
                 write!(formatter, "missing repository module '{module}'")
             }
@@ -247,32 +229,14 @@ impl fmt::Display for RepositoryError {
             Self::MissingArtifact { version } => {
                 write!(formatter, "missing repository artifact '{version:?}'")
             }
-            Self::MissingArtifactBindingId { binding } => {
+            Self::CircularArtifactDependency { key } => {
                 write!(
                     formatter,
-                    "missing repository artifact binding '{binding:?}'"
-                )
-            }
-            Self::MissingArtifactId { key } => {
-                write!(formatter, "missing repository artifact id for '{key:?}'")
-            }
-            Self::MissingArtifactDependency { key, dependency } => {
-                write!(
-                    formatter,
-                    "missing dependency {dependency} in repository artifact binding '{key:?}'"
-                )
-            }
-            Self::CircularArtifactBinding { key } => {
-                write!(
-                    formatter,
-                    "circular repository artifact binding dependency at '{key:?}'"
+                    "circular repository artifact dependency at '{key:?}'"
                 )
             }
             Self::InvalidArtifact { message } => {
                 write!(formatter, "invalid repository artifact state: {message}")
-            }
-            Self::ContendedResolution { detail } => {
-                write!(formatter, "contended artifact resolution: {detail}")
             }
             Self::MissingFile { path } => {
                 write!(formatter, "missing file '{path}'")

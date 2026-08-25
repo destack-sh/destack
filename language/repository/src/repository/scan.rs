@@ -371,7 +371,7 @@ impl<'a> Scan<'a> {
         let incoming = self
             .repository
             .blob_store()
-            .put(input.as_mut())
+            .retain(input.as_mut())
             .map_err(|error| RepositoryError::Blob {
                 message: error.to_string(),
             })?;

@@ -4,7 +4,7 @@ use destack_artifact::{
 };
 
 use crate::ArtifactResolution;
-use crate::provider::{ArtifactAttemptRecorder, ArtifactBase, ProviderError, ProviderResult};
+use crate::provider::{ArtifactAttemptRecorder, ProviderError, ProviderResult};
 use crate::repository::{Repository, Revision};
 
 /// One parked attempt's dependency set and its resolved slots.
@@ -45,7 +45,6 @@ impl Repository {
         key: ArtifactKey,
         mut set: ArtifactDependencySet,
         progress: Option<&[Option<ArtifactDependency>]>,
-        base: Option<&ArtifactBase>,
         recorder: &ArtifactAttemptRecorder,
     ) -> ProviderResult<DependencySetResolution> {
         let artifact_requirements = set.requirements.len() as u64;
@@ -55,7 +54,6 @@ impl Repository {
         if progress.is_none() {
             recorder.breakdown("assemble.normalize", || set.normalize());
         }
-        let base = base.filter(|base| set.matches(&base.dependencies));
         let resolved_slot = |dependency: usize| {
             progress.and_then(|progress| progress.get(dependency).cloned().flatten())
         };
@@ -64,16 +62,15 @@ impl Repository {
             .iter()
             .enumerate()
             .filter_map(|(dependency, requirement)| {
-                let is_dirty = base.is_none_or(|base| base.is_dependency_dirty(dependency));
                 let is_unresolved = resolved_slot(dependency).is_none();
-                (is_dirty && is_unresolved).then_some(requirement.artifact_key())
+                is_unresolved.then_some(requirement.artifact_key())
             })
             .collect::<Vec<_>>();
-        let resolved_requirements = artifact_keys.len() as u64;
+        let unresolved_requirements = artifact_keys.len() as u64;
         recorder.record_counters(&[
             ("assemble.requirements", artifact_requirements),
             ("assemble.sources", source_dependencies),
-            ("assemble.resolved", resolved_requirements),
+            ("assemble.unresolved", unresolved_requirements),
         ]);
         let resolutions = recorder.breakdown("assemble.resolve", || {
             self.resolve_artifacts(revision, &artifact_keys)
@@ -90,11 +87,8 @@ impl Repository {
                 let mut pending = Vec::new();
                 let mut failed = None;
                 for (dependency, requirement) in set.requirements.iter().enumerate() {
-                    // carry parked progress or the clean base slot forward
-                    let carried = resolved_slot(dependency).or_else(|| {
-                        base.filter(|base| !base.is_dependency_dirty(dependency))
-                            .map(|base| base.dependencies[dependency].clone())
-                    });
+                    // carry dependencies resolved before this attempt parked
+                    let carried = resolved_slot(dependency);
 
                     if let Some(carried) = carried {
                         slots.push(Some(dependencies.len() as u32));
@@ -232,6 +226,7 @@ impl Repository {
                 let fingerprint = self
                     .artifact_table()
                     .projection_fingerprint(&version, &projection)
+                    .map_err(|error| ProviderError::internal(error.to_string()))?
                     .ok_or_else(|| {
                         ProviderError::internal(format!(
                             "artifact projection does not match payload: {projection:?}"

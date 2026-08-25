@@ -2,17 +2,17 @@ use std::sync::Arc;
 
 use destack_artifact::SourceDependency;
 
-/// Source observations invalidated while editing one repository revision.
+/// Source observations invalidated by one repository edit.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Delta {
-    /// Exact previous source observations that may have changed.
+    /// Exact preceding source observations that may have changed.
     invalidated: Arc<[SourceDependency]>,
     /// Possible package or module discovery change.
     discovery: Discovery,
 }
 
 impl Delta {
-    /// Build one delta from invalidated source observations and discovery impact.
+    /// Build one edit delta.
     pub(crate) fn new(
         invalidated: impl IntoIterator<Item = SourceDependency>,
         discovery: Discovery,

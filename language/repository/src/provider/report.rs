@@ -120,7 +120,7 @@ impl TraceReport {
         let _ = write!(output, "\n{title}\n");
         let _ = writeln!(
             output,
-            "  wall {} ms  attempts {}  built {}  memory {}  store {}  parked {}  failed {}",
+            "  wall {} ms  attempts {}  built {}  memory {}  parked {}  failed {}",
             paint(&millis(row.trace.total_micros), "38;5;250", self.use_color),
             row.trace.attempts.len(),
             paint(
@@ -129,7 +129,6 @@ impl TraceReport {
                 self.use_color
             ),
             stats.memory_cached,
-            stats.store_cached,
             paint(
                 &stats.parked.to_string(),
                 outcome_color("parked"),
@@ -271,7 +270,6 @@ impl TraceReport {
             Cell::bold("attempts"),
             Cell::bold("built"),
             Cell::bold("memory"),
-            Cell::bold("store"),
             Cell::bold("parked"),
             Cell::bold("failed"),
         ]);
@@ -287,10 +285,6 @@ impl TraceReport {
                 Cell::colored(
                     stats.memory_cached.to_string(),
                     outcome_color("memory_cached"),
-                ),
-                Cell::colored(
-                    stats.store_cached.to_string(),
-                    outcome_color("store_cached"),
                 ),
                 Cell::colored(stats.parked.to_string(), outcome_color("parked")),
                 Cell::colored(stats.failed.to_string(), outcome_color("failed")),
@@ -769,7 +763,7 @@ fn time_color(time: &str) -> &'static str {
     match root {
         "park" | "run" => "38;5;245",
         "resolve" | "select" | "collect" | "assemble" => "38;5;229",
-        "reuse" | "load" => "38;5;80",
+        "reuse" => "38;5;80",
         "provide" => "38;5;114",
         "commit" => "38;5;147",
         _ => "38;5;250",
@@ -781,7 +775,6 @@ fn outcome_color(outcome: &str) -> &'static str {
     match outcome {
         "built" => "38;5;114",
         "memory_cached" => "38;5;80",
-        "store_cached" => "38;5;147",
         "parked" => "38;5;229",
         "failed" => "38;5;203",
         _ => "38;5;250",

@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactBindingId, ArtifactKey, ArtifactVersion};
+use destack_artifact::{ArtifactKey, ArtifactVersion};
 use destack_core::BlobId;
 use destack_source::{File, FileId, ModuleId, PackageId};
 
@@ -39,28 +39,15 @@ impl Repository {
         entry.unpin();
     }
 
-    /// Prune repository revisions, artifact records, and loaded files that are no longer reachable.
+    /// Prune repository revisions, artifact results, and loaded files that are no longer reachable.
     pub fn prune_unreachable(&self) -> Result<(), RepositoryError> {
         let reachable_revisions = self.reachable_file_revisions();
-        let selected_bindings = self.selected_artifact_bindings(&reachable_revisions);
-        let retained_versions = self
-            .artifact_table()
-            .retain_bindings(&selected_bindings)
-            .map_err(|error| RepositoryError::InvalidArtifact {
-                message: error.to_string(),
-            })?;
         let reachable_blobs = self.reachable_file_blobs(&reachable_revisions);
 
         self.revisions
             .retain(|revision, _| reachable_revisions.contains(revision));
         self.compact_revision_trees(&reachable_revisions);
-        self.pending_artifacts
-            .retain(|version, _dependencies| retained_versions.contains(version));
-        self.artifact_store()
-            .retain(&retained_versions, self.string_pool())
-            .map_err(|error| RepositoryError::ArtifactStore {
-                message: error.to_string(),
-            })?;
+        self.artifact_table().prune();
         self.file_cache.retain(&reachable_blobs);
 
         Ok(())
@@ -69,25 +56,6 @@ impl Repository {
     /// Collect all file revisions reachable from revision pins.
     fn reachable_file_revisions(&self) -> HashSet<Revision> {
         self.retained_revisions().into_iter().collect()
-    }
-
-    /// Collect exact artifact bindings selected by retained revisions.
-    fn selected_artifact_bindings(
-        &self,
-        reachable_revisions: &HashSet<Revision>,
-    ) -> HashSet<ArtifactBindingId> {
-        let mut bindings = HashSet::new();
-
-        for revision in reachable_revisions {
-            let Some(revision) = self.revisions.get(revision) else {
-                continue;
-            };
-
-            let revision = revision.state();
-            bindings.extend(revision.artifacts.bindings());
-        }
-
-        bindings
     }
 
     /// Collect file BlobIds reachable from one revision set.
@@ -223,15 +191,14 @@ mod tests {
     use std::{env, fs, process};
 
     use destack_artifact::{
-        ArtifactDependency, ArtifactKey, ArtifactPayload, ArtifactProjection,
-        ArtifactProjectionKey, ArtifactVersion, BuildId, Bundle, BundleFile, BundleMode,
-        BundleSection, DirExported, EnvironmentBound, LanguageEnvironment, SourceDependency,
+        ArtifactDependency, ArtifactKey, ArtifactProjection, ArtifactProjectionKey,
+        ArtifactVersion, BuildId, Bundle, BundleFile, BundleMode, BundleSection, DirExported,
+        EnvironmentBound, SourceDependency,
     };
-    use destack_dir::{ExportTable, GlobalSymbolId, GlobalTable, LocalSymbolId};
+    use destack_dir::{ExportTable, GlobalTable};
     use destack_source::{
         FileSystem, FileType, ModuleId, PackageId, PhysicalFileSystem, ProfileId, TargetId, Uri,
     };
-    use indexmap::IndexMap;
 
     use crate::repository::{Edit, Repository, Revision};
     use crate::{DestackLayout, DestackLayoutOverride, Environment, Host, Settings};
@@ -240,16 +207,21 @@ mod tests {
     fn test_repository(root: &Path) -> (Repository, Revision) {
         let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
         let environment = Environment::capture_process();
+        let host = Host::new(BuildId::test(), environment, file_system);
+
+        test_repository_with_host(root, host)
+    }
+
+    /// Create one repository under an existing host.
+    fn test_repository_with_host(root: &Path, host: Host) -> (Repository, Revision) {
         let layout = DestackLayout::resolve(
             root,
             root,
-            &environment,
+            host.environment(),
             &Settings::default(),
             &DestackLayoutOverride::default(),
             None,
         );
-
-        let host = Host::new(BuildId::test(), environment, file_system);
 
         Repository::new(root.to_path_buf(), host, Settings::default(), layout)
     }
@@ -280,7 +252,7 @@ mod tests {
                 [Edit::add_file(
                     "src/example.ds",
                     repository
-                        .put_blob(b"export const value = 1")
+                        .retain_blob(b"export const value = 1")
                         .expect("source Blob should store"),
                 )],
             )
@@ -306,127 +278,66 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 
-    /// Load one Blob from persistent storage through a fresh repository.
+    /// Reuse one live artifact result across repositories under the same host.
     #[test]
-    fn test_load_blob_from_store() {
-        let root = unique_test_root("repository-blob-load");
-        fs::create_dir_all(&root).expect("repository Blob load test root should exist");
+    fn test_reuse_artifact_across_hosted_repositories() {
+        let first_root = unique_test_root("repository-artifact-host-first");
+        let second_root = unique_test_root("repository-artifact-host-second");
+        fs::create_dir_all(&first_root).expect("first repository root should exist");
+        fs::create_dir_all(&second_root).expect("second repository root should exist");
 
-        let (repository, _revision) = test_repository(&root);
-        let bytes = b"cached bytes\n";
-        let blob = repository.put_blob(bytes).expect("Blob should store");
+        // create two repositories under one process host
+        let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+        let environment = Environment::capture_process();
+        let host = Host::new(BuildId::test(), environment, file_system);
+        let (first, first_revision) = test_repository_with_host(&first_root, host.clone());
+        let (second, second_revision) = test_repository_with_host(&second_root, host);
+        let first = Arc::new(first);
+        let second = Arc::new(second);
 
-        let (repository, _revision) = test_repository(&root);
-        let loaded = repository
-            .blob_store()
-            .open(blob)
-            .expect("Blob should load from store");
-
-        assert_eq!(loaded.bytes(), bytes);
-
-        let _ = fs::remove_dir_all(&root);
-    }
-
-    /// Load an artifact record from the persistent store into a fresh repository.
-    #[test]
-    fn test_load_artifact_from_store() {
-        let root = unique_test_root("repository-artifact-load");
-        fs::create_dir_all(&root).expect("repository artifact load test root should exist");
-
-        let (repository, revision) = test_repository(&root);
+        // publish one exact result in the first repository
         let package = PackageId::new(1);
         let target = TargetId::new(package, "browser");
-        let blob = repository
-            .put_blob(b"console.log('loaded')\n")
-            .expect("artifact Blob should store");
-        let output = Bundle::new(
-            BundleMode::SingleFile,
-            vec![BundleFile::new(
-                BundleSection::Entry,
-                Uri::from_string("memory:/out.js"),
-                FileType::JavaScript,
-                blob,
-                None,
-            )],
-        );
         let key = ArtifactKey::bundle(package, target);
+        let output = Bundle::new(BundleMode::SingleFile, Vec::new());
+        first
+            .complete_artifact(
+                first_revision,
+                key,
+                output.into(),
+                Vec::new(),
+                Vec::new(),
+                None,
+            )
+            .expect("first repository should publish artifact");
+        let version = first.artifact_identity(key, &[]);
 
-        repository
-            .complete_artifact(revision, key, output.into(), Vec::new(), Vec::new(), None)
-            .expect("bundle should publish");
-        repository
-            .flush_artifacts()
-            .expect("artifact store should flush");
+        // reuse the shared result as a base before selecting its exact version
+        let base = second
+            .artifact_base(second_revision, key)
+            .expect("second repository should inspect shared bases")
+            .expect("shared artifact base should exist");
+        assert_eq!(base.version(), version);
 
-        let (repository, _revision) = test_repository(&root);
-        let version = repository.artifact_identity(key, &[]);
-        let loaded = repository
-            .load_artifact(version)
-            .expect("artifact should load from store")
-            .expect("artifact should exist in the store");
-
-        assert!(matches!(loaded, ArtifactPayload::Bundle(_)));
+        // select the shared result in the second repository
         assert!(
-            repository
-                .blob_store()
-                .contains(blob)
-                .expect("Blob should inspect")
+            second
+                .select_artifact_version(second_revision, key, Vec::new())
+                .expect("second repository should inspect shared artifact")
         );
+        let second_pin = second
+            .pin(second_revision)
+            .expect("second repository revision should pin");
 
-        let _ = fs::remove_dir_all(&root);
-    }
+        // pruning the first repository must preserve the second selection
+        first
+            .prune_unreachable()
+            .expect("first repository should prune");
+        assert!(second.artifact_table().payload(&version).is_some());
 
-    /// Load artifact strings from the persistent store into a fresh repository.
-    #[test]
-    fn test_load_artifact_strings_from_store() {
-        let root = unique_test_root("repository-artifact-strings-load");
-        fs::create_dir_all(&root).expect("repository artifact strings load test root should exist");
-
-        let (repository, revision) = test_repository(&root);
-        let package = PackageId::new(1);
-        let module = ModuleId::new(package, 1);
-        let profile = ProfileId::new(1);
-        let string = repository.string_pool().intern("CachedSymbol");
-        let symbol = GlobalSymbolId::new(module, LocalSymbolId::new(1));
-        let mut symbols = IndexMap::new();
-        symbols.insert(string, symbol);
-
-        let output = EnvironmentBound {
-            language: LanguageEnvironment {
-                symbol_by_item: IndexMap::new(),
-                items_by_symbol: IndexMap::new(),
-                symbols,
-            },
-            globals: vec![module],
-            global_resolutions_by_key: IndexMap::new(),
-            tree: None,
-        };
-        let key = ArtifactKey::environment_bound(profile);
-
-        repository
-            .complete_artifact(revision, key, output.into(), Vec::new(), Vec::new(), None)
-            .expect("environment should publish");
-        repository
-            .flush_artifacts()
-            .expect("artifact store should flush");
-
-        let (repository, _revision) = test_repository(&root);
-        let version = repository.artifact_identity(key, &[]);
-        let loaded = repository
-            .load_artifact(version)
-            .expect("artifact should load from store")
-            .expect("artifact should exist in the store");
-
-        assert_eq!(
-            repository.string_pool().get_maybe(string),
-            Some("CachedSymbol")
-        );
-        let ArtifactPayload::EnvironmentBound(loaded) = loaded else {
-            panic!("stored environment should decode as an environment");
-        };
-        assert_eq!(loaded.language.symbol_by_name("CachedSymbol"), Some(symbol));
-
-        let _ = fs::remove_dir_all(&root);
+        drop(second_pin);
+        let _ = fs::remove_dir_all(&first_root);
+        let _ = fs::remove_dir_all(&second_root);
     }
 
     /// Build one unique root for one repository test.
@@ -466,7 +377,7 @@ mod tests {
             [Edit::add_file(
                 "src/example.ds",
                 repository
-                    .put_blob(b"export const value = 1")
+                    .retain_blob(b"export const value = 1")
                     .expect("source Blob should store"),
             )],
         );
@@ -476,7 +387,7 @@ mod tests {
             [Edit::set_file(
                 "src/example.ds",
                 repository
-                    .put_blob(b"export const value = 2")
+                    .retain_blob(b"export const value = 2")
                     .expect("source Blob should store"),
             )],
         );
@@ -517,7 +428,7 @@ mod tests {
             [Edit::add_file(
                 "src/input.ds",
                 repository
-                    .put_blob(b"export const value = 1;")
+                    .retain_blob(b"export const value = 1;")
                     .expect("source Blob should store"),
             )],
         );
@@ -535,7 +446,7 @@ mod tests {
         let package = PackageId::new(1);
         let target = TargetId::new(package, "browser");
         let output_blob = repository
-            .put_blob(b"console.log('same output')\n")
+            .retain_blob(b"console.log('same output')\n")
             .expect("artifact output should store");
         let output = Bundle::new(
             BundleMode::SingleFile,
@@ -574,7 +485,7 @@ mod tests {
             [Edit::set_file(
                 "src/input.ds",
                 repository
-                    .put_blob(b"export const value = 2;")
+                    .retain_blob(b"export const value = 2;")
                     .expect("source Blob should store"),
             )],
         );
@@ -605,9 +516,6 @@ mod tests {
             )
             .expect("second artifact version should publish");
         assert_ne!(first_version, second_version);
-        repository
-            .flush_artifacts()
-            .expect("artifact versions should persist");
 
         // retain both exact versions while separate pins select them
         repository
@@ -644,14 +552,14 @@ mod tests {
                 .is_some()
         );
 
-        // reuse released binding storage while continuing from the retained revision
+        // continue from the retained revision after releasing the first result
         let third_revision = apply_edits(
             &repository,
             second_revision,
             [Edit::set_file(
                 "src/input.ds",
                 repository
-                    .put_blob(b"export const value = 3;")
+                    .retain_blob(b"export const value = 3;")
                     .expect("source Blob should store"),
             )],
         );
@@ -691,27 +599,12 @@ mod tests {
                 .is_some()
         );
 
-        // retain the same exact version on disk
-        let (repository, _revision) = test_repository(&root);
-        assert!(
-            repository
-                .load_artifact(first_version)
-                .expect("pruned artifact version lookup should complete")
-                .is_none()
-        );
-        assert!(
-            repository
-                .load_artifact(second_version)
-                .expect("retained artifact version should load")
-                .is_some()
-        );
-
         let _ = fs::remove_dir_all(&root);
     }
 
     /// Reuse one result across revisions with different exact projection owners.
     #[test]
-    fn test_reuse_artifact_version_across_revision_projection_bindings() {
+    fn test_reuse_artifact_version_across_projection_owners() {
         let root = unique_test_root("repository-artifact-projection-revisions");
         fs::create_dir_all(&root).expect("repository projection test root should exist");
 
@@ -723,7 +616,7 @@ mod tests {
             [Edit::add_file(
                 "src/input.ds",
                 repository
-                    .put_blob(b"export const value = 1;")
+                    .retain_blob(b"export const value = 1;")
                     .expect("source Blob should store"),
             )],
         );
@@ -761,10 +654,11 @@ mod tests {
                 None,
             )
             .expect("first component graph should publish");
-        let projection = ArtifactProjection::new(owner_key, ArtifactProjectionKey::Content);
+        let projection = ArtifactProjection::new(owner_key, ArtifactProjectionKey::Payload);
         let fingerprint = repository
             .artifact_table()
             .projection_fingerprint(&first_owner, &projection)
+            .expect("component projection should fingerprint")
             .expect("component projection should exist");
         let first_dependency =
             ArtifactDependency::projection(first_owner.key, projection.key, fingerprint);
@@ -792,7 +686,7 @@ mod tests {
             [Edit::set_file(
                 "src/input.ds",
                 repository
-                    .put_blob(b"export const value = 2;")
+                    .retain_blob(b"export const value = 2;")
                     .expect("source Blob should store"),
             )],
         );
@@ -821,29 +715,27 @@ mod tests {
             )
             .expect("second component graph should publish");
 
-        // reuse the dependent version while refreshing its exact owner binding
+        // reuse the dependent version with each revision's exact projection owner
         let resolved = repository
             .artifact_version(second_revision, &dependent_key)
             .expect("dependent result should resolve");
         assert_eq!(resolved, Some(dependent));
         let first_base = repository
             .artifact_base(first_revision, dependent_key)
-            .expect("first revision binding should resolve")
-            .expect("first revision binding should exist");
+            .expect("first revision artifact should resolve")
+            .expect("first revision artifact should exist");
         let second_base = repository
             .artifact_base(second_revision, dependent_key)
-            .expect("second revision binding should resolve")
-            .expect("second revision binding should exist");
-        let [ArtifactDependency::Projection(first_projection)] = first_base.dependencies.as_ref()
-        else {
+            .expect("second revision artifact should resolve")
+            .expect("second revision artifact should exist");
+        let [ArtifactDependency::Projection(first_projection)] = first_base.dependencies() else {
             panic!("first revision should select one projection dependency");
         };
-        let [ArtifactDependency::Projection(second_projection)] = second_base.dependencies.as_ref()
-        else {
+        let [ArtifactDependency::Projection(second_projection)] = second_base.dependencies() else {
             panic!("second revision should select one projection dependency");
         };
-        assert_eq!(first_base.version, dependent);
-        assert_eq!(second_base.version, dependent);
+        assert_eq!(first_base.version(), dependent);
+        assert_eq!(second_base.version(), dependent);
         assert_eq!(first_projection.projection().artifact, first_owner.key);
         assert_eq!(second_projection.projection().artifact, second_owner.key);
         assert_eq!(

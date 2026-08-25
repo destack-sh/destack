@@ -28,7 +28,7 @@ pub enum ArtifactPlan {
     },
     /// The provider must run over the exact dependency set.
     Build {
-        /// The predecessor binding feeding dirty dependency ordinals.
+        /// The result available as an incremental provider base.
         base: Option<Arc<ArtifactBase>>,
         /// The exact dependencies feeding this artifact's version.
         dependencies: Arc<[ArtifactDependency]>,
@@ -47,7 +47,7 @@ impl Repository {
         recorder: &ArtifactAttemptRecorder,
         collect: &mut dyn FnMut(Option<Arc<ArtifactBase>>) -> ProviderResult<ArtifactDependencySet>,
     ) -> ProviderResult<ArtifactPlan> {
-        // finish immediately when the revision already binds a terminal result
+        // finish immediately when the revision already selects a terminal result
         let resolution = recorder
             .span("resolve", || self.resolve_artifact(revision, &key))
             .map_err(|error| {
@@ -71,7 +71,7 @@ impl Repository {
             ArtifactResolution::Stale => {}
         }
 
-        // select the predecessor binding feeding dirty dependency ordinals
+        // select an incremental provider base
         let base = recorder
             .span("select", || self.artifact_base(revision, key))
             .map_err(|error| {
@@ -95,14 +95,7 @@ impl Repository {
         };
         let (dependencies, failed) = loop {
             let resolution = recorder.span("assemble", || {
-                self.resolve_dependency_set(
-                    revision,
-                    key,
-                    set,
-                    progress.as_deref(),
-                    base.as_deref(),
-                    recorder,
-                )
+                self.resolve_dependency_set(revision, key, set, progress.as_deref(), recorder)
             })?;
 
             match resolution {
@@ -144,33 +137,20 @@ impl Repository {
             });
         }
 
-        // bind a committed payload when the dependency set already produced it
+        // select a committed payload when the dependency set already produced it
         let reused = recorder
             .span("reuse", || {
-                self.bind_artifact_version(revision, key, dependencies.clone())
+                self.select_artifact_version(revision, key, dependencies.clone())
             })
             .map_err(|error| {
-                ProviderError::internal(format!("failed to bind reused artifact {key:?}: {error}"))
+                ProviderError::internal(format!(
+                    "failed to select reused artifact {key:?}: {error}"
+                ))
             })?;
         if reused {
             return Ok(ArtifactPlan::Done {
                 outcome: ArtifactOutcome::Ok,
                 attempt: ArtifactAttemptOutcome::MemoryCached,
-            });
-        }
-
-        // load and select a committed result before running the provider
-        let loaded = recorder
-            .span("load", || {
-                self.load_artifact_binding(revision, key, dependencies.clone(), Some(recorder))
-            })
-            .map_err(|error| {
-                ProviderError::internal(format!("failed to load cached artifact {key:?}: {error}"))
-            })?;
-        if loaded {
-            return Ok(ArtifactPlan::Done {
-                outcome: ArtifactOutcome::Ok,
-                attempt: ArtifactAttemptOutcome::StoreCached,
             });
         }
 

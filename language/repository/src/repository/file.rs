@@ -124,12 +124,12 @@ impl Repository {
     pub(crate) fn intern_logical_path(&self, logical_path: impl AsRef<str>) -> StringId {
         let logical_path = normalize_logical_path(logical_path);
 
-        self.strings.intern(&logical_path)
+        self.string_pool().intern(&logical_path)
     }
 
     /// Return one interned logical repository path as text.
     pub(crate) fn logical_path_text(&self, logical_path: StringId) -> &str {
-        self.strings.get(logical_path)
+        self.string_pool().get(logical_path)
     }
 
     /// Return the physical workspace path for one file entry.

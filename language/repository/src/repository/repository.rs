@@ -3,9 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_artifact::{
-    ArtifactDependency, ArtifactStore, ArtifactTable, ArtifactVersion, BuildId,
-};
+use destack_artifact::{ArtifactTable, BuildId};
 use destack_core::{Blob, BlobMemory, StringPool, Treap, TreapRoot};
 use destack_source as source;
 use destack_source::{FileId, FileSystem, MemoryFileSystem};
@@ -16,14 +14,11 @@ use crate::repository::{
     RevisionState,
 };
 use crate::{
-    ArtifactBindingTable, BlobStore, DestackLayout, DestackLayoutOverride, Environment, Host,
-    MemoryBlobStore, Root, RootKind, Settings, SourceRoot, artifact,
+    ArtifactSelection, BlobStore, DestackLayout, DestackLayoutOverride, Environment, Host, Root,
+    RootKind, Settings, SourceRoot,
 };
 
-#[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
-use crate::DiskBlobStore;
-
-/// Content-addressed store for revision source state and derived artifacts.
+/// Revisioned source repository backed by shared host state.
 #[derive(Debug)]
 pub struct Repository {
     /// The repository root directory.
@@ -38,33 +33,14 @@ pub struct Repository {
     pub(crate) layout: DestackLayout,
     /// Machine-local settings used to open this repository.
     pub(crate) settings: Settings,
-    /// Shared immutable Blob storage.
-    pub(crate) blobs: Arc<dyn BlobStore>,
     /// Embedded Builtin Package shipped with the current build.
     pub(crate) embedded_builtin: EmbeddedBuiltinPackage,
     /// Persistent file entry tree.
     pub(crate) file_tree: Treap<FileId, FileEntry>,
     /// Loaded source state caches.
     pub(crate) file_cache: FileCache,
-    /// Shared typed derived artifacts.
-    pub(crate) artifact_table: Arc<ArtifactTable>,
-    /// Persistent artifact records.
-    pub(crate) artifact_store: Arc<dyn ArtifactStore>,
-    /// Dependency observations needed to persist completed artifact versions.
-    pub(crate) pending_artifacts:
-        DashMap<ArtifactVersion, Arc<[ArtifactDependency]>, FxBuildHasher>,
     /// Named physical bases for dependency roots outside the workspace.
     pub(crate) mounts: DashMap<String, PathBuf, FxBuildHasher>,
-    /// Shared interned strings for this repository.
-    pub(crate) strings: Arc<StringPool>,
-}
-
-/// Physical storage selected for one Repository.
-struct Storage {
-    /// Immutable Blob storage.
-    blobs: Arc<dyn BlobStore>,
-    /// Persistent artifact record storage.
-    artifacts: Arc<dyn ArtifactStore>,
 }
 
 impl Repository {
@@ -124,15 +100,11 @@ impl Repository {
         }
 
         // keep source Blobs and derived artifacts in memory
-        let build_id = BuildId::current().map_err(|error| RepositoryError::ArtifactStore {
+        let build_id = BuildId::current().map_err(|error| RepositoryError::InvalidArtifact {
             message: format!("failed to identify Destack build: {error}"),
         })?;
-        let blobs: Arc<dyn BlobStore> = Arc::new(MemoryBlobStore::new());
-        let host = Host::new(build_id, environment, file_system).with_blob_store(blobs);
-        let (repository, revision) = Self::open(root, host, settings, layout_override)?;
-        let repository = repository.with_artifact_store(Arc::new(artifact::MemoryStore::new()));
-
-        Ok((repository, revision))
+        let host = Host::new(build_id, environment, file_system);
+        Self::open(root, host, settings, layout_override)
     }
 
     /// Create one empty repository and return its empty revision.
@@ -147,13 +119,10 @@ impl Repository {
         let empty = Arc::new(RevisionState::new(
             TreapRoot::new(),
             Arc::new(host.environment().clone()),
-            ArtifactBindingTable::new(),
+            ArtifactSelection::new(),
         ));
         let empty_revision = empty.revision();
         revisions.insert(empty_revision, Arc::new(RevisionEntry::new(empty)));
-
-        // open durable storage selected by this repository
-        let storage = Storage::open(&root, &layout, host.build_id(), host.blob_store().cloned());
 
         let repository = Self {
             root,
@@ -161,24 +130,13 @@ impl Repository {
             host,
             layout,
             settings,
-            blobs: storage.blobs,
             embedded_builtin: EmbeddedBuiltinPackage::new(),
             file_tree: Treap::new(),
             file_cache: FileCache::default(),
-            artifact_table: Arc::new(ArtifactTable::default()),
-            artifact_store: storage.artifacts,
-            pending_artifacts: DashMap::default(),
             mounts: DashMap::default(),
-            strings: Arc::new(StringPool::new()),
         };
 
         (repository, empty_revision)
-    }
-
-    /// Override the persistent artifact store.
-    pub fn with_artifact_store(mut self, artifact_store: Arc<dyn ArtifactStore>) -> Self {
-        self.artifact_store = artifact_store;
-        self
     }
 
     /// Return the repository file system.
@@ -188,22 +146,17 @@ impl Repository {
 
     /// Return the repository artifact table.
     pub fn artifact_table(&self) -> &Arc<ArtifactTable> {
-        &self.artifact_table
-    }
-
-    /// Return the persistent artifact store.
-    pub fn artifact_store(&self) -> &Arc<dyn ArtifactStore> {
-        &self.artifact_store
+        self.host.artifact_table()
     }
 
     /// Return the repository string pool.
     pub fn string_pool(&self) -> &Arc<StringPool> {
-        &self.strings
+        self.host.string_pool()
     }
 
     /// Return the repository blob store.
-    pub fn blob_store(&self) -> &Arc<dyn BlobStore> {
-        &self.blobs
+    pub fn blob_store(&self) -> &Arc<BlobStore> {
+        self.host.blob_store()
     }
 
     /// Return the repository host capabilities.
@@ -272,11 +225,11 @@ impl Repository {
             .ok_or(RepositoryError::MissingRevision { revision })
     }
 
-    /// Store exact immutable bytes.
-    pub fn put_blob(&self, bytes: &[u8]) -> Result<Blob, RepositoryError> {
+    /// Retain exact immutable bytes on this repository's host.
+    pub fn retain_blob(&self, bytes: &[u8]) -> Result<Blob, RepositoryError> {
         let mut input = Cursor::new(bytes);
-        self.blobs
-            .put(&mut input)
+        self.blob_store()
+            .retain(&mut input)
             .map_err(|error| RepositoryError::Blob {
                 message: error.to_string(),
             })
@@ -289,7 +242,7 @@ impl Repository {
             return Ok(memory);
         }
 
-        self.blobs
+        self.blob_store()
             .open(blob)
             .map_err(|error| RepositoryError::Blob {
                 message: error.to_string(),
@@ -303,12 +256,12 @@ impl Repository {
             return Ok(());
         }
 
-        let is_present = self
-            .blobs
-            .contains(blob)
-            .map_err(|error| RepositoryError::Blob {
-                message: error.to_string(),
-            })?;
+        let is_present =
+            self.blob_store()
+                .contains(blob)
+                .map_err(|error| RepositoryError::Blob {
+                    message: error.to_string(),
+                })?;
         if !is_present {
             return Err(RepositoryError::Blob {
                 message: format!("missing Blob {blob}"),
@@ -316,42 +269,5 @@ impl Repository {
         }
 
         Ok(())
-    }
-}
-
-#[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
-impl Storage {
-    /// Open storage for one native Repository.
-    fn open(
-        root: &Path,
-        layout: &DestackLayout,
-        build_id: BuildId,
-        blobs: Option<Arc<dyn BlobStore>>,
-    ) -> Self {
-        let blobs = blobs.unwrap_or_else(|| Arc::new(DiskBlobStore::new(layout.blob_directory())));
-        let artifacts = Arc::new(artifact::DiskStore::new(
-            root,
-            layout,
-            build_id,
-            blobs.clone(),
-        ));
-
-        Self { blobs, artifacts }
-    }
-}
-
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-impl Storage {
-    /// Open storage for one WebAssembly Repository.
-    fn open(
-        _root: &Path,
-        _layout: &DestackLayout,
-        _build_id: BuildId,
-        blobs: Option<Arc<dyn BlobStore>>,
-    ) -> Self {
-        let blobs = blobs.unwrap_or_else(|| Arc::new(MemoryBlobStore::new()));
-        let artifacts = Arc::new(artifact::MemoryStore::new());
-
-        Self { blobs, artifacts }
     }
 }

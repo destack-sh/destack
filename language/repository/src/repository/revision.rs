@@ -8,7 +8,7 @@ use parking_lot::{RwLock, RwLockWriteGuard};
 use serde::{Deserialize, Serialize};
 
 use crate::repository::{Repository, RepositoryError, RevisionCache};
-use crate::{ArtifactBindingTable, Environment};
+use crate::{ArtifactSelection, Environment};
 
 /// Content identity for one repository source and environment state.
 #[repr(transparent)]
@@ -94,15 +94,15 @@ impl RevisionEntry {
     }
 }
 
-/// Source state and derived artifact bindings for one revision.
+/// Source state and derived artifact selections for one revision.
 #[derive(Debug)]
 pub(crate) struct RevisionState {
     /// File bindings included in this revision.
     files: RwLock<TreapRoot>,
     /// Environment inputs captured in this revision.
     pub environment: Arc<Environment>,
-    /// Derived artifact bindings.
-    pub(crate) artifacts: ArtifactBindingTable,
+    /// Derived artifact selections.
+    pub(crate) artifacts: RwLock<ArtifactSelection>,
     /// Lazily derived data for this revision.
     pub cache: RevisionCache,
 }
@@ -112,12 +112,12 @@ impl RevisionState {
     pub(crate) fn new(
         files: TreapRoot,
         environment: Arc<Environment>,
-        artifacts: ArtifactBindingTable,
+        artifacts: ArtifactSelection,
     ) -> Self {
         Self {
             files: RwLock::new(files),
             environment,
-            artifacts,
+            artifacts: RwLock::new(artifacts),
             cache: RevisionCache::new(),
         }
     }

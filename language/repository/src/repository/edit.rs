@@ -103,7 +103,7 @@ impl Repository {
         let before_files = before_state.files();
         let (after_files, changed_files, mut delta) = self.apply(before, before_files, edits)?;
 
-        // invalidate previous discovery observations only when their values changed
+        // invalidate repository discovery observations only when their values changed
         match delta.discovery() {
             Discovery::None => {}
             Discovery::Paths => {
@@ -137,8 +137,11 @@ impl Repository {
             }
         }
 
-        // retain sparse artifact bindings and mark only reached observations dirty
-        let artifacts = before_state.artifacts.fork(&delta, self.artifact_table())?;
+        // fork candidates and mark only observations reached by this edit
+        let artifacts = before_state
+            .artifacts
+            .read()
+            .fork(delta.invalidated(), self.artifact_table());
         let after_state = Arc::new(RevisionState::new(
             after_files,
             before_state.environment.clone(),
@@ -150,7 +153,9 @@ impl Repository {
         if after != before {
             match self.revisions.entry(after) {
                 Entry::Occupied(entry) => {
-                    entry.get().state().artifacts.adopt(&after_state.artifacts);
+                    let existing = entry.get().state();
+                    let learned = after_state.artifacts.read();
+                    existing.artifacts.write().adopt(&learned)?;
                 }
                 Entry::Vacant(entry) => {
                     entry.insert(Arc::new(RevisionEntry::new(after_state)));
@@ -312,7 +317,7 @@ impl Repository {
         Ok((files, changed_files, delta))
     }
 
-    /// Record the previous module resolution of one probed path.
+    /// Record the preceding module resolution of one probed path.
     fn observe_module_path(
         &self,
         revision: Revision,
@@ -326,7 +331,7 @@ impl Repository {
     }
 }
 
-/// Return whether one logical path names a package config file.
+/// Return whether one logical path names a package configuration file.
 fn is_package_config_path(logical_path: &str) -> bool {
     logical_path.rsplit('/').next() == Some("destack.json")
 }

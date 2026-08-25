@@ -1,47 +1,40 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactBindingPin, ArtifactDependency, ArtifactKey, ArtifactVersion, DiagnosticContext,
+    Artifact, ArtifactDependency, ArtifactEntry, ArtifactKey, ArtifactVersion, DiagnosticContext,
     DiagnosticError, DiagnosticLike, DiagnosticRecord,
 };
-use smallvec::SmallVec;
 
 use crate::{ArtifactAttemptRecorder, Moment, Revision, TraceEvent};
 
-/// Retained predecessor artifact selected for one provider attempt.
+/// Retained artifact result selected as an incremental provider base.
 #[derive(Debug)]
 pub struct ArtifactBase {
-    /// The predecessor artifact version.
-    pub version: ArtifactVersion,
-    /// The exact predecessor dependency observations.
-    pub dependencies: Arc<[ArtifactDependency]>,
-    /// Dependency ordinals that may differ in the requested revision.
-    pub(crate) dirty_dependencies: SmallVec<[u32; 2]>,
-    /// The retained predecessor artifact binding.
-    _binding_pin: ArtifactBindingPin,
+    /// The retained base result.
+    entry: Arc<ArtifactEntry>,
 }
 
 impl ArtifactBase {
     /// Build one retained artifact base.
-    pub(crate) fn new(
-        version: ArtifactVersion,
-        dependencies: Arc<[ArtifactDependency]>,
-        dirty_dependencies: SmallVec<[u32; 2]>,
-        binding_pin: ArtifactBindingPin,
-    ) -> Self {
-        Self {
-            version,
-            dependencies,
-            dirty_dependencies,
-            _binding_pin: binding_pin,
-        }
+    pub(crate) fn new(entry: Arc<ArtifactEntry>) -> Self {
+        Self { entry }
     }
 
-    /// Return whether one predecessor dependency may differ in the requested revision.
-    pub(crate) fn is_dependency_dirty(&self, dependency: usize) -> bool {
-        self.dirty_dependencies
-            .binary_search(&(dependency as u32))
-            .is_ok()
+    /// Return the base artifact version.
+    pub fn version(&self) -> ArtifactVersion {
+        self.entry.version
+    }
+
+    /// Return the base artifact's exact dependency observations.
+    pub fn dependencies(&self) -> &[ArtifactDependency] {
+        &self.entry.dependencies
+    }
+
+    /// Return the typed base artifact payload.
+    pub fn artifact<A: Artifact>(&self) -> Option<Arc<A>> {
+        let payload = self.entry.payload()?;
+
+        A::from_payload(payload)
     }
 }
 
@@ -53,7 +46,7 @@ pub trait ProviderContext: DiagnosticContext {
     /// Return the artifact key being built.
     fn artifact_key(&self) -> ArtifactKey;
 
-    /// Return the predecessor artifact selected for this attempt.
+    /// Return the incremental artifact base selected for this attempt.
     fn artifact_base(&self) -> Option<&ArtifactBase> {
         None
     }

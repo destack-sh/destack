@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use destack_artifact::BuildId;
+use destack_artifact::{ArtifactTable, BuildId};
+use destack_core::StringPool;
 use destack_source::FileSystem;
 
 use super::{Clock, Environment};
@@ -15,8 +16,12 @@ pub struct Host {
     environment: Environment,
     /// File system backing repository discovery and loads.
     files: Arc<dyn FileSystem>,
-    /// Explicit shared BlobStore, when supplied by the host.
-    blob_store: Option<Arc<dyn BlobStore>>,
+    /// Retained immutable bytes shared by hosted repositories.
+    blobs: Arc<BlobStore>,
+    /// Derived artifact results shared by hosted repositories.
+    artifact_table: Arc<ArtifactTable>,
+    /// Interned strings shared by hosted repositories.
+    strings: Arc<StringPool>,
     /// Clock available to repository tooling.
     clock: Clock,
     /// Execution available to repository tooling.
@@ -30,15 +35,17 @@ impl Host {
             build_id,
             environment,
             files,
-            blob_store: None,
+            blobs: Arc::new(BlobStore::new()),
+            artifact_table: Arc::new(ArtifactTable::default()),
+            strings: Arc::new(StringPool::new()),
             clock: Clock::default(),
             execution: Execution::default(),
         }
     }
 
     /// Return this host with one shared BlobStore.
-    pub fn with_blob_store(mut self, blob_store: Arc<dyn BlobStore>) -> Self {
-        self.blob_store = Some(blob_store);
+    pub fn with_blob_store(mut self, blob_store: Arc<BlobStore>) -> Self {
+        self.blobs = blob_store;
 
         self
     }
@@ -72,9 +79,19 @@ impl Host {
         &self.files
     }
 
-    /// Return the explicitly supplied shared BlobStore.
-    pub(crate) fn blob_store(&self) -> Option<&Arc<dyn BlobStore>> {
-        self.blob_store.as_ref()
+    /// Return the shared Blob store.
+    pub(crate) fn blob_store(&self) -> &Arc<BlobStore> {
+        &self.blobs
+    }
+
+    /// Return the shared artifact table.
+    pub(crate) fn artifact_table(&self) -> &Arc<ArtifactTable> {
+        &self.artifact_table
+    }
+
+    /// Return the shared interned strings.
+    pub(crate) fn string_pool(&self) -> &Arc<StringPool> {
+        &self.strings
     }
 
     /// Return the clock available to repository tooling.

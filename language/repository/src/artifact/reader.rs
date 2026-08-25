@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use destack_artifact::{
     Artifact, ArtifactDependency, ArtifactKey, ArtifactOutcome, ArtifactProjection,
-    ArtifactProjectionDependency, ArtifactProjectionFingerprint, ArtifactProjectionKey,
-    ArtifactRequirement, ArtifactVersion, Implementation, ModuleGraph,
+    ArtifactProjectionDependency, ArtifactProjectionKey, ArtifactRequirement, ArtifactVersion,
+    DirResolved, Implementation, ModuleGraph,
 };
 use destack_dir::GlobalSymbolId;
 use destack_source::{ModuleId, ProfileId};
@@ -35,6 +35,13 @@ pub struct ModuleGraphReader<'a> {
     key: ArtifactKey,
     /// The exact module graph payload.
     graph: Arc<ModuleGraph>,
+}
+
+/// Projection-checked view over resolved component relationships.
+#[derive(Debug)]
+pub struct ComponentRelationsReader {
+    /// The resolved DIR payload owning the relationships.
+    resolved: Arc<DirResolved>,
 }
 
 impl Debug for ArtifactReader<'_> {
@@ -73,13 +80,7 @@ impl<'a> ArtifactReader<'a> {
     /// Resolve one artifact to its exact ready version.
     pub fn version(&self, artifact_key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
         if self.dependencies.is_some() {
-            let version = self
-                .find_dependency(ArtifactRequirement::artifact(artifact_key))
-                .and_then(|dependency| match dependency {
-                    ArtifactDependency::Artifact(version) => Some(*version),
-                    ArtifactDependency::Projection(_) | ArtifactDependency::Source(_) => None,
-                });
-            if let Some(version) = version {
+            if let Some(version) = self.declared_version(artifact_key) {
                 return Ok(version);
             }
 
@@ -117,22 +118,16 @@ impl<'a> ArtifactReader<'a> {
     }
 
     /// Resolve one declared artifact projection to its exact owner version.
-    pub fn projection_version(
+    fn projection_version(
         &self,
         projection: ArtifactProjection,
     ) -> Result<ArtifactVersion, ProviderError> {
         if self.dependencies.is_some() {
-            let artifact = self
-                .find_dependency(ArtifactRequirement::artifact(projection.artifact))
-                .and_then(|dependency| match dependency {
-                    ArtifactDependency::Artifact(version) => Some(*version),
-                    ArtifactDependency::Projection(_) | ArtifactDependency::Source(_) => None,
-                });
-            if let Some(version) = artifact {
+            if let Some(version) = self.declared_version(projection.artifact) {
                 return Ok(version);
             }
-            // a declared projection reads its owner live, the selected binding holds its
-            //  fingerprint
+
+            // resolve a declared projection against its current owner
             if self
                 .find_dependency(ArtifactRequirement::projection(projection))
                 .is_some()
@@ -177,6 +172,11 @@ impl<'a> ArtifactReader<'a> {
             .repository
             .artifact_table()
             .projection_fingerprint(&version, &projection)
+            .map_err(|error| {
+                ProviderError::internal(format!(
+                    "failed to fingerprint artifact projection: {error}"
+                ))
+            })?
             .ok_or(ProviderError::Corrupt { version })?;
         context.observe(ArtifactDependency::Projection(
             ArtifactProjectionDependency::new(projection.artifact, projection.key, fingerprint),
@@ -185,34 +185,13 @@ impl<'a> ArtifactReader<'a> {
         Ok(version)
     }
 
-    /// Read one declared artifact projection fingerprint.
-    pub fn projection_fingerprint(
-        &self,
-        projection: ArtifactProjection,
-    ) -> Result<ArtifactProjectionFingerprint, ProviderError> {
-        let version = self.projection_version(projection)?;
-        let fingerprint = self
-            .repository
-            .artifact_table()
-            .projection_fingerprint(&version, &projection)
-            .ok_or(ProviderError::Corrupt { version })?;
-
-        Ok(fingerprint)
-    }
-
     /// Resolve one projected artifact owner without authorizing a projected value.
     fn projection_owner_version(
         &self,
         artifact_key: ArtifactKey,
     ) -> Result<ArtifactVersion, ProviderError> {
         if self.dependencies.is_some() {
-            let artifact = self
-                .find_dependency(ArtifactRequirement::artifact(artifact_key))
-                .and_then(|dependency| match dependency {
-                    ArtifactDependency::Artifact(version) => Some(*version),
-                    ArtifactDependency::Projection(_) | ArtifactDependency::Source(_) => None,
-                });
-            if let Some(version) = artifact {
+            if let Some(version) = self.declared_version(artifact_key) {
                 return Ok(version);
             }
 
@@ -257,6 +236,38 @@ impl<'a> ArtifactReader<'a> {
         ))
     }
 
+    /// Resolve one complete payload through its declared dependency.
+    fn payload_version(&self, artifact_key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
+        if self.dependencies.is_none() {
+            return self.version(artifact_key);
+        }
+
+        if let Some(version) = self.declared_version(artifact_key) {
+            return Ok(version);
+        }
+
+        let payload = ArtifactProjection::new(artifact_key, ArtifactProjectionKey::Payload);
+        let is_payload_declared = self
+            .find_dependency(ArtifactRequirement::projection(payload))
+            .is_some();
+
+        if is_payload_declared {
+            self.projection_version(payload)
+        } else {
+            self.tracked_projection_version(payload)
+        }
+    }
+
+    /// Return one exact artifact version declared by the frozen dependency set.
+    fn declared_version(&self, artifact_key: ArtifactKey) -> Option<ArtifactVersion> {
+        let dependency = self.find_dependency(ArtifactRequirement::artifact(artifact_key))?;
+        let ArtifactDependency::Artifact(version) = dependency else {
+            return None;
+        };
+
+        Some(*version)
+    }
+
     /// Find one exact declared artifact requirement.
     fn find_dependency(&self, requirement: ArtifactRequirement) -> Option<&ArtifactDependency> {
         let dependencies = self.dependencies?;
@@ -293,7 +304,7 @@ impl<'a> ArtifactReader<'a> {
     /// Read one artifact payload by its typed key.
     pub fn read<A: Artifact>(&self, key: A::Key) -> Result<Arc<A>, ProviderError> {
         let artifact_key = A::artifact_key(key);
-        let version = self.version(artifact_key)?;
+        let version = self.payload_version(artifact_key)?;
         let payload = self
             .repository
             .artifact_table()
@@ -303,30 +314,25 @@ impl<'a> ArtifactReader<'a> {
         Ok(payload)
     }
 
-    /// Read one artifact through its content projection.
-    ///
-    /// The read depends on the payload's content fingerprint, so rebuilds
-    /// that reproduce identical payloads leave dependents current.
-    pub fn read_content<A: Artifact>(&self, key: A::Key) -> Result<Arc<A>, ProviderError> {
-        self.read_projection(key, ArtifactProjectionKey::Content)
-    }
-
-    /// Read one artifact through an exact projection.
-    pub fn read_projection<A: Artifact>(
+    /// Read the resolved relationships that determine one module's component edges.
+    pub fn component_relations(
         &self,
-        key: A::Key,
-        projection: ArtifactProjectionKey,
-    ) -> Result<Arc<A>, ProviderError> {
-        let artifact_key = A::artifact_key(key);
-        let projection = ArtifactProjection::new(artifact_key, projection);
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<ComponentRelationsReader, ProviderError> {
+        let artifact_key = ArtifactKey::dir_resolved(module, profile);
+        let projection = ArtifactProjection::new(
+            artifact_key,
+            ArtifactProjectionKey::DirResolvedComponentRelations,
+        );
         let version = self.projection_version(projection)?;
-        let payload = self
+        let resolved = self
             .repository
             .artifact_table()
-            .artifact::<A>(&version)
+            .artifact::<DirResolved>(&version)
             .ok_or(ProviderError::Corrupt { version })?;
 
-        Ok(payload)
+        Ok(ComponentRelationsReader { resolved })
     }
 
     /// Read one module graph through exact projected values.
@@ -350,24 +356,38 @@ impl<'a> ArtifactReader<'a> {
     }
 }
 
+impl ComponentRelationsReader {
+    /// Iterate modules that own resolved import or reference targets.
+    pub fn target_modules(&self) -> impl Iterator<Item = ModuleId> + '_ {
+        self.resolved.target_modules()
+    }
+
+    /// Iterate extensions with each interface they implement.
+    pub fn implementations(
+        &self,
+    ) -> impl Iterator<Item = (GlobalSymbolId, Option<GlobalSymbolId>, GlobalSymbolId)> + '_ {
+        self.resolved.extensions.implementations()
+    }
+}
+
 impl ModuleGraphReader<'_> {
     /// Return the sorted module universe.
     pub fn modules(&self) -> Result<&[ModuleId], ProviderError> {
-        self.require(ArtifactProjectionKey::Modules)?;
+        self.require(ArtifactProjectionKey::ModuleGraphModules)?;
 
         Ok(self.graph.modules())
     }
 
     /// Return whether one module is part of this graph.
     pub fn contains(&self, module: ModuleId) -> Result<bool, ProviderError> {
-        self.require(ArtifactProjectionKey::Modules)?;
+        self.require(ArtifactProjectionKey::ModuleGraphModules)?;
 
         Ok(self.graph.contains(module))
     }
 
     /// Return outgoing import edges for one module.
     pub fn edges(&self, module: ModuleId) -> Result<Option<Arc<[ModuleId]>>, ProviderError> {
-        self.require(ArtifactProjectionKey::ModuleEdges(module))?;
+        self.require(ArtifactProjectionKey::ModuleGraphEdges(module))?;
 
         Ok(self.graph.edges(module))
     }
@@ -378,7 +398,7 @@ impl ModuleGraphReader<'_> {
 
         // record the edges the walk observed
         for module in &reachable {
-            self.require(ArtifactProjectionKey::ModuleEdges(*module))?;
+            self.require(ArtifactProjectionKey::ModuleGraphEdges(*module))?;
         }
 
         Ok(reachable)
@@ -389,7 +409,7 @@ impl ModuleGraphReader<'_> {
         &self,
         interface: GlobalSymbolId,
     ) -> Result<&[Implementation], ProviderError> {
-        self.require(ArtifactProjectionKey::Implementations(interface))?;
+        self.require(ArtifactProjectionKey::ModuleGraphImplementations(interface))?;
 
         Ok(self.graph.interface_implementations(interface))
     }
