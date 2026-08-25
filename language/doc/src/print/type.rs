@@ -3,7 +3,6 @@ use destack_dir as dir;
 use crate::{DocError, DocResult};
 
 use super::Printer;
-use super::literal::quote_string;
 
 /// One syntactic position that may require a grouped type operand.
 #[derive(Debug, Clone, Copy)]
@@ -20,14 +19,6 @@ pub(super) enum TypeOperand {
     Relation,
     /// One static binary operation operand.
     StaticBinary,
-}
-
-/// One borrow lifetime's display form.
-enum BorrowLifetime {
-    /// Lifetime written directly in the borrow prefix.
-    Prefix(String),
-    /// Const lifetime parameter applied through `WithLifetime`.
-    Parameter(String),
 }
 
 impl Printer<'_, '_, '_> {
@@ -72,8 +63,14 @@ impl Printer<'_, '_, '_> {
             dir::Type::Object(shape) => return self.object(*shape),
             dir::Type::Primitive(primitive) => self.primitive(*primitive),
             dir::Type::Literal(literal) => self.literal(*literal),
-            dir::Type::Reference(reference) => return self.symbol(reference.symbol),
             dir::Type::Application(instance) => return self.instance(*instance),
+            dir::Type::Reference(reference) => return self.symbol(reference.symbol),
+            dir::Type::Region(region) => {
+                let extent = self.global_type(region.extent)?;
+                let space = self.global_type(region.space)?;
+
+                format!("{extent} & {space}")
+            }
             dir::Type::Parameter(parameter) => return self.generic_parameter_type(*parameter),
             dir::Type::Erased(_) => "*".to_string(),
             dir::Type::Member(member) => return self.member(*self.types().member(*member)),
@@ -123,7 +120,6 @@ impl Printer<'_, '_, '_> {
                 return self.operation(self.types().operation(*operation));
             }
             dir::Type::Key(key) => self.key_type(*key),
-            dir::Type::Memory(literal) => quote_string(literal.text()),
             dir::Type::Intrinsic => "intrinsic".to_string(),
             dir::Type::Variable(_) | dir::Type::Static(_) => {
                 return Err(DocError::invalid(format!(
@@ -196,11 +192,10 @@ impl Printer<'_, '_, '_> {
     pub(super) fn form(&self, form: dir::FormType) -> DocResult<String> {
         let value = self.type_operand(form.value, TypeOperand::Prefix)?;
         let text = match form.form {
-            dir::Form::Managed => value,
+            dir::Form::Managed { place } => self.placed_form(place, &value)?,
             dir::Form::Owned => format!("^{value}"),
             dir::Form::Borrowed(borrow) => self.borrowed_form(borrow, &value)?,
             dir::Form::Raw => format!("*{value}"),
-            dir::Form::Placed { place } => self.placed_form(place, &value)?,
             dir::Form::Readonly => format!("readonly {value}"),
         };
 
@@ -210,50 +205,97 @@ impl Printer<'_, '_, '_> {
     /// Format one borrowed form.
     fn borrowed_form(&self, borrow: dir::BorrowFormId, value: &str) -> DocResult<String> {
         let borrow = *self.types().borrow_form(borrow);
-        let lifetime = self.borrow_lifetime(borrow.lifetime)?;
 
-        match lifetime {
-            BorrowLifetime::Prefix(lifetime) => self.borrow_access(borrow.access, &lifetime, value),
-            BorrowLifetime::Parameter(lifetime) => {
-                let borrowed = self.borrow_access(borrow.access, "", value)?;
-                let symbol = self
-                    .program
-                    .environment()
-                    .language
-                    .symbol(dir::LanguageItem::WithLifetime)
-                    .ok_or(DocError::missing("WithLifetime language item"))?;
-                let with_lifetime = self.symbol(symbol)?;
+        // split the region into its extent and space coordinates
+        let (extent, space) = self.read_type(borrow.region, |type_value, _| match type_value {
+            dir::Type::Region(pair) => Ok((pair.extent, Some(pair.space))),
+            _ => Ok((borrow.region, None)),
+        })?;
 
-                Ok(format!("{with_lifetime}<{borrowed}, {lifetime}>"))
-            }
-        }
+        // render literal referent spaces in target position, keeping written local
+        let value = match space {
+            None => value.to_string(),
+            Some(space) => match self.space_literal(space)? {
+                Some(space) => format!("{} {value}", space.text()),
+                // induced spaces elide back into the reference sugar
+                None if self.is_induced_memory_term(space)? => value.to_string(),
+                // render written parametric spaces through the full borrow application
+                None => return self.borrow_application(&borrow, value),
+            },
+        };
+
+        // written non-tick extents render the full borrow application
+        let Some(lifetime) = self.borrow_extent(extent)? else {
+            return self.borrow_application(&borrow, &value);
+        };
+
+        self.borrow_access(borrow.access, &lifetime, &value)
     }
 
-    /// Format one borrow lifetime.
-    fn borrow_lifetime(&self, type_id: dir::GlobalTypeId) -> DocResult<BorrowLifetime> {
+    /// Format one full borrow application.
+    fn borrow_application(&self, borrow: &dir::BorrowForm, value: &str) -> DocResult<String> {
+        let symbol = self
+            .program
+            .environment()
+            .language
+            .symbol(dir::LanguageItem::Borrowed)
+            .ok_or(DocError::missing("Borrowed language item"))?;
+        let borrowed = self.symbol(symbol)?;
+        let region = self.global_type(borrow.region)?;
+        let access = self.global_type(borrow.access)?;
+
+        Ok(format!("{borrowed}<{value}, {region}, {access}>"))
+    }
+
+    /// Format one borrow extent as a reference prefix, or None for an unspellable extent.
+    fn borrow_extent(&self, type_id: dir::GlobalTypeId) -> DocResult<Option<String>> {
         self.program
             .read_type(type_id, |type_value, module| match type_value {
-                dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)) => {
-                    Ok(BorrowLifetime::Prefix(String::new()))
+                dir::Type::Literal(dir::Literal::String(value))
+                    if dir::Lifetime::from_text(*value) == Some(dir::Lifetime::Static) =>
+                {
+                    Ok(Some("'static ".to_string()))
                 }
-                dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Static)) => {
-                    Ok(BorrowLifetime::Prefix("'static ".to_string()))
-                }
+                // ticks render as prefixes, induced extents elide, written names defer
                 dir::Type::Parameter(parameter) => {
                     let formatter = Printer::new(module, self.program);
-                    let binding = module.generics().get_parameter(parameter.local_id);
-                    if binding.memory_parameter() != Some(dir::MemoryParameter::Lifetime) {
-                        return Err(DocError::invalid(format!("borrow lifetime: {type_id:?}")));
-                    }
                     let lifetime = formatter.generic_parameter_type(*parameter)?;
-
                     if lifetime.starts_with('\'') {
-                        Ok(BorrowLifetime::Prefix(format!("{lifetime} ")))
-                    } else {
-                        Ok(BorrowLifetime::Parameter(lifetime))
+                        return Ok(Some(format!("{lifetime} ")));
                     }
+
+                    let binding = module.generics().get_parameter(parameter.local_id);
+                    Ok(binding
+                        .induced_memory_parameter()
+                        .is_some()
+                        .then(String::new))
                 }
-                _ => Err(DocError::invalid(format!("borrow lifetime: {type_id:?}"))),
+                // every other extent erases from the reference prefix
+                _ => Ok(Some(String::new())),
+            })
+    }
+
+    /// Return whether one term is an induced memory parameter.
+    fn is_induced_memory_term(&self, type_id: dir::GlobalTypeId) -> DocResult<bool> {
+        self.program
+            .read_type(type_id, |type_value, module| match type_value {
+                dir::Type::Parameter(parameter) => Ok(module
+                    .generics()
+                    .get_parameter(parameter.local_id)
+                    .induced_memory_parameter()
+                    .is_some()),
+                _ => Ok(false),
+            })
+    }
+
+    /// Read one literal space, or None for a parametric place.
+    fn space_literal(&self, type_id: dir::GlobalTypeId) -> DocResult<Option<dir::Space>> {
+        self.program
+            .read_type(type_id, |type_value, _| match type_value {
+                dir::Type::Literal(dir::Literal::String(text)) => dir::Space::from_text(*text)
+                    .map(Some)
+                    .ok_or_else(|| DocError::invalid(format!("space literal: {type_id:?}"))),
+                _ => Ok(None),
             })
     }
 
@@ -267,13 +309,19 @@ impl Printer<'_, '_, '_> {
         self.read_type(type_id, |type_value, formatter| {
             match type_value {
                 // render concrete access with its source modifier
-                dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Mutable)) => {
+                dir::Type::Literal(dir::Literal::String(access))
+                    if dir::Access::from_text(*access) == Some(dir::Access::Mutable) =>
+                {
                     Ok(format!("&{lifetime}{value}"))
                 }
-                dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)) => {
+                dir::Type::Literal(dir::Literal::String(access))
+                    if dir::Access::from_text(*access) == Some(dir::Access::Readonly) =>
+                {
                     Ok(format!("&{lifetime}readonly {value}"))
                 }
-                dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Exclusive)) => {
+                dir::Type::Literal(dir::Literal::String(access))
+                    if dir::Access::from_text(*access) == Some(dir::Access::Exclusive) =>
+                {
                     Ok(format!("&{lifetime}exclusive {value}"))
                 }
 
@@ -306,15 +354,24 @@ impl Printer<'_, '_, '_> {
         })
     }
 
-    /// Format one concrete placement form.
+    /// Format one placement form, keeping every written space.
     fn placed_form(&self, type_id: dir::GlobalTypeId, value: &str) -> DocResult<String> {
-        self.program
-            .read_type(type_id, |type_value, _| match type_value {
-                dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(space))) => {
-                    Ok(format!("{} {value}", space.text()))
-                }
-                _ => Err(DocError::invalid(format!("placed form: {type_id:?}"))),
-            })
+        match self.space_literal(type_id)? {
+            Some(space) => Ok(format!("{} {value}", space.text())),
+            // render parametric places through the full managed application
+            None => {
+                let symbol = self
+                    .program
+                    .environment()
+                    .language
+                    .symbol(dir::LanguageItem::Managed)
+                    .ok_or(DocError::missing("Managed language item"))?;
+                let managed = self.symbol(symbol)?;
+                let place = self.global_type(type_id)?;
+
+                Ok(format!("{managed}<{value}, {place}>"))
+            }
+        }
     }
 
     /// Format one scalar interval type.
@@ -491,6 +548,14 @@ fn type_needs_parentheses(
     formatter: &Printer<'_, '_, '_>,
 ) -> DocResult<bool> {
     let needs_parentheses = match type_value {
+        dir::Type::Region(_) => matches!(
+            operand,
+            TypeOperand::Prefix
+                | TypeOperand::Postfix
+                | TypeOperand::Intersection
+                | TypeOperand::Relation
+                | TypeOperand::StaticBinary
+        ),
         dir::Type::Union(_) => matches!(
             operand,
             TypeOperand::Prefix
