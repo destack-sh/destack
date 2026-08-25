@@ -4,13 +4,13 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Prefer else after a diverging if branch.
+    /// Prefer else in compact terminal value decisions.
     pub PREFER_ELSE {
         id: "prefer-else",
-        summary: "Prefer else after a diverging if branch",
+        summary: "Prefer else in compact terminal value decisions",
         explanation: r#"
-Statements after a diverging `if` branch run only when its condition is false.
-Instead, you SHOULD place the remaining path in an `else` branch.
+An adjacent sequence of terminal value branches forms one decision.
+You SHOULD write that decision as an `if`/`else if`/`else` chain.
 "#,
         example: {
             reported: r#"
@@ -38,41 +38,77 @@ function sign(value: int32): string {
     }
 }
 
-/// Report diverging if branches followed by a separate remaining path.
+/// Report compact terminal value branches written outside one decision chain.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect if statements followed by another expression in the same block
-    for (_, block) in view.iter_nodes::<dir::Block>() {
-        let mut expressions = block.iter_expressions().peekable();
-        while let Some(expression) = expressions.next() {
-            // require a remaining path after the conditional
-            if expressions.peek().is_none() {
-                break;
-            }
-
-            // select a regular if with one diverging branch
-            let dir::Expression::If {
-                form: dir::IfForm::If,
-                then_expression,
-                else_expression: None,
-                ..
-            } = view.get(expression)
+    // inspect the terminal value decision in each block
+    for (block_id, block) in view.iter_nodes::<dir::Block>() {
+        // select one implicit value or explicit value return as the final alternative
+        let (alternative, preceding, is_implicit) = if let Some(alternative) = block.tail_expression
+        {
+            let Some(body) = view
+                .get_parent_for(block_id)
+                .and_then(|parent| parent.try_into_typed::<dir::Expression>().ok())
             else {
                 continue;
             };
-            if !module.is_diverging(then_expression.into_any())? {
+            if module.enclosing_callable_body(block_id.into_any()) != Some(body) {
                 continue;
             }
 
-            // report the separate remaining path
+            (alternative, block.leading_expressions.as_slice(), true)
+        } else {
+            let Some((alternative, preceding)) = block.leading_expressions.split_last() else {
+                continue;
+            };
+            if module.sole_return_value(*alternative).is_none() {
+                continue;
+            }
+
+            (*alternative, preceding, false)
+        };
+
+        // select the adjacent compact branches before the final alternative
+        let start = preceding
+            .iter()
+            .rposition(|expression| !is_compact_value_if(module, *expression))
+            .map_or(0, |index| index + 1);
+        if start == preceding.len()
+            || (is_implicit && module.is_diverging(alternative.into_any())?)
+        {
+            continue;
+        }
+
+        // report each branch in source order
+        for expression in &preceding[start..] {
             let span = module.main_span(expression.into_any())?;
-            output.report(lint.diagnostic("remaining path is separate from its if", span));
+            output.report(
+                lint.diagnostic("terminal value alternative is separate from its if", span),
+            );
         }
     }
 
     Ok(output)
+}
+
+/// Return whether one if branch consists only of a value return.
+fn is_compact_value_if(
+    module: &DirModule<'_>,
+    expression: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let dir::Expression::If {
+        form: dir::IfForm::If,
+        then_expression,
+        else_expression: None,
+        ..
+    } = module.view().get(expression)
+    else {
+        return false;
+    };
+
+    module.sole_return_value(*then_expression).is_some()
 }
 
 #[cfg(test)]
@@ -80,9 +116,9 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Report an alternative after a call-diverging branch.
+    /// Accept a guard that calls a diverging function.
     #[test]
-    fn test_reports_call_diverging_branch() {
+    fn test_accepts_call_diverging_guard() {
         let session = TestSession::dir(
             &PREFER_ELSE,
             r#"
@@ -97,20 +133,7 @@ function classify(value: int32): string {
 "#,
         );
 
-        session.assert_diagnostics(
-            r#"
-warning[prefer-else]: remaining path is separate from its if
- ──▶ main.ds:4:5
-  │
-2 │
-3 │ function classify(value: int32): string {
-4 │     if (value !== 0) {
-  │     ^^
-5 │         classifyNonzero(value);
-6 │     }
-  │
-"#,
-        );
+        session.assert_no_diagnostics();
     }
 
     /// Report every branch in one adjacent terminal decision chain.
@@ -133,7 +156,7 @@ function classify(value: int32): string {
 
         session.assert_diagnostics(
             r#"
-warning[prefer-else]: remaining path is separate from its if
+warning[prefer-else]: terminal value alternative is separate from its if
  ──▶ main.ds:2:5
   │
 1 │ function classify(value: int32): string {
@@ -143,7 +166,7 @@ warning[prefer-else]: remaining path is separate from its if
 4 │     }
   │
 
-warning[prefer-else]: remaining path is separate from its if
+warning[prefer-else]: terminal value alternative is separate from its if
  ──▶ main.ds:5:5
   │
 3 │         return "negative";
@@ -157,9 +180,125 @@ warning[prefer-else]: remaining path is separate from its if
         );
     }
 
-    /// Report a returning branch before a continuing function path.
+    /// Report a compact return before one implicit value alternative.
     #[test]
-    fn test_reports_return_before_continuation() {
+    fn test_reports_implicit_value_alternative() {
+        let session = TestSession::dir(
+            &PREFER_ELSE,
+            r#"
+function checked(result: int32, overflow: boolean): int32 | undefined {
+    if (overflow) {
+        return undefined;
+    }
+    result
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[prefer-else]: terminal value alternative is separate from its if
+ ──▶ main.ds:2:5
+  │
+1 │ function checked(result: int32, overflow: boolean): int32 | undefined {
+2 │     if (overflow) {
+  │     ^^
+3 │         return undefined;
+4 │     }
+  │
+"#,
+        );
+    }
+
+    /// Accept a value return followed by computed fallback work.
+    #[test]
+    fn test_accepts_computed_fallback() {
+        let session = TestSession::dir(
+            &PREFER_ELSE,
+            r#"
+declare function adjust(value: int32): int32;
+
+function checked(value: int32, isSpecial: boolean): int32 {
+    if (isSpecial) {
+        return value;
+    }
+    const adjusted = adjust(value);
+
+    adjusted
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept a terminal branch that performs work before returning a value.
+    #[test]
+    fn test_accepts_worked_branch() {
+        let session = TestSession::dir(
+            &PREFER_ELSE,
+            r#"
+declare function observe(value: int32): void;
+
+function checked(value: int32, isSpecial: boolean): int32 {
+    if (isSpecial) {
+        observe(value);
+
+        return value;
+    }
+    return 0;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept a return guard before a nested block value.
+    #[test]
+    fn test_accepts_nested_block_value() {
+        let session = TestSession::dir(
+            &PREFER_ELSE,
+            r#"
+function checked(value: int32, isSpecial: boolean): int32 {
+    const adjusted = do {
+        if (isSpecial) {
+            return value;
+        }
+        value + 1
+    };
+
+    adjusted
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept a value return before a diverging fallback.
+    #[test]
+    fn test_accepts_diverging_fallback() {
+        let session = TestSession::dir(
+            &PREFER_ELSE,
+            r#"
+declare function fail(): never;
+
+function checked(isValid: boolean): int32 {
+    if (isValid) {
+        return 1;
+    }
+    fail()
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept a valueless return guard before a continuing function path.
+    #[test]
+    fn test_accepts_valueless_return_guard() {
         let session = TestSession::dir(
             &PREFER_ELSE,
             r#"
@@ -174,25 +313,12 @@ function run(isInvalid: boolean): void {
 "#,
         );
 
-        session.assert_diagnostics(
-            r#"
-warning[prefer-else]: remaining path is separate from its if
- ──▶ main.ds:4:5
-  │
-2 │
-3 │ function run(isInvalid: boolean): void {
-4 │     if (isInvalid) {
-  │     ^^
-5 │         return;
-6 │     }
-  │
-"#,
-        );
+        session.assert_no_diagnostics();
     }
 
-    /// Report a continuing branch before the remaining iteration path.
+    /// Accept a continue guard before the remaining iteration path.
     #[test]
-    fn test_reports_continue_before_iteration_path() {
+    fn test_accepts_continue_guard() {
         let session = TestSession::dir(
             &PREFER_ELSE,
             r#"
@@ -209,20 +335,7 @@ function visit(values: int32[]): void {
 "#,
         );
 
-        session.assert_diagnostics(
-            r#"
-warning[prefer-else]: remaining path is separate from its if
- ──▶ main.ds:5:9
-  │
-3 │ function visit(values: int32[]): void {
-4 │     for (const value of values) {
-5 │         if (value < 0) {
-  │         ^^
-6 │             continue;
-7 │         }
-  │
-"#,
-        );
+        session.assert_no_diagnostics();
     }
 
     /// Accept an implicit undefined result in a default interface method.
