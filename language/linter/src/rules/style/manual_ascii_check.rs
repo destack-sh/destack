@@ -58,7 +58,28 @@ struct AsciiCheck {
     is_negated: bool,
 }
 
-/// One checked character interval.
+impl AsciiCheck {
+    /// Report one manual ASCII check.
+    fn report(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        module: &DirModule<'_>,
+        lint: &Lint,
+        output: &mut LintOutput,
+    ) -> Result<(), ProviderError> {
+        let span = module.source_extent(expression.into_any())?;
+        let message = format!("ASCII range manually implements `{}`", self.method);
+        let mut diagnostic = lint.diagnostic(message, span);
+        if let Some(fix) = fix(module, lint, expression, self)? {
+            diagnostic = diagnostic.suggestion(fix);
+        }
+        output.report(diagnostic);
+
+        Ok(())
+    }
+}
+
+/// One character interval.
 #[derive(Debug, Clone, Copy)]
 struct CharacterRange {
     /// The tested character.
@@ -74,38 +95,42 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect maximal logical expressions and range membership calls
-    for (expression, node) in view.iter_nodes::<dir::Expression>() {
-        let ascii = match node {
-            dir::Expression::Binary { .. } => {
-                if module.has_builtin_binary_parent(expression, dir::BinaryOperator::Or)? {
-                    continue;
-                }
-
-                logical_ascii_check(module, expression)?
-            }
-            dir::Expression::Call { .. } => {
-                if module.has_builtin_binary_parent(expression, dir::BinaryOperator::Or)? {
-                    continue;
-                }
-
-                range_call(module, expression)?.and_then(ascii_check)
-            }
-            dir::Expression::Match { .. } => ascii_match(module, node)?,
-            _ => None,
-        };
-        let Some(ascii) = ascii else {
+    // inspect maximal runtime logical expressions
+    for expression in module.operator_expressions() {
+        let expression = expression?;
+        if module.has_builtin_binary_parent(expression, dir::BinaryOperator::Or)? {
+            continue;
+        }
+        let Some(ascii) = logical_ascii_check(module, expression)? else {
             continue;
         };
 
-        // replace the complete range check with one named predicate
-        let span = module.source_extent(expression.into_any())?;
-        let message = format!("ASCII range manually implements `{}`", ascii.method);
-        let mut diagnostic = lint.diagnostic(message, span);
-        if let Some(fix) = fix(module, lint, expression, &ascii)? {
-            diagnostic = diagnostic.suggestion(fix);
+        ascii.report(expression, module, lint, &mut output)?;
+    }
+
+    // inspect maximal range membership calls
+    for expression in module.call_expressions() {
+        let expression = expression?;
+        if module.has_builtin_binary_parent(expression, dir::BinaryOperator::Or)? {
+            continue;
         }
-        output.report(diagnostic);
+        let Some(ascii) = range_call(module, expression)?.and_then(ascii_check) else {
+            continue;
+        };
+
+        ascii.report(expression, module, lint, &mut output)?;
+    }
+
+    // inspect boolean range matches
+    for (expression, node) in view.iter_nodes::<dir::Expression>() {
+        if !matches!(node, dir::Expression::Match { .. }) {
+            continue;
+        }
+        let Some(ascii) = ascii_match(module, node)? else {
+            continue;
+        };
+
+        ascii.report(expression, module, lint, &mut output)?;
     }
 
     Ok(output)
