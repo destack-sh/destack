@@ -4,10 +4,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use destack_artifact::BuildId;
 use destack_lsp_server::{Client, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
-use destack_repository::{Execution, Revision, SourceRoot, Trace};
+use destack_repository::{Environment, Execution, Host, Revision, SourceRoot, Trace};
 use destack_session::Executor;
 use destack_source::{File, FileSystem, PhysicalFileSystem, TextChange, Uri};
 use destack_workspace::Workspace;
@@ -26,8 +27,8 @@ pub(super) const DESTACK_URI_SCHEME: &str = "destack";
 pub(super) struct ServerSession {
     /// Artifact executor shared by every project session.
     executor: Arc<Executor>,
-    /// Shared physical filesystem used for project discovery and repositories.
-    file_system: Arc<PhysicalFileSystem>,
+    /// Repository capabilities shared by every project.
+    host: Host,
     /// Projects discovered for the current editor workspace.
     projects: Arc<RwLock<ProjectSet>>,
     /// Features supported by the connected client.
@@ -50,12 +51,16 @@ impl ServerSession {
             Ok::<_, jsonrpc::Error>(folders)
         })?;
 
-        let (file_system, executor) = trace.span("executor.open", || {
+        let host = trace.span("host.open", || {
             let file_system = Arc::new(PhysicalFileSystem::new());
-            let executor = Executor::new(Execution::Threaded, Executor::default_worker_count())
-                .map_err(internal_error)?;
+            let build_id = BuildId::current().map_err(internal_error)?;
+            let environment = Environment::capture_process();
 
-            Ok::<_, jsonrpc::Error>((file_system, executor))
+            Ok::<_, jsonrpc::Error>(Host::new(build_id, environment, file_system))
+        })?;
+        let executor = trace.span("executor.open", || {
+            Executor::new(Execution::Threaded, Executor::default_worker_count())
+                .map_err(internal_error)
         })?;
         let client_capabilities = ClientCapabilities::try_from(params)?;
         let diagnostics = if client_capabilities.supports_pull_diagnostics {
@@ -66,7 +71,7 @@ impl ServerSession {
 
         let session = Self {
             executor,
-            file_system,
+            host,
             projects: Arc::new(RwLock::new(ProjectSet::default())),
             client_capabilities,
             settings: ServerSettings::default(),
@@ -118,11 +123,11 @@ impl ServerSession {
             let directory = path
                 .parent()
                 .ok_or_else(|| jsonrpc::Error::invalid_params("document path has no parent"))?;
-            let root = SourceRoot::discover(self.file_system.as_ref(), directory)
+            let root = SourceRoot::discover(self.host.files().as_ref(), directory)
                 .map(PathBuf::from)
                 .map_err(internal_error)?;
             let root = Self::canonicalize(&root)?;
-            let project = Project::open(root, self.file_system.clone(), self.executor.clone())?;
+            let project = Project::open(root, self.host.clone(), self.executor.clone())?;
             self.projects.write().insert(project);
         }
 
@@ -254,7 +259,7 @@ impl ServerSession {
             Some(workspace)
         } else {
             let root =
-                SourceRoot::discover(self.file_system.as_ref(), &path).map_err(internal_error)?;
+                SourceRoot::discover(self.host.files().as_ref(), &path).map_err(internal_error)?;
             match root {
                 SourceRoot::Declared(root) => {
                     let root = Self::canonicalize(&root)?;
@@ -277,7 +282,7 @@ impl ServerSession {
         }
 
         // build the project outside the shared project lock
-        let project = Project::open(root, self.file_system.clone(), self.executor.clone())?;
+        let project = Project::open(root, self.host.clone(), self.executor.clone())?;
 
         // retain the first project opened concurrently for this root
         let workspace = self.projects.write().insert(project).workspace();

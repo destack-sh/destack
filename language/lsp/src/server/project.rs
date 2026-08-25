@@ -2,14 +2,13 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::BuildId;
 use destack_lsp_server::jsonrpc;
 use destack_lsp_types as lsp;
 use destack_repository::{
-    Commit, DestackLayoutOverride, Environment, Host, Repository, Revision, Settings, Trace,
+    Commit, DestackLayoutOverride, Host, Repository, Revision, Settings, Trace,
 };
 use destack_session::Executor;
-use destack_source::{Edit, File, FileId, FileSystem, TextChange, Uri, apply_text_changes};
+use destack_source::{Edit, File, FileId, TextChange, Uri, apply_text_changes};
 use destack_workspace::{FileSelection, Workspace};
 
 use super::{internal_error, workspace_error};
@@ -30,11 +29,9 @@ impl Project {
     /// Open one project from its exact source root.
     pub(super) fn open(
         root: PathBuf,
-        file_system: Arc<dyn FileSystem>,
+        host: Host,
         executor: Arc<Executor>,
     ) -> jsonrpc::Result<Self> {
-        let build_id = BuildId::current().map_err(internal_error)?;
-        let host = Host::new(build_id, Environment::capture_process(), file_system);
         let (repository, physical) = Repository::open(
             root,
             host,

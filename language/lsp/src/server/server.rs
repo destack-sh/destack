@@ -203,7 +203,6 @@ impl DestackLanguageServer {
             .field("attempts", snapshot.stats.attempts())
             .field("built", snapshot.stats.built)
             .field("memory_cached", snapshot.stats.memory_cached)
-            .field("store_cached", snapshot.stats.store_cached)
             .field("parked", snapshot.stats.parked)
             .field("failed", snapshot.stats.failed);
 
