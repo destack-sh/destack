@@ -5,15 +5,13 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Disallow operator implementations built on a different operator.
+    /// Disallow direct operator implementations built on a different operator.
     pub SUSPICIOUS_OPERATOR_IMPLEMENTATION {
         id: "suspicious-operator-implementation",
-        summary: "Disallow operator implementations built on a different operator",
+        summary: "Disallow direct operator implementations built on a different operator",
         explanation: r#"
-Using a different operator inside an operator implementation commonly indicates a copied or mistyped body.
+Directly combining an operator receiver and operand with a different operator commonly indicates a copied or mistyped body.
 Instead, you SHOULD use the operator implemented by the enclosing protocol.
-
-Calls and operators inside nested functions are evaluated independently.
 "#,
         example: {
             reported: r#"
@@ -53,12 +51,14 @@ extension of Score implements Add<Score> {
 /// Report mismatched operators within canonical operator implementations.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
-    let mut protocols = FxIndexMap::default();
+    let mut implementations = FxIndexMap::default();
 
     // index method bodies that implement operator protocols
     for (member, declaration) in view.iter_nodes::<dir::Member>() {
         let dir::Member::Method {
-            body: Some(body), ..
+            signature,
+            body: Some(body),
+            ..
         } = declaration
         else {
             continue;
@@ -72,7 +72,16 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         else {
             continue;
         };
-        protocols.insert(*body, expected);
+
+        // retain the first named operand parameter
+        let Some(parameter) = signature.parameters.first() else {
+            continue;
+        };
+        if view.get(*parameter).name().is_none() {
+            continue;
+        }
+        let parameter = module.declaration_symbol(*parameter)?;
+        implementations.insert(*body, (expected, parameter));
     }
 
     // compare operators directly owned by each indexed body
@@ -81,21 +90,63 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(body) = module.enclosing_callable_body(expression.into_any()) else {
             continue;
         };
-        let Some(expected) = protocols.get(&body).copied() else {
+        let Some((expected, parameter)) = implementations.get(&body).copied() else {
             continue;
         };
-        let used = match node {
-            dir::Expression::Unary { operator, .. } => operator.single_protocol(),
-            dir::Expression::Binary { operator, .. } => operator.single_protocol(),
-            dir::Expression::Assign { operator, .. } => operator.single_protocol(),
-            _ => None,
+        let dir::Expression::Binary {
+            left,
+            operator,
+            right,
+        } = node
+        else {
+            continue;
         };
-        let Some(used) = used
+        let Some(used) = operator
+            .single_protocol()
             .filter(dir::LanguageItem::is_arithmetic_protocol)
             .filter(|used| *used != expected)
         else {
             continue;
         };
+
+        // require direct access paths rooted at the receiver and operand
+        let Some(left) = module
+            .access_resolution(*left)
+            .map(|access| access.path().root())
+        else {
+            continue;
+        };
+        let Some(right) = module
+            .access_resolution(*right)
+            .map(|access| access.path().root())
+        else {
+            continue;
+        };
+        let is_direct = matches!(
+            (left, right),
+            (dir::AccessRoot::Receiver, dir::AccessRoot::Symbol(symbol))
+                | (dir::AccessRoot::Symbol(symbol), dir::AccessRoot::Receiver)
+                if symbol == parameter
+        );
+        if !is_direct {
+            continue;
+        }
+
+        // require the operation to produce a returned value or constructed field directly
+        let Some(parent) = view.get_parent_for(expression) else {
+            continue;
+        };
+        let is_direct_result = match parent.ty {
+            dir::NodeType::Property => module.is_within_return_value(expression),
+            dir::NodeType::Expression => {
+                let parent = dir::LocalNodeId::<dir::Expression>::new(parent.id);
+                matches!(view.get(parent), dir::Expression::Return { value: Some(value) } if *value == expression)
+            }
+            _ => false,
+        };
+        if !is_direct_result {
+            continue;
+        }
 
         // report the mismatched authored operator
         let span = module.main_span(expression.into_any())?;
@@ -166,6 +217,65 @@ extension of Score implements Add<Score> {
 
     add(&readonly this, other: Score): Score {
         return Score { value: this.value + other.value };
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept auxiliary operators within a composed multiplication formula.
+    #[test]
+    fn test_accepts_composed_operator() {
+        let session = TestSession::dir(
+            &SUSPICIOUS_OPERATOR_IMPLEMENTATION,
+            r#"
+struct Pair {
+    left: int32;
+    right: int32;
+}
+
+extension of Pair implements Multiply<Pair> {
+    type Output = Pair;
+
+    multiply(&readonly this, other: Pair): Pair {
+        return Pair {
+            left: this.left * other.left + this.right * other.right,
+            right: this.left * other.right - this.right * other.left,
+        };
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept auxiliary operators used through an intermediate value.
+    #[test]
+    fn test_accepts_intermediate_operator() {
+        let session = TestSession::dir(
+            &SUSPICIOUS_OPERATOR_IMPLEMENTATION,
+            r#"
+struct Pair {
+    left: int32;
+    right: int32;
+}
+
+extension of Pair implements Multiply<Pair> {
+    type Output = Pair;
+
+    multiply(&readonly this, other: Pair): Pair {
+        const sum = Pair {
+            left: this.left + other.left,
+            right: this.right + other.right,
+        };
+
+        return Pair {
+            left: sum.left * other.left,
+            right: sum.right * other.right,
+        };
     }
 }
 "#,

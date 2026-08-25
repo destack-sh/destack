@@ -4,10 +4,10 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Disallow Array.fill values whose type has reference identity.
+    /// Disallow Array.fill values that share mutable references.
     pub NO_ARRAY_FILL_WITH_REFERENCE_TYPE {
         id: "no-array-fill-with-reference-type",
-        summary: "Disallow Array.fill values whose type has reference identity",
+        summary: "Disallow Array.fill values that share mutable references",
         explanation: r#"
 `Array.fill` places the same managed reference in every selected element, so later mutation is shared by all of them.
 Instead, you SHOULD construct each mutable value independently with `Array.from` or an explicit loop.
@@ -41,7 +41,7 @@ function cells(): Cell[] {
     }
 }
 
-/// Report Array.fill calls that repeat one managed reference.
+/// Report Array.fill calls that repeat one mutable reference.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
@@ -64,22 +64,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
 
-        // skip values with unknown ownership
+        // require aliases that expose the same mutable referent
         let type_id = module.node_type_id(value.into_any())?;
-        if matches!(module.dir.get_type(type_id)?, dir::Type::Unknown) {
-            continue;
-        }
-
-        // require a managed value with observable reference identity
-        if module.dir.default_ownership(type_id)? != Some(dir::Ownership::Managed) {
-            continue;
-        }
-
-        // immutable representations share safely
-        if matches!(
-            module.dir.representation_item(type_id)?,
-            Some(dir::LanguageItem::String | dir::LanguageItem::BigInt)
-        ) {
+        if !module.dir.is_mutable_reference(type_id)? {
             continue;
         }
 
@@ -241,6 +228,48 @@ function zeros(): int32[] {
             r#"
 function labels(value: string): string[] {
     const values = ["left", "middle", "right"];
+    values.fill(value);
+    return values;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept filling an Array with an immutable function value.
+    #[test]
+    fn test_accepts_function() {
+        let session = TestSession::dir(
+            &NO_ARRAY_FILL_WITH_REFERENCE_TYPE,
+            r#"
+function identity(value: int32): int32 {
+    return value;
+}
+
+function operations(): ((value: int32) => int32)[] {
+    const values = [identity, identity, identity];
+    values.fill(identity);
+    return values;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept filling an Array with a readonly managed value.
+    #[test]
+    fn test_accepts_readonly_reference() {
+        let session = TestSession::dir(
+            &NO_ARRAY_FILL_WITH_REFERENCE_TYPE,
+            r#"
+class Cell {
+    value: int32 = 0;
+}
+
+function cells(value: readonly Cell): (readonly Cell)[] {
+    const values = [value, value, value];
     values.fill(value);
     return values;
 }
