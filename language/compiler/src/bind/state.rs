@@ -29,8 +29,6 @@ pub(in crate::bind) struct BindState<'a> {
     /// The parsed DIR artifact.
     pub(in crate::bind) parsed: &'a DirParsed,
 
-    /// The visitor options.
-    pub(in crate::bind) options: dir::NodeVisitorOptions,
     /// The lexical scope stack.
     pub(in crate::bind) scope_stack: Vec<dir::LocalScopeId>,
     /// The conditional type scopes that own active `infer` binders.
@@ -85,7 +83,6 @@ impl<'a> BindState<'a> {
         Self {
             compiler,
             parsed,
-            options: dir::NodeVisitorOptions::default(),
             scope_stack: vec![namespace_scope],
             infer_scope_stack: Vec::new(),
             infer_symbols: IndexMap::new(),

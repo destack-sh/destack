@@ -3,10 +3,6 @@ use destack_dir as dir;
 use super::super::state::{BindState, BindingModifiers};
 
 impl dir::NodeVisitor for BindState<'_> {
-    fn options(&self) -> &dir::NodeVisitorOptions {
-        &self.options
-    }
-
     fn visit_any(&mut self, _tree: &dir::Tree, ty: dir::NodeType, id: u32) {
         self.bind_node(dir::LocalNodeIdAny::new(id, ty));
     }
