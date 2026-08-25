@@ -1,28 +1,34 @@
 ## Code Style
 
-### Naming
+### Naming and Prose
 
 - Names should be obvious, clear, and idiomatic to the language and topic.
+- Follow simplified technical english (STE) whenever possible. We should always establish, re-establish, use and enforce a clear terminology nouns, verbs, and noun/verb families for types / methods / enums / variants / fields, and so on. 
 - Shorter, stronger nouns and verbs are almost always better.
 - Clear naming, pristine nouns and verbs, are part of a clear design. As a corollary, muddy naming strongly indicates an unclear design with muddy boundaries.
 - Where relevant prior art exists, we should follow existing modern terminology.
+- The name of a thing should describe its actual behavior or purpose. This sounds trivial, but e.g., when a function creates or updates a variable, it should be called `upsert*`, when a function only conditionally allocates something it should be called `allocate*maybe` (or `allocate*if*`), and so on.
+
 - Prefer writing out most names and words (even in variable names, `extension` > `ext`, `directory` > `dir`).
 - As with logic, symmetry in naming across related logic is simpler, and simpler is better.
 - Avoid single-letter variables unless obvious (e.g., `i`, `x`, `Vector.x` are fine).
 - Booleans should start with `is_` unless already clear (or otherwise required by context), though enums are usually better anyway.
+
 - Abstraction sludge terms are evil: "seam", "lane", "parts", "info", "factory", "syntax", "semantics", "data", "inner", "wrapper", "facts", "summary", "channel", "boundary", "contract", "surface", "currency", "accounting", "load bearing", "*-bearing" in general, "spine", "spelling", "computation", "recipe", "glue", "judge", "drive", "own", "demand", "grammar", "reach", "truth", "product", "atom", "axes", "coordinates", "transcribe", "law", "knot", "tie", "pin", .. and such are to be treated with high suspicion and are almost certainly wrong (unlses the topic literally requires it.. but temptation to use them all too often implies conceptual muddiness that should be revisited).
+
 - The same logic applies for module and file names too: single part file names are clearer while "support", "helper" and "utils" are sludgy.
 - It can be tempting to name things along the lines of "x_for_y" in certain overload-ish situations, however, this is almost always a modeling smell and means we haven't properly generalised or reified our invariants yet. (Note that this does *not* mean we should introduce arbitrary interfaces or abstractions just to please this rule, that would be just another factoring issue. Sometimes "x_for_y" is fine, commonly in data transcribing, but usually it's just sludge.)
 - Similarly, it can be tempting to add nested accessor/projection-like methods like x_y, but those are usually similarly bad factoring (e.g., `revision_files` is a sloppy way of doing a more general `files` with filter view, or alternatively if must be a `files_at_revision` for readability and autocompletion).
-- The name of a thing should describe its actual behavior or purpose. This sounds trivial, but e.g., when a function creates or updates a variable, it should be called `upsert*`, when a function only conditionally allocates something it should be called `allocate*maybe` (or `allocate*if*`), and so on.
 
-### Logic
+### Logic and State
 
 - Less is more, every line of code is a liability, every bit of state is suspicious. 
 - Fewer overloads are better, fewer fields are better, fewer dependencies are better, etc.
 - When writing some logic or function and it turns into 500 lines, wonder if it could be done in 100 lines. If it's 100 lines, maybe it could be 10. If it's 10, maybe we can remove it altogether, or phrase the problem differently to eliminate the need for this whole piece in the first place.
-- Long methods are allowed if the logic isn't meaningfully extractable / reusable.
+
 - Having many overloads (or quasi-overloads) that just call one another with different arguments and little or no additional logic is almost always a smell and annoying to read (and a bad source of pointless code bloat).
+
+- Long methods are allowed if the logic isn't meaningfully extractable / reusable.
 - Prefer pure(ish) functions, pass in context explicitly when needed (usually as the last argument).
 - Break larger code blocks into logical chunks with whitespace and/or preamble comments.
 - All logic in functions and outside should be broken into small-ish coherent blocks (2-6 lines or so) with a preceding comment.
@@ -74,30 +80,33 @@ match extracted {
 
 - "Unstructured" branches that are not clearly general preconditions are generally suspicious. Much like factoring the general model work, the ideal placement of branches is rarely a random cascade of if-jumps at the top of a block, but instead a more structured and coherently grouped if-else / match like situation.
 
-### Factoring
+### Factoring and Boundaries
 
 - The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible _that the target machine understands well_, using the fewest possible resources (bytes, instructions, cycles, whatever) on the expected hardware and under expected usage scenarios.
 - Where good relevant prior art exists, we should try to follow it, especially in terminology, configuration, interfaces, and even behavior where sensible.
 - Most code on the internet, on StackOverflow, or on open source libraries, and even in their documentation, is not very good. Anything external we take in should be treated with great suspicion.
+
 - Every proposed change is really a question: "what shape should the codebase have in the long term to support changes and features _like_ this?"; the answer to that question leads to a more maintainable codebase, even if it means more work in the short term.
 - Sometimes the right answer is "no", and the right response to a change is "no, not here, not now".
 - One of the few things worse than superfluous duplication is forced abstraction.
+
 - Often, when properly factored, the real world (and thus the way to model it) is surprisingly symmetrical at varying scales (types, functions, files, modules, sub-systems). Identifying symmetry and generalising it - even if only informally, no "real" language-level interface required - is extremely valuable (naming, parameter conventions, file names and placement, module layout, .. anything).
 - Symmetry applies at all scals, and it also applies to smaller things like the variants of a sum type. If the variants are not conceptually and lexically symmetric, that is often a model smell.
+
 - Logic should be "incrementally granular" (as per Casey Muratori), i.e., ideally we should be able to reuse logic _and_ state at various pieces of granularity.
 - Similarly, avoid "bag nouns" that exist only to separate out certain fields from a larger type / struct but add no real behavior or structure. Fewer, fatter structs are generally preferred unless there is a genuine domain or machine-empathy need for more granular factoring. 
 - Conceptually, incremental granularity means not hiding details too much, and assuming (especially internally, within the castle) that the caller is a consenting adult.
 - Relatedly, try hard to _avoid_ "banana and the jungle" shaped model solutions where pulling in one component requires pulling in a whole deep object graph (except in situations where there really are obvious god objects, like a current `World` in a game or whatever).
+
 - That said, it is often beneficial to have strong clear nouns and verbs tied together, as it's usually easier to think about state and responsibility when it is bundled with the relevant nouns (dare I say "objects", but no OOP abstraction "Dog extends Animal" nonsense).
 - Even associated functions (that don't depend on state at all) often benefit from being tied to relevant nouns in cases where one presents itself, just because it reads nicer.
 - More specifically, as a trivial example, when a function takes an array of something, try to make it work on a single "element" instead and just loop in the caller. Prefer parametric mutability. etc. etc., that sort of thing.
 - Usually, in each file, the "top" / most important nouns should go up top (constants at the very top above it), followed by successively more internal / inner nouns, and any relevant free functions at the very bottom (+ tests as needed ofc).
 - Generally, methods that _could_ be methods _should_ be methods - if we have a top level function like `foo(definition: &Definition) -> bool` we should probably just make that `Definition.foo`
+
 - Often, when we're tempted to add a matrix of methods like "x_for_y", the more pristine factoring is to back up and (re)align state and logic construction flows in a more natural way.
 - When a method mutates state it should be obvious by name and signature, and ideally we want to return mutated state / take the mutator instead of mutating internally when possible (e.g. `resolve_x` should return the resolved thing, not mutate an internal resolver cache and return void). This isn't always possible, and performance matters a lot, but when we can have both it's much preferred.
 - Whenever we have a large sequence of _anything_ (e.g. fields in a struct, variants in an enum, methods in a type, etc.), it's good to figure out how to group them logically and how to delineate conceptual boundaries (e.g., with blank lines, sometimes preceded with a line comment, always symmetrically across all "groups"). 
-
-### Boundaries
 
 - Prefer loud failures even and especially for invariants coming from other subsystems, and _especially_ for subsystems we control.
 - For example, if some upstream shape or contract implies a certain field in some state should be there at some point, but it's not, we MUST treat that as an error instead of working around it in any capacity.
@@ -122,14 +131,18 @@ match extracted {
 
 - Just like writing is editing, programming is refactoring, and we refactor as we go and as our understanding of the problem deepens and the right solution shape reveals itself.
 - If we do our job right, and have the right level of testing, refactors should be reasonably painless and only touch the parts of the model we actually needed.
+
 - If we find that refactors are touching more than it "should"; that is worthy of investigation and maybe we should broaden the refactor or do plan a follow up refactor to crispen the boundaries of the model (if we can, this doesn't always work unfortunately).
 - It is never acceptable, under any circumstance, to "paper over" or hide issues in other systems or subsystems while working. Any issue must be surfaced and discussed, and may only be ignored once explicitly acknowledged, discussed and deferred or dealt with.
+
 - As with factoring, we should always try to make our work easier as we go: "make the change easy, then make the change". This often means we _should_ abandon "intermediate" or "transitional" states and just go straight for the final model / solution we want.
 - Sometimes it is however easier to just rip out a component altogether and rewrite it completely, especially if it's say <5k LoC or so.
+
 - We should always strive to refactor and "clean" as we go, continuously re-audit and semantically compress where the opportunity presents itself. Nothing is final.
 - Relatedly, as we go, we must never assume that what is already there is good just because it exists, even if it's in use, even if it's already tested.
 - As a corollary, failing tests do not _always_ mean that the new code is wrong, the tests might also be wrong. That said, tests and expectations should never be silently changed without explicit prior discussion and agreement.
 - Before proposing / doing a refactoring, we must survey and understand the "Chesterton-fence" of the status quo. It is always possible that some behavior is wrong, underspecified, or just out of date, but we should understand how it got there and why it might be that way before we change it.
+
 - Every noun, verb, type, variant, field, line, .. must be earned. The final model should capture the essential complexity of the problem in its most pristine form, nothing more, nothing less.
 - Bloat is deadly, and often we only realise something was bloated as we get further along and the true shape of the problem reveals itself (hence, refactor as we go)
 - Never introduce "transitional" or "for now" logic, we always want the final ideal shape, nothing in between (unless explicitly requested).
