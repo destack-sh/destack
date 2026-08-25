@@ -7,9 +7,6 @@ import { Fiber } from "./fiber.ds";
 import { queueMicrotask } from "./task.ds";
 
 /// Value produced by asynchronous execution.
-///
-/// A promise never rejects in Destack: recoverable failure remains an explicit `Result` value, and
-/// panic remains the Worker fault boundary. Every observer receives the same copyable value.
 @languageItem("async.Promise")
 export local class Promise<T: Copy> implements Awaitable<T> {
     /// The current settlement state.

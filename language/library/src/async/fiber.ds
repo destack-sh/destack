@@ -1,9 +1,6 @@
 import { Copy } from "destack:memory";
 
 /// Cooperative execution on the current Worker.
-///
-/// A fiber handle names one parked or running execution for wake delivery. Handles are plain
-/// identities: copying one never copies the execution.
 @languageItem("async.Fiber")
 export local struct Fiber implements Copy {
     /// Opaque fiber identity.

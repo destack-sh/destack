@@ -6,9 +6,6 @@ import { Fiber } from "./fiber.ds";
 import { Promise } from "./promise.ds";
 
 /// Single-consumer asynchronous result.
-///
-/// Awaiting a task moves its result out. Cancellation is delivered cooperatively when its producer
-/// parks.
 @languageItem("async.Task")
 export local struct Task<T> implements Awaitable<T>, Drop {
     /// Shared task state.
@@ -269,8 +266,8 @@ local struct TaskTaken {
 
 /// Structured owner of spawned tasks.
 ///
-/// Asynchronous disposal waits for every child before it completes. Cancellation requests are
-/// delivered cooperatively at cancellable asynchronous operations.
+/// Asynchronous disposal waits for every child before it completes.
+/// Cancellation requests are delivered cooperatively at cancellable asynchronous operations.
 @languageItem("async.TaskScope")
 export local struct TaskScope implements AsyncDispose, Drop {
     /// Opaque task scope identity.

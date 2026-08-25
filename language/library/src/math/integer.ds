@@ -154,13 +154,13 @@ export extension<T: Integer> of T {
         swapBytes(this)
     }
 
-    /// Return this value with bytes interpreted as big-endian.
-    fromBigEndian(): T {
+    /// Return `value` with bytes interpreted as big-endian.
+    static fromBigEndian(value: T): T {
         todo("Integer.fromBigEndian")
     }
 
-    /// Return this value with bytes interpreted as little-endian.
-    fromLittleEndian(): T {
+    /// Return `value` with bytes interpreted as little-endian.
+    static fromLittleEndian(value: T): T {
         todo("Integer.fromLittleEndian")
     }
 
