@@ -12,9 +12,11 @@ declare_lint! {
         summary: "Require canonical casing for declared identifiers",
         explanation: r#"
 Identifier casing communicates whether a declaration introduces a type or a value.
-Instead, you SHOULD use PascalCase for types, variants, extensions, and type parameters, and camelCase for values, functions, labels, and value parameters.
+You SHOULD use PascalCase for types, variants, extensions, and generic parameters, and camelCase for values, functions, labels, and value parameters.
 
-Acronyms are cased as words.
+Constants use the same camelCase as other values.
+Newtypes MAY use camelCase when they act as decorators.
+Acronyms MAY retain an established platform spelling.
 Imports, string-named members, foreign declarations, protocol implementations, and generated declarations retain their imposed names.
 "#,
         example: {
@@ -36,48 +38,46 @@ struct UserRecord {
     }
 }
 
-/// The canonical case required by one declaration kind.
+/// The identifier style selected by one declaration kind.
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum IdentifierCase {
-    /// A lower camel-case identifier.
-    Camel,
-    /// An upper camel-case identifier.
-    Pascal,
+enum IdentifierStyle {
+    /// An ordinary value name.
+    Value,
+    /// A type-level name.
+    Type,
+    /// A newtype used as a type or decorator.
+    Newtype,
+    /// A module namespace.
+    Namespace,
+    /// A lifetime parameter.
+    Lifetime,
 }
 
-impl IdentifierCase {
-    /// Return whether one identifier has this case.
+impl IdentifierStyle {
+    /// Return whether one identifier has this style.
     fn matches(self, identifier: &str) -> bool {
-        let mut characters = identifier.chars();
-        let Some(first) = characters.next() else {
-            return false;
+        let identifier = match self {
+            Self::Lifetime => identifier.strip_prefix('\'').unwrap_or(identifier),
+            _ => identifier,
         };
-        let has_expected_initial = match self {
-            Self::Camel => first.is_lowercase(),
-            Self::Pascal => first.is_uppercase(),
-        };
-        if !has_expected_initial {
-            return false;
-        }
 
-        // treat acronyms as words and exclude identifier punctuation
-        let mut was_uppercase = first.is_uppercase();
-        for character in characters {
-            let is_uppercase = character.is_uppercase();
-            if !character.is_alphanumeric() || is_uppercase && was_uppercase {
-                return false;
+        match self {
+            Self::Value | Self::Lifetime => matches_case(identifier, false),
+            Self::Type => matches_case(identifier, true),
+            Self::Newtype | Self::Namespace => {
+                matches_case(identifier, false) || matches_case(identifier, true)
             }
-            was_uppercase = is_uppercase;
         }
-
-        true
     }
 
-    /// Return the source name of this case.
+    /// Return the source description of this style.
     fn name(self) -> &'static str {
         match self {
-            Self::Camel => "camelCase",
-            Self::Pascal => "PascalCase",
+            Self::Value => "camelCase",
+            Self::Type => "PascalCase",
+            Self::Newtype => "camelCase or PascalCase",
+            Self::Namespace => "camelCase or PascalCase",
+            Self::Lifetime => "lower camelCase after the apostrophe",
         }
     }
 
@@ -85,12 +85,13 @@ impl IdentifierCase {
     fn noun(self, kind: dir::SymbolKind) -> &'static str {
         match (self, kind) {
             (_, dir::SymbolKind::Label) => "label",
-            (Self::Camel, _) => "value",
-            (Self::Pascal, _) => "type",
+            (Self::Type | Self::Newtype, _) => "type",
+            (Self::Namespace, _) => "namespace",
+            (Self::Value | Self::Lifetime, _) => "value",
         }
     }
 
-    /// Resolve the required case for one declaration.
+    /// Resolve the style selected by one declaration.
     fn resolve(
         kind: dir::SymbolKind,
         declaration: dir::GlobalNodeIdAny,
@@ -109,26 +110,26 @@ impl IdentifierCase {
             | dir::SymbolKind::Class
             | dir::SymbolKind::Enum
             | dir::SymbolKind::Extension
+            | dir::SymbolKind::GenericConstParameter
             | dir::SymbolKind::GenericTypeParameter
             | dir::SymbolKind::Interface
-            | dir::SymbolKind::Newtype
             | dir::SymbolKind::NewtypeInterface
             | dir::SymbolKind::Struct
             | dir::SymbolKind::TypeAlias
-            | dir::SymbolKind::Variant => Some(Self::Pascal),
+            | dir::SymbolKind::Variant => Some(Self::Type),
+            dir::SymbolKind::Newtype => Some(Self::Newtype),
+            dir::SymbolKind::GenericLifetimeParameter => Some(Self::Lifetime),
             dir::SymbolKind::AssociatedConst
             | dir::SymbolKind::Function
-            | dir::SymbolKind::GenericConstParameter
-            | dir::SymbolKind::GenericLifetimeParameter
             | dir::SymbolKind::Import
             | dir::SymbolKind::Label
             | dir::SymbolKind::Parameter
-            | dir::SymbolKind::Variable => Some(Self::Camel),
+            | dir::SymbolKind::Variable => Some(Self::Value),
             dir::SymbolKind::ExportAlias => None,
         }
     }
 
-    /// Resolve the case selected by one public export alias target.
+    /// Resolve the style selected by one public export alias target.
     fn resolve_export(
         declaration: dir::GlobalNodeIdAny,
         module: &DirModule<'_>,
@@ -141,7 +142,7 @@ impl IdentifierCase {
         })?;
         let targets = match reference {
             dir::Reference::Bound(symbols) => symbols,
-            dir::Reference::Namespace { .. } => return Ok(Some(Self::Camel)),
+            dir::Reference::Namespace { .. } => return Ok(Some(Self::Namespace)),
             dir::Reference::Ambiguous(_)
             | dir::Reference::TypeLiteral(_)
             | dir::Reference::Missing => return Ok(None),
@@ -159,7 +160,7 @@ impl IdentifierCase {
             )));
         }
 
-        // require every exported declaration to select the same case
+        // require every exported declaration to select the same style
         let mut selected = None;
         for target in targets {
             let target_module = module.dir.module(target.module_id)?;
@@ -179,6 +180,24 @@ impl IdentifierCase {
 
         Ok(selected)
     }
+}
+
+/// Return whether one identifier starts with the requested case and contains no punctuation.
+fn matches_case(identifier: &str, is_pascal: bool) -> bool {
+    let mut characters = identifier.chars();
+    let Some(first) = characters.next() else {
+        return false;
+    };
+    let has_expected_initial = if is_pascal {
+        first.is_uppercase()
+    } else {
+        first.is_lowercase()
+    };
+    if !has_expected_initial {
+        return false;
+    }
+
+    characters.all(char::is_alphanumeric)
 }
 
 /// Report symbols whose names do not match their declaration kind.
@@ -213,23 +232,33 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // require the case selected by the declaration kind
-        let case = IdentifierCase::resolve(symbol.kind, declaration, module)?;
-        let Some(case) = case else {
+        let global_symbol = symbol_id.into_global(module.id);
+        if module.dir.language_item(global_symbol).is_some()
+            || module.dir.language_member(global_symbol)?.is_some()
+        {
+            continue;
+        }
+        let style = IdentifierStyle::resolve(symbol.kind, declaration, module)?;
+        let Some(style) = style else {
             continue;
         };
         let name = module.dir.strings.get(name);
-        let has_generic_prefix = symbol.kind == dir::SymbolKind::GenericTypeParameter
-            && name
-                .strip_prefix('T')
-                .is_some_and(|name| !name.is_empty() && IdentifierCase::Pascal.matches(name));
-        if case.matches(name) || has_generic_prefix {
+        let name = if matches!(
+            symbol.kind,
+            dir::SymbolKind::Parameter | dir::SymbolKind::Variable
+        ) {
+            name.strip_prefix('_').unwrap_or(name)
+        } else {
+            name
+        };
+        if style.matches(name) {
             continue;
         }
 
         // report the declaration name
         let span = module.main_span(declaration.local_id)?;
-        let noun = case.noun(symbol.kind);
-        let message = format!("{noun} name `{name}` must use {}", case.name());
+        let noun = style.noun(symbol.kind);
+        let message = format!("{noun} name `{name}` must use {}", style.name());
         output.report(lint.diagnostic(message, span));
     }
 
@@ -369,6 +398,7 @@ warning[identifier-case]: value name `User_name` must use camelCase
 struct UserRecord<TValue> {
     displayName: TValue;
 }
+
 function loadUser(userId: string): void {}
 "#,
         );
@@ -411,6 +441,7 @@ warning[identifier-case]: label name `OuterLoop` must use camelCase
 struct GpuBuffer {
     resourceId: int32;
 }
+
 function toJson(value: GpuBuffer): string {
     return "";
 }
@@ -420,41 +451,152 @@ function toJson(value: GpuBuffer): string {
         session.assert_no_diagnostics();
     }
 
-    /// Report consecutive capitals in acronyms.
+    /// Accept established initialism casing.
     #[test]
-    fn test_reports_uppercase_acronyms() {
+    fn test_accepts_established_initialisms() {
         let session = TestSession::dir(
             &IDENTIFIER_CASE,
             r#"
 struct GPUBuffer {}
+
 function toJSON(value: GPUBuffer): string {
     return "";
 }
 "#,
         );
 
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept value-cased and type-cased namespace aliases.
+    #[test]
+    fn test_accepts_namespace_aliases() {
+        let session = TestSession::dir_files(
+            &IDENTIFIER_CASE,
+            "main.ds",
+            r#"
+export * as Now from "./now.ds";
+
+export * as utilities from "./utilities.ds";
+"#,
+            &[
+                ("now.ds", "export const instant = 1;"),
+                ("utilities.ds", "export const value = 1;"),
+            ],
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept camelCase module and associated constant names.
+    #[test]
+    fn test_accepts_constant_names() {
+        let session = TestSession::dir(
+            &IDENTIFIER_CASE,
+            r#"
+export const fileOpenRead: uint32 = 1;
+
+export const defaultLimit: uint32 = 64;
+
+export newtype FileOpenFlags = uint32;
+
+export extension of FileOpenFlags {
+    const read = FileOpenFlags(1);
+}
+
+struct Limits {
+    static readonly maxSize: uint32 = 64;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Report module, associated, and local constants outside value case.
+    #[test]
+    fn test_reports_uppercase_constants() {
+        let session = TestSession::dir(
+            &IDENTIFIER_CASE,
+            r#"
+export const DEFAULT_LIMIT = 64;
+
+struct Limits {
+    static readonly MAX_SIZE: uint32 = 64;
+}
+
+function load(): void {
+    const LOCAL_LIMIT = 32;
+}
+"#,
+        );
+
         session.assert_diagnostics(
             r#"
-warning[identifier-case]: type name `GPUBuffer` must use PascalCase
- ──▶ main.ds:1:8
+warning[identifier-case]: value name `DEFAULT_LIMIT` must use camelCase
+ ──▶ main.ds:1:14
   │
-1 │ struct GPUBuffer {}
-  │        ^^^^^^^^^
-2 │ function toJSON(value: GPUBuffer): string {
-3 │     return "";
+1 │ export const DEFAULT_LIMIT = 64;
+  │              ^^^^^^^^^^^^^
+2 │
+3 │ struct Limits {
   │
 
-warning[identifier-case]: value name `toJSON` must use camelCase
- ──▶ main.ds:2:10
+warning[identifier-case]: value name `MAX_SIZE` must use camelCase
+ ──▶ main.ds:4:21
   │
-1 │ struct GPUBuffer {}
-2 │ function toJSON(value: GPUBuffer): string {
-  │          ^^^^^^
-3 │     return "";
-4 │ }
+2 │
+3 │ struct Limits {
+4 │     static readonly MAX_SIZE: uint32 = 64;
+  │                     ^^^^^^^^
+5 │ }
+6 │
+  │
+
+warning[identifier-case]: value name `LOCAL_LIMIT` must use camelCase
+ ──▶ main.ds:8:11
+  │
+6 │
+7 │ function load(): void {
+8 │     const LOCAL_LIMIT = 32;
+  │           ^^^^^^^^^^^
+9 │ }
   │
 "#,
         );
+    }
+
+    /// Accept generic parameters and intentionally unused bindings.
+    #[test]
+    fn test_accepts_generic_and_unused_names() {
+        let session = TestSession::dir(
+            &IDENTIFIER_CASE,
+            r#"
+struct Buffer<T, 'a, const N: usize> {
+    values: &'a readonly [T; N];
+}
+
+function observe(_value: Buffer<string, 'static, 4>): void {}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept value-cased decorator newtypes.
+    #[test]
+    fn test_accepts_decorator_newtype_name() {
+        let session = TestSession::dir(
+            &IDENTIFIER_CASE,
+            r#"
+newtype traced = (string,) | ();
+
+@traced("load")
+function load(): void {}
+"#,
+        );
+
+        session.assert_no_diagnostics();
     }
 
     /// Accept string-named members.
@@ -481,7 +623,9 @@ interface ForeignShape {
 declare interface ForeignProtocol {
     snake_name(): void;
 }
+
 struct Value {}
+
 extension of Value implements ForeignProtocol {
     snake_name(): void {}
 }
@@ -500,7 +644,9 @@ extension of Value implements ForeignProtocol {
 newtype interface ForeignProtocol {
     snake_name(): void {}
 }
+
 struct Value {}
+
 extension of Value implements ForeignProtocol {}
 "#,
         );
@@ -514,7 +660,7 @@ warning[identifier-case]: value name `snake_name` must use camelCase
 2 │     snake_name(): void {}
   │     ^^^^^^^^^^
 3 │ }
-4 │ struct Value {}
+4 │
   │
 "#,
         );
@@ -605,6 +751,7 @@ warning[identifier-case]: value name `display_name` must use camelCase
             &IDENTIFIER_CASE,
             r#"
 function load(): void {}
+
 export { load as Load };
 "#,
         );
@@ -612,10 +759,11 @@ export { load as Load };
         session.assert_diagnostics(
             r#"
 warning[identifier-case]: value name `Load` must use camelCase
- ──▶ main.ds:2:18
+ ──▶ main.ds:3:18
   │
 1 │ function load(): void {}
-2 │ export { load as Load };
+2 │
+3 │ export { load as Load };
   │                  ^^^^
   │
 "#,

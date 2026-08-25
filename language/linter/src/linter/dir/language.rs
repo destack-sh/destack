@@ -4,6 +4,11 @@ use destack_repository::ProviderError;
 use super::{Dir, DirModule};
 
 impl Dir<'_> {
+    /// Return the canonical language item represented by one symbol.
+    pub(crate) fn language_item(&self, symbol: dir::GlobalSymbolId) -> Option<dir::LanguageItem> {
+        self.environment.language.item(symbol)
+    }
+
     /// Return the written derive selection for one nominal declaration.
     pub(crate) fn written_derives(
         &self,
