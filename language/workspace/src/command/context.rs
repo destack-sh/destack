@@ -256,9 +256,11 @@ impl<'a> CommandContext<'a> {
             })?;
             let content = format!("{content}\n");
             let logical_path = repository.logical_path(&path);
-            let blob = repository.put_blob(content.as_bytes()).map_err(|error| {
-                CommandError::internal(format!("failed to store {}: {error}", path.display()))
-            })?;
+            let blob = repository
+                .retain_blob(content.as_bytes())
+                .map_err(|error| {
+                    CommandError::internal(format!("failed to store {}: {error}", path.display()))
+                })?;
 
             edits.push(repository::Edit::set_file(logical_path, blob));
         }
@@ -427,7 +429,7 @@ impl<'a> CommandContext<'a> {
         let logical_path = path.to_string_lossy();
         let blob = self
             .repository
-            .put_blob(content.as_bytes())
+            .retain_blob(content.as_bytes())
             .map_err(|error| format!("failed to store command input {name}: {error}"))?;
         let edit = repository::Edit::set_file(logical_path, blob);
         let after = self

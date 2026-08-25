@@ -21,7 +21,7 @@ impl Workspace {
         let path = path.into();
         let path = std::fs::canonicalize(&path).map_err(|source| Error::Io { path, source })?;
         let file_system = Arc::new(PhysicalFileSystem);
-        let build_id = BuildId::current().map_err(|error| RepositoryError::ArtifactStore {
+        let build_id = BuildId::current().map_err(|error| RepositoryError::InvalidArtifact {
             message: format!("failed to identify Destack build: {error}"),
         })?;
         let host = Host::new(build_id, Environment::capture_process(), file_system);

@@ -168,21 +168,26 @@ impl QueryRun {
                 diagnostics.complete().await?;
             }
 
-            // execute against the pinned revision until all lazy artifacts are ready
+            // execute against the pinned revision until every requested artifact is ready
             let revision = session.revision();
-            let mut provided = Vec::new();
             let response = trace
                 .span_async("query", async {
                     loop {
-                        // reject artifact reads that have not been provided by this run
+                        // collect only artifacts absent from the exact revision
                         let require = |keys: &[ArtifactKey]| {
-                            let mut missing = keys
-                                .iter()
-                                .filter(|key| !provided.contains(*key))
-                                .copied()
-                                .collect::<Vec<_>>();
+                            let mut missing = Vec::new();
+                            for key in keys {
+                                let outcome = session
+                                    .repository()
+                                    .current_artifact_outcome(revision, key)
+                                    .map_err(QueryError::from)?;
+                                if outcome.is_none() {
+                                    missing.push(*key);
+                                }
+                            }
                             missing.sort_unstable();
                             missing.dedup();
+
                             if missing.is_empty() {
                                 Ok(())
                             } else {
@@ -190,7 +195,7 @@ impl QueryRun {
                             }
                         };
 
-                        // execute until the query completes or requests unavailable artifacts
+                        // execute until the query completes or reaches an absent artifact
                         let response = request.clone().execute(
                             session.repository(),
                             revision,
@@ -209,11 +214,8 @@ impl QueryRun {
                             response => break response.map_err(Error::from),
                         };
 
-                        // provide missing artifacts before restarting exact query execution
+                        // provide missing artifacts before the next exact execution
                         artifacts.require(&missing).await?;
-                        provided.extend(missing);
-                        provided.sort_unstable();
-                        provided.dedup();
                     }
                 })
                 .await?;

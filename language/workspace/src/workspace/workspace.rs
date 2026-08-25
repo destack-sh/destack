@@ -507,7 +507,7 @@ impl Workspace {
         let bytes = payload.as_ref().encode().map_err(|error| Error::Internal {
             detail: error.to_string(),
         })?;
-        let blob = self.repository.put_blob(bytes.as_ref())?;
+        let blob = self.repository.retain_blob(bytes.as_ref())?;
 
         Ok(blob)
     }
@@ -546,27 +546,13 @@ impl Workspace {
             });
         }
 
-        if let Some(payload) = self.artifact_payload_in_memory(artifact)? {
-            return Ok(payload);
-        }
-
-        if let Some(payload) = self.repository.load_artifact(artifact.version)? {
+        if let Some(payload) = self.repository.artifact_table().payload(&artifact.version) {
             return Ok(payload);
         }
 
         Err(Error::Internal {
             detail: format!("artifact payload is missing for {:?}", artifact.version),
         })
-    }
-
-    /// Return one in-memory artifact payload by exact version.
-    fn artifact_payload_in_memory(
-        &self,
-        artifact: ArtifactReference,
-    ) -> Result<Option<ArtifactPayload>, Error> {
-        let payload = self.repository.artifact_table().payload(&artifact.version);
-
-        Ok(payload)
     }
 
     /// Return one artifact payload by key in one revision.

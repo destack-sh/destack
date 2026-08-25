@@ -122,20 +122,20 @@ impl Workspace {
         let edit = match edit {
             Edit::SetText { path, text } => {
                 let path = self.logical_path(&path)?;
-                let blob = self.repository.put_blob(text.as_bytes())?;
+                let blob = self.repository.retain_blob(text.as_bytes())?;
 
                 repository::Edit::set_file(path, blob)
             }
             Edit::EditText { path, patches } => {
                 let logical_path = self.logical_path(&path)?;
                 let text = self.apply_text_patches(revision, &path, &logical_path, patches)?;
-                let blob = self.repository.put_blob(text.as_bytes())?;
+                let blob = self.repository.retain_blob(text.as_bytes())?;
 
                 repository::Edit::set_file(logical_path, blob)
             }
             Edit::SetBytes { path, bytes } => {
                 let logical_path = self.logical_path(&path)?;
-                let blob = self.repository.put_blob(&bytes)?;
+                let blob = self.repository.retain_blob(&bytes)?;
 
                 repository::Edit::set_file(logical_path, blob)
             }
