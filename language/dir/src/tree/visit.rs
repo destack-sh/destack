@@ -14,14 +14,8 @@ use crate::{
     walk_where_clause,
 };
 
-#[derive(Debug, Clone, Default)]
-pub struct NodeVisitorOptions {}
-
 /// A NodeVisitor is a visitor for the parsed DIR.
 pub trait NodeVisitor {
-    /// Get the options for the visitor.
-    fn options(&self) -> &NodeVisitorOptions;
-
     #[inline]
     fn visit_any(&mut self, _tree: &Tree, _ty: NodeType, _id: u32) {
         // nothing to do
@@ -250,8 +244,6 @@ pub trait NodeVisitor {
 pub(crate) struct DirectChildCollector {
     /// The node ids collected during the current walk.
     node_ids: SmallVec<[u32; 8]>,
-    /// The visitor options.
-    options: NodeVisitorOptions,
 }
 
 impl DirectChildCollector {
@@ -282,10 +274,6 @@ impl DirectChildCollector {
 
 impl NodeVisitor for DirectChildCollector {
     #[inline]
-    fn options(&self) -> &NodeVisitorOptions {
-        &self.options
-    }
-
     fn visit_any(&mut self, _tree: &Tree, _ty: NodeType, id: u32) {
         self.node_ids.push(id);
     }

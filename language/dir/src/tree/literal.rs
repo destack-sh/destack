@@ -219,10 +219,10 @@ impl Literal {
 
     /// Return whether this literal's family stores every member identically.
     ///
-    /// Numeric families span carriers of different widths, so a numeric
+    /// Numeric families span representations of different widths, so a numeric
     /// literal names no single storage representation; string-like families
-    /// have exactly one carrier and widen as stored.
-    pub fn has_uniform_carrier(&self) -> bool {
+    /// have exactly one representation and widen as stored.
+    pub fn has_uniform_representation(&self) -> bool {
         match self {
             Self::String(_)
             | Self::Character(_)

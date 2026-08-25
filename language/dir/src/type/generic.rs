@@ -144,8 +144,8 @@ pub enum MemoryParameter {
     Place,
     /// Concrete storage space.
     Space,
-    /// Borrow lifetime.
-    Lifetime,
+    /// Borrow region.
+    Region,
 }
 
 impl MemoryParameter {
@@ -156,7 +156,7 @@ impl MemoryParameter {
             Self::Ownership => LanguageItem::Ownership,
             Self::Place => LanguageItem::Place,
             Self::Space => LanguageItem::Space,
-            Self::Lifetime => LanguageItem::Lifetime,
+            Self::Region => LanguageItem::Region,
         }
     }
 
@@ -167,7 +167,8 @@ impl MemoryParameter {
             LanguageItem::Ownership => Some(Self::Ownership),
             LanguageItem::Place => Some(Self::Place),
             LanguageItem::Space => Some(Self::Space),
-            LanguageItem::Lifetime => Some(Self::Lifetime),
+            LanguageItem::Lifetime => Some(Self::Region),
+            LanguageItem::Region => Some(Self::Region),
             _ => None,
         }
     }
@@ -432,9 +433,19 @@ impl GenericParameterBinding {
         }
     }
 
-    /// Return whether this parameter is an induced elided lifetime.
-    pub fn is_induced_lifetime_parameter(&self) -> bool {
-        self.induced_memory_parameter() == Some(MemoryParameter::Lifetime)
+    /// Return whether this parameter is an induced elided region.
+    pub fn is_induced_region_parameter(&self) -> bool {
+        self.induced_memory_parameter() == Some(MemoryParameter::Region)
+    }
+
+    /// Return whether this parameter demands instances: regions erase and induced
+    /// memory parameters ground at the ambient space, so neither instantiates.
+    pub fn is_instance_parameter(&self) -> bool {
+        match self.kind {
+            GenericParameterKind::Type => true,
+            GenericParameterKind::Memory(MemoryParameter::Region) => false,
+            GenericParameterKind::Memory(_) => self.origin != GenericParameterOrigin::Induced,
+        }
     }
 }
 

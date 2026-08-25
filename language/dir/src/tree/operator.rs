@@ -116,7 +116,7 @@ impl OperatorPrecedence {
     }
 }
 
-/// The end-bound spelling of one range.
+/// The end-bound form of one range.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum RangeEnd {
     /// `..`, excluding the end when present.

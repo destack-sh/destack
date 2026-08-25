@@ -17,7 +17,7 @@ pub enum PlaceModifier {
 }
 
 impl PlaceModifier {
-    /// Return the keyword spelling for this placement modifier.
+    /// Return the keyword text of this placement modifier.
     pub const fn keyword(self) -> Keyword {
         match self {
             Self::Local => Keyword::Local,
@@ -329,7 +329,7 @@ impl Declaration {
         }
     }
 
-    /// Get the name of the declaration.
+    /// Return the name of the declaration.
     #[inline]
     pub fn name(&self) -> Option<Name> {
         match self {
@@ -376,7 +376,7 @@ impl Declaration {
         }
     }
 
-    /// Get the declaration-body member ids for structured declarations.
+    /// Return the body member ids for structured declarations.
     #[inline]
     pub fn member_ids(&self) -> Option<&[LocalNodeId<Member>]> {
         match self {
@@ -389,7 +389,7 @@ impl Declaration {
         }
     }
 
-    /// Get the type-surface member ids for interface declarations.
+    /// Return the type member ids for interface declarations.
     #[inline]
     pub fn type_member_ids(&self) -> Option<&[LocalNodeId<TypeMember>]> {
         match self {
@@ -398,7 +398,7 @@ impl Declaration {
         }
     }
 
-    /// Get the generic parameters of the declaration.
+    /// Return the generic parameters of the declaration.
     #[inline]
     pub fn generic_parameters(&self) -> Option<&[LocalNodeId<GenericParameter>]> {
         match self {
@@ -428,7 +428,7 @@ impl Declaration {
         }
     }
 
-    /// Get the implemented interface types of the declaration.
+    /// Return the implemented interface types of the declaration.
     #[inline]
     pub fn implements_types(&self) -> Option<&[LocalNodeId<TypeExpression>]> {
         match self {

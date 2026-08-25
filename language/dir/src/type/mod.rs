@@ -1,4 +1,5 @@
 mod access;
+mod fingerprint;
 mod fold;
 mod generic;
 mod predicate;
@@ -11,6 +12,7 @@ mod selection;
 mod r#type;
 
 pub use access::*;
+pub use fingerprint::*;
 pub use fold::*;
 pub use generic::*;
 pub use predicate::*;

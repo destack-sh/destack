@@ -128,17 +128,17 @@ pub enum CoercionAdjustment {
         /// The selected conversion for each possible source type.
         cases: Vec<CoercionCase>,
     },
-    /// Erase the value behind its constraint carrier, like an interface or `unknown`.
+    /// Erase the value behind its constraint representation, like an interface or `unknown`.
     Erase {
-        /// The erased carrier type after this adjustment.
+        /// The erased representation type after this adjustment.
         target: GlobalTypeId,
     },
-    /// Convert between scalar carriers, like `int32` into `float64`.
+    /// Convert between scalar representations, like `int32` into `float64`.
     Scalar {
         /// The scalar type after this adjustment.
         target: GlobalTypeId,
     },
-    /// Materialize one const scalar at its selected carrier, like `42` into `int32`.
+    /// Materialize one const scalar at its selected representation, like `42` into `int32`.
     Widen {
         /// The scalar type after this adjustment.
         target: GlobalTypeId,
@@ -153,9 +153,9 @@ pub enum CoercionAdjustment {
         /// The managed type after this adjustment.
         target: GlobalTypeId,
     },
-    /// Change the value carrier, like `^T` into `&T` or `T[]` into `[T]`.
-    Carrier {
-        /// The carrier type after this adjustment.
+    /// Change the value representation, like `^T` into `&T` or `T[]` into `[T]`.
+    Representation {
+        /// The representation type after this adjustment.
         target: GlobalTypeId,
     },
     /// Materialize one generic callable reference at its selected concrete instance.
@@ -231,7 +231,7 @@ impl CoercionAdjustment {
             | Self::Widen { target }
             | Self::Tuple { target }
             | Self::Manage { target }
-            | Self::Carrier { target }
+            | Self::Representation { target }
             | Self::Instantiate { target, .. } => *target,
         }
     }
@@ -247,7 +247,7 @@ impl CoercionAdjustment {
             Self::Widen { .. } => "widen",
             Self::Tuple { .. } => "tuple",
             Self::Manage { .. } => "manage",
-            Self::Carrier { .. } => "carrier",
+            Self::Representation { .. } => "representation",
             Self::Instantiate { .. } => "instantiate",
         }
     }
@@ -276,12 +276,12 @@ impl CoercionAdjustment {
             return Some(Self::Erase { target: target_id });
         }
 
-        // sized sequences and thin pointers convert into their fat carriers
+        // sized sequences and thin pointers convert into their fat representations
         if matches!(
             (source, target),
             (Type::FixedArray(_), Type::Slice(_)) | (Type::FunctionPointer(_), Type::Function(_))
         ) {
-            return Some(Self::Carrier { target: target_id });
+            return Some(Self::Representation { target: target_id });
         }
 
         // scalar singletons are const: widening materializes them
@@ -292,7 +292,7 @@ impl CoercionAdjustment {
             return Some(Self::Widen { target: target_id });
         }
 
-        // distinct scalar carriers convert their stored values
+        // distinct scalar representations convert their stored values
         if let (Type::Primitive(source), Type::Primitive(target)) = (source, target)
             && source.widens_to(*target)
         {

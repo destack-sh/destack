@@ -250,8 +250,8 @@ impl Type {
         Some(domain)
     }
 
-    /// Return the primitive carrier selected when this scalar must store a runtime value.
-    pub fn scalar_carrier(&self) -> Option<Self> {
+    /// Return the primitive representation selected when this scalar must store a runtime value.
+    pub fn scalar_representation(&self) -> Option<Self> {
         let primitive = match self {
             Self::Primitive(_) => return Some(*self),
             Self::Literal(literal) => return Some(literal.widen()),
@@ -334,6 +334,7 @@ impl Type {
     }
 
     /// Return the symbolic leaf kind contributed by this type alone.
+    ///
     /// A stored type joins this bit with every child type's flags.
     pub fn own_flags(&self) -> TypeFlags {
         match self {
@@ -401,7 +402,7 @@ impl Type {
             Self::Form(form) => collect(form.value.module_id),
             Self::Region(region) => {
                 collect(region.extent.module_id);
-                collect(region.spaces.module_id);
+                collect(region.space.module_id);
             }
             Self::Dynamic(dynamic) => collect(dynamic.constraint.module_id),
             Self::FixedArray(array) => {
@@ -741,16 +742,18 @@ impl std::fmt::Display for RigidIndex {
 }
 
 /// One open inference variable inside a checked component.
-/// Component-scoped solver working state like `ConstraintId`: committed
-/// tables never contain variables, so the id needs no module qualification.
+///
+/// This is component-scoped solver state like `ConstraintId`.
+/// Every committed table is variable free, so the id needs no module qualification.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
 pub struct TypeVariableId(pub u32);
 
 /// One interned list inside the owning module's type storage.
-/// Composite types never own their payload lists: the id addresses elements
-/// interned beside the type, which keeps every type small and `Copy`.
+///
+/// The id addresses elements interned beside the composite type that reads them.
+/// This keeps every type small and `Copy`.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
@@ -786,10 +789,10 @@ impl TypeListId {
     }
 }
 
-/// Singleton type of one normalized memory value.
-/// Literal spellings at language-item-typed positions normalize here:
-/// the `"exclusive"` in `Borrowed<User, L, "exclusive">` commits as
 /// Normalized memory access value, ordered from the weakest to the strongest access.
+///
+/// A literal text at a language-item-typed position normalizes here.
+/// The `"exclusive"` in `Borrowed<User, L, "exclusive">` commits as `Access::Exclusive`.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
@@ -817,7 +820,7 @@ impl Access {
             || (self == Self::Mutable && requested == Self::Readonly)
     }
 
-    /// Return the source spelling of this access.
+    /// Return the canonical text of this access.
     pub const fn text(self) -> &'static str {
         match self {
             Self::Readonly => "readonly",
@@ -834,12 +837,12 @@ pub enum Space {
     Local,
     /// Shared storage.
     Shared,
-    /// Immutable link-written storage, derived and never spelled in source.
+    /// Immutable link-written storage, derived by the linker.
     Constant,
 }
 
 impl Space {
-    /// Return the canonical spelling of this space.
+    /// Return the canonical text of this space.
     pub const fn text(self) -> &'static str {
         match self {
             Self::Local => "local",
@@ -866,7 +869,7 @@ pub enum Lifetime {
 }
 
 impl Lifetime {
-    /// Return the canonical spelling of this lifetime.
+    /// Return the canonical text of this lifetime.
     pub const fn text(self) -> &'static str {
         match self {
             Self::Static => "static",
@@ -967,8 +970,8 @@ pub struct VariantType {
 pub struct RegionType {
     /// The lifetime extent: a lifetime singleton, parameter, or variable.
     pub extent: GlobalTypeId,
-    /// The referent spaces: a space literal or union of space literals.
-    pub spaces: GlobalTypeId,
+    /// The referent space: a space literal, parameter, or variable.
+    pub space: GlobalTypeId,
 }
 
 /// Canonical memory or access form.
@@ -1001,7 +1004,7 @@ impl Ownership {
             .find(|ownership| value == StringId::for_text(ownership.text()))
     }
 
-    /// Return the canonical singleton spelling.
+    /// Return the canonical singleton text.
     pub fn text(self) -> &'static str {
         match self {
             Self::Managed => "managed",
@@ -1054,13 +1057,13 @@ impl Form {
         match (self, target) {
             // family-default targets accept every receiver
             (_, Form::Managed { .. }) => true,
-            // owned targets consume, only owned receivers reach them
+            // owned targets consume, only owned receivers match them
             (Form::Owned, Form::Owned) => true,
             (_, Form::Owned) => false,
             // borrow targets accept reborrowable receivers
             (Form::Owned | Form::Managed { .. }, Form::Borrowed(_)) => true,
             (Form::Borrowed(_), Form::Borrowed(_)) => true,
-            // raw pointers only reach raw targets
+            // raw pointers match only raw targets
             (Form::Raw, Form::Raw) => true,
             _ => false,
         }
@@ -1675,7 +1678,7 @@ impl StaticBinaryOperator {
                 Literal::Boolean(equal != negated)
             }
 
-            // logical joins reach here only with non-boolean operands
+            // logical joins arrive here only with non-boolean operands
             (Operator::And | Operator::Or, _, _) => {
                 return Err("logical operator requires boolean operands");
             }
@@ -1980,7 +1983,7 @@ impl RangeType {
 
     /// Return whether this interval contains another interval.
     pub fn contains_range(&self, inner: &RangeType) -> bool {
-        // the outer start must not exceed the inner start
+        // the outer start must stay at or below the inner start
         let start_holds = match (&self.start, &inner.start) {
             (None, _) => true,
             (Some(_), None) => false,
@@ -1993,7 +1996,7 @@ impl RangeType {
             return false;
         }
 
-        // the outer end must not fall below the inner end
+        // the outer end must stay at or above the inner end
         match (&self.end, &inner.end) {
             (None, _) => true,
             (Some(_), None) => false,

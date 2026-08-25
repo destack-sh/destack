@@ -331,7 +331,7 @@ impl<'a> TypeTable<'a> {
             // regions visit both coordinates
             Type::Region(region) => {
                 visit(region.extent);
-                visit(region.spaces);
+                visit(region.space);
             }
 
             // memory forms
@@ -473,7 +473,7 @@ impl<'a> TypeTable<'a> {
         }
     }
 
-    /// Strip outer form types to reach the payload type id.
+    /// Strip outer form types down to the payload type id.
     pub fn unwrap_form_payload_type_id(&self, type_id: LocalTypeId) -> GlobalTypeId {
         let mut current = type_id;
         loop {
@@ -876,7 +876,7 @@ impl TypeSegment {
         self.strings.get_maybe(list)
     }
 
-    /// Strip outer form types to reach the payload type id.
+    /// Strip outer form types down to the payload type id.
     pub fn unwrap_form_payload_type_id(&self, type_id: LocalTypeId) -> GlobalTypeId {
         let mut current = type_id;
         loop {
@@ -1112,18 +1112,28 @@ pub struct TypeTail {
     committed: Vec<Arc<TypeSegment>>,
     /// The intern index over the committed segments' types.
     committed_index: FxHashMap<u64, SmallVec<[LocalTypeId; 1]>>,
-    /// Intern bookkeeping per list pool.
+    /// Intern bookkeeping for the type id pool.
     type_ids: ListInterner,
+    /// Intern bookkeeping for the tuple element pool.
     elements: ListInterner,
+    /// Intern bookkeeping for the shape property pool.
     properties: ListInterner,
+    /// Intern bookkeeping for the function parameter pool.
     parameters: ListInterner,
+    /// Intern bookkeeping for the index signature pool.
     index_signatures: ListInterner,
+    /// Intern bookkeeping for the string pool.
     strings: ListInterner,
-    /// Intern bookkeeping per payload pool.
+
+    /// Intern bookkeeping for the type operation pool.
     operations: ValueInterner<TypeOperationId>,
+    /// Intern bookkeeping for the function signature pool.
     signatures: ValueInterner<FunctionSignatureId>,
+    /// Intern bookkeeping for the member projection pool.
     members: ValueInterner<MemberTypeId>,
+    /// Intern bookkeeping for the refined application pool.
     refinements: ValueInterner<RefinedTypeId>,
+    /// Intern bookkeeping for the borrow form pool.
     borrows: ValueInterner<BorrowFormId>,
 }
 
@@ -1396,8 +1406,7 @@ impl TypeTail {
     }
 }
 
-/// Intern one list into a kind's pool, reusing content the committed
-/// segments beneath the tail already hold.
+/// Intern one list into a kind's pool, reusing content the committed segments already hold.
 fn intern_list<T: Copy + Eq + Hash>(
     interner: &mut ListInterner,
     pool: &mut ListPool<T>,

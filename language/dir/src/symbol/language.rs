@@ -123,7 +123,7 @@ macro_rules! define_language_items {
             }
 
             /// Return whether this item constructs a memory form.
-            pub fn is_memory_carrier(&self) -> bool {
+            pub fn is_memory_form(&self) -> bool {
                 matches!(
                     self,
                     Self::Managed
@@ -1831,7 +1831,7 @@ define_language_items! {
         lifetime {
             /// Lifetime marker.
             Lifetime => (Newtype, "memory/lifetime", "Lifetime"),
-            /// Reference region: lifetime extent paired with the referent space set.
+            /// Reference region: one lifetime extent paired with one referent space.
             Region => (Newtype, "memory/region", "Region"),
         }
 
@@ -1891,37 +1891,18 @@ define_language_items! {
 
         /// `destack:memory/type`.
         type {
-
-
-
-
-
-
-
-
-
-
+            /// Project the access mode of a memory form.
+            AccessOf => (Newtype, "memory/type", "AccessOf"),
 
             /// Ownership kind for qualified storage.
             Ownership => (Type, "memory/type", "Ownership"),
 
-
-
-
-
-
-
-
+            /// Project the space of a placed type.
+            PlaceOf => (Newtype, "memory/type", "PlaceOf"),
 
             /// Reborrow with an access mode.
             WithAccess => (Newtype, "memory/type", "WithAccess"),
-
-
-
-
-
         }
-
     }
 
     /// Module types.
@@ -2441,7 +2422,7 @@ define_language_items! {
             /// Continuing control flow.
             Continue => (Struct, "ops/try", "Continue"),
 
-            /// Rebuilds a carrier from a propagated residual.
+            /// Rebuilds a representation from a propagated residual.
             FromResidual => (NewtypeInterface, "ops/try", "FromResidual"),
 
             /// `?` operator protocol.
@@ -3663,6 +3644,7 @@ mod tests {
 
     use super::LanguageItem;
 
+    /// Every language item roundtrips through its unique key.
     #[test]
     fn test_roundtrip_language_item_keys() {
         let mut keys = HashSet::new();

@@ -252,7 +252,7 @@ pub struct MemberSubject {
     /// The generic template assumptions active at the source site.
     pub scope: Option<GlobalGenericTemplateId>,
     /// The type whose member keys are enumerated.
-    pub key_type: GlobalTypeId,
+    pub key_source: GlobalTypeId,
 }
 
 impl MemberSubject {
@@ -263,7 +263,7 @@ impl MemberSubject {
             target,
             space,
             scope: None,
-            key_type: target,
+            key_source: target,
         }
     }
 
@@ -275,8 +275,8 @@ impl MemberSubject {
     }
 
     /// Enumerate keys from another type while retaining the lookup target.
-    pub fn with_key_type(mut self, key_type: GlobalTypeId) -> Self {
-        self.key_type = key_type;
+    pub fn with_key_source(mut self, key_source: GlobalTypeId) -> Self {
+        self.key_source = key_source;
 
         self
     }

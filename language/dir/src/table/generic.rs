@@ -60,7 +60,7 @@ impl<'a> GenericTable<'a> {
 
     /// Return the derived variance recorded for one parameter.
     pub fn variance(&self, parameter_id: LocalGenericParameterId) -> Option<VarianceModifier> {
-        for segment in self.segments.iter() {
+        for segment in self.segments.iter().rev() {
             if let Some(variance) = segment.variance(parameter_id) {
                 return Some(variance);
             }
@@ -71,7 +71,7 @@ impl<'a> GenericTable<'a> {
 
     /// Return the cardinality recorded for one parameter.
     pub fn cardinality(&self, parameter_id: LocalGenericParameterId) -> Option<Cardinality> {
-        for segment in self.segments.iter() {
+        for segment in self.segments.iter().rev() {
             if let Some(cardinality) = segment.cardinality(parameter_id) {
                 return Some(cardinality);
             }
@@ -103,28 +103,32 @@ impl<'a> GenericTable<'a> {
             .flat_map(|segment| segment.iter_parameters())
     }
 
+    /// Iterate committed instantiations across every segment.
+    pub fn iter_instantiations(&self) -> impl Iterator<Item = &Instantiation> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.iter_instantiations())
+    }
+
     /// Return the generic parameter declared by one symbol.
     pub fn parameter_by_symbol(&self, symbol: GlobalSymbolId) -> Option<LocalGenericParameterId> {
-        self.iter_parameters()
-            .find_map(|(parameter_id, parameter)| {
-                (parameter.key == GenericParameterKey::Symbol(symbol)).then_some(parameter_id)
-            })
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.parameter_by_symbol(symbol))
     }
 
     /// Return the generic template declared by one source node.
     pub fn template_by_source(&self, source: GlobalNodeIdAny) -> Option<LocalGenericTemplateId> {
-        for (template_id, template) in self.iter_templates() {
-            if template.source == source {
-                return Some(template_id);
-            }
-        }
-
-        None
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.template_by_source(source))
     }
 
     /// Return the generic template that governs one lexical scope.
     pub fn template_by_scope(&self, scope: LocalScopeId) -> Option<LocalGenericTemplateId> {
-        for segment in self.segments.iter() {
+        for segment in self.segments.iter().rev() {
             if let Some(template_id) = segment.template_by_scope(scope) {
                 return Some(template_id);
             }
@@ -135,13 +139,10 @@ impl<'a> GenericTable<'a> {
 
     /// Return the generic template declared by one symbol.
     pub fn template_by_symbol(&self, symbol: GlobalSymbolId) -> Option<LocalGenericTemplateId> {
-        for (template_id, template) in self.iter_templates() {
-            if template.symbol == Some(symbol) {
-                return Some(template_id);
-            }
-        }
-
-        None
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.template_by_symbol(symbol))
     }
 
     /// Return one parameter's declared or checker-derived variance.
@@ -152,6 +153,26 @@ impl<'a> GenericTable<'a> {
         let binding = self.get_parameter(parameter);
 
         binding.variance.or_else(|| self.variance(parameter))
+    }
+
+    /// Return the generic template with a stable id, or None outside every segment.
+    pub fn get_template_maybe(
+        &self,
+        template_id: LocalGenericTemplateId,
+    ) -> Option<&GenericTemplate> {
+        self.segments
+            .iter()
+            .find_map(|segment| segment.get_local_template(template_id))
+    }
+
+    /// Return the generic parameter with a stable id, or None outside every segment.
+    pub fn get_parameter_maybe(
+        &self,
+        parameter_id: LocalGenericParameterId,
+    ) -> Option<&GenericParameterBinding> {
+        self.segments
+            .iter()
+            .find_map(|segment| segment.get_local_parameter(parameter_id))
     }
 
     /// Get a generic template by id.
@@ -425,6 +446,27 @@ impl GenericSegment {
             .get(scope.0 as usize)
             .copied()
             .flatten()
+    }
+
+    /// Return the generic template this segment declares at one source node.
+    pub fn template_by_source(&self, source: GlobalNodeIdAny) -> Option<LocalGenericTemplateId> {
+        self.iter_templates()
+            .find_map(|(template_id, template)| (template.source == source).then_some(template_id))
+    }
+
+    /// Return the generic template this segment declares for one symbol.
+    pub fn template_by_symbol(&self, symbol: GlobalSymbolId) -> Option<LocalGenericTemplateId> {
+        self.iter_templates().find_map(|(template_id, template)| {
+            (template.symbol == Some(symbol)).then_some(template_id)
+        })
+    }
+
+    /// Return the generic parameter this segment declares for one symbol.
+    pub fn parameter_by_symbol(&self, symbol: GlobalSymbolId) -> Option<LocalGenericParameterId> {
+        self.iter_parameters()
+            .find_map(|(parameter_id, parameter)| {
+                (parameter.key == GenericParameterKey::Symbol(symbol)).then_some(parameter_id)
+            })
     }
 
     /// Get a generic parameter by id.

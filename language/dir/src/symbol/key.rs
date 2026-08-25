@@ -38,7 +38,7 @@ impl StaticKey {
         matches!(self, StaticKey::Index(_))
     }
 
-    /// Return whether this exact key stores directly in one primitive carrier.
+    /// Return whether this exact key stores directly in one primitive representation.
     pub fn widens_to_primitive(&self, primitive: crate::PrimitiveType) -> bool {
         match primitive {
             crate::PrimitiveType::String => self.is_string_like(),
