@@ -47,6 +47,16 @@ impl PrimitiveType {
         }
     }
 
+    /// Return whether this primitive is a signed integer.
+    pub fn is_signed_integer(self) -> bool {
+        matches!(self, Self::Integer(integer) if integer.is_signed())
+    }
+
+    /// Return whether this primitive is an unsigned integer.
+    pub fn is_unsigned_integer(self) -> bool {
+        matches!(self, Self::Integer(integer) if integer.is_unsigned())
+    }
+
     /// Return this primitive's default ownership.
     pub fn ownership(self) -> Ownership {
         match self {
@@ -332,7 +342,7 @@ impl IntegerType {
         }
     }
 
-    /// Whether the integer type is signed.
+    /// Return whether this integer type is signed.
     pub fn is_signed(&self) -> bool {
         match self {
             IntegerType::Fixed {
@@ -341,6 +351,11 @@ impl IntegerType {
             }
             | IntegerType::Pointer { is_signed } => *is_signed,
         }
+    }
+
+    /// Return whether this integer type is unsigned.
+    pub fn is_unsigned(&self) -> bool {
+        !self.is_signed()
     }
 
     /// Get the string representation of the integer type.
