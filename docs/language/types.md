@@ -1,6 +1,6 @@
 ---
 title: Types
-description: Primitives, nominal and value types, constraints, representation, and reflection.
+description: Primitives, nominal and value types, constraints, representation, and type values.
 order: 21
 ---
 
@@ -67,7 +67,7 @@ struct Event {
 }
 ```
 
-For genuinely heterogeneous storage, `Dynamic<unknown>` is our "erased universal value": a fat pointer carrying the value and its runtime descriptor, introspectable via [reflection](#reflection) and narrowable (for runtime-discernible forms) via `is`.
+For genuinely heterogeneous storage, `Dynamic<unknown>` is our "erased universal value": a fat pointer carrying the value and its runtime type identity, narrowable via `is` when the concrete form is available at runtime.
 By default, `Dynamic<T>` is a managed reference type (like a class), so it can be passed around, aliased, and mutated freely.
 
 ## String
@@ -723,7 +723,7 @@ This keeps compilation fast and predictable, and thanks to TypeScript's flexible
 | Contextual type form | `PlaceOf<this>` inside a type declaration |
 | Module and profile metadata | `import.meta.platform` |
 | Type operators | `keyof T`, `T[K]`, `T extends string`, `T implements I` |
-| Layout intrinsics | `sizeOf<T>()`, `alignOf<T>()` |
+| Layout intrinsics | `sizeOf<T>()`, `alignOf<T>()`, `strideOf<T>()` |
 
 Static terms are required wherever the language needs an inference-known answer: fixed array lengths, conditional types, associated members, static decorators, [layout queries](#layout), and [placement algebra](./memory.md#algebra).
 Type inference may flow _out_ of modules, but Destack does not support circular static inference or inference across modules in any way.
@@ -920,13 +920,11 @@ Layout can also be queried during compilation - available as a [static term](#st
 | `sizeOf<T>()` | The byte size of `T` as `usize`. |
 | `alignOf<T>()` | The required alignment of `T` as `usize`. |
 | `strideOf<T>()` | The spacing between adjacent array elements of `T` as `usize`. |
-| `layoutOf<T>()` | The reflected `size`, `align`, `stride`, and shape for `T` as a `Layout` value. |
 
-## Reflection
+## Type Values
 
-TypeScript types are - by design - erased at runtime, which means we can't easily perform runtime type checks or any meaningful reflection.
-Destack supports type reflection both at runtime and at compile time with `Type<T>` as a normalized view.
-Dynamic type expression can be turned into its reflected type with (implicit or explicit) casting to its `Type` representation:
+Destack represents a type as a value with `Type<T>`.
+Runtime-erased `Dynamic` values retain enough concrete type identity for `is` and `instanceof` checks without retaining the structure of every type at runtime.
 
 ```ds
 struct User {
@@ -934,10 +932,7 @@ struct User {
     age: uint;
 }
 
-let user: User = User { name: "Alice", age: 30 };
-
-const UserType: Type<User> = User;     // implicit cast
-const UserType = Type.of<User>();      // explicit, same thing
+const userType: Type<User> = User;
 ```
 
 This also works for generic APIs that operate on types as static values:
@@ -951,6 +946,5 @@ const user = parse<User>("...");
 
 ```ds
 const userSize = const sizeOf<User>();
-const requestLayout = const layoutOf<Request<Body>>();
 type InlineBytes<T: Concrete> = [uint8; sizeOf<T>()];
 ```

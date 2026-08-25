@@ -987,9 +987,9 @@ Spread children `{...pair}` splat statically sized tuple operands into the child
 Like TypeScript, Destack uses `@` for decorator-like constructs, but Destack supports both "annotations" and "decorators", and also many more constructs can be annotated / decorated.
 The syntax for both data annotations and behavior decorators is unified, the target - the thing pointed to in `@<expr>` - decides:
  - **Annotations** are _values_ like `newtype`s. They add typed metadata to the target, but don't directly change the target's behavior.
- - **Decorators** are _logic_ following some protocol that contribute code or change the analyzed shape in some bounded way.
+ - **Decorators** are toolchain operations that contribute code or change the analyzed shape.
 
-Annotations are "inert" by default, that is, they don't do anything until either some userland construct or the toolchain give them special meaning or implement the `Macro` protocol.
+Annotations carry typed metadata. The toolchain interprets annotations with defined compiler behavior.
 
 ```ds
 newtype deprecated = () | (string,);
@@ -1251,105 +1251,3 @@ A value used only in the body belongs in an ordinary parameter: `blockCost` take
 
 Of course, const results must also be lowerable into the target artifact.
 Plain data such as numbers, strings, arrays, tuples, objects, structs, and enums are all fine, but dynamic runtime resources like pointers and handles and such don't work because we can't meaningfully serialize them.
-
-### Dynamic Code
-
-Generating and evaluating arbitrary code is supported via `eval` at _compile-time_ by passing a string computed at compile time:
-
-```ds
-import * as dir from "destack:reflect/dir";
-
-const source = const renderParser(grammar);
-const parser = const eval<dir.FunctionDeclaration>(source);
-```
-
-The source passed to `eval` must itself be available to const evaluation.
-Generated code is parsed and typechecked as `.ds`, attached to the same module graph as a virtual source file, and tracked for diagnostics and artifact caching.
-
-## Macros
-
-Destack is statically typed and compiled, but supports macros as decorators backed by const evaluation and a bounded module-editing context.
-As an example, consider a `memoize` decorator that turns a function into a cached ("memoized") version of itself that stores results in a cache to avoid recomputation on equal arguments.
-
-```ds
-newtype memoize = {
-    capacity?: uint;
-};
-
-@memoize({ capacity: 1024 })
-function load(id: UserId): Result<User, Error> {
-}
-```
-
-As explained in [Decorators](#decorators), `memoize` by itself is just an inert annotation and it only receives behavior by implementing `Macro`.
-The `Macro` system is based on four rules:
- 1. Macro expansion is recursive and runs until there is nothing more to expand (or we encounter an error).
- 2. Macros run in two phases during compilation: `expand` may contribute new symbols before final inference, while `materialize` fills in implementation details with full type information.
- 3. Macros interact with their containing module through phase-specific context methods (`resolve`, `ensureImport`, `add`, `ensureDeclaration`, `addChild`, `replaceTarget`, `renameTarget`, `removeTarget`).
- 4. Macro invocations are exclusively triggered by decorators implementing `Macro`; compiler-owned derives are a separate expansion path.
-
-| Operation | Example | Meaning |
-|-----------|---------|---------|
-| `resolve` | `context.resolve("ROUTES")` | resolve a visible symbol in the current scope |
-| `ensureImport` | `context.ensureImport("destack:collections", "Map")` | ensure an import used by generated code |
-| `add` | `context.add(declaration)` | add a generated declaration to the current scope |
-| `ensureDeclaration` | `context.ensureDeclaration("RouteDefinition", () => declaration)` | ensure a generated helper declaration exists |
-| `addChild` | `context.addChild(member)` | add a generated child to the target declaration |
-| `replaceTarget` | `context.replaceTarget(declaration)` | redirect the target symbol to a generated declaration |
-| `renameTarget` | `context.renameTarget(name)` | keep the target declaration but change its visible name |
-| `removeTarget` | `context.removeTarget()` | remove the target symbol from the visible declaration set |
-
-Most basic wrapper-shaped decorators are just `rename` plus `add`.
-
-```ds
-type MemoizeState = {
-    innerName: string;
-    capacity: uint;
-};
-
-extension of memoize implements Macro<FunctionDeclaration, MemoizeState>
-{
-    static expand(
-        target: FunctionDeclaration,
-        context: ExpansionContext,
-        config: this,
-    ): MemoizeState {
-        const innerName = `${context.name}Inner`;
-        const wrapper = const eval<Declaration>(ds`
-            function ${context.name}(id: UserId): Result<User, Error> {
-                // placeholder
-            }
-        `);
-
-        context.renameTarget(innerName);
-        context.add(wrapper);
-
-        return {
-            innerName,
-            capacity: config.capacity ?? 256,
-        };
-    }
-
-    static materialize(
-        target: FunctionDeclaration,
-        context: MaterializationContext,
-        config: this,
-        state: MemoizeState,
-    ): void {
-        const implementation = const eval<Declaration>(ds`
-            function ${context.name}(id: UserId): Result<User, Error> {
-                const cached = cache.get(id);
-                if (cached != undefined) {
-                    return cached;
-                }
-
-                const user = ${state.innerName}(id)?;
-                cache.set(id, user, ${state.capacity});
-                return Result.ok(user);
-            }
-        `);
-
-        context.replaceTarget(implementation);
-    }
-}
-```

@@ -12,4 +12,4 @@ Fortunately, strict TypeScript is already a best practice - it's what you get wh
 
 There are solid arguments that a language should be minimal like Zig or Go or even C, though programmers 50 years ago would not have called them "minimal" by any stretch.
 Ultimately, we do not believe "language minimalism" to be pragmatic for the universal language and toolchain we want: Destack aims to be a _complete_ (and coherent and pragmatic) language, not a _minimal_ language.
-And since we needed _some_ additions anyway, we took the opportunity to round out the language with modern ergonomics like patterns, operator overloading, reflection, and const evaluation.
+And since we needed _some_ additions anyway, we took the opportunity to round out the language with modern ergonomics like patterns, operator overloading, runtime type checks, and const evaluation.
