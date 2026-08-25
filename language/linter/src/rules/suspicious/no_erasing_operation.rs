@@ -35,21 +35,16 @@ function retain(value: int32): int32 {
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
-    // inspect builtin binary operations over integral values
+    // inspect builtin and standard-library integral operations
     for expression in module.operator_expressions() {
         let expression = expression?;
-        let Some((operator, operands @ [left, right])) = module.builtin_binary(expression)? else {
+        let Some((operator, [left, right])) = module.integral_binary(expression)? else {
             continue;
         };
-        if !operands.iter().all(dir::BuiltinOperand::is_integral) {
-            continue;
-        }
 
         // select exact constants in erasing operand positions
-        let left_constant = module.scalar_constant(left.source.local_id)?;
-        let right_constant = module.scalar_constant(right.source.local_id)?;
-        let left_constant = left_constant.and_then(|value| value.as_integral());
-        let right_constant = right_constant.and_then(|value| value.as_integral());
+        let left_constant = module.integral_constant(left)?;
+        let right_constant = module.integral_constant(right)?;
         let is_erasing = matches!(
             (operator, left_constant, right_constant),
             (
@@ -68,11 +63,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                     | dir::BinaryOperator::Remainder,
                 Some(0),
                 _,
-            ) | (dir::BinaryOperator::Remainder, _, Some(1))
+            ) | (dir::BinaryOperator::Remainder, _, Some(1 | -1))
                 | (dir::BinaryOperator::Exponent, _, Some(0))
-                | (dir::BinaryOperator::ElementwiseOr, Some(-1), _)
-                | (dir::BinaryOperator::ElementwiseOr, _, Some(-1))
-        );
+        ) || operator == dir::BinaryOperator::ElementwiseOr
+            && (module.is_all_ones_constant(left)? || module.is_all_ones_constant(right)?);
         if !is_erasing {
             continue;
         }
@@ -179,6 +173,34 @@ warning[no-erasing-operation]: constant operand erases the other value
         );
     }
 
+    /// Report a remainder whose negative unit divisor erases the dividend.
+    #[test]
+    fn test_reports_negative_unit_remainder() {
+        let session = TestSession::dir(
+            &NO_ERASING_OPERATION,
+            r#"
+function erase(value: int32): int32 {
+    return value % -1;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-erasing-operation]: constant operand erases the other value
+ ──▶ main.ds:2:12
+  │
+1 │ function erase(value: int32): int32 {
+2 │     return value % -1;
+  │            ^^^^^^^^^^
+3 │ }
+  │
+
+ = help: correct the operator or the constant operand
+"#,
+        );
+    }
+
     /// Report a zero exponent that erases the base.
     #[test]
     fn test_reports_zero_exponent() {
@@ -227,6 +249,34 @@ warning[no-erasing-operation]: constant operand erases the other value
 1 │ function erase(value: int32): int32 {
 2 │     return value | -1;
   │            ^^^^^^^^^^
+3 │ }
+  │
+
+ = help: correct the operator or the constant operand
+"#,
+        );
+    }
+
+    /// Report an unsigned all-bits-set OR that erases the other operand.
+    #[test]
+    fn test_reports_unsigned_all_bits_set_or() {
+        let session = TestSession::dir(
+            &NO_ERASING_OPERATION,
+            r#"
+function erase(value: uint8): uint8 {
+    return value | 255;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-erasing-operation]: constant operand erases the other value
+ ──▶ main.ds:2:12
+  │
+1 │ function erase(value: uint8): uint8 {
+2 │     return value | 255;
+  │            ^^^^^^^^^^^
 3 │ }
   │
 

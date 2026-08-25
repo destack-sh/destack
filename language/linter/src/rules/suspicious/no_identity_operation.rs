@@ -33,43 +33,139 @@ function retain(value: int32): int32 {
     }
 }
 
+/// One integral identity operation and its retained value.
+struct IdentityOperation {
+    /// The operand retained by the correction.
+    value: dir::LocalNodeId<dir::Expression>,
+    /// The identity operand removed by the correction.
+    identity: dir::LocalNodeId<dir::Expression>,
+}
+
+impl IdentityOperation {
+    /// Select one exact integral identity operation.
+    fn select(
+        module: &DirModule<'_>,
+        operator: dir::BinaryOperator,
+        [left, right]: [dir::LocalNodeId<dir::Expression>; 2],
+    ) -> Result<Option<Self>, ProviderError> {
+        let left_constant = module.integral_constant(left)?;
+        let right_constant = module.integral_constant(right)?;
+
+        // retain the conventional spelling of the lowest bit mask
+        if operator == dir::BinaryOperator::ShiftLeft
+            && left_constant == Some(1)
+            && right_constant == Some(0)
+        {
+            return Ok(None);
+        }
+
+        // select identities shared by signed and unsigned integers
+        let selected = match (operator, left_constant, right_constant) {
+            (
+                dir::BinaryOperator::Add
+                | dir::BinaryOperator::ElementwiseOr
+                | dir::BinaryOperator::ElementwiseXor,
+                Some(0),
+                _,
+            ) => Some(Self {
+                value: right,
+                identity: left,
+            }),
+            (
+                dir::BinaryOperator::Add
+                | dir::BinaryOperator::Subtract
+                | dir::BinaryOperator::ShiftLeft
+                | dir::BinaryOperator::ShiftRight
+                | dir::BinaryOperator::UnsignedShiftRight
+                | dir::BinaryOperator::ElementwiseOr
+                | dir::BinaryOperator::ElementwiseXor,
+                _,
+                Some(0),
+            ) => Some(Self {
+                value: left,
+                identity: right,
+            }),
+            (dir::BinaryOperator::Multiply, Some(1), _) => Some(Self {
+                value: right,
+                identity: left,
+            }),
+            (
+                dir::BinaryOperator::Multiply
+                | dir::BinaryOperator::Divide
+                | dir::BinaryOperator::Exponent,
+                _,
+                Some(1),
+            ) => Some(Self {
+                value: left,
+                identity: right,
+            }),
+            (dir::BinaryOperator::Remainder, Some(left_value), Some(right_value))
+                if left_value != 0 && left_value.unsigned_abs() < right_value.unsigned_abs() =>
+            {
+                Some(Self {
+                    value: left,
+                    identity: right,
+                })
+            }
+            _ => None,
+        };
+        if selected.is_some() {
+            return Ok(selected);
+        }
+
+        // select the width-specific all-ones identity
+        let selected = if operator == dir::BinaryOperator::ElementwiseAnd
+            && module.is_all_ones_constant(left)?
+        {
+            Some(Self {
+                value: right,
+                identity: left,
+            })
+        } else if operator == dir::BinaryOperator::ElementwiseAnd
+            && module.is_all_ones_constant(right)?
+        {
+            Some(Self {
+                value: left,
+                identity: right,
+            })
+        } else {
+            None
+        };
+
+        Ok(selected)
+    }
+}
+
 /// Report builtin integer operations with an identity operand.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
-    // inspect builtin binary operations over integral values
+    // inspect builtin and standard-library integral operations
     for expression in module.operator_expressions() {
         let expression = expression?;
-        let Some((operator, operands @ [left, right])) = module.builtin_binary(expression)? else {
+        let Some((operator, operands)) = module.integral_binary(expression)? else {
             continue;
         };
-        if !operands.iter().all(dir::BuiltinOperand::is_integral) {
-            continue;
-        }
-        let left = left.source.local_id;
-        let right = right.source.local_id;
 
         // select the operand retained by the exact identity
-        let left_constant = module.scalar_constant(left)?;
-        let right_constant = module.scalar_constant(right)?;
-        let Some((value, identity)) =
-            select_identity_operand(operator, left, left_constant, right, right_constant)
-        else {
+        let Some(identity) = IdentityOperation::select(module, operator, operands)? else {
             continue;
         };
-        if !module.is_speculatable_expression(identity)? {
+        if !module.is_speculatable_expression(identity.identity)? {
             continue;
         }
 
         // require removal to preserve the checked result type
-        if module.node_type_id(expression.into_any())? != module.node_type_id(value.into_any())? {
+        if module.node_type_id(expression.into_any())?
+            != module.node_type_id(identity.value.into_any())?
+        {
             continue;
         }
 
         // report and remove the checked identity operation
         let span = module.source_extent(expression.into_any())?;
         let mut diagnostic = lint.diagnostic("operation has an identity operand", span);
-        if let Some(suggestion) = suggestion(module, lint, expression, value)? {
+        if let Some(suggestion) = suggestion(module, lint, expression, identity.value)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
 
@@ -77,53 +173,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     }
 
     Ok(output)
-}
-
-/// Select the operand retained by one exact integral identity operation.
-fn select_identity_operand(
-    operator: dir::BinaryOperator,
-    left: dir::LocalNodeId<dir::Expression>,
-    left_constant: Option<dir::Literal>,
-    right: dir::LocalNodeId<dir::Expression>,
-    right_constant: Option<dir::Literal>,
-) -> Option<(
-    dir::LocalNodeId<dir::Expression>,
-    dir::LocalNodeId<dir::Expression>,
-)> {
-    let left_constant = left_constant.and_then(|value| value.as_integral());
-    let right_constant = right_constant.and_then(|value| value.as_integral());
-
-    match (operator, left_constant, right_constant) {
-        (
-            dir::BinaryOperator::Add
-            | dir::BinaryOperator::ElementwiseOr
-            | dir::BinaryOperator::ElementwiseXor,
-            Some(0),
-            _,
-        ) => Some((right, left)),
-        (
-            dir::BinaryOperator::Add
-            | dir::BinaryOperator::Subtract
-            | dir::BinaryOperator::ShiftLeft
-            | dir::BinaryOperator::ShiftRight
-            | dir::BinaryOperator::UnsignedShiftRight
-            | dir::BinaryOperator::ElementwiseOr
-            | dir::BinaryOperator::ElementwiseXor,
-            _,
-            Some(0),
-        ) => Some((left, right)),
-        (dir::BinaryOperator::Multiply, Some(1), _) => Some((right, left)),
-        (
-            dir::BinaryOperator::Multiply
-            | dir::BinaryOperator::Divide
-            | dir::BinaryOperator::Exponent,
-            _,
-            Some(1),
-        ) => Some((left, right)),
-        (dir::BinaryOperator::ElementwiseAnd, Some(-1), _) => Some((right, left)),
-        (dir::BinaryOperator::ElementwiseAnd, _, Some(-1)) => Some((left, right)),
-        _ => None,
-    }
 }
 
 /// Build an automatic replacement with the retained operand.
@@ -235,6 +284,93 @@ function retain(value: int32): int32 {
 }
 "#,
         );
+    }
+
+    /// Remove an unsigned all-bits-set AND identity.
+    #[test]
+    fn test_removes_unsigned_all_bits_set_identity() {
+        let session = TestSession::dir(
+            &NO_IDENTITY_OPERATION,
+            r#"
+function retain(value: uint8): uint8 {
+    return value & 255;
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function retain(value: uint8): uint8 {
+    return value;
+}
+"#,
+        );
+    }
+
+    /// Remove a bigint all-bits-set AND identity.
+    #[test]
+    fn test_removes_bigint_all_bits_set_identity() {
+        let session = TestSession::dir(
+            &NO_IDENTITY_OPERATION,
+            r#"
+function retain(value: bigint): bigint {
+    return value & -1n;
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function retain(value: bigint): bigint {
+    return value;
+}
+"#,
+        );
+    }
+
+    /// Preserve an unsigned mask narrower than its operand.
+    #[test]
+    fn test_accepts_partial_unsigned_mask() {
+        let session = TestSession::dir(
+            &NO_IDENTITY_OPERATION,
+            r#"
+function mask(value: uint16): uint16 {
+    return value & 255;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Remove a constant remainder smaller than its divisor.
+    #[test]
+    fn test_removes_unchanged_remainder() {
+        let session = TestSession::dir(
+            &NO_IDENTITY_OPERATION,
+            r#"
+const value = 3 % 5;
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+const value = 3;
+"#,
+        );
+    }
+
+    /// Preserve the conventional lowest-bit mask spelling.
+    #[test]
+    fn test_accepts_lowest_bit_mask() {
+        let session = TestSession::dir(
+            &NO_IDENTITY_OPERATION,
+            r#"
+const lowest = 1 << 0;
+"#,
+        );
+
+        session.assert_no_diagnostics();
     }
 
     /// Preserve floating-point operations whose signed-zero behavior is observable.

@@ -152,6 +152,39 @@ impl DirModule<'_> {
         Ok(value)
     }
 
+    /// Return whether one integral expression is an exact all-ones constant.
+    pub(crate) fn is_all_ones_constant(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<bool, ProviderError> {
+        let Some(value) = self.integral_constant(expression)? else {
+            return Ok(false);
+        };
+        let type_id = self.adjusted_type_id(expression.into_any())?;
+        let type_id = self.dir.strip_form(type_id)?;
+        let ty = self.dir.get_type(type_id)?;
+        if ty.scalar_domain() == Some(dir::ScalarDomain::Bigint) {
+            return Ok(value == -1);
+        }
+        let integer = match ty {
+            dir::Type::Primitive(dir::PrimitiveType::Integer(integer)) => integer,
+            _ => return Ok(false),
+        };
+
+        // signed integers represent all bits set as negative one
+        if integer.is_signed() {
+            return Ok(value == -1);
+        }
+
+        // compare the maximum representable unsigned value
+        let maximum = integer
+            .finite_interval()
+            .and_then(|interval| interval.end)
+            .and_then(|literal| literal.as_integral());
+
+        Ok(maximum == Some(value))
+    }
+
     /// Return whether one checked expression denotes an exact numeric constant.
     pub(crate) fn is_numeric_constant(
         &self,
