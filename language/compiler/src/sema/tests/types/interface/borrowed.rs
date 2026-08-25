@@ -140,6 +140,7 @@ extension of Foo implements Add<&readonly Foo>, Hash {
     hash(): int32 {
     /// @generic.template symbol=hash#1 parent=template#0 parameters=(P0: Place)
     /// @type.symbol symbol=hash#1 type=<hash#1.P0: Place>(this: Managed<this, hash#1.P0>) => int32
+    /// @type.symbol symbol=hash.this#1 type=Managed<Foo, hash#1.P0>
 
         return 1;
     }
@@ -187,6 +188,7 @@ extension of Name implements Add<&readonly Name>, Hash {
     hash(): int32 {
     /// @generic.template symbol=hash#2 parent=template#1 parameters=(P0: Place)
     /// @type.symbol symbol=hash#2 type=<hash#2.P0: Place>(this: Managed<this, hash#2.P0>) => int32
+    /// @type.symbol symbol=hash.this#2 type=Managed<Name, hash#2.P0>
 
         return 1;
     }

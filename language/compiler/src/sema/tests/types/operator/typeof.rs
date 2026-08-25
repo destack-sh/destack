@@ -150,6 +150,7 @@ class Counter {
     constructor(value: int32) {
     /// @generic.template symbol=Counter.constructor parameters=(P0: Place)
     /// @type.symbol symbol=Counter.constructor type=<Counter.constructor.P0: Place>(int32) => Managed<Counter, Counter.constructor.P0>
+    /// @type.symbol symbol=Counter.constructor.this type=Counter
     /// @type.symbol symbol=Counter.constructor.value source="value: int32" type=int32
 
         this.value = value;

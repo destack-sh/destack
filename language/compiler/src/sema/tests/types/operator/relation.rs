@@ -265,6 +265,7 @@ struct DrawnPoint implements Drawable {
     draw(): void {}
     /// @generic.template symbol=DrawnPoint.draw parent=template#1 parameters=('a, P1: Place)
     /// @type.symbol symbol=DrawnPoint.draw source="draw(): void {}" type=<DrawnPoint.draw.'a, DrawnPoint.draw.P1: Place>(this: &DrawnPoint.draw.'a readonly DrawnPoint) => void
+    /// @type.symbol symbol=DrawnPoint.draw.this type=&DrawnPoint.draw.'a readonly DrawnPoint
 
 }
 

@@ -474,6 +474,7 @@ export extension<T, E> of Outcome<T, E> {
     map<U>(f: (value: T) => U): Outcome<U, E> {
     /// @generic.template symbol=map parent=template#3 parameters=(U)
     /// @type.symbol symbol=map type=<U>(this: this, Function<(T#3,), U>) => Outcome<U, E#3>
+    /// @type.symbol symbol=map.this type=Outcome<T#3, E#3>
     /// @type.symbol symbol=map.U source=U type=U
     /// @type.symbol symbol=map.f source="f: (value: T) => U" type=Function<(T#3,), U>
     /// @type.symbol symbol=map.value#1 source="value: T" type=T#3

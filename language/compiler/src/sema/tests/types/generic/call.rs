@@ -2854,6 +2854,7 @@ extension<T, E> of Result<T, E> {
     andThen<U, F>(f: (value: T) => Result<U, F>): Result<U, E | F> {
     /// @generic.template symbol=andThen parent=template#5 parameters=(U#2, F#1)
     /// @type.symbol symbol=andThen type=<U#2, F#1>(this: this, Function<(T#5,), Result<U#2, F#1>>) => Result<U#2, E#4 | F#1>
+    /// @type.symbol symbol=andThen.this type=Result<T#5, E#4>
     /// @type.symbol symbol=andThen.U source=U type=U#2
     /// @type.symbol symbol=andThen.F source=F type=F#1
     /// @type.symbol symbol=andThen.f source="f: (value: T) => Result<U, F>" type=Function<(T#5,), Result<U#2, F#1>>
@@ -2904,6 +2905,7 @@ extension<T, E> of AsyncResult<T, E> {
     andThenSync<U, F>(f: (value: T) => Result<U, F>): AsyncResult<U, E | F> {
     /// @generic.template symbol=andThenSync parent=template#7 parameters=(U#3, F#2, P2: Place)
     /// @type.symbol symbol=andThenSync type=<U#3, F#2, andThenSync.P2: Place>(this: Managed<this, andThenSync.P2>, Function<(T#7,), Result<U#3, F#2>>) => AsyncResult<U#3, E#6 | F#2>
+    /// @type.symbol symbol=andThenSync.this type=Managed<AsyncResult<T#7, E#6>, andThenSync.P2>
     /// @type.symbol symbol=andThenSync.U source=U type=U#3
     /// @type.symbol symbol=andThenSync.F source=F type=F#2
     /// @type.symbol symbol=andThenSync.f source="f: (value: T) => Result<U, F>" type=Function<(T#7,), Result<U#3, F#2>>

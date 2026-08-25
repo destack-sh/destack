@@ -314,6 +314,7 @@ enum Status {
     isActive(): boolean {
     /// @generic.template symbol=Status.isActive parameters=('a, P1: Place)
     /// @type.symbol symbol=Status.isActive type=<Status.isActive.'a, Status.isActive.P1: Place>(this: &Status.isActive.'a readonly Status) => boolean
+    /// @type.symbol symbol=Status.isActive.this type=&Status.isActive.'a readonly Status
 
         return this == Status.Active;
         /// @type.node source="this == Status.Active" type=boolean

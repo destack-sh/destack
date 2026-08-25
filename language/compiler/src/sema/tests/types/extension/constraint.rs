@@ -245,6 +245,7 @@ extension<T> of Box<T> where T: Readable {
     read(): string {
     /// @generic.template symbol=read parent=template#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=read type=<read.'a, read.P1: Place>(this: &read.'a readonly this) => string
+    /// @type.symbol symbol=read.this type=&read.'a readonly Box<T#2>
 
         return this.value.read();
         /// @type.node source=this type=&read.'a readonly Box<T#2>
@@ -402,6 +403,7 @@ extension<K: Hash, V> of Table<K, V> implements Keyed<K> where K: Equal<K> {
     index(key: K): V | undefined {
     /// @generic.template symbol=index parent=template#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=index type=<index.'a, index.P1: Place>(this: &index.'a readonly this, K#2) => V#2 | undefined
+    /// @type.symbol symbol=index.this type=&index.'a readonly Table<K#2, V#2>
     /// @type.symbol symbol=index.key source="key: K" type=K#2
     /// @resolution.name source=K target=K
     /// @resolution.name source=V target=V

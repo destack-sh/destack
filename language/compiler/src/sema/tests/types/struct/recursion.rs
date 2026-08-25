@@ -179,6 +179,7 @@ export class Player {
     constructor(world: World) {
     /// @generic.template symbol=Player.constructor parameters=(P0: Place)
     /// @type.symbol symbol=Player.constructor type=<Player.constructor.P0: Place>(world.World) => Managed<Player, Player.constructor.P0>
+    /// @type.symbol symbol=Player.constructor.this type=Player
     /// @type.symbol symbol=Player.constructor.world source="world: World" type=world.World
     /// @resolution.name source=World target=world.World
 
@@ -225,6 +226,7 @@ export class World {
     constructor(player: Player) {
     /// @generic.template symbol=World.constructor parameters=(P0: Place)
     /// @type.symbol symbol=World.constructor type=<World.constructor.P0: Place>(player.Player) => Managed<World, World.constructor.P0>
+    /// @type.symbol symbol=World.constructor.this type=World
     /// @type.symbol symbol=World.constructor.player source="player: Player" type=player.Player
     /// @resolution.name source=Player target=player.Player
 

@@ -90,6 +90,7 @@ extension of Value implements ForeignProtocol {
     snake_name(): void {}
     /// @generic.template symbol=snake_name parent=template#1 parameters=('a, P1: Place)
     /// @type.symbol symbol=snake_name source="snake_name(): void {}" type=<snake_name.'a, snake_name.P1: Place>(this: &snake_name.'a readonly Value) => void
+    /// @type.symbol symbol=snake_name.this type=&snake_name.'a readonly Value
 
 }
 "#);

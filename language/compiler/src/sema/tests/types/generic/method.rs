@@ -68,6 +68,7 @@ extension Arithmetic<T: Scalar> of T {
 
     checkedAdd(other: T): T | undefined {
     /// @type.symbol symbol=Arithmetic.checkedAdd type=(this: this, T#2) => T#2 | undefined
+    /// @type.symbol symbol=Arithmetic.checkedAdd.this type=T#2
     /// @type.symbol symbol=Arithmetic.checkedAdd.other source="other: T" type=T#2
     /// @resolution.name source=T target=Arithmetic.T
     /// @resolution.name source=T target=Arithmetic.T
@@ -178,6 +179,7 @@ extension Forward<T> of Pair<T> {
     choose(other: Pair<T>): Pair<T> {
     /// @generic.template symbol=Forward.choose parent=template#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=Forward.choose type=<Forward.choose.'a, Forward.choose.P1: Place>(this: &Forward.choose.'a readonly this, Pair<T#3>) => Pair<T#3>
+    /// @type.symbol symbol=Forward.choose.this type=&Forward.choose.'a readonly Pair<T#3>
     /// @type.symbol symbol=Forward.choose.other source="other: Pair<T>" type=Pair<T#3>
     /// @resolution.name source=Pair target=Pair
     /// @resolution.name source=T target=Forward.T

@@ -632,6 +632,7 @@ class Logger {
     log(message: string): void {}
     /// @generic.template symbol=Logger.log parameters=(P0: Place)
     /// @type.symbol symbol=Logger.log source="log(message: string): void {}" type=<Logger.log.P0: Place>(this: Managed<this, Logger.log.P0>, string) => void
+    /// @type.symbol symbol=Logger.log.this type=Managed<Logger, Logger.log.P0>
     /// @type.symbol symbol=Logger.log.message source="message: string" type=string
 
 }
@@ -697,6 +698,7 @@ class Store {
     pick<T>(value: T): T {
     /// @generic.template symbol=Store.pick parameters=(T, P1: Place)
     /// @type.symbol symbol=Store.pick type=<T, Store.pick.P1: Place>(this: Managed<this, Store.pick.P1>, T) => T
+    /// @type.symbol symbol=Store.pick.this type=Managed<Store, Store.pick.P1>
     /// @type.symbol symbol=Store.pick.T source=T type=T
     /// @type.symbol symbol=Store.pick.value source="value: T" type=T
     /// @resolution.name source=T target=Store.pick.T

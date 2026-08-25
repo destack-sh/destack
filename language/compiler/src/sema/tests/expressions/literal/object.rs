@@ -590,6 +590,7 @@ class User {
     constructor(name: string) {
     /// @generic.template symbol=User.constructor parameters=(P0: Place)
     /// @type.symbol symbol=User.constructor type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>
+    /// @type.symbol symbol=User.constructor.this type=User
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 
         this.name = name;

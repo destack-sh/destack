@@ -1174,6 +1174,7 @@ extension<T, I: It<T>> of Wrap<I> implements It<T> {
     next(): I.Return {
     /// @generic.template symbol=next#1 parent=template#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=next#1 type=<next#1.'a, next#1.P1: Place>(this: &next#1.'a readonly this) => I#2.Return
+    /// @type.symbol symbol=next.this#1 type=&next#1.'a readonly Wrap<I#2>
     /// @resolution.name source=I.Return target=I
     /// @resolution.path source=I.Return index=1 target=It.Return
 
@@ -1213,6 +1214,7 @@ extension of Counter implements It<int32> {
     next(): boolean {
     /// @generic.template symbol=next#2 parent=template#3 parameters=('a, P1: Place)
     /// @type.symbol symbol=next#2 type=<next#2.'a, next#2.P1: Place>(this: &next#2.'a readonly Counter) => boolean
+    /// @type.symbol symbol=next.this#2 type=&next#2.'a readonly Counter
 
         todo("next")
         /// @type.node source="todo(\"next\")" type=never

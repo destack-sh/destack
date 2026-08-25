@@ -707,6 +707,7 @@ class Box<T> {
     constructor(value: T) {
     /// @generic.template symbol=Box.constructor parent=template#0 parameters=(P0: Place)
     /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>(T) => Managed<this, Box.constructor.P0>
+    /// @type.symbol symbol=Box.constructor.this type=Box<T>
     /// @type.symbol symbol=Box.constructor.value source="value: T" type=T
     /// @resolution.name source=T target=Box.T
 

@@ -354,6 +354,7 @@ struct Counter {
     increment(): Counter {
     /// @generic.template symbol=Counter.increment parameters=('a, P1: Place)
     /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a readonly Counter) => Counter
+    /// @type.symbol symbol=Counter.increment.this type=&Counter.increment.'a readonly Counter
     /// @resolution.name source=Counter target=Counter
 
         Counter { value: this.value + 1 }

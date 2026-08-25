@@ -949,6 +949,7 @@ impl WalkState<'_, '_> {
         // bind implicit receivers to the declared receiver type
         if let Some(ty) = this_parameter {
             let ty = self.apply_receiver_scope(Some(scope), ty)?;
+            self.commit_receiver_symbol_type(symbol, ty)?;
 
             return Ok(Some(ReceiverBinding {
                 symbol,
@@ -976,8 +977,24 @@ impl WalkState<'_, '_> {
             },
             None => scope,
         };
+        self.commit_receiver_symbol_type(symbol, receiver.ty)?;
 
         Ok(Some(ReceiverBinding { symbol, receiver }))
+    }
+
+    /// Commit one synthesized receiver symbol's type, the first derivation winning.
+    fn commit_receiver_symbol_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        // commit while checking, where the receiver components resolve
+        if !self.check.is_checking() || self.check.symbol_type_maybe(symbol).is_some() {
+            return Ok(());
+        }
+        self.check.commit_binding_type(symbol, ty)?;
+
+        Ok(())
     }
 
     /// Synthesize the implicit receiver form shared by signature and body.

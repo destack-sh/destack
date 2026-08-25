@@ -952,6 +952,7 @@ class Waiter<T> {
     constructor(value: T) {
     /// @generic.template symbol=Waiter.constructor parent=template#0 parameters=(P0: Place)
     /// @type.symbol symbol=Waiter.constructor type=<Waiter.constructor.P0: Place>(T#1) => Managed<this, Waiter.constructor.P0>
+    /// @type.symbol symbol=Waiter.constructor.this type=Waiter<T#1>
     /// @type.symbol symbol=Waiter.constructor.value source="value: T" type=T#1
     /// @resolution.name source=T target=Waiter.T
 
@@ -1046,6 +1047,7 @@ class Cell<T> {
     constructor(pending: Pending<T>) {
     /// @generic.template symbol=Cell.constructor parent=template#4 parameters=(P0: Place)
     /// @type.symbol symbol=Cell.constructor type=<Cell.constructor.P0: Place>(Pending<T#5>) => Managed<this, Cell.constructor.P0>
+    /// @type.symbol symbol=Cell.constructor.this type=Cell<T#5>
     /// @type.symbol symbol=Cell.constructor.pending source="pending: Pending<T>" type=Pending<T#5>
     /// @resolution.name source=Pending target=Pending
     /// @resolution.name source=T target=Cell.T
@@ -1066,6 +1068,7 @@ class Cell<T> {
     consume(value: T): void {
     /// @generic.template symbol=Cell.consume parent=template#4 parameters=(P0: Place)
     /// @type.symbol symbol=Cell.consume type=<Cell.consume.P0: Place>(this: Managed<this, Cell.consume.P0>, T#5) => void
+    /// @type.symbol symbol=Cell.consume.this type=Managed<Cell<T#5>, Cell.consume.P0>
     /// @type.symbol symbol=Cell.consume.value source="value: T" type=T#5
     /// @resolution.name source=T target=Cell.T
 
@@ -1265,6 +1268,7 @@ class Child extends Base {
     read(next: string | undefined): string | undefined {
     /// @generic.template symbol=Child.read parameters=(P0: Place)
     /// @type.symbol symbol=Child.read type=<Child.read.P0: Place>(this: Managed<Child, Child.read.P0>, string | undefined) => string | undefined
+    /// @type.symbol symbol=Child.read.this type=Managed<Child, Child.read.P0>
     /// @type.symbol symbol=Child.read.next source="next: string | undefined" type=string | undefined
 
         if (super.label == undefined) {
@@ -1385,6 +1389,7 @@ class Child extends Base {
     read(next: string | undefined): string | undefined {
     /// @generic.template symbol=Child.read parameters=(P0: Place)
     /// @type.symbol symbol=Child.read type=<Child.read.P0: Place>(this: Managed<Child, Child.read.P0>, string | undefined) => string | undefined
+    /// @type.symbol symbol=Child.read.this type=Managed<Child, Child.read.P0>
     /// @type.symbol symbol=Child.read.next source="next: string | undefined" type=string | undefined
 
         if (this.label == undefined) {
@@ -1508,6 +1513,7 @@ class Child extends Base {
     read(next: string | undefined): () => string | undefined {
     /// @generic.template symbol=Child.read parameters=(P0: Place)
     /// @type.symbol symbol=Child.read type=<Child.read.P0: Place>(this: Managed<Child, Child.read.P0>, string | undefined) => Function<(), string | undefined>
+    /// @type.symbol symbol=Child.read.this type=Managed<Child, Child.read.P0>
     /// @type.symbol symbol=Child.read.next source="next: string | undefined" type=string | undefined
 
         return () => {

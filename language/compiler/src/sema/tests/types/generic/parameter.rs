@@ -702,6 +702,7 @@ class Bucket<K: Equal<K>> {
     constructor(key: K) {
     /// @generic.template symbol=Bucket.constructor parent=template#1 parameters=(P0: Place)
     /// @type.symbol symbol=Bucket.constructor type=<Bucket.constructor.P0: Place>(K) => Managed<this, Bucket.constructor.P0>
+    /// @type.symbol symbol=Bucket.constructor.this type=Bucket<K>
     /// @type.symbol symbol=Bucket.constructor.key source="key: K" type=K
     /// @resolution.name source=K target=Bucket.K
 
@@ -721,6 +722,7 @@ class Bucket<K: Equal<K>> {
     pair(): Bucket<K> {
     /// @generic.template symbol=Bucket.pair parent=template#1 parameters=(P0: Place)
     /// @type.symbol symbol=Bucket.pair type=<Bucket.pair.P0: Place>(this: Managed<this, Bucket.pair.P0>) => Bucket<K>
+    /// @type.symbol symbol=Bucket.pair.this type=Managed<Bucket<K>, Bucket.pair.P0>
     /// @resolution.name source=Bucket target=Bucket
     /// @resolution.name source=K target=Bucket.K
 
@@ -831,6 +833,7 @@ class Box<K> {
     constructor(key: K) {
     /// @generic.template symbol=Box.constructor parent=template#2 parameters=(P0: Place)
     /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>(K#1) => Managed<this, Box.constructor.P0>
+    /// @type.symbol symbol=Box.constructor.this type=Box<K#1>
     /// @type.symbol symbol=Box.constructor.key source="key: K" type=K#1
     /// @resolution.name source=K target=Box.K
 
@@ -863,6 +866,7 @@ extension<K> of Box<K> where K: Equal<K> {
     check(): boolean {
     /// @generic.template symbol=check parent=template#3 parameters=(P0: Place)
     /// @type.symbol symbol=check type=<check.P0: Place>(this: Managed<this, check.P0>) => boolean
+    /// @type.symbol symbol=check.this type=Managed<Box<K#2>, check.P0>
 
         return probe(this.key);
         /// @resolution.name source=probe target=probe
@@ -966,6 +970,7 @@ class Box<K> {
     constructor(key: K) {
     /// @generic.template symbol=Box.constructor parent=template#2 parameters=(P0: Place)
     /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>(K) => Managed<this, Box.constructor.P0>
+    /// @type.symbol symbol=Box.constructor.this type=Box<K>
     /// @type.symbol symbol=Box.constructor.key source="key: K" type=K
     /// @resolution.name source=K target=Box.K
 
@@ -985,6 +990,7 @@ class Box<K> {
     check(): boolean where K: Equal<K> {
     /// @generic.template symbol=Box.check parent=template#2 parameters=(P0: Place)
     /// @type.symbol symbol=Box.check type=<Box.check.P0: Place>(this: Managed<this, Box.check.P0>) => boolean
+    /// @type.symbol symbol=Box.check.this type=Managed<Box<K>, Box.check.P0>
     /// @resolution.name source=K target=Box.K
     /// @resolution.name source=Equal target=Equal
     /// @resolution.name source=K target=Box.K
@@ -1069,6 +1075,7 @@ class Box<K> {
     constructor(key: K) {
     /// @generic.template symbol=Box.constructor parent=template#1 parameters=(P0: Place)
     /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>(K#1) => Managed<this, Box.constructor.P0>
+    /// @type.symbol symbol=Box.constructor.this type=Box<K#1>
     /// @type.symbol symbol=Box.constructor.key source="key: K" type=K#1
     /// @resolution.name source=K target=Box.K
 
@@ -1097,6 +1104,7 @@ extension<K> of Box<K> {
     check(): boolean {
     /// @generic.template symbol=check parent=template#2 parameters=(P0: Place)
     /// @type.symbol symbol=check type=<check.P0: Place>(this: Managed<this, check.P0>) => boolean
+    /// @type.symbol symbol=check.this type=Managed<Box<K#2>, check.P0>
 
         return probe(this.key);
         /// @resolution.name source=probe target=probe
@@ -1222,6 +1230,7 @@ class Box<K> {
     constructor(key: K) {
     /// @generic.template symbol=Box.constructor parent=template#3 parameters=(P0: Place)
     /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>(K#1) => Managed<this, Box.constructor.P0>
+    /// @type.symbol symbol=Box.constructor.this type=Box<K#1>
     /// @type.symbol symbol=Box.constructor.key source="key: K" type=K#1
     /// @resolution.name source=K target=Box.K
 
@@ -1255,6 +1264,7 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
     check(): boolean {
     /// @generic.template symbol=check parent=template#4 parameters=(P0: Place)
     /// @type.symbol symbol=check type=<check.P0: Place>(this: Managed<this, check.P0>) => boolean
+    /// @type.symbol symbol=check.this type=Managed<Box<K#2>, check.P0>
 
         return probe(this.key);
         /// @resolution.name source=probe target=probe
@@ -1912,6 +1922,7 @@ class Box<T> {
     constructor(value: T) {
     /// @generic.template symbol=Box.constructor parent=template#0 parameters=(P0: Place)
     /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>(T#1) => Managed<this, Box.constructor.P0>
+    /// @type.symbol symbol=Box.constructor.this type=Box<T#1>
     /// @type.symbol symbol=Box.constructor.value source="value: T" type=T#1
     /// @resolution.name source=T target=Box.T
 
@@ -2283,6 +2294,7 @@ extension<T, R, I: Iterator<T, R>> of I {
     collect<C>(): C where C: FromIterator<T> {
     /// @generic.template symbol=collect parent=template#2 parameters=(C)
     /// @type.symbol symbol=collect type=<C>(this: this) => C
+    /// @type.symbol symbol=collect.this type=I
     /// @type.symbol symbol=collect.C source=C type=C
     /// @resolution.name source=C target=collect.C
     /// @resolution.name source=C target=collect.C

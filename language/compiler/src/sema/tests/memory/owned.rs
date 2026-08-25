@@ -827,6 +827,7 @@ class Bag<T> {
     constructor() {
     /// @generic.template symbol=Bag.constructor parent=template#1 parameters=(P0: Place)
     /// @type.symbol symbol=Bag.constructor type=<Bag.constructor.P0: Place>() => Managed<this, Bag.constructor.P0>
+    /// @type.symbol symbol=Bag.constructor.this type=Bag<T#2>
 
         this.last = undefined;
         /// @type.node source="this.last = undefined" type=undefined
@@ -857,6 +858,7 @@ extension<T> of ^Bag<T> implements Collect<T> {
 
     add(value: T): void {}
     /// @type.symbol symbol=add source="add(value: T): void {}" type=(this: this, T#3) => void
+    /// @type.symbol symbol=add.this type=Owned<Bag<T#3>>
     /// @type.symbol symbol=add.value source="value: T" type=T#3
     /// @resolution.name source=T target=T
 
@@ -973,6 +975,7 @@ extension of Point implements Collect<int32> {
     add(value: int32): void {}
     /// @generic.template symbol=add parent=template#1 parameters=('a, P1: Place)
     /// @type.symbol symbol=add source="add(value: int32): void {}" type=<add.'a, add.P1: Place>(this: &add.'a readonly Point, int32) => void
+    /// @type.symbol symbol=add.this type=&add.'a readonly Point
     /// @type.symbol symbol=add.value source="value: int32" type=int32
 
 }
@@ -1104,6 +1107,7 @@ struct Holder<T> {
     get isInline(): boolean {
     /// @generic.template symbol=Holder.isInline parent=template#0 parameters=('a, P1: Place)
     /// @type.symbol symbol=Holder.isInline type=<Holder.isInline.'a, Holder.isInline.P1: Place>(this: &Holder.isInline.'a readonly this) => boolean
+    /// @type.symbol symbol=Holder.isInline.this type=&Holder.isInline.'a readonly Holder<T>
 
         this.storage == undefined
         /// @resolution.member source=this.storage receiver=&Holder.isInline.'a readonly Holder<T> type=Readonly<Owned<Slice<T>> | undefined> kind=field target_receiver=&Holder.isInline.'a readonly Holder<T> key=storage target=Holder.storage target_type=Readonly<Owned<Slice<T>> | undefined>

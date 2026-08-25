@@ -1453,6 +1453,7 @@ class Card {
     constructor(props: { heading: string }) {
     /// @generic.template symbol=Card.constructor parameters=(P0: Place)
     /// @type.symbol symbol=Card.constructor type=<Card.constructor.P0: Place>({ heading: string }) => Managed<Card, Card.constructor.P0>
+    /// @type.symbol symbol=Card.constructor.this type=Card
     /// @type.symbol symbol=Card.constructor.props source="props: { heading: string }" type={ heading: string }
 
         this.heading = props.heading;

@@ -183,6 +183,7 @@ class Holder {
     constructor(user: User) {
     /// @generic.template symbol=Holder.constructor parameters=(P0: Place)
     /// @type.symbol symbol=Holder.constructor type=<Holder.constructor.P0: Place>(User) => Managed<this, Holder.constructor.P0>
+    /// @type.symbol symbol=Holder.constructor.this type=Holder
     /// @type.symbol symbol=Holder.constructor.user source="user: User" type=User
     /// @resolution.name source=User target=User
 

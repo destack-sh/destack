@@ -170,6 +170,7 @@ extension of Point {
     sum(): int32 {
     /// @generic.template symbol=sum parameters=('a, P1: Place)
     /// @type.symbol symbol=sum type=<sum.'a, sum.P1: Place>(this: &sum.'a readonly this) => int32
+    /// @type.symbol symbol=sum.this type=&sum.'a readonly Point
 
         return this.x + this.y;
         /// @type.node source="this.x + this.y" type=int32

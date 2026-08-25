@@ -39,6 +39,7 @@ class User {
     constructor(name: string, age: number) {}
     /// @generic.template symbol=User.constructor parameters=(P0: Place)
     /// @type.symbol symbol=User.constructor source="constructor(name: string, age: number) {}" type=<User.constructor.P0: Place>(string, float64) => Managed<User, User.constructor.P0>
+    /// @type.symbol symbol=User.constructor.this type=User
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
     /// @type.symbol symbol=User.constructor.age source="age: number" type=float64
 
@@ -217,6 +218,7 @@ class User {
     constructor(name: string, age: number) {}
     /// @generic.template symbol=User.constructor parameters=(P0: Place)
     /// @type.symbol symbol=User.constructor source="constructor(name: string, age: number) {}" type=<User.constructor.P0: Place>(string, float64) => Managed<this, User.constructor.P0>
+    /// @type.symbol symbol=User.constructor.this type=User
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
     /// @type.symbol symbol=User.constructor.age source="age: number" type=float64
 

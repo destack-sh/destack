@@ -51,6 +51,7 @@ class Wrapper<T> {
     open(): T {
     /// @generic.template symbol=Wrapper.open parent=template#0 parameters=(P0: Place)
     /// @type.symbol symbol=Wrapper.open type=<Wrapper.open.P0: Place>(this: Managed<this, Wrapper.open.P0>) => T#1
+    /// @type.symbol symbol=Wrapper.open.this type=Managed<Wrapper<T#1>, Wrapper.open.P0>
     /// @resolution.name source=T target=Wrapper.T
 
         return unreachable();
@@ -79,6 +80,7 @@ extension<T> of Sealed<T> {
     reveal(): T {
     /// @generic.template symbol=reveal parent=template#2 parameters=(P0: Place)
     /// @type.symbol symbol=reveal type=<reveal.P0: Place>(this: Managed<this, reveal.P0>) => T#3
+    /// @type.symbol symbol=reveal.this type=Managed<Sealed<T#3>, reveal.P0>
     /// @resolution.name source=T target=T
 
         this.open()

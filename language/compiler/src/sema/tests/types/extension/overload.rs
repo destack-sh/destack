@@ -103,6 +103,7 @@ extension of User {
     display(): string {
     /// @generic.template symbol=display#1 parameters=('a, P1: Place)
     /// @type.symbol symbol=display#1 type=<display#1.'a, display#1.P1: Place>(this: &display#1.'a readonly this) => string
+    /// @type.symbol symbol=display.this#1 type=&display#1.'a readonly User
 
         return "first";
     }
@@ -110,6 +111,7 @@ extension of User {
     display(): string {
     /// @generic.template symbol=display#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=display#2 type=<display#2.'a, display#2.P1: Place>(this: &display#2.'a readonly this) => string
+    /// @type.symbol symbol=display.this#2 type=&display#2.'a readonly User
 
         return "second";
     }
@@ -117,6 +119,7 @@ extension of User {
     greet(name: string): string {
     /// @generic.template symbol=greet#1 parameters=('a, P1: Place)
     /// @type.symbol symbol=greet#1 type=<greet#1.'a, greet#1.P1: Place>(this: &greet#1.'a readonly this, string) => string
+    /// @type.symbol symbol=greet.this#1 type=&greet#1.'a readonly User
     /// @type.symbol symbol=greet.name#1 source="name: string" type=string
 
         return name;
@@ -129,6 +132,7 @@ extension of User {
     greet(name: "admin"): string {
     /// @generic.template symbol=greet#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=greet#2 type=<greet#2.'a, greet#2.P1: Place>(this: &greet#2.'a readonly this, "admin") => string
+    /// @type.symbol symbol=greet.this#2 type=&greet#2.'a readonly User
     /// @type.symbol symbol=greet.name#2 source="name: \"admin\"" type="admin"
 
         return "root";
@@ -137,6 +141,7 @@ extension of User {
     label(value: int32): string {
     /// @generic.template symbol=label#1 parameters=('a, P1: Place)
     /// @type.symbol symbol=label#1 type=<label#1.'a, label#1.P1: Place>(this: &label#1.'a readonly this, int32) => string
+    /// @type.symbol symbol=label.this#1 type=&label#1.'a readonly User
     /// @type.symbol symbol=label.value#1 source="value: int32" type=int32
 
         return "number";
@@ -145,6 +150,7 @@ extension of User {
     label(value: string): string {
     /// @generic.template symbol=label#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=label#2 type=<label#2.'a, label#2.P1: Place>(this: &label#2.'a readonly this, string) => string
+    /// @type.symbol symbol=label.this#2 type=&label#2.'a readonly User
     /// @type.symbol symbol=label.value#2 source="value: string" type=string
 
         return value;
@@ -157,6 +163,7 @@ extension of User {
     pair(left: int32): string {
     /// @generic.template symbol=pair#1 parameters=('a, P1: Place)
     /// @type.symbol symbol=pair#1 type=<pair#1.'a, pair#1.P1: Place>(this: &pair#1.'a readonly this, int32) => string
+    /// @type.symbol symbol=pair.this#1 type=&pair#1.'a readonly User
     /// @type.symbol symbol=pair.left#1 source="left: int32" type=int32
 
         return "one";
@@ -165,6 +172,7 @@ extension of User {
     pair(left: int32, right: string): string {
     /// @generic.template symbol=pair#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=pair#2 type=<pair#2.'a, pair#2.P1: Place>(this: &pair#2.'a readonly this, int32, string) => string
+    /// @type.symbol symbol=pair.this#2 type=&pair#2.'a readonly User
     /// @type.symbol symbol=pair.left#2 source="left: int32" type=int32
     /// @type.symbol symbol=pair.right source="right: string" type=string
 

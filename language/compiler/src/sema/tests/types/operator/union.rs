@@ -235,6 +235,7 @@ struct Rectangle {
     draw(): void {}
     /// @generic.template symbol=Rectangle.draw parameters=('a, P1: Place)
     /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'a, Rectangle.draw.P1: Place>(this: &Rectangle.draw.'a readonly Rectangle) => void
+    /// @type.symbol symbol=Rectangle.draw.this type=&Rectangle.draw.'a readonly Rectangle
 
 }
 
@@ -246,6 +247,7 @@ struct Circle {
     draw(): void {}
     /// @generic.template symbol=Circle.draw parameters=('a, P1: Place)
     /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'a, Circle.draw.P1: Place>(this: &Circle.draw.'a readonly Circle) => void
+    /// @type.symbol symbol=Circle.draw.this type=&Circle.draw.'a readonly Circle
 
 }
 
@@ -318,6 +320,7 @@ struct Rectangle {
     draw(): void {}
     /// @generic.template symbol=Rectangle.draw parameters=('a, P1: Place)
     /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'a, Rectangle.draw.P1: Place>(this: &Rectangle.draw.'a readonly Rectangle) => void
+    /// @type.symbol symbol=Rectangle.draw.this type=&Rectangle.draw.'a readonly Rectangle
 
 }
 
@@ -329,6 +332,7 @@ struct Circle {
     draw(): void {}
     /// @generic.template symbol=Circle.draw parameters=('a, P1: Place)
     /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'a, Circle.draw.P1: Place>(this: &Circle.draw.'a readonly Circle) => void
+    /// @type.symbol symbol=Circle.draw.this type=&Circle.draw.'a readonly Circle
 
 }
 
@@ -426,6 +430,7 @@ struct Left {
     parse(value: string): "left-string" {
     /// @generic.template symbol=Left.parse#1 parameters=('a, P1: Place)
     /// @type.symbol symbol=Left.parse#1 type=<Left.parse#1.'a, Left.parse#1.P1: Place>(this: &Left.parse#1.'a readonly Left, string) => "left-string"
+    /// @type.symbol symbol=Left.parse.this#1 type=&Left.parse#1.'a readonly Left
     /// @type.symbol symbol=Left.parse.value#1 source="value: string" type=string
 
         return "left-string";
@@ -434,6 +439,7 @@ struct Left {
     parse(value: int32): "left-integer" {
     /// @generic.template symbol=Left.parse#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=Left.parse#2 type=<Left.parse#2.'a, Left.parse#2.P1: Place>(this: &Left.parse#2.'a readonly Left, int32) => "left-integer"
+    /// @type.symbol symbol=Left.parse.this#2 type=&Left.parse#2.'a readonly Left
     /// @type.symbol symbol=Left.parse.value#2 source="value: int32" type=int32
 
         return "left-integer";
@@ -449,6 +455,7 @@ struct Right {
     parse(value: string): "right-string" {
     /// @generic.template symbol=Right.parse#1 parameters=('a, P1: Place)
     /// @type.symbol symbol=Right.parse#1 type=<Right.parse#1.'a, Right.parse#1.P1: Place>(this: &Right.parse#1.'a readonly Right, string) => "right-string"
+    /// @type.symbol symbol=Right.parse.this#1 type=&Right.parse#1.'a readonly Right
     /// @type.symbol symbol=Right.parse.value#1 source="value: string" type=string
 
         return "right-string";
@@ -457,6 +464,7 @@ struct Right {
     parse(value: int32): "right-integer" {
     /// @generic.template symbol=Right.parse#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=Right.parse#2 type=<Right.parse#2.'a, Right.parse#2.P1: Place>(this: &Right.parse#2.'a readonly Right, int32) => "right-integer"
+    /// @type.symbol symbol=Right.parse.this#2 type=&Right.parse#2.'a readonly Right
     /// @type.symbol symbol=Right.parse.value#2 source="value: int32" type=int32
 
         return "right-integer";

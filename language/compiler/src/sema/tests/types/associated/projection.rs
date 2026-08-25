@@ -101,6 +101,7 @@ extension<T: Numeric> of Pair<T> implements Doubles {
     double(): this.Output {
     /// @generic.template symbol=double parent=template#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=double type=<double.'a, double.P1: Place>(this: &double.'a readonly this) => this.Output
+    /// @type.symbol symbol=double.this type=&double.'a readonly Pair<T#2>
 
         Pair { x: this.x + this.x }
         /// @type.node source="Pair { x: this.x + this.x }" type=Pair<T#2>

@@ -364,6 +364,7 @@ class User {
     print(): string {
     /// @generic.template symbol=User.print parameters=(P0: Place)
     /// @type.symbol symbol=User.print type=<User.print.P0: Place>(this: Managed<User, User.print.P0>) => string
+    /// @type.symbol symbol=User.print.this type=Managed<User, User.print.P0>
 
         return this.name;
         /// @type.node source=this type=Managed<User, User.print.P0>

@@ -39,6 +39,7 @@ extension of (int32, string) {
     count(): int32 {
     /// @generic.template symbol=count#1 parameters=('a, P1: Place)
     /// @type.symbol symbol=count#1 type=<count#1.'a, count#1.P1: Place>(this: &count#1.'a readonly this) => int32
+    /// @type.symbol symbol=count.this type=&count#1.'a readonly (int32, string)
 
         return this[0];
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&count#1.'a readonly (int32, string)
@@ -118,6 +119,7 @@ extension<First: Copy, Second: Copy> of (First, Second) {
     swap(): (Second, First) {
     /// @generic.template symbol=swap parent=template#0 parameters=('a, P1: Place)
     /// @type.symbol symbol=swap type=<swap.'a, swap.P1: Place>(this: &swap.'a readonly this) => (Second, First)
+    /// @type.symbol symbol=swap.this type=&swap.'a readonly (First, Second)
     /// @resolution.name source=Second target=Second
     /// @resolution.name source=First target=First
 
@@ -208,6 +210,7 @@ extension<T: Copy> of (T, T) {
     head(): T {
     /// @generic.template symbol=head parent=template#0 parameters=('a, P1: Place)
     /// @type.symbol symbol=head type=<head.'a, head.P1: Place>(this: &head.'a readonly this) => T
+    /// @type.symbol symbol=head.this type=&head.'a readonly (T, T)
     /// @resolution.name source=T target=T
 
         return this[0];
@@ -295,6 +298,7 @@ extension of [int32; 3] {
     head(): int32 {
     /// @generic.template symbol=head#1 parameters=('a, P1: Place)
     /// @type.symbol symbol=head#1 type=<head#1.'a, head#1.P1: Place>(this: &head#1.'a readonly this) => int32
+    /// @type.symbol symbol=head.this type=&head#1.'a readonly FixedArray<int32, 3>
 
         return this[0];
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&head#1.'a readonly FixedArray<int32, 3>
@@ -365,6 +369,7 @@ extension of [int32] {
 
     hasNone(): boolean {
     /// @type.symbol symbol=hasNone type=(this: this) => boolean
+    /// @type.symbol symbol=hasNone.this type=Slice<int32>
 
         return this.length == 0;
         /// @resolution.member source=this.length receiver=Slice<int32> type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
@@ -434,6 +439,7 @@ extension of (value: int32) => int32 {
 
     arity(): int32 {
     /// @type.symbol symbol=arity#1 type=(this: this) => int32
+    /// @type.symbol symbol=arity.this type=Function<(int32,), int32>
 
         return 1;
     }
@@ -490,6 +496,7 @@ extension of { x: int32 } {
     double(): int32 {
     /// @generic.template symbol=double parameters=(P0: Place)
     /// @type.symbol symbol=double type=<double.P0: Place>(this: Managed<this, double.P0>) => int32
+    /// @type.symbol symbol=double.this type=Managed<{ x: int32 }, double.P0>
 
         return this.x * 2;
         /// @resolution.member source=this.x receiver=Managed<{ x: int32 }, double.P0> type=int32 kind=field target_receiver=Managed<{ x: int32 }, double.P0> key=x target_type=int32
@@ -579,6 +586,7 @@ extension of Named & Aged {
     describe(): string {
     /// @generic.template symbol=describe parameters=(P0: Place)
     /// @type.symbol symbol=describe type=<describe.P0: Place>(this: Managed<this, describe.P0>) => string
+    /// @type.symbol symbol=describe.this type=Managed<Named & Aged, describe.P0>
 
         return this.name;
         /// @resolution.member source=this.name receiver=Managed<Named & Aged, describe.P0> type=Managed<string, describe.P0> kind=field target_receiver=Managed<Named & Aged, describe.P0> key=name target=Named.name target_type=Managed<string, describe.P0>
@@ -645,6 +653,7 @@ extension of Circle | Square {
 
     area(): int32 {
     /// @type.symbol symbol=area type=(this: this) => int32
+    /// @type.symbol symbol=area.this type=Circle | Square
 
         return 1;
     }
@@ -707,6 +716,7 @@ extension of Account {
     label(): string {
     /// @generic.template symbol=label parameters=('a, P1: Place)
     /// @type.symbol symbol=label type=<label.'a, label.P1: Place>(this: &label.'a readonly this) => string
+    /// @type.symbol symbol=label.this type=&label.'a readonly User
 
         return "account";
     }
@@ -751,6 +761,7 @@ extension<T> of T {
 
     describe(): string {
     /// @type.symbol symbol=describe type=(this: this) => string
+    /// @type.symbol symbol=describe.this type=T
 
         return "anything";
     }
@@ -824,6 +835,7 @@ extension of User where int32: Show {
     label(): string {
     /// @generic.template symbol=label parent=template#1 parameters=('a, P1: Place)
     /// @type.symbol symbol=label type=<label.'a, label.P1: Place>(this: &label.'a readonly this) => string
+    /// @type.symbol symbol=label.this type=&label.'a readonly User
 
         return "user";
     }

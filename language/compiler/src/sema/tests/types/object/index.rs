@@ -455,6 +455,7 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
     index(key: string): this.Output {
     /// @generic.template symbol=index parent=template#0 parameters=('a, P1: Place)
     /// @type.symbol symbol=index type=<index.'a, index.P1: Place>(this: &index.'a readonly Store, string) => int32 | undefined
+    /// @type.symbol symbol=index.this type=&index.'a readonly Store
     /// @type.symbol symbol=index.key source="key: string" type=string
 
         return this.storage[key];

@@ -402,6 +402,7 @@ extension of Score implements Add<Score> {
     add(other: Score): Score {
     /// @generic.template symbol=add parent=template#0 parameters=('a, P1: Place)
     /// @type.symbol symbol=add type=<add.'a, add.P1: Place>(this: &add.'a readonly Score, Score) => Score
+    /// @type.symbol symbol=add.this type=&add.'a readonly Score
     /// @type.symbol symbol=add.other source="other: Score" type=Score
     /// @resolution.name source=Score target=Score
     /// @resolution.name source=Score target=Score
@@ -524,6 +525,7 @@ extension of Score implements Add {
     add(other: Score): Score {
     /// @generic.template symbol=add parent=template#0 parameters=('a, P1: Place)
     /// @type.symbol symbol=add type=<add.'a, add.P1: Place>(this: &add.'a readonly Score, Score) => Score
+    /// @type.symbol symbol=add.this type=&add.'a readonly Score
     /// @type.symbol symbol=add.other source="other: Score" type=Score
     /// @resolution.name source=Score target=Score
     /// @resolution.name source=Score target=Score

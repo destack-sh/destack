@@ -807,6 +807,7 @@ shared class Cell<T> {
     constructor(value: T) {
     /// @generic.template symbol=Cell.constructor parent=template#0 parameters=(P0: Place)
     /// @type.symbol symbol=Cell.constructor type=<Cell.constructor.P0: Place>(T) => Managed<this, Cell.constructor.P0>
+    /// @type.symbol symbol=Cell.constructor.this type=Cell<T>
     /// @type.symbol symbol=Cell.constructor.value source="value: T" type=T
     /// @resolution.name source=T target=Cell.T
 

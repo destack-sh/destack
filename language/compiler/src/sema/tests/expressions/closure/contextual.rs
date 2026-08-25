@@ -64,6 +64,7 @@ class Cell<T> {
     constructor(executor: (consume: Consume<T>) => void) {
     /// @generic.template symbol=Cell.constructor parent=template#1 parameters=(P0: Place)
     /// @type.symbol symbol=Cell.constructor type=<Cell.constructor.P0: Place>(Function<(Consume<T#2>,), void>) => Managed<this, Cell.constructor.P0>
+    /// @type.symbol symbol=Cell.constructor.this type=Cell<T#2>
     /// @type.symbol symbol=Cell.constructor.executor source="executor: (consume: Consume<T>) => void" type=Function<(Consume<T#2>,), void>
     /// @type.symbol symbol=Cell.constructor.consume source="consume: Consume<T>" type=Consume<T#2>
     /// @resolution.name source=Consume target=Consume
@@ -185,6 +186,7 @@ class Cell<T> {
     constructor(executor: (value: T) => void) {
     /// @generic.template symbol=Cell.constructor parent=template#0 parameters=(P0: Place)
     /// @type.symbol symbol=Cell.constructor type=<Cell.constructor.P0: Place>(Function<(T,), void>) => Managed<this, Cell.constructor.P0>
+    /// @type.symbol symbol=Cell.constructor.this type=Cell<T>
     /// @type.symbol symbol=Cell.constructor.executor source="executor: (value: T) => void" type=Function<(T,), void>
     /// @type.symbol symbol=Cell.constructor.value source="value: T" type=T
     /// @resolution.name source=T target=Cell.T

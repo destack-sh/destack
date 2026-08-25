@@ -262,6 +262,7 @@ class User {
     displayName(): string {
     /// @generic.template symbol=User.displayName parameters=(P0: Place)
     /// @type.symbol symbol=User.displayName type=<User.displayName.P0: Place>(this: Managed<this, User.displayName.P0>) => string
+    /// @type.symbol symbol=User.displayName.this type=Managed<User, User.displayName.P0>
 
         return this.name;
         /// @type.node source=this type=Managed<User, User.displayName.P0>

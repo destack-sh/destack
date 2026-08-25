@@ -286,6 +286,7 @@ class Sink {
     constructor(value: int32) {}
     /// @generic.template symbol=Sink.constructor parameters=(P0: Place)
     /// @type.symbol symbol=Sink.constructor source="constructor(value: int32) {}" type=<Sink.constructor.P0: Place>(int32) => Managed<Sink, Sink.constructor.P0>
+    /// @type.symbol symbol=Sink.constructor.this type=Sink
     /// @type.symbol symbol=Sink.constructor.value source="value: int32" type=int32
 
 }

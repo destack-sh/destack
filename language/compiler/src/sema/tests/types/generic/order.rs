@@ -119,6 +119,7 @@ extension<T> of Box<T> {
     swap<U>(other: U): U {
     /// @generic.template symbol=swap parent=template#1 parameters=(U, 'a, P2: Place)
     /// @type.symbol symbol=swap type=<U, swap.'a, swap.P2: Place>(this: &swap.'a readonly this, U) => U
+    /// @type.symbol symbol=swap.this type=&swap.'a readonly Box<T#2>
     /// @type.symbol symbol=swap.U source=U type=U
     /// @type.symbol symbol=swap.other source="other: U" type=U
     /// @resolution.name source=U target=swap.U

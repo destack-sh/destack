@@ -385,6 +385,7 @@ class Deferred<T> {
     then(callback: (value: T) => void): void {}
     /// @generic.template symbol=Deferred.then parent=template#0 parameters=(P0: Place)
     /// @type.symbol symbol=Deferred.then source="then(callback: (value: T) => void): void {}" type=<Deferred.then.P0: Place>(this: Managed<this, Deferred.then.P0>, Function<(T#1,), void>) => void
+    /// @type.symbol symbol=Deferred.then.this type=Managed<Deferred<T#1>, Deferred.then.P0>
     /// @type.symbol symbol=Deferred.then.callback source="callback: (value: T) => void" type=Function<(T#1,), void>
     /// @type.symbol symbol=Deferred.then.value source="value: T" type=T#1
     /// @resolution.name source=T target=Deferred.T
@@ -471,6 +472,7 @@ class Deferred<T> {
     then(callback: (value: T) => void): void {}
     /// @generic.template symbol=Deferred.then parent=template#0 parameters=(P0: Place)
     /// @type.symbol symbol=Deferred.then source="then(callback: (value: T) => void): void {}" type=<Deferred.then.P0: Place>(this: Managed<this, Deferred.then.P0>, Function<(T#1,), void>) => void
+    /// @type.symbol symbol=Deferred.then.this type=Managed<Deferred<T#1>, Deferred.then.P0>
     /// @type.symbol symbol=Deferred.then.callback source="callback: (value: T) => void" type=Function<(T#1,), void>
     /// @type.symbol symbol=Deferred.then.value source="value: T" type=T#1
     /// @resolution.name source=T target=Deferred.T
@@ -564,6 +566,7 @@ class Deferred<T> {
     then(callback: (value: T) => void): void {}
     /// @generic.template symbol=Deferred.then parent=template#0 parameters=(P0: Place)
     /// @type.symbol symbol=Deferred.then source="then(callback: (value: T) => void): void {}" type=<Deferred.then.P0: Place>(this: Managed<this, Deferred.then.P0>, Function<(T#1,), void>) => void
+    /// @type.symbol symbol=Deferred.then.this type=Managed<Deferred<T#1>, Deferred.then.P0>
     /// @type.symbol symbol=Deferred.then.callback source="callback: (value: T) => void" type=Function<(T#1,), void>
     /// @type.symbol symbol=Deferred.then.value source="value: T" type=T#1
     /// @resolution.name source=T target=Deferred.T

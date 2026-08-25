@@ -137,6 +137,7 @@ class Base {
     shared(): int32 {
     /// @generic.template symbol=Base.shared parameters=(P0: Place)
     /// @type.symbol symbol=Base.shared type=<Base.shared.P0: Place>(this: Managed<this, Base.shared.P0>) => int32
+    /// @type.symbol symbol=Base.shared.this type=Managed<Base, Base.shared.P0>
 
         return 1;
     }
@@ -152,6 +153,7 @@ class Derived extends Base {
     extra(): int32 {
     /// @generic.template symbol=Derived.extra parameters=(P0: Place)
     /// @type.symbol symbol=Derived.extra type=<Derived.extra.P0: Place>(this: Managed<this, Derived.extra.P0>) => int32
+    /// @type.symbol symbol=Derived.extra.this type=Managed<Derived, Derived.extra.P0>
 
         return 2;
     }

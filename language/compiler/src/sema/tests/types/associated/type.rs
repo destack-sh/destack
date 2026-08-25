@@ -244,6 +244,7 @@ class Factory implements Producing {
     produce(): this.Output {
     /// @generic.template symbol=Factory.produce parent=template#1 parameters=(P0: Place)
     /// @type.symbol symbol=Factory.produce type=<Factory.produce.P0: Place>(this: Managed<Factory, Factory.produce.P0>) => int32
+    /// @type.symbol symbol=Factory.produce.this type=Managed<Factory, Factory.produce.P0>
 
         return 7;
     }

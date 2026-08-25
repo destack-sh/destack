@@ -69,6 +69,7 @@ extension of Token implements Add<Token> {
     add(other: Token): string {
     /// @generic.template symbol=add parent=template#0 parameters=('a, P1: Place)
     /// @type.symbol symbol=add type=<add.'a, add.P1: Place>(this: &add.'a readonly Token, Token) => string
+    /// @type.symbol symbol=add.this type=&add.'a readonly Token
     /// @type.symbol symbol=add.other source="other: Token" type=Token
     /// @resolution.name source=Token target=Token
 
@@ -225,6 +226,7 @@ extension of Attempt implements Try {
     branch(): ControlFlow<string, int32> {
     /// @generic.template symbol=branch parent=template#0 parameters=('a, P1: Place)
     /// @type.symbol symbol=branch type=<branch.'a, branch.P1: Place>(this: &branch.'a readonly Attempt) => ControlFlow<string, int32>
+    /// @type.symbol symbol=branch.this type=&branch.'a readonly Attempt
     /// @resolution.name source=ControlFlow target=ControlFlow
     /// @generic.instance id="ControlFlow<string, int32>" template=ControlFlow arguments=(string, int32)
     /// @generic.instance id=Break<string> template=Break arguments=(string)

@@ -670,6 +670,7 @@ extension<T, U, R, I: It<T, R>> of Wrap<I, T, U> implements It<U> {
     next(): void {
     /// @generic.template symbol=next parent=template#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=next type=<next.'a, next.P1: Place>(this: &next.'a readonly this) => void
+    /// @type.symbol symbol=next.this type=&next.'a readonly Wrap<I#2, T#3, U#3>
 
         todo("next")
         /// @type.node source="todo(\"next\")" type=never

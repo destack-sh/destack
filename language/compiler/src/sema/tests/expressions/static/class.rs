@@ -253,6 +253,7 @@ class Packet<T> {
     constructor(value: T) {
     /// @generic.template symbol=Packet.constructor parent=template#0 parameters=(P0: Place)
     /// @type.symbol symbol=Packet.constructor type=<Packet.constructor.P0: Place>(T) => Managed<this, Packet.constructor.P0>
+    /// @type.symbol symbol=Packet.constructor.this type=Packet<T>
     /// @type.symbol symbol=Packet.constructor.value source="value: T" type=T
     /// @resolution.name source=T target=Packet.T
 

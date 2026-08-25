@@ -98,6 +98,7 @@ export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
     get mesh(): int32 {
     /// @generic.template symbol=mesh#1 parent=template#3 parameters=('a, P1: Place)
     /// @type.symbol symbol=mesh#1 type=<mesh#1.'a, mesh#1.P1: Place>(this: &mesh#1.'a readonly this) => int32
+    /// @type.symbol symbol=mesh.this type=&mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>
 
         return mesh<T, ...Axes>(this);
         /// @resolution.name source=mesh target=mesh
@@ -205,6 +206,7 @@ extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
     get mesh(): int32 {
     /// @generic.template symbol=mesh#1 parent=template#1 parameters=('a, P1: Place)
     /// @type.symbol symbol=mesh#1 type=<mesh#1.'a, mesh#1.P1: Place>(this: &mesh#1.'a readonly this) => int32
+    /// @type.symbol symbol=mesh.this type=&mesh#1.'a readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>
 
         return mesh<T, ...Xs>(this);
         /// @resolution.name source=mesh target=mesh

@@ -254,6 +254,7 @@ class Document implements Printable {
     print(): void {}
     /// @generic.template symbol=Document.print parent=template#1 parameters=(P0: Place)
     /// @type.symbol symbol=Document.print source="print(): void {}" type=<Document.print.P0: Place>(this: Managed<Document, Document.print.P0>) => void
+    /// @type.symbol symbol=Document.print.this type=Managed<Document, Document.print.P0>
 
 }
 "#,
@@ -373,6 +374,7 @@ class Document implements Alias {
     print(): void {}
     /// @generic.template symbol=Document.print parent=template#1 parameters=(P0: Place)
     /// @type.symbol symbol=Document.print source="print(): void {}" type=<Document.print.P0: Place>(this: Managed<this, Document.print.P0>) => void
+    /// @type.symbol symbol=Document.print.this type=Managed<Document, Document.print.P0>
 
 }
 "#,
@@ -513,6 +515,7 @@ class Point implements Drawable {
     draw(): void {}
     /// @generic.template symbol=Point.draw parent=template#2 parameters=(P0: Place)
     /// @type.symbol symbol=Point.draw source="draw(): void {}" type=<Point.draw.P0: Place>(this: Managed<this, Point.draw.P0>) => void
+    /// @type.symbol symbol=Point.draw.this type=Managed<Point, Point.draw.P0>
 
 }
 "#,
@@ -590,6 +593,7 @@ class Document {
     override print(): void {}
     /// @generic.template symbol=Document.print parameters=(P0: Place)
     /// @type.symbol symbol=Document.print source="override print(): void {}" type=<Document.print.P0: Place>(this: Managed<this, Document.print.P0>) => void
+    /// @type.symbol symbol=Document.print.this type=Managed<Document, Document.print.P0>
 
 }
 "#,
@@ -636,6 +640,7 @@ class Base {
     virtual print(): void {}
     /// @generic.template symbol=Base.print parameters=(P0: Place)
     /// @type.symbol symbol=Base.print source="virtual print(): void {}" type=<Base.print.P0: Place>(this: Managed<this, Base.print.P0>) => void
+    /// @type.symbol symbol=Base.print.this type=Managed<Base, Base.print.P0>
 
 }
 
@@ -649,6 +654,7 @@ class Document extends Base {
     print(): void {}
     /// @generic.template symbol=Document.print parameters=(P0: Place)
     /// @type.symbol symbol=Document.print source="print(): void {}" type=<Document.print.P0: Place>(this: Managed<this, Document.print.P0>) => void
+    /// @type.symbol symbol=Document.print.this type=Managed<Document, Document.print.P0>
 
 }
 "#,
@@ -696,6 +702,7 @@ class Base {
     print(): void {}
     /// @generic.template symbol=Base.print parameters=(P0: Place)
     /// @type.symbol symbol=Base.print source="print(): void {}" type=<Base.print.P0: Place>(this: Managed<this, Base.print.P0>) => void
+    /// @type.symbol symbol=Base.print.this type=Managed<Base, Base.print.P0>
 
 }
 
@@ -709,6 +716,7 @@ class Document extends Base {
     override print(): void {}
     /// @generic.template symbol=Document.print parameters=(P0: Place)
     /// @type.symbol symbol=Document.print source="override print(): void {}" type=<Document.print.P0: Place>(this: Managed<this, Document.print.P0>) => void
+    /// @type.symbol symbol=Document.print.this type=Managed<Document, Document.print.P0>
 
 }
 "#,
@@ -965,6 +973,7 @@ class Base {
     virtual parse(value: string): string {
     /// @generic.template symbol=Base.parse parameters=(P0: Place)
     /// @type.symbol symbol=Base.parse type=<Base.parse.P0: Place>(this: Managed<this, Base.parse.P0>, string) => string
+    /// @type.symbol symbol=Base.parse.this type=Managed<Base, Base.parse.P0>
     /// @type.symbol symbol=Base.parse.value source="value: string" type=string
 
         return value;
@@ -985,6 +994,7 @@ class Parser extends Base {
     override parse(value: string): int32 {
     /// @generic.template symbol=Parser.parse parameters=(P0: Place)
     /// @type.symbol symbol=Parser.parse type=<Parser.parse.P0: Place>(this: Managed<this, Parser.parse.P0>, string) => int32
+    /// @type.symbol symbol=Parser.parse.this type=Managed<Parser, Parser.parse.P0>
     /// @type.symbol symbol=Parser.parse.value source="value: string" type=string
 
         return 1;
@@ -1100,6 +1110,7 @@ class Animal {
     virtual speak(): string {
     /// @generic.template symbol=Animal.speak parameters=(P0: Place)
     /// @type.symbol symbol=Animal.speak type=<Animal.speak.P0: Place>(this: Managed<Animal, Animal.speak.P0>) => string
+    /// @type.symbol symbol=Animal.speak.this type=Managed<Animal, Animal.speak.P0>
 
         return "sound";
     }
@@ -1115,6 +1126,7 @@ class Dog extends Animal {
     override speak(): string {
     /// @generic.template symbol=Dog.speak parameters=(P0: Place)
     /// @type.symbol symbol=Dog.speak type=<Dog.speak.P0: Place>(this: Managed<Dog, Dog.speak.P0>) => string
+    /// @type.symbol symbol=Dog.speak.this type=Managed<Dog, Dog.speak.P0>
 
         return super.speak();
         /// @resolution.member source=super.speak receiver=Animal type=<Animal.speak.P0: Place>(this: Managed<Animal, Animal.speak.P0>) => string kind=symbol target_receiver=Animal target=Animal.speak
@@ -1179,6 +1191,7 @@ class Animal {
     virtual speak(): string {
     /// @generic.template symbol=Animal.speak parameters=(P0: Place)
     /// @type.symbol symbol=Animal.speak type=<Animal.speak.P0: Place>(this: Managed<Animal, Animal.speak.P0>) => string
+    /// @type.symbol symbol=Animal.speak.this type=Managed<Animal, Animal.speak.P0>
     /// @capture.function function=Animal.speak bindings=0
 
         return "sound";
@@ -1195,6 +1208,7 @@ class Dog extends Animal {
     override speak(): string {
     /// @generic.template symbol=Dog.speak parameters=(P0: Place)
     /// @type.symbol symbol=Dog.speak type=<Dog.speak.P0: Place>(this: Managed<Dog, Dog.speak.P0>) => string
+    /// @type.symbol symbol=Dog.speak.this type=Managed<Dog, Dog.speak.P0>
     /// @capture.function function=Dog.speak bindings=0
 
         const inherited = () => super.speak();

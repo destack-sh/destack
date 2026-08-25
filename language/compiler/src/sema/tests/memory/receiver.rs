@@ -528,6 +528,7 @@ struct Point {
     scale(by: int32): void {
     /// @generic.template symbol=Point.scale parameters=('a, P1: Place)
     /// @type.symbol symbol=Point.scale type=<Point.scale.'a, Point.scale.P1: Place>(this: &Point.scale.'a readonly this, int32) => void
+    /// @type.symbol symbol=Point.scale.this type=&Point.scale.'a readonly Point
     /// @type.symbol symbol=Point.scale.by source="by: int32" type=int32
 
         this.x = this.x * by;
@@ -621,6 +622,7 @@ class Counter {
     read(): int32 {
     /// @generic.template symbol=Counter.read parameters=(P0: Place)
     /// @type.symbol symbol=Counter.read type=<Counter.read.P0: Place>(this: Managed<this, Counter.read.P0>) => int32
+    /// @type.symbol symbol=Counter.read.this type=Managed<Counter, Counter.read.P0>
 
         return this.count;
         /// @resolution.member source=this.count receiver=Managed<Counter, Counter.read.P0> type=int32 kind=field target_receiver=Managed<Counter, Counter.read.P0> key=count target=Counter.count target_type=int32
@@ -775,6 +777,7 @@ struct Counter {
     get current(): int32 {
     /// @generic.template symbol=Counter.current parameters=('a, P1: Place)
     /// @type.symbol symbol=Counter.current type=<Counter.current.'a, Counter.current.P1: Place>(this: &Counter.current.'a readonly Counter) => int32
+    /// @type.symbol symbol=Counter.current.this type=&Counter.current.'a readonly Counter
 
         this.value
         /// @resolution.member source=this.value receiver=&Counter.current.'a readonly Counter type=int32 kind=field target_receiver=&Counter.current.'a readonly Counter key=value target=Counter.value target_type=int32
@@ -837,6 +840,7 @@ class Counter {
 
     get current(): int32 {
     /// @type.symbol symbol=Counter.current type=(this: Readonly<Counter>) => int32
+    /// @type.symbol symbol=Counter.current.this type=Readonly<Counter>
 
         this.value
         /// @resolution.member source=this.value receiver=Readonly<Counter> type=int32 kind=field target_receiver=Readonly<Counter> key=value target=Counter.value target_type=int32

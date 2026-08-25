@@ -378,6 +378,7 @@ export extension<T: Copy> of Packet<T> implements Iterable<T> {
 
     first(): T | undefined {
     /// @type.symbol symbol=first type=(this: this) => T | undefined
+    /// @type.symbol symbol=first.this type=packet.Packet<T>
     /// @resolution.name source=T target=T
 
         this[0]

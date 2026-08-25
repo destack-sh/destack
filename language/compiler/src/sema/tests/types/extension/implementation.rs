@@ -74,6 +74,7 @@ extension of User implements Show {
     show(): string {
     /// @generic.template symbol=show#1 parent=template#1 parameters=('a, P1: Place)
     /// @type.symbol symbol=show#1 type=<show#1.'a, show#1.P1: Place>(this: &show#1.'a readonly this) => string
+    /// @type.symbol symbol=show.this#1 type=&show#1.'a readonly User
 
         return "user";
     }
@@ -90,6 +91,7 @@ extension of User implements Show {
     show(): string {
     /// @generic.template symbol=show#2 parent=template#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=show#2 type=<show#2.'a, show#2.P1: Place>(this: &show#2.'a readonly this) => string
+    /// @type.symbol symbol=show.this#2 type=&show#2.'a readonly User
 
         return "debug";
     }
@@ -241,6 +243,7 @@ extension of User implements Show {
     show(): string {
     /// @generic.template symbol=show parent=template#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=show type=<show.'a, show.P1: Place>(this: &show.'a readonly this) => string
+    /// @type.symbol symbol=show.this type=&show.'a readonly User
 
         return "user";
     }
@@ -348,6 +351,7 @@ extension of Badge implements Equal<Badge> {
     equal(other: Badge): boolean {
     /// @generic.template symbol=equal parent=template#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=equal type=<equal.'a, equal.P1: Place>(this: &equal.'a readonly Badge, Badge) => boolean
+    /// @type.symbol symbol=equal.this type=&equal.'a readonly Badge
     /// @type.symbol symbol=equal.other source="other: Badge" type=Badge
     /// @resolution.name source=Badge target=Badge
 
@@ -499,6 +503,7 @@ extension of User implements Alias {
     show(): string {
     /// @generic.template symbol=show parent=template#1 parameters=('a, P1: Place)
     /// @type.symbol symbol=show type=<show.'a, show.P1: Place>(this: &show.'a readonly this) => string
+    /// @type.symbol symbol=show.this type=&show.'a readonly User
 
         return "";
     }
@@ -586,6 +591,7 @@ extension of User implements Show | Debug {
     show(): string {
     /// @generic.template symbol=show parent=template#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=show type=<show.'a, show.P1: Place>(this: &show.'a readonly this) => string
+    /// @type.symbol symbol=show.this type=&show.'a readonly User
 
         return "";
     }
@@ -664,6 +670,7 @@ extension of int32 implements Doubling {
     double(): this.Output {
     /// @generic.template symbol=double parent=template#1 parameters=('a, P1: Place)
     /// @type.symbol symbol=double type=<double.'a, double.P1: Place>(this: &double.'a readonly int32) => int32.Output
+    /// @type.symbol symbol=double.this type=&double.'a readonly int32
 
         todo("double")
         /// @resolution.name source=todo target=todo
@@ -769,6 +776,7 @@ extension<T> of Box<T> implements Container {
     get(): T {
     /// @generic.template symbol=get parent=template#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=get type=<get.'a, get.P1: Place>(this: &get.'a readonly this) => T#2
+    /// @type.symbol symbol=get.this type=&get.'a readonly Box<T#2>
     /// @resolution.name source=T target=T
 
         todo("get")
@@ -917,6 +925,7 @@ extension<T> of Box<T> implements Container<T> {
     get(value: T): (int32, int32, int32, Container<string>.Item, string) {
     /// @generic.template symbol=get parent=template#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=get type=<get.'a, get.P1: Place>(this: &get.'a readonly this, T#2) => (int32, int32, int32, Container<string>.Item, string)
+    /// @type.symbol symbol=get.this type=&get.'a readonly Box<T#2>
     /// @type.symbol symbol=get.value source="value: T" type=T#2
     /// @resolution.name source=T target=T
     /// @resolution.name source=Container target=Container
@@ -1262,6 +1271,7 @@ extension of Cell implements Reading {
     read(): this.Output {
     /// @generic.template symbol=read parent=template#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=read type=<read.'a, read.P1: Place>(this: &read.'a readonly Cell) => int32
+    /// @type.symbol symbol=read.this type=&read.'a readonly Cell
 
         todo("read")
         /// @resolution.name source=todo target=todo
@@ -1286,6 +1296,7 @@ extension of Cell implements Writing {
     write(): this.Output {
     /// @generic.template symbol=write parent=template#3 parameters=('a, P1: Place)
     /// @type.symbol symbol=write type=<write.'a, write.P1: Place>(this: &write.'a readonly Cell) => float64
+    /// @type.symbol symbol=write.this type=&write.'a readonly Cell
 
         todo("write")
         /// @resolution.name source=todo target=todo
@@ -1476,6 +1487,7 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
     has<Q: Eq<Q>>(value: &readonly Q): boolean {
     /// @generic.template symbol=has parent=template#3 parameters=(Q: Eq<Q>, 'a, P2: Place, 'b, P4: Place)
     /// @type.symbol symbol=has type=<Q: Eq<Q>, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: &has.'b readonly this, &has.'a readonly Q) => boolean
+    /// @type.symbol symbol=has.this type=&has.'b readonly Pack<T#4>
     /// @type.symbol symbol=has.Q source="Q: Eq<Q>" type=Q
     /// @resolution.name source=Eq target=Eq
     /// @resolution.name source=Q target=has.Q
@@ -1586,6 +1598,7 @@ export extension<T> of Pack<T> implements Has<T> {
     has<Q: Marker>(value: &readonly Q): boolean {
     /// @generic.template symbol=has parent=template#3 parameters=(Q: Marker, 'a, P2: Place, 'b, P4: Place)
     /// @type.symbol symbol=has type=<Q: Marker, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: &has.'b readonly this, &has.'a readonly Q) => boolean
+    /// @type.symbol symbol=has.this type=&has.'b readonly Pack<T#3>
     /// @type.symbol symbol=has.Q source="Q: Marker" type=Q
     /// @resolution.name source=Marker target=Marker
     /// @type.symbol symbol=has.value source="value: &readonly Q" type=&has.'a readonly Q
@@ -1686,6 +1699,7 @@ export extension<T> of Pack<T> implements Has<T> {
     has<Q>(value: &exclusive Q): boolean {
     /// @generic.template symbol=has parent=template#2 parameters=(Q, 'a, P2: Place, 'b, P4: Place)
     /// @type.symbol symbol=has type=<Q, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: &has.'b readonly this, &has.'a exclusive Q) => boolean
+    /// @type.symbol symbol=has.this type=&has.'b readonly Pack<T#3>
     /// @type.symbol symbol=has.Q source=Q type=Q
     /// @type.symbol symbol=has.value source="value: &exclusive Q" type=&has.'a exclusive Q
     /// @resolution.name source=Q target=has.Q
@@ -1848,6 +1862,7 @@ export extension<K, V> of Bag<K, V>
     iterator(): Iterator<(K, V)> {
     /// @generic.template symbol=iterator#1 parent=template#2 parameters=(P0: Place)
     /// @type.symbol symbol=iterator#1 type=<iterator#1.P0: Place>(this: Managed<this, iterator#1.P0>) => Iterator<(K#3, V#3)>
+    /// @type.symbol symbol=iterator.this#1 type=Managed<Bag<K#3, V#3>, iterator#1.P0>
     /// @resolution.name source=Iterator target=Iterator
     /// @resolution.name source=K target=K
     /// @resolution.name source=V target=V
@@ -1951,6 +1966,7 @@ class Robot {
     greet(): string {
     /// @generic.template symbol=Robot.greet parameters=(P0: Place)
     /// @type.symbol symbol=Robot.greet type=<Robot.greet.P0: Place>(this: Managed<Robot, Robot.greet.P0>) => string
+    /// @type.symbol symbol=Robot.greet.this type=Managed<Robot, Robot.greet.P0>
 
         return "beep";
     }
@@ -2429,6 +2445,7 @@ extension<T, R, Q, I: It<T, R>, J: It<T, Q>> of Chain<I, J, T> implements It<T> 
     next(): void {
     /// @generic.template symbol=next parent=template#2 parameters=('a, P1: Place)
     /// @type.symbol symbol=next type=<next.'a, next.P1: Place>(this: &next.'a readonly this) => void
+    /// @type.symbol symbol=next.this type=&next.'a readonly Chain<I#2, J#2, T#3>
 
         todo("next")
         /// @type.node source="todo(\"next\")" type=never
@@ -2813,6 +2830,7 @@ extension<First: Copy, Second: Copy> of (First, Second) implements Sized {
     size(): isize {
     /// @generic.template symbol=size parent=template#1 parameters=('a, P1: Place)
     /// @type.symbol symbol=size type=<size.'a, size.P1: Place>(this: &size.'a readonly this) => isize
+    /// @type.symbol symbol=size.this type=&size.'a readonly (First, Second)
 
         return 2;
     }

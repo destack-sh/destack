@@ -372,6 +372,7 @@ struct Socket {
     write(message: string): void {}
     /// @generic.template symbol=Socket.write parameters=('a, P1: Place)
     /// @type.symbol symbol=Socket.write source="write(message: string): void {}" type=<Socket.write.'a, Socket.write.P1: Place>(this: &Socket.write.'a readonly Socket, string) => void
+    /// @type.symbol symbol=Socket.write.this type=&Socket.write.'a readonly Socket
     /// @capture.function function=Socket.write bindings=0
     /// @type.symbol symbol=Socket.write.message source="message: string" type=string
 
@@ -616,6 +617,7 @@ class Counter {
     make(): () => int32 {
     /// @generic.template symbol=Counter.make parameters=(P0: Place)
     /// @type.symbol symbol=Counter.make type=<Counter.make.P0: Place>(this: Managed<Counter, Counter.make.P0>) => Function<(), int32>
+    /// @type.symbol symbol=Counter.make.this type=Managed<Counter, Counter.make.P0>
     /// @capture.function function=Counter.make bindings=0
 
         return () => this.value;

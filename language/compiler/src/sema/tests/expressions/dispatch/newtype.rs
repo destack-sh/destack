@@ -56,6 +56,7 @@ extension<T: Copy> of Wrapper<T> {
 
     async take(): Promise<T> {
     /// @type.symbol symbol=take type=async (this: this) => Promise<T#2>
+    /// @type.symbol symbol=take.this type=Wrapper<T#2>
     /// @resolution.name source=Promise target=Promise
     /// @resolution.name source=T target=T
 

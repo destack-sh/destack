@@ -66,6 +66,7 @@ struct Buffer {
     write(bytes: readonly uint8[]): usize {
     /// @generic.template symbol=Buffer.write parameters=('a, P1: Place)
     /// @type.symbol symbol=Buffer.write type=<Buffer.write.'a, Buffer.write.P1: Place>(this: &Buffer.write.'a readonly this, readonly uint8[]) => usize
+    /// @type.symbol symbol=Buffer.write.this type=&Buffer.write.'a readonly Buffer
     /// @type.symbol symbol=Buffer.write.bytes source="bytes: readonly uint8[]" type=readonly uint8[]
 
         bytes.length

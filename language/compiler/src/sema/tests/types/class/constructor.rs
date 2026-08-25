@@ -28,6 +28,7 @@ class User {
     constructor(): this {}
     /// @generic.template symbol=User.constructor parameters=(P0: Place)
     /// @type.symbol symbol=User.constructor source="constructor(): this {}" type=<User.constructor.P0: Place>() => Managed<this, User.constructor.P0>
+    /// @type.symbol symbol=User.constructor.this type=User
 
 }
 "#,
@@ -70,6 +71,7 @@ class User {
     constructor() {
     /// @generic.template symbol=User.constructor parameters=(P0: Place)
     /// @type.symbol symbol=User.constructor type=<User.constructor.P0: Place>() => Managed<this, User.constructor.P0>
+    /// @type.symbol symbol=User.constructor.this type=User
 
         return this;
         /// @type.node source=this type=User
@@ -119,6 +121,7 @@ class User {
     constructor() {
     /// @generic.template symbol=User.constructor parameters=(P0: Place)
     /// @type.symbol symbol=User.constructor type=<User.constructor.P0: Place>() => Managed<User, User.constructor.P0>
+    /// @type.symbol symbol=User.constructor.this type=User
 
         return;
     }
@@ -220,6 +223,7 @@ class Base {
     constructor(value: int32) {
     /// @generic.template symbol=Base.constructor parameters=(P0: Place)
     /// @type.symbol symbol=Base.constructor type=<Base.constructor.P0: Place>(int32) => Managed<Base, Base.constructor.P0>
+    /// @type.symbol symbol=Base.constructor.this type=Base
     /// @type.symbol symbol=Base.constructor.value source="value: int32" type=int32
 
         this.value = value;
@@ -305,6 +309,7 @@ class Counter {
     constructor(value: int32) {
     /// @generic.template symbol=Counter.constructor parameters=(P0: Place)
     /// @type.symbol symbol=Counter.constructor type=<Counter.constructor.P0: Place>(int32) => Managed<Counter, Counter.constructor.P0>
+    /// @type.symbol symbol=Counter.constructor.this type=Counter
     /// @type.symbol symbol=Counter.constructor.value source="value: int32" type=int32
 
         this.value = value;
@@ -395,6 +400,7 @@ class Box {
     constructor(value: string) {
     /// @generic.template symbol=Box.constructor#1 parameters=(P0: Place)
     /// @type.symbol symbol=Box.constructor#1 type=<Box.constructor#1.P0: Place>(string) => Managed<Box, Box.constructor#1.P0>
+    /// @type.symbol symbol=Box.constructor.this#1 type=Box
     /// @type.symbol symbol=Box.constructor.value#1 source="value: string" type=string
 
         this.value = value;
@@ -417,6 +423,7 @@ class Box {
     constructor(value: int32) {
     /// @generic.template symbol=Box.constructor#2 parameters=(P0: Place)
     /// @type.symbol symbol=Box.constructor#2 type=<Box.constructor#2.P0: Place>(int32) => Managed<Box, Box.constructor#2.P0>
+    /// @type.symbol symbol=Box.constructor.this#2 type=Box
     /// @type.symbol symbol=Box.constructor.value#2 source="value: int32" type=int32
 
         this.value = value;
@@ -517,6 +524,7 @@ class Box {
     constructor(value: string) {
     /// @generic.template symbol=Box.constructor#1 parameters=(P0: Place)
     /// @type.symbol symbol=Box.constructor#1 type=<Box.constructor#1.P0: Place>(string) => Managed<this, Box.constructor#1.P0>
+    /// @type.symbol symbol=Box.constructor.this#1 type=Box
     /// @type.symbol symbol=Box.constructor.value#1 source="value: string" type=string
 
         this.value = value;
@@ -539,6 +547,7 @@ class Box {
     constructor(value: int32) {
     /// @generic.template symbol=Box.constructor#2 parameters=(P0: Place)
     /// @type.symbol symbol=Box.constructor#2 type=<Box.constructor#2.P0: Place>(int32) => Managed<this, Box.constructor#2.P0>
+    /// @type.symbol symbol=Box.constructor.this#2 type=Box
     /// @type.symbol symbol=Box.constructor.value#2 source="value: int32" type=int32
 
         this.value = value;
@@ -726,6 +735,7 @@ class Animal {
     constructor(name: string) {
     /// @generic.template symbol=Animal.constructor parameters=(P0: Place)
     /// @type.symbol symbol=Animal.constructor type=<Animal.constructor.P0: Place>(string) => Managed<Animal, Animal.constructor.P0>
+    /// @type.symbol symbol=Animal.constructor.this type=Animal
     /// @type.symbol symbol=Animal.constructor.name source="name: string" type=string
 
         this.name = name;
@@ -756,6 +766,7 @@ class Dog extends Animal {
     constructor(name: string, tricks: int32) {
     /// @generic.template symbol=Dog.constructor parameters=(P0: Place)
     /// @type.symbol symbol=Dog.constructor type=<Dog.constructor.P0: Place>(string, int32) => Managed<Dog, Dog.constructor.P0>
+    /// @type.symbol symbol=Dog.constructor.this type=Dog
     /// @type.symbol symbol=Dog.constructor.name source="name: string" type=string
     /// @type.symbol symbol=Dog.constructor.tricks source="tricks: int32" type=int32
 
@@ -945,6 +956,7 @@ class State {
     constructor() {
     /// @generic.template symbol=State.constructor parameters=(P0: Place)
     /// @type.symbol symbol=State.constructor type=<State.constructor.P0: Place>() => Managed<State, State.constructor.P0>
+    /// @type.symbol symbol=State.constructor.this type=State
 
         this.value = undefined;
         /// @type.node source="this.value = undefined" type=undefined
@@ -974,6 +986,7 @@ class Holder {
     constructor() {
     /// @generic.template symbol=Holder.constructor parameters=(P0: Place)
     /// @type.symbol symbol=Holder.constructor type=<Holder.constructor.P0: Place>() => Managed<Holder, Holder.constructor.P0>
+    /// @type.symbol symbol=Holder.constructor.this type=Holder
 
         this.state = new State();
         /// @type.node source="this.state = new State()" type=local State
@@ -1048,6 +1061,7 @@ class Box<T> {
     constructor(value: T) {
     /// @generic.template symbol=Box.constructor parent=template#0 parameters=(P0: Place)
     /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>(T) => Managed<this, Box.constructor.P0>
+    /// @type.symbol symbol=Box.constructor.this type=Box<T>
     /// @type.symbol symbol=Box.constructor.value source="value: T" type=T
     /// @resolution.name source=T target=Box.T
 
@@ -1140,6 +1154,7 @@ class Box<T = string> {
     constructor() {
     /// @generic.template symbol=Box.constructor parent=template#0 parameters=(P0: Place)
     /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>() => Managed<this, Box.constructor.P0>
+    /// @type.symbol symbol=Box.constructor.this type=Box<T>
 
         this.value = undefined;
         /// @type.node source="this.value = undefined" type=undefined

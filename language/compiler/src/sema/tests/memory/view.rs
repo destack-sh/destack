@@ -57,6 +57,7 @@ local class Counter {
     constructor(name: string) {
     /// @generic.template symbol=Counter.constructor parameters=(P0: Place)
     /// @type.symbol symbol=Counter.constructor type=<Counter.constructor.P0: Place>(string) => Managed<Counter, Counter.constructor.P0>
+    /// @type.symbol symbol=Counter.constructor.this type=Counter
     /// @type.symbol symbol=Counter.constructor.name source="name: string" type=string
 
         this.name = name;
@@ -188,6 +189,7 @@ local class Meter {
     constructor(sink: Sink) {
     /// @generic.template symbol=Meter.constructor parameters=(P0: Place)
     /// @type.symbol symbol=Meter.constructor type=<Meter.constructor.P0: Place>(Sink) => Managed<this, Meter.constructor.P0>
+    /// @type.symbol symbol=Meter.constructor.this type=Meter
     /// @type.symbol symbol=Meter.constructor.sink source="sink: Sink" type=Sink
     /// @resolution.name source=Sink target=Sink
 
@@ -300,6 +302,7 @@ local class Counter {
     constructor(name: string) {
     /// @generic.template symbol=Counter.constructor parameters=(P0: Place)
     /// @type.symbol symbol=Counter.constructor type=<Counter.constructor.P0: Place>(string) => Managed<Counter, Counter.constructor.P0>
+    /// @type.symbol symbol=Counter.constructor.this type=Counter
     /// @type.symbol symbol=Counter.constructor.name source="name: string" type=string
 
         this.name = name;

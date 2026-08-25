@@ -340,6 +340,7 @@ shared class Service {
 
     accept(user: local User): void {}
     /// @type.symbol symbol=Service.accept source="accept(user: local User): void {}" type=(this: Service, local User) => void
+    /// @type.symbol symbol=Service.accept.this type=Service
     /// @type.symbol symbol=Service.accept.user source="user: local User" type=local User
     /// @resolution.name source=User target=User
 
@@ -640,6 +641,7 @@ class Box {
     constructor(user: User) { this.user = user; }
     /// @generic.template symbol=Box.constructor parameters=(P0: Place)
     /// @type.symbol symbol=Box.constructor source="constructor(user: User) { this.user = user; }" type=<Box.constructor.P0: Place>(User) => Managed<this, Box.constructor.P0>
+    /// @type.symbol symbol=Box.constructor.this type=Box
     /// @type.symbol symbol=Box.constructor.user source="user: User" type=User
     /// @resolution.name source=User target=User
     /// @resolution.receiver source=this kind=this declaration=Box type=Box

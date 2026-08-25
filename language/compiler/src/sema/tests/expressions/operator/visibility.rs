@@ -296,6 +296,7 @@ extension of Force implements Multiply<float64> {
 
     multiply(other: float64): Force {
     /// @type.symbol symbol=multiply type=(this: force.Force, float64) => force.Force
+    /// @type.symbol symbol=multiply.this type=force.Force
     /// @type.symbol symbol=multiply.other source="other: float64" type=float64
     /// @resolution.name source=Force target=force.Force
 
