@@ -31,12 +31,12 @@ export declare function asReference<T>(pointer: *T): Borrowed<T, 'static>;
 /// Borrow the pointed-to value with readonly access.
 @unsafe
 @intrinsic("memory.ptr.asReadonlyReference")
-export declare function asReadonlyReference<T>(pointer: *T): Borrowed<T, "static", "readonly">;
+export declare function asReadonlyReference<T>(pointer: *T): Borrowed<T, 'static, "readonly">;
 
 /// Borrow the pointed-to value with exclusive access.
 @unsafe
 @intrinsic("memory.ptr.asExclusive")
-export declare function asExclusive<T>(pointer: *T): Borrowed<T, "static", "exclusive">;
+export declare function asExclusive<T>(pointer: *T): Borrowed<T, 'static, "exclusive">;
 
 /// Read a value from `source`.
 @unsafe

@@ -8,7 +8,7 @@ import { Bump } from "./bump.ds";
 
 /// Typed arena for values with a shared lifetime.
 @languageItem("memory.arena.Arena")
-export struct Arena<in out T, const L: Lifetime, const S: Space = "local"> {
+export struct Arena<in out T, const R: Lifetime, const S: Space = "local"> {
     /// The backing bump allocator.
     bump: Bump<S>;
 
@@ -16,9 +16,9 @@ export struct Arena<in out T, const L: Lifetime, const S: Space = "local"> {
     length: usize = 0;
 }
 
-export extension<T, const L: Lifetime, const S: Space = "local"> of Arena<T, L, S> {
+export extension<T, const R: Lifetime, const S: Space = "local"> of Arena<T, R, S> {
     /// Create an arena backed by `bump`.
-    static new(bump: Bump<S>): Arena<T, L, S> {
+    static new(bump: Bump<S>): Arena<T, R, S> {
         Arena {
             bump,
             length: 0,
@@ -26,15 +26,15 @@ export extension<T, const L: Lifetime, const S: Space = "local"> of Arena<T, L, 
     }
 
     /// Allocate `value` in this arena.
-    alloc(&exclusive this, value: ^T): ReadonlyBorrowed<T, L> {
+    alloc(&exclusive this, value: ^T): ReadonlyBorrowed<T, R & S> {
         todo("Arena.alloc")
     }
 
     /// Try to allocate `value` in this arena.
     tryAlloc(
-        this: &exclusive Arena<T, L, S>,
+        this: &exclusive Arena<T, R, S>,
         value: ^T,
-    ): Result<ReadonlyBorrowed<T, L>, AllocationError> {
+    ): Result<ReadonlyBorrowed<T, R & S>, AllocationError> {
         todo("Arena.tryAlloc")
     }
 

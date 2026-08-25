@@ -1,4 +1,4 @@
-import { Access, Borrowed, Lifetime } from "destack:memory";
+import { Access, Borrowed, Region } from "destack:memory";
 
 /// Interface for index access `a[i]`.
 ///
@@ -12,10 +12,10 @@ export newtype interface Index<I, const A: Access = "readonly"> {
     type Missing = never;
 
     /// Borrow the value at `key`.
-    index<const L: Lifetime>(
-        this: Borrowed<this, L, A>,
+    index<const R: Region>(
+        this: Borrowed<this, R, A>,
         key: I,
-    ): Borrowed<this.Output, L, A> | this.Missing;
+    ): Borrowed<this.Output, R, A> | this.Missing;
 }
 
 /// Interface for index assignment `a[i] = v`.

@@ -39,6 +39,7 @@ global {
     // destack:memory
     export {
         Access,
+        AccessOf,
         AllocationCapacityOverflow,
         AllocationError,
         AllocationOutOfMemory,
@@ -61,6 +62,7 @@ global {
         ExclusiveBorrowed,
         forget,
         Lifetime,
+        Local,
         Managed,
         ManuallyDrop,
         MaybeOwned,
@@ -72,17 +74,17 @@ global {
         Pin,
         Place,
         Placed,
+        PlaceOf,
         Raw,
         ReadonlyBorrowed,
-        SuspendSafe,
+        Region,
+        Shared,
         SharedSafe,
         Space,
         StaticLifetime,
+        SuspendSafe,
         Unpin,
-        Local,
-    Relative,
-    Shared,
-    WithAccess,
+        WithAccess,
         Zeroable,
     } from "destack:memory";
 

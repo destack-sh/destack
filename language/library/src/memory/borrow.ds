@@ -1,18 +1,12 @@
 import { Access } from "./access.ds";
-import { Lifetime } from "./lifetime.ds";
-import { Place } from "./place.ds";
+import { Region } from "./region.ds";
 
 /// Borrowed access form for exactly `T`.
 @languageItem("memory.Borrowed")
-export newtype Borrowed<
-    T,
-    const L: Lifetime,
-    const A: Access = "mutable",
-    const P: Place,
-> = intrinsic;
+export newtype Borrowed<T, const R: Region, const A: Access = "mutable"> = intrinsic;
 
-/// Readonly borrowed access to `T` within lifetime `L`.
-export type ReadonlyBorrowed<T, const L: Lifetime> = Borrowed<T, L, "readonly">;
+/// Readonly borrowed access to `T` within region `R`.
+export type ReadonlyBorrowed<T, const R: Region> = Borrowed<T, R, "readonly">;
 
-/// Exclusive borrowed access to `T` within lifetime `L`.
-export type ExclusiveBorrowed<T, const L: Lifetime> = Borrowed<T, L, "exclusive">;
+/// Exclusive borrowed access to `T` within region `R`.
+export type ExclusiveBorrowed<T, const R: Region> = Borrowed<T, R, "exclusive">;

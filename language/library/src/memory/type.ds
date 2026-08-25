@@ -11,9 +11,14 @@ export type Shared<T> = Placed<T, "shared">;
 /// Place `T` in local space.
 export type Local<T> = Placed<T, "local">;
 
-/// Restore relative placement of `T`.
-export type Relative<T> = Placed<T, "relative">;
-
 /// Reborrow `Q` with access mode `A`.
 @languageItem("memory.WithAccess")
 export newtype WithAccess<Q, const A: Access> = intrinsic;
+
+/// Project the space `T` occupies.
+@languageItem("memory.PlaceOf")
+export newtype PlaceOf<T> = intrinsic;
+
+/// Project the access mode `T` grants.
+@languageItem("memory.AccessOf")
+export newtype AccessOf<T> = intrinsic;

@@ -67,7 +67,7 @@ export function channel<T>(value: ^T): (WatchSender<T>, WatchReceiver<T>) {
 
 /// Create a shared watch channel.
 export function sharedChannel<T: SharedSafe>(
-    value: shared ^T,
+    value: ^T,
 ): (WatchSender<shared T>, WatchReceiver<shared T>) {
     todo("watch.sharedChannel")
 }
