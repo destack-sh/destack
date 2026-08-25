@@ -3,7 +3,7 @@ use std::str;
 use serde::Deserialize;
 use serde::de::{self, EnumAccess, IntoDeserializer, MapAccess, SeqAccess, VariantAccess, Visitor};
 
-use crate::{Error, Result};
+use crate::{Error, IntegerEncoding, Result};
 
 /// Maximum number of bytes needed for one encoded u128 varint.
 const U128_VARINT_MAX_BYTES: usize = 19;
@@ -15,7 +15,19 @@ pub fn from_slice<'de, T>(bytes: &'de [u8]) -> Result<T>
 where
     T: Deserialize<'de>,
 {
-    let mut decoder = Decoder::new(bytes);
+    let mut decoder = Decoder::new(bytes, IntegerEncoding::Compact);
+    let value = T::deserialize(&mut decoder)?;
+    decoder.finish()?;
+
+    Ok(value)
+}
+
+/// Decode one value encoded with fixed-width integers.
+pub fn from_slice_fixed<'de, T>(bytes: &'de [u8]) -> Result<T>
+where
+    T: Deserialize<'de>,
+{
+    let mut decoder = Decoder::new(bytes, IntegerEncoding::Fixed);
     let value = T::deserialize(&mut decoder)?;
     decoder.finish()?;
 
@@ -29,12 +41,18 @@ struct Decoder<'de> {
     bytes: &'de [u8],
     /// Current read offset.
     offset: usize,
+    /// Integer representation read by this decoder.
+    integers: IntegerEncoding,
 }
 
 impl<'de> Decoder<'de> {
     /// Create a new decoder.
-    fn new(bytes: &'de [u8]) -> Self {
-        Self { bytes, offset: 0 }
+    fn new(bytes: &'de [u8], integers: IntegerEncoding) -> Self {
+        Self {
+            bytes,
+            offset: 0,
+            integers,
+        }
     }
 
     /// Validate that all bytes were consumed.
@@ -79,15 +97,48 @@ impl<'de> Decoder<'de> {
         self.read_bytes(len)
     }
 
-    /// Read one usize varint.
+    /// Read one usize.
     fn read_usize(&mut self) -> Result<usize> {
-        let value = self.read_u128()?;
+        let value = match self.integers {
+            IntegerEncoding::Compact => self.read_varint()?,
+            IntegerEncoding::Fixed => self.read_unsigned::<8>()?,
+        };
 
         usize::try_from(value).map_err(|_| Error::UsizeOutOfRange)
     }
 
-    /// Read one unsigned integer varint.
-    fn read_u128(&mut self) -> Result<u128> {
+    /// Read one unsigned integer using its declared width.
+    fn read_unsigned<const N: usize>(&mut self) -> Result<u128> {
+        if matches!(self.integers, IntegerEncoding::Compact) {
+            return self.read_varint();
+        }
+
+        let bytes = self.read_bytes(N)?;
+        let mut value = [0; 16];
+        value[..N].copy_from_slice(bytes);
+
+        Ok(u128::from_le_bytes(value))
+    }
+
+    /// Read one signed integer using its declared width.
+    fn read_signed<const N: usize>(&mut self) -> Result<i128> {
+        if matches!(self.integers, IntegerEncoding::Compact) {
+            let value = self.read_varint()?;
+            let decoded = ((value >> 1) as i128) ^ (-((value & 1) as i128));
+
+            return Ok(decoded);
+        }
+
+        let bytes = self.read_bytes(N)?;
+        let fill = if bytes[N - 1] & 0x80 == 0 { 0 } else { 0xff };
+        let mut value = [fill; 16];
+        value[..N].copy_from_slice(bytes);
+
+        Ok(i128::from_le_bytes(value))
+    }
+
+    /// Read one canonical unsigned varint.
+    fn read_varint(&mut self) -> Result<u128> {
         let mut value = 0u128;
         let mut shift = 0u32;
         let mut byte_count = 0usize;
@@ -115,14 +166,6 @@ impl<'de> Decoder<'de> {
 
             shift += 7;
         }
-    }
-
-    /// Read one signed integer zigzag varint.
-    fn read_i128(&mut self) -> Result<i128> {
-        let value = self.read_u128()?;
-        let decoded = ((value >> 1) as i128) ^ (-((value & 1) as i128));
-
-        Ok(decoded)
     }
 }
 
@@ -161,7 +204,7 @@ impl<'de> de::Deserializer<'de> for &mut Decoder<'de> {
         V: Visitor<'de>,
     {
         let value =
-            i16::try_from(self.read_i128()?).map_err(|_| Error::IntegerOutOfRange("i16"))?;
+            i16::try_from(self.read_signed::<2>()?).map_err(|_| Error::IntegerOutOfRange("i16"))?;
 
         visitor.visit_i16(value)
     }
@@ -171,7 +214,7 @@ impl<'de> de::Deserializer<'de> for &mut Decoder<'de> {
         V: Visitor<'de>,
     {
         let value =
-            i32::try_from(self.read_i128()?).map_err(|_| Error::IntegerOutOfRange("i32"))?;
+            i32::try_from(self.read_signed::<4>()?).map_err(|_| Error::IntegerOutOfRange("i32"))?;
 
         visitor.visit_i32(value)
     }
@@ -181,7 +224,7 @@ impl<'de> de::Deserializer<'de> for &mut Decoder<'de> {
         V: Visitor<'de>,
     {
         let value =
-            i64::try_from(self.read_i128()?).map_err(|_| Error::IntegerOutOfRange("i64"))?;
+            i64::try_from(self.read_signed::<8>()?).map_err(|_| Error::IntegerOutOfRange("i64"))?;
 
         visitor.visit_i64(value)
     }
@@ -190,7 +233,7 @@ impl<'de> de::Deserializer<'de> for &mut Decoder<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_i128(self.read_i128()?)
+        visitor.visit_i128(self.read_signed::<16>()?)
     }
 
     fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
@@ -206,8 +249,8 @@ impl<'de> de::Deserializer<'de> for &mut Decoder<'de> {
     where
         V: Visitor<'de>,
     {
-        let value =
-            u16::try_from(self.read_u128()?).map_err(|_| Error::IntegerOutOfRange("u16"))?;
+        let value = u16::try_from(self.read_unsigned::<2>()?)
+            .map_err(|_| Error::IntegerOutOfRange("u16"))?;
 
         visitor.visit_u16(value)
     }
@@ -216,8 +259,8 @@ impl<'de> de::Deserializer<'de> for &mut Decoder<'de> {
     where
         V: Visitor<'de>,
     {
-        let value =
-            u32::try_from(self.read_u128()?).map_err(|_| Error::IntegerOutOfRange("u32"))?;
+        let value = u32::try_from(self.read_unsigned::<4>()?)
+            .map_err(|_| Error::IntegerOutOfRange("u32"))?;
 
         visitor.visit_u32(value)
     }
@@ -226,8 +269,8 @@ impl<'de> de::Deserializer<'de> for &mut Decoder<'de> {
     where
         V: Visitor<'de>,
     {
-        let value =
-            u64::try_from(self.read_u128()?).map_err(|_| Error::IntegerOutOfRange("u64"))?;
+        let value = u64::try_from(self.read_unsigned::<8>()?)
+            .map_err(|_| Error::IntegerOutOfRange("u64"))?;
 
         visitor.visit_u64(value)
     }
@@ -236,7 +279,7 @@ impl<'de> de::Deserializer<'de> for &mut Decoder<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u128(self.read_u128()?)
+        visitor.visit_u128(self.read_unsigned::<16>()?)
     }
 
     fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value>
@@ -267,8 +310,8 @@ impl<'de> de::Deserializer<'de> for &mut Decoder<'de> {
     where
         V: Visitor<'de>,
     {
-        let value =
-            u32::try_from(self.read_u128()?).map_err(|_| Error::IntegerOutOfRange("char"))?;
+        let value = u32::try_from(self.read_unsigned::<4>()?)
+            .map_err(|_| Error::IntegerOutOfRange("char"))?;
         let value = char::from_u32(value).ok_or(Error::InvalidChar)?;
 
         visitor.visit_char(value)
@@ -406,7 +449,8 @@ impl<'de> de::Deserializer<'de> for &mut Decoder<'de> {
     where
         V: Visitor<'de>,
     {
-        let variant = u32::try_from(self.read_u128()?).map_err(|_| Error::EnumVariantOutOfRange)?;
+        let variant =
+            u32::try_from(self.read_unsigned::<4>()?).map_err(|_| Error::EnumVariantOutOfRange)?;
 
         visitor.visit_enum(EnumDecoder {
             decoder: self,

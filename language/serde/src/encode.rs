@@ -1,10 +1,12 @@
+use std::ops::Range;
+
 use serde::Serialize;
 use serde::ser::{
     self, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
     SerializeTupleStruct, SerializeTupleVariant,
 };
 
-use crate::{Error, Result};
+use crate::{Error, IntegerEncoding, Result};
 
 /// Maximum number of bytes needed for one encoded u128 varint.
 const U128_VARINT_MAX_BYTES: usize = 19;
@@ -14,10 +16,34 @@ pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
     T: Serialize + ?Sized,
 {
-    let mut encoder = Encoder::new_vec();
+    let mut encoder = Encoder::new_vec(IntegerEncoding::Compact);
     value.serialize(&mut encoder)?;
 
     Ok(encoder.into_bytes())
+}
+
+/// Encode one value with fixed-width integers.
+pub fn to_vec_fixed<T>(value: &T) -> Result<Vec<u8>>
+where
+    T: Serialize + ?Sized,
+{
+    let mut encoder = Encoder::new_vec(IntegerEncoding::Fixed);
+    value.serialize(&mut encoder)?;
+
+    Ok(encoder.into_bytes())
+}
+
+/// Append one fixed-width value and report its named newtypes.
+pub fn append_fixed<T>(
+    value: &T,
+    output: &mut Vec<u8>,
+    visit: &mut dyn FnMut(&'static str, &[u8]) -> Result<()>,
+) -> Result<()>
+where
+    T: Serialize + ?Sized,
+{
+    let mut encoder = Encoder::with_newtype_visitor(IntegerEncoding::Fixed, output, visit);
+    value.serialize(&mut encoder)
 }
 
 /// Append one value to canonical Destack binary bytes.
@@ -25,7 +51,7 @@ pub fn append_to_vec<T>(value: &T, output: &mut Vec<u8>) -> Result<()>
 where
     T: Serialize + ?Sized,
 {
-    let mut encoder = Encoder::new_vec_ref(output);
+    let mut encoder = Encoder::new_vec_ref(IntegerEncoding::Compact, output);
     value.serialize(&mut encoder)?;
 
     Ok(())
@@ -36,7 +62,7 @@ pub fn encoded_len<T>(value: &T) -> Result<usize>
 where
     T: Serialize + ?Sized,
 {
-    let mut encoder = Encoder::new_count();
+    let mut encoder = Encoder::new_count(IntegerEncoding::Compact);
     value.serialize(&mut encoder)?;
 
     Ok(encoder.len())
@@ -48,7 +74,7 @@ where
     T: Serialize + ?Sized,
     H: std::hash::Hasher,
 {
-    let mut encoder = Encoder::new_hasher(hasher);
+    let mut encoder = Encoder::new_hasher(IntegerEncoding::Compact, hasher);
     value.serialize(&mut encoder)?;
     encoder.flush_hasher();
 
@@ -61,7 +87,7 @@ where
     T: Serialize + ?Sized,
 {
     let len = {
-        let mut encoder = Encoder::new_slice(output);
+        let mut encoder = Encoder::new_slice(IntegerEncoding::Compact, output);
         value.serialize(&mut encoder)?;
         encoder.len()
     };
@@ -71,6 +97,8 @@ where
 
 /// Stateful binary encoder.
 struct Encoder<'output> {
+    /// Integer representation written by this encoder.
+    integers: IntegerEncoding,
     /// Encoded output destination.
     output: EncoderOutput<'output>,
 }
@@ -79,6 +107,13 @@ struct Encoder<'output> {
 enum EncoderOutput<'output> {
     /// Growable byte vector.
     Vec(Vec<u8>),
+    /// Growable byte vector with named newtype observation.
+    Newtypes {
+        /// Encoded bytes.
+        bytes: &'output mut Vec<u8>,
+        /// Named newtype visitor.
+        visit: &'output mut dyn FnMut(&'static str, &[u8]) -> Result<()>,
+    },
     /// Borrowed growable byte vector.
     VecRef(&'output mut Vec<u8>),
     /// Caller-owned byte slice.
@@ -105,6 +140,7 @@ impl std::fmt::Debug for Encoder<'_> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let sink = match &self.output {
             EncoderOutput::Vec(_) => "vec",
+            EncoderOutput::Newtypes { .. } => "newtypes",
             EncoderOutput::VecRef(_) => "vec_ref",
             EncoderOutput::Slice { .. } => "slice",
             EncoderOutput::Count(_) => "count",
@@ -123,6 +159,9 @@ impl Encoder<'_> {
     fn into_bytes(self) -> Vec<u8> {
         match self.output {
             EncoderOutput::Vec(bytes) => bytes,
+            EncoderOutput::Newtypes { .. } => {
+                unreachable!("borrowed newtype encoders cannot return owned bytes")
+            }
             EncoderOutput::VecRef(_) => {
                 unreachable!("borrowed vector encoders cannot return owned bytes")
             }
@@ -135,6 +174,7 @@ impl Encoder<'_> {
         match &self.output {
             EncoderOutput::Hasher { .. } => 0,
             EncoderOutput::Vec(bytes) => bytes.len(),
+            EncoderOutput::Newtypes { bytes, .. } => bytes.len(),
             EncoderOutput::VecRef(bytes) => bytes.len(),
             EncoderOutput::Slice { len, .. } => *len,
             EncoderOutput::Count(len) => *len,
@@ -142,22 +182,40 @@ impl Encoder<'_> {
     }
 
     /// Create a new growable byte encoder.
-    fn new_vec() -> Self {
+    fn new_vec(integers: IntegerEncoding) -> Self {
         Self {
+            integers,
             output: EncoderOutput::Vec(Vec::new()),
         }
     }
 
-    /// Create a new borrowed growable byte encoder.
-    fn new_vec_ref(output: &mut Vec<u8>) -> Encoder<'_> {
+    /// Create a new growable encoder with named newtype observation.
+    fn with_newtype_visitor<'borrow>(
+        integers: IntegerEncoding,
+        output: &'borrow mut Vec<u8>,
+        visit: &'borrow mut dyn FnMut(&'static str, &[u8]) -> Result<()>,
+    ) -> Encoder<'borrow> {
         Encoder {
+            integers,
+            output: EncoderOutput::Newtypes {
+                bytes: output,
+                visit,
+            },
+        }
+    }
+
+    /// Create a new borrowed growable byte encoder.
+    fn new_vec_ref(integers: IntegerEncoding, output: &mut Vec<u8>) -> Encoder<'_> {
+        Encoder {
+            integers,
             output: EncoderOutput::VecRef(output),
         }
     }
 
     /// Create a new slice encoder.
-    fn new_slice(output: &mut [u8]) -> Encoder<'_> {
+    fn new_slice(integers: IntegerEncoding, output: &mut [u8]) -> Encoder<'_> {
         Encoder {
+            integers,
             output: EncoderOutput::Slice {
                 bytes: output,
                 len: 0,
@@ -166,15 +224,17 @@ impl Encoder<'_> {
     }
 
     /// Create a new length-counting encoder.
-    fn new_count() -> Self {
+    fn new_count(integers: IntegerEncoding) -> Self {
         Self {
+            integers,
             output: EncoderOutput::Count(0),
         }
     }
 
     /// Create a new streaming hasher encoder.
-    fn new_hasher(hasher: &mut dyn std::hash::Hasher) -> Encoder<'_> {
+    fn new_hasher(integers: IntegerEncoding, hasher: &mut dyn std::hash::Hasher) -> Encoder<'_> {
         Encoder {
+            integers,
             output: EncoderOutput::Hasher {
                 hasher,
                 buffer: [0; 64],
@@ -216,6 +276,11 @@ impl Encoder<'_> {
             }
             EncoderOutput::Vec(output) => {
                 output.push(byte);
+
+                Ok(())
+            }
+            EncoderOutput::Newtypes { bytes, .. } => {
+                bytes.push(byte);
 
                 Ok(())
             }
@@ -269,6 +334,11 @@ impl Encoder<'_> {
 
                 Ok(())
             }
+            EncoderOutput::Newtypes { bytes: output, .. } => {
+                output.extend_from_slice(bytes);
+
+                Ok(())
+            }
             EncoderOutput::VecRef(output) => {
                 output.extend_from_slice(bytes);
 
@@ -299,13 +369,36 @@ impl Encoder<'_> {
         self.write_bytes(bytes)
     }
 
-    /// Write one usize as a varint.
+    /// Write one usize.
     fn write_usize(&mut self, value: usize) -> Result<()> {
-        self.write_u128(value as u128)
+        match self.integers {
+            IntegerEncoding::Compact => self.write_varint(value as u128),
+            IntegerEncoding::Fixed => self.write_bytes(&(value as u64).to_le_bytes()),
+        }
     }
 
-    /// Write one unsigned integer as a varint.
-    fn write_u128(&mut self, mut value: u128) -> Result<()> {
+    /// Write one unsigned integer using its declared width.
+    fn write_unsigned<const N: usize>(&mut self, value: u128) -> Result<()> {
+        match self.integers {
+            IntegerEncoding::Compact => self.write_varint(value),
+            IntegerEncoding::Fixed => self.write_bytes(&value.to_le_bytes()[..N]),
+        }
+    }
+
+    /// Write one signed integer using its declared width.
+    fn write_signed<const N: usize>(&mut self, value: i128) -> Result<()> {
+        match self.integers {
+            IntegerEncoding::Compact => {
+                let encoded = ((value as u128) << 1) ^ ((value >> 127) as u128);
+
+                self.write_varint(encoded)
+            }
+            IntegerEncoding::Fixed => self.write_bytes(&value.to_le_bytes()[..N]),
+        }
+    }
+
+    /// Write one canonical unsigned varint.
+    fn write_varint(&mut self, mut value: u128) -> Result<()> {
         // single byte values write straight through
         if value < 0x80 {
             return self.write_byte(value as u8);
@@ -330,22 +423,24 @@ impl Encoder<'_> {
         self.write_bytes(&bytes[..byte_count])
     }
 
-    /// Write one signed integer as a zigzag varint.
-    fn write_i128(&mut self, value: i128) -> Result<()> {
-        let encoded = ((value as u128) << 1) ^ ((value >> 127) as u128);
-
-        self.write_u128(encoded)
-    }
-
-    /// Encode one value into nested bytes.
-    fn nested_bytes<T>(value: &T) -> Result<Vec<u8>>
+    /// Append one nested value to a caller-owned buffer.
+    fn append_nested<T>(&mut self, value: &T, bytes: &mut Vec<u8>) -> Result<Range<usize>>
     where
         T: Serialize + ?Sized,
     {
-        let mut encoder = Encoder::new_vec();
-        value.serialize(&mut encoder)?;
+        let start = bytes.len();
+        match &mut self.output {
+            EncoderOutput::Newtypes { visit, .. } => {
+                let mut encoder = Encoder::with_newtype_visitor(self.integers, bytes, *visit);
+                value.serialize(&mut encoder)?;
+            }
+            _ => {
+                let mut encoder = Encoder::new_vec_ref(self.integers, bytes);
+                value.serialize(&mut encoder)?;
+            }
+        }
 
-        Ok(encoder.into_bytes())
+        Ok(start..bytes.len())
     }
 }
 
@@ -369,19 +464,19 @@ impl<'a, 'output> ser::Serializer for &'a mut Encoder<'output> {
     }
 
     fn serialize_i16(self, value: i16) -> Result<()> {
-        self.write_i128(value as i128)
+        self.write_signed::<2>(value as i128)
     }
 
     fn serialize_i32(self, value: i32) -> Result<()> {
-        self.write_i128(value as i128)
+        self.write_signed::<4>(value as i128)
     }
 
     fn serialize_i64(self, value: i64) -> Result<()> {
-        self.write_i128(value as i128)
+        self.write_signed::<8>(value as i128)
     }
 
     fn serialize_i128(self, value: i128) -> Result<()> {
-        self.write_i128(value)
+        self.write_signed::<16>(value)
     }
 
     fn serialize_u8(self, value: u8) -> Result<()> {
@@ -389,19 +484,19 @@ impl<'a, 'output> ser::Serializer for &'a mut Encoder<'output> {
     }
 
     fn serialize_u16(self, value: u16) -> Result<()> {
-        self.write_u128(value as u128)
+        self.write_unsigned::<2>(value as u128)
     }
 
     fn serialize_u32(self, value: u32) -> Result<()> {
-        self.write_u128(value as u128)
+        self.write_unsigned::<4>(value as u128)
     }
 
     fn serialize_u64(self, value: u64) -> Result<()> {
-        self.write_u128(value as u128)
+        self.write_unsigned::<8>(value as u128)
     }
 
     fn serialize_u128(self, value: u128) -> Result<()> {
-        self.write_u128(value)
+        self.write_unsigned::<16>(value)
     }
 
     fn serialize_f32(self, value: f32) -> Result<()> {
@@ -413,7 +508,7 @@ impl<'a, 'output> ser::Serializer for &'a mut Encoder<'output> {
     }
 
     fn serialize_char(self, value: char) -> Result<()> {
-        self.write_u128(value as u32 as u128)
+        self.write_unsigned::<4>(value as u32 as u128)
     }
 
     fn serialize_str(self, value: &str) -> Result<()> {
@@ -450,14 +545,26 @@ impl<'a, 'output> ser::Serializer for &'a mut Encoder<'output> {
         variant_index: u32,
         _variant: &'static str,
     ) -> Result<()> {
-        self.write_u128(variant_index as u128)
+        self.write_unsigned::<4>(variant_index as u128)
     }
 
-    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
+    fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<()>
     where
         T: Serialize + ?Sized,
     {
-        value.serialize(self)
+        let visits_newtypes = matches!(self.output, EncoderOutput::Newtypes { .. });
+        if !visits_newtypes {
+            return value.serialize(self);
+        }
+
+        // report the exact bytes appended by this named value
+        let start = self.len();
+        value.serialize(&mut *self)?;
+        if let EncoderOutput::Newtypes { bytes, visit } = &mut self.output {
+            visit(name, &bytes[start..])?;
+        }
+
+        Ok(())
     }
 
     fn serialize_newtype_variant<T>(
@@ -470,7 +577,7 @@ impl<'a, 'output> ser::Serializer for &'a mut Encoder<'output> {
     where
         T: Serialize + ?Sized,
     {
-        self.write_u128(variant_index as u128)?;
+        self.write_unsigned::<4>(variant_index as u128)?;
         value.serialize(self)
     }
 
@@ -500,7 +607,7 @@ impl<'a, 'output> ser::Serializer for &'a mut Encoder<'output> {
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        self.write_u128(variant_index as u128)?;
+        self.write_unsigned::<4>(variant_index as u128)?;
 
         Ok(SequenceEncoder { encoder: self })
     }
@@ -510,6 +617,7 @@ impl<'a, 'output> ser::Serializer for &'a mut Encoder<'output> {
             encoder: self,
             pending_key: None,
             entries: Vec::with_capacity(len.unwrap_or(0)),
+            bytes: Vec::new(),
         })
     }
 
@@ -524,7 +632,7 @@ impl<'a, 'output> ser::Serializer for &'a mut Encoder<'output> {
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        self.write_u128(variant_index as u128)?;
+        self.write_unsigned::<4>(variant_index as u128)?;
 
         Ok(SequenceEncoder { encoder: self })
     }
@@ -639,9 +747,20 @@ struct MapEncoder<'a, 'output> {
     /// Underlying encoder.
     encoder: &'a mut Encoder<'output>,
     /// Key waiting for its value.
-    pending_key: Option<Vec<u8>>,
-    /// Encoded key value pairs.
-    entries: Vec<(Vec<u8>, Vec<u8>)>,
+    pending_key: Option<Range<usize>>,
+    /// Encoded key and value ranges.
+    entries: Vec<EncodedMapEntry>,
+    /// Contiguous encoded map bytes.
+    bytes: Vec<u8>,
+}
+
+/// One encoded canonical map entry.
+#[derive(Debug)]
+struct EncodedMapEntry {
+    /// Encoded key byte range.
+    key: Range<usize>,
+    /// Encoded value byte range.
+    value: Range<usize>,
 }
 
 impl SerializeMap for MapEncoder<'_, '_> {
@@ -656,7 +775,7 @@ impl SerializeMap for MapEncoder<'_, '_> {
             return Err(Error::MapKeyWithoutValue);
         }
 
-        self.pending_key = Some(Encoder::nested_bytes(key)?);
+        self.pending_key = Some(self.encoder.append_nested(key, &mut self.bytes)?);
 
         Ok(())
     }
@@ -668,8 +787,8 @@ impl SerializeMap for MapEncoder<'_, '_> {
         let Some(key) = self.pending_key.take() else {
             return Err(Error::MapValueWithoutKey);
         };
-        let value = Encoder::nested_bytes(value)?;
-        self.entries.push((key, value));
+        let value = self.encoder.append_nested(value, &mut self.bytes)?;
+        self.entries.push(EncodedMapEntry { key, value });
 
         Ok(())
     }
@@ -678,11 +797,13 @@ impl SerializeMap for MapEncoder<'_, '_> {
         if self.pending_key.is_some() {
             return Err(Error::MapEndedWithPendingKey);
         }
-        self.entries.sort_by(|left, right| left.0.cmp(&right.0));
+        self.entries.sort_by(|left, right| {
+            self.bytes[left.key.clone()].cmp(&self.bytes[right.key.clone()])
+        });
         self.encoder.write_usize(self.entries.len())?;
-        for (key, value) in self.entries {
-            self.encoder.write_bytes(&key)?;
-            self.encoder.write_bytes(&value)?;
+        for entry in self.entries {
+            self.encoder.write_bytes(&self.bytes[entry.key])?;
+            self.encoder.write_bytes(&self.bytes[entry.value])?;
         }
 
         Ok(())

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Error, Field, Name, Payload, Reflect, Schema, Type, Value, Variant, encoded_len, from_slice,
-    to_slice, to_vec,
+    from_slice_fixed, to_slice, to_vec, to_vec_fixed,
 };
 
 /// Example value used by roundtrip tests.
@@ -162,8 +162,11 @@ fn test_roundtrip_struct() {
 
     let bytes = to_vec(&value).expect("encode");
     let decoded = from_slice::<Example>(&bytes).expect("decode");
+    let fixed = to_vec_fixed(&value).expect("encode fixed-width value");
+    let fixed = from_slice_fixed::<Example>(&fixed).expect("decode fixed-width value");
 
     assert_eq!(decoded, value);
+    assert_eq!(fixed, value);
 }
 
 #[test]
