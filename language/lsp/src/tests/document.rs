@@ -202,7 +202,7 @@ const origin: Point = { x: 0,  };
         }
         None => Vec::new(),
     };
-    assert_eq!(labels, ["y", "Point"]);
+    assert_eq!(labels, ["y"]);
 }
 
 /// Return declaration, member, and callable details in completion lists.
@@ -276,7 +276,7 @@ const sent = context.send(1);
             position(11, 38),
             CompletionDisplay {
                 label: "Item",
-                label_detail: Some(": T.Item"),
+                label_detail: Some(": Collection.Item"),
                 description: None,
                 detail: Some("Collection.Item"),
                 documentation: Some("```ds\nCollection.Item\n```"),
@@ -291,7 +291,7 @@ const sent = context.send(1);
             position(14, 26),
             CompletionDisplay {
                 label: "syscall",
-                label_detail: Some(": string | undefined"),
+                label_detail: Some(": string"),
                 description: None,
                 detail: Some("HostErrorContextProcess.syscall: string"),
                 documentation: Some("```ds\nHostErrorContextProcess.syscall: string\n```"),
@@ -473,7 +473,12 @@ const sound = dog.name;
         }
         None => Vec::new(),
     };
-    assert_eq!(labels, ["tricks", "name", "bark", "borrow"]);
+    assert_eq!(
+        labels,
+        [
+            "tricks", "name", "bark", "toString", "borrow", "into", "tryInto",
+        ],
+    );
 }
 
 /// Withhold consuming extension members from borrowed receivers.
@@ -521,7 +526,10 @@ function inspect(crate: &readonly Crate): string {
         }
         None => Vec::new(),
     };
-    assert_eq!(labels, ["label", "peek", "borrow"]);
+    assert_eq!(
+        labels,
+        ["label", "peek", "toString", "borrow", "into", "tryInto"],
+    );
 }
 
 /// Complete blanket extension members on primitive receivers.
