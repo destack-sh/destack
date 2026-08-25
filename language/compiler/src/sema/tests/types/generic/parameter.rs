@@ -1175,6 +1175,7 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
 interface Hash {
 /// @type.symbol symbol=Hash type=Hash
 /// @definition.interface symbol=Hash
+/// @definition.where symbol=Hash relation=satisfies left=this right=Hash
 /// @definition.method symbol=Hash.hash source="hash(): float64" slot=hash type=(this: this) => float64
 
     hash(): float64;
@@ -1342,6 +1343,7 @@ function twice<T>(value: T): int32 where T: Doubling {
 interface Doubling {
 /// @type.symbol symbol=Doubling type=Doubling
 /// @definition.interface symbol=Doubling
+/// @definition.where symbol=Doubling relation=satisfies left=this right=Doubling
 /// @definition.method symbol=Doubling.double source="double(): int32" slot=double type=(this: Doubling) => int32
 
     double(): int32;
@@ -1651,6 +1653,7 @@ function build<T: Makeable>(): T {
 interface Makeable {
 /// @type.symbol symbol=Makeable type=Makeable
 /// @definition.interface symbol=Makeable
+/// @definition.where symbol=Makeable relation=satisfies left=this right=Makeable
 /// @definition.method symbol=Makeable.make source="static make(): this" slot=make static=true type=() => Makeable
 
     static make(): this;
@@ -1714,6 +1717,7 @@ function zero<T: Numeric>(): T {
 interface Zero {
 /// @type.symbol symbol=Zero type=Zero
 /// @definition.interface symbol=Zero
+/// @definition.where symbol=Zero relation=satisfies left=this right=Zero
 /// @definition.method symbol=Zero.zero source="static zero(): this" slot=zero static=true type=() => Zero
 
     static zero(): this;
@@ -1724,12 +1728,14 @@ interface Zero {
 interface Integer extends Zero {}
 /// @type.symbol symbol=Integer source="interface Integer extends Zero {}" type=Integer
 /// @definition.interface symbol=Integer source="interface Integer extends Zero {}"
+/// @definition.where symbol=Integer source="interface Integer extends Zero {}" relation=satisfies left=this right=Integer
 /// @definition.extends symbol=Integer source=Zero target=Zero
 /// @resolution.name source=Zero target=Zero
 
 interface Float extends Zero {}
 /// @type.symbol symbol=Float source="interface Float extends Zero {}" type=Float
 /// @definition.interface symbol=Float source="interface Float extends Zero {}"
+/// @definition.where symbol=Float source="interface Float extends Zero {}" relation=satisfies left=this right=Float
 /// @definition.extends symbol=Float source=Zero target=Zero
 /// @resolution.name source=Zero target=Zero
 
@@ -2588,6 +2594,7 @@ export newtype interface Parameterized<P: readonly unknown[]> {
 export newtype interface Suite {
 /// @type.symbol symbol=Suite type=Suite
 /// @definition.interface symbol=Suite nominal=true
+/// @definition.where symbol=Suite relation=satisfies left=this right=Suite
 /// @definition.method symbol=Suite.each source="each<P: readonly unknown[]>(values: Iterable<P>): Parameterized<P>" slot=each type=<P#2: readonly unknown[]>(this: this, Iterable<P#2>) => Parameterized<P#2>
 
     each<P: readonly unknown[]>(values: Iterable<P>): Parameterized<P>;

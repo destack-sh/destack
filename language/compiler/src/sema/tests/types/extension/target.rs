@@ -552,6 +552,7 @@ extension of Named & Aged {
 interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named
+/// @definition.where symbol=Named relation=satisfies left=this right=Named
 /// @definition.field symbol=Named.name source="name: string" key=name type=string
 
     name: string;
@@ -561,6 +562,7 @@ interface Named {
 interface Aged {
 /// @type.symbol symbol=Aged type=Aged
 /// @definition.interface symbol=Aged
+/// @definition.where symbol=Aged relation=satisfies left=this right=Aged
 /// @definition.field symbol=Aged.age source="age: int32" key=age type=int32
 
     age: int32;
@@ -800,6 +802,7 @@ extension of User where int32: Show {
 newtype interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show nominal=true
+/// @definition.where symbol=Show relation=satisfies left=this right=Show
 /// @definition.method symbol=Show.show source="show(this): string" slot=show type=(this: this) => string
 
     show(this): string;

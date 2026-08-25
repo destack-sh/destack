@@ -35,6 +35,7 @@ person.name satisfies string;
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
+/// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="readonly name: string" key=name type=string
 
@@ -106,6 +107,7 @@ named satisfies MutableFields<Person>;
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
+/// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.name source="readonly name?: string" key=name type=string
 
     readonly name?: string;
@@ -177,6 +179,7 @@ person.profile.name = "Grace";
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
+/// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.profile key=profile type=Readonly<{ name: string }>
 
     readonly profile: readonly {

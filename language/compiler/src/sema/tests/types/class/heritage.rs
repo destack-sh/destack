@@ -103,6 +103,7 @@ class Document extends Drawable {}
 interface Drawable {}
 /// @type.symbol symbol=Drawable source="interface Drawable {}" type=Drawable
 /// @definition.interface symbol=Drawable source="interface Drawable {}"
+/// @definition.where symbol=Drawable source="interface Drawable {}" relation=satisfies left=this right=Drawable
 
 class Document extends Drawable {}
 /// @type.symbol symbol=Document source="class Document extends Drawable {}" type=Document
@@ -233,6 +234,7 @@ class Document implements Printable {
 interface Printable {
 /// @type.symbol symbol=Printable type=Printable
 /// @definition.interface symbol=Printable
+/// @definition.where symbol=Printable relation=satisfies left=this right=Printable
 /// @definition.method symbol=Printable.print source="print(): void" slot=print type=(this: Printable) => void
 
     print(): void;
@@ -289,6 +291,7 @@ class User implements Named {
 interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named
+/// @definition.where symbol=Named relation=satisfies left=this right=Named
 /// @definition.field symbol=Named.name source="name?: string" key=name type=string
 
     name?: string;
@@ -349,6 +352,7 @@ class Document implements Alias {
 interface Printable {
 /// @type.symbol symbol=Printable type=Printable
 /// @definition.interface symbol=Printable
+/// @definition.where symbol=Printable relation=satisfies left=this right=Printable
 /// @definition.method symbol=Printable.print source="print(): void" slot=print type=(this: this) => void
 
     print(): void;
@@ -410,6 +414,7 @@ class Point implements Drawable {
 interface Drawable {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
+/// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
 /// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
 
     draw(): void;
@@ -476,6 +481,7 @@ class Point implements Drawable {
 interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named
+/// @definition.where symbol=Named relation=satisfies left=this right=Named
 /// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: this) => string
 
     name(): string;
@@ -486,6 +492,7 @@ interface Named {
 interface Drawable extends Named {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
+/// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
 /// @definition.extends symbol=Drawable source=Named target=Named
 /// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
 /// @resolution.name source=Named target=Named

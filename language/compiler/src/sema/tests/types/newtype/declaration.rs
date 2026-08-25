@@ -44,6 +44,7 @@ const writer: NamedWriter = Buffer {};
 interface Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.interface symbol=Writer
+/// @definition.where symbol=Writer relation=satisfies left=this right=Writer
 /// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): usize" slot=write type=(this: this, readonly uint8[]) => usize
 
     write(bytes: readonly uint8[]): usize;

@@ -51,6 +51,7 @@ extension of User implements Show {
 newtype interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show nominal=true
+/// @definition.where symbol=Show relation=satisfies left=this right=Show
 /// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
 
     show(): string;
@@ -133,6 +134,7 @@ extension of User implements Show {}
 newtype interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show nominal=true
+/// @definition.where symbol=Show relation=satisfies left=this right=Show
 /// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
 
     show(): string;
@@ -204,6 +206,7 @@ extension of User implements Show {
 newtype interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named nominal=true
+/// @definition.where symbol=Named relation=satisfies left=this right=Named
 /// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: this) => string
 
     name(): string;
@@ -214,6 +217,7 @@ newtype interface Named {
 newtype interface Show extends Named {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show nominal=true
+/// @definition.where symbol=Show relation=satisfies left=this right=Show
 /// @definition.extends symbol=Show source=Named target=Named
 /// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
 /// @resolution.name source=Named target=Named
@@ -474,6 +478,7 @@ struct User {}
 interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show
+/// @definition.where symbol=Show relation=satisfies left=this right=Show
 /// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
 
     show(): string;
@@ -553,6 +558,7 @@ struct User {}
 interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show
+/// @definition.where symbol=Show relation=satisfies left=this right=Show
 /// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
 
     show(): string;
@@ -562,6 +568,7 @@ interface Show {
 interface Debug {
 /// @type.symbol symbol=Debug type=Debug
 /// @definition.interface symbol=Debug
+/// @definition.where symbol=Debug relation=satisfies left=this right=Debug
 /// @definition.method symbol=Debug.debug source="debug(): string" slot=debug type=(this: this) => string
 
     debug(): string;
@@ -631,6 +638,7 @@ extension of int32 implements Doubling {
 interface Doubling {
 /// @type.symbol symbol=Doubling type=Doubling
 /// @definition.interface symbol=Doubling
+/// @definition.where symbol=Doubling relation=satisfies left=this right=Doubling
 /// @definition.associated.type symbol=Doubling.Output source="type Output" key=Output
 /// @definition.method symbol=Doubling.double source="double(): this.Output" slot=double type=(this: Doubling) => Doubling.Output
 
@@ -717,6 +725,7 @@ extension<T> of Box<T> implements Container {
 interface Container {
 /// @type.symbol symbol=Container type=Container
 /// @definition.interface symbol=Container
+/// @definition.where symbol=Container relation=satisfies left=this right=Container
 /// @definition.associated.type symbol=Container.Item source="type Item" key=Item
 /// @definition.method symbol=Container.get source="get(): this.Item" slot=get type=(this: Container) => Container.Item
 
@@ -989,6 +998,7 @@ interface Source<T> {
 interface Representation extends Source<this.Error> {
 /// @type.symbol symbol=Representation type=Representation
 /// @definition.interface symbol=Representation
+/// @definition.where symbol=Representation relation=satisfies left=this right=Representation
 /// @definition.extends symbol=Representation source=Source<this.Error> target=Source<this.Error>
 /// @definition.associated.type symbol=Representation.Error source="type Error" key=Error
 /// @resolution.name source=Source target=Source
@@ -1085,6 +1095,7 @@ extension of int32 implements Halving {
 interface Halving {
 /// @type.symbol symbol=Halving type=Halving
 /// @definition.interface symbol=Halving
+/// @definition.where symbol=Halving relation=satisfies left=this right=Halving
 /// @definition.associated.type symbol=Halving.Output source="type Output" key=Output
 /// @definition.method symbol=Halving.halve source="halve(): this.Output" slot=halve type=(this: Halving) => Halving.Output
 
@@ -1200,6 +1211,7 @@ extension of Cell implements Writing {
 interface Reading {
 /// @type.symbol symbol=Reading type=Reading
 /// @definition.interface symbol=Reading
+/// @definition.where symbol=Reading relation=satisfies left=this right=Reading
 /// @definition.associated.type symbol=Reading.Output source="type Output" key=Output
 /// @definition.method symbol=Reading.read source="read(): this.Output" slot=read type=(this: Reading) => Reading.Output
 
@@ -1213,6 +1225,7 @@ interface Reading {
 interface Writing {
 /// @type.symbol symbol=Writing type=Writing
 /// @definition.interface symbol=Writing
+/// @definition.where symbol=Writing relation=satisfies left=this right=Writing
 /// @definition.associated.type symbol=Writing.Output source="type Output" key=Output
 /// @definition.method symbol=Writing.write source="write(): this.Output" slot=write type=(this: Writing) => Writing.Output
 
@@ -1528,6 +1541,7 @@ export extension<T> of Pack<T> implements Has<T> {
 interface Marker {}
 /// @type.symbol symbol=Marker source="interface Marker {}" type=Marker
 /// @definition.interface symbol=Marker source="interface Marker {}"
+/// @definition.where symbol=Marker source="interface Marker {}" relation=satisfies left=this right=Marker
 
 interface Has<T> {
 /// @generic.template symbol=Has parameters=(in T#1)
@@ -1921,6 +1935,7 @@ const greeter: Greeter = robot as Greeter;
 interface Greeter {
 /// @type.symbol symbol=Greeter type=Greeter
 /// @definition.interface symbol=Greeter
+/// @definition.where symbol=Greeter relation=satisfies left=this right=Greeter
 /// @definition.method symbol=Greeter.greet source="greet(): string" slot=greet type=(this: Greeter) => string
 
     greet(): string;
@@ -2151,6 +2166,7 @@ import { Integer } from "destack:math";
 newtype interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show nominal=true
+/// @definition.where symbol=Show relation=satisfies left=this right=Show
 /// @definition.method symbol=Show.show source="show(&readonly this): string" slot=show type=<Show.show.'a, Show.show.P1: Place>(this: &Show.show.'a readonly this) => string
 
     show(&readonly this): string;
@@ -2302,11 +2318,11 @@ extension<T, R, Q, I: It<T, R>, J: It<T, Q>> of Chain<I, J, T> implements It<T> 
 === annotated ===
 newtype interface It<out T, out R = void> {
     next(this): R {
-        todo("next")
+        todo("next" as string | undefined)
     }
 
     first(this): T | undefined {
-        todo("first")
+        todo("first" as string | undefined)
     }
 }
 
@@ -2339,6 +2355,11 @@ newtype interface It<T, R = void> {
     /// @resolution.name source=R target=It.R
 
         todo("next")
+        /// @type.node source="todo(\"next\")" type=never
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"next\")" parameters=(string | undefined) arguments=(provided("next") as string | undefined) return=never kind=symbol target=todo
+        /// @type.node source="\"next\"" type="next"
+
     }
 
     first(this): T | undefined {
@@ -2347,6 +2368,11 @@ newtype interface It<T, R = void> {
     /// @resolution.name source=T target=It.T
 
         todo("first")
+        /// @type.node source="todo(\"first\")" type=never
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"first\")" parameters=(string | undefined) arguments=(provided("first") as string | undefined) return=never kind=symbol target=todo
+        /// @type.node source="\"first\"" type="first"
+
     }
 }
 
@@ -2455,6 +2481,7 @@ extension of Box implements Sized {}
 newtype interface Sized {
 /// @type.symbol symbol=Sized type=Sized
 /// @definition.interface symbol=Sized nominal=true
+/// @definition.where symbol=Sized relation=satisfies left=this right=Sized
 /// @definition.method symbol=Sized.size source="size(this): isize" slot=size type=(this: Sized) => isize
 
     size(this): isize;
@@ -2533,6 +2560,7 @@ extension of Box implements Sized {}
 newtype interface Sized {
 /// @type.symbol symbol=Sized type=Sized
 /// @definition.interface symbol=Sized nominal=true
+/// @definition.where symbol=Sized relation=satisfies left=this right=Sized
 /// @definition.method symbol=Sized.size source="size(this): isize" slot=size type=(this: this) => isize
 
     size(this): isize;
@@ -2760,6 +2788,7 @@ const bounded: isize = measure<(int32, boolean)>(pair);
 interface Sized {
 /// @type.symbol symbol=Sized type=Sized
 /// @definition.interface symbol=Sized
+/// @definition.where symbol=Sized relation=satisfies left=this right=Sized
 /// @definition.method symbol=Sized.size source="size(): isize" slot=size type=(this: this) => isize
 
     size(): isize;

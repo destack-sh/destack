@@ -33,6 +33,7 @@ newtype mark = (string,);
 interface Reader {
 /// @type.symbol symbol=Reader type=Reader
 /// @definition.interface symbol=Reader
+/// @definition.where symbol=Reader relation=satisfies left=this right=Reader
 /// @definition.method symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" slot=read type=(this: Reader, string) => string
 
     @mark("checked")

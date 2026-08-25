@@ -76,8 +76,13 @@ impl WalkState<'_, '_> {
 
                 Ok(true)
             }
-            // walk interface member decorators
+            // walk interface member decorators and default bodies
             dir::Declaration::Interface(declaration) => {
+                // members assume the interface template's own predicates
+                let source = id.into_global_any(self.module);
+                let template = self.check.template_by_source(source);
+                let _scope = self.enter_template_scope(template);
+
                 for member in &declaration.members {
                     if !self.walk_decorators(member.into_any())? {
                         continue;
@@ -85,11 +90,19 @@ impl WalkState<'_, '_> {
 
                     // walk parameters retained by the declared signature
                     match self.tree.get(*member).clone() {
-                        dir::TypeMember::Method { signature, .. } => self
-                            .walk_parameter_decorators(
+                        dir::TypeMember::Method {
+                            signature, body, ..
+                        } => {
+                            self.walk_parameter_decorators(
                                 signature.this_parameter,
                                 &signature.parameters,
-                            )?,
+                            )?;
+
+                            // check default bodies against their declared signatures
+                            if let Some(body) = body {
+                                self.walk_declared_default_body(*member, &signature, body)?;
+                            }
+                        }
                         dir::TypeMember::CallSignature { signature } => self
                             .walk_parameter_decorators(
                                 signature.this_parameter,
@@ -293,6 +306,42 @@ impl WalkState<'_, '_> {
 
         self.check
             .push_obligation(Obligation::FieldInitialization(obligation), scope)?;
+
+        Ok(())
+    }
+
+    /// Walk one default interface body against its declared method signature.
+    fn walk_declared_default_body(
+        &mut self,
+        member: dir::LocalNodeId<dir::TypeMember>,
+        signature: &dir::FunctionSignature,
+        body: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<()> {
+        // read the declared method signature the body checks against
+        let Some(symbol) = self.declared_symbol(member.into_any()) else {
+            return Ok(());
+        };
+        let Some(method) = self.check.adopt_symbol_type_maybe(symbol)? else {
+            return Ok(());
+        };
+        let Some(head) = self.check.signature_head(method)? else {
+            return Ok(());
+        };
+        let Some(result) = head.return_type else {
+            return Ok(());
+        };
+
+        self.walk_declared_parameters(signature, method.module_id, &head)?;
+
+        // bind the written receiver to its declared type
+        let receiver = match (signature.this_parameter, head.this_parameter) {
+            (Some(parameter), Some(ty)) => {
+                Some(self.this_parameter_receiver_binding(parameter, None, ty)?)
+            }
+            _ => None,
+        };
+
+        self.walk_function_body(symbol, signature, body, result, receiver)?;
 
         Ok(())
     }

@@ -434,6 +434,7 @@ const value: 1 = (1).double<1>();
 interface Scalar {}
 /// @type.symbol symbol=Scalar source="interface Scalar {}" type=Scalar
 /// @definition.interface symbol=Scalar source="interface Scalar {}"
+/// @definition.where symbol=Scalar source="interface Scalar {}" relation=satisfies left=this right=Scalar
 
 extension Doubling<T: Scalar> of T {
 /// @generic.template symbol=Doubling parameters=(T: Scalar)

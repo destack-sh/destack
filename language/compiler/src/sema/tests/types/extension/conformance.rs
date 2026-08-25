@@ -59,6 +59,7 @@ empty satisfies boolean;
 newtype interface Sized {
 /// @type.symbol symbol=Sized type=Sized
 /// @definition.interface symbol=Sized nominal=true
+/// @definition.where symbol=Sized relation=satisfies left=this right=Sized
 /// @definition.method symbol=Sized.isEmpty slot=isEmpty type=(this: Sized) => boolean
 /// @definition.method symbol=Sized.length source="length(this): int32" slot=length type=(this: Sized) => int32
 
@@ -71,6 +72,13 @@ newtype interface Sized {
     /// @type.symbol symbol=Sized.isEmpty.this source=this type=this
 
         return this.length() == 0;
+        /// @resolution.name source=this target=Sized.isEmpty.this
+        /// @resolution.member source=this.length receiver=this type=(this: this) => int32 kind=symbol target_receiver=this target=Sized.length
+        /// @resolution.call source=this.length() parameters=() return=int32 kind=symbol target=Sized.length receiver=this
+        /// @resolution.operator source="this.length() == 0" type=boolean operator="==" kind=builtin operands=[this.length() as int32 families=(integer), 0 as int32 families=(integer)]
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+
     }
 }
 
@@ -197,6 +205,7 @@ empty satisfies boolean;
 newtype interface Sized {
 /// @type.symbol symbol=Sized type=Sized
 /// @definition.interface symbol=Sized nominal=true
+/// @definition.where symbol=Sized relation=satisfies left=this right=Sized
 /// @definition.method symbol=Sized.isEmpty slot=isEmpty type=(this: Sized) => boolean
 /// @definition.method symbol=Sized.length source="length(this): int32" slot=length type=(this: Sized) => int32
 
@@ -209,6 +218,13 @@ newtype interface Sized {
     /// @type.symbol symbol=Sized.isEmpty.this source=this type=this
 
         return this.length() == 0;
+        /// @resolution.name source=this target=Sized.isEmpty.this
+        /// @resolution.member source=this.length receiver=this type=(this: this) => int32 kind=symbol target_receiver=this target=Sized.length
+        /// @resolution.call source=this.length() parameters=() return=int32 kind=symbol target=Sized.length receiver=this
+        /// @resolution.operator source="this.length() == 0" type=boolean operator="==" kind=builtin operands=[this.length() as int32 families=(integer), 0 as int32 families=(integer)]
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+
     }
 }
 

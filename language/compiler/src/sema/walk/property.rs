@@ -692,6 +692,7 @@ impl WalkState<'_, '_> {
                         (Some(_), None) => Some(self.intern_type(dir::Type::This)?),
                         _ => None,
                     };
+                let header_this = header.this_parameter;
                 let method = self.walk_function_signature_type(
                     id.into_any(),
                     signature,
@@ -706,9 +707,15 @@ impl WalkState<'_, '_> {
                 // write the method symbol type
                 self.commit_symbol_type(symbol, method)?;
 
-                // walk default method bodies
+                // walk default method bodies under their written receiver
                 if let (Some(body), Some(result)) = (body, result) {
-                    self.walk_function_body(symbol, signature, body, result, None)?;
+                    let receiver = match (signature.this_parameter, header_this) {
+                        (Some(parameter), Some(ty)) => {
+                            Some(self.this_parameter_receiver_binding(parameter, None, ty)?)
+                        }
+                        _ => None,
+                    };
+                    self.walk_function_body(symbol, signature, body, result, receiver)?;
                 }
 
                 // classify how the member receives its implementation

@@ -24,6 +24,7 @@ interface User {
 interface User {
 /// @type.symbol symbol=User type=User
 /// @definition.interface symbol=User
+/// @definition.where symbol=User relation=satisfies left=this right=User
 /// @definition.field symbol=User.name source=name key=name type=<error>
 
     name
@@ -67,6 +68,7 @@ extension of Value implements ForeignProtocol {
 declare interface ForeignProtocol {
 /// @type.symbol symbol=ForeignProtocol type=ForeignProtocol
 /// @definition.interface symbol=ForeignProtocol
+/// @definition.where symbol=ForeignProtocol relation=satisfies left=this right=ForeignProtocol
 /// @definition.method symbol=ForeignProtocol.snake_name source="snake_name(): void" slot=snake_name type=(this: ForeignProtocol) => void
 
     snake_name(): void;
@@ -123,6 +125,7 @@ interface Person {
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
+/// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.id source="readonly id: string" key=id type=string
 /// @definition.field symbol=Person.name source="name?: string" key=name type=string
 /// @definition.method symbol=Person.rename source="rename(value: string): void" slot=rename type=(this: Person, string) => void
@@ -174,6 +177,7 @@ interface Serialize<in S: Serializer> {
 interface Serializer {
 /// @type.symbol symbol=Serializer type=Serializer
 /// @definition.interface symbol=Serializer
+/// @definition.where symbol=Serializer relation=satisfies left=this right=Serializer
 /// @definition.method symbol=Serializer.serializeValue source="serializeValue<T: Serialize<this>>(value: T): void" slot=serializeValue type=<T: Serialize<this>>(this: this, T) => void
 
     serializeValue<T: Serialize<this>>(value: T): void;
@@ -269,4 +273,130 @@ export newtype interface Table<T, Context> {
 
 }
 "#, r#""#);
+}
+
+#[test]
+fn test_check_a_default_interface_body_under_its_receiver() {
+    let session = TestSession::single(
+        r#"
+newtype interface Duplicate {
+    clone(&readonly this): ^this;
+
+    cloneFrom(&exclusive this, source: &readonly this): void {
+        *this = source.clone();
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+newtype interface Duplicate {
+    clone(&readonly this): ^this;
+
+    cloneFrom(&exclusive this, source: &'b readonly this): void {
+        *this = source.clone<P3>() as this;
+    }
+}
+
+=== dir ===
+newtype interface Duplicate {
+/// @type.symbol symbol=Duplicate type=Duplicate
+/// @definition.interface symbol=Duplicate nominal=true
+/// @definition.where symbol=Duplicate relation=satisfies left=this right=Duplicate
+/// @definition.method symbol=Duplicate.clone source="clone(&readonly this): ^this" slot=clone type=<Duplicate.clone.'a, Duplicate.clone.P1: Place>(this: &Duplicate.clone.'a readonly this) => Owned<this>
+/// @definition.method symbol=Duplicate.cloneFrom slot=cloneFrom type=<Duplicate.cloneFrom.'a, Duplicate.cloneFrom.P1: Place, Duplicate.cloneFrom.'b, Duplicate.cloneFrom.P3: Place>(this: &Duplicate.cloneFrom.'a exclusive this, &Duplicate.cloneFrom.'b readonly this) => void
+
+    clone(&readonly this): ^this;
+    /// @generic.template symbol=Duplicate.clone parent=template#0 parameters=('a, P1: Place)
+    /// @type.symbol symbol=Duplicate.clone source="clone(&readonly this): ^this" type=<Duplicate.clone.'a, Duplicate.clone.P1: Place>(this: &Duplicate.clone.'a readonly this) => Owned<this>
+    /// @type.symbol symbol=Duplicate.clone.this source="&readonly this" type=&Duplicate.clone.'a readonly this
+
+    cloneFrom(&exclusive this, source: &readonly this): void {
+    /// @generic.template symbol=Duplicate.cloneFrom parent=template#0 parameters=('a, P1: Place, 'b, P3: Place)
+    /// @type.symbol symbol=Duplicate.cloneFrom type=<Duplicate.cloneFrom.'a, Duplicate.cloneFrom.P1: Place, Duplicate.cloneFrom.'b, Duplicate.cloneFrom.P3: Place>(this: &Duplicate.cloneFrom.'a exclusive this, &Duplicate.cloneFrom.'b readonly this) => void
+    /// @type.symbol symbol=Duplicate.cloneFrom.this source="&exclusive this" type=&Duplicate.cloneFrom.'a exclusive this
+    /// @type.symbol symbol=Duplicate.cloneFrom.source source="source: &readonly this" type=&Duplicate.cloneFrom.'b readonly this
+
+        *this = source.clone();
+        /// @resolution.pattern.assign source=*this kind=place
+        /// @resolution.assignment source=*this write="&Duplicate.cloneFrom.'a exclusive this => direct -> this" type=this
+        /// @resolution.name source=this target=Duplicate.cloneFrom.this
+        /// @resolution.place source=this placement=Duplicate.cloneFrom.P1 lifetime=Duplicate.cloneFrom.'a access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.name source=source target=Duplicate.cloneFrom.source
+        /// @resolution.member source=source.clone receiver=&Duplicate.cloneFrom.'b readonly this type=<Duplicate.clone.'a, Duplicate.clone.P1: Place>(this: &Duplicate.clone.'a readonly this) => Owned<this> kind=symbol target_receiver=&Duplicate.cloneFrom.'b readonly this target=Duplicate.clone
+        /// @resolution.call source=source.clone() parameters=() return=Owned<&Duplicate.cloneFrom.'b readonly this> kind=symbol target=Duplicate.clone receiver=&Duplicate.cloneFrom.'b readonly this adjustments=(&Duplicate.cloneFrom.'b readonly this => direct -> this, borrow(&Duplicate.cloneFrom.'b readonly this)) instance=Duplicate.clone<Duplicate.cloneFrom.P3>
+        /// @resolution.place source=source placement=Duplicate.cloneFrom.P3 lifetime=Duplicate.cloneFrom.'b access="readonly"
+        /// @resolution.access source=source root=Duplicate.cloneFrom.source
+        /// @generic.instantiation id=Duplicate.clone<Duplicate.cloneFrom.P3> template=Duplicate.clone arguments=(Duplicate.cloneFrom.P3)
+
+    }
+}
+"#, r#"
+"#);
+}
+
+#[test]
+fn test_call_a_generic_sibling_from_a_default_interface_body() {
+    let session = TestSession::single(
+        r#"
+newtype interface Values<T> {
+    first(this): T {
+        return this.pick<T>();
+    }
+
+    pick<C>(this): C;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+newtype interface Values<out T> {
+    first(this): T {
+        return this.pick<T>();
+    }
+
+    pick<C>(this): C;
+}
+
+=== dir ===
+newtype interface Values<T> {
+/// @generic.template symbol=Values parameters=(out T)
+/// @type.symbol symbol=Values type=Values
+/// @definition.interface symbol=Values template=(out T) nominal=true
+/// @definition.where symbol=Values relation=satisfies left=this right=Values<T>
+/// @definition.method symbol=Values.first slot=first type=(this: this) => T
+/// @definition.method symbol=Values.pick source="pick<C>(this): C" slot=pick type=<C>(this: this) => C
+/// @type.symbol symbol=Values.T source=T type=T
+
+    first(this): T {
+    /// @type.symbol symbol=Values.first type=(this: this) => T
+    /// @type.symbol symbol=Values.first.this source=this type=this
+    /// @resolution.name source=T target=Values.T
+
+        return this.pick<T>();
+        /// @resolution.name source=this target=Values.first.this
+        /// @resolution.member source=this.pick receiver=this type=<C>(this: this) => C kind=symbol target_receiver=this target=Values.pick
+        /// @resolution.call source=this.pick<T>() parameters=() return=T kind=symbol target=Values.pick receiver=this instance=Values<T>.pick<T>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @generic.instantiation id="Values.pick<T, T>" template=Values.pick arguments=(T, T) owner=Values
+        /// @generic.instantiation id=Values.pick<T> template=Values.pick arguments=(T) owner=Values
+        /// @resolution.name source=T target=Values.T
+
+    }
+
+    pick<C>(this): C;
+    /// @generic.template symbol=Values.pick parent=template#0 parameters=(C)
+    /// @type.symbol symbol=Values.pick source="pick<C>(this): C" type=<C>(this: this) => C
+    /// @type.symbol symbol=Values.pick.C source=C type=C
+    /// @type.symbol symbol=Values.pick.this source=this type=this
+    /// @resolution.name source=C target=Values.pick.C
+
+}
+"#, r#"
+
+"#);
 }

@@ -285,6 +285,7 @@ function read(source: Source): "ready" {
 interface Source {
 /// @type.symbol symbol=Source type=Source
 /// @definition.interface symbol=Source
+/// @definition.where symbol=Source relation=satisfies left=this right=Source
 /// @definition.method symbol=Source.kind source="get kind(): \"pending\" | \"ready\"" slot=kind role=getter type=(this: this) => "pending" | "ready"
 
     get kind(): "pending" | "ready";
@@ -441,6 +442,7 @@ function read(state: Pending | Fulfilled): int32 {
 interface Pending {
 /// @type.symbol symbol=Pending type=Pending
 /// @definition.interface symbol=Pending
+/// @definition.where symbol=Pending relation=satisfies left=this right=Pending
 /// @definition.field symbol=Pending.kind source="kind: \"pending\"" key=kind type="pending"
 /// @definition.field symbol=Pending.reactions source="reactions: int32" key=reactions type=int32
 
@@ -455,6 +457,7 @@ interface Pending {
 interface Fulfilled {
 /// @type.symbol symbol=Fulfilled type=Fulfilled
 /// @definition.interface symbol=Fulfilled
+/// @definition.where symbol=Fulfilled relation=satisfies left=this right=Fulfilled
 /// @definition.field symbol=Fulfilled.kind source="kind: \"fulfilled\"" key=kind type="fulfilled"
 /// @definition.field symbol=Fulfilled.value source="value: int32" key=value type=int32
 
@@ -573,6 +576,7 @@ function read(state: Pending | Fulfilled): int32 {
 interface Pending {
 /// @type.symbol symbol=Pending type=Pending
 /// @definition.interface symbol=Pending
+/// @definition.where symbol=Pending relation=satisfies left=this right=Pending
 /// @definition.field symbol=Pending.kind source="kind: \"pending\"" key=kind type="pending"
 /// @definition.field symbol=Pending.reactions source="reactions: int32" key=reactions type=int32
 
@@ -587,6 +591,7 @@ interface Pending {
 interface Fulfilled {
 /// @type.symbol symbol=Fulfilled type=Fulfilled
 /// @definition.interface symbol=Fulfilled
+/// @definition.where symbol=Fulfilled relation=satisfies left=this right=Fulfilled
 /// @definition.field symbol=Fulfilled.kind source="kind: \"fulfilled\"" key=kind type="fulfilled"
 /// @definition.field symbol=Fulfilled.value source="value: int32" key=value type=int32
 
@@ -712,6 +717,7 @@ function read(initial: Pending | Fulfilled, next: Pending | Fulfilled): int32 {
 interface Pending {
 /// @type.symbol symbol=Pending type=Pending
 /// @definition.interface symbol=Pending
+/// @definition.where symbol=Pending relation=satisfies left=this right=Pending
 /// @definition.field symbol=Pending.kind source="kind: \"pending\"" key=kind type="pending"
 /// @definition.field symbol=Pending.reactions source="reactions: int32" key=reactions type=int32
 
@@ -726,6 +732,7 @@ interface Pending {
 interface Fulfilled {
 /// @type.symbol symbol=Fulfilled type=Fulfilled
 /// @definition.interface symbol=Fulfilled
+/// @definition.where symbol=Fulfilled relation=satisfies left=this right=Fulfilled
 /// @definition.field symbol=Fulfilled.kind source="kind: \"fulfilled\"" key=kind type="fulfilled"
 /// @definition.field symbol=Fulfilled.value source="value: int32" key=value type=int32
 
@@ -2469,6 +2476,7 @@ function read(state: Pending | Fulfilled): int32 {
 interface Pending {
 /// @type.symbol symbol=Pending type=Pending
 /// @definition.interface symbol=Pending
+/// @definition.where symbol=Pending relation=satisfies left=this right=Pending
 /// @definition.field symbol=Pending.kind source="kind: \"pending\"" key=kind type="pending"
 /// @definition.field symbol=Pending.reactions source="reactions: int32" key=reactions type=int32
 
@@ -2483,6 +2491,7 @@ interface Pending {
 interface Fulfilled {
 /// @type.symbol symbol=Fulfilled type=Fulfilled
 /// @definition.interface symbol=Fulfilled
+/// @definition.where symbol=Fulfilled relation=satisfies left=this right=Fulfilled
 /// @definition.field symbol=Fulfilled.kind source="kind: \"fulfilled\"" key=kind type="fulfilled"
 /// @definition.field symbol=Fulfilled.value source="value: int32" key=value type=int32
 

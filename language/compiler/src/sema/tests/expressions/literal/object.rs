@@ -815,6 +815,7 @@ const store: Store = {
 interface Store {
 /// @type.symbol symbol=Store type=Store
 /// @definition.interface symbol=Store
+/// @definition.where symbol=Store relation=satisfies left=this right=Store
 /// @definition.method symbol=Store.value#1 source="get value(): string" slot=value role=getter type=(this: Store) => string
 /// @definition.method symbol=Store.value#2 source="set value(next: string | int32)" slot=value role=setter type=(this: Store, string | int32) => void
 
@@ -841,7 +842,6 @@ const store: Store = {
     /// @type.symbol symbol=symbol8.next source="next: string | int32" type=string | int32
 
 };
-
 "#,
     );
 }

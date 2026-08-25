@@ -1296,6 +1296,7 @@ const rejected = accept<int32>;
 newtype interface Marker {}
 /// @type.symbol symbol=Marker source="newtype interface Marker {}" type=Marker
 /// @definition.interface symbol=Marker source="newtype interface Marker {}" nominal=true
+/// @definition.where symbol=Marker source="newtype interface Marker {}" relation=satisfies left=this right=Marker
 
 struct Good {}
 /// @type.symbol symbol=Good source="struct Good {}" type=Good
@@ -3191,15 +3192,15 @@ function length(values: It<int32>): isize {
 === annotated ===
 newtype interface It<out T, out R = void> {
     next(this): R {
-        todo("next")
+        todo("next" as string | undefined)
     }
 
     first(this): T | undefined {
-        todo("first")
+        todo("first" as string | undefined)
     }
 
     count(this): isize {
-        todo("count")
+        todo("count" as string | undefined)
     }
 }
 
@@ -3225,6 +3226,11 @@ newtype interface It<T, R = void> {
     /// @resolution.name source=R target=It.R
 
         todo("next")
+        /// @type.node source="todo(\"next\")" type=never
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"next\")" parameters=(string | undefined) arguments=(provided("next") as string | undefined) return=never kind=symbol target=todo
+        /// @type.node source="\"next\"" type="next"
+
     }
 
     first(this): T | undefined {
@@ -3233,6 +3239,11 @@ newtype interface It<T, R = void> {
     /// @resolution.name source=T target=It.T
 
         todo("first")
+        /// @type.node source="todo(\"first\")" type=never
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"first\")" parameters=(string | undefined) arguments=(provided("first") as string | undefined) return=never kind=symbol target=todo
+        /// @type.node source="\"first\"" type="first"
+
     }
 
     count(this): isize {
@@ -3240,6 +3251,11 @@ newtype interface It<T, R = void> {
     /// @type.symbol symbol=It.count.this source=this type=this
 
         todo("count")
+        /// @type.node source="todo(\"count\")" type=never
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"count\")" parameters=(string | undefined) arguments=(provided("count") as string | undefined) return=never kind=symbol target=todo
+        /// @type.node source="\"count\"" type="count"
+
     }
 }
 
@@ -3352,6 +3368,7 @@ struct Runner<in out R> {
 interface Safe {}
 /// @type.symbol symbol=Safe source="interface Safe {}" type=Safe
 /// @definition.interface symbol=Safe source="interface Safe {}"
+/// @definition.where symbol=Safe source="interface Safe {}" relation=satisfies left=this right=Safe
 
 declare function run<T>(body: Function<(), T, "once"> & Safe): T;
 /// @generic.template symbol=run parameters=(T)

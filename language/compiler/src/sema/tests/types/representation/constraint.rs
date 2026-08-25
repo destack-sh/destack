@@ -31,6 +31,7 @@ function paint(item: Drawable): void {
 interface Drawable {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
+/// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
 /// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
 
     draw(): void;

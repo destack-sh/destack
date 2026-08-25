@@ -40,6 +40,7 @@ extension Arithmetic<T: Scalar> of T {
 interface Scalar {}
 /// @type.symbol symbol=Scalar source="interface Scalar {}" type=Scalar
 /// @definition.interface symbol=Scalar source="interface Scalar {}"
+/// @definition.where symbol=Scalar source="interface Scalar {}" relation=satisfies left=this right=Scalar
 
 function checkedAdd<T: Scalar>(a: T, b: T): T | undefined {
 /// @generic.template symbol=checkedAdd parameters=(T#1: Scalar)

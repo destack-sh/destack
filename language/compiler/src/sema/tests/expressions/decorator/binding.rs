@@ -51,6 +51,7 @@ struct IoControlRequest {}
 interface IoControlBinding {
 /// @type.symbol symbol=IoControlBinding type=IoControlBinding
 /// @definition.interface symbol=IoControlBinding
+/// @definition.where symbol=IoControlBinding relation=satisfies left=this right=IoControlBinding
 /// @definition.method symbol=IoControlBinding.executeIoControl slot=executeIoControl type=(this: this, ResourceId, IoControlRequest) => IoControlRequest
 
     @binding("destack.io.control", {

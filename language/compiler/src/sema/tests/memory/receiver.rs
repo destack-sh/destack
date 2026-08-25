@@ -223,6 +223,7 @@ class Message {}
 newtype interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink nominal=true
+/// @definition.where symbol=Sink relation=satisfies left=this right=Sink
 /// @definition.method symbol=Sink.write source="write(&readonly this, value: Message): Message" slot=write type=<Sink.write.'a, Sink.write.P1: Place>(this: &Sink.write.'a readonly Sink, Message) => Message
 
     write(&readonly this, value: Message): Message;

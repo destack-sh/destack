@@ -57,6 +57,7 @@ write<int64>(1, number);
 interface TextSink {
 /// @type.symbol symbol=TextSink type=TextSink
 /// @definition.interface symbol=TextSink
+/// @definition.where symbol=TextSink relation=satisfies left=this right=TextSink
 /// @definition.method symbol=TextSink.write source="write(value: string): void" slot=write type=(this: this, string) => void
 
     write(value: string): void;
@@ -68,6 +69,7 @@ interface TextSink {
 interface NumberSink {
 /// @type.symbol symbol=NumberSink type=NumberSink
 /// @definition.interface symbol=NumberSink
+/// @definition.where symbol=NumberSink relation=satisfies left=this right=NumberSink
 /// @definition.method symbol=NumberSink.write source="write(value: int32): void" slot=write type=(this: this, int32) => void
 
     write(value: int32): void;
@@ -187,6 +189,7 @@ write<string>("message", number);
 interface TextSink {
 /// @type.symbol symbol=TextSink type=TextSink
 /// @definition.interface symbol=TextSink
+/// @definition.where symbol=TextSink relation=satisfies left=this right=TextSink
 /// @definition.method symbol=TextSink.write source="write(value: string): void" slot=write type=(this: this, string) => void
 
     write(value: string): void;
@@ -198,6 +201,7 @@ interface TextSink {
 interface NumberSink {
 /// @type.symbol symbol=NumberSink type=NumberSink
 /// @definition.interface symbol=NumberSink
+/// @definition.where symbol=NumberSink relation=satisfies left=this right=NumberSink
 /// @definition.method symbol=NumberSink.write source="write(value: int32): void" slot=write type=(this: this, int32) => void
 
     write(value: int32): void;

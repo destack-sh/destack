@@ -689,6 +689,7 @@ import { Iter } from "./b.ds";
 export interface Marker {
 /// @type.symbol symbol=Marker type=Marker
 /// @definition.interface symbol=Marker
+/// @definition.where symbol=Marker relation=satisfies left=this right=Marker
 /// @definition.field symbol=Marker.marked source="marked: boolean" key=marked type=boolean
 
     marked: boolean;

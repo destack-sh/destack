@@ -834,6 +834,7 @@ values satisfies Bag;
 interface Bag {
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.interface symbol=Bag
+/// @definition.where symbol=Bag relation=satisfies left=this right=Bag
 /// @definition.signature kind=index source="readonly [key: string]: int32" key=string type=int32
 
     readonly [key: string]: int32;
@@ -882,6 +883,7 @@ values satisfies Bag;
 interface Bag {
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.interface symbol=Bag
+/// @definition.where symbol=Bag relation=satisfies left=this right=Bag
 /// @definition.signature kind=index source="readonly [key: string]: int32" key=string type=int32
 
     readonly [key: string]: int32;
@@ -932,6 +934,7 @@ struct Values implements Bag {}
 interface Bag {
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.interface symbol=Bag
+/// @definition.where symbol=Bag relation=satisfies left=this right=Bag
 /// @definition.signature kind=index source="readonly [key: string]: int32" key=string type=int32
 
     readonly [key: string]: int32;

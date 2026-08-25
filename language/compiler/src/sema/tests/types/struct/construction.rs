@@ -189,6 +189,7 @@ function make<T: Zero>(): Box<T> {
 newtype interface Zero {
 /// @type.symbol symbol=Zero type=Zero
 /// @definition.interface symbol=Zero nominal=true
+/// @definition.where symbol=Zero relation=satisfies left=this right=Zero
 /// @definition.method symbol=Zero.zero source="static zero(): this" slot=zero static=true type=() => this
 
     static zero(): this;

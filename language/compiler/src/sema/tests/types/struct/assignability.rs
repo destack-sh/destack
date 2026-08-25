@@ -38,6 +38,7 @@ value satisfies HasX;
 interface HasX {
 /// @type.symbol symbol=HasX type=HasX
 /// @definition.interface symbol=HasX
+/// @definition.where symbol=HasX relation=satisfies left=this right=HasX
 /// @definition.field symbol=HasX.x source="x: int32" key=x type=int32
 
     x: int32;
@@ -120,6 +121,7 @@ picture satisfies Drawable;
 newtype interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named nominal=true
+/// @definition.where symbol=Named relation=satisfies left=this right=Named
 /// @definition.field symbol=Named.name source="name: string" key=name type=string
 
     name: string;
@@ -130,6 +132,7 @@ newtype interface Named {
 interface Drawable extends Named {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
+/// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
 /// @definition.extends symbol=Drawable source=Named target=Named
 /// @definition.field symbol=Drawable.opacity source="opacity: float32" key=opacity type=float32
 /// @resolution.name source=Named target=Named
@@ -219,6 +222,7 @@ picture satisfies Drawable;
 newtype interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named nominal=true
+/// @definition.where symbol=Named relation=satisfies left=this right=Named
 /// @definition.field symbol=Named.name source="name: string" key=name type=string
 
     name: string;
@@ -229,6 +233,7 @@ newtype interface Named {
 interface Drawable extends Named {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
+/// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
 /// @definition.extends symbol=Drawable source=Named target=Named
 /// @definition.field symbol=Drawable.opacity source="opacity: float32" key=opacity type=float32
 /// @resolution.name source=Named target=Named
@@ -374,6 +379,7 @@ counter satisfies HasCount;
 interface HasCount {
 /// @type.symbol symbol=HasCount type=HasCount
 /// @definition.interface symbol=HasCount
+/// @definition.where symbol=HasCount relation=satisfies left=this right=HasCount
 /// @definition.field symbol=HasCount.count source="count?: int32" key=count type=int32
 
     count?: int32;
@@ -438,6 +444,7 @@ struct Point implements Drawable {
 interface Drawable {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
+/// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
 /// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
 
     draw(): void;
@@ -500,12 +507,14 @@ interface Base<in out T> {}
 interface Left extends Base<string> {}
 /// @type.symbol symbol=Left source="interface Left extends Base<string> {}" type=Left
 /// @definition.interface symbol=Left source="interface Left extends Base<string> {}"
+/// @definition.where symbol=Left source="interface Left extends Base<string> {}" relation=satisfies left=this right=Left
 /// @definition.extends symbol=Left source=Base<string> target=Base<string>
 /// @resolution.name source=Base target=Base
 
 interface Right extends Base<int32> {}
 /// @type.symbol symbol=Right source="interface Right extends Base<int32> {}" type=Right
 /// @definition.interface symbol=Right source="interface Right extends Base<int32> {}"
+/// @definition.where symbol=Right source="interface Right extends Base<int32> {}" relation=satisfies left=this right=Right
 /// @definition.extends symbol=Right source=Base<int32> target=Base<int32>
 /// @resolution.name source=Base target=Base
 

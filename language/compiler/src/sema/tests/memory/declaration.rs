@@ -250,12 +250,14 @@ shared enum SharedStatus { Ready }
 local newtype interface LocalReadable { read(): int32; }
 /// @type.symbol symbol=LocalReadable source="local newtype interface LocalReadable { read(): int32; }" type=LocalReadable
 /// @definition.interface symbol=LocalReadable source="local newtype interface LocalReadable { read(): int32; }" nominal=true
+/// @definition.where symbol=LocalReadable source="local newtype interface LocalReadable { read(): int32; }" relation=satisfies left=this right=LocalReadable
 /// @definition.method symbol=LocalReadable.read source="read(): int32" slot=read type=(this: this) => int32
 /// @type.symbol symbol=LocalReadable.read source="read(): int32" type=(this: this) => int32
 
 shared newtype interface SharedReadable { read(): int32; }
 /// @type.symbol symbol=SharedReadable source="shared newtype interface SharedReadable { read(): int32; }" type=SharedReadable
 /// @definition.interface symbol=SharedReadable source="shared newtype interface SharedReadable { read(): int32; }" nominal=true
+/// @definition.where symbol=SharedReadable source="shared newtype interface SharedReadable { read(): int32; }" relation=satisfies left=this right=SharedReadable
 /// @definition.method symbol=SharedReadable.read source="read(): int32" slot=read type=(this: this) => int32
 /// @type.symbol symbol=SharedReadable.read source="read(): int32" type=(this: this) => int32
 
@@ -643,6 +645,7 @@ sharedService satisfies shared SharedServiceImpl;
 local newtype interface LocalService {}
 /// @type.symbol symbol=LocalService source="local newtype interface LocalService {}" type=LocalService
 /// @definition.interface symbol=LocalService source="local newtype interface LocalService {}" nominal=true
+/// @definition.where symbol=LocalService source="local newtype interface LocalService {}" relation=satisfies left=this right=LocalService
 
 class LocalServiceImpl implements LocalService {}
 /// @type.symbol symbol=LocalServiceImpl source="class LocalServiceImpl implements LocalService {}" type=LocalServiceImpl
@@ -654,6 +657,7 @@ class LocalServiceImpl implements LocalService {}
 shared newtype interface SharedService {}
 /// @type.symbol symbol=SharedService source="shared newtype interface SharedService {}" type=SharedService
 /// @definition.interface symbol=SharedService source="shared newtype interface SharedService {}" nominal=true
+/// @definition.where symbol=SharedService source="shared newtype interface SharedService {}" relation=satisfies left=this right=SharedService
 
 class SharedServiceImpl implements SharedService {}
 /// @type.symbol symbol=SharedServiceImpl source="class SharedServiceImpl implements SharedService {}" type=SharedServiceImpl
@@ -719,6 +723,7 @@ local class LocalBase {}
 shared newtype interface SharedService {}
 /// @type.symbol symbol=SharedService source="shared newtype interface SharedService {}" type=SharedService
 /// @definition.interface symbol=SharedService source="shared newtype interface SharedService {}" nominal=true
+/// @definition.where symbol=SharedService source="shared newtype interface SharedService {}" relation=satisfies left=this right=SharedService
 
 class Invalid extends LocalBase implements SharedService {}
 /// @type.symbol symbol=Invalid source="class Invalid extends LocalBase implements SharedService {}" type=Invalid
@@ -767,6 +772,7 @@ declare const sharedReadable: shared Readable;
 interface Readable { read(): int32; }
 /// @type.symbol symbol=Readable source="interface Readable { read(): int32; }" type=Readable
 /// @definition.interface symbol=Readable source="interface Readable { read(): int32; }"
+/// @definition.where symbol=Readable source="interface Readable { read(): int32; }" relation=satisfies left=this right=Readable
 /// @definition.method symbol=Readable.read source="read(): int32" slot=read type=(this: this) => int32
 /// @type.symbol symbol=Readable.read source="read(): int32" type=(this: this) => int32
 

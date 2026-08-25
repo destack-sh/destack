@@ -331,6 +331,7 @@ rectangle.end satisfies PointLike;
 interface PointLike {
 /// @type.symbol symbol=PointLike type=PointLike
 /// @definition.interface symbol=PointLike
+/// @definition.where symbol=PointLike relation=satisfies left=this right=PointLike
 /// @definition.field symbol=PointLike.x source="x: int32" key=x type=int32
 /// @definition.field symbol=PointLike.y source="y: int32" key=y type=int32
 

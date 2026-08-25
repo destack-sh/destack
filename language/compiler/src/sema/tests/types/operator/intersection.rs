@@ -107,6 +107,7 @@ const value: string = both.value;
 interface Left {
 /// @type.symbol symbol=Left type=Left
 /// @definition.interface symbol=Left
+/// @definition.where symbol=Left relation=satisfies left=this right=Left
 /// @definition.field symbol=Left.value source="value: string" key=value type=string
 
     value: string;
@@ -117,6 +118,7 @@ interface Left {
 interface Right {
 /// @type.symbol symbol=Right type=Right
 /// @definition.interface symbol=Right
+/// @definition.where symbol=Right relation=satisfies left=this right=Right
 /// @definition.field symbol=Right.value source="value: string" key=value type=string
 
     value: string;

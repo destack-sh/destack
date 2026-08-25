@@ -31,6 +31,7 @@ interface Drawable extends Named {
 interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named
+/// @definition.where symbol=Named relation=satisfies left=this right=Named
 /// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: Named) => string
 
     name(): string;
@@ -41,6 +42,7 @@ interface Named {
 interface Drawable extends Named {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
+/// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
 /// @definition.extends symbol=Drawable source=Named target=Named
 /// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
 /// @resolution.name source=Named target=Named
@@ -84,6 +86,7 @@ struct Shape {}
 interface Drawable extends Shape {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable
+/// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
 /// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
 /// @resolution.name source=Shape target=Shape
 
@@ -124,6 +127,7 @@ interface Drawable extends Alias {}
 interface Named {}
 /// @type.symbol symbol=Named source="interface Named {}" type=Named
 /// @definition.interface symbol=Named source="interface Named {}"
+/// @definition.where symbol=Named source="interface Named {}" relation=satisfies left=this right=Named
 
 type Alias = Named;
 /// @type.symbol symbol=Alias source="type Alias = Named" type=Named
@@ -133,6 +137,7 @@ type Alias = Named;
 interface Drawable extends Alias {}
 /// @type.symbol symbol=Drawable source="interface Drawable extends Alias {}" type=Drawable
 /// @definition.interface symbol=Drawable source="interface Drawable extends Alias {}"
+/// @definition.where symbol=Drawable source="interface Drawable extends Alias {}" relation=satisfies left=this right=Drawable
 /// @resolution.name source=Alias target=Alias
 "#,
         r#"
@@ -167,14 +172,17 @@ interface Drawable extends Named | DrawableBase {}
 interface Named {}
 /// @type.symbol symbol=Named source="interface Named {}" type=Named
 /// @definition.interface symbol=Named source="interface Named {}"
+/// @definition.where symbol=Named source="interface Named {}" relation=satisfies left=this right=Named
 
 interface DrawableBase {}
 /// @type.symbol symbol=DrawableBase source="interface DrawableBase {}" type=DrawableBase
 /// @definition.interface symbol=DrawableBase source="interface DrawableBase {}"
+/// @definition.where symbol=DrawableBase source="interface DrawableBase {}" relation=satisfies left=this right=DrawableBase
 
 interface Drawable extends Named | DrawableBase {}
 /// @type.symbol symbol=Drawable source="interface Drawable extends Named | DrawableBase {}" type=Drawable
 /// @definition.interface symbol=Drawable source="interface Drawable extends Named | DrawableBase {}"
+/// @definition.where symbol=Drawable source="interface Drawable extends Named | DrawableBase {}" relation=satisfies left=this right=Drawable
 /// @resolution.name source=Named target=Named
 /// @resolution.name source=DrawableBase target=DrawableBase
 "#,
@@ -232,18 +240,21 @@ interface Base<T> {
 interface Left extends Base<string> {}
 /// @type.symbol symbol=Left source="interface Left extends Base<string> {}" type=Left
 /// @definition.interface symbol=Left source="interface Left extends Base<string> {}"
+/// @definition.where symbol=Left source="interface Left extends Base<string> {}" relation=satisfies left=this right=Left
 /// @definition.extends symbol=Left source=Base<string> target=Base<string>
 /// @resolution.name source=Base target=Base
 
 interface Right extends Base<int32> {}
 /// @type.symbol symbol=Right source="interface Right extends Base<int32> {}" type=Right
 /// @definition.interface symbol=Right source="interface Right extends Base<int32> {}"
+/// @definition.where symbol=Right source="interface Right extends Base<int32> {}" relation=satisfies left=this right=Right
 /// @definition.extends symbol=Right source=Base<int32> target=Base<int32>
 /// @resolution.name source=Base target=Base
 
 interface Both extends Left, Right {}
 /// @type.symbol symbol=Both source="interface Both extends Left, Right {}" type=Both
 /// @definition.interface symbol=Both source="interface Both extends Left, Right {}"
+/// @definition.where symbol=Both source="interface Both extends Left, Right {}" relation=satisfies left=this right=Both
 /// @definition.extends symbol=Both source=Left target=Left
 /// @definition.extends symbol=Both source=Right target=Right
 /// @resolution.name source=Left target=Left
@@ -277,12 +288,14 @@ interface Right extends Left {}
 interface Left extends Right {}
 /// @type.symbol symbol=Left source="interface Left extends Right {}" type=Left
 /// @definition.interface symbol=Left source="interface Left extends Right {}"
+/// @definition.where symbol=Left source="interface Left extends Right {}" relation=satisfies left=this right=Left
 /// @definition.extends symbol=Left source=Right target=Right
 /// @resolution.name source=Right target=Right
 
 interface Right extends Left {}
 /// @type.symbol symbol=Right source="interface Right extends Left {}" type=Right
 /// @definition.interface symbol=Right source="interface Right extends Left {}"
+/// @definition.where symbol=Right source="interface Right extends Left {}" relation=satisfies left=this right=Right
 /// @definition.extends symbol=Right source=Left target=Left
 /// @resolution.name source=Left target=Left
 "#,

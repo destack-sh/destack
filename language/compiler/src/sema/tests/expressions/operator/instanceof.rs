@@ -263,6 +263,7 @@ const ok = value instanceof Named;
 interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named
+/// @definition.where symbol=Named relation=satisfies left=this right=Named
 /// @definition.field symbol=Named.name source="name: string" key=name type=string
 
     name: string;

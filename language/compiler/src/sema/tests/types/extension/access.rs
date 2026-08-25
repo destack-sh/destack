@@ -529,15 +529,15 @@ function firstDefined(values: It<int32>): int32 | undefined {
 === annotated ===
 newtype interface It<in out T, out R = void> {
     next(this): R {
-        todo("next")
+        todo("next" as string | undefined)
     }
 
     find(this): T | undefined {
-        todo("find")
+        todo("find" as string | undefined)
     }
 
     map<U>(this, transform: (arg0: T) => U): Wrap<this, T, U> {
-        todo("map")
+        todo("map" as string | undefined)
     }
 }
 
@@ -581,6 +581,11 @@ newtype interface It<T, R = void> {
     /// @resolution.name source=R target=It.R
 
         todo("next")
+        /// @type.node source="todo(\"next\")" type=never
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"next\")" parameters=(string | undefined) arguments=(provided("next") as string | undefined) return=never kind=symbol target=todo
+        /// @type.node source="\"next\"" type="next"
+
     }
 
     find(this): T | undefined {
@@ -589,6 +594,11 @@ newtype interface It<T, R = void> {
     /// @resolution.name source=T target=It.T
 
         todo("find")
+        /// @type.node source="todo(\"find\")" type=never
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"find\")" parameters=(string | undefined) arguments=(provided("find") as string | undefined) return=never kind=symbol target=todo
+        /// @type.node source="\"find\"" type="find"
+
     }
 
     map<U>(this, transform: (value: T) => U): Wrap<this, T, U> {
@@ -605,6 +615,11 @@ newtype interface It<T, R = void> {
     /// @resolution.name source=U target=It.map.U
 
         todo("map")
+        /// @type.node source="todo(\"map\")" type=never
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"map\")" parameters=(string | undefined) arguments=(provided("map") as string | undefined) return=never kind=symbol target=todo
+        /// @type.node source="\"map\"" type="map"
+
     }
 }
 

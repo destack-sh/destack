@@ -334,6 +334,7 @@ const dynamic: Holder<Dynamic<Draw>> = circles;
 interface Draw {}
 /// @type.symbol symbol=Draw source="interface Draw {}" type=Draw
 /// @definition.interface symbol=Draw source="interface Draw {}"
+/// @definition.where symbol=Draw source="interface Draw {}" relation=satisfies left=this right=Draw
 
 class Circle implements Draw {}
 /// @type.symbol symbol=Circle source="class Circle implements Draw {}" type=Circle

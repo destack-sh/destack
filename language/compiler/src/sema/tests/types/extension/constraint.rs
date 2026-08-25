@@ -61,6 +61,7 @@ const text: string = boxed.read<Document, "constant">();
 interface Readable {
 /// @type.symbol symbol=Readable type=Readable
 /// @definition.interface symbol=Readable
+/// @definition.where symbol=Readable relation=satisfies left=this right=Readable
 /// @definition.method symbol=Readable.read source="read(&readonly this): string" slot=read type=<Readable.read.'a, Readable.read.P1: Place>(this: &Readable.read.'a readonly Readable) => string
 
     read(&readonly this): string;
@@ -205,6 +206,7 @@ boxed.read();
 interface Readable {
 /// @type.symbol symbol=Readable type=Readable
 /// @definition.interface symbol=Readable
+/// @definition.where symbol=Readable relation=satisfies left=this right=Readable
 /// @definition.method symbol=Readable.read source="read(): string" slot=read type=(this: this) => string
 
     read(): string;

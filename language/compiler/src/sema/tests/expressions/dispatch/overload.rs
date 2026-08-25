@@ -568,6 +568,7 @@ function sum(values: Iterator<int32>): Result<int32, string> {
 /// @generic.instance id="EnumeratedIterator<Iterator<int32>, int32>" template=EnumeratedIterator arguments=(Iterator<int32>, int32)
 /// @generic.instance id="FilterIterator<Iterator<int32>, int32>" template=FilterIterator arguments=(Iterator<int32>, int32)
 /// @generic.instance id="InspectIterator<Iterator<int32>, int32>" template=InspectIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="Iterator.collect<int32, Owned<int32[]>>" template=Iterator.collect arguments=(int32, Owned<int32[]>)
 /// @generic.instance id="IteratorResult<int32, Iterator<int32>.Return>" template=IteratorResult arguments=(int32, Iterator<int32>.Return)
 /// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
 /// @generic.instance id="PeekableIterator<Iterator<int32>, int32>" template=PeekableIterator arguments=(Iterator<int32>, int32)
@@ -580,6 +581,7 @@ function sum(values: Iterator<int32>): Result<int32, string> {
 /// @generic.instance id="TakeWhileIterator<Iterator<int32>, int32>" template=TakeWhileIterator arguments=(Iterator<int32>, int32)
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
 /// @generic.instance id=Err<string> template=Err arguments=(string)
+/// @generic.instance id=FromIterator.fromIterator<int32> template=FromIterator.fromIterator arguments=(int32)
 /// @generic.instance id=Iterator<int32> template=Iterator arguments=(int32)
 /// @generic.instance id=IteratorReturn<Iterator<int32>.Return> template=IteratorReturn arguments=(Iterator<int32>.Return)
 /// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
@@ -690,15 +692,15 @@ function sum(values: It<int32>): Wrap<int32> {
 === annotated ===
 newtype interface It<in out T, out R = void> {
     next(this): R {
-        todo("next")
+        todo("next" as string | undefined)
     }
 
     reduce(this, reduce: (arg0: T, arg1: T) => T): T {
-        todo("reduce")
+        todo("reduce" as string | undefined)
     }
 
     reduce<U>(this, reduce: (arg0: U, arg1: T) => U, initial: U): U {
-        todo("reduce")
+        todo("reduce" as string | undefined)
     }
 }
 
@@ -737,6 +739,11 @@ newtype interface It<T, R = void> {
     /// @resolution.name source=R target=It.R
 
         todo("next")
+        /// @type.node source="todo(\"next\")" type=never
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"next\")" parameters=(string | undefined) arguments=(provided("next") as string | undefined) return=never kind=symbol target=todo
+        /// @type.node source="\"next\"" type="next"
+
     }
 
     reduce(this, reduce: (accumulator: T, value: T) => T): T {
@@ -751,6 +758,11 @@ newtype interface It<T, R = void> {
     /// @resolution.name source=T target=It.T
 
         todo("reduce")
+        /// @type.node source="todo(\"reduce\")" type=never
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"reduce\")" parameters=(string | undefined) arguments=(provided("reduce") as string | undefined) return=never kind=symbol target=todo
+        /// @type.node source="\"reduce\"" type="reduce"
+
     }
 
     reduce<U>(this, reduce: (accumulator: U, value: T) => U, initial: U): U {
@@ -769,6 +781,11 @@ newtype interface It<T, R = void> {
     /// @resolution.name source=U target=It.reduce.U
 
         todo("reduce")
+        /// @type.node source="todo(\"reduce\")" type=never
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"reduce\")" parameters=(string | undefined) arguments=(provided("reduce") as string | undefined) return=never kind=symbol target=todo
+        /// @type.node source="\"reduce\"" type="reduce"
+
     }
 }
 
@@ -1061,7 +1078,7 @@ newtype interface It<T> {
     type Return = void;
 
     next(this): this.Return {
-        todo("next")
+        todo("next" as string | undefined)
     }
 }
 
@@ -1111,6 +1128,11 @@ newtype interface It<T> {
     /// @type.symbol symbol=It.next.this source=this type=this
 
         todo("next")
+        /// @type.node source="todo(\"next\")" type=never
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"next\")" parameters=(string | undefined) arguments=(provided("next") as string | undefined) return=never kind=symbol target=todo
+        /// @type.node source="\"next\"" type="next"
+
     }
 }
 

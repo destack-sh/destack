@@ -1022,6 +1022,11 @@ impl WalkState<'_, '_> {
         let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Managed))?;
         let _receiver = self.enter_receiver_scope(Some(receiver));
 
+        // members assume this satisfies their interface
+        if let Some(template) = template {
+            self.push_this_predicate(source, symbol, template)?;
+        }
+
         // walk inherited interfaces
         let mut extends = Vec::new();
         for extends_type in &declaration.extends_types {

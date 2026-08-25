@@ -1057,6 +1057,16 @@ impl BodyState<'_, '_> {
                 )
             }
 
+            // contextual this looks through its assumed bounds
+            dir::Type::This => {
+                let bounds =
+                    self.assumed_bounds(origin, |ty| matches!(ty, dir::Type::This))?;
+
+                self.lookup_bound_member(
+                    origin, module, receiver, &bounds, space, key, extensions, active,
+                )
+            }
+
             // erased values expose members through their dynamic payload
             dir::Type::Dynamic(dynamic) => {
                 let constraint = dynamic.constraint;

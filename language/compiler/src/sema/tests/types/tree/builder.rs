@@ -40,6 +40,7 @@ extension of Panel implements Maker {
 newtype interface Maker {
 /// @type.symbol symbol=Maker type=Maker
 /// @definition.interface symbol=Maker nominal=true
+/// @definition.where symbol=Maker relation=satisfies left=this right=Maker
 /// @definition.method symbol=Maker.make source="static make<T>(value: T): this" slot=make static=true type=<T#1>(T#1) => this
 
     static make<T>(value: T): this;
@@ -121,6 +122,7 @@ extension of Panel implements Tagger {
 newtype interface Tagger {
 /// @type.symbol symbol=Tagger type=Tagger
 /// @definition.interface symbol=Tagger nominal=true
+/// @definition.where symbol=Tagger relation=satisfies left=this right=Tagger
 /// @definition.method symbol=Tagger.tag source="static tag<const Name: string>(name: Name): this" slot=tag static=true type=<const Name#1: string>(Name#1) => this
 
     static tag<const Name: string>(name: Name): this;
@@ -210,6 +212,7 @@ extension of Panel implements Rowed {
 newtype interface Rowed {
 /// @type.symbol symbol=Rowed type=Rowed
 /// @definition.interface symbol=Rowed nominal=true
+/// @definition.where symbol=Rowed relation=satisfies left=this right=Rowed
 /// @definition.associated.type symbol=Rowed.Rows source="type Rows = {}" key=Rows value={}
 /// @definition.method symbol=Rowed.row source="static row<const Key: keyof this.Rows>(key: Key): this" slot=row static=true type=<const Key#1: keyof this.Rows>(Key#1) => this
 
@@ -308,6 +311,7 @@ extension of Panel implements Rowed {
 newtype interface Rowed {
 /// @type.symbol symbol=Rowed type=Rowed
 /// @definition.interface symbol=Rowed nominal=true
+/// @definition.where symbol=Rowed relation=satisfies left=this right=Rowed
 /// @definition.associated.type symbol=Rowed.Rows source="type Rows = {}" key=Rows value={}
 /// @definition.method symbol=Rowed.row source="static row<const Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): this" slot=row static=true type=<const Key#1: keyof this.Rows>(Key#1, this.Rows[Key#1]) => this
 
@@ -402,6 +406,7 @@ extension of Panel implements Grouper {
 newtype interface Grouper {
 /// @type.symbol symbol=Grouper type=Grouper
 /// @definition.interface symbol=Grouper nominal=true
+/// @definition.where symbol=Grouper relation=satisfies left=this right=Grouper
 /// @definition.method symbol=Grouper.group source="static group<Children: (...unknown[],)>(children: Children): this" slot=group static=true type=<Children#1: (...unknown[],)>(Children#1) => this
 
     static group<Children: (...unknown[],)>(children: Children): this;

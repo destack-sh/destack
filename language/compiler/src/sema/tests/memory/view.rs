@@ -154,6 +154,7 @@ local class Meter {
 newtype interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink nominal=true
+/// @definition.where symbol=Sink relation=satisfies left=this right=Sink
 /// @definition.method symbol=Sink.write source="write(value: string): void" slot=write type=(this: this, string) => void
 
     write(value: string): void;
@@ -452,6 +453,7 @@ function consume(value: Sink): void {}
 interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink
+/// @definition.where symbol=Sink relation=satisfies left=this right=Sink
 /// @definition.method symbol=Sink.write source="write(value: string): void" slot=write type=(this: Sink, string) => void
 
     write(value: string): void;

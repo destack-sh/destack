@@ -67,6 +67,7 @@ sound satisfies string;
 newtype interface Loud {
 /// @type.symbol symbol=Loud type=Loud
 /// @definition.interface symbol=Loud nominal=true
+/// @definition.where symbol=Loud relation=satisfies left=this right=Loud
 /// @definition.method symbol=Loud.shout source="shout(this): string" slot=shout type=(this: Loud) => string
 
     shout(this): string;
@@ -78,6 +79,7 @@ newtype interface Loud {
 newtype interface Quiet {
 /// @type.symbol symbol=Quiet type=Quiet
 /// @definition.interface symbol=Quiet nominal=true
+/// @definition.where symbol=Quiet relation=satisfies left=this right=Quiet
 /// @definition.method symbol=Quiet.whisper source="whisper(this): string" slot=whisper type=(this: Quiet) => string
 
     whisper(this): string;
@@ -226,6 +228,7 @@ extension of Bell implements Quiet {
 newtype interface Loud {
 /// @type.symbol symbol=Loud type=Loud
 /// @definition.interface symbol=Loud nominal=true
+/// @definition.where symbol=Loud relation=satisfies left=this right=Loud
 /// @definition.method symbol=Loud.shout source="shout(this): string" slot=shout type=(this: this) => string
 
     shout(this): string;
@@ -237,6 +240,7 @@ newtype interface Loud {
 newtype interface Quiet {
 /// @type.symbol symbol=Quiet type=Quiet
 /// @definition.interface symbol=Quiet nominal=true
+/// @definition.where symbol=Quiet relation=satisfies left=this right=Quiet
 /// @definition.method symbol=Quiet.whisper source="whisper(this): string" slot=whisper type=(this: this) => string
 
     whisper(this): string;
@@ -367,6 +371,7 @@ const sound = stone.whisper();
 newtype interface Loud {
 /// @type.symbol symbol=Loud type=Loud
 /// @definition.interface symbol=Loud nominal=true
+/// @definition.where symbol=Loud relation=satisfies left=this right=Loud
 /// @definition.method symbol=Loud.shout source="shout(this): string" slot=shout type=(this: this) => string
 
     shout(this): string;
@@ -378,6 +383,7 @@ newtype interface Loud {
 newtype interface Quiet {
 /// @type.symbol symbol=Quiet type=Quiet
 /// @definition.interface symbol=Quiet nominal=true
+/// @definition.where symbol=Quiet relation=satisfies left=this right=Quiet
 /// @definition.method symbol=Quiet.whisper source="whisper(this): string" slot=whisper type=(this: this) => string
 
     whisper(this): string;
@@ -1194,6 +1200,7 @@ extension of Bell implements Loud, Bright {
 newtype interface Loud {
 /// @type.symbol symbol=Loud type=Loud
 /// @definition.interface symbol=Loud nominal=true
+/// @definition.where symbol=Loud relation=satisfies left=this right=Loud
 /// @definition.method symbol=Loud.shout source="shout(this): string" slot=shout type=(this: this) => string
 
     shout(this): string;
@@ -1205,6 +1212,7 @@ newtype interface Loud {
 newtype interface Bright {
 /// @type.symbol symbol=Bright type=Bright
 /// @definition.interface symbol=Bright nominal=true
+/// @definition.where symbol=Bright relation=satisfies left=this right=Bright
 /// @definition.method symbol=Bright.shine source="shine(this): string" slot=shine type=(this: this) => string
 
     shine(this): string;
@@ -1216,6 +1224,7 @@ newtype interface Bright {
 newtype interface Quiet {
 /// @type.symbol symbol=Quiet type=Quiet
 /// @definition.interface symbol=Quiet nominal=true
+/// @definition.where symbol=Quiet relation=satisfies left=this right=Quiet
 /// @definition.method symbol=Quiet.whisper source="whisper(this): string" slot=whisper type=(this: this) => string
 
     whisper(this): string;

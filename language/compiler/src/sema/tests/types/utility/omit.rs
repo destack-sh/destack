@@ -37,6 +37,7 @@ person.active satisfies boolean;
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
+/// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.active source="active: boolean" key=active type=boolean
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
@@ -110,6 +111,7 @@ const age = person.age;
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
+/// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.active source="active: boolean" key=active type=boolean
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
@@ -181,6 +183,7 @@ person satisfies WithoutAge;
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
+/// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
 
@@ -245,6 +248,7 @@ const person: { name: string } = { name: "Ada", age: 42 };
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
+/// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
 
@@ -309,6 +313,7 @@ const person: {} = {};
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
+/// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
 
@@ -369,6 +374,7 @@ person satisfies Person;
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
+/// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
 
@@ -435,6 +441,7 @@ person.name = "Grace";
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
+/// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="readonly name: string" key=name type=string
 

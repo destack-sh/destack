@@ -55,6 +55,7 @@ import { Numeric } from "destack:math";
 interface Doubles {
 /// @type.symbol symbol=Doubles type=Doubles
 /// @definition.interface symbol=Doubles
+/// @definition.where symbol=Doubles relation=satisfies left=this right=Doubles
 /// @definition.associated.type symbol=Doubles.Output source="type Output" key=Output
 /// @definition.method symbol=Doubles.double source="double(): this.Output" slot=double type=(this: Doubles) => Doubles.Output
 

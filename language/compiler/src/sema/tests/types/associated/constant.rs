@@ -44,6 +44,7 @@ class Class {
 interface Interface {
 /// @type.symbol symbol=Interface type=Interface
 /// @definition.interface symbol=Interface
+/// @definition.where symbol=Interface relation=satisfies left=this right=Interface
 /// @definition.associated.const symbol=Interface.Value source="const Value = 1" key=Value type=1
 
     const Value = 1;
@@ -105,6 +106,7 @@ class Class {
 interface Interface {
 /// @type.symbol symbol=Interface type=Interface
 /// @definition.interface symbol=Interface
+/// @definition.where symbol=Interface relation=satisfies left=this right=Interface
 /// @definition.associated.const symbol=Interface.Value source="const Value" key=Value type=<error>
 
     const Value;
@@ -211,6 +213,7 @@ function readHeader<T: RegisterBlock<const Width = 16>>(block: T): [uint8; 16] {
 interface RegisterBlock {
 /// @type.symbol symbol=RegisterBlock type=RegisterBlock
 /// @definition.interface symbol=RegisterBlock
+/// @definition.where symbol=RegisterBlock relation=satisfies left=this right=RegisterBlock
 /// @definition.associated.const symbol=RegisterBlock.Width source="const Width: usize" key=Width type=usize
 /// @definition.method symbol=RegisterBlock.read source="read(): [uint8; this.Width]" slot=read type=(this: RegisterBlock) => FixedArray<uint8, usize>
 
@@ -271,6 +274,7 @@ extension of Matrix implements Shape {}
 interface Shape {
 /// @type.symbol symbol=Shape type=Shape
 /// @definition.interface symbol=Shape
+/// @definition.where symbol=Shape relation=satisfies left=this right=Shape
 /// @definition.associated.const symbol=Shape.Rank source="const Rank: usize = 2" key=Rank type=usize
 
     const Rank: usize = 2;

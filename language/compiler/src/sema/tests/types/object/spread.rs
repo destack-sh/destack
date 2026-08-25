@@ -66,6 +66,7 @@ const plain: Required = { ...required, only: true } as Required;
 interface Options {
 /// @type.symbol symbol=Options type=Options
 /// @definition.interface symbol=Options
+/// @definition.where symbol=Options relation=satisfies left=this right=Options
 /// @definition.field symbol=Options.name source="name?: string" key=name type=string
 /// @definition.field symbol=Options.only source="only: boolean" key=only type=boolean
 /// @definition.field symbol=Options.retries source="retries: int32" key=retries type=int32
@@ -115,6 +116,7 @@ const widened = { only: "yes", ...options };
 interface Required {
 /// @type.symbol symbol=Required type=Required
 /// @definition.interface symbol=Required
+/// @definition.where symbol=Required relation=satisfies left=this right=Required
 /// @definition.field symbol=Required.only source="only: boolean" key=only type=boolean
 /// @definition.field symbol=Required.retries source="retries: int32" key=retries type=int32
 
@@ -185,6 +187,7 @@ const fromRequired: Named = full as Named;
 interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named
+/// @definition.where symbol=Named relation=satisfies left=this right=Named
 /// @definition.field symbol=Named.name source="name?: string" key=name type=string
 /// @definition.field symbol=Named.only source="only: boolean" key=only type=boolean
 

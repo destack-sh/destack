@@ -134,6 +134,7 @@ function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8 {
 interface Iterator {
 /// @type.symbol symbol=Iterator type=Iterator
 /// @definition.interface symbol=Iterator
+/// @definition.where symbol=Iterator relation=satisfies left=this right=Iterator
 /// @definition.associated.type symbol=Iterator.Item source="type Item" key=Item
 /// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=(this: Iterator) => Iterator.Item
 
@@ -215,6 +216,7 @@ declare const made: int32;
 interface Producing {
 /// @type.symbol symbol=Producing type=Producing
 /// @definition.interface symbol=Producing
+/// @definition.where symbol=Producing relation=satisfies left=this right=Producing
 /// @definition.associated.type symbol=Producing.Output source="type Output" key=Output
 /// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=(this: Producing) => Producing.Output
 
@@ -302,6 +304,7 @@ function nextDefault<I: Iterator>(iter: I): uint8 {
 interface Iterator {
 /// @type.symbol symbol=Iterator type=Iterator
 /// @definition.interface symbol=Iterator
+/// @definition.where symbol=Iterator relation=satisfies left=this right=Iterator
 /// @definition.associated.type symbol=Iterator.Item source="type Item = uint8" key=Item value=uint8
 /// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=(this: this) => this.Item
 

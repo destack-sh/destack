@@ -70,6 +70,7 @@ counter.current++;
 interface Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.interface symbol=Counter
+/// @definition.where symbol=Counter relation=satisfies left=this right=Counter
 /// @definition.method symbol=Counter.current#1 source="get current(): int32" slot=current role=getter type=(this: Counter) => int32
 /// @definition.method symbol=Counter.current#2 source="set current(next: int32)" slot=current role=setter type=(this: Counter, int32) => void
 
@@ -137,6 +138,7 @@ counter["current"]++;
 interface Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.interface symbol=Counter
+/// @definition.where symbol=Counter relation=satisfies left=this right=Counter
 /// @definition.method symbol=Counter.current#1 source="get current(): int32" slot=current role=getter type=(this: Counter) => int32
 /// @definition.method symbol=Counter.current#2 source="set current(next: int32)" slot=current role=setter type=(this: Counter, int32) => void
 
@@ -200,6 +202,7 @@ const current: int32 = counter.current;
 interface Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.interface symbol=Counter
+/// @definition.where symbol=Counter relation=satisfies left=this right=Counter
 /// @definition.method symbol=Counter.current source="get current(): int32" slot=current role=getter type=(this: Counter) => int32
 
     get current(): int32;
@@ -252,6 +255,7 @@ sink.value = 1;
 interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink
+/// @definition.where symbol=Sink relation=satisfies left=this right=Sink
 /// @definition.method symbol=Sink.value source="set value(next: int32)" slot=value role=setter type=(this: Sink, int32) => void
 
     set value(next: int32);
@@ -304,6 +308,7 @@ counter.current = 1;
 interface Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.interface symbol=Counter
+/// @definition.where symbol=Counter relation=satisfies left=this right=Counter
 /// @definition.method symbol=Counter.current source="get current(): int32" slot=current role=getter type=(this: this) => int32
 
     get current(): int32;
@@ -358,6 +363,7 @@ const value = sink.value;
 interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink
+/// @definition.where symbol=Sink relation=satisfies left=this right=Sink
 /// @definition.method symbol=Sink.value source="set value(next: int32)" slot=value role=setter type=(this: this, int32) => void
 
     set value(next: int32);

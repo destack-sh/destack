@@ -185,6 +185,7 @@ size satisfies usize;
 interface Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.interface symbol=Writer
+/// @definition.where symbol=Writer relation=satisfies left=this right=Writer
 /// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): uint" slot=write type=(this: Writer, readonly uint8[]) => uint64
 
     write(bytes: readonly uint8[]): uint;

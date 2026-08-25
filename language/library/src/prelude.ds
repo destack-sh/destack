@@ -1,11 +1,6 @@
 global {
     // destack:reflect
-    export {
-        alignOf,
-        sizeOf,
-        strideOf,
-        Type,
-    } from "destack:reflect";
+    export { alignOf, sizeOf, strideOf, Type } from "destack:reflect";
 
     // destack:types
     export {

@@ -33,6 +33,7 @@ person.age satisfies int32;
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
+/// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
 
@@ -92,6 +93,7 @@ person.name satisfies string | undefined;
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
+/// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.name source="name?: string" key=name type=string
 
     name?: string;
@@ -149,6 +151,7 @@ person.name = "Grace";
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
+/// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
 
@@ -216,6 +219,7 @@ person.profile.name = "Grace";
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
+/// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.profile key=profile type={ name: string }
 
     profile: {

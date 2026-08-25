@@ -51,6 +51,7 @@ const label: string = describe<int32, "constant">(&readonly one);
 newtype interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show nominal=true
+/// @definition.where symbol=Show relation=satisfies left=this right=Show
 /// @definition.method symbol=Show.show source="show(&readonly this): string" slot=show type=<Show.show.'a, Show.show.P1: Place>(this: &Show.show.'a readonly this) => string
 
     show(&readonly this): string;
@@ -710,6 +711,7 @@ const heard: string = bell.sound();
 newtype interface Loud {
 /// @type.symbol symbol=Loud type=Loud
 /// @definition.interface symbol=Loud nominal=true
+/// @definition.where symbol=Loud relation=satisfies left=this right=Loud
 /// @definition.method symbol=Loud.sound source="sound(this): string" slot=sound type=(this: this) => string
 
     sound(this): string;
@@ -721,6 +723,7 @@ newtype interface Loud {
 newtype interface Quiet {
 /// @type.symbol symbol=Quiet type=Quiet
 /// @definition.interface symbol=Quiet nominal=true
+/// @definition.where symbol=Quiet relation=satisfies left=this right=Quiet
 /// @definition.method symbol=Quiet.sound source="sound(this): string" slot=sound type=(this: this) => string
 
     sound(this): string;

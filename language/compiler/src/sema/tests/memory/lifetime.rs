@@ -439,6 +439,7 @@ import { Access, WithAccess } from "destack:memory";
 interface Viewing {
 /// @type.symbol symbol=Viewing type=Viewing
 /// @definition.interface symbol=Viewing
+/// @definition.where symbol=Viewing relation=satisfies left=this right=Viewing
 /// @definition.associated.type symbol=Viewing.View source="type View" key=View
 /// @definition.method symbol=Viewing.view slot=view type=<const A: Access = "readonly", Viewing.view.'a, Viewing.view.P2: Place>(this: WithAccess<&Viewing.view.'a Viewing, A>) => WithAccess<&Viewing.view.'a Viewing.View, A>
 

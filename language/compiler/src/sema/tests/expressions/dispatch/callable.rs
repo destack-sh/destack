@@ -213,6 +213,7 @@ const sum: int32 = add(1, 2);
 interface Adder {
 /// @type.symbol symbol=Adder type=Adder
 /// @definition.interface symbol=Adder
+/// @definition.where symbol=Adder relation=satisfies left=this right=Adder
 /// @definition.signature kind=call source="(left: int32, right: int32): int32" type=Function<(int32, int32), int32>
 
     (left: int32, right: int32): int32;
@@ -284,6 +285,7 @@ class Counter {
 interface Factory {
 /// @type.symbol symbol=Factory type=Factory
 /// @definition.interface symbol=Factory
+/// @definition.where symbol=Factory relation=satisfies left=this right=Factory
 /// @definition.signature kind=construct source="new (value: int32): Counter" type=new (int32) => Counter
 
     new (value: int32): Counter;
@@ -333,6 +335,7 @@ const add: Adder = ((left: int32, right: int32): int32 => left + right) as Adder
 interface Adder {
 /// @type.symbol symbol=Adder type=Adder
 /// @definition.interface symbol=Adder
+/// @definition.where symbol=Adder relation=satisfies left=this right=Adder
 /// @definition.signature kind=call source="(left: int32, right: int32): int32" type=Function<(int32, int32), int32>
 
     (left: int32, right: int32): int32;
