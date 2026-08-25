@@ -3,9 +3,9 @@ use std::fmt;
 use std::io::Cursor;
 use std::sync::Arc;
 
-use destack_core::{Blob, SectionStorage};
+use destack_core::{Blob, BlobStore, SectionStorage};
 use destack_program as program;
-use destack_repository::{BlobStore, Environment, WorldOptions};
+use destack_repository::{Environment, WorldOptions};
 use destack_rpc::{Code, Request, Response, ResponseSender, Status};
 use destack_runtime::binding::BindingTable;
 use destack_runtime::debugger::Debugger;

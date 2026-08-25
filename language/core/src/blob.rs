@@ -1,7 +1,12 @@
+use std::collections::hash_map;
+use std::io::{self, Read, Write};
+use std::mem::size_of;
 use std::sync::Arc;
-use std::{error, fmt, str};
+use std::{error, fmt, ptr, slice, str};
 
 use destack_serde::Reflect;
+use parking_lot::RwLock;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{SectionEntry, SectionImageError, SectionLoader};
@@ -172,6 +177,240 @@ impl BlobMemory {
 impl AsRef<[u8]> for BlobMemory {
     fn as_ref(&self) -> &[u8] {
         self.bytes()
+    }
+}
+
+/// Failure while storing or opening immutable Blobs.
+#[derive(Debug)]
+pub enum BlobStoreError {
+    /// One Blob was not present.
+    Missing {
+        /// The missing Blob.
+        blob: Blob,
+    },
+    /// Stored bytes did not match their expected description.
+    Corrupt {
+        /// The expected Blob.
+        expected: Blob,
+        /// The observed Blob.
+        actual: Blob,
+    },
+    /// Stored bytes have the wrong length.
+    Length {
+        /// The expected Blob.
+        blob: Blob,
+        /// The observed byte length.
+        actual: u64,
+    },
+    /// The backing I/O operation failed.
+    Io(Box<io::Error>),
+}
+
+impl fmt::Display for BlobStoreError {
+    /// Format this Blob store failure.
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Missing { blob } => write!(formatter, "missing Blob {}", blob.id),
+            Self::Corrupt { expected, actual } => write!(
+                formatter,
+                "corrupt Blob {}: expected {} bytes, observed Blob {} with {} bytes",
+                expected.id, expected.byte_len, actual.id, actual.byte_len
+            ),
+            Self::Length { blob, actual } => write!(
+                formatter,
+                "corrupt Blob {}: expected {} bytes, observed {actual} bytes",
+                blob.id, blob.byte_len
+            ),
+            Self::Io(error) => write!(formatter, "Blob store I/O failed: {error}"),
+        }
+    }
+}
+
+impl error::Error for BlobStoreError {}
+
+impl From<io::Error> for BlobStoreError {
+    /// Convert one backing I/O failure.
+    fn from(error: io::Error) -> Self {
+        Self::Io(Box::new(error))
+    }
+}
+
+/// Immutable bytes shared by repositories on one host.
+#[derive(Debug, Default)]
+pub struct BlobStore {
+    /// Retained bytes by exact identity.
+    blobs: RwLock<FxHashMap<BlobId, Arc<BlobMemory>>>,
+}
+
+impl BlobStore {
+    /// Create an empty Blob store.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Retain one exact byte stream.
+    pub fn retain(&self, input: &mut dyn Read) -> Result<Blob, BlobStoreError> {
+        let mut writer = self.writer();
+        io::copy(input, &mut writer)?;
+
+        writer.commit()
+    }
+
+    /// Retain one exact byte slice in aligned immutable storage.
+    pub fn retain_bytes(&self, bytes: &[u8]) -> Result<Blob, BlobStoreError> {
+        let memory = Arc::new(AlignedBytes::new(bytes));
+        let memory = Arc::new(BlobMemory::from_shared(memory));
+
+        self.retain_memory(memory)
+    }
+
+    /// Retain one existing immutable byte allocation.
+    pub fn retain_memory(&self, memory: Arc<BlobMemory>) -> Result<Blob, BlobStoreError> {
+        let blob = memory.blob();
+        let mut blobs = self.blobs.write();
+        match blobs.entry(blob.id) {
+            hash_map::Entry::Vacant(entry) => {
+                entry.insert(memory);
+            }
+            hash_map::Entry::Occupied(entry) if entry.get().blob() == blob => {}
+            hash_map::Entry::Occupied(entry) => {
+                return Err(BlobStoreError::Corrupt {
+                    expected: blob,
+                    actual: entry.get().blob(),
+                });
+            }
+        }
+
+        Ok(blob)
+    }
+
+    /// Create one incremental Blob writer.
+    pub fn writer(&self) -> BlobWriter<'_> {
+        BlobWriter::new(self)
+    }
+
+    /// Open one retained Blob.
+    pub fn open(&self, blob: Blob) -> Result<Arc<BlobMemory>, BlobStoreError> {
+        let memory = self
+            .blobs
+            .read()
+            .get(&blob.id)
+            .cloned()
+            .ok_or(BlobStoreError::Missing { blob })?;
+
+        Self::verify(blob, memory)
+    }
+
+    /// Return whether one exact Blob is retained.
+    pub fn contains(&self, blob: Blob) -> Result<bool, BlobStoreError> {
+        let blobs = self.blobs.read();
+        let Some(memory) = blobs.get(&blob.id) else {
+            return Ok(false);
+        };
+        if memory.blob() != blob {
+            return Err(BlobStoreError::Corrupt {
+                expected: blob,
+                actual: memory.blob(),
+            });
+        }
+
+        Ok(true)
+    }
+
+    /// Validate one retained Blob allocation.
+    fn verify(blob: Blob, memory: Arc<BlobMemory>) -> Result<Arc<BlobMemory>, BlobStoreError> {
+        let actual = memory.blob();
+        if actual.byte_len != blob.byte_len {
+            return Err(BlobStoreError::Length {
+                blob,
+                actual: actual.byte_len,
+            });
+        }
+        if actual.id != blob.id {
+            return Err(BlobStoreError::Corrupt {
+                expected: blob,
+                actual,
+            });
+        }
+
+        Ok(memory)
+    }
+}
+
+/// Incremental writer for one unpublished Blob.
+#[derive(Debug)]
+pub struct BlobWriter<'a> {
+    /// Destination Blob store.
+    store: &'a BlobStore,
+    /// Bytes written so far.
+    bytes: Vec<u8>,
+}
+
+impl<'a> BlobWriter<'a> {
+    /// Create one unpublished Blob writer.
+    fn new(store: &'a BlobStore) -> Self {
+        Self {
+            store,
+            bytes: Vec::new(),
+        }
+    }
+
+    /// Publish the complete Blob.
+    pub fn commit(self) -> Result<Blob, BlobStoreError> {
+        self.store.retain_bytes(&self.bytes)
+    }
+}
+
+impl Write for BlobWriter<'_> {
+    /// Append bytes to this unpublished Blob.
+    fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        self.bytes.extend_from_slice(buffer);
+
+        Ok(buffer.len())
+    }
+
+    /// Complete pending backing writes.
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Aligned immutable byte allocation.
+#[derive(Debug)]
+struct AlignedBytes {
+    /// Aligned backing chunks.
+    chunks: Box<[u128]>,
+    /// Initialized byte length.
+    byte_len: usize,
+}
+
+impl AlignedBytes {
+    /// Copy exact bytes into aligned immutable memory.
+    fn new(bytes: &[u8]) -> Self {
+        let chunk_bytes = size_of::<u128>();
+        let chunk_count = bytes.len().div_ceil(chunk_bytes);
+        let mut chunks = vec![0_u128; chunk_count].into_boxed_slice();
+        let destination = chunks.as_mut_ptr().cast::<u8>();
+
+        // safety: chunks contain at least bytes.len() writable bytes
+        unsafe {
+            ptr::copy_nonoverlapping(bytes.as_ptr(), destination, bytes.len());
+        }
+
+        Self {
+            chunks,
+            byte_len: bytes.len(),
+        }
+    }
+}
+
+impl AsRef<[u8]> for AlignedBytes {
+    /// Borrow the initialized byte slice.
+    fn as_ref(&self) -> &[u8] {
+        let bytes = self.chunks.as_ptr().cast::<u8>();
+
+        // safety: byte_len never exceeds the initialized backing chunks
+        unsafe { slice::from_raw_parts(bytes, self.byte_len) }
     }
 }
 

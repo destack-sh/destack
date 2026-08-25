@@ -3,7 +3,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Instant;
 
 use crossbeam_channel::{Receiver, Sender, select, unbounded};
-use destack_repository::BlobStore;
+use destack_core::BlobStore;
 use destack_rpc::{
     IpcListener, Listener, Registry, Server, ServerError, Transport, TransportError,
     WebSocketListener,

@@ -1,4 +1,4 @@
-use destack_repository::BlobStoreError;
+use destack_core::BlobStoreError;
 use destack_rpc::{Code, Status};
 
 use crate::DaemonError;

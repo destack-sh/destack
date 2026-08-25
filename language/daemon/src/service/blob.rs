@@ -1,8 +1,7 @@
 use std::io::Write;
 use std::ops::Range;
 
-use destack_core::Blob;
-use destack_repository::{BlobStore, BlobStoreError};
+use destack_core::{Blob, BlobStore, BlobStoreError};
 use destack_rpc::{Code, Request, RequestStream, Response, ResponseSender, Status};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};

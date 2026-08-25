@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::{error, fmt};
 
-use destack_repository::BlobStoreError;
+use destack_core::BlobStoreError;
 use destack_rpc::{
     ConnectionError, IpcError, RegistryError, ServerError, ServiceSchemaError, TransportError,
     WebSocketError,
