@@ -6,6 +6,49 @@ use destack_dir::{
     TypeMappedParameter, TypeMember, WhereClause,
 };
 
+/// Parse every source revision produced while typing a documentation line.
+#[test]
+fn test_parse_documentation_while_typing() {
+    let documentation = "/// A simple position.\n";
+    let before = r#"class Player {
+    foo: string;
+
+    constructor(foo: string) {
+        this.foo = foo;
+    }
+}
+
+"#;
+    let after = r#"struct Position {
+    x: float64;
+    y: float64;
+}
+"#;
+
+    // parse every authored prefix before the declaration
+    for (index, character) in documentation.char_indices() {
+        let end = index + character.len_utf8();
+        let source = format!("{before}{}{after}", &documentation[..end]);
+        let test = TestParser::new(&source);
+        let mut parser = test.prepare();
+        parser.parse_in_place();
+    }
+
+    // require the completed documentation on its declaration
+    let test = TestParser::new("/// A simple position.\nstruct Position {}");
+    let (parser, roots) = test.parse();
+    let root = roots[0];
+    let declaration = match parser.tree.get(root) {
+        Expression::Declaration(declaration) => *declaration,
+        expression => panic!("expected declaration expression, got {expression:?}"),
+    };
+
+    assert_eq!(
+        test.documentation(&parser, declaration),
+        Some("A simple position.")
+    );
+}
+
 /// Attach documentation and decorators to the declaration rather than its expression wrapper.
 #[test]
 fn test_attach_documentation_to_declaration_owner() {
