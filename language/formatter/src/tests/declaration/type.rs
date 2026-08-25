@@ -4,6 +4,7 @@ use crate::{
 };
 use destack_source::FileType;
 
+/// An empty enum formats without a space between its braces.
 #[test]
 fn test_format_enum_empty() {
     assert_format!(
@@ -36,6 +37,7 @@ fn test_format_recovered_type_member() {
     );
 }
 
+/// Placement and export modifiers format ahead of nominal declarations.
 #[test]
 fn test_format_placed_nominal_declarations() {
     assert_format_program!(
@@ -65,6 +67,7 @@ local newtype TaskId = uint64;
     );
 }
 
+/// An enum with bare members formats one member per line.
 #[test]
 fn test_format_enum_with_simple_fields() {
     assert_format!(
@@ -78,6 +81,7 @@ fn test_format_enum_with_simple_fields() {
     );
 }
 
+/// Enum annotations format on their own lines above each member.
 #[test]
 fn test_format_enum_with_annotations() {
     assert_format_program!(
@@ -92,6 +96,7 @@ fn test_format_enum_with_annotations() {
     );
 }
 
+/// An enum with generic parameters and defaults keeps its authored form.
 #[test]
 fn test_format_enum_with_generic_parameters() {
     let source = r"enum Machine<T: int32 = 3, IsSomething: boolean = true> {
@@ -433,7 +438,7 @@ fn test_format_extension_implements_generic_item_layout() {
     );
 }
 
-/// Long extension targets should break after `of` instead of exploding generic arguments.
+/// Long extension targets break after `of`, keeping their generic arguments on one line.
 #[test]
 fn test_format_extension_target_type_layout() {
     assert_format_program_reference_widths(
@@ -573,6 +578,39 @@ fn test_format_lifetime_union_roundtrip() {
     assert_format!(
         "type Joined = Borrowed<Node, 'a | 'b>;",
         "type Joined = Borrowed<Node, 'a | 'b>;",
+        parse_first_expression,
+        DestackFormatOptions::default()
+    );
+}
+
+/// Region meets should print as ordinary intersection algebra.
+#[test]
+fn test_format_region_meet_roundtrip() {
+    assert_format!(
+        "type Leaked = Borrowed<Node, 'static & S>;",
+        "type Leaked = Borrowed<Node, 'static & S>;",
+        parse_first_expression,
+        DestackFormatOptions::default()
+    );
+}
+
+/// Confined existentials should print the region operand inside the intersection.
+#[test]
+fn test_format_dynamic_region_roundtrip() {
+    assert_format!(
+        "type Confined = Dynamic<Printable & 'a>;",
+        "type Confined = Dynamic<Printable & 'a>;",
+        parse_first_expression,
+        DestackFormatOptions::default()
+    );
+}
+
+/// Outlives clauses should print tick operands on both sides.
+#[test]
+fn test_format_where_outlives_roundtrip() {
+    assert_format!(
+        "declare function only<'a, 'b>(value: &'a Node): &'a Node where 'a: 'b;",
+        "declare function only<'a, 'b>(value: &'a Node): &'a Node where 'a: 'b;",
         parse_first_expression,
         DestackFormatOptions::default()
     );
