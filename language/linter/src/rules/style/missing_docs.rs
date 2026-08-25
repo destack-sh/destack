@@ -13,9 +13,12 @@ declare_lint! {
         summary: "Require documentation for named declarations",
         explanation: r#"
 Undocumented declarations hide their purpose and constraints from readers and generated references.
-Instead, you SHOULD document every type, function, constant, member, field, and variant.
+Instead, you SHOULD document every type, function, constant, nominal member, variant, and direct
+member of a named object type.
 
 Exact interface implementations inherit the documentation of their requirement.
+Anonymous structural types and index signatures inherit the documentation of their enclosing
+declaration.
 "#,
         example: {
             reported: r#"
@@ -53,8 +56,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
     // inspect every declaration node once
     for node in view.iter_node_ids() {
-        let Some((noun, documented, target)) = required_documentation(node, &view, module.roots)?
-        else {
+        let Some((noun, documented, target)) = required_documentation(node, &view, module)? else {
             continue;
         };
         if view.get_documentation_any(documented).is_some() {
@@ -97,9 +99,7 @@ fn documentation_span(
     let uses_extent = match node.ty {
         dir::NodeType::TypeMember => matches!(
             view.get(dir::LocalNodeId::<dir::TypeMember>::new(node.id)),
-            dir::TypeMember::CallSignature { .. }
-                | dir::TypeMember::ConstructSignature { .. }
-                | dir::TypeMember::IndexSignature { .. }
+            dir::TypeMember::CallSignature { .. } | dir::TypeMember::ConstructSignature { .. }
         ),
         dir::NodeType::Pattern => true,
         _ => false,
@@ -117,7 +117,7 @@ fn documentation_span(
 fn required_documentation(
     node: dir::LocalNodeIdAny,
     view: &dir::View<'_>,
-    roots: &[dir::LocalNodeId<dir::Expression>],
+    module: &DirModule<'_>,
 ) -> Result<Option<(&'static str, dir::LocalNodeIdAny, dir::LocalNodeIdAny)>, ProviderError> {
     let noun = match node.ty {
         dir::NodeType::Declaration => {
@@ -130,12 +130,12 @@ fn required_documentation(
         }
         dir::NodeType::TypeMember => {
             let member = dir::LocalNodeId::new(node.id);
-            type_member_documentation(member, view)
+            type_member_documentation(member, view)?
         }
         dir::NodeType::Declarator => {
             let declarator = dir::LocalNodeId::new(node.id);
 
-            return constant_documentation(declarator, view, roots);
+            return constant_documentation(declarator, view, module);
         }
         dir::NodeType::EnumField => Some("variant"),
         _ => return Ok(None),
@@ -192,7 +192,16 @@ fn member_documentation(
 fn type_member_documentation(
     member: dir::LocalNodeId<dir::TypeMember>,
     view: &dir::View<'_>,
-) -> Option<&'static str> {
+) -> Result<Option<&'static str>, ProviderError> {
+    // let an index signature inherit the named declaration's documentation
+    if matches!(view.get(member), dir::TypeMember::IndexSignature { .. }) {
+        return Ok(None);
+    }
+    if !is_named_object_member(member, view)? {
+        return Ok(None);
+    }
+
+    // name each documented structural member kind
     let noun = match view.get(member) {
         dir::TypeMember::Field { .. } => "field",
         dir::TypeMember::Method { signature, .. } => match signature.role {
@@ -202,20 +211,58 @@ fn type_member_documentation(
         },
         dir::TypeMember::CallSignature { .. } => "call signature",
         dir::TypeMember::ConstructSignature { .. } => "construct signature",
-        dir::TypeMember::IndexSignature { .. } => "index signature",
         dir::TypeMember::AssociatedType { .. } => "associated type",
         dir::TypeMember::AssociatedConst { .. } => "associated constant",
-        dir::TypeMember::Error => return None,
+        dir::TypeMember::IndexSignature { .. } | dir::TypeMember::Error => return Ok(None),
     };
 
-    Some(noun)
+    Ok(Some(noun))
+}
+
+/// Return whether a type member belongs directly to a named object type.
+fn is_named_object_member(
+    member: dir::LocalNodeId<dir::TypeMember>,
+    view: &dir::View<'_>,
+) -> Result<bool, ProviderError> {
+    let mut child = member.into_any();
+
+    // follow object and intersection types to their declaration
+    loop {
+        let parent = view.get_parent_any(child).ok_or_else(|| {
+            ProviderError::internal(format!("type member {member:?} has no declaration parent"))
+        })?;
+        match parent.ty {
+            dir::NodeType::Declaration => {
+                let declaration = dir::LocalNodeId::new(parent.id);
+                let is_named = match view.get(declaration) {
+                    dir::Declaration::Type(_) => true,
+                    dir::Declaration::Interface(declaration) => declaration.name.is_some(),
+                    _ => false,
+                };
+
+                return Ok(is_named);
+            }
+            dir::NodeType::TypeExpression => {
+                let expression = dir::LocalNodeId::new(parent.id);
+                if !matches!(
+                    view.get(expression),
+                    dir::TypeExpression::Object { .. } | dir::TypeExpression::Intersection { .. }
+                ) {
+                    return Ok(false);
+                }
+            }
+            _ => return Ok(false),
+        }
+
+        child = parent;
+    }
 }
 
 /// Return required documentation for one module constant.
 fn constant_documentation(
     declarator: dir::LocalNodeId<dir::Declarator>,
     view: &dir::View<'_>,
-    roots: &[dir::LocalNodeId<dir::Expression>],
+    module: &DirModule<'_>,
 ) -> Result<Option<(&'static str, dir::LocalNodeIdAny, dir::LocalNodeIdAny)>, ProviderError> {
     let parent = view.get_parent_for(declarator).ok_or_else(|| {
         ProviderError::internal(format!("declarator {declarator:?} has no parent"))
@@ -233,7 +280,7 @@ fn constant_documentation(
     else {
         return Ok(None);
     };
-    if !is_module_expression(expression, view, roots)? {
+    if !module.is_module_expression(expression)? {
         return Ok(None);
     }
 
@@ -242,29 +289,6 @@ fn constant_documentation(
         expression.into_any(),
         view.get(declarator).pattern.into_any(),
     )))
-}
-
-/// Return whether one expression belongs directly to module or global scope.
-fn is_module_expression(
-    expression: dir::LocalNodeId<dir::Expression>,
-    view: &dir::View<'_>,
-    roots: &[dir::LocalNodeId<dir::Expression>],
-) -> Result<bool, ProviderError> {
-    if roots.contains(&expression) {
-        return Ok(true);
-    }
-    let parent = view.get_parent_for(expression).ok_or_else(|| {
-        ProviderError::internal(format!("expression {expression:?} has no parent"))
-    })?;
-    if parent.ty != dir::NodeType::Declaration {
-        return Ok(false);
-    };
-    let parent = dir::LocalNodeId::new(parent.id);
-
-    Ok(matches!(
-        view.get(parent),
-        dir::Declaration::Global(_) | dir::Declaration::Module(_)
-    ))
 }
 
 #[cfg(test)]
@@ -431,5 +455,74 @@ const ATTEMPT_LIMIT = 3;
         );
 
         session.assert_no_diagnostics();
+    }
+
+    /// Accept members of anonymous structural types and index signatures.
+    #[test]
+    fn test_accepts_anonymous_structural_members() {
+        let session = TestSession::dir(
+            &MISSING_DOCS,
+            r#"
+/// One operation outcome.
+type Outcome<T> =
+    | {
+        kind: "ok";
+
+        value: T;
+    }
+    | {
+        kind: "error";
+
+        message: string;
+    };
+
+/// Named labels.
+type Labels = {
+    readonly [key: string]: string;
+};
+
+/// Process one operation.
+declare function process(options: {
+    mode: string;
+
+    nested: {
+        enabled: boolean;
+    };
+}): Outcome<string>;
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Report members contributed to a named object type through an intersection.
+    #[test]
+    fn test_reports_undocumented_named_object_member() {
+        let session = TestSession::dir(
+            &MISSING_DOCS,
+            r#"
+/// Base request options.
+type BaseOptions = {};
+
+/// Request options.
+type RequestOptions = BaseOptions & {
+    retries: int32;
+};
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[missing-docs]: field must have documentation
+ ──▶ main.ds:6:5
+  │
+4 │ /// Request options.
+5 │ type RequestOptions = BaseOptions & {
+6 │     retries: int32;
+  │     ^^^^^^^
+7 │ };
+  │
+"#,
+        );
     }
 }

@@ -4,6 +4,29 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
+    /// Return whether one expression belongs directly to module or global scope.
+    pub(crate) fn is_module_expression(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<bool, ProviderError> {
+        if self.roots.contains(&expression) {
+            return Ok(true);
+        }
+        let view = self.view();
+        let parent = view.get_parent_for(expression).ok_or_else(|| {
+            ProviderError::internal(format!("expression {expression:?} has no parent"))
+        })?;
+        if parent.ty != dir::NodeType::Declaration {
+            return Ok(false);
+        }
+        let parent = dir::LocalNodeId::new(parent.id);
+
+        Ok(matches!(
+            view.get(parent),
+            dir::Declaration::Global(_) | dir::Declaration::Module(_)
+        ))
+    }
+
     /// Return the final direct field with one static key.
     pub(crate) fn direct_field(
         &self,
