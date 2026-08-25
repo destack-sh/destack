@@ -102,7 +102,6 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<Vec<dir::GlobalSymbolId>> {
         let (mut symbols, nested) = program.read_type(type_id, |type_value, module| {
             let selected = match type_value {
-                dir::Type::Reference(reference) => (vec![reference.symbol], Vec::new()),
                 dir::Type::Application(application) => (vec![application.symbol], Vec::new()),
                 dir::Type::Primitive(primitive) => {
                     let Some(item) = primitive.representation_item() else {

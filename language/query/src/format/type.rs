@@ -3,7 +3,6 @@ use destack_dir as dir;
 use crate::{QueryError, QueryResult};
 
 use super::Formatter;
-use super::literal::quote_string;
 
 /// One syntactic position that may require a grouped type operand.
 #[derive(Debug, Clone, Copy)]
@@ -64,8 +63,14 @@ impl Formatter<'_, '_, '_> {
             dir::Type::Object(shape) => return self.object(*shape),
             dir::Type::Primitive(primitive) => self.primitive(*primitive),
             dir::Type::Literal(literal) => self.literal(*literal),
-            dir::Type::Reference(reference) => return self.symbol(reference.symbol),
             dir::Type::Application(instance) => return self.instance(*instance),
+            dir::Type::Reference(reference) => return self.symbol(reference.symbol),
+            dir::Type::Region(region) => {
+                let extent = self.global_type(region.extent)?;
+                let space = self.global_type(region.space)?;
+
+                format!("{extent} & {space}")
+            }
             dir::Type::Parameter(parameter) => {
                 // declared parameters reopen at their use-site arguments
                 if let Some(reopen) = self.reopening
@@ -133,7 +138,6 @@ impl Formatter<'_, '_, '_> {
                 return self.operation(self.types()?.operation(*operation));
             }
             dir::Type::Key(key) => self.key_type(*key),
-            dir::Type::Memory(literal) => quote_string(literal.text()),
             dir::Type::Intrinsic => "intrinsic".to_string(),
             dir::Type::Variable(_) | dir::Type::Static(_) => {
                 return Err(QueryError::invalid(format!(
@@ -220,11 +224,10 @@ impl Formatter<'_, '_, '_> {
     pub(super) fn form(&self, form: dir::FormType) -> QueryResult<String> {
         let value = self.type_operand(form.value, TypeOperand::Prefix)?;
         let text = match form.form {
-            dir::Form::Managed => value,
+            dir::Form::Managed { place } => self.placed_form(place, &value)?,
             dir::Form::Owned => format!("^{value}"),
             dir::Form::Borrowed(borrow) => self.borrowed_form(borrow, &value)?,
             dir::Form::Raw => format!("*{value}"),
-            dir::Form::Placed { place } => self.placed_form(place, &value)?,
             dir::Form::Readonly => format!("readonly {value}"),
         };
 
@@ -234,35 +237,96 @@ impl Formatter<'_, '_, '_> {
     /// Format one borrowed form.
     fn borrowed_form(&self, borrow: dir::BorrowFormId, value: &str) -> QueryResult<String> {
         let borrow = *self.types()?.borrow_form(borrow);
-        let lifetime = self.borrow_lifetime_prefix(borrow.lifetime)?;
 
-        self.borrow_access(borrow.access, borrow.lifetime, lifetime.as_deref(), value)
+        // split the region into its extent and space coordinates
+        let (extent, space) = self.read_type(borrow.region, |type_value, _| match type_value {
+            dir::Type::Region(pair) => Ok((pair.extent, Some(pair.space))),
+            _ => Ok((borrow.region, None)),
+        })?;
+        // render literal referent spaces in target position, keeping written local
+        let value = match space {
+            None => value.to_string(),
+            Some(space) => match self.space_literal(space)? {
+                Some(space) => format!("{} {value}", space.text()),
+                // induced spaces elide back into the reference sugar
+                None if self.is_induced_memory_term(space)? => value.to_string(),
+                // render written parametric spaces through the full borrow application
+                None => return self.borrow_application(&borrow, value),
+            },
+        };
+
+        // written non-tick extents render the full borrow application
+        let Some(lifetime) = self.borrow_extent_prefix(extent)? else {
+            return self.borrow_application(&borrow, &value);
+        };
+
+        self.borrow_access(borrow.access, Some(&lifetime), &value)
     }
 
-    /// Return the source prefix for one directly representable borrow lifetime.
-    fn borrow_lifetime_prefix(&self, type_id: dir::GlobalTypeId) -> QueryResult<Option<String>> {
+    /// Format one full borrow application.
+    fn borrow_application(&self, borrow: &dir::BorrowForm, value: &str) -> QueryResult<String> {
+        let region = self.global_type(borrow.region)?;
+        let access = self.global_type(borrow.access)?;
+        let symbol = self
+            .program
+            .environment_bound()?
+            .language
+            .symbol(dir::LanguageItem::Borrowed)
+            .ok_or(QueryError::missing("Borrowed language item"))?;
+        let borrowed = self.symbol(symbol)?;
+
+        Ok(format!("{borrowed}<{value}, {region}, {access}>"))
+    }
+
+    /// Return whether one term is an induced memory parameter.
+    fn is_induced_memory_term(&self, type_id: dir::GlobalTypeId) -> QueryResult<bool> {
         self.program
             .read_type(type_id, |type_value, module| match type_value {
-                dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)) => {
-                    Ok(Some(String::new()))
-                }
-                dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Static)) => {
+                dir::Type::Parameter(parameter) => Ok(module
+                    .generics()?
+                    .get_parameter(parameter.local_id)
+                    .induced_memory_parameter()
+                    .is_some()),
+                _ => Ok(false),
+            })
+    }
+
+    /// Read one literal space, or None for a parametric place.
+    fn space_literal(&self, type_id: dir::GlobalTypeId) -> QueryResult<Option<dir::Space>> {
+        self.program
+            .read_type(type_id, |type_value, _| match type_value {
+                dir::Type::Literal(dir::Literal::String(text)) => dir::Space::from_text(*text)
+                    .map(Some)
+                    .ok_or_else(|| QueryError::invalid(format!("space literal: {type_id:?}"))),
+                _ => Ok(None),
+            })
+    }
+
+    /// Return the source prefix for one directly representable borrow extent.
+    fn borrow_extent_prefix(&self, type_id: dir::GlobalTypeId) -> QueryResult<Option<String>> {
+        self.program
+            .read_type(type_id, |type_value, module| match type_value {
+                dir::Type::Literal(dir::Literal::String(value))
+                    if dir::Lifetime::from_text(*value) == Some(dir::Lifetime::Static) =>
+                {
                     Ok(Some("'static ".to_string()))
                 }
+                // ticks render as prefixes, induced extents elide, written names defer
                 dir::Type::Parameter(parameter) => {
                     let formatter = Formatter::new(module, self.program);
-                    let binding = formatter
-                        .module
-                        .generics()?
-                        .get_parameter(parameter.local_id);
-                    if binding.memory_parameter() != Some(dir::MemoryParameter::Lifetime) {
-                        return Err(QueryError::invalid(format!("borrow lifetime: {type_id:?}")));
-                    }
                     let lifetime = formatter.generic_parameter_type(*parameter)?;
+                    if lifetime.starts_with('\'') {
+                        return Ok(Some(format!("{lifetime} ")));
+                    }
 
-                    Ok(lifetime.starts_with('\'').then(|| format!("{lifetime} ")))
+                    let binding = module.generics()?.get_parameter(parameter.local_id);
+                    Ok(binding
+                        .induced_memory_parameter()
+                        .is_some()
+                        .then(String::new))
                 }
-                _ => Ok(None),
+                // every other extent erases from the reference prefix
+                _ => Ok(Some(String::new())),
             })
     }
 
@@ -288,43 +352,39 @@ impl Formatter<'_, '_, '_> {
     fn borrow_access(
         &self,
         type_id: dir::GlobalTypeId,
-        lifetime_id: dir::GlobalTypeId,
         lifetime: Option<&str>,
         value: &str,
     ) -> QueryResult<String> {
-        // render a direct borrow or apply its general lifetime parameter
+        // induced extents elide from the reference prefix
         let borrowed = match lifetime {
             Some(lifetime) => format!("&{lifetime}{value}"),
-            None => {
-                let lifetime = self.global_type(lifetime_id)?;
-                let value = format!("&{value}");
-
-                self.memory_application(dir::LanguageItem::WithLifetime, &value, &lifetime)?
-            }
+            None => format!("&{value}"),
         };
 
         self.read_type(type_id, |type_value, formatter| {
-            match (type_value, lifetime) {
+            // parse a concrete access literal once
+            let access = match type_value {
+                dir::Type::Literal(dir::Literal::String(value)) => dir::Access::from_text(*value),
+                _ => None,
+            };
+
+            match (access, type_value, lifetime) {
                 // render concrete access with its source modifier
-                (dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Mutable)), _) => {
-                    Ok(borrowed.clone())
+                (Some(dir::Access::Mutable), _, _) => Ok(borrowed.clone()),
+                (Some(dir::Access::Readonly), _, Some(lifetime)) => {
+                    Ok(format!("&{lifetime}readonly {borrowed}"))
                 }
-                (
-                    dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)),
-                    Some(lifetime),
-                ) => Ok(format!("&{lifetime}readonly {value}")),
-                (
-                    dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Exclusive)),
-                    Some(lifetime),
-                ) => Ok(format!("&{lifetime}exclusive {value}")),
-                (dir::Type::Memory(dir::MemoryLiteral::Access(_)), None) => {
+                (Some(dir::Access::Exclusive), _, Some(lifetime)) => {
+                    Ok(format!("&{lifetime}exclusive {borrowed}"))
+                }
+                (Some(_), _, None) => {
                     let access = formatter.local_type(type_value)?;
 
                     formatter.memory_application(dir::LanguageItem::WithAccess, &borrowed, &access)
                 }
 
                 // render generic access through WithAccess
-                (dir::Type::Parameter(parameter), _) => {
+                (_, dir::Type::Parameter(parameter), _) => {
                     let parameter_binding = formatter
                         .module
                         .generics()?
@@ -343,15 +403,17 @@ impl Formatter<'_, '_, '_> {
         })
     }
 
-    /// Format one concrete placement form.
+    /// Format one placement form, keeping every written space.
     fn placed_form(&self, type_id: dir::GlobalTypeId, value: &str) -> QueryResult<String> {
-        self.program
-            .read_type(type_id, |type_value, _| match type_value {
-                dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(space))) => {
-                    Ok(format!("{} {value}", space.text()))
-                }
-                _ => Err(QueryError::invalid(format!("placed form: {type_id:?}"))),
-            })
+        match self.space_literal(type_id)? {
+            Some(space) => Ok(format!("{} {value}", space.text())),
+            // render parametric places through the full managed application
+            None => {
+                let place = self.global_type(type_id)?;
+
+                self.memory_application(dir::LanguageItem::Managed, value, &place)
+            }
+        }
     }
 
     /// Format one scalar interval type.
@@ -532,6 +594,14 @@ fn type_needs_parentheses(
     formatter: &Formatter<'_, '_, '_>,
 ) -> QueryResult<bool> {
     let needs_parentheses = match type_value {
+        dir::Type::Region(_) => matches!(
+            operand,
+            TypeOperand::Prefix
+                | TypeOperand::Postfix
+                | TypeOperand::Intersection
+                | TypeOperand::Relation
+                | TypeOperand::StaticBinary
+        ),
         dir::Type::Union(_) => matches!(
             operand,
             TypeOperand::Prefix
