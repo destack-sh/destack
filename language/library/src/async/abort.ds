@@ -17,7 +17,7 @@ export local newtype interface AbortSignal {
 @languageItem("async.AbortController")
 export local class AbortController {
     /// The controlled state.
-    private state: AbortState;
+    private readonly state: AbortState;
 
     /// Create one active signal.
     constructor() {
@@ -38,10 +38,10 @@ export local class AbortController {
 /// Active abort listener registration.
 export local struct AbortSubscription implements Drop {
     /// The registered state when still active.
-    private state: AbortState | undefined;
+    private readonly state: AbortState | undefined;
 
     /// The registered listener.
-    private listener: AbortListener;
+    private readonly listener: AbortListener;
 
     /// Stop observing the signal.
     drop(&exclusive this): void {

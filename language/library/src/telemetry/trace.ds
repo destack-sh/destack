@@ -32,7 +32,7 @@ export class Span {
     readonly kind: SpanKind;
 
     /// Optional sink for this span.
-    private sink: readonly TraceSink | undefined;
+    private readonly sink: readonly TraceSink | undefined;
 
     /// Completion status.
     private status: SpanStatus = SpanStatus.Unset;
@@ -126,7 +126,7 @@ export class Span {
 @languageItem("telemetry.Tracer")
 export class Tracer {
     /// Optional sink for spans created by this tracer.
-    private sink: readonly TraceSink | undefined;
+    private readonly sink: readonly TraceSink | undefined;
 
     /// Create a tracer.
     constructor(sink?: readonly TraceSink) {

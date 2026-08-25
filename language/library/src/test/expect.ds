@@ -305,16 +305,16 @@ export struct Expectation<'a, T> {
 @languageItem("test.PanicExpectation")
 export struct PanicExpectation<R> {
     /// The callable to invoke once.
-    private body: Function<(), R, "once"> & UnwindSafe;
+    private readonly body: Function<(), R, "once"> & UnwindSafe;
 
     /// Whether the matcher is negated.
-    private isNegated: boolean;
+    private readonly isNegated: boolean;
 
     /// Whether a failed matcher permits the test to continue.
-    private isSoft: boolean;
+    private readonly isSoft: boolean;
 
     /// Assertion message supplied by the caller.
-    private message: ^string | undefined;
+    private readonly message: ^string | undefined;
 
     /// Negate the matcher.
     get not(this): PanicExpectation<R> {

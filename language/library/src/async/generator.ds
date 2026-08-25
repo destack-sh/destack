@@ -36,7 +36,7 @@ export local struct GeneratorReturn<R> {
 @languageItem("async.Generator")
 export local class Generator<Y, R = void, N = void> {
     /// Shared producer state.
-    private state: GeneratorState<Y, R, N>;
+    private readonly state: GeneratorState<Y, R, N>;
 
     /// Create a generator over one producer state.
     private constructor(state: GeneratorState<Y, R, N>) {
@@ -91,7 +91,7 @@ export extension<Y, R, N> of Generator<Y, R, N> implements Iterator<Y> {
 /// Step operations available to one lowered generator body.
 export local struct GeneratorProducer<Y, R, N> {
     /// Shared producer state.
-    private state: GeneratorState<Y, R, N>;
+    private readonly state: GeneratorState<Y, R, N>;
 
     /// Yield one value and receive the next consumer request.
     @languageItem("async.Generator.yield")
@@ -103,10 +103,10 @@ export local struct GeneratorProducer<Y, R, N> {
 /// Shared state between one synchronous generator and its producer.
 local class GeneratorState<Y, R, N> {
     /// Current generator phase.
-    private phase: Cell<GeneratorPhase<Y, R, N>>;
+    private readonly phase: Cell<GeneratorPhase<Y, R, N>>;
 
     /// Suspended producer fiber.
-    private producer: Cell<Fiber | undefined>;
+    private readonly producer: Cell<Fiber | undefined>;
 
     /// Create one suspended-start state.
     constructor() {
@@ -228,7 +228,7 @@ local class GeneratorState<Y, R, N> {
 @languageItem("async.AsyncGenerator")
 export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
     /// Shared producer state.
-    private state: AsyncGeneratorState<Y, R, N>;
+    private readonly state: AsyncGeneratorState<Y, R, N>;
 
     /// Create an async generator over one producer state.
     private constructor(state: AsyncGeneratorState<Y, R, N>) {
@@ -283,7 +283,7 @@ export extension<Y: Copy, R: Copy, N> of AsyncGenerator<Y, R, N> implements Asyn
 /// Step operations available to one lowered async generator body.
 export local struct AsyncGeneratorProducer<Y: Copy, R: Copy, N> {
     /// Shared producer state.
-    private state: AsyncGeneratorState<Y, R, N>;
+    private readonly state: AsyncGeneratorState<Y, R, N>;
 
     /// Yield one value and await the next consumer request.
     @languageItem("async.AsyncGenerator.yield")
@@ -295,19 +295,19 @@ export local struct AsyncGeneratorProducer<Y: Copy, R: Copy, N> {
 /// Shared state between one async generator and its producer.
 local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
     /// Current generator phase.
-    private phase: Cell<AsyncGeneratorPhase>;
+    private readonly phase: Cell<AsyncGeneratorPhase>;
 
     /// Suspended producer fiber.
-    private producer: Cell<Fiber | undefined>;
+    private readonly producer: Cell<Fiber | undefined>;
 
     /// First queued request.
-    private head: Cell<AsyncGeneratorRequest<Y, R, N> | undefined>;
+    private readonly head: Cell<AsyncGeneratorRequest<Y, R, N> | undefined>;
 
     /// Last queued request.
-    private tail: Cell<AsyncGeneratorRequest<Y, R, N> | undefined>;
+    private readonly tail: Cell<AsyncGeneratorRequest<Y, R, N> | undefined>;
 
     /// Request currently owned by the producer.
-    private active: Cell<AsyncGeneratorRequest<Y, R, N> | undefined>;
+    private readonly active: Cell<AsyncGeneratorRequest<Y, R, N> | undefined>;
 
     /// Create one suspended-start state.
     constructor() {
@@ -449,7 +449,7 @@ local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
 /// One queued async generator request.
 local class AsyncGeneratorRequest<Y: Copy, R: Copy, N> {
     /// Requested producer operation.
-    private operation: Cell<GeneratorRequest<R, N> | undefined>;
+    private readonly operation: Cell<GeneratorRequest<R, N> | undefined>;
 
     /// Promise settled by this request.
     settlement: PromiseResolvers<GeneratorResult<Y, R>>;
