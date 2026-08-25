@@ -105,6 +105,7 @@ impl ModuleLowerer<'_> {
                     | dir::Definition::Enum(_)
                     | dir::Definition::Class(_)
             );
+
             // skip the lifetime marker
             let is_lifetime_kind = self.language_item(symbol) == Some(dir::LanguageItem::Lifetime);
             if is_nominal
@@ -183,10 +184,11 @@ impl TypeLowerer<'_, '_> {
         };
         let arguments = self.nominal_arguments(symbol, &arguments)?;
 
-        // reuse the reserved or completed value carrier
+        // reuse the reserved or completed representation
         if let Some(nominal) = self.lowerer.nominal_states.get(&arguments.key) {
             let storage = nominal.storage();
             let value = nominal.value();
+            let value = self.requalify_nominal_value(symbol, storage, value)?;
 
             return Ok(self.apply_nominal_arguments(
                 arguments.key,
@@ -202,18 +204,26 @@ impl TypeLowerer<'_, '_> {
                 message: "missing a nominal definition".to_string(),
             });
         };
+
+        // name the instance and reserve its identity
         let path = self.lowerer.symbol_path(symbol)?;
         let base = mir::Symbol::named(self.lowerer.strings.intern(&path));
         let instance = base.instantiate(&arguments.key.arguments, self.tree);
         let ty = self.tree.reserve_type(instance);
+
+        // declarations naming a space reference it, others cache at local
+        let declared_space = definition.space().map(ModuleLowerer::mir_space);
+        let is_object_alias = matches!(definition, dir::Definition::TypeAlias(_))
+            && self.lowerer.alias_form(symbol)? == Some(AliasForm::Object);
+        let value_space = declared_space.unwrap_or(mir::Space::Local);
+        let saved = self.space;
+        self.space = value_space;
+
+        // build the value-position type each definition kind presents
         let value = match &definition {
             dir::Definition::Class(_) => self.insert_managed_reference(ty),
             // declared object types ride managed references like classes
-            dir::Definition::TypeAlias(_)
-                if self.lowerer.alias_form(symbol)? == Some(AliasForm::Object) =>
-            {
-                self.insert_managed_reference(ty)
-            }
+            dir::Definition::TypeAlias(_) if is_object_alias => self.insert_managed_reference(ty),
             dir::Definition::Struct(_)
             | dir::Definition::Newtype(_)
             | dir::Definition::Enum(_)
@@ -223,11 +233,13 @@ impl TypeLowerer<'_, '_> {
                 kind: mir::ReferenceKind::Managed,
                 lifetime: mir::Lifetime::empty(),
                 constraint: mir::TypeId::from(ty),
-                storage: mir::Storage::Heap(mir::Space::Local),
+                storage: mir::Storage::heap(value_space),
                 access: mir::Access::Mutable,
                 nullability: mir::Nullability::None,
             }),
             _ => {
+                self.space = saved;
+
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
                     construct: "an extension nominal".to_string(),
@@ -235,6 +247,8 @@ impl TypeLowerer<'_, '_> {
                 .into());
             }
         };
+
+        self.space = saved;
         self.lowerer.nominal_states.insert(
             arguments.key.clone(),
             NominalState::Declared { storage: ty, value },
@@ -253,6 +267,7 @@ impl TypeLowerer<'_, '_> {
                     message: format!("an instance of '{path}' was never materialized"),
                 });
             }
+
             let mut types = self
                 .lowerer
                 .type_lowerer(
@@ -261,6 +276,8 @@ impl TypeLowerer<'_, '_> {
                     &arguments.lifetime_parameters,
                 )
                 .with_instance(specialization);
+            types.space = declared_space.unwrap_or(mir::Space::Local);
+
             match definition {
                 dir::Definition::Struct(definition) => types.lower_struct(symbol, definition, ty),
                 dir::Definition::Newtype(definition) => {
@@ -275,6 +292,8 @@ impl TypeLowerer<'_, '_> {
                 }),
             }
         };
+
+        // release the reservation when the rows fail to lower
         let fields = match fields {
             Ok(fields) => fields,
             Err(error) => {
@@ -283,11 +302,14 @@ impl TypeLowerer<'_, '_> {
                 return Err(error);
             }
         };
+
+        // complete the reservation with the lowered rows
         let nominal = NominalRepresentation {
             storage: ty,
             value,
             fields,
         };
+        let value = self.requalify_nominal_value(symbol, ty, value)?;
         self.lowerer
             .nominal_states
             .insert(arguments.key.clone(), NominalState::Lowered(nominal));
@@ -298,14 +320,16 @@ impl TypeLowerer<'_, '_> {
                 message: "a nominal without a name".to_string(),
             });
         };
+
         let name = match symbol.module_id == self.lowerer.module {
             true => self.lowerer.strings.get(name).to_string(),
-            false => {
-                let path = &self.lowerer.state(symbol.module_id)?.path;
-                format!("{path}.{}", self.lowerer.strings.get(name))
-            }
+            false => self
+                .lowerer
+                .qualified_name(symbol.module_id, self.lowerer.strings.get(name))?,
         };
         let name = self.lowerer.strings.intern(&name);
+
+        // publish the declaration with its lifetime parameters
         let lifetimes = arguments
             .lifetime_parameters
             .declarations(self.lowerer.strings);
@@ -334,6 +358,8 @@ impl TypeLowerer<'_, '_> {
                 message: "missing a nominal definition".to_string(),
             });
         };
+
+        // non-generic nominals key on their symbol alone
         let Some(template_id) = definition.template() else {
             if !arguments.is_empty() {
                 return Err(CompilerError::Internal {
@@ -362,10 +388,12 @@ impl TypeLowerer<'_, '_> {
                 (
                     parameter.into_global(symbol.module_id),
                     binding.kind,
-                    binding.is_induced_lifetime_parameter(),
+                    binding.is_induced_region_parameter(),
                 )
             })
             .collect();
+
+        // count the parameters a written argument list may bind
         let written = parameters
             .iter()
             .filter(|(_, _, is_induced)| !is_induced)
@@ -373,7 +401,7 @@ impl TypeLowerer<'_, '_> {
         let value_parameters = parameters
             .iter()
             .filter(|(_, kind, _)| {
-                *kind != dir::GenericParameterKind::Memory(dir::MemoryParameter::Lifetime)
+                *kind != dir::GenericParameterKind::Memory(dir::MemoryParameter::Region)
             })
             .count();
 
@@ -396,7 +424,7 @@ impl TypeLowerer<'_, '_> {
         for (parameter, kind, is_induced) in parameters {
             // fill in every parameter the argument list elides
             let is_lifetime =
-                kind == dir::GenericParameterKind::Memory(dir::MemoryParameter::Lifetime);
+                kind == dir::GenericParameterKind::Memory(dir::MemoryParameter::Region);
             if !is_complete && ((is_lifetime && elide_lifetimes) || is_induced || is_elided) {
                 // erase lifetimes absent from the argument list
                 if is_lifetime || is_induced {
@@ -417,6 +445,7 @@ impl TypeLowerer<'_, '_> {
 
                 continue;
             }
+
             let Some(argument) = supplied.next() else {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
@@ -426,7 +455,7 @@ impl TypeLowerer<'_, '_> {
             };
 
             match kind {
-                dir::GenericParameterKind::Memory(dir::MemoryParameter::Lifetime) => {
+                dir::GenericParameterKind::Memory(dir::MemoryParameter::Region) => {
                     lifetimes.push(
                         self.lowerer
                             .lower_lifetime(*argument, self.lifetime_parameters)?,
@@ -442,6 +471,8 @@ impl TypeLowerer<'_, '_> {
                 }
             }
         }
+
+        // key the instance on its type arguments and the template's lifetime slots
         let template = template_id.into_global(template_module);
         let lifetime_parameters = LifetimeParameters::from_template(self.lowerer, template)?;
         let key = self.generic_instance_key(symbol, &type_arguments)?;
@@ -462,6 +493,7 @@ impl TypeLowerer<'_, '_> {
         let Some((module, instance)) = self.instance else {
             return Ok(None);
         };
+
         let row = self.lowerer.state(module)?.generics.get_instance(instance);
 
         Ok(row
@@ -470,6 +502,39 @@ impl TypeLowerer<'_, '_> {
             .iter()
             .find(|binding| binding.parameter == parameter)
             .map(|binding| binding.argument))
+    }
+
+    /// Requalify one reference value in the ambient space.
+    fn requalify_nominal_value(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        storage: mir::LocalNodeId<mir::Type>,
+        value: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        // keep the cached value canonical in the local ambient space
+        if self.space == mir::Space::Local {
+            return Ok(value);
+        }
+
+        // declarations naming their own space already qualify their value
+        let Some(definition) = self.lowerer.definition(symbol)?.cloned() else {
+            return Ok(value);
+        };
+
+        if definition.space().is_some() {
+            return Ok(value);
+        }
+
+        // rebuild reference values over the shared storage
+        match &definition {
+            dir::Definition::Class(_) => Ok(self.insert_managed_reference(storage)),
+            dir::Definition::TypeAlias(_)
+                if self.lowerer.alias_form(symbol)? == Some(AliasForm::Object) =>
+            {
+                Ok(self.insert_managed_reference(storage))
+            }
+            _ => Ok(value),
+        }
     }
 
     /// Apply lifetime arguments without changing one nominal representation.
@@ -520,6 +585,7 @@ impl ModuleLowerer<'_> {
             let dir::DefinitionMember::Field(field) = member else {
                 continue;
             };
+
             if field.space != dir::MemberSpace::Instance {
                 continue;
             }
@@ -545,6 +611,7 @@ impl ModuleLowerer<'_> {
                 message: "missing a nominal definition".to_string(),
             });
         };
+
         let members = match definition {
             // classes store their base chain's fields first
             dir::Definition::Class(definition) => {

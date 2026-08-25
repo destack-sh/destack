@@ -3,7 +3,7 @@ use destack_mir as mir;
 
 use crate::lower::{
     FunctionDeclaration, FunctionDefinition, GenericInstanceKey, LifetimeParameters, ModuleLowerer,
-    constructor_receiver_type,
+    constructor_receiver_type, nominal_receiver_storage,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -17,7 +17,7 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<FunctionDefinition> {
         let module = self.module;
 
-        // declare the signature's lifetime generics before its parameter types
+        // resolve the declared symbol and the lifetime generics its signature induces
         let node = declaration.into_global_any(module);
         let Some(symbol) = self.symbol_declared_at(node)? else {
             return Err(CompilerError::Internal {
@@ -27,12 +27,14 @@ impl ModuleLowerer<'_> {
         let declared = self.symbol_type(symbol)?;
         let lifetime_parameters = self.lifetime_parameters(declared)?;
 
-        // resolve the parameter types alongside their symbols
+        // read the declaration the body belongs to
         let dir::Declaration::Function(function) = self.local().tree().get(declaration) else {
             return Err(CompilerError::Internal {
                 message: "a function body declared outside a function".to_string(),
             });
         };
+
+        // collect each parameter's default expression alongside its symbol
         let parameter_nodes = function.signature.parameters.to_vec();
         let mut symbols = Vec::with_capacity(parameter_nodes.len());
         let mut defaults = Vec::with_capacity(parameter_nodes.len());
@@ -62,6 +64,8 @@ impl ModuleLowerer<'_> {
         let header = header.parameters(parameters).result(result);
         let function = builder.declare_function(header);
         self.index_language_declaration(function, symbol)?;
+
+        // record the declaration so later call sites resolve to it
         self.functions.insert(
             GenericInstanceKey::non_generic(symbol),
             FunctionDeclaration::Declared(function),
@@ -81,8 +85,8 @@ impl ModuleLowerer<'_> {
         })
     }
 
-    /// Return whether one callable declares type parameters.
-    pub(in crate::lower) fn signature_has_instance_parameters(
+    /// Return whether one callable declares a parameter beyond its extents.
+    pub(in crate::lower) fn signature_has_parameters_beyond_extents(
         &self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
@@ -100,7 +104,7 @@ impl ModuleLowerer<'_> {
         &self,
         owner: dir::GlobalSymbolId,
     ) -> CompilerResult<bool> {
-        // read the owner template, treating non-nominal owners as concrete
+        // read the owner template, treating every templateless owner as concrete
         let Some(definition) = self.definition(owner)? else {
             return Ok(false);
         };
@@ -111,16 +115,38 @@ impl ModuleLowerer<'_> {
         self.template_has_instance_parameters(template.into_global(owner.module_id))
     }
 
-    /// Return whether one generic template declares any non-lifetime parameter.
+    /// Return whether one generic template declares a parameter demanding instances.
     fn template_has_instance_parameters(
         &self,
         template: dir::GlobalGenericTemplateId,
     ) -> CompilerResult<bool> {
         let generics = &self.state(template.module_id)?.generics;
         let template = generics.get_template(template.local_id);
+        let demands = template
+            .parameters
+            .iter()
+            .any(|parameter| generics.get_parameter(*parameter).is_instance_parameter());
+
+        Ok(demands)
+    }
+
+    /// Return whether one callable declares parameters beyond the memory kinds.
+    pub(in crate::lower) fn signature_has_parameters_beyond_memory(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        // peel the callable down to its signature template
+        let (signature, owner) = self.signature(ty)?;
+        let Some(template) = self.types(owner)?.signature(signature).template else {
+            return Ok(false);
+        };
+
+        // accept the first parameter that names something beyond memory
+        let generics = &self.state(template.module_id)?.generics;
+        let template = generics.get_template(template.local_id);
         for parameter in &template.parameters {
             let binding = generics.get_parameter(*parameter);
-            if binding.memory_parameter() != Some(dir::MemoryParameter::Lifetime) {
+            if binding.memory_parameter().is_none() {
                 return Ok(true);
             }
         }
@@ -128,7 +154,7 @@ impl ModuleLowerer<'_> {
         Ok(false)
     }
 
-    /// Return the lifetime slot for each induced lifetime generic of one callable.
+    /// Return the lifetime parameters induced by one callable.
     pub(in crate::lower) fn lifetime_parameters(
         &self,
         ty: dir::GlobalTypeId,
@@ -185,9 +211,12 @@ impl ModuleLowerer<'_> {
                     .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
                     .lower_nominal(owner)?;
 
+                let receiver_storage = nominal_receiver_storage(builder.tree(), nominal.value);
+
                 Some(constructor_receiver_type(
                     builder.tree_mut(),
                     nominal.storage,
+                    receiver_storage,
                 ))
             }
             // pass this at the declared receiver type
@@ -197,18 +226,21 @@ impl ModuleLowerer<'_> {
                         message: "an instance method without a receiver".to_string(),
                     });
                 };
-
                 Some(
                     self.type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
                         .lower(this_type)?,
                 )
             }
         };
+
+        // read the member back for its parameter nodes
         let dir::Member::Method { signature, .. } = self.local().tree().get(member) else {
             return Err(CompilerError::Internal {
                 message: "a method body declared outside a method".to_string(),
             });
         };
+
+        // collect each parameter's default expression alongside its symbol
         let parameter_nodes = signature.parameters.to_vec();
         let mut symbols = Vec::with_capacity(parameter_nodes.len());
         let mut defaults = Vec::with_capacity(parameter_nodes.len());
@@ -231,6 +263,7 @@ impl ModuleLowerer<'_> {
                 message: "method parameters disagree with the declared signature".to_string(),
             });
         }
+
         if let Some(this) = this {
             parameters.insert(0, this);
         }
@@ -241,12 +274,15 @@ impl ModuleLowerer<'_> {
             _ => result,
         };
 
+        // declare the header under the member's owner-qualified path
         let member_name = self.member_extern_name(symbol, owner, role)?;
-        let name = format!("{}.{member_name}", self.local().path);
+        let name = self.qualified_name(self.module, &member_name)?;
         let header = lifetime_parameters.declare(builder.function_header(&name));
         let header = header.parameters(parameters).result(result);
         let function = builder.declare_function(header);
         self.index_language_declaration(function, symbol)?;
+
+        // record the declaration so later call sites resolve to it
         self.functions.insert(
             GenericInstanceKey::non_generic(symbol),
             FunctionDeclaration::Declared(function),
@@ -293,6 +329,8 @@ impl ModuleLowerer<'_> {
             Some(dir::Definition::Extension(extension)) => extension.target.declaration(),
             _ => None,
         };
+
+        // resolve the owner name, falling back to the extension target
         let mut owner_name = self.symbol_name(owner)?;
         if owner_name.is_none()
             && let Some(root) = extension_root
@@ -305,6 +343,8 @@ impl ModuleLowerer<'_> {
             });
         };
         let owner_name = self.strings.get(owner_name).to_string();
+
+        // resolve the member name, naming constructors after their role
         let member_name = match self.symbol_name(symbol)? {
             Some(name) => self.strings.get(name).to_string(),
             None if role == Some(dir::FunctionRole::Constructor) => "constructor".to_string(),

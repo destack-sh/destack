@@ -27,12 +27,12 @@ type Node {
 
 @copy
 type Wrapper {
-    node: ref<Node, managed, mutable>;
+    node: ref<Node, managed, mutable, local>;
 }
 
-function test.main.Node.constructor(v0: ref<uninit<Node>, borrowed, exclusive>, v1: Wrapper): void {
-entry(v0: ref<uninit<Node>, borrowed, exclusive>, v1: Wrapper):
-    v2: ref<uninit<Wrapper>, borrowed, mutable> = field.address v0, 0
+function test.main.Node.constructor(v0: ref<uninit<Node>, borrowed, exclusive, local>, v1: Wrapper): void {
+entry(v0: ref<uninit<Node>, borrowed, exclusive, local>, v1: Wrapper):
+    v2: ref<uninit<Wrapper>, borrowed, mutable, local> = field.address v0, 0
     store v2, v1
     return
 }
@@ -76,38 +76,38 @@ type Counter {
     count: int32;
 }
 
-function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive>, v1: int32): void {
-entry(v0: ref<uninit<Counter>, borrowed, exclusive>, v1: int32):
-    v2: ref<uninit<int32>, borrowed, mutable> = field.address v0, 0
+function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive, local>, v1: int32): void {
+entry(v0: ref<uninit<Counter>, borrowed, exclusive, local>, v1: int32):
+    v2: ref<uninit<int32>, borrowed, mutable, local> = field.address v0, 0
     store v2, v1
     return
 }
 
-function test.main.Counter.bump(v0: ref<Counter, managed, mutable>): int32 {
-entry(v0: ref<Counter, managed, mutable>):
-    v1: ref<int32, borrowed, mutable> = field.address v0, 0
+function test.main.Counter.bump(v0: ref<Counter, managed, mutable, local>): int32 {
+entry(v0: ref<Counter, managed, mutable, local>):
+    v1: ref<int32, borrowed, mutable, local> = field.address v0, 0
     v2: int32 = load v1
     v3: int32 = 1
     v4: int32 = add v2, v3
-    v5: ref<int32, borrowed, mutable> = field.address v0, 0
+    v5: ref<int32, borrowed, mutable, local> = field.address v0, 0
     store v5, v4
-    v6: ref<int32, borrowed, mutable> = field.address v0, 0
+    v6: ref<int32, borrowed, mutable, local> = field.address v0, 0
     v7: int32 = load v6
     return v7
 }
 
 function test.main.tally(v0: int32): int32 {
-    local l0: ref<Counter, managed, mutable>
+    local l0: ref<Counter, managed, mutable, local>
 
 entry(v0: int32):
-    v1: ref<Counter, managed, mutable> = new.zeroed Counter
-    v2: ref<uninit<Counter>, borrowed, exclusive> = cast.bit v1 -> ref<uninit<Counter>, borrowed, exclusive>
-    call test.main.Counter.constructor(v2, v0): (ref<uninit<Counter>, borrowed, exclusive>, int32) => void
+    v1: ref<Counter, managed, mutable, local> = new.zeroed Counter
+    v2: ref<uninit<Counter>, borrowed, exclusive, local> = cast.bit v1 -> ref<uninit<Counter>, borrowed, exclusive, local>
+    call test.main.Counter.constructor(v2, v0): (ref<uninit<Counter>, borrowed, exclusive, local>, int32) => void
     local.set l0, v1
-    v3: ref<Counter, managed, mutable> = local.get l0
-    v4: int32 = call test.main.Counter.bump(v3): (ref<Counter, managed, mutable>) => int32
-    v5: ref<Counter, managed, mutable> = local.get l0
-    v6: ref<int32, borrowed, mutable> = field.address v5, 0
+    v3: ref<Counter, managed, mutable, local> = local.get l0
+    v4: int32 = call test.main.Counter.bump(v3): (ref<Counter, managed, mutable, local>) => int32
+    v5: ref<Counter, managed, mutable, local> = local.get l0
+    v6: ref<int32, borrowed, mutable, local> = field.address v5, 0
     v7: int32 = load v6
     v8: int32 = add v4, v7
     return v8
@@ -148,9 +148,9 @@ type Counter {
     count: int32;
 }
 
-function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive>, v1: int32): void {
-entry(v0: ref<uninit<Counter>, borrowed, exclusive>, v1: int32):
-    v2: ref<uninit<int32>, borrowed, mutable> = field.address v0, 0
+function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive, local>, v1: int32): void {
+entry(v0: ref<uninit<Counter>, borrowed, exclusive, local>, v1: int32):
+    v2: ref<uninit<int32>, borrowed, mutable, local> = field.address v0, 0
     store v2, v1
     return
 }
@@ -161,9 +161,9 @@ entry(v0: Counter):
     return v1
 }
 
-function test.main.peek(v0: ref<Counter, managed, readonly>): int32 {
-entry(v0: ref<Counter, managed, readonly>):
-    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+function test.main.peek(v0: ref<Counter, managed, readonly, local>): int32 {
+entry(v0: ref<Counter, managed, readonly, local>):
+    v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
@@ -209,16 +209,16 @@ type Counter {
     count: int32;
 }
 
-function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive>, v1: int32): void {
-entry(v0: ref<uninit<Counter>, borrowed, exclusive>, v1: int32):
-    v2: ref<uninit<int32>, borrowed, mutable> = field.address v0, 0
+function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive, local>, v1: int32): void {
+entry(v0: ref<uninit<Counter>, borrowed, exclusive, local>, v1: int32):
+    v2: ref<uninit<int32>, borrowed, mutable, local> = field.address v0, 0
     store v2, v1
     return
 }
 
-function test.main.read(v0: ref<Counter, managed, mutable, nullable>): int32 {
-entry(v0: ref<Counter, managed, mutable, nullable>):
-    v1: ref<Counter, managed, mutable, nullable> = null
+function test.main.read(v0: ref<Counter, managed, mutable, nullable, local>): int32 {
+entry(v0: ref<Counter, managed, mutable, nullable, local>):
+    v1: ref<Counter, managed, mutable, nullable, local> = null
     v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
@@ -227,25 +227,25 @@ b1:
     return v3
 
 b2:
-    v4: ref<int32, borrowed, mutable> = field.address v0, 0
+    v4: ref<int32, borrowed, mutable, local> = field.address v0, 0
     v5: int32 = load v4
     return v5
 }
 
-function test.main.forget(v0: ref<Counter, managed, mutable>): ref<Counter, managed, mutable, nullable> {
-entry(v0: ref<Counter, managed, mutable>):
-    v1: ref<int32, borrowed, mutable> = field.address v0, 0
+function test.main.forget(v0: ref<Counter, managed, mutable, local>): ref<Counter, managed, mutable, nullable, local> {
+entry(v0: ref<Counter, managed, mutable, local>):
+    v1: ref<int32, borrowed, mutable, local> = field.address v0, 0
     v2: int32 = load v1
     v3: int32 = 10
     v4: boolean = gt v2, v3
     branch v4 => b1 | b2
 
 b1:
-    v5: ref<Counter, managed, mutable, nullable> = null
+    v5: ref<Counter, managed, mutable, nullable, local> = null
     return v5
 
 b2:
-    v6: ref<Counter, managed, mutable, nullable> = cast.bit v0 -> ref<Counter, managed, mutable, nullable>
+    v6: ref<Counter, managed, mutable, nullable, local> = cast.bit v0 -> ref<Counter, managed, mutable, nullable, local>
     return v6
 }
 
@@ -293,16 +293,16 @@ type Counter {
     count: int32;
 }
 
-function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive>, v1: int32): void {
-entry(v0: ref<uninit<Counter>, borrowed, exclusive>, v1: int32):
-    v2: ref<uninit<int32>, borrowed, mutable> = field.address v0, 0
+function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive, local>, v1: int32): void {
+entry(v0: ref<uninit<Counter>, borrowed, exclusive, local>, v1: int32):
+    v2: ref<uninit<int32>, borrowed, mutable, local> = field.address v0, 0
     store v2, v1
     return
 }
 
-function test.main.lookup(v0: ref<Counter, managed, mutable, undefined>): int32 {
-entry(v0: ref<Counter, managed, mutable, undefined>):
-    v1: ref<Counter, managed, mutable, undefined> = undefined
+function test.main.lookup(v0: ref<Counter, managed, mutable, undefined, local>): int32 {
+entry(v0: ref<Counter, managed, mutable, undefined, local>):
+    v1: ref<Counter, managed, mutable, undefined, local> = undefined
     v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
@@ -311,14 +311,14 @@ b1:
     return v3
 
 b2:
-    v4: ref<int32, borrowed, mutable> = field.address v0, 0
+    v4: ref<int32, borrowed, mutable, local> = field.address v0, 0
     v5: int32 = load v4
     return v5
 }
 
-function test.main.classify(v0: ref<Counter, managed, mutable, nullish>): int32 {
-entry(v0: ref<Counter, managed, mutable, nullish>):
-    v1: ref<Counter, managed, mutable, nullish> = null
+function test.main.classify(v0: ref<Counter, managed, mutable, nullish, local>): int32 {
+entry(v0: ref<Counter, managed, mutable, nullish, local>):
+    v1: ref<Counter, managed, mutable, nullish, local> = null
     v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
@@ -327,7 +327,7 @@ b1:
     return v3
 
 b2:
-    v4: ref<Counter, managed, mutable, nullish> = undefined
+    v4: ref<Counter, managed, mutable, nullish, local> = undefined
     v5: boolean = eq v0, v4
     branch v5 => b3 | b4
 
@@ -336,7 +336,7 @@ b3:
     return v6
 
 b4:
-    v7: ref<int32, borrowed, mutable> = field.address v0, 0
+    v7: ref<int32, borrowed, mutable, local> = field.address v0, 0
     v8: int32 = load v7
     return v8
 }
@@ -371,23 +371,23 @@ function total(chain: Chain): int32 {
         "main.ds",
         r#"
 type Chain {
-    next: ref<Chain, managed, mutable, nullable>;
+    next: ref<Chain, managed, mutable, nullable, local>;
     weight: int32;
 }
 
-function test.main.Chain.constructor(v0: ref<uninit<Chain>, borrowed, exclusive>, v1: int32): void {
-entry(v0: ref<uninit<Chain>, borrowed, exclusive>, v1: int32):
-    v2: ref<Chain, managed, mutable, nullable> = null
-    v3: ref<uninit<ref<Chain, managed, mutable, nullable>>, borrowed, mutable> = field.address v0, 0
+function test.main.Chain.constructor(v0: ref<uninit<Chain>, borrowed, exclusive, local>, v1: int32): void {
+entry(v0: ref<uninit<Chain>, borrowed, exclusive, local>, v1: int32):
+    v2: ref<Chain, managed, mutable, nullable, local> = null
+    v3: ref<uninit<ref<Chain, managed, mutable, nullable, local>>, borrowed, mutable, local> = field.address v0, 0
     store v3, v2
-    v4: ref<uninit<int32>, borrowed, mutable> = field.address v0, 1
+    v4: ref<uninit<int32>, borrowed, mutable, local> = field.address v0, 1
     store v4, v1
     return
 }
 
-function test.main.total(v0: ref<Chain, managed, mutable>): int32 {
-entry(v0: ref<Chain, managed, mutable>):
-    v1: ref<int32, borrowed, mutable> = field.address v0, 1
+function test.main.total(v0: ref<Chain, managed, mutable, local>): int32 {
+entry(v0: ref<Chain, managed, mutable, local>):
+    v1: ref<int32, borrowed, mutable, local> = field.address v0, 1
     v2: int32 = load v1
     return v2
 }
@@ -428,24 +428,24 @@ type Counter {
     count: int32;
 }
 
-function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive>, v1: int32): void {
-entry(v0: ref<uninit<Counter>, borrowed, exclusive>, v1: int32):
-    v2: ref<uninit<int32>, borrowed, mutable> = field.address v0, 0
+function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive, local>, v1: int32): void {
+entry(v0: ref<uninit<Counter>, borrowed, exclusive, local>, v1: int32):
+    v2: ref<uninit<int32>, borrowed, mutable, local> = field.address v0, 0
     store v2, v1
     return
 }
 
-function test.main.peek<'a>(v0: ref<Counter, borrowed, 'a, readonly>): int32 {
-entry(v0: ref<Counter, borrowed, 'a, readonly>):
-    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+function test.main.peek<'a>(v0: ref<Counter, borrowed, 'a, readonly, local>): int32 {
+entry(v0: ref<Counter, borrowed, 'a, readonly, local>):
+    v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
 
-function test.main.main(v0: ref<Counter, managed, mutable>): int32 {
-entry(v0: ref<Counter, managed, mutable>):
-    v1: ref<Counter, borrowed, 'frame, readonly> = cast.bit v0 -> ref<Counter, borrowed, 'frame, readonly>
-    v2: int32 = call test.main.peek(v1): <'a>(ref<Counter, borrowed, 'a, readonly>) => int32
+function test.main.main(v0: ref<Counter, managed, mutable, local>): int32 {
+entry(v0: ref<Counter, managed, mutable, local>):
+    v1: ref<Counter, borrowed, 'frame, readonly, local> = cast.bit v0 -> ref<Counter, borrowed, 'frame, readonly, local>
+    v2: int32 = call test.main.peek(v1): <'a>(ref<Counter, borrowed, 'a, readonly, local>) => int32
     return v2
 }
 
@@ -481,9 +481,9 @@ type Counter {
     count: int32;
 }
 
-function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive>, v1: int32): void {
-entry(v0: ref<uninit<Counter>, borrowed, exclusive>, v1: int32):
-    v2: ref<uninit<int32>, borrowed, mutable> = field.address v0, 0
+function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive, local>, v1: int32): void {
+entry(v0: ref<uninit<Counter>, borrowed, exclusive, local>, v1: int32):
+    v2: ref<uninit<int32>, borrowed, mutable, local> = field.address v0, 0
     store v2, v1
     return
 }
@@ -493,9 +493,9 @@ function test.main.own(v0: int32): int32 {
     local l1: Counter
 
 entry(v0: int32):
-    v1: ref<Counter, borrowed, exclusive> = local.address l0
-    v2: ref<uninit<Counter>, borrowed, exclusive> = cast.bit v1 -> ref<uninit<Counter>, borrowed, exclusive>
-    call test.main.Counter.constructor(v2, v0): (ref<uninit<Counter>, borrowed, exclusive>, int32) => void
+    v1: ref<Counter, borrowed, exclusive, frame> = local.address l0
+    v2: ref<uninit<Counter>, borrowed, exclusive, frame> = cast.bit v1 -> ref<uninit<Counter>, borrowed, exclusive, frame>
+    call test.main.Counter.constructor(v2, v0): (ref<uninit<Counter>, borrowed, exclusive, local>, int32) => void
     v3: Counter = local.get l0
     local.set l1, v3
     v4: Counter = local.get l1
@@ -530,10 +530,10 @@ type Counter {
     count: int32;
 }
 
-function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive>): void {
-entry(v0: ref<uninit<Counter>, borrowed, exclusive>):
+function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive, local>): void {
+entry(v0: ref<uninit<Counter>, borrowed, exclusive, local>):
     v1: int32 = 3
-    v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
+    v2: ref<uninit<int32>, borrowed, exclusive, local> = field.address v0, 0
     store v2, v1
     return
 }
@@ -542,9 +542,9 @@ function test.main.make(): Counter {
     local l0: Counter
 
 entry:
-    v0: ref<Counter, borrowed, exclusive> = local.address l0
-    v1: ref<uninit<Counter>, borrowed, exclusive> = cast.bit v0 -> ref<uninit<Counter>, borrowed, exclusive>
-    call test.main.Counter.constructor(v1): (ref<uninit<Counter>, borrowed, exclusive>) => void
+    v0: ref<Counter, borrowed, exclusive, frame> = local.address l0
+    v1: ref<uninit<Counter>, borrowed, exclusive, frame> = cast.bit v0 -> ref<uninit<Counter>, borrowed, exclusive, frame>
+    call test.main.Counter.constructor(v1): (ref<uninit<Counter>, borrowed, exclusive, local>) => void
     v2: Counter = local.get l0
     return v2
 }
@@ -591,20 +591,20 @@ type Derived {
     extra: int32;
 }
 
-function test.main.Base.constructor(v0: ref<uninit<Base>, borrowed, exclusive>): void {
-entry(v0: ref<uninit<Base>, borrowed, exclusive>):
+function test.main.Base.constructor(v0: ref<uninit<Base>, borrowed, exclusive, local>): void {
+entry(v0: ref<uninit<Base>, borrowed, exclusive, local>):
     v1: int32 = 1
-    v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
+    v2: ref<uninit<int32>, borrowed, exclusive, local> = field.address v0, 0
     store v2, v1
     return
 }
 
-function test.main.Derived.constructor(v0: ref<uninit<Derived>, borrowed, exclusive>): void {
-entry(v0: ref<uninit<Derived>, borrowed, exclusive>):
-    v1: ref<uninit<Base>, borrowed, exclusive> = cast.bit v0 -> ref<uninit<Base>, borrowed, exclusive>
-    call test.main.Base.constructor(v1): (ref<uninit<Base>, borrowed, exclusive>) => void
+function test.main.Derived.constructor(v0: ref<uninit<Derived>, borrowed, exclusive, local>): void {
+entry(v0: ref<uninit<Derived>, borrowed, exclusive, local>):
+    v1: ref<uninit<Base>, borrowed, exclusive, local> = cast.bit v0 -> ref<uninit<Base>, borrowed, exclusive, local>
+    call test.main.Base.constructor(v1): (ref<uninit<Base>, borrowed, exclusive, local>) => void
     v2: int32 = 2
-    v3: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 1
+    v3: ref<uninit<int32>, borrowed, exclusive, local> = field.address v0, 1
     store v3, v2
     v4: void = undefined
     return
@@ -614,9 +614,9 @@ function test.main.build(): Derived {
     local l0: Derived
 
 entry:
-    v0: ref<Derived, borrowed, exclusive> = local.address l0
-    v1: ref<uninit<Derived>, borrowed, exclusive> = cast.bit v0 -> ref<uninit<Derived>, borrowed, exclusive>
-    call test.main.Derived.constructor(v1): (ref<uninit<Derived>, borrowed, exclusive>) => void
+    v0: ref<Derived, borrowed, exclusive, frame> = local.address l0
+    v1: ref<uninit<Derived>, borrowed, exclusive, frame> = cast.bit v0 -> ref<uninit<Derived>, borrowed, exclusive, frame>
+    call test.main.Derived.constructor(v1): (ref<uninit<Derived>, borrowed, exclusive, local>) => void
     v2: Derived = local.get l0
     return v2
 }

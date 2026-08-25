@@ -2,20 +2,25 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::lower::function::body::Binding;
+use crate::lower::function::lower::Binding;
 use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
     /// Bind the incoming receiver, giving owned receivers a mutable home.
     pub(in crate::lower) fn bind_receiver(&mut self, value: mir::Value) -> CompilerResult<Binding> {
         // indirect receivers write through their reference
-        let carrier = self.value_carrier(value)?;
-        if self.builder.tree().get(carrier).is_reference_carrier() {
+        let representation = self.value_representation(value)?;
+        if self
+            .builder
+            .tree()
+            .get(representation)
+            .is_reference_representation()
+        {
             return Ok(Binding::Value(value));
         }
 
         // owned receivers live in a mutable local
-        let local = self.builder.local(carrier, mir::Mutability::Mutable);
+        let local = self.builder.local(representation, mir::Mutability::Mutable);
         self.builder.local_set(local, value);
 
         Ok(Binding::Local(local))
@@ -27,13 +32,14 @@ impl FunctionLowerer<'_, '_, '_> {
         receiver: dir::LocalNodeId<dir::Expression>,
         adjusted: &dir::AdjustedReceiver,
     ) -> CompilerResult<mir::Value> {
-        // take the receiver place directly for a leading borrow
+        // take the receiver place directly when a borrow leads the adjustments
         let (value, rest) = match adjusted.adjustments.as_slice() {
             [dir::ReceiverAdjustment::Borrow { ty }, rest @ ..] => {
                 let target = self.lower_type(*ty)?;
 
                 (self.lower_borrowed_place(receiver, target)?, rest)
             }
+            // otherwise lower the receiver as a value
             rest => (self.lower_expression(receiver)?, rest),
         };
 
@@ -60,7 +66,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
                 // unwrap a newtype value or stored newtype place
                 dir::ReceiverAdjustment::NewtypePayload { ty, .. } => {
-                    let value_type = self.value_carrier(value)?;
+                    let value_type = self.value_representation(value)?;
 
                     // retain the address form of stored receivers
                     match self.builder.tree().get(value_type) {
@@ -81,7 +87,8 @@ impl FunctionLowerer<'_, '_, '_> {
                                 .to_string(),
                         });
                     };
-                    let value_type = self.value_carrier(value)?;
+
+                    let value_type = self.value_representation(value)?;
 
                     // retain the address form of stored receivers
                     match self.builder.tree().get(value_type) {
@@ -106,7 +113,7 @@ impl FunctionLowerer<'_, '_, '_> {
         value: mir::Value,
         target: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::Value> {
-        let ty = self.value_carrier(value)?;
+        let ty = self.value_representation(value)?;
         let local = self.builder.local(ty, mir::Mutability::Immutable);
         self.builder.local_set(local, value);
 

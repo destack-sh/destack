@@ -32,13 +32,9 @@ impl ModuleLowerer<'_> {
                 .into());
             };
             let term = self.module_constant(symbol)?.filter(Self::is_constant_term);
+
+            // declare a mutable global for bindings the module initializer stores
             let Some(term) = term else {
-                // store runtime bindings from the module initializer
-                let Some(value) = self.local().tree().get(*declarator).value else {
-                    return Err(CompilerError::Internal {
-                        message: "a module binding without a value".to_string(),
-                    });
-                };
                 let declared = self.symbol_type(symbol)?;
                 let ty = self.constant_type(builder, declared)?;
                 let name = self.constant_name(symbol)?;
@@ -50,7 +46,13 @@ impl ModuleLowerer<'_> {
                 );
                 self.index_language_declaration(global, symbol)?;
                 self.globals.insert(symbol, Ok(global));
-                self.initializers.push((global, value));
+
+                match self.local().tree().get(*declarator).value {
+                    // store runtime bindings from the module initializer
+                    Some(value) => self.initializers.push((global, value)),
+                    // ambient declarations reference storage the host provides
+                    None => {}
+                }
 
                 continue;
             };
@@ -124,9 +126,8 @@ impl ModuleLowerer<'_> {
                 message: "a module constant without a name".to_string(),
             });
         };
-        let path = &self.state(symbol.module_id)?.path;
 
-        Ok(format!("{path}.{}", self.strings.get(name)))
+        self.qualified_name(symbol.module_id, self.strings.get(name))
     }
 
     /// Return whether one static term lowers to a constant initializer.
@@ -147,12 +148,12 @@ impl ModuleLowerer<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<mir::GlobalInitializer> {
         match term {
-            // initialize scalars at their lowered carrier
+            // initialize scalars at their lowered representation
             dir::StaticTerm::Literal { value } => {
                 let pointer_bytes = builder.pointer_bytes();
-                let carrier = self.constant_type(builder, ty)?;
-                let carrier = builder.tree_mut().get(carrier).clone();
-                let constant = self.scalar_constant(*value, &carrier, pointer_bytes)?;
+                let representation = self.constant_type(builder, ty)?;
+                let representation = builder.tree_mut().get(representation).clone();
+                let constant = self.scalar_constant(*value, &representation, pointer_bytes)?;
 
                 Ok(mir::GlobalInitializer::Scalar(constant))
             }
@@ -201,7 +202,7 @@ impl ModuleLowerer<'_> {
                 Ok(mir::GlobalInitializer::Aggregate(values))
             }
 
-            // declaration filters route every other term to the module initializer
+            // reject terms that declaration routed to the module initializer
             _ => Err(CompilerError::Internal {
                 message: "a non-constant term reached constant lowering".to_string(),
             }),
@@ -217,19 +218,18 @@ impl ModuleLowerer<'_> {
         let pointer_bytes = builder.pointer_bytes();
         let lifetime_parameters = LifetimeParameters::default();
 
-        // lower the constant's type outside any instance bindings
         self.type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
             .lower(ty)
     }
 
-    /// Build one scalar constant at its lowered carrier.
+    /// Build one scalar constant at its lowered representation.
     fn scalar_constant(
         &self,
         literal: dir::Literal,
-        carrier: &mir::Type,
+        representation: &mir::Type,
         pointer_bytes: u8,
     ) -> CompilerResult<mir::Constant> {
-        Ok(match (literal, carrier) {
+        Ok(match (literal, representation) {
             (dir::Literal::Boolean(value), _) => mir::Constant::Boolean { value },
             (
                 dir::Literal::Integer(value),
@@ -269,11 +269,11 @@ impl ModuleLowerer<'_> {
                 bits: destack_core::float_to_bits(format.format(), value),
                 format: *format,
             },
-            // fail on a mismatched carrier, reachable only behind check errors
-            (_, carrier) => {
+            // fail on a mismatched representation, reachable only behind check errors
+            (_, representation) => {
                 return Err(LowerError::Unsupported {
                     anchor: self.module.into(),
-                    construct: format!("a module constant at a {carrier:?} carrier"),
+                    construct: format!("a module constant at a {representation:?} representation"),
                 }
                 .into());
             }

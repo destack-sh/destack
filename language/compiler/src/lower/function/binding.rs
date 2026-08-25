@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::lower::function::body::Binding;
+use crate::lower::function::lower::Binding;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -13,6 +13,7 @@ impl FunctionLowerer<'_, '_, '_> {
         declarators: &[dir::LocalNodeId<dir::Declarator>],
     ) -> CompilerResult<()> {
         for declarator_id in declarators {
+            // read the declarator's pattern and initializer
             let declarator = self.source().tree().get(*declarator_id);
             let (pattern, value) = (declarator.pattern, declarator.value);
             let Some(value) = value else {
@@ -39,6 +40,8 @@ impl FunctionLowerer<'_, '_, '_> {
                     message: "missing a symbol for one let binding".to_string(),
                 });
             };
+
+            // evaluate the initializer
             let value = self.lower_expression(value)?;
 
             // give lifted bindings their frame home ahead of local storage
@@ -58,6 +61,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     Binding::Local(local)
                 }
             };
+
             self.values.insert(symbol.local_id, binding);
         }
 
@@ -85,6 +89,8 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a non-place pattern resolved as a place".to_string(),
             });
         };
+
+        // resolve how the place is written
         let resolution = self.assignment_decision(expression)?;
 
         // write through the setter member when one is selected
@@ -138,6 +144,7 @@ impl FunctionLowerer<'_, '_, '_> {
         call: &dir::Call,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
+        // accessors take a whole value
         if operator != dir::AssignOperator::Assign {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -145,6 +152,8 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             .into());
         }
+
+        // require a statically selected setter
         let dir::CallableTarget::Symbol {
             function,
             dispatch: dir::FunctionDispatch::Direct,
@@ -156,11 +165,15 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             .into());
         };
+
+        // read the receiver the setter is called on
         let dir::Expression::Member { left, .. } = *self.source().tree().get(expression) else {
             return Err(CompilerError::Internal {
                 message: "an accessor write outside a member place".to_string(),
             });
         };
+
+        // call the setter with the assigned value
         self.lower_function_target_call(left, call, function, Some(right))?;
 
         Ok(())
@@ -176,6 +189,8 @@ impl FunctionLowerer<'_, '_, '_> {
             let Some(default) = *default else {
                 continue;
             };
+
+            // read the value bound for the parameter on entry
             let symbol = parameters[index];
             let Some(Binding::Value(incoming)) = self.values.get(&symbol).copied() else {
                 return Err(CompilerError::Internal {
@@ -183,14 +198,14 @@ impl FunctionLowerer<'_, '_, '_> {
                 });
             };
 
-            // the body reads the parameter at its bound type
+            // keep the parameters already incoming at their bound type
             let ty = self.lowerer.symbol_type(symbol.into_global(self.source))?;
             let exact = self.lower_type(ty)?;
             if Some(exact) == self.builder.value_type(incoming) {
                 continue;
             }
 
-            // unwrap the optional carrier or evaluate the default
+            // unwrap the present value or evaluate the default
             let resolved = self.lower_absent_fallback(incoming, exact, |lowerer| {
                 lowerer.lower_expression(default).map(Some)
             })?;

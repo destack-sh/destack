@@ -1,5 +1,6 @@
 use crate::tests::TestSession;
 
+/// A struct literal lowers to one aggregate over its field values.
 #[test]
 fn test_lower_struct_literal_to_aggregate() {
     let session = TestSession::single(
@@ -39,6 +40,7 @@ entry:
     );
 }
 
+/// Reading a struct field lowers to a field get at the field's index.
 #[test]
 fn test_lower_struct_field_read() {
     let session = TestSession::single(
@@ -76,6 +78,7 @@ entry(v0: Point):
     );
 }
 
+/// A nested struct literal lowers to one aggregate per level.
 #[test]
 fn test_lower_nested_struct_literal_fields() {
     let session = TestSession::single(
@@ -130,6 +133,8 @@ entry(v0: int32):
 "#,
     );
 }
+
+/// A lifetime generic struct keeps its written lifetime on the lowered slice field.
 #[test]
 fn test_lower_lifetime_generic_struct_literal_to_aggregate() {
     let session = TestSession::single(
@@ -149,11 +154,11 @@ function make(name: &[uint8]): void {
         r#"
 @copy
 type Entry<'a> {
-    name: slice<uint8, borrowed, 'a, mutable>;
+    name: slice<uint8, borrowed, 'a, mutable, local>;
 }
 
-function test.main.make<'a>(v0: slice<uint8, borrowed, 'a, mutable>): void {
-entry(v0: slice<uint8, borrowed, 'a, mutable>):
+function test.main.make<'a>(v0: slice<uint8, borrowed, 'a, mutable, local>): void {
+entry(v0: slice<uint8, borrowed, 'a, mutable, local>):
     v1: Entry<'a> = aggregate (v0)
     return
 }
@@ -164,6 +169,7 @@ entry(v0: slice<uint8, borrowed, 'a, mutable>):
     );
 }
 
+/// A class whose methods stay uncalled lowers its constructor alone.
 #[test]
 fn test_lower_this_typed_return_through_the_receiver_form() {
     let session = TestSession::single(
@@ -189,24 +195,24 @@ type Counter {
     total: int32;
 }
 
-function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive>): void {
-entry(v0: ref<uninit<Counter>, borrowed, exclusive>):
+function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive, local>): void {
+entry(v0: ref<uninit<Counter>, borrowed, exclusive, local>):
     v1: int32 = 0
-    v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
+    v2: ref<uninit<int32>, borrowed, exclusive, local> = field.address v0, 0
     store v2, v1
     return
 }
 
-function test.main.Counter.read<'a>(v0: ref<Counter, borrowed, 'a, readonly>): int32 {
-entry(v0: ref<Counter, borrowed, 'a, readonly>):
-    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+function test.main.Counter.read<'a>(v0: ref<Counter, borrowed, 'a, readonly, local>): int32 {
+entry(v0: ref<Counter, borrowed, 'a, readonly, local>):
+    v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
 
-function test.main.Counter.double<'a>(v0: ref<Counter, borrowed, 'a, readonly>): int32 {
-entry(v0: ref<Counter, borrowed, 'a, readonly>):
-    v1: int32 = call test.main.Counter.read(v0): <'a>(ref<Counter, borrowed, 'a, readonly>) => int32
+function test.main.Counter.double<'a>(v0: ref<Counter, borrowed, 'a, readonly, local>): int32 {
+entry(v0: ref<Counter, borrowed, 'a, readonly, local>):
+    v1: int32 = call test.main.Counter.read(v0): <'a>(ref<Counter, borrowed, 'a, readonly, local>) => int32
     v2: int32 = 2
     v3: int32 = mul v1, v2
     return v3
@@ -218,6 +224,7 @@ entry(v0: ref<Counter, borrowed, 'a, readonly>):
     );
 }
 
+/// An omitted optional field lowers to the variant's void case.
 #[test]
 fn test_store_an_absent_optional_struct_field_as_undefined() {
     let session = TestSession::single(
@@ -261,6 +268,7 @@ entry:
     );
 }
 
+/// An omitted field evaluates its declared initializer at the construction.
 #[test]
 fn test_lower_omitted_field_evaluates_its_initializer() {
     let session = TestSession::single(
@@ -300,6 +308,7 @@ entry:
     );
 }
 
+/// Constructing an imported struct evaluates the initializers its own module declares.
 #[test]
 fn test_lower_imported_construction_evaluates_foreign_initializers() {
     let session = TestSession::builder()
@@ -348,6 +357,7 @@ entry:
     );
 }
 
+/// Constructing a generic struct grounds its initializer against the inferred arguments.
 #[test]
 fn test_lower_generic_construction_grounds_initializer_parameters() {
     let session = TestSession::single(

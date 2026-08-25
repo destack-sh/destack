@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::lower::function::body::ControlFrame;
+use crate::lower::function::lower::ControlFrame;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -14,7 +14,7 @@ impl FunctionLowerer<'_, '_, '_> {
         then_expression: dir::LocalNodeId<dir::Expression>,
         else_expression: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<bool> {
-        // branch on the condition; without an else the join doubles as the else edge
+        // branch on the condition, with the join serving as the else edge of a bare if
         let condition = self.lower_condition(condition)?;
         let then_block = self.builder.block();
         let join = self.builder.block();
@@ -45,6 +45,8 @@ impl FunctionLowerer<'_, '_, '_> {
         if then_terminated && else_terminated {
             return Ok(true);
         }
+
+        // continue lowering at the join
         self.builder.switch_to_block(join);
 
         Ok(false)
@@ -58,6 +60,7 @@ impl FunctionLowerer<'_, '_, '_> {
         then_expression: dir::LocalNodeId<dir::Expression>,
         else_expression: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<mir::Value> {
+        // require the else arm, which checking guarantees
         let Some(else_expression) = else_expression else {
             return Err(CompilerError::Internal {
                 message: "missing an else arm on one ternary".to_string(),
@@ -82,7 +85,7 @@ impl FunctionLowerer<'_, '_, '_> {
         self.builder.local_set(join_value, value);
         self.builder.jump(join);
 
-        // read the winning arm's value at the join
+        // read the arm value at the join
         self.builder.switch_to_block(join);
 
         Ok(self.builder.local_get(join_value))
@@ -110,18 +113,20 @@ impl FunctionLowerer<'_, '_, '_> {
         let condition = self.lower_condition(condition)?;
         self.builder.branch(condition, body_block, exit);
 
-        // lower the body back-edged through the condition header
+        // lower the body, looping back through the condition header
         self.builder.switch_to_block(body_block);
         let terminated = self.lower_loop_body(label, header, exit, body)?;
         if !terminated {
             self.builder.jump(header);
         }
+
+        // continue lowering after the loop
         self.builder.switch_to_block(exit);
 
         Ok(false)
     }
 
-    /// Lower one three-part for loop.
+    /// Lower one for loop over its initialization, condition and increment.
     pub(in crate::lower) fn lower_for(
         &mut self,
         label: Option<StringId>,
@@ -134,6 +139,8 @@ impl FunctionLowerer<'_, '_, '_> {
         if let Some(initialization) = initialization {
             self.lower_statement(initialization)?;
         }
+
+        // enter the loop through the condition header
         let header = self.builder.block();
         let body_block = self.builder.block();
         let continue_block = self.builder.block();
@@ -150,7 +157,7 @@ impl FunctionLowerer<'_, '_, '_> {
             None => self.builder.jump(body_block),
         }
 
-        // lower the body; continue re-enters through the increment
+        // lower the body, routing continue through the increment
         self.builder.switch_to_block(body_block);
         let terminated = self.lower_loop_body(label, continue_block, exit, body)?;
         if !terminated {
@@ -163,6 +170,8 @@ impl FunctionLowerer<'_, '_, '_> {
             self.lower_statement(increment)?;
         }
         self.builder.jump(header);
+
+        // continue lowering after the loop
         self.builder.switch_to_block(exit);
 
         Ok(false)
@@ -180,11 +189,13 @@ impl FunctionLowerer<'_, '_, '_> {
         self.builder.jump(body_block);
         self.builder.switch_to_block(body_block);
 
-        // loop back to the body unless it already terminated
+        // loop back to the body when it falls through
         let terminated = self.lower_loop_body(label, body_block, exit, body)?;
         if !terminated {
             self.builder.jump(body_block);
         }
+
+        // continue lowering after the loop
         self.builder.switch_to_block(exit);
 
         Ok(false)
@@ -196,6 +207,7 @@ impl FunctionLowerer<'_, '_, '_> {
         label: Option<StringId>,
         value: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<bool> {
+        // reject a break carrying a value
         if value.is_some() {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -203,6 +215,8 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             .into());
         }
+
+        // jump to the enclosing statement's exit
         let target = self.break_target(label)?;
         self.builder.jump(target);
 
@@ -237,6 +251,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Lower one condition to a boolean value.
     fn lower_condition(&mut self, condition: &dir::Condition) -> CompilerResult<mir::Value> {
+        // reject a binding condition
         let Some(condition) = condition.as_expression() else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -272,6 +287,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &self,
         label: Option<StringId>,
     ) -> CompilerResult<mir::LocalNodeId<mir::Block>> {
+        // take the labeled frame, or the innermost one for a bare break
         let frame = match label {
             None => self.controls.last(),
             Some(label) => self
@@ -281,7 +297,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .find(|frame| frame.label == Some(label)),
         };
 
-        // a break outside any breakable statement never checks
+        // require an enclosing breakable statement, which checking guarantees
         let Some(frame) = frame else {
             return Err(CompilerError::Internal {
                 message: "missing an enclosing statement for one break".to_string(),
@@ -296,6 +312,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &self,
         label: Option<StringId>,
     ) -> CompilerResult<mir::LocalNodeId<mir::Block>> {
+        // take the innermost loop frame carrying the label
         let frame = self.controls.iter().rev().find(|frame| {
             frame.continue_target.is_some()
                 && match label {
@@ -304,7 +321,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
         });
 
-        // a continue outside any loop never checks
+        // require an enclosing loop, which checking guarantees
         let Some(target) = frame.and_then(|frame| frame.continue_target) else {
             return Err(CompilerError::Internal {
                 message: "missing an enclosing loop for one continue".to_string(),

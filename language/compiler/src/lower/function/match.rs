@@ -41,8 +41,11 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // dispatch newtype scrutinees on their wrapped payload
         let dispatch = match self.builder.value_type(matched) {
-            Some(carrier)
-                if matches!(self.builder.tree().get(carrier), mir::Type::Newtype { .. }) =>
+            Some(representation)
+                if matches!(
+                    self.builder.tree().get(representation),
+                    mir::Type::Newtype { .. }
+                ) =>
             {
                 self.builder.field_get(matched, 0)
             }
@@ -100,11 +103,14 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         }
 
-        // case dispatch reads a materialized variant carrier
+        // case dispatch reads a materialized variant representation
         if !targets.is_empty() {
-            let carrier = self.builder.value_type(dispatch);
-            let is_variant = carrier.is_some_and(|carrier| {
-                matches!(self.builder.tree().get(carrier), mir::Type::Variant { .. })
+            let representation = self.builder.value_type(dispatch);
+            let is_variant = representation.is_some_and(|representation| {
+                matches!(
+                    self.builder.tree().get(representation),
+                    mir::Type::Variant { .. }
+                )
             });
             if !is_variant {
                 return Err(LowerError::Unsupported {
@@ -236,7 +242,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     });
                 };
                 let selected = self.lower_operand(selector, &operands[1])?;
-                let equal = self.lower_carrier_equality(
+                let equal = self.lower_representation_equality(
                     matched.ok_or_else(|| CompilerError::Internal {
                         message: "a switch case without a scrutinee operand".to_string(),
                     })?,
@@ -271,9 +277,11 @@ impl FunctionLowerer<'_, '_, '_> {
         value: dir::LocalNodeId<dir::Expression>,
         cases: &[CaseBlock],
     ) -> CompilerResult<Option<Vec<(i128, mir::LocalNodeId<mir::Block>)>>> {
-        // require a runtime carrier dispatching by integer identity
-        let carrier = self.operand_carrier(value)?;
-        let dir::Type::Primitive(dir::PrimitiveType::Integer(_)) = self.lowerer.ty(carrier)? else {
+        // require a runtime representation dispatching by integer identity
+        let representation = self.operand_representation(value)?;
+        let dir::Type::Primitive(dir::PrimitiveType::Integer(_)) =
+            self.lowerer.ty(representation)?
+        else {
             return Ok(None);
         };
 
@@ -326,7 +334,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(None)
             }
 
-            // select the declared carrier position of enum variants
+            // select the declared representation position of enum variants
             dir::PatternDecision::Variant(resolution) => {
                 let index = self
                     .lowerer

@@ -23,7 +23,7 @@ impl TypeLowerer<'_, '_> {
 
             // widen optional fields so their absent case stores as undefined
             if field.is_optional {
-                ty = self.insert_optional_carrier(ty)?;
+                ty = self.insert_optional_representation(ty)?;
             }
 
             // intern the field name when it has text

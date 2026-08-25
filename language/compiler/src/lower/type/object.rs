@@ -61,7 +61,7 @@ impl TypeLowerer<'_, '_> {
                 }
                 .into());
             };
-            let ty = self.lower_property_carrier(property)?;
+            let ty = self.lower_property_representation(property)?;
             fields.push(self.tree.intern_field(
                 mir::Field {
                     name: Some(name),
@@ -74,8 +74,8 @@ impl TypeLowerer<'_, '_> {
         Ok(fields)
     }
 
-    /// Lower one object property to its stored carrier.
-    pub(in crate::lower) fn lower_property_carrier(
+    /// Lower one object property to its stored representation.
+    pub(in crate::lower) fn lower_property_representation(
         &mut self,
         property: &dir::TypeProperty,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
@@ -91,15 +91,15 @@ impl TypeLowerer<'_, '_> {
             return Ok(value);
         }
 
-        self.insert_optional_carrier(value)
+        self.insert_optional_representation(value)
     }
 
-    /// Wrap one carrier so absent values store as undefined.
-    pub(in crate::lower) fn insert_optional_carrier(
+    /// Wrap one representation so absent values store as undefined.
+    pub(in crate::lower) fn insert_optional_representation(
         &mut self,
         value: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        // niche optional reference carriers in their spare values
+        // niche optional reference representations in their spare values
         let nullability = match self.tree.get(value) {
             mir::Type::Reference { nullability, .. }
             | mir::Type::Slice { nullability, .. }
@@ -118,7 +118,7 @@ impl TypeLowerer<'_, '_> {
             return self.insert_nullability(value, nullability);
         }
 
-        // grow a variant case for optional value carriers
+        // grow a variant case for optional value representations
         let undefined = self.tree.intern_type(mir::Type::Void);
 
         Ok(self.insert_union_variant(vec![value, undefined]))

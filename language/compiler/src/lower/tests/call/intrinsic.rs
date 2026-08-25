@@ -609,7 +609,7 @@ entry(v0: ptr<int32, mutable>, v1: ptr<int32, mutable>):
 }
 
 #[test]
-fn test_lower_storage_initialization_to_carrier_constants() {
+fn test_lower_storage_initialization_to_its_constants() {
     let session = TestSession::single(
         r#"
 @languageItem("memory.MaybeUninit")
@@ -646,7 +646,7 @@ entry:
 }
 
 #[test]
-fn test_lower_manually_drop_wrapping_to_transmutes() {
+fn test_lower_manually_drop_conversions_to_transmutes() {
     let session = TestSession::single(
         r#"
 @languageItem("memory.ManuallyDrop")
@@ -714,13 +714,13 @@ type Context { }
 
 type Variable { }
 
-function test.main.scope(v0: ref<Variable, managed, mutable>, v1: int32): int32 {
-entry(v0: ref<Variable, managed, mutable>, v1: int32):
-    v2: ref<Context, managed, mutable> = context.current
-    v3: ref<Context, managed, mutable> = context.bind v2, v0, v1, { parent: ref<Context, managed, mutable>, variable: ref<Variable, managed, mutable>, value: int32 }
-    v4: ref<Context, managed, mutable> = context.replace v3
-    v5: int32 = context.get v3, v0, v1, { parent: ref<Context, managed, mutable>, variable: ref<Variable, managed, mutable>, value: int32 }
-    v6: ref<Context, managed, mutable> = context.replace v4
+function test.main.scope(v0: ref<Variable, managed, mutable, local>, v1: int32): int32 {
+entry(v0: ref<Variable, managed, mutable, local>, v1: int32):
+    v2: ref<Context, managed, mutable, local> = context.current
+    v3: ref<Context, managed, mutable, local> = context.bind v2, v0, v1, { parent: ref<Context, managed, mutable, local>, variable: ref<Variable, managed, mutable, local>, value: int32 }
+    v4: ref<Context, managed, mutable, local> = context.replace v3
+    v5: int32 = context.get v3, v0, v1, { parent: ref<Context, managed, mutable, local>, variable: ref<Variable, managed, mutable, local>, value: int32 }
+    v6: ref<Context, managed, mutable, local> = context.replace v4
     return v5
 }
 

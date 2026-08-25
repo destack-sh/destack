@@ -5,7 +5,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::lower::{CallableImplementation, LowerModuleState, ModuleLowerer, NominalField};
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::{CompilerError, CompilerResult};
 
 /// Everything reachable from the bodies that lowering must declare.
 #[derive(Default)]
@@ -20,9 +20,9 @@ pub(in crate::lower) struct Reachable {
     pub(in crate::lower) constants: FxIndexSet<dir::GlobalSymbolId>,
     /// Concrete and constraint pairs whose implementing methods to declare.
     pub(in crate::lower) implementers: FxIndexSet<(dir::GlobalTypeId, dir::GlobalTypeId)>,
-    /// String literal contents to declare as immortal String objects.
+    /// String literal contents to declare as constant String objects.
     pub(in crate::lower) strings: FxIndexSet<StringId>,
-    /// Bigint literal values to declare as immortal BigInt objects.
+    /// Bigint literal values to declare as constant BigInt objects.
     pub(in crate::lower) bigints: FxIndexSet<i64>,
     /// Closure declarations to declare as module callables, in discovery order.
     pub(in crate::lower) closures: Vec<(
@@ -34,15 +34,13 @@ pub(in crate::lower) struct Reachable {
         dir::GlobalNodeIdAny,
         Option<(ModuleId, dir::LocalInstanceId)>,
     )>,
-    /// Initializer-bearing classes constructed without a declared constructor.
+    /// Classes with field initializers constructed without a declared constructor.
     pub(in crate::lower) default_constructors:
         FxIndexSet<(dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>)>,
 }
 
 /// Visitor collecting every node in one body subtree.
 struct NodeCollector {
-    /// The visitor options.
-    options: dir::NodeVisitorOptions,
     /// Every collected node, of any kind.
     nodes: Vec<dir::LocalNodeIdAny>,
 }
@@ -53,10 +51,8 @@ impl NodeCollector {
         state: &LowerModuleState,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Vec<dir::LocalNodeIdAny> {
-        let mut collector = NodeCollector {
-            options: dir::NodeVisitorOptions::default(),
-            nodes: Vec::new(),
-        };
+        // walk the subtree, recording every node the visitor reaches
+        let mut collector = NodeCollector { nodes: Vec::new() };
         dir::NodeVisitor::visit_expression(
             &mut collector,
             state.tree(),
@@ -69,10 +65,6 @@ impl NodeCollector {
 }
 
 impl dir::NodeVisitor for NodeCollector {
-    fn options(&self) -> &dir::NodeVisitorOptions {
-        &self.options
-    }
-
     fn visit_any(&mut self, _tree: &dir::Tree, ty: dir::NodeType, id: u32) {
         self.nodes.push(dir::LocalNodeIdAny::new(id, ty));
     }
@@ -150,7 +142,7 @@ impl ModuleLowerer<'_> {
                 )?;
             }
 
-            // queue a synthesized constructor for initializer-bearing default constructions
+            // queue a synthesized constructor for default constructions with field initializers
             if let Some(resolution) = state.decisions.construct_decision(node)
                 && let dir::ConstructTarget::Class {
                     selection,
@@ -260,6 +252,7 @@ impl ModuleLowerer<'_> {
             let Some(resolution) = state.decisions.call_decision(node) else {
                 continue;
             };
+
             self.collect_call_decision(resolution, reachable)?;
         }
 
@@ -291,6 +284,7 @@ impl ModuleLowerer<'_> {
         let Some(definition) = self.definition(owner)? else {
             return Ok(());
         };
+
         for field in self.instance_fields(definition.members()) {
             self.collect_field_initializer(&field, instance, reachable)?;
         }
@@ -308,9 +302,12 @@ impl ModuleLowerer<'_> {
         let Some(initializer) = field.initializer else {
             return Ok(());
         };
+
+        // collect each initializer body once per constructed instance
         if !reachable.initializers.insert((initializer, instance)) {
             return Ok(());
         }
+
         let expression = initializer
             .local_id
             .try_into_typed::<dir::Expression>()
@@ -505,7 +502,7 @@ impl ModuleLowerer<'_> {
             return Ok(());
         }
 
-        // so do the references an instantiating conversion closes
+        // instantiating conversions declare from their instances too
         if let Some(coercion) = state.coercions.coercion(node)
             && coercion
                 .adjustments
@@ -546,7 +543,7 @@ impl ModuleLowerer<'_> {
         let mut parameters = Vec::new();
         for parameter in &template.parameters {
             let binding = generics.get_parameter(*parameter);
-            if binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime) {
+            if binding.memory_parameter() == Some(dir::MemoryParameter::Region) {
                 continue;
             }
             parameters.push(parameter.into_global(template_module));
@@ -562,7 +559,7 @@ impl ModuleLowerer<'_> {
         instance: Option<(ModuleId, dir::LocalInstanceId)>,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
-        // materialize widened const literals as immortal objects
+        // materialize widened const literals as constant objects
         let resolved_source = self.instance_type(instance, coercion.source)?;
         self.collect_literals(resolved_source, reachable)?;
 
@@ -633,16 +630,36 @@ impl ModuleLowerer<'_> {
             return Ok(());
         };
 
-        // require one declared instance per dispatched method
-        for member in definition.members() {
-            let dir::DefinitionMember::Method(method) = member else {
+        // require one declared instance per dispatched method, inherited included
+        let mut pending = vec![definition.clone()];
+        let mut visited = FxIndexSet::default();
+        while let Some(definition) = pending.pop() {
+            for member in definition.members() {
+                let dir::DefinitionMember::Method(method) = member else {
+                    continue;
+                };
+                let Some(name) = self.symbol_name(method.symbol)? else {
+                    continue;
+                };
+                let implementing = self.implementing_method(class.symbol, name)?;
+                reachable.instances.push((implementing, Vec::new()));
+            }
+
+            // queue the inherited interfaces the constraint extends
+            let dir::Definition::Interface(interface) = &definition else {
                 continue;
             };
-            let Some(name) = self.symbol_name(method.symbol)? else {
-                continue;
-            };
-            let implementing = self.implementing_method(class.symbol, name)?;
-            reachable.instances.push((implementing, Vec::new()));
+            for heritage in &interface.extends {
+                let dir::Type::Application(base) = self.ty(heritage.ty)? else {
+                    continue;
+                };
+                if !visited.insert(base.symbol) {
+                    continue;
+                }
+                if let Some(base) = self.definition(base.symbol)? {
+                    pending.push(base.clone());
+                }
+            }
         }
 
         Ok(())
@@ -699,7 +716,7 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
-    /// Return whether one selection binds parameters beyond lifetimes.
+    /// Return whether one selection binds parameters beyond its importable ambient form.
     fn selects_parameters(
         &self,
         generic_arguments: &[dir::GenericArgumentBinding],
@@ -708,11 +725,16 @@ impl ModuleLowerer<'_> {
             let parameter = binding.parameter;
             let generics = &self.state(parameter.module_id)?.generics;
             let parameter = generics.get_parameter(parameter.local_id);
-            if !matches!(
-                parameter.kind,
-                dir::GenericParameterKind::Memory(dir::MemoryParameter::Lifetime)
-            ) {
-                return Ok(true);
+            match parameter.kind {
+                // regions erase from every declaration
+                dir::GenericParameterKind::Memory(dir::MemoryParameter::Region) => {}
+                // ambient memory bindings import plainly, every other space instantiates
+                dir::GenericParameterKind::Memory(_) => {
+                    if self.place_space(binding.argument)? != Some(dir::Space::Local) {
+                        return Ok(true);
+                    }
+                }
+                dir::GenericParameterKind::Type => return Ok(true),
             }
         }
 
@@ -730,16 +752,11 @@ impl ModuleLowerer<'_> {
             let parameter = binding.parameter;
             let generics = &self.state(parameter.module_id)?.generics;
             let parameter = generics.get_parameter(parameter.local_id);
+
+            // regions select nothing, every other binding selects the specialization
             match parameter.kind {
-                dir::GenericParameterKind::Memory(dir::MemoryParameter::Lifetime) => continue,
-                dir::GenericParameterKind::Type => {}
-                dir::GenericParameterKind::Memory(_) => {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.module.into(),
-                        construct: "a memory-parameterized callable instance".to_string(),
-                    }
-                    .into());
-                }
+                dir::GenericParameterKind::Memory(dir::MemoryParameter::Region) => continue,
+                dir::GenericParameterKind::Type | dir::GenericParameterKind::Memory(_) => {}
             }
 
             // substitute arguments through the enclosing instance

@@ -16,20 +16,20 @@ export function pick(counts: Counts, key: string): int32 | undefined {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type Counts = dynamic<{  }, managed, mutable>;
+type Counts = dynamic<{  }, managed, mutable, local>;
 
-type destack.string.string.String {
-    codeUnits: slice<uint16, unique, exclusive>;
+type String {
+    codeUnits: slice<uint16, unique, exclusive, local>;
 }
 
-function test.main.pick(v0: Counts, v1: ref<destack.string.string.String, managed, mutable>): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
-entry(v0: Counts, v1: ref<destack.string.string.String, managed, mutable>):
+function test.main.pick(v0: Counts, v1: ref<String, managed, mutable, local>): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
+entry(v0: Counts, v1: ref<String, managed, mutable, local>):
     v2: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = dynamic.find v0, v1
     return v2
 }
 
-/// @layout.struct name=destack.string.string.String size=16 align=8
-/// @layout.field owner=destack.string.string.String index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.struct name=String size=16 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
 /// @layout.struct name=type@1 size=0 align=1
 /// @layout.variant name=type@13 size=8 align=4
 /// @layout.discriminant owner=type@13 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
@@ -57,20 +57,20 @@ export function pick(counts: Counts, key: string): int32 | undefined {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type Counts = dynamic<{  }, managed, mutable>;
+type Counts = dynamic<{  }, managed, mutable, local>;
 
-type destack.string.string.String {
-    codeUnits: slice<uint16, unique, exclusive>;
+type String {
+    codeUnits: slice<uint16, unique, exclusive, local>;
 }
 
-function test.main.pick(v0: Counts, v1: ref<destack.string.string.String, managed, mutable>): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
-entry(v0: Counts, v1: ref<destack.string.string.String, managed, mutable>):
+function test.main.pick(v0: Counts, v1: ref<String, managed, mutable, local>): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
+entry(v0: Counts, v1: ref<String, managed, mutable, local>):
     v2: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = dynamic.find v0, v1
     return v2
 }
 
-/// @layout.struct name=destack.string.string.String size=16 align=8
-/// @layout.field owner=destack.string.string.String index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.struct name=String size=16 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
 /// @layout.struct name=type@1 size=0 align=1
 /// @layout.variant name=type@13 size=8 align=4
 /// @layout.discriminant owner=type@13 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8

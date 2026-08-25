@@ -67,7 +67,7 @@ entry(v0: int64, v1: int64):
 }
 
 #[test]
-fn test_lower_literal_comparison_over_family_carrier() {
+fn test_lower_literal_comparison_over_family_representation() {
     let session = TestSession::single(
         r#"
 function yes(): boolean {

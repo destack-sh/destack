@@ -236,7 +236,7 @@ entry:
 }
 
 #[test]
-fn test_construct_an_object_literal_into_its_union_carrier() {
+fn test_construct_an_object_literal_into_its_union_representation() {
     let session = TestSession::single(
         r#"
 type Selector =
@@ -257,13 +257,13 @@ function value(chosen: int32): Selector {
 
     session.assert_mir_lowered("main.ds", r#"
 @copy
-type Selector = variant<uint1> { 0uint1 = ref<{ kind: void, value: int32 }, managed, mutable>; 1uint1 = ref<{ kind: void, flag: boolean }, managed, mutable>; };
+type Selector = variant<uint1> { 0uint1 = ref<{ kind: void, value: int32 }, managed, mutable, local>; 1uint1 = ref<{ kind: void, flag: boolean }, managed, mutable, local>; };
 
 function test.main.value(v0: int32): Selector {
 entry(v0: int32):
     v1: void = undefined
     v2: { kind: void, value: int32 } = aggregate (v1, v0)
-    v3: ref<{ kind: void, value: int32 }, managed, mutable> = new.complete v2
+    v3: ref<{ kind: void, value: int32 }, managed, mutable, local> = new.complete v2
     v4: Selector = variant.new 0, v3
     return v4
 }
@@ -302,21 +302,21 @@ type Listener {
     value: int32;
 }
 
-function test.main.Listener.constructor(v0: ref<uninit<Listener>, borrowed, exclusive>): void {
-entry(v0: ref<uninit<Listener>, borrowed, exclusive>):
+function test.main.Listener.constructor(v0: ref<uninit<Listener>, borrowed, exclusive, local>): void {
+entry(v0: ref<uninit<Listener>, borrowed, exclusive, local>):
     v1: int32 = 0
-    v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
+    v2: ref<uninit<int32>, borrowed, exclusive, local> = field.address v0, 0
     store v2, v1
     return
 }
 
-function test.main.keep(v0: ref<Listener, managed, mutable>): ref<Listener, managed, mutable, undefined> {
-    local l0: ref<Listener, managed, mutable, undefined>
+function test.main.keep(v0: ref<Listener, managed, mutable, local>): ref<Listener, managed, mutable, undefined, local> {
+    local l0: ref<Listener, managed, mutable, undefined, local>
 
-entry(v0: ref<Listener, managed, mutable>):
-    v1: ref<Listener, managed, mutable, undefined> = cast.bit v0 -> ref<Listener, managed, mutable, undefined>
+entry(v0: ref<Listener, managed, mutable, local>):
+    v1: ref<Listener, managed, mutable, undefined, local> = cast.bit v0 -> ref<Listener, managed, mutable, undefined, local>
     local.set l0, v1
-    v2: ref<Listener, managed, mutable, undefined> = local.get l0
+    v2: ref<Listener, managed, mutable, undefined, local> = local.get l0
     return v2
 }
 
@@ -349,26 +349,26 @@ type Listener {
     value: int32;
 }
 
-function test.main.Listener.constructor(v0: ref<uninit<Listener>, borrowed, exclusive>): void {
-entry(v0: ref<uninit<Listener>, borrowed, exclusive>):
+function test.main.Listener.constructor(v0: ref<uninit<Listener>, borrowed, exclusive, local>): void {
+entry(v0: ref<uninit<Listener>, borrowed, exclusive, local>):
     v1: int32 = 0
-    v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
+    v2: ref<uninit<int32>, borrowed, exclusive, local> = field.address v0, 0
     store v2, v1
     return
 }
 
-function test.main.accept(v0: ref<Listener, managed, mutable, undefined>): boolean {
-entry(v0: ref<Listener, managed, mutable, undefined>):
-    v1: ref<Listener, managed, mutable, undefined> = undefined
+function test.main.accept(v0: ref<Listener, managed, mutable, undefined, local>): boolean {
+entry(v0: ref<Listener, managed, mutable, undefined, local>):
+    v1: ref<Listener, managed, mutable, undefined, local> = undefined
     v2: boolean = eq v0, v1
     v3: boolean = not v2
     return v3
 }
 
-function test.main.forward(v0: ref<Listener, managed, mutable>): boolean {
-entry(v0: ref<Listener, managed, mutable>):
-    v1: ref<Listener, managed, mutable, undefined> = cast.bit v0 -> ref<Listener, managed, mutable, undefined>
-    v2: boolean = call test.main.accept(v1): (ref<Listener, managed, mutable, undefined>) => boolean
+function test.main.forward(v0: ref<Listener, managed, mutable, local>): boolean {
+entry(v0: ref<Listener, managed, mutable, local>):
+    v1: ref<Listener, managed, mutable, undefined, local> = cast.bit v0 -> ref<Listener, managed, mutable, undefined, local>
+    v2: boolean = call test.main.accept(v1): (ref<Listener, managed, mutable, undefined, local>) => boolean
     return v2
 }
 
@@ -397,17 +397,17 @@ type Listener {
     value: int32;
 }
 
-function test.main.Listener.constructor(v0: ref<uninit<Listener>, borrowed, exclusive>): void {
-entry(v0: ref<uninit<Listener>, borrowed, exclusive>):
+function test.main.Listener.constructor(v0: ref<uninit<Listener>, borrowed, exclusive, local>): void {
+entry(v0: ref<uninit<Listener>, borrowed, exclusive, local>):
     v1: int32 = 0
-    v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
+    v2: ref<uninit<int32>, borrowed, exclusive, local> = field.address v0, 0
     store v2, v1
     return
 }
 
-function test.main.keep(v0: ref<Listener, managed, mutable>): ref<Listener, managed, mutable, undefined> {
-entry(v0: ref<Listener, managed, mutable>):
-    v1: ref<Listener, managed, mutable, undefined> = cast.bit v0 -> ref<Listener, managed, mutable, undefined>
+function test.main.keep(v0: ref<Listener, managed, mutable, local>): ref<Listener, managed, mutable, undefined, local> {
+entry(v0: ref<Listener, managed, mutable, local>):
+    v1: ref<Listener, managed, mutable, undefined, local> = cast.bit v0 -> ref<Listener, managed, mutable, undefined, local>
     return v1
 }
 
@@ -442,23 +442,23 @@ type Listener {
     value: int32;
 }
 
-function test.main.Listener.constructor(v0: ref<uninit<Listener>, borrowed, exclusive>): void {
-entry(v0: ref<uninit<Listener>, borrowed, exclusive>):
+function test.main.Listener.constructor(v0: ref<uninit<Listener>, borrowed, exclusive, local>): void {
+entry(v0: ref<uninit<Listener>, borrowed, exclusive, local>):
     v1: int32 = 0
-    v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
+    v2: ref<uninit<int32>, borrowed, exclusive, local> = field.address v0, 0
     store v2, v1
     return
 }
 
-function test.main.read(v0: ref<Listener, managed, mutable, undefined>): int32 {
-entry(v0: ref<Listener, managed, mutable, undefined>):
-    v1: ref<Listener, managed, mutable, undefined> = undefined
+function test.main.read(v0: ref<Listener, managed, mutable, undefined, local>): int32 {
+entry(v0: ref<Listener, managed, mutable, undefined, local>):
+    v1: ref<Listener, managed, mutable, undefined, local> = undefined
     v2: boolean = eq v0, v1
     v3: boolean = not v2
     branch v3 => b1 | b2
 
 b1:
-    v4: ref<int32, borrowed, mutable> = field.address v0, 0
+    v4: ref<int32, borrowed, mutable, local> = field.address v0, 0
     v5: int32 = load v4
     return v5
 
@@ -529,19 +529,19 @@ type Circle { }
 
 type Drawable { }
 
-function test.main.Circle.draw(v0: ref<Circle, managed, mutable>): void {
-entry(v0: ref<Circle, managed, mutable>):
+function test.main.Circle.draw(v0: ref<Circle, managed, mutable, local>): void {
+entry(v0: ref<Circle, managed, mutable, local>):
     return
 }
 
-function test.main.keep(v0: ref<Circle, managed, mutable>): dynamic<Drawable, managed, mutable, undefined> {
-    local l0: dynamic<Drawable, managed, mutable, undefined>
+function test.main.keep(v0: ref<Circle, managed, mutable, local>): dynamic<Drawable, managed, mutable, undefined, local> {
+    local l0: dynamic<Drawable, managed, mutable, undefined, local>
 
-entry(v0: ref<Circle, managed, mutable>):
-    v1: dynamic<Drawable, managed, mutable> = dynamic.bind v0, Circle
-    v2: dynamic<Drawable, managed, mutable, undefined> = cast.bit v1 -> dynamic<Drawable, managed, mutable, undefined>
+entry(v0: ref<Circle, managed, mutable, local>):
+    v1: dynamic<Drawable, managed, mutable, local> = dynamic.bind v0, Circle
+    v2: dynamic<Drawable, managed, mutable, undefined, local> = cast.bit v1 -> dynamic<Drawable, managed, mutable, undefined, local>
     local.set l0, v2
-    v3: dynamic<Drawable, managed, mutable, undefined> = local.get l0
+    v3: dynamic<Drawable, managed, mutable, undefined, local> = local.get l0
     return v3
 }
 
@@ -572,17 +572,17 @@ type Listener {
     value: int32;
 }
 
-function test.main.Listener.constructor(v0: ref<uninit<Listener>, borrowed, exclusive>): void {
-entry(v0: ref<uninit<Listener>, borrowed, exclusive>):
+function test.main.Listener.constructor(v0: ref<uninit<Listener>, borrowed, exclusive, local>): void {
+entry(v0: ref<uninit<Listener>, borrowed, exclusive, local>):
     v1: int32 = 0
-    v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
+    v2: ref<uninit<int32>, borrowed, exclusive, local> = field.address v0, 0
     store v2, v1
     return
 }
 
-function test.main.isHead(v0: ref<Listener, managed, mutable, undefined>, v1: ref<Listener, managed, mutable>): boolean {
-entry(v0: ref<Listener, managed, mutable, undefined>, v1: ref<Listener, managed, mutable>):
-    v2: ref<Listener, managed, mutable, undefined> = cast.bit v1 -> ref<Listener, managed, mutable, undefined>
+function test.main.isHead(v0: ref<Listener, managed, mutable, undefined, local>, v1: ref<Listener, managed, mutable, local>): boolean {
+entry(v0: ref<Listener, managed, mutable, undefined, local>, v1: ref<Listener, managed, mutable, local>):
+    v2: ref<Listener, managed, mutable, undefined, local> = cast.bit v1 -> ref<Listener, managed, mutable, undefined, local>
     v3: boolean = eq v0, v2
     v4: boolean = not v3
     return v4
@@ -613,26 +613,26 @@ function read(meter: &readonly Meter): Label {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type destack.string.string.String {
-    codeUnits: slice<uint16, unique, exclusive>;
+type String {
+    codeUnits: slice<uint16, unique, exclusive, local>;
 }
 
-type Label = ref<destack.string.string.String, managed, mutable, undefined>;
+type Label = ref<String, managed, mutable, undefined, local>;
 
 @copy
 type Meter {
     label: Label;
 }
 
-function test.main.read<'a>(v0: ref<Meter, borrowed, 'a, readonly>): Label {
-entry(v0: ref<Meter, borrowed, 'a, readonly>):
-    v1: ref<Label, borrowed, readonly> = field.address v0, 0
+function test.main.read<'a>(v0: ref<Meter, borrowed, 'a, readonly, local>): Label {
+entry(v0: ref<Meter, borrowed, 'a, readonly, local>):
+    v1: ref<Label, borrowed, readonly, local> = field.address v0, 0
     v2: Label = load v1
     return v2
 }
 
-/// @layout.struct name=destack.string.string.String size=16 align=8
-/// @layout.field owner=destack.string.string.String index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.struct name=String size=16 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
 /// @layout.struct name=Meter size=8 align=8
 /// @layout.field owner=Meter index=0 name=label offset=0 size=8 align=8
 "#,
@@ -685,7 +685,9 @@ function differs(shape: Shape): boolean {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
 @copy
 type Circle {
     kind: void;
@@ -701,17 +703,13 @@ type Square {
 @copy
 type Shape = newtype<variant<uint1> { 0uint1 = Circle; 1uint1 = Square; }>;
 
-type destack.string.string.String {
-    codeUnits: slice<uint16, unique, exclusive>;
+@languageItem("string.String")
+type String {
+    codeUnits: slice<uint16, unique, exclusive, local>;
 }
 
-immortal constant string.13298159783162365089.codeUnits: [uint16; 6] = b"c\x00i\x00r\x00c\x00l\x00e\x00"
-
-immortal constant string.13298159783162365089: destack.string.string.String = {{globalAddress string.13298159783162365089.codeUnits, 6uint64}}
-
-immortal constant string.11637857817615016681.codeUnits: [uint16; 6] = b"s\x00q\x00u\x00a\x00r\x00e\x00"
-
-immortal constant string.11637857817615016681: destack.string.string.String = {{globalAddress string.11637857817615016681.codeUnits, 6uint64}}
+constant string.0: String = "circle"
+constant string.1: String = "square"
 
 function test.main.circle(): void {
 entry:
@@ -779,9 +777,9 @@ b4:
     jump b1
 }
 
-function test.main.label(v0: Shape): ref<destack.string.string.String, managed, mutable> {
+function test.main.label(v0: Shape): ref<String, managed, mutable, local> {
     local l0: variant<uint1> { 0uint1 = void; 1uint1 = void; }, readonly
-    local l1: ref<destack.string.string.String, managed, mutable>, readonly
+    local l1: ref<String, managed, mutable, local>, readonly
 
 entry(v0: Shape):
     v1: variant<uint1> { 0uint1 = Circle; 1uint1 = Square; } = field.get v0, 0
@@ -806,16 +804,16 @@ b4:
     jump b1
 
 b5:
-    v8: ref<destack.string.string.String, managed, mutable> = local.get l1
+    v8: ref<String, managed, mutable, local> = local.get l1
     return v8
 
 b6:
-    v6: ref<destack.string.string.String, managed, mutable> = global.address string.13298159783162365089
+    v6: ref<String, managed, mutable, local> = global.address string.0
     local.set l1, v6
     jump b5
 
 b7:
-    v7: ref<destack.string.string.String, managed, mutable> = global.address string.11637857817615016681
+    v7: ref<String, managed, mutable, local> = global.address string.1
     local.set l1, v7
     jump b5
 }
@@ -850,8 +848,8 @@ entry(v0: Shape):
 /// @layout.struct name=Square size=8 align=8
 /// @layout.field owner=Square index=0 name=kind offset=8 size=0 align=1
 /// @layout.field owner=Square index=1 name=side offset=0 size=8 align=8
-/// @layout.struct name=destack.string.string.String size=16 align=8
-/// @layout.field owner=destack.string.string.String index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.struct name=String size=16 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
 /// @layout.variant name=type@11 size=16 align=8
 /// @layout.discriminant owner=type@11 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@11 index=0 discriminant=0 payload_offset=8
@@ -860,7 +858,8 @@ entry(v0: Shape):
 /// @layout.discriminant owner=type@15 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@15 index=0 discriminant=0 payload_offset=1
 /// @layout.case owner=type@15 index=1 discriminant=1 payload_offset=1
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -889,7 +888,9 @@ function radius(shape: &readonly Shape): float64 {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
 @copy
 type Circle {
     kind: void;
@@ -905,17 +906,16 @@ type Square {
 @copy
 type Shape = newtype<variant<uint1> { 0uint1 = Circle; 1uint1 = Square; }>;
 
-type destack.string.string.String {
-    codeUnits: slice<uint16, unique, exclusive>;
+@languageItem("string.String")
+type String {
+    codeUnits: slice<uint16, unique, exclusive, local>;
 }
 
-immortal constant string.13298159783162365089.codeUnits: [uint16; 6] = b"c\x00i\x00r\x00c\x00l\x00e\x00"
+constant string.0: String = "circle"
 
-immortal constant string.13298159783162365089: destack.string.string.String = {{globalAddress string.13298159783162365089.codeUnits, 6uint64}}
-
-function test.main.radius<'a>(v0: ref<Shape, borrowed, 'a, readonly>): float64 {
-entry(v0: ref<Shape, borrowed, 'a, readonly>):
-    v1: ref<variant<uint1> { 0uint1 = Circle; 1uint1 = Square; }, borrowed, 'a, readonly> = field.address v0, 0
+function test.main.radius<'a>(v0: ref<Shape, borrowed, 'a, readonly, local>): float64 {
+entry(v0: ref<Shape, borrowed, 'a, readonly, local>):
+    v1: ref<variant<uint1> { 0uint1 = Circle; 1uint1 = Square; }, borrowed, 'a, readonly, local> = field.address v0, 0
     v2: uint1 = variant.tag.load v1
     v3: uint1 = 0
     v4: boolean = eq v2, v3
@@ -928,9 +928,9 @@ b1:
     return v7
 
 b2:
-    v8: ref<variant<uint1> { 0uint1 = Circle; 1uint1 = Square; }, borrowed, 'a, readonly> = field.address v0, 0
-    v9: ref<Circle, borrowed, 'a, readonly> = variant.payload.address v8, 0
-    v10: ref<float64, borrowed, readonly> = field.address v9, 1
+    v8: ref<variant<uint1> { 0uint1 = Circle; 1uint1 = Square; }, borrowed, 'a, readonly, local> = field.address v0, 0
+    v9: ref<Circle, borrowed, 'a, readonly, local> = variant.payload.address v8, 0
+    v10: ref<float64, borrowed, readonly, local> = field.address v9, 1
     v11: float64 = load v10
     return v11
 }
@@ -941,16 +941,17 @@ b2:
 /// @layout.struct name=Square size=8 align=8
 /// @layout.field owner=Square index=0 name=kind offset=8 size=0 align=1
 /// @layout.field owner=Square index=1 name=side offset=0 size=8 align=8
-/// @layout.struct name=destack.string.string.String size=16 align=8
-/// @layout.field owner=destack.string.string.String index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.struct name=String size=16 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
 /// @layout.variant name=type@11 size=16 align=8
 /// @layout.discriminant owner=type@11 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@11 index=0 discriminant=0 payload_offset=8
 /// @layout.case owner=type@11 index=1 discriminant=1 payload_offset=8
-/// @layout.variant name=type@33 size=1 align=1
-/// @layout.discriminant owner=type@33 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@33 index=0 discriminant=0 payload_offset=1
-/// @layout.case owner=type@33 index=1 discriminant=1 payload_offset=1
-/// @layout.case owner=type@33 index=2 discriminant=2 payload_offset=1
-"#);
+/// @layout.variant name=type@31 size=1 align=1
+/// @layout.discriminant owner=type@31 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@31 index=0 discriminant=0 payload_offset=1
+/// @layout.case owner=type@31 index=1 discriminant=1 payload_offset=1
+/// @layout.case owner=type@31 index=2 discriminant=2 payload_offset=1
+"#,
+    );
 }

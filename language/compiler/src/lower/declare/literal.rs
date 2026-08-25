@@ -8,7 +8,7 @@ use crate::lower::{LifetimeParameters, ModuleLowerer, NominalInstance};
 use crate::{CompilerError, CompilerResult};
 
 impl ModuleLowerer<'_> {
-    /// Declare the immortal globals backing every collected string literal.
+    /// Declare the constant globals backing every collected string literal.
     pub(in crate::lower) fn declare_string_literals(
         &mut self,
         builder: &mut mir::ModuleBuilder,
@@ -20,7 +20,7 @@ impl ModuleLowerer<'_> {
                 continue;
             }
 
-            // bank declaration failures for the first reading body
+            // record declaration failures for the first reading body
             match self.declare_string_literal(builder, string) {
                 Ok(declared) => {
                     self.string_literals.insert(string, Ok(declared));
@@ -36,7 +36,7 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
-    /// Declare the immortal globals backing every collected bigint literal.
+    /// Declare the constant globals backing every collected bigint literal.
     pub(in crate::lower) fn declare_bigint_literals(
         &mut self,
         builder: &mut mir::ModuleBuilder,
@@ -48,7 +48,7 @@ impl ModuleLowerer<'_> {
                 continue;
             }
 
-            // bank declaration failures for the first reading body
+            // record declaration failures for the first reading body
             match self.declare_bigint_literal(builder, bigint) {
                 Ok(declared) => {
                     self.bigint_literals.insert(bigint, Ok(declared));
@@ -64,7 +64,7 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
-    /// Declare one literal's constant code units and pre-built immortal String object.
+    /// Declare one literal's constant String object over its value form.
     fn declare_string_literal(
         &mut self,
         builder: &mut mir::ModuleBuilder,
@@ -73,42 +73,24 @@ impl ModuleLowerer<'_> {
         // lower the String representation named by its language item
         let nominal = self.lower_literal_nominal(builder, dir::LanguageItem::String)?;
 
-        // encode the constant UTF-16 code units into an immortal array
-        let code_units = self.strings.get(string).encode_utf16();
-        let length = code_units.clone().count() as u64;
-        let bytes = code_units.flat_map(u16::to_le_bytes).collect();
-        let array = Self::intern_element_array(builder, 16, length);
-        let code_units_global = builder.immortal(
-            &format!("string.{}.codeUnits", string.0),
-            array,
-            mir::GlobalInitializer::Bytes(bytes),
-        );
+        // name the constant by module ordinal, keyed by content for link identity
+        let ordinal = self.string_literals.len();
+        let name = builder.intern(&format!("string.{ordinal}"));
+        let symbol = builder.intern(&format!("string.{}", string.0));
 
-        // pre-build the immortal String object over its constant code units
-        let initializer = builder
-            .constant_object(
-                nominal.storage,
-                &[(
-                    "codeUnits",
-                    mir::ConstantValue::Slice {
-                        elements: code_units_global,
-                        length,
-                    },
-                )],
-            )
-            .map_err(|error| CompilerError::Internal {
-                message: error.to_string(),
-            })?;
-        let object = builder.immortal(
-            &format!("string.{}", string.0),
+        // insert the constant with its content as the initializer
+        let mut global = mir::Global::constant(
+            name,
             nominal.storage,
-            initializer,
+            mir::GlobalInitializer::String(string),
         );
+        global.symbol = mir::Symbol::named(symbol);
+        let object = builder.tree_mut().insert(global);
 
         Ok((object, nominal.value))
     }
 
-    /// Declare one literal's constant limbs and pre-built immortal BigInt object.
+    /// Declare one literal's constant BigInt object over its value form.
     fn declare_bigint_literal(
         &mut self,
         builder: &mut mir::ModuleBuilder,
@@ -117,57 +99,54 @@ impl ModuleLowerer<'_> {
         // lower the BigInt representation named by its language item
         let nominal = self.lower_literal_nominal(builder, dir::LanguageItem::BigInt)?;
 
-        // intern the little-endian magnitude limbs as an immortal limb array
-        let limbs: Vec<u64> = match bigint {
-            0 => Vec::new(),
-            value => vec![value.unsigned_abs()],
-        };
-        let length = limbs.len() as u64;
-        let bytes = limbs.iter().flat_map(|limb| limb.to_le_bytes()).collect();
-        let array = Self::intern_element_array(builder, 64, length);
-        let name = Self::bigint_name(bigint);
-        let limbs_global = builder.immortal(
-            &format!("bigint.{name}.limbs"),
-            array,
-            mir::GlobalInitializer::Bytes(bytes),
-        );
+        // name the constant by module ordinal, keyed by content for link identity
+        let ordinal = self.bigint_literals.len();
+        let name = builder.intern(&format!("bigint.{ordinal}"));
+        let symbol = builder.intern(&format!("bigint.{}", Self::bigint_name(bigint)));
 
-        // pre-build the immortal BigInt object over its constant limbs
-        let pointer_width = (builder.pointer_bytes() * 8) as u16;
-        let initializer = builder
-            .constant_object(
-                nominal.storage,
-                &[
-                    (
-                        "sign",
-                        mir::ConstantValue::Scalar(mir::Constant::Int {
-                            value: bigint.signum() as i128,
-                            width: 8,
-                            is_signed: true,
-                        }),
-                    ),
-                    (
-                        "limbs",
-                        mir::ConstantValue::Slice {
-                            elements: limbs_global,
-                            length,
-                        },
-                    ),
-                    (
-                        "length",
-                        mir::ConstantValue::Scalar(mir::Constant::UInt {
-                            value: length as u128,
-                            width: pointer_width,
-                        }),
-                    ),
-                ],
-            )
-            .map_err(|error| CompilerError::Internal {
-                message: error.to_string(),
-            })?;
-        let object = builder.immortal(&format!("bigint.{name}"), nominal.storage, initializer);
+        // insert the constant with its value as the initializer
+        let mut global = mir::Global::constant(
+            name,
+            nominal.storage,
+            mir::GlobalInitializer::BigInt(bigint),
+        );
+        global.symbol = mir::Symbol::named(symbol);
+        let object = builder.tree_mut().insert(global);
 
         Ok((object, nominal.value))
+    }
+
+    /// Mirror one literal type's language item onto its MIR type declaration.
+    fn forward_literal_nominal(
+        &self,
+        builder: &mut mir::ModuleBuilder,
+        storage: mir::LocalNodeId<mir::Type>,
+        item: dir::LanguageItem,
+    ) {
+        let Some(declaration) = builder.tree().type_declaration(storage) else {
+            return;
+        };
+
+        // attach the decorator once per declaration
+        let name = builder.intern("languageItem");
+        let already_tagged = builder
+            .tree()
+            .attributes(declaration)
+            .iter()
+            .any(|attribute| attribute.name == mir::AttributeIdentifier::Identifier(name));
+        if already_tagged {
+            return;
+        }
+
+        // record the language item key on the declaration
+        let key = builder.intern(&item.key());
+        builder.tree_mut().push_attribute(
+            declaration,
+            mir::Attribute {
+                name: mir::AttributeIdentifier::Identifier(name),
+                args: mir::AttributeArgs::Value(mir::AttributeValue::String(key)),
+            },
+        );
     }
 
     /// Lower the nominal representation named by one literal language item.
@@ -182,34 +161,20 @@ impl ModuleLowerer<'_> {
         let pointer_bytes = builder.pointer_bytes();
         let mut lowerer =
             self.type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters);
+        let nominal = lowerer.lower_nominal(source)?;
+        self.forward_literal_nominal(builder, nominal.storage, item);
 
-        lowerer.lower_nominal(source)
-    }
-
-    /// Intern one fixed unsigned element array type for immortal payload bytes.
-    fn intern_element_array(
-        builder: &mut mir::ModuleBuilder,
-        width: u16,
-        length: u64,
-    ) -> mir::LocalNodeId<mir::Type> {
-        let element = builder.tree_mut().intern_type(mir::Type::Int {
-            width,
-            is_signed: false,
-        });
-        let copy = builder.tree().get(element).copy(builder.tree());
-
-        builder.tree_mut().intern_type(mir::Type::FixedArray {
-            element,
-            length,
-            copy,
-        })
+        Ok(nominal)
     }
 
     /// Render one bigint value as a global name segment.
     fn bigint_name(bigint: i64) -> String {
+        // prefix negatives with `n` to keep the segment an identifier
         if bigint < 0 {
             format!("n{}", bigint.unsigned_abs())
-        } else {
+        }
+        // render the magnitude directly
+        else {
             format!("{bigint}")
         }
     }

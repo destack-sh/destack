@@ -5,14 +5,14 @@ use crate::lower::FunctionLowerer;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Erase one concrete value behind its constraint's dynamic carrier.
+    /// Erase one concrete value behind its constraint's dynamic representation.
     pub(in crate::lower) fn lower_erasure(
         &mut self,
         value: mir::Value,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<mir::Value> {
-        // narrowing back out of an erased carrier stays unbuilt
+        // narrowing back out of an erased representation stays unbuilt
         let dynamic = self.lower_type(target)?;
         let mir::Type::Dynamic { .. } = *self.builder.tree().get(dynamic) else {
             return Err(LowerError::Unsupported {

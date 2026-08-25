@@ -1,6 +1,5 @@
 mod binding;
 mod block;
-mod body;
 mod call;
 mod capture;
 mod cast;
@@ -12,6 +11,7 @@ mod equality;
 mod expression;
 mod intrinsic;
 mod literal;
+mod lower;
 mod r#match;
 mod member;
 mod operator;
@@ -21,5 +21,5 @@ mod receiver;
 mod tree;
 mod value;
 
-pub(in crate::lower) use body::*;
 pub(in crate::lower) use context::*;
+pub(in crate::lower) use lower::*;

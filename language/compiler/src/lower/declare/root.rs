@@ -16,8 +16,9 @@ impl ModuleLowerer<'_> {
         &mut self,
         builder: &mut mir::ModuleBuilder,
     ) -> CompilerResult<(Vec<FunctionDefinition>, Vec<Box<dyn DiagnosticLike>>)> {
-        // lower every concrete nominal declaration owned by this module
         let mut errors = Vec::new();
+
+        // lower every concrete nominal declaration owned by this module
         self.lower_nominal_declarations(builder)?;
 
         // define the synthesized constructors beside their class declarations
@@ -61,6 +62,7 @@ impl ModuleLowerer<'_> {
                     continue;
                 }
             };
+
             self.declare_root(builder, declaration, &mut bodies, &mut errors)?;
         }
 
@@ -121,7 +123,7 @@ impl ModuleLowerer<'_> {
             }
         }
 
-        // declare the immortal String and BigInt objects behind every collected literal
+        // declare the constant String and BigInt objects behind every collected literal
         self.declare_string_literals(builder, reachable.strings)?;
         self.declare_bigint_literals(builder, reachable.bigints)?;
 
@@ -173,9 +175,10 @@ impl ModuleLowerer<'_> {
 
         // declare one function body, deferring generics to their instances
         if let Some(body) = body {
+            // defer generic functions to declare_reachable_instances
             let node = declaration.into_global_any(self.module);
             if let Some(symbol) = self.symbol_declared_at(node)?
-                && self.signature_has_instance_parameters(self.symbol_type(symbol)?)?
+                && self.signature_has_parameters_beyond_extents(self.symbol_type(symbol)?)?
             {
                 return Ok(());
             }
@@ -209,6 +212,7 @@ impl ModuleLowerer<'_> {
                 .entry(GenericInstanceKey::non_generic(symbol))
                 .or_insert(FunctionDeclaration::Failed);
         }
+
         errors.push(diagnostic);
     }
 
@@ -225,7 +229,7 @@ impl ModuleLowerer<'_> {
         let node = declaration.into_global_any(self.module);
         let owner_symbol = self.symbol_declared_at(node)?;
 
-        // generic owners declare their members per concrete instance in declare_reachable_instances
+        // defer the members of generic owners to declare_reachable_instances
         if let Some(owner) = owner_symbol
             && self.owner_has_instance_parameters(owner)?
         {
@@ -257,6 +261,12 @@ impl ModuleLowerer<'_> {
         member: dir::LocalNodeId<dir::Member>,
         bodies: &mut Vec<FunctionDefinition>,
     ) -> CompilerResult<()> {
+        // skip members whose static gates decided absence
+        let presence = self.state(self.module)?.statics.presence(member.into_any());
+        if presence == Some(dir::StaticPresence::Absent) {
+            return Ok(());
+        }
+
         // classify the member in one narrow tree borrow
         let (role, is_static, body) = match self.local().tree().get(member) {
             dir::Member::Method {
@@ -266,7 +276,7 @@ impl ModuleLowerer<'_> {
                 ..
             } => (signature.role, *is_static, *body),
 
-            // skip data and type members
+            // skip field and type members
             dir::Member::Field { .. }
             | dir::Member::AssociatedType { .. }
             | dir::Member::AssociatedConst { .. } => return Ok(()),
@@ -315,15 +325,14 @@ impl ModuleLowerer<'_> {
             }
         }
 
-        // members always declare inside a named owner
+        // require a named owner for every member
         let Some(owner_symbol) = owner_symbol else {
             return Err(CompilerError::Internal {
                 message: "missing a symbol for one member owner".to_string(),
             });
         };
 
-        // parameterized owners declare their members per concrete instance in
-        //  declare_reachable_instances
+        // defer the members of parameterized owners to declare_reachable_instances
         let is_parameterized = match self.definition(owner_symbol)? {
             Some(definition) => {
                 self.definition_is_parameterized(owner_symbol.module_id, definition)?
@@ -338,12 +347,12 @@ impl ModuleLowerer<'_> {
         let node = member.into_global_any(self.module);
         let Some(symbol) = self.method_symbol(owner_symbol, node)? else {
             return Err(CompilerError::Internal {
-                message: "missing a symbol for one method declaration".to_string(),
+                message: format!("missing a symbol for a method at {node:?} on {owner_symbol:?}"),
             });
         };
 
-        // generic members declare per concrete instance in declare_reachable_instances
-        if self.signature_has_instance_parameters(self.symbol_type(symbol)?)? {
+        // defer generic members to declare_reachable_instances
+        if self.signature_has_parameters_beyond_extents(self.symbol_type(symbol)?)? {
             return Ok(());
         }
 

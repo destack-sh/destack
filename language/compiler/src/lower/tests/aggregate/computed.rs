@@ -29,12 +29,12 @@ type Full {
 }
 
 @copy
-type Compact = newtype<ref<{ kept: int32, tail: int32 }, managed, mutable>>;
+type Compact = newtype<ref<{ kept: int32, tail: int32 }, managed, mutable, local>>;
 
 function test.main.shrink(v0: int32, v1: int32): Compact {
 entry(v0: int32, v1: int32):
     v2: { kept: int32, tail: int32 } = aggregate (v0, v1)
-    v3: ref<{ kept: int32, tail: int32 }, managed, mutable> = new.complete v2
+    v3: ref<{ kept: int32, tail: int32 }, managed, mutable, local> = new.complete v2
     v4: Compact = aggregate (v3)
     return v4
 }
@@ -86,13 +86,13 @@ type Kept {
 
 @copy
 type Holder {
-    slice: ref<Kept, managed, mutable>;
+    slice: ref<Kept, managed, mutable, local>;
 }
 
 function test.main.read(v0: Holder): int32 {
 entry(v0: Holder):
-    v1: ref<Kept, managed, mutable> = field.get v0, 0
-    v2: ref<int32, borrowed, mutable> = field.address v1, 0
+    v1: ref<Kept, managed, mutable, local> = field.get v0, 0
+    v2: ref<int32, borrowed, mutable, local> = field.address v1, 0
     v3: int32 = load v2
     return v3
 }
@@ -124,12 +124,12 @@ function diagonal(value: int32): Pair {
         "main.ds",
         r#"
 @copy
-type Pair = newtype<ref<{ x: int32, y: int32 }, managed, mutable>>;
+type Pair = newtype<ref<{ x: int32, y: int32 }, managed, mutable, local>>;
 
 function test.main.diagonal(v0: int32): Pair {
 entry(v0: int32):
     v1: { x: int32, y: int32 } = aggregate (v0, v0)
-    v2: ref<{ x: int32, y: int32 }, managed, mutable> = new.complete v1
+    v2: ref<{ x: int32, y: int32 }, managed, mutable, local> = new.complete v1
     v3: Pair = aggregate (v2)
     return v3
 }

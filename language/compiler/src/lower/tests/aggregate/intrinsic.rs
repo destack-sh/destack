@@ -1,7 +1,7 @@
 use crate::tests::TestSession;
 
 #[test]
-fn test_lower_dynamic_newtype_to_its_erased_carrier() {
+fn test_lower_dynamic_newtype_to_its_erased_type() {
     let session = TestSession::single(
         r#"
 @languageItem("memory.Dynamic")
@@ -20,14 +20,14 @@ newtype Reading = Dynamic<Meter>;
         r#"
 type Meter { }
 
-type Dynamic<dynamic<Meter, managed, mutable>> = dynamic<Meter, managed, mutable>;
+type Dynamic<dynamic<Meter, managed, mutable, local>> = dynamic<Meter, managed, mutable, local>;
 
 @copy
-type Reading = newtype<Dynamic<dynamic<Meter, managed, mutable>>>;
+type Reading = newtype<Dynamic<dynamic<Meter, managed, mutable, local>>>;
 
 /// @layout.struct name=Meter size=0 align=1
 
-/// @dispatch.shape constraint=type@1 function=read
+/// @dispatch.shape constraint=type@1
 "#,
     );
 }
@@ -110,10 +110,10 @@ export function accept(descriptor: Type<int32>): Type<int32> {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type destack.reflect.type.Type<int32> = typeDescriptor;
+type Type<int32> = typeDescriptor;
 
-function test.main.accept(v0: destack.reflect.type.Type<int32>): destack.reflect.type.Type<int32> {
-entry(v0: destack.reflect.type.Type<int32>):
+function test.main.accept(v0: Type<int32>): Type<int32> {
+entry(v0: Type<int32>):
     return v0
 }
 "#,

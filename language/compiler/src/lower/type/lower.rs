@@ -18,6 +18,8 @@ pub(in crate::lower) struct TypeLowerer<'lower, 'module> {
     pub(in crate::lower) lifetime_parameters: &'lower LifetimeParameters,
     /// The sema instance whose materialized rows resolve read types.
     pub(in crate::lower) instance: Option<(ModuleId, dir::LocalInstanceId)>,
+    /// The heap space receiving reference layers, written by placed forms.
+    pub(in crate::lower) space: mir::Space,
     /// The compound types being lowered, with reservations for revisits.
     reservations: FxIndexMap<dir::GlobalTypeId, Option<mir::LocalNodeId<mir::Type>>>,
 }
@@ -36,11 +38,12 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             pointer_bytes,
             lifetime_parameters,
             instance: None,
+            space: mir::Space::Local,
             reservations: FxIndexMap::default(),
         }
     }
 
-    /// Return this walker resolving reads through one instance's rows.
+    /// Return this lowerer resolving reads through one instance's rows.
     pub(in crate::lower) fn with_instance(
         mut self,
         instance: Option<(ModuleId, dir::LocalInstanceId)>,
@@ -50,7 +53,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         self
     }
 
-    /// Return a nested walker resolving through another instance's rows.
+    /// Return a nested lowerer resolving through another instance's rows.
     pub(in crate::lower) fn nested<'nested>(
         &'nested mut self,
         instance: Option<(ModuleId, dir::LocalInstanceId)>,
@@ -61,6 +64,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             pointer_bytes: self.pointer_bytes,
             lifetime_parameters: self.lifetime_parameters,
             instance,
+            space: self.space,
             reservations: FxIndexMap::default(),
         }
     }
@@ -132,6 +136,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 if let Some(reserved) = entry {
                     return Ok(*reserved);
                 }
+
                 let reserved = self.tree.reserve_type(symbol);
                 *entry = Some(reserved);
 
@@ -176,10 +181,10 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         match self.lowerer.ty(id)? {
             // lower nominal instances through their concrete representation
             dir::Type::Application(instance) => {
-                if let Some(argument) = self.lowerer.storage_carrier_argument(id, &instance)? {
+                if let Some(argument) = self.lowerer.memory_form_value(id, &instance)? {
                     let value = self.lower(argument)?;
 
-                    return self.insert_storage_carrier(&instance, value);
+                    return self.insert_storage_form(&instance, value);
                 }
 
                 // lower the instance at its applied arguments
@@ -193,7 +198,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
 
                 Ok(nominal.value)
             }
-            // lower variants through their owning carrier
+            // lower variants through the union that owns them
             dir::Type::Variant(member) => self.lower(member.owner),
             // reject parameters, which materialized rows resolve before lowering
             dir::Type::Parameter(parameter) => {
@@ -222,12 +227,12 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             dir::Type::This => Err(CompilerError::Internal {
                 message: "a contextual this was never materialized".to_string(),
             }),
-            // ride the reference carrier's niches for nullable unions
+            // store nullable unions in the niches of the reference they wrap
             dir::Type::Union(union) => {
-                if let Some((nullability, carrier)) =
+                if let Some((nullability, referent)) =
                     self.lowerer.decompose_nullish_union(id.module_id, &union)?
                 {
-                    let reference = self.lower(carrier)?;
+                    let reference = self.lower(referent)?;
 
                     return self.insert_nullability(reference, nullability);
                 }
@@ -245,7 +250,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
 
                 Ok(self.insert_union_variant(payloads))
             }
-            // erase signature-bearing object types behind the dynamic carrier
+            // erase object types that declare signatures behind the dynamic representation
             dir::Type::Object(shape) if shape.declares_signatures() => self.lower_dynamic(id),
             // store concrete object classes behind a managed reference
             dir::Type::Object(shape) => {
@@ -257,24 +262,14 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                     storage,
                 ))
             }
-            // erase the top constraint behind the dynamic carrier
+            // erase the top constraint behind the dynamic representation
             dir::Type::Unknown => self.lower_dynamic(id),
             // resolve memory forms through the form algebra
             dir::Type::Form(_) => self.lower_form(id, None),
-            // lower slice values as fat headers over managed element storage
-            dir::Type::Slice(_) => self.lower_reference(
-                mir::ReferenceKind::Managed,
-                mir::Lifetime::empty(),
-                mir::Access::Mutable,
-                id,
-            ),
-            // default dynamic and callable values to managed fat references
-            dir::Type::Dynamic(_) | dir::Type::Function(_) => self.lower_reference(
-                mir::ReferenceKind::Managed,
-                mir::Lifetime::empty(),
-                mir::Access::Mutable,
-                id,
-            ),
+            // lower fat pointer values as managed headers in their referent place
+            dir::Type::Slice(slice) => self.lower_fat_reference(id, slice.place),
+            dir::Type::Dynamic(dynamic) => self.lower_fat_reference(id, dynamic.place),
+            dir::Type::Function(function) => self.lower_fat_reference(id, function.place),
             // fixed arrays lower to their inline element storage
             dir::Type::FixedArray(fixed) => {
                 let element = self.lower(fixed.element)?;
@@ -297,6 +292,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
 
                 Ok(self.insert_tuple(elements))
             }
+            // lower a function pointer over its lowered signature
             dir::Type::FunctionPointer(pointer) => {
                 let signature = self.lower_callable_signature(pointer.signature)?;
 
@@ -313,14 +309,14 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                     kind: mir::ReferenceKind::Managed,
                     lifetime: mir::Lifetime::empty(),
                     signature,
-                    storage: mir::Storage::Heap(mir::Space::Local),
+                    storage: mir::Storage::LocalHeap,
                     access: mir::Access::Mutable,
                     nullability: mir::Nullability::None,
                 }))
             }
             // lower never without a value
             dir::Type::Never => Ok(self.tree.intern_type(mir::Type::Never)),
-            // represent a proof-bearing intersection by its one value operand
+            // represent a constrained intersection by its one value operand
             dir::Type::Intersection(intersection) => {
                 let elements = self
                     .lowerer
@@ -346,9 +342,9 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 }
 
                 match value {
-                    // the value operand carries the whole representation
+                    // lower the value operand as the whole representation
                     Some(element) => self.lower(element),
-                    // an interface conjunction erases behind the dynamic carrier
+                    // erase an interface conjunction behind the dynamic representation
                     None => self.lower_dynamic(id),
                 }
             }
@@ -369,6 +365,29 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         }
     }
 
+    /// Lower one fat pointer value as a managed reference in its referent place.
+    fn lower_fat_reference(
+        &mut self,
+        id: dir::GlobalTypeId,
+        place: dir::GlobalTypeId,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        // enter the referent's heap space for the duration of the lowering
+        let saved = self.space;
+        if let Some(space) = self.lowerer.place_space(place)? {
+            self.space = ModuleLowerer::mir_space(space);
+        }
+
+        let lowered = self.lower_reference(
+            mir::ReferenceKind::Managed,
+            mir::Lifetime::empty(),
+            mir::Access::Mutable,
+            id,
+        );
+        self.space = saved;
+
+        lowered
+    }
+
     /// Build the generic instance key from concrete type arguments.
     pub(in crate::lower) fn generic_instance_key(
         &mut self,
@@ -377,8 +396,20 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
     ) -> CompilerResult<GenericInstanceKey> {
         let mut arguments = Vec::with_capacity(types.len());
         for ty in types {
-            let ty = self.lower(*ty)?;
-            arguments.push(self.tree.intern_static(mir::Static::Type(ty)));
+            match self.lowerer.place_space(*ty)? {
+                // local place arguments canonicalize onto the plain declaration
+                Some(dir::Space::Local) => {}
+                // other place arguments bind their space
+                Some(space) => {
+                    let space = ModuleLowerer::mir_space(space);
+                    arguments.push(self.tree.intern_static(mir::Static::Space(space)));
+                }
+                // every other argument binds a type
+                None => {
+                    let ty = self.lower(*ty)?;
+                    arguments.push(self.tree.intern_static(mir::Static::Type(ty)));
+                }
+            }
         }
 
         Ok(GenericInstanceKey { symbol, arguments })
@@ -396,8 +427,8 @@ impl<'module> ModuleLowerer<'module> {
         TypeLowerer::new(self, tree, pointer_bytes, lifetime_parameters)
     }
 
-    /// Return the wrapped argument when one instance is a storage carrier.
-    fn storage_carrier_argument(
+    /// Return the value argument when one instance applies a memory form item.
+    fn memory_form_value(
         &self,
         id: dir::GlobalTypeId,
         instance: &dir::GenericApplication,
@@ -410,11 +441,11 @@ impl<'module> ModuleLowerer<'module> {
             return Ok(None);
         }
 
-        // storage carriers wrap exactly one value argument
+        // memory form items wrap exactly one value argument
         let arguments = self.types(id.module_id)?.type_ids(instance.arguments);
         let Some(argument) = arguments.first().copied() else {
             return Err(CompilerError::Internal {
-                message: "a storage carrier instantiated without its value".to_string(),
+                message: "a memory form item instantiated without its value".to_string(),
             });
         };
 
@@ -423,8 +454,8 @@ impl<'module> ModuleLowerer<'module> {
 }
 
 impl TypeLowerer<'_, '_> {
-    /// Wrap one lowered value type in its storage carrier.
-    fn insert_storage_carrier(
+    /// Wrap one lowered value type in its memory form.
+    fn insert_storage_form(
         &mut self,
         instance: &dir::GenericApplication,
         value: mir::LocalNodeId<mir::Type>,
@@ -434,7 +465,7 @@ impl TypeLowerer<'_, '_> {
             Some(dir::LanguageItem::ManuallyDrop) => mir::Type::ManuallyDrop { value },
             _ => {
                 return Err(CompilerError::Internal {
-                    message: "lowered a storage carrier without its language item".to_string(),
+                    message: "lowered a memory form without its language item".to_string(),
                 });
             }
         };
@@ -460,6 +491,7 @@ impl ModuleLowerer<'_> {
                 }
                 .into());
             }
+
             ids.push(element.ty);
         }
 

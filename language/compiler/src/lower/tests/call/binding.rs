@@ -74,22 +74,22 @@ type User {
     id: int32;
 }
 
-function test.main.User.constructor(v0: ref<uninit<User>, borrowed, exclusive>): void {
-entry(v0: ref<uninit<User>, borrowed, exclusive>):
+function test.main.User.constructor(v0: ref<uninit<User>, borrowed, exclusive, local>): void {
+entry(v0: ref<uninit<User>, borrowed, exclusive, local>):
     v1: int32 = 0
-    v2: ref<uninit<int32>, borrowed, exclusive> = field.address v0, 0
+    v2: ref<uninit<int32>, borrowed, exclusive, local> = field.address v0, 0
     store v2, v1
     return
 }
 
-function test.main.read<'a>(v0: ref<User, borrowed, 'a, readonly>): int32 {
-entry(v0: ref<User, borrowed, 'a, readonly>):
-    v1: int32 = call host.user.inspect(v0): <'a>(ref<User, borrowed, 'a, readonly>) => int32
+function test.main.read<'a>(v0: ref<User, borrowed, 'a, readonly, local>): int32 {
+entry(v0: ref<User, borrowed, 'a, readonly, local>):
+    v1: int32 = call host.user.inspect(v0): <'a>(ref<User, borrowed, 'a, readonly, local>) => int32
     return v1
 }
 
 @binding("host.user.inspect", { provider: "host", effect: "external" })
-external function host.user.inspect<'a>(ref<User, borrowed, 'a, readonly>): int32
+external function host.user.inspect<'a>(ref<User, borrowed, 'a, readonly, local>): int32
 
 /// @layout.struct name=User size=4 align=4
 /// @layout.field owner=User index=0 name=id offset=0 size=4 align=4

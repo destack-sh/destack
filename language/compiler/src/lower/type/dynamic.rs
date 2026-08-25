@@ -5,7 +5,7 @@ use super::lower::TypeLowerer;
 use crate::{CompilerResult, LowerError};
 
 impl TypeLowerer<'_, '_> {
-    /// Lower one structural constraint to its erased dynamic carrier.
+    /// Lower one structural constraint to its erased dynamic reference.
     pub(in crate::lower) fn lower_dynamic(
         &mut self,
         constraint: dir::GlobalTypeId,
@@ -16,7 +16,7 @@ impl TypeLowerer<'_, '_> {
             kind: mir::ReferenceKind::Managed,
             lifetime: mir::Lifetime::empty(),
             constraint,
-            storage: mir::Storage::Heap(mir::Space::Local),
+            storage: mir::Storage::LocalHeap,
             access: mir::Access::Mutable,
             nullability: mir::Nullability::None,
         }))
@@ -69,7 +69,8 @@ impl TypeLowerer<'_, '_> {
                 }
                 .into());
             };
-            let ty = self.lower_property_carrier(property)?;
+
+            let ty = self.lower_property_representation(property)?;
             let field = self.tree.intern_field(
                 mir::Field {
                     name: Some(name),
@@ -80,6 +81,8 @@ impl TypeLowerer<'_, '_> {
             fields.push(field);
             slots.push(mir::DynamicSlot::Field { field, name });
         }
+
+        // intern the constraint's fields as one non-copy struct
         let copy = mir::Copy::No;
         let struct_type = self.tree.intern_type(mir::Type::Struct { fields, copy });
 

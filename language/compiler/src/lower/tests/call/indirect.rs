@@ -1,5 +1,6 @@
 use crate::tests::TestSession;
 
+/// Bind one free function into a function value and call it indirectly.
 #[test]
 fn test_bind_and_call_a_function_value() {
     let session = TestSession::single(
@@ -27,18 +28,18 @@ entry(v0: int32):
     return v1
 }
 
-function test.main.apply(v0: function<(int32) => int32, repeatable, managed, mutable>, v1: int32): int32 {
-entry(v0: function<(int32) => int32, repeatable, managed, mutable>, v1: int32):
+function test.main.apply(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: int32): int32 {
+entry(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: int32):
     v2: int32 = call.indirect v0(v1): (int32) => int32
     return v2
 }
 
 function test.main.run(): int32 {
 entry:
-    v0: ref<void, managed, mutable, nullable> = null
-    v1: function<(int32) => int32, repeatable, managed, mutable> = function.bind test.main.double, v0
+    v0: ref<void, managed, mutable, nullable, local> = null
+    v1: function<(int32) => int32, repeatable, managed, mutable, local> = function.bind test.main.double, v0
     v2: int32 = 7
-    v3: int32 = call test.main.apply(v1, v2): (function<(int32) => int32, repeatable, managed, mutable>, int32) => int32
+    v3: int32 = call test.main.apply(v1, v2): (function<(int32) => int32, repeatable, managed, mutable, local>, int32) => int32
     return v3
 }
 "#,

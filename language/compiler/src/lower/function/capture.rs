@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::lower::function::body::Binding;
+use crate::lower::function::lower::Binding;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -22,8 +22,8 @@ impl FunctionLowerer<'_, '_, '_> {
         let capture = capture.clone();
         let frame_id = self.managed_frame(&capture)?;
         let frame = self.source().captures.get_frame(frame_id).clone();
-        let carrier = self.lower_type(frame.ty)?;
-        let environment = self.builder.function_environment_current(carrier);
+        let frame_type = self.lower_type(frame.ty)?;
+        let environment = self.builder.function_environment_current(frame_type);
         self.frames.insert(frame.scope, environment);
 
         // bind each captured symbol through its frame field
@@ -35,7 +35,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 });
             };
             let field = field as u32;
-            let ty = self.frame_field_type(carrier, field)?;
+            let ty = self.frame_field_type(frame_type, field)?;
             self.values.insert(
                 symbol.local_id,
                 Binding::Captured {
@@ -60,6 +60,7 @@ impl FunctionLowerer<'_, '_, '_> {
         if capture.captures.is_empty() && capture.this.is_none() {
             return Ok(None);
         }
+
         // allocate or reuse the frame this closure closes over
         let capture = capture.clone();
         let frame_id = self.managed_frame(&capture)?;
@@ -81,8 +82,8 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // write the value through the frame and bind the field as its home
         let frame = self.allocate_frame_maybe(scope, frame_ty)?;
-        let carrier = self.lower_type(frame_ty)?;
-        let ty = self.frame_field_type(carrier, field)?;
+        let frame_type = self.lower_type(frame_ty)?;
+        let ty = self.frame_field_type(frame_type, field)?;
         let address = self.emit_field_address(frame, field, ty, mir::Access::Mutable);
         self.builder.store(address, value);
         self.values
@@ -93,7 +94,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Return the single managed frame one capture collapses onto.
     fn managed_frame(&self, capture: &dir::Capture) -> CompilerResult<dir::LocalCaptureFrameId> {
-        // reject receiver captures, which have no lifted frame
+        // reject receiver captures, which live outside any lifted frame
         if capture.this.is_some() {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -101,7 +102,8 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             .into());
         }
-        // reject every capture mode but managed lifting
+
+        // reject every capture mode outside managed lifting
         for captured in &capture.captures {
             let mode = match captured.mode() {
                 dir::CaptureMode::Manage => continue,
@@ -154,28 +156,28 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // allocate zeroed managed storage for the frame activation
-        let carrier = self.lower_type(ty)?;
-        let mir::Type::Reference { pointee, .. } = self.builder.tree().get(carrier) else {
+        let frame_type = self.lower_type(ty)?;
+        let mir::Type::Reference { pointee, .. } = self.builder.tree().get(frame_type) else {
             return Err(CompilerError::Internal {
                 message: "a capture frame outside a managed reference".to_string(),
             });
         };
         let pointee = *pointee;
-        let frame = self.builder.new_zeroed(pointee, carrier);
+        let frame = self.builder.new_zeroed(pointee, frame_type);
         self.frames.insert(scope, frame);
 
         Ok(frame)
     }
 
-    /// Return the stored field type at one index of a lifted frame carrier.
+    /// Return the stored field type at one index of a lifted frame.
     fn frame_field_type(
         &self,
-        carrier: mir::LocalNodeId<mir::Type>,
+        frame_type: mir::LocalNodeId<mir::Type>,
         field: u32,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         // peel the managed reference down to its struct storage
         let tree = self.builder.tree();
-        let mir::Type::Reference { pointee, .. } = tree.get(carrier) else {
+        let mir::Type::Reference { pointee, .. } = tree.get(frame_type) else {
             return Err(CompilerError::Internal {
                 message: "a capture frame outside a managed reference".to_string(),
             });

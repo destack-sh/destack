@@ -89,6 +89,7 @@ impl FunctionLowerer<'_, '_, '_> {
         left: dir::LocalNodeId<dir::Expression>,
         index: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<mir::Value> {
+        // read the single access the checker selected for this subscript
         let resolution = self.subscript_decision(expression)?;
         let dir::OperationResolution::One(subscript) = resolution else {
             return Err(LowerError::Unsupported {
@@ -257,7 +258,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Lower one payload-free variant member to its case construction.
     fn lower_variant_member(&mut self, variant: &dir::VariantType) -> CompilerResult<mir::Value> {
-        // materialize the owner carrier and select the declared case
+        // materialize the owner representation and select the declared case
         let dir::Type::Application(owner) = self.lowerer.ty(variant.owner)? else {
             return Err(CompilerError::Internal {
                 message: "a variant without its owner instance".to_string(),
@@ -303,6 +304,8 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a discriminant projection has no reachable cases".to_string(),
             });
         }
+
+        // read the arms of the union the receiver carries
         let source_members = self.union_members(union)?;
 
         // read the result's literal arms when it remains an indexed union
@@ -326,6 +329,8 @@ impl FunctionLowerer<'_, '_, '_> {
                     message: "a discriminant projection selects an absent union arm".to_string(),
                 });
             };
+
+            // select the result arm carrying this case's literal
             let mut result_index = None;
             if let Some(result_members) = &result_members {
                 for (index, member) in result_members.iter().enumerate() {
@@ -335,13 +340,14 @@ impl FunctionLowerer<'_, '_, '_> {
                         break;
                     }
                 }
+
                 if result_index.is_none() {
                     return Err(CompilerError::Internal {
                         message: "a discriminant projection value is absent from its result type"
                             .to_string(),
                     });
                 }
-            };
+            }
 
             mappings.push((source_index as i128, result_index, case.value));
         }
@@ -390,7 +396,7 @@ impl FunctionLowerer<'_, '_, '_> {
         receiver: mir::Value,
         union: dir::GlobalTypeId,
     ) -> CompilerResult<mir::Value> {
-        let receiver_type = self.value_carrier(receiver)?;
+        let receiver_type = self.value_representation(receiver)?;
 
         // stored unions expose their tag through their address
         if matches!(
@@ -427,11 +433,15 @@ impl FunctionLowerer<'_, '_, '_> {
         &self,
         field: &dir::FieldResolution,
     ) -> CompilerResult<u32> {
-        // locate storage in the selected receiver
-        let mut stored = match self.lowerer.peel_indirection(field.receiver.ty())? {
-            Some(layer) => layer.stored,
-            None => self.lowerer.peel_owned(field.receiver.ty())?,
-        };
+        // locate storage beneath every reference layer of the selected receiver
+        let mut stored = field.receiver.ty();
+        while let Some(layer) = self.lowerer.peel_indirection(stored)? {
+            if layer.stored == stored {
+                break;
+            }
+            stored = layer.stored;
+        }
+        let mut stored = self.lowerer.peel_owned(stored)?;
 
         // follow transparent alias and newtype definitions, re-peeling their owners
         while let dir::Type::Application(instance) = self.lowerer.ty(stored)? {
@@ -468,10 +478,13 @@ impl FunctionLowerer<'_, '_, '_> {
                     dir::FieldTarget::Member { .. } => false,
                 })
             }
-            _ => {
+            stored_head => {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
-                    construct: "a member read on a structural receiver".to_string(),
+                    construct: format!(
+                        "a member read on a structural receiver ({})",
+                        stored_head.variant_name()
+                    ),
                 }
                 .into());
             }

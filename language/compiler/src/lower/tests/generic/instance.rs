@@ -461,18 +461,18 @@ function run(): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function test.main.apply(v0: function<(int32) => int32, repeatable, managed, mutable>, v1: int32): int32 {
-entry(v0: function<(int32) => int32, repeatable, managed, mutable>, v1: int32):
+function test.main.apply(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: int32): int32 {
+entry(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: int32):
     v2: int32 = call.indirect v0(v1): (int32) => int32
     return v2
 }
 
 function test.main.run(): int32 {
 entry:
-    v0: ref<void, managed, mutable, nullable> = null
-    v1: function<(int32) => int32, repeatable, managed, mutable> = function.bind test.main.identity<int32>, v0
+    v0: ref<void, managed, mutable, nullable, local> = null
+    v1: function<(int32) => int32, repeatable, managed, mutable, local> = function.bind test.main.identity<int32>, v0
     v2: int32 = 7
-    v3: int32 = call test.main.apply(v1, v2): (function<(int32) => int32, repeatable, managed, mutable>, int32) => int32
+    v3: int32 = call test.main.apply(v1, v2): (function<(int32) => int32, repeatable, managed, mutable, local>, int32) => int32
     return v3
 }
 
@@ -514,16 +514,16 @@ type test.lib.Channel {
     value: int32;
 }
 
-function test.main.notify<'a>(v0: ref<test.lib.Channel, borrowed, 'a, mutable>): void {
-entry(v0: ref<test.lib.Channel, borrowed, 'a, mutable>):
-    v1: ref<test.lib.Channel, managed, mutable> = load v0
+function test.main.notify<'a>(v0: ref<test.lib.Channel, borrowed, 'a, mutable, local>): void {
+entry(v0: ref<test.lib.Channel, borrowed, 'a, mutable, local>):
+    v1: ref<test.lib.Channel, managed, mutable, local> = load v0
     v2: int32 = 1
-    call test.lib.Channel.send<int32>(v1, v2): (ref<test.lib.Channel, managed, mutable>, int32) => void
+    call test.lib.Channel.send<int32>(v1, v2): (ref<test.lib.Channel, managed, mutable, local>, int32) => void
     return
 }
 
-function test.lib.Channel.send<int32>(v0: ref<test.lib.Channel, managed, mutable>, v1: int32): void {
-entry(v0: ref<test.lib.Channel, managed, mutable>, v1: int32):
+function test.lib.Channel.send<int32>(v0: ref<test.lib.Channel, managed, mutable, local>, v1: int32): void {
+entry(v0: ref<test.lib.Channel, managed, mutable, local>, v1: int32):
     return
 }
 
@@ -568,16 +568,16 @@ type test.lib.Box<int32> {
     value: int32;
 }
 
-function test.main.unwrap<'a>(v0: ref<test.lib.Box<int32>, borrowed, 'a, mutable>): int32 {
-entry(v0: ref<test.lib.Box<int32>, borrowed, 'a, mutable>):
-    v1: ref<test.lib.Box<int32>, managed, mutable> = load v0
-    v2: int32 = call test.lib.Box.read<int32>(v1): (ref<test.lib.Box<int32>, managed, mutable>) => int32
+function test.main.unwrap<'a>(v0: ref<test.lib.Box<int32>, borrowed, 'a, mutable, local>): int32 {
+entry(v0: ref<test.lib.Box<int32>, borrowed, 'a, mutable, local>):
+    v1: ref<test.lib.Box<int32>, managed, mutable, local> = load v0
+    v2: int32 = call test.lib.Box.read<int32>(v1): (ref<test.lib.Box<int32>, managed, mutable, local>) => int32
     return v2
 }
 
-function test.lib.Box.read<int32>(v0: ref<test.lib.Box<int32>, managed, mutable>): int32 {
-entry(v0: ref<test.lib.Box<int32>, managed, mutable>):
-    v1: ref<int32, borrowed, mutable> = field.address v0, 0
+function test.lib.Box.read<int32>(v0: ref<test.lib.Box<int32>, managed, mutable, local>): int32 {
+entry(v0: ref<test.lib.Box<int32>, managed, mutable, local>):
+    v1: ref<int32, borrowed, mutable, local> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
@@ -633,16 +633,16 @@ type test.lib.Tap<int32> {
     value: int32;
 }
 
-function test.main.drain<'a>(v0: ref<test.lib.Tap<int32>, borrowed, 'a, mutable>): int32 {
-entry(v0: ref<test.lib.Tap<int32>, borrowed, 'a, mutable>):
-    v1: ref<test.lib.Tap<int32>, managed, mutable> = load v0
-    v2: int32 = call test.lib.Source.read<int32>(v1): (ref<test.lib.Source<int32>, managed, mutable>) => int32
+function test.main.drain<'a>(v0: ref<test.lib.Tap<int32>, borrowed, 'a, mutable, local>): int32 {
+entry(v0: ref<test.lib.Tap<int32>, borrowed, 'a, mutable, local>):
+    v1: ref<test.lib.Tap<int32>, managed, mutable, local> = load v0
+    v2: int32 = call test.lib.Source.read<int32>(v1): (ref<test.lib.Source<int32>, managed, mutable, local>) => int32
     return v2
 }
 
-function test.lib.Source.read<int32>(v0: ref<test.lib.Source<int32>, managed, mutable>): int32 {
-entry(v0: ref<test.lib.Source<int32>, managed, mutable>):
-    v1: ref<int32, borrowed, mutable> = field.address v0, 0
+function test.lib.Source.read<int32>(v0: ref<test.lib.Source<int32>, managed, mutable, local>): int32 {
+entry(v0: ref<test.lib.Source<int32>, managed, mutable, local>):
+    v1: ref<int32, borrowed, mutable, local> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
@@ -742,4 +742,60 @@ entry(v0: test.lib.BRef):
 /// @layout.struct name=test.lib.Pair<test.lib.BRef> size=4 align=4
 /// @layout.field owner=test.lib.Pair<test.lib.BRef> index=0 name=value offset=0 size=4 align=4
 "#);
+}
+
+#[test]
+fn test_call_a_generic_extension_static_across_modules() {
+    let session = TestSession::builder()
+        .module(
+            "lib.ds",
+            r#"
+export struct Wrap<'a, T> {
+    value: &'a readonly T;
+}
+
+export type Alias<'a, T> = Wrap<'a, T>;
+
+export extension<'a, T> of Wrap<'a, T> {
+    static make(value: &'a readonly T): Wrap<'a, T> {
+        return Wrap { value };
+    }
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { Wrap } from "./lib";
+
+function build(message: &readonly int32): Wrap<int32> {
+    return Wrap.make(message);
+}
+"#,
+        )
+        .build();
+
+    session.assert_mir_lowered(
+        "main.ds", r#"
+@copy
+type test.lib.Wrap<int32, 'a> {
+    value: ref<int32, borrowed, 'a, readonly, local>;
+}
+
+function test.main.build<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): test.lib.Wrap<int32> {
+entry(v0: ref<int32, borrowed, 'a, readonly, local>):
+    v1: test.lib.Wrap<int32> = call test.lib.make<int32>(v0): (ref<int32, borrowed, readonly, local>) => test.lib.Wrap<int32>
+    return v1
+}
+
+function test.lib.make<int32>(v0: ref<int32, borrowed, readonly, local>): test.lib.Wrap<int32> {
+entry(v0: ref<int32, borrowed, readonly, local>):
+    v1: test.lib.Wrap<int32> = aggregate (v0)
+    return v1
+}
+
+/// @layout.struct name=test.lib.Wrap<int32> size=8 align=8
+/// @layout.field owner=test.lib.Wrap<int32> index=0 name=value offset=0 size=8 align=8
+"#,
+    );
 }

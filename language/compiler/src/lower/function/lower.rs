@@ -7,9 +7,36 @@ use destack_source::ModuleId;
 
 use crate::lower::{
     GenericInstanceKey, LifetimeParameters, LowerModuleState, Lowered, ModuleLowerer,
-    NominalInstance, insert_local_reference,
+    NominalInstance, insert_reference_type,
 };
 use crate::{CompilerError, CompilerResult};
+
+/// Lowering state for one function body.
+pub(in crate::lower) struct FunctionLowerer<'lowerer, 'builder, 'module> {
+    // context
+    /// The module lowering state.
+    pub(in crate::lower) lowerer: &'lowerer mut ModuleLowerer<'module>,
+    /// The function builder.
+    pub(in crate::lower) builder: mir::FunctionBuilder<'builder>,
+    /// The module declaring this function.
+    pub(in crate::lower) source: ModuleId,
+    /// The sema instance this function specializes, when generic.
+    pub(in crate::lower) instance: Option<(ModuleId, dir::LocalInstanceId)>,
+    /// The polymorphic lifetime parameters of this function.
+    pub(in crate::lower) lifetime_parameters: LifetimeParameters,
+    /// The class whose constructor this body runs, when it is one.
+    pub(in crate::lower) constructs: Option<dir::GlobalSymbolId>,
+
+    // body state
+    /// The lowered binding for each symbol.
+    pub(in crate::lower) values: FxIndexMap<dir::LocalSymbolId, Binding>,
+    /// The allocated capture frame for each lifted scope.
+    pub(in crate::lower) frames: FxIndexMap<dir::GlobalScopeId, mir::Value>,
+    /// The receiver binding of the enclosing method, when one exists.
+    pub(in crate::lower) this: Option<Binding>,
+    /// The enclosing control statements, innermost last.
+    pub(in crate::lower) controls: Vec<ControlFrame>,
+}
 
 /// One lowered value bound to a symbol.
 #[derive(Clone, Copy)]
@@ -29,7 +56,7 @@ pub(in crate::lower) enum Binding {
     },
 }
 
-/// One enclosing loop's control targets.
+/// One enclosing control statement's break and continue targets.
 pub(in crate::lower) struct ControlFrame {
     /// The label naming this statement, when one does.
     pub(in crate::lower) label: Option<StringId>,
@@ -63,30 +90,6 @@ pub(in crate::lower) struct FunctionDefinition {
     pub(in crate::lower) defaults: Vec<Option<dir::LocalNodeId<dir::Expression>>>,
 }
 
-/// Lowering state for one function body.
-pub(in crate::lower) struct FunctionLowerer<'lowerer, 'builder, 'module> {
-    /// The module lowering state.
-    pub(in crate::lower) lowerer: &'lowerer mut ModuleLowerer<'module>,
-    /// The function builder.
-    pub(in crate::lower) builder: mir::FunctionBuilder<'builder>,
-    /// The module declaring this function.
-    pub(in crate::lower) source: ModuleId,
-    /// The sema instance this function specializes, when generic.
-    pub(in crate::lower) instance: Option<(ModuleId, dir::LocalInstanceId)>,
-    /// The polymorphic lifetime parameters of this function.
-    pub(in crate::lower) lifetime_parameters: LifetimeParameters,
-    /// The lowered binding for each symbol.
-    pub(in crate::lower) values: FxIndexMap<dir::LocalSymbolId, Binding>,
-    /// The allocated capture frame for each lifted scope.
-    pub(in crate::lower) frames: FxIndexMap<dir::GlobalScopeId, mir::Value>,
-    /// The receiver binding of the enclosing method, when one exists.
-    pub(in crate::lower) this: Option<Binding>,
-    /// The class whose constructor this body runs, when it is one.
-    pub(in crate::lower) constructs: Option<dir::GlobalSymbolId>,
-    /// The enclosing control statements, innermost last.
-    pub(in crate::lower) controls: Vec<ControlFrame>,
-}
-
 impl<'module> FunctionLowerer<'_, '_, 'module> {
     /// Lower one declared function body.
     pub(in crate::lower) fn lower(
@@ -106,6 +109,8 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             constructs,
             defaults,
         } = definition;
+
+        // open the declared body and stand up the lowering state around it
         let builder = builder
             .function_body(function)
             .map_err(|error| CompilerError::Internal {
@@ -146,6 +151,8 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
 
         // resolve the defaulted parameters before anything reads them
         function.lower_parameter_defaults(&parameters, &defaults)?;
+
+        // lift every parameter a nested scope captures into its frame
         for symbol in &parameters {
             if let Some(Binding::Value(value)) = function.values.get(symbol).copied() {
                 function.bind_lifted(symbol.into_global(source), value)?;
@@ -180,6 +187,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         instance: Option<(ModuleId, dir::LocalInstanceId)>,
         function: mir::FunctionId,
     ) -> CompilerResult<()> {
+        // open the synthesized body and stand up the lowering state around it
         let builder = builder
             .function_body(function)
             .map_err(|error| CompilerError::Internal {
@@ -197,11 +205,14 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             constructs: None,
             controls: Vec::new(),
         };
+
         // open the entry block and home the receiver like any declared constructor
         let entry = function.builder.block();
         function.builder.switch_to_block(entry);
         let value = function.builder.function_parameter(0);
         function.this = Some(function.bind_receiver(value)?);
+
+        // store the declared field initializers the synthesized body stands in for
         function.lower_field_initializers(class)?;
 
         // close the constructor with a void return
@@ -227,6 +238,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             dir::LocalNodeId<dir::Expression>,
         )>,
     ) -> CompilerResult<()> {
+        // open the initializer body and stand up the lowering state around it
         let source = lowerer.module;
         let builder = builder
             .function_body(function)
@@ -283,8 +295,10 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         let frames = std::mem::take(&mut self.frames);
         let this = self.this.take();
 
+        // lower the expression against the declaring module
         let value = self.lower_expression(expression);
 
+        // swap the enclosing body's state back in, keeping the outcome
         self.source = source;
         self.instance = outer_instance;
         self.values = values;
@@ -302,15 +316,15 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         }
     }
 
-    /// Return the carrier type of one lowered value.
-    pub(in crate::lower) fn value_carrier(
+    /// Return the representation type of one lowered value.
+    pub(in crate::lower) fn value_representation(
         &self,
         value: mir::Value,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         self.builder
             .value_type(value)
             .ok_or_else(|| CompilerError::Internal {
-                message: "a lowered value has no carrier".to_string(),
+                message: "a lowered value has no representation".to_string(),
             })
     }
 
@@ -330,6 +344,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        // resolve the written id through its materialized types
         let id = self.lowerer.instance_type(self.instance, id)?;
 
         // lower the representation once for every body that reads it
@@ -392,12 +407,28 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
     ) -> CompilerResult<GenericInstanceKey> {
         let mut arguments = Vec::with_capacity(types.len());
         for ty in types {
-            let node = self.lower_type(*ty)?;
-            let argument = self
-                .builder
-                .tree_mut()
-                .intern_static(mir::Static::Type(mir::TypeId::from(node)));
-            arguments.push(argument);
+            match self.lowerer.place_space(*ty)? {
+                // local place arguments canonicalize onto the plain declaration
+                Some(dir::Space::Local) => {}
+                // other place arguments bind their space
+                Some(space) => {
+                    let space = ModuleLowerer::mir_space(space);
+                    let argument = self
+                        .builder
+                        .tree_mut()
+                        .intern_static(mir::Static::Space(space));
+                    arguments.push(argument);
+                }
+                // every other argument binds a type
+                None => {
+                    let node = self.lower_type(*ty)?;
+                    let argument = self
+                        .builder
+                        .tree_mut()
+                        .intern_static(mir::Static::Type(mir::TypeId::from(node)));
+                    arguments.push(argument);
+                }
+            }
         }
 
         Ok(GenericInstanceKey { symbol, arguments })
@@ -408,6 +439,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<NominalInstance> {
+        // peel the value type down to the nominal it stores
         let stored = match self.lowerer.peel_indirection(id)? {
             Some(reference) => reference.stored,
             None => self.lowerer.peel_owned(id)?,
@@ -450,25 +482,29 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         outcome: CompilerResult<T>,
     ) -> CompilerResult<()> {
         match outcome {
+            // keep the lowered value
             Ok(value) => {
                 outcomes.insert(key, Ok(value));
             }
+            // keep the diagnostic so every later read cascades it
             Err(CompilerError::Diagnostic(diagnostic)) => {
                 outcomes.insert(key, Err(Arc::from(diagnostic)));
             }
+            // raise every internal failure straight out
             Err(error) => return Err(error),
         }
 
         Ok(())
     }
 
-    /// Intern one local reference type over a lowered pointee.
+    /// Intern one reference type over a lowered pointee in one storage.
     pub(in crate::lower) fn insert_reference(
         &mut self,
         kind: mir::ReferenceKind,
         access: mir::Access,
+        storage: mir::Storage,
         pointee: mir::LocalNodeId<mir::Type>,
     ) -> mir::LocalNodeId<mir::Type> {
-        insert_local_reference(self.builder.tree_mut(), kind, access, pointee)
+        insert_reference_type(self.builder.tree_mut(), kind, access, storage, pointee)
     }
 }

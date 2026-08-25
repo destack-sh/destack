@@ -19,15 +19,15 @@ function test(rule: &readonly Rule): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type Predicate = function<<'a>(ref<int32, borrowed, 'a, readonly>) => boolean, repeatable, managed, mutable>;
+type Predicate = function<<'a>(ref<int32, borrowed, 'a, readonly, local>) => boolean, repeatable, managed, mutable, local>;
 
 @copy
 type Rule {
     accept: Predicate;
 }
 
-function test.main.test<'a>(v0: ref<Rule, borrowed, 'a, readonly>): int32 {
-entry(v0: ref<Rule, borrowed, 'a, readonly>):
+function test.main.test<'a>(v0: ref<Rule, borrowed, 'a, readonly, local>): int32 {
+entry(v0: ref<Rule, borrowed, 'a, readonly, local>):
     v1: int32 = 3
     return v1
 }

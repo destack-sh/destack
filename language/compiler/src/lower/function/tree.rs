@@ -100,10 +100,10 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "tree tag bound a non-literal parameter".to_string(),
             });
         };
-        let carrier = self.lower_type(argument_type)?;
-        let carrier = self.builder.tree().get(carrier).clone();
+        let representation = self.lower_type(argument_type)?;
+        let representation = self.builder.tree().get(representation).clone();
 
-        self.lower_constant(literal, carrier)
+        self.lower_constant(literal, representation)
     }
 
     /// Lower the attribute type of one tree literal.
@@ -198,10 +198,10 @@ impl FunctionLowerer<'_, '_, '_> {
             // provide true for bare attributes
             None => dir::Literal::Boolean(true),
         };
-        let carrier = self.lower_type(attribute.ty)?;
-        let carrier = self.builder.tree().get(carrier).clone();
+        let representation = self.lower_type(attribute.ty)?;
+        let representation = self.builder.tree().get(representation).clone();
 
-        self.lower_constant(literal, carrier)
+        self.lower_constant(literal, representation)
     }
 
     /// Lower the children of one tree literal to their tuple.
@@ -215,9 +215,9 @@ impl FunctionLowerer<'_, '_, '_> {
         for child in children {
             match child {
                 dir::TreeChildBinding::Text { value, ty } => {
-                    let carrier = self.lower_type(*ty)?;
-                    let carrier = self.builder.tree().get(carrier).clone();
-                    values.push(self.lower_constant(dir::Literal::String(*value), carrier)?);
+                    let representation = self.lower_type(*ty)?;
+                    let representation = self.builder.tree().get(representation).clone();
+                    values.push(self.lower_constant(dir::Literal::String(*value), representation)?);
                 }
                 dir::TreeChildBinding::Expression { node, .. } => {
                     let Ok(expression) = node.local_id.try_into_typed::<dir::Expression>() else {

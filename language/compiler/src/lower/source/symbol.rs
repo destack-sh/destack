@@ -31,18 +31,41 @@ impl ModuleLowerer<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<String> {
-        let state = self.state(symbol.module_id)?;
+        let module = symbol.module_id;
+        let state = self.state(module)?;
         let local_path = state.bindings.symbol_path(symbol.local_id);
         let mut names = Vec::with_capacity(local_path.symbols().len());
         for symbol in local_path.symbols() {
             // synthesize stable names for anonymous segments such as closures
             match state.bindings.get_symbol(*symbol).name() {
                 Some(name) => names.push(self.strings.get(name).to_string()),
-                None => names.push(Self::closure_segment(&state.bindings, *symbol)),
+                None => {
+                    let segment = match self.member_role(symbol.into_global(module))? {
+                        Some(dir::FunctionRole::Constructor) => "constructor".to_string(),
+                        _ => Self::closure_segment(&state.bindings, *symbol),
+                    };
+                    names.push(segment);
+                }
             }
         }
 
-        Ok(format!("{}.{}", state.path, names.join(".")))
+        self.qualified_name(module, &names.join("."))
+    }
+
+    /// Qualify one name under its module path, keeping standard library names bare.
+    pub(in crate::lower) fn qualified_name(
+        &self,
+        module: destack_source::ModuleId,
+        name: &str,
+    ) -> CompilerResult<String> {
+        let path = &self.state(module)?.path;
+
+        // standard library names stay bare: the library owns their uniqueness
+        if path == "destack" || path.starts_with("destack.") {
+            return Ok(name.to_string());
+        }
+
+        Ok(format!("{path}.{name}"))
     }
 
     /// Return the symbol declared at one node in its owning module.
@@ -100,6 +123,7 @@ impl ModuleLowerer<'_> {
         let dir::Type::Application(instance) = self.ty(id)? else {
             return Ok(false);
         };
+
         let symbol = instance.symbol;
         let kind = self
             .state(symbol.module_id)?
@@ -118,7 +142,7 @@ impl ModuleLowerer<'_> {
         Ok(self.state(symbol.module_id)?.definitions.definition(symbol))
     }
 
-    /// Return whether one definition declares parameters beyond lifetimes.
+    /// Return whether one definition declares parameters beyond the memory kinds.
     pub(in crate::lower) fn definition_is_parameterized(
         &self,
         module: destack_source::ModuleId,
@@ -128,17 +152,42 @@ impl ModuleLowerer<'_> {
             return Ok(false);
         };
 
-        // skip lifetime parameters, grounded implicitly at every use
+        // skip memory parameters, which ground at each use
         let generics = &self.state(module)?.generics;
         let template = generics.get_template(template);
         for parameter in &template.parameters {
             let parameter = generics.get_parameter(*parameter);
-            if parameter.memory_parameter() != Some(dir::MemoryParameter::Lifetime) {
+            if parameter.memory_parameter().is_none() {
                 return Ok(true);
             }
         }
 
         Ok(false)
+    }
+
+    /// Return the declared member role of one symbol, when its owner declares it.
+    fn member_role(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<dir::FunctionRole>> {
+        let state = self.state(symbol.module_id)?;
+        let Some(owner) = state.bindings.symbol_owner(symbol.local_id) else {
+            return Ok(None);
+        };
+
+        let Some(definition) = state
+            .definitions
+            .definition(owner.into_global(symbol.module_id))
+        else {
+            return Ok(None);
+        };
+
+        // read the role of the matching method member
+        let Some(dir::DefinitionMember::Method(method)) = definition.member(symbol) else {
+            return Ok(None);
+        };
+
+        Ok(method.role)
     }
 
     /// Synthesize the ordinal path segment of one anonymous symbol under its owner.

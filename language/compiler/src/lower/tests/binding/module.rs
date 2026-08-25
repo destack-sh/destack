@@ -1,5 +1,6 @@
 use crate::tests::TestSession;
 
+/// Lower a module constant to a global read through its address.
 #[test]
 fn test_lower_module_constants_to_globals() {
     let session = TestSession::single(
@@ -32,6 +33,7 @@ entry:
     );
 }
 
+/// Store a constant with a runtime initializer from the module initializer.
 #[test]
 fn test_store_a_runtime_binding_from_the_module_initializer() {
     let session = TestSession::single(
@@ -51,7 +53,7 @@ function run(): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-global test.main.start: int32 = zeroInit
+global test.main.start: int32 = zeroinit
 
 function test.main.seed(): int32 {
 entry:
@@ -61,7 +63,7 @@ entry:
 
 function test.main.run(): int32 {
 entry:
-    v0: ref<int32, borrowed, readonly, global> = global.address test.main.start
+    v0: ref<int32, borrowed, readonly, static> = global.address test.main.start
     v1: int32 = load v0
     return v1
 }
@@ -71,7 +73,7 @@ entry:
     v0: int32 = call test.main.seed(): () => int32
     v1: int32 = 1
     v2: int32 = add v0, v1
-    v3: ref<int32, borrowed, mutable, global> = global.address test.main.start
+    v3: ref<int32, borrowed, mutable, static> = global.address test.main.start
     store v3, v2
     return
 }
@@ -104,11 +106,11 @@ type Point {
     x: int32;
 }
 
-global test.main.ORIGIN: Point = zeroInit
+global test.main.ORIGIN: Point = zeroinit
 
 function test.main.pick(): Point {
 entry:
-    v0: ref<Point, borrowed, readonly, global> = global.address test.main.ORIGIN
+    v0: ref<Point, borrowed, readonly, static> = global.address test.main.ORIGIN
     v1: Point = load v0
     return v1
 }
@@ -117,7 +119,7 @@ function test.main.@init(): void {
 entry:
     v0: int32 = 1
     v1: Point = aggregate (v0)
-    v2: ref<Point, borrowed, mutable, global> = global.address test.main.ORIGIN
+    v2: ref<Point, borrowed, mutable, static> = global.address test.main.ORIGIN
     store v2, v1
     return
 }
@@ -162,8 +164,8 @@ entry(v0: Guard<int32>):
     return
 }
 
-function test.main.drop<int32, 'a>(v0: ref<Guard<int32>, borrowed, 'a, exclusive>): void {
-entry(v0: ref<Guard<int32>, borrowed, 'a, exclusive>):
+function test.main.drop<int32, 'a>(v0: ref<Guard<int32>, borrowed, 'a, exclusive, local>): void {
+entry(v0: ref<Guard<int32>, borrowed, 'a, exclusive, local>):
     return
 }
 

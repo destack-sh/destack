@@ -27,20 +27,20 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(lowered);
         }
 
-        // convert between the two scalar carriers
+        // convert between the two scalar representations
         let operator = self.cast_operator(&source, &target)?;
         let target = self.builder.tree_mut().intern_type(target);
 
         Ok(self.builder.cast(operator, lowered, target))
     }
 
-    /// Select the conversion between two concrete scalar carriers.
+    /// Select the conversion between two concrete scalar representations.
     pub(in crate::lower) fn cast_operator(
         &self,
         source: &mir::Type,
         target: &mir::Type,
     ) -> CompilerResult<mir::CastOperator> {
-        // resolve pointer-sized carriers to their concrete widths
+        // resolve pointer-sized representations to their concrete widths
         let pointer_bits = self.builder.pointer_bits();
         let concrete = |ty: &mir::Type| match *ty {
             mir::Type::Isize => mir::Type::Int {
@@ -121,7 +121,7 @@ impl FunctionLowerer<'_, '_, '_> {
         })
     }
 
-    /// Name one concrete scalar carrier for diagnostics.
+    /// Name one concrete scalar representation for diagnostics.
     fn scalar_name(&self, ty: &mir::Type) -> String {
         match ty {
             mir::Type::Void => "void".to_string(),

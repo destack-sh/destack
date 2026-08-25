@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::lower::function::body::Binding;
+use crate::lower::function::lower::Binding;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// One value in flight along a coercion path.
@@ -28,6 +28,8 @@ impl FunctionLowerer<'_, '_, '_> {
         let Some(coercion) = self.coercion(expression) else {
             return self.lower_expression_value(expression);
         };
+
+        // walk the coercion path from the classified source to its target
         let target = coercion.target();
         let source = self.lowerer.instance_type(self.instance, coercion.source)?;
         let value = self.coercion_source(expression, source)?;
@@ -42,6 +44,7 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         source: dir::GlobalTypeId,
     ) -> CompilerResult<CoercionValue> {
+        // keep sources whose value lives in their type unmaterialized
         let value = match self.lowerer.ty(source)? {
             dir::Type::Literal(literal) => CoercionValue::Literal(literal),
             dir::Type::Null => CoercionValue::Null,
@@ -60,12 +63,12 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
-        // a folded computation keeps no runtime form
+        // skip the expressions already folded into their committed type
         if self.is_folded_expression(expression)? {
             return Ok(());
         }
 
-        // every remaining const value evaluates as an ordinary expression
+        // evaluate every remaining const value as an ordinary expression
         // NOTE: value lowering avoids re-entering the coercion path that called here
         self.lower_expression_value(expression)?;
 
@@ -108,6 +111,7 @@ impl FunctionLowerer<'_, '_, '_> {
         mut source: dir::GlobalTypeId,
         adjustments: &[dir::CoercionAdjustment],
     ) -> CompilerResult<CoercionValue> {
+        // apply each adjustment and advance the source type along the path
         for adjustment in adjustments {
             value = self.lower_adjustment(value, source, adjustment)?;
             source = adjustment.target();
@@ -158,7 +162,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             dir::CoercionAdjustment::Scalar { target } => {
                 let value = self.materialize_coercion_value(value, source)?;
-                let source = self.value_carrier(value)?;
+                let source = self.value_representation(value)?;
                 let target = self.lower_type(*target)?;
                 let value = if self.builder.tree().get(source) == self.builder.tree().get(target) {
                     value
@@ -261,7 +265,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Adjust one value into its union target carrier.
+    /// Adjust one value into its union target representation.
     fn lower_union_adjustment(
         &mut self,
         value: CoercionValue,
@@ -269,19 +273,19 @@ impl FunctionLowerer<'_, '_, '_> {
         target: dir::GlobalTypeId,
         cases: &[dir::CoercionCase],
     ) -> CompilerResult<mir::Value> {
-        let carrier = self.lower_type(target)?;
+        let representation = self.lower_type(target)?;
 
         // preserve the source case correspondence for indexed variants
-        if let mir::Type::Variant { .. } = self.builder.tree().get(carrier) {
-            return self.lower_variant_adjustment(value, source, target, carrier, cases);
+        if let mir::Type::Variant { .. } = self.builder.tree().get(representation) {
+            return self.lower_variant_adjustment(value, source, target, representation, cases);
         }
 
-        // dispatch union sources before leaving their indexed carrier
+        // dispatch union sources before leaving their indexed representation
         if matches!(self.lowerer.ty(source)?, dir::Type::Union(_)) {
-            return self.lower_union_exit(value, source, target, carrier, cases);
+            return self.lower_union_exit(value, source, target, representation, cases);
         }
 
-        // nullish sentinels materialize directly at the union's carrier
+        // materialize nullish sentinels directly at the union's representation
         if matches!(value, CoercionValue::Null | CoercionValue::Undefined) {
             return self.materialize_coercion_value(value, target);
         }
@@ -301,10 +305,15 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         };
 
-        // inject the converted source at the union's shared reference carrier
+        // inject the converted source at the union's shared reference representation
         let value = self.materialize_coercion_value(value, source)?;
-        if self.builder.tree().get(carrier).is_reference_carrier() {
-            return self.adapt_to_carrier(value, carrier);
+        if self
+            .builder
+            .tree()
+            .get(representation)
+            .is_reference_representation()
+        {
+            return self.adapt_to_representation(value, representation);
         }
 
         Ok(value)
@@ -316,7 +325,7 @@ impl FunctionLowerer<'_, '_, '_> {
         value: CoercionValue,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-        carrier: mir::LocalNodeId<mir::Type>,
+        representation: mir::LocalNodeId<mir::Type>,
         cases: &[dir::CoercionCase],
     ) -> CompilerResult<mir::Value> {
         let target_members = self.union_members(target)?;
@@ -329,7 +338,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .type_ids(source_union.elements)
                 .to_vec();
             let value = self.materialize_coercion_value(value, source)?;
-            let value_type = self.value_carrier(value)?;
+            let value_type = self.value_representation(value)?;
             if matches!(
                 self.builder.tree().get(value_type),
                 mir::Type::Variant { .. }
@@ -338,12 +347,12 @@ impl FunctionLowerer<'_, '_, '_> {
                     source_members,
                     target_members,
                     value,
-                    carrier,
+                    representation,
                     cases,
                 );
             }
 
-            // enter a single target case for shared source carriers
+            // enter a single target case for shared source representations
             let Some(first) = cases.first() else {
                 return Err(CompilerError::Internal {
                     message: "a union conversion without source cases".to_string(),
@@ -355,11 +364,15 @@ impl FunctionLowerer<'_, '_, '_> {
                         .to_string(),
                 });
             }
+
+            // build the shared target case around the converted payload
             let target_member = first.target;
             require_union_case(&target_members, first.index, target_member)?;
             let payload = self.union_payload(CoercionValue::Runtime(value), target_member)?;
 
-            return Ok(self.builder.variant_new(carrier, first.index, payload));
+            return Ok(self
+                .builder
+                .variant_new(representation, first.index, payload));
         }
 
         // enter the single declared case of a plain injection
@@ -375,7 +388,9 @@ impl FunctionLowerer<'_, '_, '_> {
         let value = self.lower_adjustments(value, source, &case.adjustments)?;
         let payload = self.union_payload(value, target_member)?;
 
-        Ok(self.builder.variant_new(carrier, case.index, payload))
+        Ok(self
+            .builder
+            .variant_new(representation, case.index, payload))
     }
 
     /// Convert one indexed union value into another ordered case set.
@@ -384,7 +399,7 @@ impl FunctionLowerer<'_, '_, '_> {
         source_members: Vec<dir::GlobalTypeId>,
         target_members: Vec<dir::GlobalTypeId>,
         value: mir::Value,
-        carrier: mir::LocalNodeId<mir::Type>,
+        representation: mir::LocalNodeId<mir::Type>,
         mappings: &[dir::CoercionCase],
     ) -> CompilerResult<mir::Value> {
         if mappings.len() != source_members.len() {
@@ -394,7 +409,9 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // dispatch once over the source discriminant
-        let result = self.builder.local(carrier, mir::Mutability::Immutable);
+        let result = self
+            .builder
+            .local(representation, mir::Mutability::Immutable);
         let exit = self.builder.block();
         let mut cases = Vec::with_capacity(mappings.len());
         for index in 0..mappings.len() {
@@ -413,7 +430,9 @@ impl FunctionLowerer<'_, '_, '_> {
             let target_member = mapping.target;
             require_union_case(&target_members, mapping.index, target_member)?;
             let payload = self.union_payload(source_value, target_member)?;
-            let converted = self.builder.variant_new(carrier, mapping.index, payload);
+            let converted = self
+                .builder
+                .variant_new(representation, mapping.index, payload);
             self.builder.local_set(result, converted);
             self.builder.jump(exit);
         }
@@ -424,13 +443,13 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.local_get(result))
     }
 
-    /// Convert one indexed union value into a non-union carrier.
+    /// Convert one indexed union value into a non-union representation.
     fn lower_union_exit(
         &mut self,
         value: CoercionValue,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-        carrier: mir::LocalNodeId<mir::Type>,
+        representation: mir::LocalNodeId<mir::Type>,
         cases: &[dir::CoercionCase],
     ) -> CompilerResult<mir::Value> {
         let dir::Type::Union(source_union) = self.lowerer.ty(source)? else {
@@ -438,6 +457,8 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a union exit with a non-union source".to_string(),
             });
         };
+
+        // require one case per source member, all landing on the same target
         let source_members = self
             .lowerer
             .types(source.module_id)?
@@ -453,21 +474,28 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a union exit selecting a different target type".to_string(),
             });
         }
-        let value = self.materialize_coercion_value(value, source)?;
-        let value_type = self.value_carrier(value)?;
 
-        // dispatch indexed carriers and convert each payload independently
+        // materialize the source at its own representation before converting
+        let value = self.materialize_coercion_value(value, source)?;
+        let value_type = self.value_representation(value)?;
+
+        // dispatch indexed representations and convert each payload independently
         if matches!(
             self.builder.tree().get(value_type),
             mir::Type::Variant { .. }
         ) {
-            let result = self.builder.local(carrier, mir::Mutability::Immutable);
+            // dispatch once over the source discriminant
+            let result = self
+                .builder
+                .local(representation, mir::Mutability::Immutable);
             let exit = self.builder.block();
             let mut blocks = Vec::with_capacity(cases.len());
             for index in 0..cases.len() {
                 blocks.push((index as u32, self.builder.block()));
             }
             self.builder.variant_switch(value, None, blocks.clone());
+
+            // convert each source case into the shared target representation
             for (index, block) in blocks {
                 self.builder.switch_to_block(block);
                 let member = source_members[index as usize];
@@ -481,12 +509,14 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.builder.local_set(result, member_value);
                 self.builder.jump(exit);
             }
+
+            // resume after the dispatch with the converted value
             self.builder.switch_to_block(exit);
 
             return Ok(self.builder.local_get(result));
         }
 
-        // require one shared conversion for shared carriers
+        // require one shared conversion for shared representations
         let Some(first) = cases.first() else {
             return Err(CompilerError::Internal {
                 message: "a union exit without source cases".to_string(),
@@ -498,7 +528,8 @@ impl FunctionLowerer<'_, '_, '_> {
         {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
-                construct: "a per-arm conversion over an undiscriminated union carrier".to_string(),
+                construct: "a per-arm conversion over an undiscriminated union representation"
+                    .to_string(),
             }
             .into());
         }
@@ -526,6 +557,7 @@ impl FunctionLowerer<'_, '_, '_> {
             stored = self.lowerer.peel_owned(defined)?;
         }
 
+        // require the resolved type to be a union
         let dir::Type::Union(union) = self.lowerer.ty(stored)? else {
             return Err(CompilerError::Internal {
                 message: "union members requested from a non-union type".to_string(),
@@ -574,7 +606,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(Some(value))
     }
 
-    /// Materialize one coercion value at its target carrier.
+    /// Materialize one coercion value at its target representation.
     fn materialize_coercion_value(
         &mut self,
         value: CoercionValue,

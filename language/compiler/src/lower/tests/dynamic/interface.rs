@@ -32,23 +32,23 @@ type Console { }
 
 type Greeter { }
 
-function test.main.Console.greet(v0: ref<Console, managed, mutable>): int32 {
-entry(v0: ref<Console, managed, mutable>):
+function test.main.Console.greet(v0: ref<Console, managed, mutable, local>): int32 {
+entry(v0: ref<Console, managed, mutable, local>):
     v1: int32 = 1
     return v1
 }
 
-function test.main.talk(v0: dynamic<Greeter, managed, mutable>): int32 {
-entry(v0: dynamic<Greeter, managed, mutable>):
+function test.main.talk(v0: dynamic<Greeter, managed, mutable, local>): int32 {
+entry(v0: dynamic<Greeter, managed, mutable, local>):
     v1: int32 = call.dynamic v0, Greeter, 0(): () => int32
     return v1
 }
 
 function test.main.run(): int32 {
 entry:
-    v0: ref<Console, managed, mutable> = new.zeroed Console
-    v1: dynamic<Greeter, managed, mutable> = dynamic.bind v0, Console
-    v2: int32 = call test.main.talk(v1): (dynamic<Greeter, managed, mutable>) => int32
+    v0: ref<Console, managed, mutable, local> = new.zeroed Console
+    v1: dynamic<Greeter, managed, mutable, local> = dynamic.bind v0, Console
+    v2: int32 = call test.main.talk(v1): (dynamic<Greeter, managed, mutable, local>) => int32
     return v2
 }
 
@@ -61,7 +61,7 @@ entry:
     );
 }
 
-/// Test and dispatch a nullable erased interface through its carrier niche.
+/// Compare and dispatch a nullable erased interface through its representation niche.
 #[test]
 fn test_compare_and_dispatch_a_nullable_erased_interface() {
     let session = TestSession::single(
@@ -85,9 +85,9 @@ function write(sink: Sink | undefined): int32 {
         r#"
 type Sink { }
 
-function test.main.write(v0: dynamic<Sink, managed, mutable, undefined>): int32 {
-entry(v0: dynamic<Sink, managed, mutable, undefined>):
-    v1: dynamic<Sink, managed, mutable, undefined> = undefined
+function test.main.write(v0: dynamic<Sink, managed, mutable, undefined, local>): int32 {
+entry(v0: dynamic<Sink, managed, mutable, undefined, local>):
+    v1: dynamic<Sink, managed, mutable, undefined, local> = undefined
     v2: boolean = eq v0, v1
     branch v2 => b1 | b2
 
@@ -148,20 +148,20 @@ type Register { }
 
 type Counted { }
 
-function test.main.Register.name(v0: ref<Register, managed, mutable>): int32 {
-entry(v0: ref<Register, managed, mutable>):
+function test.main.Register.name(v0: ref<Register, managed, mutable, local>): int32 {
+entry(v0: ref<Register, managed, mutable, local>):
     v1: int32 = 1
     return v1
 }
 
-function test.main.Register.count(v0: ref<Register, managed, mutable>): int32 {
-entry(v0: ref<Register, managed, mutable>):
+function test.main.Register.count(v0: ref<Register, managed, mutable, local>): int32 {
+entry(v0: ref<Register, managed, mutable, local>):
     v1: int32 = 2
     return v1
 }
 
-function test.main.read(v0: dynamic<Counted, managed, mutable>): int32 {
-entry(v0: dynamic<Counted, managed, mutable>):
+function test.main.read(v0: dynamic<Counted, managed, mutable, local>): int32 {
+entry(v0: dynamic<Counted, managed, mutable, local>):
     v1: int32 = call.dynamic v0, Counted, 0(): () => int32
     v2: int32 = call.dynamic v0, Counted, 1(): () => int32
     v3: int32 = add v1, v2
@@ -170,9 +170,9 @@ entry(v0: dynamic<Counted, managed, mutable>):
 
 function test.main.run(): int32 {
 entry:
-    v0: ref<Register, managed, mutable> = new.zeroed Register
-    v1: dynamic<Counted, managed, mutable> = dynamic.bind v0, Register
-    v2: int32 = call test.main.read(v1): (dynamic<Counted, managed, mutable>) => int32
+    v0: ref<Register, managed, mutable, local> = new.zeroed Register
+    v1: dynamic<Counted, managed, mutable, local> = dynamic.bind v0, Register
+    v2: int32 = call test.main.read(v1): (dynamic<Counted, managed, mutable, local>) => int32
     return v2
 }
 

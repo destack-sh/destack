@@ -33,6 +33,8 @@ impl ModuleLowerer<'_> {
                 message: "an erased value without a definition".to_string(),
             });
         };
+
+        // select the inherent method carrying the member name
         for member in definition.members() {
             let dir::DefinitionMember::Method(method) = member else {
                 continue;
@@ -49,27 +51,17 @@ impl ModuleLowerer<'_> {
         .into())
     }
 
-    /// Return one canonical singleton in a well-known memory domain.
-    pub(in crate::lower) fn memory_literal(
+    /// Return the canonical text of one memory singleton.
+    pub(in crate::lower) fn memory_text(
         &self,
         ty: dir::GlobalTypeId,
-        kind: dir::MemoryParameter,
-    ) -> CompilerResult<dir::MemoryLiteral> {
-        let actual = self.ty(ty)?;
-
-        // require the canonical singleton the check walk stores
-        let dir::Type::Memory(literal) = actual else {
-            return Err(CompilerError::Internal {
-                message: format!("a {kind:?} singleton left as {actual:?}"),
-            });
+    ) -> CompilerResult<Option<dir::StringId>> {
+        let text = match self.ty(ty)? {
+            dir::Type::Literal(dir::Literal::String(value)) => Some(value),
+            _ => None,
         };
-        if literal.kind_language_item() != kind.language_item() {
-            return Err(CompilerError::Internal {
-                message: format!("the wrong {kind:?} singleton"),
-            });
-        }
 
-        Ok(literal)
+        Ok(text)
     }
 
     /// Return the signature type and its pool-owning module behind one callable.
@@ -77,6 +69,7 @@ impl ModuleLowerer<'_> {
         &self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<(dir::FunctionSignatureId, ModuleId)> {
+        // select the signature type and the module owning its pool
         let (signature, owner) = match self.ty(ty)? {
             dir::Type::Function(function) => {
                 (self.ty(function.signature)?, function.signature.module_id)
@@ -88,6 +81,8 @@ impl ModuleLowerer<'_> {
                 });
             }
         };
+
+        // unwrap the signature the callable resolved to
         let dir::Type::FunctionSignature(signature) = signature else {
             return Err(CompilerError::Internal {
                 message: "missing a signature behind one function type".to_string(),
@@ -95,6 +90,27 @@ impl ModuleLowerer<'_> {
         };
 
         Ok((signature, owner))
+    }
+
+    /// Return the construction space one constructor instance committed at selection.
+    pub(in crate::lower) fn constructor_instance_space(
+        &self,
+        instance: Option<(ModuleId, dir::LocalInstanceId)>,
+    ) -> CompilerResult<Option<dir::Space>> {
+        let Some((module, instance)) = instance else {
+            return Ok(None);
+        };
+
+        // a constructor induces one place parameter, so the first place-kinded
+        //  argument names the elected space
+        let row = self.state(module)?.generics.get_instance(instance);
+        for binding in &row.selection.arguments {
+            if let Some(space) = self.place_space(binding.argument)? {
+                return Ok(Some(space));
+            }
+        }
+
+        Ok(None)
     }
 
     /// Return the library class representing one compiler-primitive type.
@@ -111,6 +127,7 @@ impl ModuleLowerer<'_> {
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::SliceType>> {
+        // unwrap the slice this payload points at
         let slice = match self.ty(id)? {
             dir::Type::Slice(slice) => slice,
             // look through transparent newtype identity
@@ -160,12 +177,14 @@ impl ModuleLowerer<'_> {
         owner: dir::GlobalSymbolId,
         variant: dir::GlobalSymbolId,
     ) -> CompilerResult<u32> {
-        // select the variant's declaration order in its enum
+        // resolve the enum owning this variant
         let Some(dir::Definition::Enum(definition)) = self.definition(owner)? else {
             return Err(CompilerError::Internal {
                 message: "a variant owner without an enum definition".to_string(),
             });
         };
+
+        // select the variant's declaration order in its enum
         let index = definition.variant_position(variant);
         let Some(index) = index else {
             return Err(CompilerError::Internal {

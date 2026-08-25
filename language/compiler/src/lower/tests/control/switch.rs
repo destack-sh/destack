@@ -169,7 +169,7 @@ b4:
 }
 
 #[test]
-fn test_compare_switch_cases_over_the_scalar_carrier_of_a_literal_union() {
+fn test_compare_switch_cases_over_the_scalar_representation_of_a_literal_union() {
     let session = TestSession::single(
         r#"
 function isTwo(value: 1 | 2): boolean {

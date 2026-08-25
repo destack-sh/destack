@@ -12,10 +12,10 @@ function make(): (value: int32) => int32 {
     );
 
     session.assert_mir_lowered("main.ds", r#"
-function test.main.make(): function<(int32) => int32, repeatable, managed, mutable> {
+function test.main.make(): function<(int32) => int32, repeatable, managed, mutable, local> {
 entry:
-    v0: ref<void, managed, mutable, nullable> = null
-    v1: function<(int32) => int32, repeatable, managed, mutable> = function.bind test.main.make.closure#0, v0
+    v0: ref<void, managed, mutable, nullable, local> = null
+    v1: function<(int32) => int32, repeatable, managed, mutable, local> = function.bind test.main.make.closure#0, v0
     return v1
 }
 
@@ -41,21 +41,21 @@ function make(): () => int32 {
     );
 
     session.assert_mir_lowered("main.ds", r#"
-function test.main.make(): function<() => int32, repeatable, managed, mutable> {
+function test.main.make(): function<() => int32, repeatable, managed, mutable, local> {
 entry:
     v0: int32 = 1
-    v1: ref<{ value: int32 }, managed, mutable> = new.zeroed { value: int32 }
-    v2: ref<int32, borrowed, mutable> = field.address v1, 0
+    v1: ref<{ value: int32 }, managed, mutable, local> = new.zeroed { value: int32 }
+    v2: ref<int32, borrowed, mutable, local> = field.address v1, 0
     store v2, v0
-    v3: function<() => int32, repeatable, managed, mutable> = function.bind test.main.make.closure#0, v1
+    v3: function<() => int32, repeatable, managed, mutable, local> = function.bind test.main.make.closure#0, v1
     return v3
 }
 
-@environment(ref<{ value: int32 }, managed, mutable>)
+@environment(ref<{ value: int32 }, managed, mutable, local>)
 function test.main.make.closure#0(): int32 {
 entry:
-    v0: ref<{ value: int32 }, managed, mutable> = function.environment.current
-    v1: ref<int32, borrowed, mutable> = field.address v0, 0
+    v0: ref<{ value: int32 }, managed, mutable, local> = function.environment.current
+    v1: ref<int32, borrowed, mutable, local> = field.address v0, 0
     v2: int32 = load v1
     v3: int32 = 1
     v4: int32 = add v2, v3
@@ -85,33 +85,33 @@ function counter(): () => int32 {
     );
 
     session.assert_mir_lowered("main.ds", r#"
-function test.main.counter(): function<() => int32, repeatable, managed, mutable> {
-    local l0: function<() => int32, repeatable, managed, mutable>
+function test.main.counter(): function<() => int32, repeatable, managed, mutable, local> {
+    local l0: function<() => int32, repeatable, managed, mutable, local>
 
 entry:
     v0: int32 = 0
-    v1: ref<{ count: int32 }, managed, mutable> = new.zeroed { count: int32 }
-    v2: ref<int32, borrowed, mutable> = field.address v1, 0
+    v1: ref<{ count: int32 }, managed, mutable, local> = new.zeroed { count: int32 }
+    v2: ref<int32, borrowed, mutable, local> = field.address v1, 0
     store v2, v0
-    v3: function<() => int32, repeatable, managed, mutable> = function.bind test.main.counter.closure#0, v1
+    v3: function<() => int32, repeatable, managed, mutable, local> = function.bind test.main.counter.closure#0, v1
     local.set l0, v3
-    v4: function<() => int32, repeatable, managed, mutable> = local.get l0
+    v4: function<() => int32, repeatable, managed, mutable, local> = local.get l0
     v5: int32 = call.indirect v4(): () => int32
-    v6: function<() => int32, repeatable, managed, mutable> = local.get l0
+    v6: function<() => int32, repeatable, managed, mutable, local> = local.get l0
     return v6
 }
 
-@environment(ref<{ count: int32 }, managed, mutable>)
+@environment(ref<{ count: int32 }, managed, mutable, local>)
 function test.main.counter.closure#0(): int32 {
 entry:
-    v0: ref<{ count: int32 }, managed, mutable> = function.environment.current
-    v1: ref<int32, borrowed, mutable> = field.address v0, 0
+    v0: ref<{ count: int32 }, managed, mutable, local> = function.environment.current
+    v1: ref<int32, borrowed, mutable, local> = field.address v0, 0
     v2: int32 = load v1
     v3: int32 = 1
     v4: int32 = add v2, v3
-    v5: ref<int32, borrowed, mutable> = field.address v0, 0
+    v5: ref<int32, borrowed, mutable, local> = field.address v0, 0
     store v5, v4
-    v6: ref<int32, borrowed, mutable> = field.address v0, 0
+    v6: ref<int32, borrowed, mutable, local> = field.address v0, 0
     v7: int32 = load v6
     return v7
 }

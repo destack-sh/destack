@@ -9,6 +9,7 @@ mod import;
 mod intrinsic;
 mod newtype;
 mod object;
+mod placement;
 mod slice;
 mod r#struct;
 mod tuple;

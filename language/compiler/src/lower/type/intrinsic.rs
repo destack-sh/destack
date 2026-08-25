@@ -5,13 +5,14 @@ use crate::lower::TypeLowerer;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl TypeLowerer<'_, '_> {
-    /// Lower one intrinsic-backed newtype to its compiler-known representation.
+    /// Lower one intrinsic newtype to the representation the compiler knows for it.
     pub(in crate::lower) fn lower_intrinsic(
         &mut self,
         symbol: dir::GlobalSymbolId,
         ty: mir::LocalNodeId<mir::Type>,
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<()> {
+        // dispatch on the language item the newtype names
         let item = self.lowerer.language_item(symbol);
         match item {
             // reference the payload storage for a unique handle
@@ -25,7 +26,7 @@ impl TypeLowerer<'_, '_> {
                 let representation = mir::Type::Reference {
                     kind: mir::ReferenceKind::Unique,
                     lifetime: mir::Lifetime::empty(),
-                    storage: mir::Storage::Heap(mir::Space::Local),
+                    storage: mir::Storage::LocalHeap,
                     access: mir::Access::Exclusive,
                     pointee,
                     nullability: mir::Nullability::None,
@@ -34,7 +35,7 @@ impl TypeLowerer<'_, '_> {
 
                 Ok(())
             }
-            // erase the requested constraint behind the dynamic carrier
+            // erase the requested constraint into the dynamic representation
             Some(dir::LanguageItem::Dynamic) => {
                 let [constraint] = arguments else {
                     return Err(CompilerError::Internal {
@@ -48,7 +49,7 @@ impl TypeLowerer<'_, '_> {
                         kind: mir::ReferenceKind::Managed,
                         lifetime: mir::Lifetime::empty(),
                         constraint,
-                        storage: mir::Storage::Heap(mir::Space::Local),
+                        storage: mir::Storage::LocalHeap,
                         access: mir::Access::Mutable,
                         nullability: mir::Nullability::None,
                     },
@@ -74,7 +75,7 @@ impl TypeLowerer<'_, '_> {
 
                 Ok(())
             }
-            // carry the payload representation, initialization is a checker concept
+            // carry the payload representation, leaving initialization to the checker
             Some(dir::LanguageItem::MaybeUninit) => {
                 let [payload] = arguments else {
                     return Err(CompilerError::Internal {
@@ -164,7 +165,7 @@ impl TypeLowerer<'_, '_> {
                         kind: mir::ReferenceKind::Managed,
                         lifetime: mir::Lifetime::empty(),
                         signature: mir::TypeId::from(signature),
-                        storage: mir::Storage::Heap(mir::Space::Local),
+                        storage: mir::Storage::LocalHeap,
                         access: mir::Access::Mutable,
                         nullability: mir::Nullability::None,
                     },
@@ -182,6 +183,7 @@ impl TypeLowerer<'_, '_> {
             Some(dir::LanguageItem::Lifetime) => Err(CompilerError::Internal {
                 message: "a runtime value of the 'memory.Lifetime' marker".to_string(),
             }),
+            // reject every remaining intrinsic
             _ => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: match item {

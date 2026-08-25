@@ -38,11 +38,13 @@ impl TypeLowerer<'_, '_> {
         let mut slots = Vec::with_capacity(entries.len());
         for (name, entry) in entries {
             match entry {
+                // store a property and dispatch it through its own slot
                 InterfaceMember::Field { node, field } => {
                     fields.push(field);
                     field_nodes.push(node);
                     slots.push(mir::DynamicSlot::Field { field: node, name });
                 }
+                // dispatch a method through its slot alone
                 InterfaceMember::Method { slot } => slots.push(slot),
             }
         }
@@ -126,6 +128,7 @@ impl TypeLowerer<'_, '_> {
         // lower each property into a field node and dispatch slot
         let fields = self.lowerer.instance_fields(&definition.members);
         for field in fields {
+            // lower the declared property type and read its written name
             let declared = self.lowerer.symbol_type(field.symbol)?;
             let declared = self.lower(declared)?;
             let dir::StaticKey::Name(name) = field.key else {
@@ -135,6 +138,8 @@ impl TypeLowerer<'_, '_> {
                 }
                 .into());
             };
+
+            // let a derived property override the inherited entry in place
             let node = self.tree.intern_field(
                 mir::Field {
                     name: Some(name),
@@ -172,7 +177,7 @@ impl TypeLowerer<'_, '_> {
                     .iter()
                     .any(|parameter| {
                         generics.get_parameter(*parameter).kind
-                            != dir::GenericParameterKind::Memory(dir::MemoryParameter::Lifetime)
+                            != dir::GenericParameterKind::Memory(dir::MemoryParameter::Region)
                     });
                 if is_generic {
                     continue;
@@ -181,6 +186,8 @@ impl TypeLowerer<'_, '_> {
 
             // leave the receiver to the dispatch and lower the bare signature
             let signature = self.lower_bare_signature(&signature, declared.module_id)?;
+
+            // key the slot by the name the method declares
             let Some(name) = self.lowerer.symbol_name(method.symbol)? else {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),

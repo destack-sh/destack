@@ -2,12 +2,12 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::lower::function::body::Binding;
+use crate::lower::function::lower::Binding;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// One resolved place base.
 pub(in crate::lower) enum PlaceRoot {
-    /// A mutable local slot holding the base aggregate.
+    /// A mutable local holding the base aggregate.
     Local(mir::LocalNodeId<mir::Local>),
     /// A reference value addressing heap storage.
     Reference {
@@ -55,6 +55,7 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::WriteResolution::Binding { symbol, .. } => self.binding_place(symbol.local_id),
             // value.field = x
             dir::WriteResolution::Member(resolution) => {
+                // require a direct, unadjusted field member
                 let dir::OperationResolution::One(access) = resolution else {
                     return Err(LowerError::Unsupported {
                         anchor: self.lowerer.module.into(),
@@ -94,6 +95,8 @@ impl FunctionLowerer<'_, '_, '_> {
                         message: "a field write on a non-member place".to_string(),
                     });
                 };
+
+                // project the written field onto the receiver's place
                 let mut place = self.receiver_place(left)?;
                 place.path.push(PlaceProjection { field: index, ty });
 
@@ -129,6 +132,7 @@ impl FunctionLowerer<'_, '_, '_> {
         match *self.source().tree().get(expression) {
             // base.field keeps projecting
             dir::Expression::Member { left, .. } => {
+                // require a direct field member
                 let resolution = self.member_decision(expression)?;
                 let dir::OperationResolution::One(access) = &resolution else {
                     return Err(LowerError::Unsupported {
@@ -144,6 +148,8 @@ impl FunctionLowerer<'_, '_, '_> {
                     }
                     .into());
                 };
+
+                // project this field onto the receiver's place
                 let index = self.member_field_index(field)?;
                 let ty = self.lower_type(self.node_type_id(expression)?)?;
                 let mut place = self.receiver_place(left)?;
@@ -161,7 +167,6 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 self.binding_home(binding)
             }
-
             // bind the place base at the identifier
             dir::Expression::Identifier { .. } => {
                 let node = expression.into_global_any(self.source);
@@ -219,8 +224,16 @@ impl FunctionLowerer<'_, '_, '_> {
         field: mir::LocalNodeId<mir::Type>,
         access: mir::Access,
     ) -> mir::Value {
-        // project an uninitialized field out of an uninitialized aggregate
+        // interior addresses inherit the base reference's storage
         let mut pointee = field;
+        let mut storage = mir::Storage::LocalHeap;
+        if let Some(ty) = self.builder.value_type(reference)
+            && let Some(base) = self.builder.tree().get(ty).reference_storage()
+        {
+            storage = base;
+        }
+
+        // project an uninitialized field out of an uninitialized aggregate
         if let Some(ty) = self.builder.value_type(reference)
             && let mir::Type::Reference {
                 pointee: aggregate, ..
@@ -240,7 +253,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let address = self.builder.tree_mut().intern_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
             lifetime: mir::Lifetime::empty(),
-            storage: mir::Storage::Heap(mir::Space::Local),
+            storage,
             access,
             pointee,
             nullability: mir::Nullability::None,
@@ -350,6 +363,8 @@ impl FunctionLowerer<'_, '_, '_> {
                 .builder
                 .field_set(loaded[level], projection.field, value);
         }
+
+        // store the rebuilt aggregate back into the local
         self.builder.local_set(local, value);
     }
 }

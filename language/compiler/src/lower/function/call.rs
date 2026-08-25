@@ -12,6 +12,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<mir::Value>> {
+        // require the call to resolve to exactly one callable
         let resolution = self.call_decision(expression)?;
         let dir::OperationResolution::One(call) = &resolution else {
             return Err(LowerError::Unsupported {
@@ -71,11 +72,12 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Return whether one function target binds generic arguments beyond lifetimes.
     fn has_instance_arguments(&self, function: &dir::FunctionTarget) -> CompilerResult<bool> {
+        // any argument beyond a region parameter selects a concrete instance
         for binding in &function.selection.arguments {
             let parameter = binding.parameter;
             let generics = &self.lowerer.state(parameter.module_id)?.generics;
             let declared = generics.get_parameter(parameter.local_id);
-            if declared.memory_parameter() != Some(dir::MemoryParameter::Lifetime) {
+            if declared.memory_parameter() != Some(dir::MemoryParameter::Region) {
                 return Ok(true);
             }
         }
@@ -96,7 +98,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.call_function(function, values))
     }
 
-    /// Return the declared parameter carriers of one function.
+    /// Return the declared parameter representations of one function.
     pub(in crate::lower) fn function_parameters(
         &self,
         function: mir::FunctionId,
@@ -110,7 +112,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .collect()
     }
 
-    /// Return the parameter carriers of one callable signature.
+    /// Return the parameter representations of one callable signature.
     pub(in crate::lower) fn signature_parameters(
         &self,
         signature: mir::TypeId,
@@ -125,9 +127,9 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Lower one argument list against its declared parameter carriers.
+    /// Lower one argument list against its declared parameter representations.
     ///
-    /// An empty parameter list lowers the arguments without carrier adaptation.
+    /// An empty parameter list lowers the arguments without representation adaptation.
     pub(in crate::lower) fn lower_call_arguments(
         &mut self,
         arguments: &[dir::ArgumentBinding],
@@ -139,13 +141,13 @@ impl FunctionLowerer<'_, '_, '_> {
             let parameter = parameters.get(index).copied();
             let value = match binding.source {
                 dir::ArgumentSource::Provided(source) => self.lower_argument(source)?,
-                // store omission at the parameter carrier
+                // store omission at the parameter representation
                 dir::ArgumentSource::Omitted => {
                     values.push(self.lower_omitted_argument(binding.parameter_type, parameter)?);
 
                     continue;
                 }
-                // fill the write slot with the assigned value for setter calls
+                // fill the write argument with the assigned value for setter calls
                 dir::ArgumentSource::Write => {
                     let Some(expression) = write else {
                         return Err(CompilerError::Internal {
@@ -165,10 +167,10 @@ impl FunctionLowerer<'_, '_, '_> {
                         }
                         .into());
                     };
-                    let carrier = self.lower_type(argument)?;
-                    let carrier = self.builder.tree().get(carrier).clone();
+                    let representation = self.lower_type(argument)?;
+                    let representation = self.builder.tree().get(representation).clone();
 
-                    self.lower_constant(literal, carrier)?
+                    self.lower_constant(literal, representation)?
                 }
                 // pack the trailing arguments into the rest collection
                 dir::ArgumentSource::Rest {
@@ -182,9 +184,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
             };
 
-            // adapt the value to its declared parameter carrier
+            // adapt the value to its declared parameter representation
             match parameter {
-                Some(parameter) => values.push(self.adapt_to_carrier(value, parameter)?),
+                Some(parameter) => values.push(self.adapt_to_representation(value, parameter)?),
                 None => values.push(value),
             }
         }
@@ -205,6 +207,8 @@ impl FunctionLowerer<'_, '_, '_> {
         for source in elements {
             values.push(self.lower_argument(*source)?);
         }
+
+        // store the aggregate in one frame slot
         let storage = self.builder.tree_mut().intern_type(mir::Type::FixedArray {
             element: mir::TypeId::from(element),
             length: values.len() as u64,
@@ -215,14 +219,18 @@ impl FunctionLowerer<'_, '_, '_> {
         self.builder.local_set(slot, aggregate);
 
         // view the storage as a borrowed slice of the elements
-        let address =
-            self.insert_reference(mir::ReferenceKind::Borrowed, mir::Access::Readonly, storage);
+        let address = self.insert_reference(
+            mir::ReferenceKind::Borrowed,
+            mir::Access::Readonly,
+            mir::Storage::Frame,
+            storage,
+        );
         let address = self.builder.local_addr(slot, address);
         let slice = self.builder.tree_mut().intern_type(mir::Type::Slice {
             kind: mir::ReferenceKind::Borrowed,
             lifetime: mir::Lifetime::empty(),
             element: mir::TypeId::from(element),
-            storage: mir::Storage::Heap(mir::Space::Local),
+            storage: mir::Storage::Frame,
             access: mir::Access::Readonly,
             nullability: mir::Nullability::None,
         });
@@ -234,6 +242,8 @@ impl FunctionLowerer<'_, '_, '_> {
         let Some(pack) = pack else {
             return Ok(view);
         };
+
+        // build the collection by calling its pack constructor over the view
         let function = self.selection_function(pack)?;
         let parameters = self.function_parameters(function);
         let Some(parameter) = parameters.first() else {
@@ -241,7 +251,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a pack constructor without a declared slice slot".to_string(),
             });
         };
-        let view = self.adapt_to_carrier(view, *parameter)?;
+        let view = self.adapt_to_representation(view, *parameter)?;
         let Some(packed) = self.builder.call_function(function, vec![view]) else {
             return Err(CompilerError::Internal {
                 message: "a pack constructor call without a value".to_string(),
@@ -251,18 +261,18 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(packed)
     }
 
-    /// Lower one omitted argument at its parameter carrier.
+    /// Lower one omitted argument at its parameter representation.
     fn lower_omitted_argument(
         &mut self,
         ty: dir::GlobalTypeId,
         parameter: Option<mir::TypeId>,
     ) -> CompilerResult<mir::Value> {
-        let carrier = match parameter {
+        let representation = match parameter {
             Some(parameter) => parameter,
             None => self.lower_type(ty)?,
         };
 
-        Ok(self.absent_argument_value(carrier))
+        Ok(self.absent_argument_value(representation))
     }
 
     /// Lower one call to a declared or imported function.
@@ -394,6 +404,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         match declaration {
+            // call the declared instance
             Some(FunctionDeclaration::Declared(function)) => Ok(*function),
             // cascade from declarations that already reported their diagnostics
             Some(FunctionDeclaration::Failed) => Err(LowerError::Unsupported {
@@ -401,12 +412,21 @@ impl FunctionLowerer<'_, '_, '_> {
                 construct: "a call into an undeclared callable".to_string(),
             }
             .into()),
+            // an undeclared symbol reaching a call is a declaration failure
             None => {
                 let path = self.lowerer.symbol_path(key.symbol)?;
+                let declared: Vec<_> = self
+                    .lowerer
+                    .functions
+                    .keys()
+                    .filter(|candidate| candidate.symbol == key.symbol)
+                    .map(|candidate| format!("{:?}", candidate.arguments))
+                    .collect();
 
                 Err(CompilerError::Internal {
                     message: format!(
-                        "missing a declared function behind the callable symbol '{path}'"
+                        "missing a declared function behind the callable symbol '{path}' at {:?}; declared: {declared:?}",
+                        key.arguments
                     ),
                 })
             }
@@ -419,6 +439,7 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
+        // lower the callee value out of the call expression
         let dir::Expression::Call { left, .. } = *self.source().tree().get(expression) else {
             return Err(CompilerError::Internal {
                 message: "a non-call through the indirect path".to_string(),
@@ -427,7 +448,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let callee = self.lower_expression(left)?;
 
         // call through the value's declared signature
-        let ty = self.value_carrier(callee)?;
+        let ty = self.value_representation(callee)?;
         let signature = match self.builder.tree().get(ty) {
             mir::Type::Function { signature, .. } | mir::Type::FunctionPointer { signature } => {
                 *signature

@@ -111,25 +111,25 @@ function read(meter: &readonly Meter): &readonly string {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type destack.string.string.String {
-    codeUnits: slice<uint16, unique, exclusive>;
+type String {
+    codeUnits: slice<uint16, unique, exclusive, local>;
 }
 
 @copy
 type Meter {
-    name: ref<destack.string.string.String, managed, mutable>;
+    name: ref<String, managed, mutable, local>;
 }
 
-function test.main.read<'a>(v0: ref<Meter, borrowed, 'a, readonly>): ref<destack.string.string.String, borrowed, 'a, readonly> {
-entry(v0: ref<Meter, borrowed, 'a, readonly>):
-    v1: ref<ref<destack.string.string.String, managed, readonly>, borrowed, readonly> = field.address v0, 0
-    v2: ref<destack.string.string.String, managed, readonly> = load v1
-    v3: ref<destack.string.string.String, borrowed, 'a, readonly> = cast.bit v2 -> ref<destack.string.string.String, borrowed, 'a, readonly>
+function test.main.read<'a>(v0: ref<Meter, borrowed, 'a, readonly, local>): ref<String, borrowed, 'a, readonly, local> {
+entry(v0: ref<Meter, borrowed, 'a, readonly, local>):
+    v1: ref<ref<String, managed, readonly, local>, borrowed, readonly, local> = field.address v0, 0
+    v2: ref<String, managed, readonly, local> = load v1
+    v3: ref<String, borrowed, 'a, readonly, local> = cast.bit v2 -> ref<String, borrowed, 'a, readonly, local>
     return v3
 }
 
-/// @layout.struct name=destack.string.string.String size=16 align=8
-/// @layout.field owner=destack.string.string.String index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.struct name=String size=16 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
 /// @layout.struct name=Meter size=8 align=8
 /// @layout.field owner=Meter index=0 name=name offset=0 size=8 align=8
 "#,

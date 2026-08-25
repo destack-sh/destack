@@ -30,9 +30,9 @@ impl TypeLowerer<'_, '_> {
         for (ty, is_optional) in parameter_types {
             let mut parameter = self.lower(ty)?;
 
-            // widen defaulted parameters into their undefined carrier
+            // widen defaulted parameters into their undefined representation
             if widens_optional && self.widens_optional_parameter(ty, is_optional)? {
-                parameter = self.insert_optional_carrier(parameter)?;
+                parameter = self.insert_optional_representation(parameter)?;
             }
             parameters.push(parameter);
         }
@@ -46,7 +46,7 @@ impl TypeLowerer<'_, '_> {
         Ok((parameters, result))
     }
 
-    /// Return whether one defaulted parameter widens into its undefined carrier.
+    /// Return whether one defaulted parameter widens into its undefined representation.
     fn widens_optional_parameter(
         &mut self,
         ty: dir::GlobalTypeId,
@@ -168,7 +168,7 @@ impl TypeLowerer<'_, '_> {
             .parameters(signature.parameters)
             .to_vec();
 
-        // judge omission carriers before borrowing the parameter scope
+        // judge omission representations before borrowing the parameter scope
         let mut widened = Vec::with_capacity(declared.len());
         for parameter in &declared {
             widened.push(self.widens_optional_parameter(parameter.ty, parameter.is_optional)?);
@@ -185,7 +185,7 @@ impl TypeLowerer<'_, '_> {
 
             // widen defaulted parameters so omitted calls pass the undefined case
             if widen {
-                ty = types.insert_optional_carrier(ty)?;
+                ty = types.insert_optional_representation(ty)?;
             }
             parameters.push(mir::SignatureParameter::new(ty));
         }

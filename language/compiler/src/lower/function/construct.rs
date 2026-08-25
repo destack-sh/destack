@@ -1,7 +1,9 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{FunctionLowerer, NominalField, constructor_receiver_type};
+use crate::lower::{
+    FunctionLowerer, NominalField, constructor_receiver_type, nominal_receiver_storage,
+};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// One declared field an object literal constructs.
@@ -27,14 +29,14 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         match &resolution.target {
-            // Meters(5)
+            // wrap a raw value: Meters(5)
             dir::ConstructTarget::Newtype { .. } => self.lower_newtype_construct(resolution),
-            // new User("ada")
+            // construct a declared class: new User("ada")
             dir::ConstructTarget::Class {
                 selection,
                 constructor,
             } => self.lower_class_construct(resolution, selection, constructor),
-            // new factory(1)
+            // reject construction through a class value: new classValue(1)
             dir::ConstructTarget::Dynamic { .. } => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a dynamically dispatched construction".to_string(),
@@ -57,6 +59,8 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a super call outside a class constructor target".to_string(),
             });
         };
+
+        // read the receiver the base constructor initializes
         let Some(this) = self.this else {
             return Err(CompilerError::Internal {
                 message: "a super call without a receiver".to_string(),
@@ -77,7 +81,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         };
 
-        // a defaulted base runs its synthesized constructor when it stores initializers
+        // run the synthesized constructor of a defaulted base that stores initializers
         let target = match symbol {
             Some(symbol) => Some(symbol),
             None if self
@@ -88,6 +92,8 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             None => None,
         };
+
+        // resolve the target constructor at the selected instance
         let function = match target {
             Some(symbol) => {
                 let key = self.selection_key(symbol, selection)?;
@@ -118,7 +124,7 @@ impl FunctionLowerer<'_, '_, '_> {
             self.lower_field_initializers(owner)?;
         }
 
-        // a super call carries no value
+        // yield the void value a super call produces
         let void = self.builder.tree_mut().intern_type(mir::Type::Void);
 
         Ok(self.builder.constant(mir::Constant::Undefined, void))
@@ -133,6 +139,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         // adapt the arguments against the declared constructor header
         let values = match constructor {
+            // bind the written arguments to the declared parameters after the receiver
             dir::ClassConstructor::Declared { symbol } => {
                 let key = self.selection_key(*symbol, selection)?;
                 let function = self.function(&key)?;
@@ -145,7 +152,9 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 self.lower_call_arguments(&resolution.arguments, parameters, None)?
             }
+            // pass nothing to a defaulted constructor
             dir::ClassConstructor::Default => Vec::new(),
+            // reject every remaining constructor kind
             other => {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
@@ -172,18 +181,19 @@ impl FunctionLowerer<'_, '_, '_> {
         arguments: Vec<mir::Value>,
     ) -> CompilerResult<mir::Value> {
         // lower the return form and its class representation
-        let carrier = self.lower_type(return_type)?;
+        let representation = self.lower_type(return_type)?;
         let nominal = self.lower_nominal(return_type)?;
         let pointee = nominal.storage;
 
         // decide where the instance stores from the return form
         let is_reference = matches!(
-            self.builder.tree().get(carrier),
+            self.builder.tree().get(representation),
             mir::Type::Reference { .. }
         );
+
         // allocate zeroed heap storage for managed destinations
         let (slot, storage) = if is_reference {
-            (None, self.builder.new_zeroed(pointee, carrier))
+            (None, self.builder.new_zeroed(pointee, representation))
         }
         // otherwise construct owned destinations in place inside a local slot
         else {
@@ -191,6 +201,7 @@ impl FunctionLowerer<'_, '_, '_> {
             let address = self.insert_reference(
                 mir::ReferenceKind::Borrowed,
                 mir::Access::Exclusive,
+                mir::Storage::Frame,
                 pointee,
             );
             let address = self.builder.local_addr(slot, address);
@@ -200,6 +211,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // initialize the storage through an exclusive borrow
         match constructor {
+            // call the constructor the class declares
             dir::ClassConstructor::Declared { symbol } => {
                 // select the declared instance from the substituted class arguments
                 let bindings = self
@@ -208,7 +220,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let instance: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
                 let key = self.generic_instance_key(*symbol, &instance)?;
                 let function = self.function(&key)?;
-                let receiver = self.constructed_receiver(storage, pointee);
+                let receiver = self.constructed_receiver(storage, pointee)?;
 
                 // bind the constructor arguments after the receiver
                 let mut values = Vec::with_capacity(arguments.len() + 1);
@@ -216,8 +228,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 values.extend(arguments);
                 self.builder.call_function(function, values);
             }
+            // call the synthesized constructor a defaulted class stands in for
             dir::ClassConstructor::Default => {
-                // call the synthesized constructor of initializer-bearing classes
+                // peel the return form down to the constructed class
                 let stored = match self.lowerer.peel_indirection(return_type)? {
                     Some(reference) => reference.stored,
                     None => self.lowerer.peel_owned(return_type)?,
@@ -227,6 +240,8 @@ impl FunctionLowerer<'_, '_, '_> {
                         message: "a class construction outside an application type".to_string(),
                     });
                 };
+
+                // synthesize the call only where the class stores initializers
                 let class = application.symbol;
                 if self.lowerer.class_has_field_initializers(class)? {
                     let bindings = self
@@ -236,10 +251,11 @@ impl FunctionLowerer<'_, '_, '_> {
                         bindings.iter().map(|binding| binding.argument).collect();
                     let key = self.generic_instance_key(class, &instance)?;
                     let function = self.function(&key)?;
-                    let receiver = self.constructed_receiver(storage, pointee);
+                    let receiver = self.constructed_receiver(storage, pointee)?;
                     self.builder.call_function(function, vec![receiver]);
                 }
             }
+            // reject every remaining constructor kind
             other => {
                 return Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
@@ -263,11 +279,15 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         storage: mir::Value,
         pointee: mir::LocalNodeId<mir::Type>,
-    ) -> mir::Value {
-        let receiver = constructor_receiver_type(self.builder.tree_mut(), pointee);
+    ) -> CompilerResult<mir::Value> {
+        let representation = self.value_representation(storage)?;
+        let receiver_storage = nominal_receiver_storage(self.builder.tree(), representation);
+        let receiver =
+            constructor_receiver_type(self.builder.tree_mut(), pointee, receiver_storage);
 
-        self.builder
-            .cast(mir::CastOperator::Bitcast, storage, receiver)
+        Ok(self
+            .builder
+            .cast(mir::CastOperator::Bitcast, storage, receiver))
     }
 
     /// Lower one newtype construction to a single-value aggregate.
@@ -292,18 +312,20 @@ impl FunctionLowerer<'_, '_, '_> {
             .into());
         };
 
-        // detect singleton backings carrying no runtime payload
-        let inner_is_void = match self.builder.tree().get(ty) {
+        // detect singleton newtypes storing no runtime value
+        let is_payload_void = match self.builder.tree().get(ty) {
             mir::Type::Newtype { inner, .. } => {
                 matches!(self.builder.tree().get(*inner), mir::Type::Void)
             }
             _ => false,
         };
-        if inner_is_void {
+        if is_payload_void {
             self.lower_argument(source)?;
 
             return Ok(self.builder.aggregate(ty, Vec::new()));
         }
+
+        // store the bound value as the newtype's single element
         let value = self.lower_argument(source)?;
 
         Ok(self.builder.aggregate(ty, vec![value]))
@@ -403,8 +425,8 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // store the written value at the field's own case
             let value = self.lower_expression(*value)?;
-            let carrier = self.property_carrier(storage, index)?;
-            ordered.push(self.adapt_to_carrier(value, carrier)?);
+            let representation = self.property_representation(storage, index)?;
+            ordered.push(self.adapt_to_representation(value, representation)?);
         }
 
         Ok(self.builder.aggregate(ty, ordered))
@@ -420,6 +442,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a constructor body without its class definition".to_string(),
             });
         };
+
         // offset own initializers past the base's chained fields
         let total = self.lowerer.nominal_fields(owner)?.len();
         let own = self.lowerer.instance_fields(definition.members());
@@ -428,6 +451,8 @@ impl FunctionLowerer<'_, '_, '_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: "a class chaining fewer fields than it declares".to_string(),
             })?;
+
+        // leave classes whose own fields all lack initializers alone
         if own.iter().all(|field| field.initializer.is_none()) {
             return Ok(());
         }
@@ -439,7 +464,7 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
         let this = self.read_binding(this);
-        let reference = self.value_carrier(this)?;
+        let reference = self.value_representation(this)?;
         let mir::Type::Reference { pointee, .. } =
             self.builder.tree().get(mir::TypeId::from(reference))
         else {
@@ -449,11 +474,13 @@ impl FunctionLowerer<'_, '_, '_> {
         };
         let (concrete, _) = self.builder.tree().split_lifetime_application(*pointee);
 
+        // store each declared initializer at the field it belongs to
         for (index, field) in own.iter().enumerate() {
             let index = inherited + index;
             let Some(initializer) = field.initializer else {
                 continue;
             };
+
             if initializer.module_id != self.source {
                 return Err(CompilerError::Internal {
                     message: "a field initializer declared outside its class module".to_string(),
@@ -465,8 +492,8 @@ impl FunctionLowerer<'_, '_, '_> {
                 .map_err(|message| CompilerError::Internal { message })?;
 
             // skip singleton literal initializers storing no runtime value
-            let carrier = self.property_carrier(concrete, index)?;
-            let is_void = matches!(self.builder.tree().get(carrier), mir::Type::Void);
+            let representation = self.property_representation(concrete, index)?;
+            let is_void = matches!(self.builder.tree().get(representation), mir::Type::Void);
             if is_void && self.is_literal_initializer(self.source, expression)? {
                 continue;
             }
@@ -478,14 +505,16 @@ impl FunctionLowerer<'_, '_, '_> {
             self.values = values;
             self.frames = frames;
             let value = value?;
+
+            // drop the evaluated value at a void representation
             if is_void {
                 continue;
             }
 
-            // store the initialized value at its declared carrier
-            let value = self.adapt_to_carrier(value, carrier)?;
+            // store the initialized value at its declared representation
+            let value = self.adapt_to_representation(value, representation)?;
             let address =
-                self.emit_field_address(this, index as u32, carrier, mir::Access::Exclusive);
+                self.emit_field_address(this, index as u32, representation, mir::Access::Exclusive);
             self.builder.store(address, value);
         }
 
@@ -529,8 +558,8 @@ impl FunctionLowerer<'_, '_, '_> {
             .map_err(|message| CompilerError::Internal { message })?;
 
         // skip singleton literal initializers storing no runtime value
-        let carrier = self.property_carrier(storage, index)?;
-        let is_void = matches!(self.builder.tree().get(carrier), mir::Type::Void);
+        let representation = self.property_representation(storage, index)?;
+        let is_void = matches!(self.builder.tree().get(representation), mir::Type::Void);
         if is_void && self.is_literal_initializer(initializer.module_id, expression)? {
             return Ok(None);
         }
@@ -552,7 +581,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let value =
             self.lower_foreign_expression(initializer.module_id, specialization, expression)?;
 
-        Ok(Some(self.adapt_to_carrier(value, carrier)?))
+        Ok(Some(self.adapt_to_representation(value, representation)?))
     }
 
     /// Lower one tuple expression to an aggregate value.
@@ -561,7 +590,7 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         elements: &[dir::LocalNodeId<dir::Argument>],
     ) -> CompilerResult<mir::Value> {
-        // lower the tuple carrier from the node type
+        // lower the tuple representation from the node type
         let ty = self.node_type_id(expression)?;
         let ty = self.lower_type(ty)?;
 
@@ -617,15 +646,19 @@ impl FunctionLowerer<'_, '_, '_> {
             written.push((dir::StaticKey::from(*name), *value));
         }
 
-        // lower the declared carrier, construction fills its struct storage
-        let carrier = self.lower_type(committed)?;
-        let (base, _) = self.builder.tree().split_lifetime_application(carrier);
+        // lower the declared representation and the struct storage construction fills
+        let representation = self.lower_type(committed)?;
+        let (base, _) = self
+            .builder
+            .tree()
+            .split_lifetime_application(representation);
         let (concrete, reference) = match self.builder.tree().get(base) {
-            mir::Type::Reference { pointee, .. } => (*pointee, Some(carrier)),
+            mir::Type::Reference { pointee, .. } => (*pointee, Some(representation)),
             mir::Type::Struct { .. } => (base, None),
             _ => {
                 return Err(CompilerError::Internal {
-                    message: "an object class outside its struct or reference carrier".to_string(),
+                    message: "an object class outside its struct or reference representation"
+                        .to_string(),
                 });
             }
         };
@@ -636,26 +669,31 @@ impl FunctionLowerer<'_, '_, '_> {
             match written.iter().find(|(key, _)| *key == field.key) {
                 Some((_, value)) => {
                     // skip singleton literal properties storing no runtime value
-                    let carrier = self.property_carrier(concrete, index)?;
-                    let is_void = matches!(self.builder.tree().get(carrier), mir::Type::Void);
+                    let representation = self.property_representation(concrete, index)?;
+                    let is_void =
+                        matches!(self.builder.tree().get(representation), mir::Type::Void);
                     let is_literal = matches!(
                         self.source().tree().get(*value),
                         dir::Expression::Literal(_)
                     );
                     if is_void && is_literal {
-                        values.push(self.builder.constant(mir::Constant::Undefined, carrier));
+                        values.push(
+                            self.builder
+                                .constant(mir::Constant::Undefined, representation),
+                        );
 
                         continue;
                     }
 
+                    // store the written value at the property's declared representation
                     let value = self.lower_expression(*value)?;
-                    let carrier = self.property_carrier(concrete, index)?;
-                    values.push(self.adapt_to_carrier(value, carrier)?);
+                    values.push(self.adapt_to_representation(value, representation)?);
                 }
                 // store the undefined case for absent optional properties
                 None if field.is_optional => {
                     values.push(self.lower_absent_property(concrete, index)?);
                 }
+                // reject a literal omitting a required property
                 None => {
                     return Err(CompilerError::Internal {
                         message: "an absent required property".to_string(),
@@ -664,7 +702,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         }
 
-        // hand the instance out at its declared carrier
+        // hand the instance out at its declared representation
         let aggregate = self.builder.aggregate(concrete, values);
 
         Ok(match reference {
@@ -730,61 +768,76 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Adapt one lowered value into its declared carrier.
-    pub(in crate::lower) fn adapt_to_carrier(
+    /// Adapt one lowered value into its declared representation.
+    pub(in crate::lower) fn adapt_to_representation(
         &mut self,
         value: mir::Value,
-        carrier: mir::LocalNodeId<mir::Type>,
+        representation: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::Value> {
-        // store a value already at its carrier type directly
-        let value_type = self.value_carrier(value)?;
-        if value_type == carrier {
+        // store a value already at its representation type directly
+        let value_type = self.value_representation(value)?;
+        if value_type == representation {
             return Ok(value);
         }
 
-        // classify through proof-only lifetime applications
+        // look through lifetime applications
         let (value_base, _) = self.builder.tree().split_lifetime_application(value_type);
-        let (carrier_base, _) = self.builder.tree().split_lifetime_application(carrier);
-        if value_base == carrier_base {
+        let (representation_base, _) = self
+            .builder
+            .tree()
+            .split_lifetime_application(representation);
+        if value_base == representation_base {
             return Ok(value);
         }
 
         // pass distinct identities sharing one structure unchanged
         if self.builder.tree().types_equal(
             mir::TypeId::from(value_base),
-            mir::TypeId::from(carrier_base),
+            mir::TypeId::from(representation_base),
         ) {
             return Ok(value);
         }
 
-        // store no value in erased zero-sized carriers such as variant tags
-        if matches!(self.builder.tree().get(carrier_base), mir::Type::Void) {
+        // store no value in erased zero-sized representations such as variant tags
+        if matches!(
+            self.builder.tree().get(representation_base),
+            mir::Type::Void
+        ) {
             return Ok(self
                 .builder
-                .constant(mir::Constant::Undefined, carrier_base));
+                .constant(mir::Constant::Undefined, representation_base));
         }
 
-        // reinterpret reference-family kind changes over the shared fat carrier
-        if self.builder.tree().get(carrier_base).is_reference_carrier() {
-            // pass heads equal under erased lifetimes unchanged
+        // reinterpret reference kind changes over the shared fat representation
+        if self
+            .builder
+            .tree()
+            .get(representation_base)
+            .is_reference_representation()
+        {
+            // pass values whose heads match under erased lifetimes
             let source = self.builder.tree().get(value_base).erased_lifetime();
-            let target = self.builder.tree().get(carrier_base).erased_lifetime();
+            let target = self
+                .builder
+                .tree()
+                .get(representation_base)
+                .erased_lifetime();
             if source == target {
                 return Ok(value);
             }
 
             return Ok(self
                 .builder
-                .cast(mir::CastOperator::Bitcast, value, carrier));
+                .cast(mir::CastOperator::Bitcast, value, representation));
         }
 
-        // select the carrier case the value type declares
-        let mir::Type::Variant { cases, .. } = self.builder.tree().get(carrier_base) else {
+        // select the representation case the value type declares
+        let mir::Type::Variant { cases, .. } = self.builder.tree().get(representation_base) else {
             return Err(CompilerError::Internal {
                 message: format!(
-                    "an adapted value at '{:?}' misses its declared '{:?}' carrier",
+                    "an adapted value at '{:?}' misses its declared '{:?}' representation",
                     self.builder.tree().get(value_type),
-                    self.builder.tree().get(carrier)
+                    self.builder.tree().get(representation)
                 ),
             });
         };
@@ -797,14 +850,14 @@ impl FunctionLowerer<'_, '_, '_> {
         }) else {
             return Err(CompilerError::Internal {
                 message: format!(
-                    "an adapted value {value_type:?} selects no case of carrier {carrier:?}"
+                    "an adapted value {value_type:?} selects no case of representation {representation:?}"
                 ),
             });
         };
 
         Ok(self
             .builder
-            .variant_new(carrier_base, case as u32, Some(value)))
+            .variant_new(representation_base, case as u32, Some(value)))
     }
 
     /// Materialize the undefined case of one absent optional property.
@@ -813,46 +866,51 @@ impl FunctionLowerer<'_, '_, '_> {
         concrete: mir::LocalNodeId<mir::Type>,
         index: usize,
     ) -> CompilerResult<mir::Value> {
-        let carrier = self.property_carrier(concrete, index)?;
+        let representation = self.property_representation(concrete, index)?;
 
-        self.absent_carrier_value(carrier)
+        self.absent_representation_value(representation)
     }
 
-    /// Materialize the undefined case of one optional carrier.
-    pub(in crate::lower) fn absent_carrier_value(
+    /// Materialize the undefined case of one optional representation.
+    pub(in crate::lower) fn absent_representation_value(
         &mut self,
-        carrier: mir::LocalNodeId<mir::Type>,
+        representation: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::Value> {
-        match self.builder.tree().undefined_case(carrier) {
-            // select the void case of a variant carrier
-            Some(mir::NullishCase::Case(case)) => Ok(self.builder.variant_new(carrier, case, None)),
-            // store undefined directly in niched nullable carriers
-            Some(mir::NullishCase::Niche) => {
-                Ok(self.builder.constant(mir::Constant::Undefined, carrier))
+        match self.builder.tree().undefined_case(representation) {
+            // select the void case of a variant representation
+            Some(mir::NullishCase::Case(case)) => {
+                Ok(self.builder.variant_new(representation, case, None))
             }
+            // store undefined directly in niched nullable representations
+            Some(mir::NullishCase::Niche) => Ok(self
+                .builder
+                .constant(mir::Constant::Undefined, representation)),
+            // reject an optional representation lowered without an undefined case
             None => Err(CompilerError::Internal {
                 message: "an optional value lowered without its undefined case".to_string(),
             }),
         }
     }
 
-    /// Return the value one omitted argument passes at its carrier.
+    /// Return the value one omitted argument passes at its representation.
     pub(in crate::lower) fn absent_argument_value(
         &mut self,
-        carrier: mir::LocalNodeId<mir::Type>,
+        representation: mir::LocalNodeId<mir::Type>,
     ) -> mir::Value {
-        match self.builder.tree().undefined_case(carrier) {
-            // select the void case of a variant carrier
-            Some(mir::NullishCase::Case(case)) => self.builder.variant_new(carrier, case, None),
-            // niched and headerless carriers take the bare placeholder
-            Some(mir::NullishCase::Niche) | None => {
-                self.builder.constant(mir::Constant::Undefined, carrier)
+        match self.builder.tree().undefined_case(representation) {
+            // select the void case of a variant representation
+            Some(mir::NullishCase::Case(case)) => {
+                self.builder.variant_new(representation, case, None)
             }
+            // niched and headerless representations take the bare placeholder
+            Some(mir::NullishCase::Niche) | None => self
+                .builder
+                .constant(mir::Constant::Undefined, representation),
         }
     }
 
-    /// Return the declared carrier type of one concrete class property.
-    fn property_carrier(
+    /// Return the declared representation type of one concrete class property.
+    fn property_representation(
         &self,
         concrete: mir::LocalNodeId<mir::Type>,
         index: usize,
@@ -865,7 +923,7 @@ impl FunctionLowerer<'_, '_, '_> {
             concrete = *value;
         }
 
-        // read the field carrier out of the struct layout
+        // read the field representation out of the struct layout
         let mir::Type::Struct { fields, .. } = tree.get(concrete) else {
             return Err(CompilerError::Internal {
                 message: "dynamic constraint lowered outside a struct".to_string(),

@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 
 use crate::lower::{
     CallableImplementation, FunctionDefinition, LifetimeParameters, ModuleLowerer, Reachable,
-    insert_local_reference,
+    insert_reference_type,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -48,8 +48,26 @@ impl ModuleLowerer<'_> {
         bodies: &[FunctionDefinition],
         errors: &mut Vec<Box<dyn DiagnosticLike>>,
     ) -> CompilerResult<(Vec<FunctionDefinition>, Reachable)> {
-        // seed from the instances sema closed, routing intrinsic and binding callables
+        // seed the reachable set
         let mut reachable = Reachable::default();
+
+        // require this module's ambient drop hooks, which destructors reach
+        //  type-generic hooks close through their owner's instances
+        let hooks: Vec<_> = self
+            .drop_hooks
+            .iter()
+            .map(|(owner, member)| (*owner, *member))
+            .collect();
+        for (owner, member) in hooks {
+            if member.module_id == self.module
+                && !self.owner_has_instance_parameters(owner)?
+                && !self.signature_has_parameters_beyond_memory(self.symbol_type(member)?)?
+            {
+                reachable.instances.push((member, Vec::new()));
+            }
+        }
+
+        // collect every closed instantiation sema already materialized
         let closed: Vec<_> = self
             .state(self.module)?
             .generics
@@ -62,8 +80,13 @@ impl ModuleLowerer<'_> {
                 )
             })
             .collect();
+        // key instances like call sites: regions erase from the selection
+        let closed: Vec<_> = closed
+            .into_iter()
+            .map(|(symbol, arguments)| Ok((symbol, self.instance_bindings(&arguments, None)?)))
+            .collect::<CompilerResult<_>>()?;
+        // keep the callable instances; nominal ones declare through their representations
         for (template, arguments) in closed {
-            // keep the callable instances; nominal ones declare through their representations
             let Some(ty) = self.types(template.module_id)?.get_symbol_type_id(template) else {
                 continue;
             };
@@ -93,6 +116,7 @@ impl ModuleLowerer<'_> {
             for default in body.defaults.iter().flatten() {
                 self.collect_body(body.source, *default, body.instance, &mut reachable)?;
             }
+
             match self.collect_body(body.source, body.expression, body.instance, &mut reachable) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
@@ -130,12 +154,14 @@ impl ModuleLowerer<'_> {
                 }
                 Err(error) => return Err(error),
             };
+
             if let Some(owner) = body.constructs {
                 self.collect_constructor_initializers(owner, body.instance, &mut reachable)?;
             }
             for default in body.defaults.iter().flatten() {
                 self.collect_body(symbol.module_id, *default, body.instance, &mut reachable)?;
             }
+
             match self.collect_body(
                 symbol.module_id,
                 body.expression,
@@ -170,6 +196,8 @@ impl ModuleLowerer<'_> {
             .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
             .with_instance(specialization)
             .generic_instance_key(symbol, &arguments)?;
+
+        // skip an instance whose representation is already declared
         if self.functions.contains_key(&key) {
             return Ok(None);
         }
@@ -214,6 +242,8 @@ impl ModuleLowerer<'_> {
                 member,
             );
         }
+
+        // require a plain function declaration for everything else
         let Ok(declaration) = declaration.local_id.try_into_typed::<dir::Declaration>() else {
             return Err(CompilerError::Internal {
                 message: "an instantiated non-declaration callable".to_string(),
@@ -233,6 +263,8 @@ impl ModuleLowerer<'_> {
                 message: "an instantiated bodiless function".to_string(),
             });
         };
+
+        // collect each parameter's default expression and declared symbol
         let parameter_nodes = function.signature.parameters.to_vec();
         let mut symbols = Vec::with_capacity(parameter_nodes.len());
         let mut defaults = Vec::with_capacity(parameter_nodes.len());
@@ -251,6 +283,8 @@ impl ModuleLowerer<'_> {
             };
             symbols.push(parameter_symbol.local_id);
         }
+
+        // lower the signature at the instance's concrete types
         let declared = self.instance_type(specialization, self.symbol_type(symbol)?)?;
         let (parameters, result) =
             self.lower_signature(builder, declared, specialization, lifetime_parameters)?;
@@ -286,9 +320,9 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<FunctionDefinition> {
         let symbol = key.symbol;
         let member_node = member.into_global_any(symbol.module_id);
-        let state = self.state(symbol.module_id)?;
 
         // find the owner declaring this member
+        let state = self.state(symbol.module_id)?;
         let owner = state
             .definitions
             .iter_definitions()
@@ -325,6 +359,8 @@ impl ModuleLowerer<'_> {
                 message: "an instantiated bodiless member".to_string(),
             });
         };
+
+        // collect each parameter's default expression and declared symbol
         let role = signature.role;
         let parameter_nodes = signature.parameters.to_vec();
         let mut symbols = Vec::with_capacity(parameter_nodes.len());
@@ -344,6 +380,8 @@ impl ModuleLowerer<'_> {
             };
             symbols.push(parameter_symbol.local_id);
         }
+
+        // lower the signature at the instance's concrete types
         let declared = self.instance_type(specialization, self.symbol_type(symbol)?)?;
         let (mut parameters, mut result) =
             self.lower_signature(builder, declared, specialization, lifetime_parameters)?;
@@ -366,9 +404,16 @@ impl ModuleLowerer<'_> {
                     .with_instance(specialization)
                     .lower_nominal(owner)?;
 
+                // the instance's place argument names the construction space
+                let receiver_storage = match self.constructor_instance_space(specialization)? {
+                    Some(space) => mir::Storage::heap(ModuleLowerer::mir_space(space)),
+                    None => nominal_receiver_storage(builder.tree(), nominal.value),
+                };
+
                 Some(constructor_receiver_type(
                     builder.tree_mut(),
                     nominal.storage,
+                    receiver_storage,
                 ))
             }
             // pass this at the declared receiver type
@@ -383,7 +428,6 @@ impl ModuleLowerer<'_> {
                         message: "an instance method without a receiver".to_string(),
                     });
                 };
-
                 Some(
                     self.type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
                         .with_instance(specialization)
@@ -433,11 +477,21 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<FunctionDefinition> {
         let symbol = key.symbol;
         let name = self.symbol_path(symbol)?;
+
+        // name every specialized memory argument explicitly
+        let display = match specialization {
+            Some((module, instance)) => {
+                self.specialized_display_arguments(builder, key, module, instance)?
+            }
+            None => key.arguments.clone(),
+        };
+
+        // declare the header under its instantiated symbol
         let base = mir::Symbol::named(builder.intern(&name));
-        let instance = base.instantiate(&key.arguments, builder.tree());
+        let instance = base.instantiate(&display, builder.tree());
         let header = builder
             .function_header(&name)
-            .arguments(key.arguments.iter().cloned())
+            .arguments(display)
             .symbol(instance);
         let header = lifetime_parameters.declare(header);
         let header = header.parameters(parameters).result(result);
@@ -458,6 +512,69 @@ impl ModuleLowerer<'_> {
             constructs,
             defaults,
         })
+    }
+
+    /// Return the display arguments naming one specialized instance's spaces and types.
+    fn specialized_display_arguments(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+        key: &GenericInstanceKey,
+        module: ModuleId,
+        instance: dir::LocalInstanceId,
+    ) -> CompilerResult<Vec<mir::StaticId>> {
+        // pair every selected parameter with its bound argument
+        let pairs = {
+            let row = self.state(module)?.generics.get_instance(instance);
+
+            row.selection
+                .arguments
+                .iter()
+                .map(|binding| (binding.parameter, binding.argument))
+                .collect::<Vec<_>>()
+        };
+        let mut bindings = Vec::with_capacity(pairs.len());
+        for (parameter, argument) in pairs {
+            let kind = self
+                .state(parameter.module_id)?
+                .generics
+                .get_parameter(parameter.local_id)
+                .memory_parameter();
+            bindings.push((kind, argument));
+        }
+
+        // key arguments hold the non-local spaces and the type arguments in
+        //  binding order, so the walk below consumes them in lockstep
+        let mut remaining = key.arguments.iter().cloned();
+        let mut display = Vec::with_capacity(bindings.len());
+        for (kind, argument) in bindings {
+            match kind {
+                Some(dir::MemoryParameter::Place | dir::MemoryParameter::Space) => {
+                    let Some(space) = self.place_space(argument)? else {
+                        return Err(CompilerError::Internal {
+                            message: "an instance carries an unplaced space argument".to_string(),
+                        });
+                    };
+
+                    // the ambient local space elides from every display name
+                    if space != dir::Space::Local {
+                        remaining.next();
+                        let space = ModuleLowerer::mir_space(space);
+                        display.push(builder.tree_mut().intern_static(mir::Static::Space(space)));
+                    }
+                }
+                Some(_) => {}
+                None => {
+                    let Some(argument) = remaining.next() else {
+                        return Err(CompilerError::Internal {
+                            message: "an instance key misses one type argument".to_string(),
+                        });
+                    };
+                    display.push(argument);
+                }
+            }
+        }
+
+        Ok(display)
     }
 
     /// Declare the synthesized constructors of this module's own classes.
@@ -484,6 +601,7 @@ impl ModuleLowerer<'_> {
             if declares_constructor {
                 continue;
             }
+
             classes.push(symbol);
         }
 
@@ -498,6 +616,7 @@ impl ModuleLowerer<'_> {
             if !self.class_has_field_initializers(symbol)? {
                 continue;
             }
+
             self.declare_default_constructor(builder, symbol, &[])?;
         }
 
@@ -511,6 +630,7 @@ impl ModuleLowerer<'_> {
         class: dir::GlobalSymbolId,
         bindings: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<()> {
+        // find the sema instance materializing the class's types
         let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
         let specialization = self.specialization_of(class, &arguments)?;
 
@@ -521,6 +641,8 @@ impl ModuleLowerer<'_> {
             .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
             .with_instance(specialization)
             .generic_instance_key(class, &arguments)?;
+
+        // skip a constructor whose representation is already declared
         if self.functions.contains_key(&key) {
             return Ok(());
         }
@@ -531,7 +653,8 @@ impl ModuleLowerer<'_> {
             .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
             .with_instance(specialization)
             .lower_nominal(source)?;
-        let this = constructor_receiver_type(builder.tree_mut(), nominal.storage);
+        let receiver_storage = nominal_receiver_storage(builder.tree(), nominal.value);
+        let this = constructor_receiver_type(builder.tree_mut(), nominal.storage, receiver_storage);
         let void = builder.tree_mut().intern_type(mir::Type::Void);
         let name = format!("{}.constructor", self.symbol_path(class)?);
 
@@ -569,13 +692,28 @@ impl ModuleLowerer<'_> {
 pub(in crate::lower) fn constructor_receiver_type(
     tree: &mut mir::Tree,
     storage: mir::LocalNodeId<mir::Type>,
+    receiver_storage: mir::Storage,
 ) -> mir::LocalNodeId<mir::Type> {
     let pointee = tree.intern_type(mir::Type::Uninit { value: storage });
 
-    insert_local_reference(
+    insert_reference_type(
         tree,
         mir::ReferenceKind::Borrowed,
         mir::Access::Exclusive,
+        receiver_storage,
         pointee,
     )
+}
+
+/// Return the storage one nominal's constructor receiver borrows.
+///
+/// Reference nominals construct into their own allocation, while owned
+/// nominals construct in place inside a frame.
+pub(in crate::lower) fn nominal_receiver_storage(
+    tree: &mir::Tree,
+    value: mir::LocalNodeId<mir::Type>,
+) -> mir::Storage {
+    tree.get(value)
+        .reference_storage()
+        .unwrap_or(mir::Storage::Frame)
 }

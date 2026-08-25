@@ -1,7 +1,7 @@
 use crate::tests::TestSession;
 
 #[test]
-fn test_lower_newtype_values_through_the_transparent_carrier() {
+fn test_lower_newtype_values_through_the_transparent_representation() {
     let session = TestSession::single(
         r#"
 newtype Meters = int32;

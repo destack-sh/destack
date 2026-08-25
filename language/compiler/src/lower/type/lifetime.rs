@@ -29,12 +29,13 @@ impl LifetimeParameters {
         let mut parameters = Self::default();
         for parameter in &declared.parameters {
             let binding = generics.get_parameter(*parameter);
-            if binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime) {
+            if binding.memory_parameter() == Some(dir::MemoryParameter::Region) {
                 let slot = mir::LifetimeSlot(parameters.slots.len() as u32);
                 let name = match binding.key {
                     dir::GenericParameterKey::Symbol(symbol) => lowerer.symbol_name(symbol)?,
                     dir::GenericParameterKey::Generated(name) => Some(name),
                 };
+
                 let name = match name {
                     // keep tick names verbatim and add a tick to bare names
                     Some(name) => {
@@ -58,6 +59,7 @@ impl LifetimeParameters {
             if predicate.relation != dir::WhereRelation::Satisfies {
                 continue;
             }
+
             let left = parameters.parameter_slot(lowerer, predicate.left)?;
             let right = parameters.parameter_slot(lowerer, predicate.right)?;
             if let (Some(left), Some(right)) = (left, right) {
@@ -129,6 +131,8 @@ impl ModuleLowerer<'_> {
         parameters: &LifetimeParameters,
     ) -> CompilerResult<mir::Lifetime> {
         match self.ty(lifetime)? {
+            // read the extent of a region pair
+            dir::Type::Region(region) => self.lower_lifetime(region.extent, parameters),
             // resolve declared slots and erase parameters outside the scope
             dir::Type::Parameter(parameter) => Ok(parameters
                 .slots
@@ -141,6 +145,7 @@ impl ModuleLowerer<'_> {
                     .types(lifetime.module_id)?
                     .type_ids(union.elements)
                     .to_vec();
+
                 let mut terms = Vec::new();
                 for element in elements {
                     let lifetime = self.lower_lifetime(element, parameters)?;
@@ -150,12 +155,13 @@ impl ModuleLowerer<'_> {
                 Ok(mir::Lifetime::new(terms))
             }
             // lower concrete lifetime values
-            _ => match self.memory_literal(lifetime, dir::MemoryParameter::Lifetime)? {
-                dir::MemoryLiteral::Lifetime(dir::Lifetime::Static) => {
-                    Ok(mir::Lifetime::static_storage())
-                }
-                dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame) => Ok(mir::Lifetime::frame()),
-                _ => Err(CompilerError::Internal {
+            _ => match self
+                .memory_text(lifetime)?
+                .and_then(dir::Lifetime::from_text)
+            {
+                Some(dir::Lifetime::Static) => Ok(mir::Lifetime::static_storage()),
+                Some(dir::Lifetime::Frame) => Ok(mir::Lifetime::frame()),
+                None => Err(CompilerError::Internal {
                     message: "a lifetime in the wrong domain".to_string(),
                 }),
             },

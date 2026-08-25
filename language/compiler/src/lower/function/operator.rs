@@ -34,7 +34,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let LoweredOperand::Scalar { value, .. } = operand else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
-                construct: format!("the '{}' operator on this carrier", operator.text()),
+                construct: format!("the '{}' operator on this representation", operator.text()),
             }
             .into());
         };
@@ -56,23 +56,26 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Lower one nullish coalescing operation over its variant or niched carrier.
+    /// Lower one nullish coalescing operation over its variant or niched representation.
     pub(in crate::lower) fn lower_coalesce(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
-        // pre-classify both carriers without lowering either operand
+        // pre-classify both representations without lowering either operand
         let source = self.node_type_id(left)?;
-        let carrier = self.lower_type(source)?;
+        let representation = self.lower_type(source)?;
         let result = self.lower_type(self.node_type_id(expression)?)?;
 
-        // narrow variant carriers through their undefined case
-        if matches!(self.builder.tree().get(carrier), mir::Type::Variant { .. }) {
+        // narrow variant representations through their undefined case
+        if matches!(
+            self.builder.tree().get(representation),
+            mir::Type::Variant { .. }
+        ) {
             let value = self.lower_expression(left)?;
-            if self.builder.tree().undefined_case(carrier).is_none() {
-                return self.adapt_to_carrier(value, result);
+            if self.builder.tree().undefined_case(representation).is_none() {
+                return self.adapt_to_representation(value, result);
             }
 
             return self.lower_absent_fallback(value, result, |lowerer| {
@@ -81,34 +84,41 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // a never-absent operand keeps its own value
-        let Some(nullability) = self.builder.tree().get(carrier).nullability() else {
+        let Some(nullability) = self.builder.tree().get(representation).nullability() else {
             let value = self.lower_expression(left)?;
 
-            return self.adapt_to_carrier(value, result);
+            return self.adapt_to_representation(value, result);
         };
-        if !self.builder.tree().get(result).is_reference_carrier() {
+        if !self
+            .builder
+            .tree()
+            .get(result)
+            .is_reference_representation()
+        {
             return Err(CompilerError::Internal {
-                message: "a coalesce joining reference and value carriers".to_string(),
+                message: "a coalesce joining reference and value representations".to_string(),
             });
         }
 
         // a never-nullish reference keeps its own value
         let value = self.lower_expression(left)?;
         if nullability == mir::Nullability::None {
-            return self.adapt_to_carrier(value, result);
+            return self.adapt_to_representation(value, result);
         }
 
-        // test the nullish niches the carrier declares
+        // test the nullish niches the representation declares
         let mut is_nullish = None;
         if nullability.admits(mir::Nullish::Undefined) {
-            let undefined = self.builder.constant(mir::Constant::Undefined, carrier);
+            let undefined = self
+                .builder
+                .constant(mir::Constant::Undefined, representation);
             is_nullish = Some(
                 self.builder
                     .binary(mir::BinaryOperator::Equal, value, undefined),
             );
         }
         if nullability.admits(mir::Nullish::Null) {
-            let null = self.builder.constant(mir::Constant::Null, carrier);
+            let null = self.builder.constant(mir::Constant::Null, representation);
             let test = self.builder.binary(mir::BinaryOperator::Equal, value, null);
             is_nullish = Some(match is_nullish {
                 Some(nullish) => self.builder.binary(mir::BinaryOperator::Or, nullish, test),
@@ -117,7 +127,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
         let Some(is_nullish) = is_nullish else {
             return Err(CompilerError::Internal {
-                message: "a nullable carrier without a nullish test".to_string(),
+                message: "a nullable representation without a nullish test".to_string(),
             });
         };
 
@@ -128,9 +138,9 @@ impl FunctionLowerer<'_, '_, '_> {
         let join = self.builder.block();
         self.builder.branch(is_nullish, right_block, keep_block);
 
-        // keep the present reference at the narrowed result carrier
+        // keep the present reference at the narrowed result representation
         self.builder.switch_to_block(keep_block);
-        let kept = self.adapt_to_carrier(value, result)?;
+        let kept = self.adapt_to_representation(value, result)?;
         self.builder.local_set(join_value, kept);
         self.builder.jump(join);
 
@@ -160,7 +170,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         let fallback = self.lower_expression(right)?;
 
-        Ok(Some(self.adapt_to_carrier(fallback, result)?))
+        Ok(Some(self.adapt_to_representation(fallback, result)?))
     }
 
     /// Lower one short-circuiting logical operation over boolean operands.
@@ -228,7 +238,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let resolution = self.assignment_decision(target)?;
         let place = self.place(&resolution)?;
 
-        // rewrite the place by one over its carrier
+        // rewrite the place by one over its representation
         let current = self.read_place(&place)?;
         let one_type = self
             .builder

@@ -4,7 +4,7 @@ use destack_mir as mir;
 use crate::lower::FunctionLowerer;
 use crate::{CompilerError, CompilerResult, LowerError};
 
-/// One lowered operand classified by its runtime equality carrier.
+/// One lowered operand classified by its runtime equality representation.
 #[derive(Clone, Copy)]
 pub(in crate::lower) enum LoweredOperand {
     /// One scalar value.
@@ -16,12 +16,12 @@ pub(in crate::lower) enum LoweredOperand {
     },
     /// One address-bearing value.
     Address(mir::Value),
-    /// One materialized variant value and its logical carrier.
+    /// One materialized variant value and its logical representation.
     Variant {
         /// The lowered value.
         value: mir::Value,
         /// The type defining the cases.
-        carrier: dir::GlobalTypeId,
+        representation: dir::GlobalTypeId,
     },
     /// The unmaterialized null value.
     Null,
@@ -32,7 +32,7 @@ pub(in crate::lower) enum LoweredOperand {
 }
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Lower one binary operation over the operand carrier.
+    /// Lower one binary operation over the operand representation.
     pub(in crate::lower) fn lower_binary(
         &mut self,
         left: dir::LocalNodeId<dir::Expression>,
@@ -68,7 +68,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         let left = self.lower_operand(left, &operands[0])?;
         let right = self.lower_operand(right, &operands[1])?;
-        let equal = self.lower_carrier_equality(left, right)?;
+        let equal = self.lower_representation_equality(left, right)?;
 
         match operator {
             dir::BinaryOperator::EqualStrict => Ok(equal),
@@ -110,7 +110,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
             Some(equal)
         }
-        // leave all other operand pairs to their selected equality carrier
+        // leave all other operand pairs to their selected equality representation
         else {
             None
         };
@@ -212,8 +212,8 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
 
-        // compare the tag with a constant of its exact integer carrier
-        let tag_type = self.value_carrier(tag)?;
+        // compare the tag with a constant of its exact integer representation
+        let tag_type = self.value_representation(tag)?;
         let mir::Type::Int { width, is_signed } = *self.builder.tree().get(tag_type) else {
             return Err(CompilerError::Internal {
                 message: "a lowered discriminant tag is not an integer".to_string(),
@@ -228,7 +228,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the type carrying one operand after reading through a view.
-    pub(in crate::lower) fn operand_carrier(
+    pub(in crate::lower) fn operand_representation(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -260,38 +260,38 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // leave standalone nullish values unmaterialized until they meet a reference
-        let mut carrier = self.lowerer.instance_type(self.instance, operand.ty)?;
+        let mut representation = self.lowerer.instance_type(self.instance, operand.ty)?;
         match self.node_type(expression)? {
             dir::Type::Null => return Ok(LoweredOperand::Null),
             dir::Type::Undefined => return Ok(LoweredOperand::Undefined),
             _ => {}
         }
 
-        // evaluate the operand at its own carrier
+        // evaluate the operand at its own representation
         let mut value = self.lower_expression(expression)?;
 
-        // read inline values through their indirect carriers
-        if let Some(layer) = self.lowerer.peel_indirection(carrier)?
+        // read inline values through their indirect representations
+        if let Some(layer) = self.lowerer.peel_indirection(representation)?
             && !self.lowerer.has_indirect_representation(layer.stored)?
         {
-            carrier = layer.stored;
-            let pointee = self.lower_type(carrier)?;
+            representation = layer.stored;
+            let pointee = self.lower_type(representation)?;
             value = self.builder.load(value, pointee);
         }
 
-        self.classify_equality_operand(carrier, operand.scalar_families.as_ref(), value)
+        self.classify_equality_operand(representation, operand.scalar_families.as_ref(), value)
     }
 
-    /// Classify one evaluated value by its runtime equality carrier.
+    /// Classify one evaluated value by its runtime equality representation.
     fn classify_equality_operand(
         &mut self,
-        mut carrier: dir::GlobalTypeId,
+        mut representation: dir::GlobalTypeId,
         scalar_families: Option<&dir::ScalarFamilySet>,
         mut value: mir::Value,
     ) -> CompilerResult<LoweredOperand> {
         // compare transparent newtypes through their backing representation
         loop {
-            let dir::Type::Application(instance) = self.lowerer.ty(carrier)? else {
+            let dir::Type::Application(instance) = self.lowerer.ty(representation)? else {
                 break;
             };
             let Some(dir::Definition::Newtype(definition)) =
@@ -304,14 +304,14 @@ impl FunctionLowerer<'_, '_, '_> {
             }
 
             value = self.builder.field_get(value, 0);
-            carrier = definition.backing;
+            representation = definition.backing;
         }
 
-        // classify the operand by the carrier it lowered to
-        let ty = self.value_carrier(value)?;
+        // classify the operand by the representation it lowered to
+        let ty = self.value_representation(value)?;
         let ty = self.builder.tree().get(ty);
 
-        // preserve aggregate carriers even when every case shares scalar behavior
+        // preserve aggregate representations even when every case shares scalar behavior
         if matches!(ty, mir::Type::Variant { .. }) {
             let family = scalar_families
                 .filter(|families| families.len() == 1)
@@ -325,7 +325,10 @@ impl FunctionLowerer<'_, '_, '_> {
                 });
             }
 
-            return Ok(LoweredOperand::Variant { value, carrier });
+            return Ok(LoweredOperand::Variant {
+                value,
+                representation,
+            });
         }
 
         // apply the selected leaf scalar behavior
@@ -346,25 +349,29 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
                 dir::ScalarFamily::Enum(_) => {
                     return Err(CompilerError::Internal {
-                        message: format!("an enum equality carrier {carrier:?} lowered to {ty:?}"),
+                        message: format!(
+                            "an enum equality representation {representation:?} lowered to {ty:?}"
+                        ),
                     });
                 }
             }
         }
 
-        // compare nested variant payloads through their scalar carrier
+        // compare nested variant payloads through their scalar representation
         if let Some(domain) = Self::mir_scalar_domain(ty) {
             return Ok(LoweredOperand::Scalar { value, domain });
         }
 
         match ty {
-            // reference-family carriers compare by identity
+            // reference-family representations compare by identity
             mir::Type::Dynamic { .. }
             | mir::Type::Reference { .. }
             | mir::Type::Pointer { .. }
             | mir::Type::Slice { .. } => Ok(LoweredOperand::Address(value)),
             other => Err(CompilerError::Internal {
-                message: format!("an equality type lowered to the unsupported carrier {other:?}"),
+                message: format!(
+                    "an equality type lowered to the unsupported representation {other:?}"
+                ),
             }),
         }
     }
@@ -432,8 +439,8 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.binary(operator, left_value, right_value))
     }
 
-    /// Lower equality over one common carrier.
-    pub(in crate::lower) fn lower_carrier_equality(
+    /// Lower equality over one common representation.
+    pub(in crate::lower) fn lower_representation_equality(
         &mut self,
         left: LoweredOperand,
         right: LoweredOperand,
@@ -442,32 +449,34 @@ impl FunctionLowerer<'_, '_, '_> {
             (
                 LoweredOperand::Variant {
                     value: left,
-                    carrier: left_carrier,
+                    representation: left_representation,
                 },
                 LoweredOperand::Variant {
                     value: right,
-                    carrier: right_carrier,
+                    representation: right_representation,
                 },
-            ) => self.lower_variant_equality(left_carrier, left, right_carrier, right),
+            ) => {
+                self.lower_variant_equality(left_representation, left, right_representation, right)
+            }
             (LoweredOperand::Variant { .. }, _) | (_, LoweredOperand::Variant { .. }) => {
                 Err(CompilerError::Internal {
-                    message: "equality operands use different runtime carriers".to_string(),
+                    message: "equality operands use different runtime representations".to_string(),
                 })
             }
             (left, right) => self.lower_leaf_equality(left, right),
         }
     }
 
-    /// Lower equality between two values of one indexed variant carrier.
+    /// Lower equality between two values of one indexed variant representation.
     fn lower_variant_equality(
         &mut self,
-        left_carrier: dir::GlobalTypeId,
+        left_representation: dir::GlobalTypeId,
         left: mir::Value,
-        right_carrier: dir::GlobalTypeId,
+        right_representation: dir::GlobalTypeId,
         right: mir::Value,
     ) -> CompilerResult<mir::Value> {
-        let left_members = self.union_members(left_carrier)?;
-        let right_members = self.union_members(right_carrier)?;
+        let left_members = self.union_members(left_representation)?;
+        let right_members = self.union_members(right_representation)?;
         if left_members.len() != right_members.len() {
             return Err(CompilerError::Internal {
                 message: "equality variants have different case counts".to_string(),
@@ -518,7 +527,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     let right = self.builder.variant_payload(right, index);
                     let right = self.classify_equality_operand(right_member, None, right)?;
 
-                    self.lower_carrier_equality(left, right)?
+                    self.lower_representation_equality(left, right)?
                 };
             self.builder.local_set(result, equal);
             self.builder.jump(exit);
@@ -601,7 +610,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         };
 
-        // fold comparisons with no runtime carrier
+        // fold comparisons with no runtime representation
         match (left, right) {
             (LoweredOperand::Null, LoweredOperand::Null)
             | (LoweredOperand::Undefined, LoweredOperand::Undefined) => {
@@ -614,7 +623,7 @@ impl FunctionLowerer<'_, '_, '_> {
             _ => {}
         }
 
-        // materialize nullish niches at the compared address carrier
+        // materialize nullish niches at the compared address representation
         let (left, right) = match (left, right) {
             (LoweredOperand::Address(left), LoweredOperand::Address(right)) => (left, right),
             (LoweredOperand::Address(address), nullish) => {
@@ -629,7 +638,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             _ => {
                 return Err(CompilerError::Internal {
-                    message: "the equality comparison has incompatible carriers".to_string(),
+                    message: "the equality comparison has incompatible representations".to_string(),
                 });
             }
         };
@@ -641,13 +650,13 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.binary(operator, left, right))
     }
 
-    /// Materialize one nullish operand at an address value's carrier.
+    /// Materialize one nullish operand at an address value's representation.
     fn lower_nullish(
         &mut self,
         operand: LoweredOperand,
         address: mir::Value,
     ) -> CompilerResult<mir::Value> {
-        let carrier = self.value_carrier(address)?;
+        let representation = self.value_representation(address)?;
         let constant = match operand {
             LoweredOperand::Null => mir::Constant::Null,
             LoweredOperand::Undefined => mir::Constant::Undefined,
@@ -658,6 +667,6 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         };
 
-        Ok(self.builder.constant(constant, carrier))
+        Ok(self.builder.constant(constant, representation))
     }
 }

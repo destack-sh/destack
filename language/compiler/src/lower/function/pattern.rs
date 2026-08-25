@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::lower::function::body::Binding;
+use crate::lower::function::lower::Binding;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -21,6 +21,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 if let Some(symbol) = binding.symbol {
                     self.bind_pattern_symbol(symbol, value, mutability)?;
                 }
+
                 if let Some(nested) = binding.pattern {
                     let nested = self.pattern_node(nested)?;
                     self.lower_pattern_bindings(nested, value, mutability)?;
@@ -47,9 +48,13 @@ impl FunctionLowerer<'_, '_, '_> {
                         .into());
                     }
                 };
+
+                // bind each named field
                 for field in fields {
                     self.lower_destructured_field(field, value, mutability)?;
                 }
+
+                // bind the trailing rest field
                 if let Some(rest) = rest {
                     self.lower_destructured_field(rest, value, mutability)?;
                 }
@@ -84,7 +89,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.lower_pattern_bindings(nested, value, mutability)
             }
 
-            // dispatch already selected the case; payload-free variants bind nothing
+            // reject variant payloads, since dispatch already selected the case
             dir::PatternDecision::Variant(resolution) => {
                 if resolution.predicate.projection.is_some() {
                     return Err(LowerError::Unsupported {
@@ -114,7 +119,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<()> {
         let projected = self.lower_pattern_projection(&field.projection, value)?;
 
-        // a field without a nested pattern binds the symbol it declares
+        // bind the declared symbol directly for a bare field
         let Some(nested) = field.pattern else {
             let Some(symbol) = self.lowerer.symbol_declared_at(field.source)? else {
                 return Err(CompilerError::Internal {
@@ -124,6 +129,8 @@ impl FunctionLowerer<'_, '_, '_> {
 
             return self.bind_pattern_symbol(symbol, projected, mutability);
         };
+
+        // otherwise match the nested pattern over the projected value
         let nested = self.pattern_node(nested)?;
 
         self.lower_pattern_bindings(nested, projected, mutability)
@@ -152,9 +159,9 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // materialize the statically absent field as undefined
             dir::Projection::Absent { ty } => {
-                let carrier = self.lower_type(*ty)?;
+                let absent_type = self.lower_type(*ty)?;
 
-                Ok(self.builder.constant(mir::Constant::Undefined, carrier))
+                Ok(self.builder.constant(mir::Constant::Undefined, absent_type))
             }
 
             // duplicated and moved inputs keep the value they carry
@@ -162,8 +169,9 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // load the pointee behind a dereferenced input
             dir::Projection::Dereference(_) => {
-                let carrier = self.value_carrier(value)?;
-                let mir::Type::Reference { pointee, .. } = self.builder.tree().get(carrier) else {
+                let representation = self.value_representation(value)?;
+                let mir::Type::Reference { pointee, .. } = self.builder.tree().get(representation)
+                else {
                     return Err(CompilerError::Internal {
                         message: "a dereferenced pattern input outside a reference".to_string(),
                     });
@@ -187,6 +195,7 @@ impl FunctionLowerer<'_, '_, '_> {
         value: mir::Value,
         field: &dir::FieldResolution,
     ) -> CompilerResult<mir::Value> {
+        // resolve the field's position and lowered type
         let receiver = field.receiver.ty();
         let index = self.member_field_index(field)?;
         let result = self.lower_type(field.ty)?;
@@ -208,7 +217,8 @@ impl FunctionLowerer<'_, '_, '_> {
         value: mir::Value,
         default: dir::GlobalNodeIdAny,
     ) -> CompilerResult<mir::Value> {
-        let exact = self.pattern_carrier(nested)?;
+        // read the representation the nested pattern was checked at and the default expression
+        let exact = self.pattern_representation(nested)?;
         let default = default
             .local_id
             .try_into_typed::<dir::Expression>()
@@ -225,7 +235,7 @@ impl FunctionLowerer<'_, '_, '_> {
         nested: dir::LocalNodeId<dir::Pattern>,
         value: mir::Value,
     ) -> CompilerResult<mir::Value> {
-        let exact = self.pattern_carrier(nested)?;
+        let exact = self.pattern_representation(nested)?;
 
         self.lower_absent_fallback(value, exact, |lowerer| {
             lowerer.builder.unreachable();
@@ -241,13 +251,13 @@ impl FunctionLowerer<'_, '_, '_> {
         exact: mir::LocalNodeId<mir::Type>,
         fallback: impl FnOnce(&mut Self) -> CompilerResult<Option<mir::Value>>,
     ) -> CompilerResult<mir::Value> {
-        let carrier = self.value_carrier(value)?;
-        if carrier == exact {
+        let representation = self.value_representation(value)?;
+        if representation == exact {
             return Ok(value);
         }
 
         // a statically absent input always takes the fallback
-        if matches!(self.builder.tree().get(carrier), mir::Type::Void) {
+        if matches!(self.builder.tree().get(representation), mir::Type::Void) {
             return match fallback(self)? {
                 Some(value) => Ok(value),
                 None => Err(CompilerError::Internal {
@@ -256,27 +266,31 @@ impl FunctionLowerer<'_, '_, '_> {
             };
         }
 
+        // stage the joined result slot and the branch blocks
         let slot = self.builder.local(exact, mir::Mutability::Immutable);
         let present_block = self.builder.block();
         let absent_block = self.builder.block();
         let join = self.builder.block();
-        match self.builder.tree().get(carrier).clone() {
+
+        match self.builder.tree().get(representation).clone() {
+            // split an optional variant on its undefined case
             mir::Type::Variant { cases, .. } => {
                 let Some(mir::NullishCase::Case(absent)) =
-                    self.builder.tree().undefined_case(carrier)
+                    self.builder.tree().undefined_case(representation)
                 else {
                     return Err(CompilerError::Internal {
                         message: "an optional pattern input without its undefined case".to_string(),
                     });
                 };
-                let absent = absent as usize;
+
+                // route the undefined case to the fallback arm
                 self.builder.variant_switch(
                     value,
                     Some(present_block),
                     vec![(absent as u32, absent_block)],
                 );
 
-                // extract the sole payload or rebuild the narrowed union
+                // collect the cases that carry a payload
                 self.builder.switch_to_block(present_block);
                 let present: Vec<_> = cases
                     .iter()
@@ -286,18 +300,24 @@ impl FunctionLowerer<'_, '_, '_> {
                     })
                     .map(|(index, _)| index)
                     .collect();
+
                 match present.as_slice() {
+                    // extract the sole payload
                     [sole] => {
                         let payload = self.builder.variant_payload(value, *sole as u32);
-                        let payload = self.adapt_to_carrier(payload, exact)?;
+                        let payload = self.adapt_to_representation(payload, exact)?;
                         self.builder.local_set(slot, payload);
                         self.builder.jump(join);
                     }
+                    // rebuild the narrowed union case by case
                     _ => {
+                        // open one arm block per surviving case
                         let mut arms = Vec::with_capacity(present.len());
                         for _ in &present {
                             arms.push(self.builder.block());
                         }
+
+                        // switch each surviving case into its arm
                         let targets = present
                             .iter()
                             .copied()
@@ -305,6 +325,8 @@ impl FunctionLowerer<'_, '_, '_> {
                             .map(|(case, block)| (case as u32, block))
                             .collect();
                         self.builder.variant_switch(value, None, targets);
+
+                        // rebuild each payload at its narrowed case index
                         for (narrowed, (case, block)) in
                             present.iter().copied().zip(arms).enumerate()
                         {
@@ -319,8 +341,11 @@ impl FunctionLowerer<'_, '_, '_> {
                     }
                 }
             }
-            other if other.is_reference_carrier() => {
-                let undefined = self.builder.constant(mir::Constant::Undefined, carrier);
+            // compare a reference input against undefined
+            other if other.is_reference_representation() => {
+                let undefined = self
+                    .builder
+                    .constant(mir::Constant::Undefined, representation);
                 let is_absent = self
                     .builder
                     .binary(mir::BinaryOperator::Equal, value, undefined);
@@ -330,6 +355,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.builder.local_set(slot, kept);
                 self.builder.jump(join);
             }
+            // reject every other input shape
             _ => {
                 return Err(CompilerError::Internal {
                     message: "an optional pattern input without an absent case".to_string(),
@@ -337,12 +363,14 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         }
 
-        // fill the fallback arm, which may terminate instead of joining
+        // fill the fallback arm, which may terminate or join
         self.builder.switch_to_block(absent_block);
         if let Some(value) = fallback(self)? {
             self.builder.local_set(slot, value);
             self.builder.jump(join);
         }
+
+        // continue in the joined block
         self.builder.switch_to_block(join);
 
         Ok(self.builder.local_get(slot))
@@ -366,20 +394,21 @@ impl FunctionLowerer<'_, '_, '_> {
             _ => {
                 let ty = self.lowerer.symbol_type(symbol)?;
                 let ty = self.lower_type(ty)?;
-                let value = self.adapt_to_carrier(value, ty)?;
+                let value = self.adapt_to_representation(value, ty)?;
                 let local = self.builder.local(ty, mir::Mutability::Mutable);
                 self.builder.local_set(local, value);
 
                 Binding::Local(local)
             }
         };
+
         self.values.insert(symbol.local_id, binding);
 
         Ok(())
     }
 
-    /// Return the lowered carrier one pattern node was checked at.
-    fn pattern_carrier(
+    /// Return the lowered representation one pattern node was checked at.
+    fn pattern_representation(
         &mut self,
         pattern: dir::LocalNodeId<dir::Pattern>,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {

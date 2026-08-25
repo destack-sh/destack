@@ -1,5 +1,6 @@
 use crate::tests::TestSession;
 
+/// An extension method lowers to a call taking a borrow of its target as the receiver.
 #[test]
 fn test_lower_extension_method_through_its_target_receiver() {
     let session = TestSession::single(
@@ -29,11 +30,11 @@ type Point {
     x: int32;
 }
 
-function test.main.Point.double<'a>(v0: ref<Point, borrowed, 'a, readonly>): int32 {
-entry(v0: ref<Point, borrowed, 'a, readonly>):
-    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+function test.main.Point.double<'a>(v0: ref<Point, borrowed, 'a, readonly, local>): int32 {
+entry(v0: ref<Point, borrowed, 'a, readonly, local>):
+    v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
     v2: int32 = load v1
-    v3: ref<int32, borrowed, readonly> = field.address v0, 0
+    v3: ref<int32, borrowed, readonly, local> = field.address v0, 0
     v4: int32 = load v3
     v5: int32 = add v2, v4
     return v5
@@ -46,8 +47,8 @@ entry:
     v0: int32 = 3
     v1: Point = aggregate (v0)
     local.set l0, v1
-    v2: ref<Point, borrowed, 'frame, readonly> = local.address l0
-    v3: int32 = call test.main.Point.double(v2): <'a>(ref<Point, borrowed, 'a, readonly>) => int32
+    v2: ref<Point, borrowed, 'frame, readonly, local> = local.address l0
+    v3: int32 = call test.main.Point.double(v2): <'a>(ref<Point, borrowed, 'a, readonly, local>) => int32
     return v3
 }
 
@@ -57,6 +58,7 @@ entry:
     );
 }
 
+/// A static call on a generic extension lowers to the instance its argument selects.
 #[test]
 fn test_lower_a_static_call_scoped_by_its_generic_extension() {
     let session = TestSession::single(
@@ -103,6 +105,7 @@ entry(v0: int32):
     );
 }
 
+/// A generic static call lowers to the instance its expected result type selects.
 #[test]
 fn test_lower_a_generic_static_call_instantiated_by_its_contextual_result() {
     let session = TestSession::single(

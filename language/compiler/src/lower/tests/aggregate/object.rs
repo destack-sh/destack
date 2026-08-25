@@ -25,9 +25,9 @@ type Point {
     x: int32;
 }
 
-function test.main.read(v0: ref<Point, managed, mutable>): int32 {
-entry(v0: ref<Point, managed, mutable>):
-    v1: ref<int32, borrowed, mutable> = field.address v0, 0
+function test.main.read(v0: ref<Point, managed, mutable, local>): int32 {
+entry(v0: ref<Point, managed, mutable, local>):
+    v1: ref<int32, borrowed, mutable, local> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
@@ -36,8 +36,8 @@ function test.main.build(): int32 {
 entry:
     v0: int32 = 7
     v1: Point = aggregate (v0)
-    v2: ref<Point, managed, mutable> = new.complete v1
-    v3: int32 = call test.main.read(v2): (ref<Point, managed, mutable>) => int32
+    v2: ref<Point, managed, mutable, local> = new.complete v1
+    v3: int32 = call test.main.read(v2): (ref<Point, managed, mutable, local>) => int32
     return v3
 }
 
@@ -72,11 +72,11 @@ function build(): int32 {
         r#"
 type Selector {
     depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; };
-    nested: ref<Selector, managed, mutable, undefined>;
+    nested: ref<Selector, managed, mutable, undefined, local>;
 }
 
-function test.main.pick(v0: ref<Selector, managed, mutable>): int32 {
-entry(v0: ref<Selector, managed, mutable>):
+function test.main.pick(v0: ref<Selector, managed, mutable, local>): int32 {
+entry(v0: ref<Selector, managed, mutable, local>):
     v1: int32 = 0
     return v1
 }
@@ -85,10 +85,10 @@ function test.main.build(): int32 {
 entry:
     v0: int32 = 3
     v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = variant.new 0, v0
-    v2: ref<Selector, managed, mutable, undefined> = undefined
+    v2: ref<Selector, managed, mutable, undefined, local> = undefined
     v3: Selector = aggregate (v1, v2)
-    v4: ref<Selector, managed, mutable> = new.complete v3
-    v5: int32 = call test.main.pick(v4): (ref<Selector, managed, mutable>) => int32
+    v4: ref<Selector, managed, mutable, local> = new.complete v3
+    v5: int32 = call test.main.pick(v4): (ref<Selector, managed, mutable, local>) => int32
     return v5
 }
 

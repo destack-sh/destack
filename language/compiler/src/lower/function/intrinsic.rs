@@ -5,7 +5,7 @@ use destack_mir::{IntrinsicInstruction, IntrinsicTerminator};
 use crate::lower::{ContextIntrinsic, FunctionLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
-/// The target constant one intrinsic name folds to.
+/// One layout or pointer arithmetic intrinsic.
 enum LayoutIntrinsic {
     /// The size of the subject type.
     SizeOf,
@@ -39,7 +39,7 @@ impl LayoutIntrinsic {
 }
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Lower one intrinsic call through its name's vocabulary.
+    /// Lower one intrinsic call through the callable's declared name.
     pub(in crate::lower) fn lower_intrinsic_call(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -54,7 +54,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .into());
         };
 
-        // route the name through the machine operations, then the instructions
+        // route the name through each intrinsic namespace in declaration order
         if let Ok(operation) = name.parse::<mir::Intrinsic>() {
             return self.lower_operation_intrinsic(operation, resolution);
         }
@@ -86,18 +86,20 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Option<mir::Value>> {
         let values = self.lower_call_arguments(&resolution.arguments, &[], None)?;
 
+        // emit a void operation and hand back no value
         if !operation.has_result() {
             self.builder.intrinsic_void(operation, values);
 
             return Ok(None);
         }
 
+        // bind the operation result at the declared return type
         let result = self.lower_type(resolution.return_type)?;
 
         Ok(Some(self.builder.intrinsic(operation, result, values)))
     }
 
-    /// Lower one instruction intrinsic through its family emitter.
+    /// Lower one instruction intrinsic.
     fn lower_instruction_intrinsic(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -181,7 +183,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Lower one atomic fence from its const ordering configuration.
     ///
-    /// Region and memory-scope refinements subsume into a whole-storage fence.
+    /// The fence orders every storage region, whatever the call narrows it to.
     pub(in crate::lower) fn lower_atomic_fence(
         &mut self,
         resolution: &dir::Call,
@@ -240,8 +242,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Lower one atomic compare-exchange returning the old value and success.
     ///
-    /// The failed comparison loads at the success ordering stripped of its
-    /// release half.
+    /// The failed comparison loads at the success ordering stripped of its release half.
     pub(in crate::lower) fn lower_atomic_compare_exchange(
         &mut self,
         weak: bool,
@@ -285,12 +286,14 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
-        let data = self.argument_value(resolution, 0)?;
+        let address = self.argument_value(resolution, 0)?;
         let length = self.argument_value(resolution, 1)?;
         let start = self.builder.iconst(0, 64, false);
         let result = self.lower_type(resolution.return_type)?;
 
-        Ok(Some(self.builder.slice_view(data, start, length, result)))
+        Ok(Some(
+            self.builder.slice_view(address, start, length, result),
+        ))
     }
 
     /// Lower one slice element read.
@@ -314,23 +317,36 @@ impl FunctionLowerer<'_, '_, '_> {
         let slice = self.argument_value(resolution, 0)?;
         let index = self.argument_value(resolution, 1)?;
         let value = self.argument_value(resolution, 2)?;
-        let element = self.value_carrier(value)?;
+        let element = self.value_representation(value)?;
         let pointer = self.emit_element_address(slice, index, element)?;
         self.builder.store(pointer, value);
 
         Ok(None)
     }
 
-    /// Address one slice element behind an exclusive borrow carrier.
+    /// Address one slice element behind an exclusive borrow representation.
     fn emit_element_address(
         &mut self,
         slice: mir::Value,
         index: mir::Value,
         element: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::Value> {
+        // take the element representation from the slice's own storage
+        let representation = self.value_representation(slice)?;
+        let Some(storage) = self
+            .builder
+            .tree_mut()
+            .get(representation)
+            .reference_storage()
+        else {
+            return Err(CompilerError::Internal {
+                message: "a slice value carries no reference storage".to_string(),
+            });
+        };
         let pointer = self.insert_reference(
             mir::ReferenceKind::Borrowed,
             mir::Access::Exclusive,
+            storage,
             element,
         );
 
@@ -430,7 +446,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Return the pointee type behind one lowered pointer value.
     fn pointee_type(&mut self, pointer: mir::Value) -> CompilerResult<mir::TypeId> {
-        let pointer_type = self.value_carrier(pointer)?;
+        let pointer_type = self.value_representation(pointer)?;
         let pointee = match self.builder.tree().get(pointer_type) {
             mir::Type::Pointer { pointee, .. } | mir::Type::Reference { pointee, .. } => pointee,
             _ => {
@@ -472,13 +488,23 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::Call,
         start: usize,
     ) -> CompilerResult<mir::AtomicAccess> {
+        // read the ordering in the case order the language enum declares
         let ordering = match self.enum_argument_ordinal(resolution, start, "an atomic ordering")? {
             0 => mir::MemoryOrdering::Relaxed,
             1 => mir::MemoryOrdering::Acquire,
             2 => mir::MemoryOrdering::Release,
             3 => mir::MemoryOrdering::AcquireRelease,
-            _ => mir::MemoryOrdering::SequentiallyConsistent,
+            4 => mir::MemoryOrdering::SequentiallyConsistent,
+            other => {
+                return Err(LowerError::Unsupported {
+                    anchor: self.lowerer.module.into(),
+                    construct: format!("the atomic ordering in declaration order {other}"),
+                }
+                .into());
+            }
         };
+
+        // read the execution scope in the case order the language enum declares
         let scope = match self.enum_argument_ordinal(resolution, start + 1, "an atomic scope")? {
             0 => mir::ExecutionScope::Invocation,
             1 => mir::ExecutionScope::Subgroup,
@@ -520,23 +546,27 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Option<mir::Value>> {
         let pointer_bits = self.builder.pointer_bits();
         let value = match layout {
+            // fold the subject size
             LayoutIntrinsic::SizeOf => {
                 let layout = self.subject_layout(resolution)?;
 
                 self.builder
                     .iconst(layout.size as i128, pointer_bits, false)
             }
+            // fold the subject alignment
             LayoutIntrinsic::AlignOf => {
                 let layout = self.subject_layout(resolution)?;
 
                 self.builder
                     .iconst(layout.alignment as i128, pointer_bits, false)
             }
+            // fold the padded element step
             LayoutIntrinsic::StrideOf => {
                 let stride = self.subject_stride(resolution)?;
 
                 self.builder.iconst(stride as i128, pointer_bits, false)
             }
+            // hand back the alignment itself as a well-aligned dangling address
             LayoutIntrinsic::Dangling => {
                 let layout = self.subject_layout(resolution)?;
                 let pointer = self.lower_type(resolution.return_type)?;
@@ -547,12 +577,13 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.builder
                     .intrinsic(mir::Intrinsic::Transmute, pointer, vec![address])
             }
+            // move the pointer by an element count scaled to the stride
             LayoutIntrinsic::Offset => {
                 let stride = self.subject_stride(resolution)?;
                 let pointer = self.argument_value(resolution, 0)?;
                 let count = self.argument_value(resolution, 1)?;
                 let step = self.builder.iconst(stride as i128, pointer_bits, true);
-                let domain = self.value_carrier(step)?;
+                let domain = self.value_representation(step)?;
                 let address =
                     self.builder
                         .intrinsic(mir::Intrinsic::Transmute, domain, vec![pointer]);
@@ -567,12 +598,13 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.builder
                     .intrinsic(mir::Intrinsic::Transmute, result, vec![moved])
             }
+            // divide the byte distance between two pointers back into elements
             LayoutIntrinsic::OffsetFrom => {
                 let stride = self.subject_stride(resolution)?;
                 let pointer = self.argument_value(resolution, 0)?;
                 let origin = self.argument_value(resolution, 1)?;
                 let step = self.builder.iconst(stride as i128, pointer_bits, true);
-                let domain = self.value_carrier(step)?;
+                let domain = self.value_representation(step)?;
                 let bytes = self.builder.intrinsic(
                     mir::Intrinsic::PointerByteOffsetFrom,
                     domain,
@@ -598,6 +630,8 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a layout intrinsic without a candidate".to_string(),
             });
         };
+
+        // take the subject from the first generic argument the call selects
         let bindings = self
             .lowerer
             .instance_bindings(&function.selection.arguments, self.instance)?;
