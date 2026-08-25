@@ -1,3 +1,4 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_repository::ProviderError;
 use destack_source::{DiagnosticSuggestion, Patch};
@@ -53,7 +54,31 @@ class User {
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let occurrences = module.flows.access_occurrences().collect::<Vec<_>>();
+    let mut unfinished_owners = FxIndexSet::default();
     let mut output = LintOutput::default();
+
+    // collect nominal owners with wholly unfinished methods
+    for (member, node) in view.iter_nodes::<dir::Member>() {
+        let dir::Member::Method {
+            body: Some(body), ..
+        } = node
+        else {
+            continue;
+        };
+        let Some(owner) = module.member_owner(member)? else {
+            continue;
+        };
+        let Some(expression) = module.sole_expression(*body) else {
+            continue;
+        };
+        if !matches!(view.get(expression), dir::Expression::Call { .. }) {
+            continue;
+        }
+        if module.language_item(expression)? != Some(dir::LanguageItem::Todo) {
+            continue;
+        }
+        unfinished_owners.insert(owner);
+    }
 
     // inspect concrete nominal declarations and their constructor bodies
     for (declaration, node) in view.iter_nodes::<dir::Declaration>() {
@@ -64,6 +89,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             }
             _ => continue,
         };
+        let owner = module.declaration_symbol(declaration)?;
+        if unfinished_owners.contains(&owner) {
+            continue;
+        }
         let constructors = members
             .iter()
             .filter_map(|member| match view.get(*member) {
@@ -96,10 +125,25 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             // reject mutable uses outside the nearest constructor body
             let mut is_mutated = false;
             for occurrence in &occurrences {
-                if !view.is_inside(occurrence.node, declaration.into_any())
-                    || !occurrence.uses.may_mutate()
-                    || occurrence.path.keys() != [key]
-                {
+                if !occurrence.uses.may_mutate() || occurrence.path.keys() != [key] {
+                    continue;
+                }
+
+                // retain uses in the declaration and extensions of the same owner
+                let is_inside = view.is_inside(occurrence.node, declaration.into_any());
+                let is_static_owner = occurrence.path.root() == dir::AccessRoot::Symbol(owner);
+                let is_owned = if is_inside || is_static_owner {
+                    true
+                } else if occurrence.path.root() == dir::AccessRoot::Receiver {
+                    let Some(member) = view.ancestor::<dir::Member>(occurrence.node) else {
+                        continue;
+                    };
+
+                    module.member_owner(member)? == Some(owner)
+                } else {
+                    false
+                };
+                if !is_owned {
                     continue;
                 }
 
@@ -390,5 +434,71 @@ class Counter {
 }
 "#,
         );
+    }
+
+    /// Accept private fields mutated by inherent extension methods.
+    #[test]
+    fn test_accepts_extension_mutation() {
+        let session = TestSession::dir(
+            &PREFER_READONLY,
+            r#"
+class Counter {
+    private value: int32 = 0;
+}
+
+extension of Counter {
+    increment(): void {
+        this.value += 1;
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Preserve private field mutability while an owner method remains unfinished.
+    #[test]
+    fn test_accepts_unfinished_owner() {
+        let session = TestSession::dir(
+            &PREFER_READONLY,
+            r#"
+import { todo } from "destack:error";
+
+class Counter {
+    private value: int32 = 0;
+}
+
+extension of Counter {
+    increment(): void {
+        todo("Counter.increment");
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept an immutable subclass whose constructor delegates to its superclass.
+    #[test]
+    fn test_accepts_super_constructor() {
+        let session = TestSession::dir(
+            &PREFER_READONLY,
+            r#"
+import { ContextVar } from "destack:context";
+import { Dynamic, DynamicSafe } from "destack:memory";
+
+/// One dynamically scoped binding family.
+export local class Binding<T: DynamicSafe> extends ContextVar<Dynamic<T>> {
+    /// Create one binding family resolved through the seeded context.
+    constructor(name: string) {
+        super(name);
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
     }
 }

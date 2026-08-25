@@ -1,3 +1,4 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::{NodeSpanRegion, Patch};
 
@@ -39,6 +40,11 @@ class Builder {
 /// Report instance methods whose returned values are all the receiver.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
+    let implementations = module
+        .definitions
+        .member_conformances()
+        .map(|conformance| conformance.member)
+        .collect::<FxIndexSet<_>>();
     let mut output = LintOutput::default();
 
     // inspect concrete ordinary instance methods
@@ -71,6 +77,18 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 .iter()
                 .any(|value| !matches!(view.get(*value), dir::Expression::This))
         {
+            continue;
+        }
+
+        // require a locally chosen return type naming the method's nominal owner
+        let symbol = module.declaration_symbol(node)?;
+        if implementations.contains(&symbol) {
+            continue;
+        }
+        let Some(owner) = module.member_owner(node)? else {
+            continue;
+        };
+        if module.node_type(return_type.into_any())?.symbol() != Some(owner) {
             continue;
         }
 
@@ -158,6 +176,35 @@ class Builder {
 class Builder {
     choose(other: Builder, flag: boolean): Builder {
         return flag ? this : other;
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept a generic receiver type and a conformance-imposed return type.
+    #[test]
+    fn test_accepts_nonlocal_return_types() {
+        let session = TestSession::dir(
+            &PREFER_RETURN_THIS_TYPE,
+            r#"
+interface Identity<T> {
+    identity(): T;
+}
+
+struct Value {}
+extension of Value implements Identity<Value> {
+    identity(): Value {
+        return this;
+    }
+}
+
+interface Marker {}
+extension<T: Marker> of T {
+    identity(): T {
+        return this;
     }
 }
 "#,

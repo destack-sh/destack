@@ -336,6 +336,19 @@ impl DirModule<'_> {
         Some(values)
     }
 
+    /// Return the nominal owner when one member belongs to a checked definition.
+    pub(crate) fn member_owner(
+        &self,
+        member: dir::LocalNodeId<dir::Member>,
+    ) -> Result<Option<dir::GlobalSymbolId>, ProviderError> {
+        let symbol = self.declaration_symbol(member)?;
+        let Some((declaring, definition, _)) = self.definitions.member(symbol) else {
+            return Ok(None);
+        };
+
+        Ok(definition.member_owner(declaring))
+    }
+
     /// Return the sole value call when a body passes each parameter directly and in order.
     pub(crate) fn parameter_forwarding_call(
         &self,

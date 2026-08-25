@@ -1,3 +1,4 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_repository::ProviderError;
 use destack_source::{DiagnosticSuggestion, Patch, Span};
@@ -45,6 +46,11 @@ function read(counter: &readonly Counter): int32 {
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let occurrences = module.flows.access_occurrences().collect::<Vec<_>>();
+    let implementations = module
+        .definitions
+        .member_conformances()
+        .map(|conformance| conformance.member)
+        .collect::<FxIndexSet<_>>();
     let mut output = LintOutput::default();
 
     // inspect explicitly typed borrowed parameters with callable bodies
@@ -65,9 +71,31 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         if declared_access == dir::Access::Readonly {
             continue;
         }
-        let Some(body) = module.enclosing_callable_body(parameter.into_any()) else {
+        let Some(callable) = module.enclosing_callable(parameter.into_any()) else {
             continue;
         };
+        let Some(body) = module.callable_body(callable) else {
+            continue;
+        };
+
+        // leave unfinished bodies until their required access is known
+        if let Some(expression) = module.sole_expression(body)
+            && matches!(view.get(expression), dir::Expression::Call { .. })
+            && module.language_item(expression)? == Some(dir::LanguageItem::Todo)
+        {
+            continue;
+        }
+
+        // preserve signatures imposed by inheritance or conformance
+        if let Ok(member) = callable.try_into_typed::<dir::Member>() {
+            let dir::Member::Method { signature, .. } = view.get(member) else {
+                continue;
+            };
+            let symbol = module.declaration_symbol(member)?;
+            if signature.is_override || implementations.contains(&symbol) {
+                continue;
+            }
+        }
 
         // combine the access required by every binding in the parameter
         let mut has_binding = false;
@@ -315,6 +343,34 @@ function replaceLater<'a>(counter: &'a exclusive Counter): () => void {
     return () => {
         *counter = Counter { value: 0 };
     };
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Preserve access while a callable body remains explicitly unfinished.
+    #[test]
+    fn test_accepts_todo_body() {
+        let session = TestSession::dir(
+            &PREFER_WEAKEST_ACCESS,
+            r#"
+import { todo } from "destack:error";
+
+struct Counter {
+    value: int32;
+}
+
+function increment(counter: &exclusive Counter): void {
+    todo("increment");
+}
+
+export extension of Counter {
+    /// Replace the counter value.
+    set(&exclusive this, value: int32): void {
+        todo("Counter.set");
+    }
 }
 "#,
         );
