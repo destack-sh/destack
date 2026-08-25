@@ -60,18 +60,18 @@ impl FunctionPass for EliminateDeadStores {
         let effects = &optimized.effects;
 
         // skip empty functions
-        let _entry = match function.entry() {
-            Some(entry) => entry,
-            None => return Mutation::NONE,
-        };
+        if function.entry().is_none() {
+            return Mutation::NONE;
+        }
 
-        // get analyses
-        let aa = analyses.alias(function, tree).clone();
+        // read the analyses this pass runs against
+        let aliases = analyses.alias(function, tree).clone();
         let memory = analyses.memory(function, tree, accesses, effects);
         let postdom = analyses.postdominator(function, tree);
 
         // run dead store elimination
-        let changed = run_eliminate_dead_stores(function, tree, &aa, memory.as_ref(), &postdom);
+        let changed =
+            run_eliminate_dead_stores(function, tree, &aliases, memory.as_ref(), &postdom);
 
         // report what this pass changed
         if changed {
@@ -82,11 +82,13 @@ impl FunctionPass for EliminateDeadStores {
     }
 }
 
-/// Core DSE logic. Returns true if changes were made.
+/// Remove the dead stores from one function.
+///
+/// Returns true when a store was removed.
 fn run_eliminate_dead_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    aa: &AliasTable,
+    aliases: &AliasTable,
     memory: &MemoryTable,
     postdom: &PostdominatorTable,
 ) -> bool {
@@ -102,12 +104,10 @@ fn run_eliminate_dead_stores(
     let def_accesses = collect_def_accesses(function, tree, memory);
 
     // collect live definitions from memory reads
-    let live_defs = collect_live_defs(function, tree, memory, aa);
+    let live_defs = collect_live_defs(function, tree, memory, aliases);
 
-    // determine dead stores
+    // scan the store candidates for removal
     let mut dead_stores = FxIndexSet::default();
-
-    // scan store candidates for removal
     for store in store_candidates {
         // skip volatile or barrier stores
         if store.is_volatile || store.is_barrier {
@@ -125,14 +125,14 @@ fn run_eliminate_dead_stores(
         }
 
         // remove unread stores owned by this frame
-        let resolved_region = aa.resolve(&store.region);
+        let resolved_region = aliases.resolve(&store.region);
         if resolved_region.is_frame_storage() {
             dead_stores.insert(store.instruction);
             continue;
         }
 
         // remove stores clobbered along all paths
-        if store_is_postdominated_by_clobber(&store, &def_accesses, memory, aa, postdom) {
+        if store_is_postdominated_by_clobber(&store, &def_accesses, memory, aliases, postdom) {
             dead_stores.insert(store.instruction);
         }
     }
@@ -152,56 +152,51 @@ fn run_eliminate_dead_stores(
     true
 }
 
-/// Store candidate for dead store elimination.
+/// One store considered for elimination.
 #[derive(Clone)]
 struct StoreCandidate {
-    /// Instruction that defines the store.
+    /// The instruction performing the store.
     instruction: mir::LocalNodeId<mir::Instruction>,
-    /// Memory SSA access id for the store.
+    /// The memory access the store defines.
     access: MemoryAccessId,
-    /// Block containing the instruction.
+    /// The block holding the instruction.
     block: mir::LocalNodeId<mir::Block>,
-    /// Instruction index within the block.
+    /// The index of the instruction within its block.
     index: usize,
-    /// Access location for the store.
+    /// The region the store writes.
     region: MemoryRegion,
-    /// True when the store is volatile.
+    /// Whether the store is volatile.
     is_volatile: bool,
-    /// True when the store is a barrier.
+    /// Whether the store is a barrier.
     is_barrier: bool,
 }
 
-/// Memory SSA def access location in a block.
+/// One memory definition sited in a block.
 #[derive(Clone)]
-struct DefAccessInfo {
-    /// Memory SSA access id.
+struct DefAccess {
+    /// The memory access the definition writes.
     access: MemoryAccessId,
-    /// Block containing the def.
+    /// The block holding the definition.
     block: mir::LocalNodeId<mir::Block>,
-    /// Instruction index within the block.
+    /// The index of the instruction within its block.
     index: usize,
 }
 
-/// Collect store candidates with MemoryTable defs.
+/// Collect the stores that write a memory definition.
 fn collect_store_candidates(
     function: &mir::Function,
     tree: &mir::Tree,
     memory: &MemoryTable,
 ) -> Vec<StoreCandidate> {
-    // collect store instructions with MemoryTable defs
     let mut stores = Vec::new();
 
-    // scan blocks for store instructions
+    // scan every block for store-like instructions
     for &block_id in function.blocks() {
-        // read the block
         let block = tree.get(block_id);
 
-        // scan instructions in the block
         for (index, &instruction_id) in block.instructions.iter().enumerate() {
-            // read the instruction
+            // keep stores and the memory intrinsics that write
             let instruction = tree.get(instruction_id);
-
-            // collect store-like instructions
             let is_mem_intrinsic = matches!(
                 instruction,
                 mir::Instruction::Intrinsic {
@@ -211,23 +206,20 @@ fn collect_store_candidates(
                     ..
                 }
             );
-
             if !matches!(instruction, mir::Instruction::Store { .. }) && !is_mem_intrinsic {
                 continue;
             }
 
-            // read memory accesses for this instruction
             let Some(accesses) = memory.instruction_accesses(instruction_id) else {
                 continue;
             };
 
-            // record each MemoryTable def access
+            // record a candidate for each definition the instruction writes
             for &access_id in accesses {
                 let MemoryNode::Def(def_access) = memory.access(access_id) else {
                     continue;
                 };
 
-                // record the candidate store
                 stores.push(StoreCandidate {
                     instruction: instruction_id,
                     access: access_id,
@@ -244,34 +236,29 @@ fn collect_store_candidates(
     stores
 }
 
-/// Collect MemoryTable def accesses for the function.
+/// Collect every memory definition written in the function.
 fn collect_def_accesses(
     function: &mir::Function,
     tree: &mir::Tree,
     memory: &MemoryTable,
-) -> Vec<DefAccessInfo> {
-    // collect all MemoryTable def accesses
+) -> Vec<DefAccess> {
     let mut defs = Vec::new();
 
-    // scan blocks for def accesses
+    // scan every block for the definitions its instructions write
     for &block_id in function.blocks() {
-        // read the block
         let block = tree.get(block_id);
 
-        // scan instructions in the block
         for (index, &instruction_id) in block.instructions.iter().enumerate() {
-            // read the access list
             let Some(accesses) = memory.instruction_accesses(instruction_id) else {
                 continue;
             };
 
-            // record each def access
             for &access_id in accesses {
                 let MemoryNode::Def(_def_access) = memory.access(access_id) else {
                     continue;
                 };
 
-                defs.push(DefAccessInfo {
+                defs.push(DefAccess {
                     access: access_id,
                     block: block_id,
                     index,
@@ -283,34 +270,30 @@ fn collect_def_accesses(
     defs
 }
 
-/// Collect def accesses that are needed by memory reads.
+/// Collect the memory definitions that feed a read.
 fn collect_live_defs(
     function: &mir::Function,
     tree: &mir::Tree,
     memory: &MemoryTable,
-    aa: &AliasTable,
+    aliases: &AliasTable,
 ) -> FxIndexSet<MemoryAccessId> {
-    // collect MemoryTable defs that feed reads
     let mut live_defs = FxIndexSet::default();
 
-    // scan blocks for read accesses
+    // scan every block for the reads its instructions perform
     for &block_id in function.blocks() {
-        // read the block
         let block = tree.get(block_id);
 
-        // scan instructions in the block
         for &instruction_id in &block.instructions {
-            // read the access list
             let Some(accesses) = memory.instruction_accesses(instruction_id) else {
                 continue;
             };
 
-            // mark clobbering defs for reads
+            // mark the definition feeding each read
             for &access_id in accesses {
                 match memory.access(access_id) {
                     MemoryNode::Use(_use_access) => {
                         // record the def that feeds this use
-                        let clobber = memory.clobbering_use(access_id, aa);
+                        let clobber = memory.clobbering_use(access_id, aliases);
                         record_live_clobber(clobber, memory, &mut live_defs);
                     }
                     MemoryNode::Def(def_access) => {
@@ -321,7 +304,7 @@ fn collect_live_defs(
 
                         // record the def that feeds the read portion
                         let clobber =
-                            memory.clobbering_read(access_id, &def_access.effect.region, aa);
+                            memory.clobbering_read(access_id, &def_access.effect.region, aliases);
                         record_live_clobber(clobber, memory, &mut live_defs);
                     }
                     _ => {}
@@ -372,9 +355,9 @@ fn record_live_clobber(
 /// Return true when the store is postdominated by a clobbering access.
 fn store_is_postdominated_by_clobber(
     store: &StoreCandidate,
-    def_accesses: &[DefAccessInfo],
+    def_accesses: &[DefAccess],
     memory: &MemoryTable,
-    aa: &AliasTable,
+    aliases: &AliasTable,
     postdom: &PostdominatorTable,
 ) -> bool {
     // search for clobbering defs that postdominate the store
@@ -391,6 +374,8 @@ fn store_is_postdominated_by_clobber(
         if !postdom.postdominates(def.block, store.block) {
             continue;
         }
+
+        // read the effect the def writes
         let MemoryNode::Def(def_access) = memory.access(def.access) else {
             continue;
         };
@@ -402,17 +387,18 @@ fn store_is_postdominated_by_clobber(
 
         // return once a clobbering def is found
         if let Some(overwrites) =
-            def_fully_overwrites_store(&def_access.effect.region, &store.region, aa)
+            def_fully_overwrites_store(&def_access.effect.region, &store.region, aliases)
         {
-            if overwrites && memory.def_clobbers_access(def.access, store.access, aa) {
+            if overwrites && memory.def_clobbers_access(def.access, store.access, aliases) {
                 return true;
             }
 
             continue;
         }
 
+        // fall back to local storage when the overwrite relation is unknown
         if matches!(store.region, MemoryRegion::Local(_))
-            && memory.def_clobbers_access(def.access, store.access, aa)
+            && memory.def_clobbers_access(def.access, store.access, aliases)
         {
             return true;
         }
@@ -427,6 +413,7 @@ fn def_fully_overwrites_store(
     store_region: &MemoryRegion,
     alias: &AliasTable,
 ) -> Option<bool> {
+    // compare addressed regions of known size only
     let MemoryRegion::Address {
         location: overwrite_location,
         ..
@@ -445,6 +432,7 @@ fn def_fully_overwrites_store(
     let overwrite_size = overwrite_location.size?;
     let store_size = store_location.size?;
 
+    // resolve both addresses to the places they name
     let overwrite_region = alias.region(overwrite_location.address.value());
     let store_region = alias.region(store_location.address.value());
 
@@ -468,6 +456,7 @@ fn def_fully_overwrites_store(
         return Some(false);
     }
 
+    // compare the written byte ranges within the shared root
     let overwrite_range = ByteRange::new(overwrite_place.const_offset, overwrite_size);
     let store_range = ByteRange::new(store_place.const_offset, store_size);
     let relation = overwrite_range.relation(store_range);
@@ -669,7 +658,7 @@ entry:
         test.assert_unchanged(input);
     }
 
-    /// Store before a nonescaping no memory call is removed.
+    /// Store before a non-escaping call without memory effects is removed.
     #[test]
     fn test_remove_store_before_nonescaping_no_memory_call() {
         let input = r#"
@@ -719,7 +708,7 @@ entry:
         test.assert_output(expected);
     }
 
-    /// Multiple consecutive overwrites - all but last are eliminated.
+    /// Multiple consecutive overwrites: all but the last are eliminated.
     ///
     /// When a location is stored to multiple times before being read,
     /// only the final store is preserved.
@@ -759,9 +748,7 @@ entry:
         test.assert_output(expected);
     }
 
-    /// No changes when no stores.
-    ///
-    /// Function without stores is unchanged.
+    /// A function without stores is left unchanged.
     #[test]
     fn test_no_changes() {
         let input = r#"
@@ -777,9 +764,7 @@ entry:
         test.assert_unchanged(input);
     }
 
-    /// Stores to different locations are independent.
-    ///
-    /// Stores to different memory locations don't interfere with each other.
+    /// Stores to different memory locations are independent of each other.
     #[test]
     fn test_different_locations() {
         let input = r#"
@@ -982,7 +967,6 @@ entry:
     /// Dead memcpy to non escaping stack memory is removed.
     #[test]
     fn test_remove_dead_memcpy() {
-        // input test
         let input = r#"
 function test(): void {
     local l0: int32
@@ -1007,7 +991,6 @@ entry:
 }
 "#;
 
-        // run dse
         let mut test = TestProgram::new(input);
         test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
@@ -1016,7 +999,6 @@ entry:
     /// Memcpy to a live location is preserved.
     #[test]
     fn test_preserve_memcpy_with_read() {
-        // input test
         let input = r#"
 function test(): int32 {
     local l0: int32
@@ -1032,7 +1014,6 @@ entry:
 "#;
         let expected = input;
 
-        // run dse
         let mut test = TestProgram::new(input);
         test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
@@ -1041,7 +1022,6 @@ entry:
     /// Dead memmove to non escaping stack memory is removed.
     #[test]
     fn test_remove_dead_memmove() {
-        // input test
         let input = r#"
 function test(): void {
     local l0: int32
@@ -1066,7 +1046,6 @@ entry:
 }
 "#;
 
-        // run dse
         let mut test = TestProgram::new(input);
         test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
@@ -1075,7 +1054,6 @@ entry:
     /// Memmove to a live location is preserved.
     #[test]
     fn test_preserve_memmove_with_read() {
-        // input test
         let input = r#"
 function test(): int32 {
     local l0: int32
@@ -1091,7 +1069,6 @@ entry:
 "#;
         let expected = input;
 
-        // run dse
         let mut test = TestProgram::new(input);
         test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
@@ -1100,7 +1077,6 @@ entry:
     /// Stores with unknown sizes are not treated as full overwrites.
     #[test]
     fn test_preserve_unknown_size_overwrite() {
-        // input test
         let input = r#"
 type Point {
     int32;
@@ -1143,7 +1119,6 @@ entry(v0: ref<Point, borrowed, mutable>):
             None,
         );
 
-        // run dse
         test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
     }

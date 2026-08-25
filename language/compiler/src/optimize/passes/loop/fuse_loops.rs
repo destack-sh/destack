@@ -145,7 +145,7 @@ struct LoopBody {
     /// Arguments passed from preheader to header.
     preheader_args: Vec<mir::Value>,
     /// Loop guard information.
-    guard: GuardInfo,
+    guard: LoopGuard,
     /// Instructions used to compute latch jump arguments.
     control_instructions: FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
     /// Ordered body instructions in the latch.
@@ -153,7 +153,7 @@ struct LoopBody {
 }
 
 /// Guard tables for a loop.
-struct GuardInfo {
+struct LoopGuard {
     /// Induction parameter index.
     induction_index: usize,
     /// Bound value.
@@ -447,7 +447,7 @@ fn guard_info(
     constants: &ConstantTable,
     forwarding: &BlockParamForwarding,
     definitions: &DefinitionTable,
-) -> Option<GuardInfo> {
+) -> Option<LoopGuard> {
     // resolve the guard condition
     let header_block = tree.get(header);
     let header_terminator = tree.get(header_block.terminator);
@@ -507,7 +507,7 @@ fn guard_info(
         return None;
     }
 
-    Some(GuardInfo {
+    Some(LoopGuard {
         induction_index,
         bound: *right,
         operator: *operator,
@@ -659,7 +659,7 @@ fn effects_are_independent(
 /// Compare guard compatibility between loops.
 fn guards_compatible(
     first: &LoopBody,
-    second_guard: &GuardInfo,
+    second_guard: &LoopGuard,
     second_preheader_args: &[mir::Value],
     equivalence: &mut ValueEquivalence<'_>,
 ) -> bool {

@@ -5,9 +5,9 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasTable, ConstantTable, DominatorTable, MemoryAccessEffect, MemoryAccessId, MemoryNode,
-    MemoryRegion, MemoryTable, Mutation, PureExpression, TargetLayout,
-    apply_substitutions_in_function, instruction_has_side_effects, resolve_substitution_chains,
+    AliasTable, DominatorTable, MemoryAccessEffect, MemoryAccessId, MemoryNode, MemoryRegion,
+    MemoryTable, Mutation, PureExpression, apply_substitutions_in_function,
+    instruction_has_side_effects, resolve_substitution_chains,
 };
 
 declare_pass! {
@@ -48,7 +48,7 @@ impl FunctionPass for EliminateRedundantExpressions {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
@@ -65,7 +65,6 @@ impl FunctionPass for EliminateRedundantExpressions {
         let domtree = analyses.dominator(function, tree);
         let alias = analyses.alias(function, tree);
         let memory = analyses.memory(function, tree, accesses, effects);
-        let constants = analyses.constant(function, tree);
         let dom_children = build_dominator_children(function, domtree.as_ref());
 
         // run redundant-expression elimination
@@ -77,8 +76,6 @@ impl FunctionPass for EliminateRedundantExpressions {
             &dom_children,
             &alias,
             memory.as_ref(),
-            constants.as_ref(),
-            ctx.target_layout(),
         );
 
         // report what this pass changed
@@ -99,20 +96,10 @@ fn run_eliminate_redundant_expressions(
     dom_children: &FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     alias: &AliasTable,
     memory: &MemoryTable,
-    constants: &ConstantTable,
-    target_layout: TargetLayout,
 ) -> bool {
     // run redundant-expression elimination using dominator tree traversal
-    let (substitutions, to_remove) = find_redundant_expressions(
-        entry,
-        function,
-        tree,
-        dom_children,
-        alias,
-        memory,
-        constants,
-        target_layout,
-    );
+    let (substitutions, to_remove) =
+        find_redundant_expressions(entry, function, tree, dom_children, alias, memory);
 
     // nothing to do if no redundancies found
     if to_remove.is_empty() {
@@ -352,8 +339,6 @@ fn find_redundant_expressions(
     dom_children: &FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     alias: &AliasTable,
     memory: &MemoryTable,
-    constants: &ConstantTable,
-    target_layout: TargetLayout,
 ) -> (
     FxIndexMap<mir::Value, mir::Value>,
     FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
@@ -385,8 +370,6 @@ fn find_redundant_expressions(
                     tree,
                     alias,
                     memory,
-                    constants,
-                    target_layout,
                     &mut value_table,
                     &mut substitutions,
                     &mut to_remove,
@@ -421,8 +404,6 @@ fn process_block(
     tree: &mir::Tree,
     alias: &AliasTable,
     memory: &MemoryTable,
-    _constants: &ConstantTable,
-    _target_layout: TargetLayout,
     value_table: &mut ScopedValueTable,
     substitutions: &mut FxIndexMap<mir::Value, mir::Value>,
     to_remove: &mut FxIndexSet<mir::LocalNodeId<mir::Instruction>>,

@@ -112,7 +112,7 @@ impl FunctionPass for VersionLoops {
 
 /// Captures the induction guard pattern for a loop.
 #[derive(Debug, Clone)]
-struct GuardInfo {
+struct LoopGuard {
     /// The induction value used by the guard.
     induction: mir::Value,
     /// The bound value used by the guard.
@@ -335,7 +335,7 @@ fn guard_from_header(
     function: &mir::Function,
     tree: &mir::Tree,
     definitions: &DefinitionTable,
-) -> Option<GuardInfo> {
+) -> Option<LoopGuard> {
     // read the header terminator
     let header_block = tree.get(header);
     let header_terminator = tree.get(header_block.terminator);
@@ -394,7 +394,7 @@ fn guard_from_header(
         return None;
     }
 
-    Some(GuardInfo {
+    Some(LoopGuard {
         induction: *induction,
         bound: *bound,
         is_strict,
@@ -402,7 +402,7 @@ fn guard_from_header(
 }
 
 /// Check whether the guard describes a simple induction pattern.
-fn guard_is_simple(guard: &GuardInfo, loop_index: usize, scev: &EvolutionTable) -> bool {
+fn guard_is_simple(guard: &LoopGuard, loop_index: usize, scev: &EvolutionTable) -> bool {
     // require a simple add recurrence for the induction variable
     let Some(Scev::AddRec { start, step, .. }) = scev.value_scev(loop_index, guard.induction)
     else {
@@ -521,7 +521,7 @@ fn insert_preheader_guard(
 /// Compute the bound value to use for the preheader guard.
 fn preheader_guard_bound(
     preheader: mir::LocalNodeId<mir::Block>,
-    guard: &GuardInfo,
+    guard: &LoopGuard,
     bound: mir::Value,
     width: u16,
     function: &mut mir::Function,

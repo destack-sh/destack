@@ -11,7 +11,7 @@ use destack_mir::{
 };
 
 declare_pass! {
-    /// SinkInstructions stores down to the successors that use them.
+    /// Sink stores down to the successors that use them.
     ///
     /// ```mir
     /// function before(v0: boolean): int32 {
@@ -46,7 +46,7 @@ declare_pass! {
     /// ```
     #[pass(id = "sink-stores")]
     pub SinkStores,
-    "SinkInstructions stores to the edges that require them"
+    "Sink stores to the edges that require them"
 }
 
 impl FunctionPass for SinkStores {
@@ -84,7 +84,7 @@ impl FunctionPass for SinkStores {
 enum StoreKind {
     /// Store to a pointer.
     Store,
-    /// Store to a local slot.
+    /// Store to a local.
     LocalSet,
 }
 
@@ -183,7 +183,7 @@ fn run_sink_stores(
             );
 
             let store_id = insert_store_for_candidate(function, tree, insertion_block, &candidate);
-            clone_store_metadata(accesses, candidate.instruction, store_id, candidate.pointer);
+            clone_store_accesses(accesses, candidate.instruction, store_id, candidate.pointer);
         }
 
         // remove the original store
@@ -202,7 +202,7 @@ fn run_sink_stores(
         function.replace_block_instructions(block_id, instructions, tree);
     }
 
-    // drop memory tables for removed stores
+    // drop memory accesses for removed stores
     for instruction_id in &to_remove {
         accesses.remove(*instruction_id);
     }
@@ -247,6 +247,8 @@ fn collect_store_candidates(
                 Some(access_id) => access_id,
                 None => continue,
             };
+
+            // require the access to define memory
             let MemoryNode::Def(def_access) = memory.access(access_id) else {
                 continue;
             };
@@ -331,15 +333,18 @@ fn collect_use_blocks_by_def(
         let block = tree.get(block_id);
 
         for &instruction_id in &block.instructions {
+            // skip instructions without memory accesses
             let Some(accesses) = memory.instruction_accesses(instruction_id) else {
                 continue;
             };
 
             for &access_id in accesses {
+                // keep the accesses that read memory
                 let MemoryNode::Use(_) = memory.access(access_id) else {
                     continue;
                 };
 
+                // file the block under the def this read clobbers
                 let clobber = memory.clobbering_use(access_id, alias);
                 blocks_by_def.entry(clobber).or_default().insert(block_id);
             }
@@ -355,7 +360,7 @@ fn successor_reaches_use(
     start: mir::LocalNodeId<mir::Block>,
     use_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
-    // use a queue for breadth first traversal
+    // seed a breadth first walk at the successor
     let mut queue = VecDeque::new();
     let mut visited = FxIndexSet::default();
 
@@ -363,10 +368,12 @@ fn successor_reaches_use(
     visited.insert(start);
 
     while let Some(block) = queue.pop_front() {
+        // stop as soon as the walk lands on a use
         if use_blocks.contains(&block) {
             return true;
         }
 
+        // queue every block this one reaches
         let block = tree.get(block);
         let terminator = tree.get(block.terminator);
         for successor in terminator.successors(tree) {
@@ -403,28 +410,30 @@ fn insert_store_for_candidate(
     let mut instructions = tree.get(block_id).instructions.clone();
     instructions.push(instruction_id);
     function.replace_block_instructions(block_id, instructions, tree);
+
     instruction_id
 }
 
-/// Clone store tables to a new instruction.
-fn clone_store_metadata(
+/// Clone the store's memory accesses onto a new instruction.
+fn clone_store_accesses(
     accesses: &mut mir::AccessTable,
     source: mir::LocalNodeId<mir::Instruction>,
     destination: mir::LocalNodeId<mir::Instruction>,
     pointer: Option<mir::Value>,
 ) {
-    // skip when there is no tables to clone
+    // skip when there are no accesses to clone
     let Some(entries) = accesses.get(source) else {
         return;
     };
 
-    // update reference targets for cloned tables
+    // point the cloned accesses at the sunk store's pointer
     let mut cloned = Vec::with_capacity(entries.len());
     for access in entries {
         let mut updated = access.clone();
         if let (Some(pointer), mir::MemoryTarget::Address(_)) = (pointer, updated.target) {
             updated.target = mir::MemoryTarget::Address(pointer);
         }
+
         cloned.push(updated);
     }
 
@@ -514,8 +523,8 @@ b2:
     #[test]
     fn test_sink_stores_skips_escaping_store() {
         let input = r#"
-function test(v0: boolean, v1: ref<int32, borrowed, mutable, global>): void {
-entry(v0: boolean, v1: ref<int32, borrowed, mutable, global>):
+function test(v0: boolean, v1: ref<int32, borrowed, mutable, static>): void {
+entry(v0: boolean, v1: ref<int32, borrowed, mutable, static>):
     v2: int32 = 1
     store v1, v2
     branch v0 => b1 | b2

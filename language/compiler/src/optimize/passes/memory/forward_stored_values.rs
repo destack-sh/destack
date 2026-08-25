@@ -6,8 +6,7 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     AliasTable, DominatorTable, MemoryAccessEffect, MemoryAccessId, MemoryNode, MemoryRegion,
-    MemoryTable, Mutation, TargetLayout, apply_substitutions_in_function,
-    resolve_substitution_chains,
+    MemoryTable, Mutation, apply_substitutions_in_function, resolve_substitution_chains,
 };
 
 declare_pass! {
@@ -43,7 +42,7 @@ declare_pass! {
     "Forward stored values to subsequent loads"
 }
 
-/// An available value tied to a MemoryTable clobber.
+/// An available value under one MemoryTable clobbering access.
 #[derive(Clone)]
 struct MemoryEntry {
     /// The clobbering access id for the memory state.
@@ -55,11 +54,12 @@ struct MemoryEntry {
 }
 
 impl FunctionPass for ForwardStoredValues {
+    /// Run store forwarding on the function.
     fn run(
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
@@ -73,12 +73,12 @@ impl FunctionPass for ForwardStoredValues {
         };
 
         // get analyses
-        let (aa, memory, dom_children) = {
+        let (aliases, memory, dom_children) = {
             let domtree = analyses.dominator(function, tree);
-            let aa = analyses.alias(function, tree).clone();
+            let aliases = analyses.alias(function, tree).clone();
             let memory = analyses.memory(function, tree, accesses, effects);
             let dom_children = build_dominator_children(function, &domtree);
-            (aa, memory, dom_children)
+            (aliases, memory, dom_children)
         };
 
         // run load store forwarding
@@ -87,10 +87,9 @@ impl FunctionPass for ForwardStoredValues {
             function,
             tree,
             accesses,
-            &aa,
+            &aliases,
             memory.as_ref(),
             &dom_children,
-            ctx.target_layout(),
         );
 
         // report what this pass changed
@@ -102,29 +101,21 @@ impl FunctionPass for ForwardStoredValues {
     }
 }
 
-/// Core load store forwarding logic. Returns true if changes were made.
+/// Forward stored values across one function, returning whether anything changed.
 fn run_forward_stored_values(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
-    aa: &AliasTable,
+    aliases: &AliasTable,
     memory: &MemoryTable,
     dom_children: &FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
-    target_layout: TargetLayout,
 ) -> bool {
     // run forwarding using dominator tree traversal
-    let (substitutions, to_remove) = find_forwardable_loads(
-        entry,
-        function,
-        tree,
-        aa,
-        memory,
-        dom_children,
-        target_layout,
-    );
+    let (substitutions, to_remove) =
+        find_forwardable_loads(entry, function, tree, aliases, memory, dom_children);
 
-    // nothing to do if no forwarding found
+    // stop when nothing forwards
     if substitutions.is_empty() {
         return false;
     }
@@ -161,9 +152,7 @@ fn build_dominator_children(
     children
 }
 
-/// Scoped table of available memory values.
-///
-/// Tracks values by MemoryTable clobbering access.
+/// Scoped table of available memory values, keyed by MemoryTable clobbering access.
 struct AvailableMemory {
     /// Stack of scopes, each holding memory entries.
     scopes: Vec<Vec<MemoryEntry>>,
@@ -179,7 +168,6 @@ impl AvailableMemory {
 
     /// Push a new scope for entering a dominated block.
     fn push_scope(&mut self) {
-        // push a new scope for this block
         self.scopes.push(Vec::new());
     }
 
@@ -196,7 +184,7 @@ impl AvailableMemory {
         &self,
         clobber: MemoryAccessId,
         use_effect: &MemoryAccessEffect,
-        aa: &AliasTable,
+        aliases: &AliasTable,
     ) -> Option<mir::Value> {
         // skip untrackable effects
         if !use_effect.is_trackable() {
@@ -214,6 +202,7 @@ impl AvailableMemory {
                     continue;
                 }
 
+                // skip entries held in disjoint spaces
                 if !entry.region.spaces().may_alias(use_effect.region.spaces()) {
                     continue;
                 }
@@ -229,6 +218,7 @@ impl AvailableMemory {
                         MemoryRegion::Address { location: a, .. },
                         MemoryRegion::Address { location: b, .. },
                     ) => {
+                        // forward straight from the same address when the value fits
                         if a.address == b.address {
                             if a.has_compatible_value(b) {
                                 return Some(entry.value);
@@ -238,10 +228,14 @@ impl AvailableMemory {
                         }
 
                         // consult alias analysis for derived pointers
-                        let alias_result = aa.alias(a, b);
+                        let alias_result = aliases.alias(a, b);
+
+                        // skip entries alias analysis keeps apart
                         if alias_result.is_no_alias() {
                             continue;
                         }
+
+                        // forward from an entry that must alias when the value fits
                         if alias_result.is_must_alias() {
                             if a.has_compatible_value(b) {
                                 return Some(entry.value);
@@ -262,7 +256,6 @@ impl AvailableMemory {
 
     /// Insert an available value in the current scope.
     fn insert(&mut self, entry: MemoryEntry) {
-        // append to the current scope
         if let Some(scope) = self.scopes.last_mut() {
             scope.push(entry);
         }
@@ -270,7 +263,6 @@ impl AvailableMemory {
 
     /// Clear all tracked entries.
     fn clear(&mut self) {
-        // clear every scope
         for scope in &mut self.scopes {
             scope.clear();
         }
@@ -282,10 +274,9 @@ fn find_forwardable_loads(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
     tree: &mir::Tree,
-    aa: &AliasTable,
+    aliases: &AliasTable,
     memory: &MemoryTable,
     dom_children: &FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
-    target_layout: TargetLayout,
 ) -> (
     FxIndexMap<mir::Value, mir::Value>,
     FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
@@ -295,9 +286,11 @@ fn find_forwardable_loads(
     let mut to_remove: FxIndexSet<mir::LocalNodeId<mir::Instruction>> = FxIndexSet::default();
     let mut available = AvailableMemory::new();
 
-    // work stack for dominator tree traversal
+    /// One step of the dominator tree walk.
     enum Action {
+        /// Enter one block and process its instructions.
         Enter(mir::LocalNodeId<mir::Block>),
+        /// Leave the block whose children are done.
         Leave,
     }
 
@@ -306,7 +299,7 @@ fn find_forwardable_loads(
     while let Some(action) = stack.pop() {
         match action {
             Action::Enter(block_id) => {
-                // push scope for this block contributions
+                // push a scope for this block's contributions
                 available.push_scope();
 
                 // process instructions in this block
@@ -314,9 +307,8 @@ fn find_forwardable_loads(
                     block_id,
                     function,
                     tree,
-                    aa,
+                    aliases,
                     memory,
-                    target_layout,
                     &mut available,
                     &mut substitutions,
                     &mut to_remove,
@@ -346,9 +338,8 @@ fn process_block(
     block_id: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
     tree: &mir::Tree,
-    aa: &AliasTable,
+    aliases: &AliasTable,
     memory: &MemoryTable,
-    _target_layout: TargetLayout,
     available: &mut AvailableMemory,
     substitutions: &mut FxIndexMap<mir::Value, mir::Value>,
     to_remove: &mut FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
@@ -408,13 +399,13 @@ fn process_block(
                 }
 
                 // compute the clobbering access for this read
-                let clobber = memory.clobbering_use(use_access_id, aa);
+                let clobber = memory.clobbering_use(use_access_id, aliases);
                 let Some(clobber) = resolve_trivial_clobber(memory, clobber) else {
                     continue;
                 };
 
                 // forward from an existing value when possible
-                if let Some(existing) = available.get(clobber, &use_access.effect, aa)
+                if let Some(existing) = available.get(clobber, &use_access.effect, aliases)
                     && function.can_substitute(destination, existing)
                 {
                     substitutions.insert(destination, existing);
@@ -447,13 +438,13 @@ fn process_block(
                 }
 
                 // compute the clobbering access for this read
-                let clobber = memory.clobbering_use(use_access_id, aa);
+                let clobber = memory.clobbering_use(use_access_id, aliases);
                 let Some(clobber) = resolve_trivial_clobber(memory, clobber) else {
                     continue;
                 };
 
                 // forward from an existing value when possible
-                if let Some(existing) = available.get(clobber, &use_access.effect, aa)
+                if let Some(existing) = available.get(clobber, &use_access.effect, aliases)
                     && function.can_substitute(destination, existing)
                 {
                     substitutions.insert(destination, existing);
@@ -468,6 +459,8 @@ fn process_block(
             }
 
             mir::Instruction::Intrinsic { .. } => {}
+
+            // clear across atomic accesses and write barriers
             mir::Instruction::AtomicLoad { .. }
             | mir::Instruction::AtomicStore { .. }
             | mir::Instruction::AtomicCompareExchange { .. }
@@ -489,6 +482,7 @@ fn process_block(
     }
 }
 
+/// Return the first def access one instruction records.
 fn def_access_id(
     memory: &MemoryTable,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
@@ -504,6 +498,7 @@ fn def_access_id(
     None
 }
 
+/// Return the first use access one instruction records.
 fn use_access_id(
     memory: &MemoryTable,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
@@ -521,18 +516,22 @@ fn use_access_id(
 
 /// Resolve trivial memory phi nodes to a single clobbering access.
 fn resolve_trivial_clobber(memory: &MemoryTable, access: MemoryAccessId) -> Option<MemoryAccessId> {
+    // walk the phi chain, remembering where it has been
     let mut current = access;
     let mut visited = FxIndexSet::default();
 
     loop {
+        // give up once the walk runs in a cycle
         if !visited.insert(current) {
             return None;
         }
 
+        // stop at the first access that is not a phi
         let MemoryNode::Phi(phi) = memory.access(current) else {
             return Some(current);
         };
 
+        // follow the phi when every incoming edge agrees
         let mut incoming = phi.incoming.iter().map(|(_, access_id)| *access_id);
         let first = incoming.next()?;
         if incoming.all(|access_id| access_id == first) {
@@ -1183,7 +1182,7 @@ entry:
         test.assert_output(expected);
     }
 
-    /// No memory calls do not block forwarding.
+    /// A call without memory effects leaves forwarding available.
     #[test]
     fn test_forward_across_no_memory_call() {
         let input = r#"
@@ -1217,9 +1216,10 @@ entry:
         let mut test = TestProgram::new(input);
 
         let function_id = test.entry_function_id();
-        let (call_inst, _callee) = test.first_call_in_entry(function_id);
+        let (call_instruction, _callee) = test.first_call_in_entry(function_id);
 
-        let callsite = mir::CallSite::Instruction(call_inst);
+        // strip the call's memory effect so the store stays available
+        let callsite = mir::CallSite::Instruction(call_instruction);
         test.optimized.effects.upsert_call(callsite).memory = mir::MemoryEffect::none();
 
         test.run_pass(&ForwardStoredValues);
@@ -1414,7 +1414,7 @@ entry:
     v0: ref<int32, borrowed, mutable, frame> = local.address l0
     v1: int32 = 42
     store v0, v1
-    atomic.fence sequentiallyConsistent, scope(device), storage(device)
+    atomic.fence sequentiallyConsistent, scope(device), storage(shared)
     v2: int32 = load v0
     return v2
 }
@@ -1503,7 +1503,7 @@ entry:
         test.assert_output(expected);
     }
 
-    /// Empty function (import) is handled.
+    /// An import without a body is skipped.
     #[test]
     fn test_skip_import_function() {
         let input = r#"
@@ -1516,7 +1516,7 @@ external function imported(): void
         test.assert_output(expected);
     }
 
-    /// No changes returns Mutation::NONE.
+    /// A function without loads or stores keeps every instruction.
     #[test]
     fn test_no_changes_preserves_all() {
         let input = r#"

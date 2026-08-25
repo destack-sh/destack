@@ -86,9 +86,9 @@ impl FunctionPass for RecognizeLoopIdioms {
     }
 }
 
-/// Captures the induction guard pattern for a loop.
+/// The induction guard pattern of one loop.
 #[derive(Debug, Clone)]
-struct GuardInfo {
+struct LoopGuard {
     /// The induction value used by the guard.
     induction: mir::Value,
     /// The bound value used by the guard.
@@ -111,7 +111,7 @@ fn run_recognize_loop_idioms(
         let domtree = analyses.dominator(function, tree).clone();
         let scev = analyses.evolution(function, tree).clone();
         let ranges = analyses.range(function, tree).clone();
-        let aa = analyses.alias(function, tree).clone();
+        let aliases = analyses.alias(function, tree).clone();
         let forwarding = BlockParamForwarding::build(function, tree, &cfg);
 
         // bail out when no loops are present
@@ -163,6 +163,7 @@ fn run_recognize_loop_idioms(
                 continue;
             }
 
+            // resolve the induction start and the guard bound in the preheader
             let Some(start_value) =
                 preheader_induction_start(guard.induction, header, &preheader_args, tree)
             else {
@@ -212,7 +213,7 @@ fn run_recognize_loop_idioms(
             if let Some(pattern) =
                 match_memset_pattern(lp, guard.induction, function, tree, accesses, &definitions)
             {
-                // require the store to be in this loop, not a nested one
+                // require the store to sit in this loop itself
                 let Some(inner_loop) = loops.innermost_loop(pattern.store_block) else {
                     continue;
                 };
@@ -230,15 +231,17 @@ fn run_recognize_loop_idioms(
                     continue;
                 };
 
-                // ensure the array element type is u8
+                // require a loop invariant array
                 if !value_is_loop_invariant(pattern.array, lp, &definitions, &forwarding) {
                     continue;
                 }
 
-                if !array_is_u8(pattern.array, function, tree) {
+                // require a uint8 element type
+                if !array_is_uint8(pattern.array, function, tree) {
                     continue;
                 }
 
+                // decide whether the copy needs a bounds guard
                 let should_guard = should_guard_copy_bounds(
                     start_value,
                     bound_value,
@@ -249,6 +252,7 @@ fn run_recognize_loop_idioms(
                     tree,
                 );
 
+                // place the intrinsic behind a guard block, or directly in the preheader
                 let mem_block = if should_guard {
                     let terminator = tree.insert(mir::Terminator::Jump {
                         target: mir::BlockTarget::new(exit_block, mir::ValueSlice::default()),
@@ -264,7 +268,8 @@ fn run_recognize_loop_idioms(
                     preheader
                 };
 
-                let mut mem_block_data = tree.get(mem_block).clone();
+                // materialize the byte length ahead of the intrinsic
+                let mut mem_block_body = tree.get(mem_block).clone();
                 let Some(length_value) = emit_copy_length(
                     bound_value,
                     start_value,
@@ -276,11 +281,12 @@ fn run_recognize_loop_idioms(
                     &definitions,
                     function,
                     tree,
-                    &mut mem_block_data,
+                    &mut mem_block_body,
                 ) else {
                     continue;
                 };
 
+                // emit the memset and jump straight to the loop exit
                 emit_memset(
                     pattern.array,
                     pattern.element_addr_type,
@@ -289,12 +295,12 @@ fn run_recognize_loop_idioms(
                     length_value,
                     function,
                     tree,
-                    &mut mem_block_data,
+                    &mut mem_block_body,
                 );
                 let mem_terminator = mir::Terminator::Jump {
                     target: mir::BlockTarget::new(exit_block, mir::ValueSlice::default()),
                 };
-                let mem_instructions = mem_block_data.instructions;
+                let mem_instructions = mem_block_body.instructions;
                 function.replace_block_instructions(mem_block, mem_instructions, tree);
                 tree.set(tree.get(mem_block).terminator, mem_terminator);
 
@@ -319,7 +325,7 @@ fn run_recognize_loop_idioms(
                     tree.set(tree.get(preheader).terminator, preheader_terminator);
                 }
 
-                // preserve original loop blocks now unreachable
+                // record the rewrite and rescan from the top
                 changed = true;
                 changed_this_iteration = true;
                 break 'scan_loops;
@@ -338,7 +344,7 @@ fn run_recognize_loop_idioms(
                 continue;
             };
 
-            // require the store to be in this loop, not a nested one
+            // require the store to sit in this loop itself
             let Some(inner_loop) = loops.innermost_loop(pattern.store_block) else {
                 continue;
             };
@@ -375,12 +381,14 @@ fn run_recognize_loop_idioms(
                 continue;
             }
 
+            // require a known element size
             let element = tree.get(dest_element);
             let Some(element_size) = element.byte_size(tree, ctx.target_layout().pointer_bits())
             else {
                 continue;
             };
 
+            // require both arrays to live in the same space
             let Some(dest_space) = reference_space(pattern.dest_element_addr_type, tree) else {
                 continue;
             };
@@ -391,6 +399,7 @@ fn run_recognize_loop_idioms(
                 continue;
             }
 
+            // decide whether the copy needs a bounds guard
             let should_guard = should_guard_copy_bounds(
                 start_value,
                 bound_value,
@@ -401,6 +410,7 @@ fn run_recognize_loop_idioms(
                 tree,
             );
 
+            // place the intrinsic behind a guard block, or directly in the preheader
             let mem_block = if should_guard {
                 let terminator = tree.insert(mir::Terminator::Jump {
                     target: mir::BlockTarget::new(exit_block, mir::ValueSlice::default()),
@@ -416,7 +426,8 @@ fn run_recognize_loop_idioms(
                 preheader
             };
 
-            let mut mem_block_data = tree.get(mem_block).clone();
+            // materialize the byte length ahead of the intrinsic
+            let mut mem_block_body = tree.get(mem_block).clone();
             let Some(length_value) = emit_copy_length(
                 bound_value,
                 start_value,
@@ -428,20 +439,22 @@ fn run_recognize_loop_idioms(
                 &definitions,
                 function,
                 tree,
-                &mut mem_block_data,
+                &mut mem_block_body,
             ) else {
                 continue;
             };
 
+            // copy when the ranges cannot overlap, otherwise move
             let use_memcpy =
                 arrays_are_value_types(pattern.dest_array, pattern.src_array, function, tree)
-                    || aa.addresses_no_alias(pattern.store_pointer, pattern.load_pointer);
+                    || aliases.addresses_no_alias(pattern.store_pointer, pattern.load_pointer);
             let intrinsic = if use_memcpy {
                 mir::Intrinsic::Memcpy
             } else {
                 mir::Intrinsic::Memmove
             };
 
+            // emit the intrinsic and jump straight to the loop exit
             emit_memcpy_or_memmove(
                 intrinsic,
                 pattern.dest_array,
@@ -452,15 +465,16 @@ fn run_recognize_loop_idioms(
                 length_value,
                 function,
                 tree,
-                &mut mem_block_data,
+                &mut mem_block_body,
             );
             let mem_terminator = mir::Terminator::Jump {
                 target: mir::BlockTarget::new(exit_block, mir::ValueSlice::default()),
             };
-            let mem_instructions = mem_block_data.instructions;
+            let mem_instructions = mem_block_body.instructions;
             function.replace_block_instructions(mem_block, mem_instructions, tree);
             tree.set(tree.get(mem_block).terminator, mem_terminator);
 
+            // bypass the original loop body
             if should_guard {
                 let guard_inst = insert_bound_guard(
                     start_value,
@@ -481,11 +495,13 @@ fn run_recognize_loop_idioms(
                 tree.set(tree.get(preheader).terminator, preheader_terminator);
             }
 
+            // record the rewrite and rescan from the top
             changed = true;
             changed_this_iteration = true;
             break 'scan_loops;
         }
 
+        // stop once a full scan finds no further idiom
         if !changed_this_iteration {
             break;
         }
@@ -494,6 +510,7 @@ fn run_recognize_loop_idioms(
     changed
 }
 
+/// One loop body recognized as a memset.
 #[derive(Debug, Clone)]
 struct MemsetPattern {
     /// The array being filled.
@@ -506,6 +523,7 @@ struct MemsetPattern {
     store_block: mir::LocalNodeId<mir::Block>,
 }
 
+/// One loop body recognized as a memcpy or memmove.
 #[derive(Debug, Clone)]
 struct MemcpyPattern {
     /// Destination array value.
@@ -731,8 +749,8 @@ fn element_addr_for_pointer(
     }
 }
 
-/// Check whether the array element type is u8.
-fn array_is_u8(array: mir::Value, function: &mir::Function, tree: &mir::Tree) -> bool {
+/// Check whether the array element type is uint8.
+fn array_is_uint8(array: mir::Value, function: &mir::Function, tree: &mir::Tree) -> bool {
     // resolve the array element type
     let Some(element) = array_element_type(array, function, tree) else {
         return false;
@@ -862,7 +880,6 @@ fn insert_bound_guard(
 }
 
 /// Emit an intrinsic.memory.raw.setBytes for the loop idiom.
-// allow explicit context parameters for memset emission
 fn emit_memset(
     array: mir::Value,
     element_addr_type: mir::LocalNodeId<mir::Type>,
@@ -911,7 +928,6 @@ fn emit_memset(
 }
 
 /// Emit memcpy or memmove for the loop idiom.
-// allow explicit context parameters for copy emission
 fn emit_memcpy_or_memmove(
     intrinsic: mir::Intrinsic,
     dest_array: mir::Value,
@@ -1007,7 +1023,6 @@ fn unsigned_bounds_for_value(
 }
 
 /// Emit a byte length value for memset, memcpy, or memmove.
-// allow explicit context parameters for length materialization
 fn emit_copy_length(
     bound: mir::Value,
     start: mir::Value,
@@ -1087,7 +1102,7 @@ fn emit_copy_length(
         tree.get(subtract_inst).destination().unwrap()
     };
 
-    // byte size requires no further scaling
+    // return the base length directly for byte sized elements
     if element_size == 1 {
         return Some(length_base);
     }
@@ -1125,12 +1140,12 @@ fn value_is_loop_invariant(
     // resolve forwarded parameters
     let value = forwarding.resolve(value);
 
-    // values without a definition block are treated as invariant
+    // treat values without a definition block as invariant
     let Some(def_block) = definitions.block(value) else {
         return true;
     };
 
-    // definitions outside the loop are invariant
+    // treat definitions outside the loop as invariant
     !lp.blocks.contains(&def_block)
 }
 
@@ -1214,7 +1229,7 @@ fn guard_from_header(
     function: &mir::Function,
     tree: &mir::Tree,
     definitions: &DefinitionTable,
-) -> Option<GuardInfo> {
+) -> Option<LoopGuard> {
     let header_block = tree.get(header);
     let header_terminator = tree.get(header_block.terminator);
     let mir::Terminator::Branch {
@@ -1261,14 +1276,14 @@ fn guard_from_header(
         return None;
     }
 
-    Some(GuardInfo {
+    Some(LoopGuard {
         induction: *left,
         bound: *right,
     })
 }
 
 /// Check whether the guard describes a simple induction pattern.
-fn guard_is_simple(guard: &GuardInfo, loop_index: usize, scev: &EvolutionTable) -> bool {
+fn guard_is_simple(guard: &LoopGuard, loop_index: usize, scev: &EvolutionTable) -> bool {
     // require a simple add recurrence for the induction variable
     let Some(Scev::AddRec {
         start,
@@ -1418,7 +1433,7 @@ b4:
         test.assert_output(expected);
     }
 
-    /// Volatile stores are not lowered into memset.
+    /// Volatile stores keep the original loop.
     #[test]
     fn test_recognize_loop_idioms_skips_volatile_store() {
         let input = r#"
@@ -1908,7 +1923,7 @@ b4:
         test.assert_output(expected);
     }
 
-    /// Loops with non unit stride are not lowered.
+    /// Loops with a non unit stride keep the original loop.
     #[test]
     fn test_recognize_loop_idioms_skips_non_unit_stride() {
         let input = r#"
@@ -1939,7 +1954,7 @@ b3:
         test.assert_output(input);
     }
 
-    /// Loops with conditional stores are not lowered.
+    /// Loops with a conditional store keep the original loop.
     #[test]
     fn test_recognize_loop_idioms_skips_conditional_store() {
         let input = r#"
@@ -1976,7 +1991,7 @@ b5:
         test.assert_output(input);
     }
 
-    /// Loops with nested stores are not lowered.
+    /// Loops with a nested store keep the original loop.
     #[test]
     fn test_recognize_loop_idioms_skips_nested_store() {
         let input = r#"
@@ -2020,7 +2035,7 @@ b6:
         test.assert_output(input);
     }
 
-    /// Loops with variant arrays are not lowered.
+    /// Loops with a varying array keep the original loop.
     #[test]
     fn test_recognize_loop_idioms_skips_variant_array() {
         let input = r#"
@@ -2052,7 +2067,7 @@ b3:
         test.assert_output(input);
     }
 
-    /// Loops with non constant stores are left unchanged.
+    /// Loops with a non constant store keep the original loop.
     #[test]
     fn test_recognize_loop_idioms_skips_non_constant_store() {
         let input = r#"
@@ -2082,7 +2097,7 @@ b3:
         test.assert_output(input);
     }
 
-    /// Loops with side effects are not lowered.
+    /// Loops with side effects keep the original loop.
     #[test]
     fn test_recognize_loop_idioms_skips_side_effects() {
         let input = r#"
@@ -2119,7 +2134,7 @@ entry(v0: uint32):
         test.assert_output(input);
     }
 
-    /// Loops with multiple stores are not lowered.
+    /// Loops with multiple stores keep the original loop.
     #[test]
     fn test_recognize_loop_idioms_skips_multiple_stores() {
         let input = r#"
