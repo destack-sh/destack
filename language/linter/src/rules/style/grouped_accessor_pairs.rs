@@ -51,15 +51,16 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 .map(|member| module.accessor(member.into_any()));
             report_separated_accessors(module, lint, accessors, &mut output)?;
         }
-
-        // inspect structural type members
-        if let Some(members) = declaration.type_member_ids() {
-            let accessors = members
-                .iter()
-                .map(|member| module.accessor(member.into_any()));
-            report_separated_accessors(module, lint, accessors, &mut output)?;
-        }
     }
+
+    // inspect every structural type member list
+    module.visit_type_member_lists(|members| {
+        let accessors = members
+            .iter()
+            .map(|member| module.accessor(member.into_any()));
+
+        report_separated_accessors(module, lint, accessors, &mut output)
+    })?;
 
     // inspect object literal property lists
     for (_, expression) in view.iter_nodes::<dir::Expression>() {
@@ -236,5 +237,36 @@ const store = {
         );
 
         session.assert_no_diagnostics();
+    }
+
+    /// Report separated accessors in a structural object type.
+    #[test]
+    fn test_reports_separated_object_type_accessors() {
+        let session = TestSession::dir(
+            &GROUPED_ACCESSOR_PAIRS,
+            r#"
+type Store = {
+    get value(): string;
+
+    clear(): void;
+
+    set value(next: string);
+};
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[grouped-accessor-pairs]: accessor is separated from its pair
+ ──▶ main.ds:6:9
+  │
+4 │     clear(): void;
+5 │
+6 │     set value(next: string);
+  │         ^^^^^
+7 │ };
+  │
+"#,
+        );
     }
 }

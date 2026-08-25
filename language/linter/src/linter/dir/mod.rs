@@ -6,6 +6,7 @@ mod equivalence;
 mod expression;
 mod index;
 mod language;
+mod member;
 mod module;
 mod operation;
 mod ownership;

@@ -1,4 +1,6 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
+use destack_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -49,6 +51,11 @@ enum ReceiverForm {
 /// Report method names whose receiver contradicts the standard convention.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
+    let implementations = module
+        .definitions
+        .member_conformances()
+        .map(|conformance| conformance.member)
+        .collect::<FxIndexSet<_>>();
     let mut output = LintOutput::default();
 
     // inspect authored nominal methods with identifier names
@@ -62,28 +69,29 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         else {
             continue;
         };
-        if signature.role.is_some() || signature.is_override {
+        let symbol = module.declaration_symbol(node)?;
+        if signature.role.is_some() || signature.is_override || implementations.contains(&symbol) {
             continue;
         }
         let name = module.dir.strings.get(*name);
-        let receiver = signature
-            .this_parameter
-            .and_then(|parameter| receiver_form(parameter, module));
 
         // compare recognized prefixes with their receiver requirements
         let expected = if has_prefix(name, "from") && !*is_static {
             Some("be static")
-        } else if has_prefix(name, "into") && receiver != Some(ReceiverForm::Value) {
-            Some("consume its receiver")
-        } else if has_prefix(name, "as")
-            && !matches!(
-                receiver,
+        } else if *is_static {
+            None
+        } else if has_prefix(name, "into") {
+            (receiver_form(node, signature, module)? != Some(ReceiverForm::Value))
+                .then_some("consume its receiver")
+        } else if has_prefix(name, "as") {
+            (!matches!(
+                receiver_form(node, signature, module)?,
                 Some(ReceiverForm::Readonly | ReceiverForm::Mutable)
-            )
-        {
-            Some("borrow its receiver")
-        } else if has_suffix_pair(name, "to", "Mut") && receiver != Some(ReceiverForm::Mutable) {
-            Some("borrow its receiver with mutable access")
+            ))
+            .then_some("borrow its receiver")
+        } else if has_suffix_pair(name, "to", "Mut") {
+            (receiver_form(node, signature, module)? != Some(ReceiverForm::Mutable))
+                .then_some("borrow its receiver with mutable access")
         } else {
             None
         };
@@ -99,25 +107,61 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Classify the source form of one explicit or shorthand receiver.
+/// Classify the checked form of one explicit or implicit receiver.
 fn receiver_form(
-    parameter: dir::LocalNodeId<dir::Parameter>,
+    member: dir::LocalNodeId<dir::Member>,
+    signature: &dir::FunctionSignature,
     module: &DirModule<'_>,
-) -> Option<ReceiverForm> {
-    let declared_type = module.view().get(parameter).declared_type()?;
+) -> Result<Option<ReceiverForm>, ProviderError> {
+    // read the explicit receiver type or its checked implicit binding
+    let (type_id, declared_type) = if let Some(parameter) = signature.this_parameter {
+        let Some(declared_type) = module.view().get(parameter).declared_type() else {
+            return Ok(None);
+        };
+        if matches!(
+            module.view().get(declared_type),
+            dir::TypeExpression::This | dir::TypeExpression::OwnedOf { .. }
+        ) {
+            return Ok(Some(ReceiverForm::Value));
+        }
+        let type_id = module.node_type_id(declared_type.into_any())?;
 
-    match module.view().get(declared_type) {
-        dir::TypeExpression::This | dir::TypeExpression::OwnedOf { .. } => {
-            Some(ReceiverForm::Value)
-        }
-        dir::TypeExpression::BorrowedOf { mutability, .. }
-            if mutability.map(dir::Mutability::access) == Some(dir::Access::Readonly) =>
-        {
-            Some(ReceiverForm::Readonly)
-        }
-        dir::TypeExpression::BorrowedOf { .. } => Some(ReceiverForm::Mutable),
-        _ => None,
-    }
+        (type_id, Some(declared_type))
+    } else {
+        let global = member.into_global_any(module.id);
+        let symbol = module
+            .bindings
+            .implicit_receiver_symbol(global)
+            .ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "checked instance method {global:?} has no implicit receiver"
+                ))
+            })?;
+        let symbol = symbol.into_global(module.id);
+        let type_id = module.types.get_symbol_type_id(symbol).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "checked implicit receiver {symbol:?} has no reduced type"
+            ))
+        })?;
+
+        (type_id, None)
+    };
+    // retain explicitly mutable borrows and classify every other non-consuming receiver
+    let is_mutable = declared_type.is_some_and(|declared_type| {
+        matches!(
+            module.view().get(declared_type),
+            dir::TypeExpression::BorrowedOf { mutability, .. }
+                if mutability.map(dir::Mutability::access) != Some(dir::Access::Readonly)
+        )
+    });
+    let form = match module.dir.default_ownership(type_id)? {
+        Some(dir::Ownership::Owned) => ReceiverForm::Value,
+        Some(dir::Ownership::Borrowed) if is_mutable => ReceiverForm::Mutable,
+        Some(dir::Ownership::Borrowed | dir::Ownership::Managed) => ReceiverForm::Readonly,
+        Some(dir::Ownership::Raw) | None => return Ok(None),
+    };
+
+    Ok(Some(form))
 }
 
 /// Return whether a camelCase name starts with one complete prefix word.
@@ -234,6 +278,71 @@ struct Buffer {
 
     toBytesMut(&exclusive this): &exclusive [uint8] {
         todo("Buffer.toBytesMut")
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept static and conformance-imposed receiver forms.
+    #[test]
+    fn test_accepts_nonlocal_receiver_forms() {
+        let session = TestSession::dir(
+            &WRONG_RECEIVER_CONVENTION,
+            r#"
+interface Into<T> {
+    into(this): T;
+}
+
+struct Buffer {
+    static asInt(bits: int32, value: int32): int32 {
+        return value;
+    }
+}
+
+extension of Buffer implements Into<int32> {
+    into(): int32 {
+        return 0;
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept an access-generic borrowed receiver.
+    #[test]
+    fn test_accepts_access_generic_receiver() {
+        let session = TestSession::dir(
+            &WRONG_RECEIVER_CONVENTION,
+            r#"
+import { Access, WithAccess } from "destack:memory";
+
+struct Buffer {}
+
+extension<const A: Access> of Buffer {
+    as(this: WithAccess<&Buffer, A>): WithAccess<&uint8, A> {
+        todo("Buffer.as")
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept an implicit receiver synthesized as a readonly borrow.
+    #[test]
+    fn test_accepts_implicit_receiver() {
+        let session = TestSession::dir(
+            &WRONG_RECEIVER_CONVENTION,
+            r#"
+struct Buffer {
+    asPointer(): *uint8 {
+        todo("Buffer.asPointer")
     }
 }
 "#,

@@ -49,13 +49,16 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 .map(|member| module.accessor(member.into_any()));
             report_missing_getters(module, lint, accessors, &mut output)?;
         }
-        if let Some(members) = declaration.type_member_ids() {
-            let accessors = members
-                .iter()
-                .map(|member| module.accessor(member.into_any()));
-            report_missing_getters(module, lint, accessors, &mut output)?;
-        }
     }
+
+    // inspect every structural type member list
+    module.visit_type_member_lists(|members| {
+        let accessors = members
+            .iter()
+            .map(|member| module.accessor(member.into_any()));
+
+        report_missing_getters(module, lint, accessors, &mut output)
+    })?;
 
     // inspect object literal property lists
     for (_, expression) in view.iter_nodes::<dir::Expression>() {
@@ -171,6 +174,32 @@ warning[require-accessor-pair]: setter has no matching getter
   │
 1 │ const store = {
 2 │     set value(next: string): void {},
+  │         ^^^^^
+3 │ };
+  │
+"#,
+        );
+    }
+
+    /// Report a write-only property in a structural object type.
+    #[test]
+    fn test_reports_object_type_setter_without_getter() {
+        let session = TestSession::dir(
+            &REQUIRE_ACCESSOR_PAIR,
+            r#"
+type Store = {
+    set value(next: string);
+};
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[require-accessor-pair]: setter has no matching getter
+ ──▶ main.ds:2:9
+  │
+1 │ type Store = {
+2 │     set value(next: string);
   │         ^^^^^
 3 │ };
   │

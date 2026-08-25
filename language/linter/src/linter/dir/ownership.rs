@@ -87,6 +87,17 @@ impl Dir<'_> {
                 dir::Type::Primitive(primitive) => Some(primitive.ownership()),
                 _ => Some(dir::Ownership::Owned),
             },
+            dir::Type::Application(_)
+                if self.representation_item(type_id)? == Some(dir::LanguageItem::WithAccess) =>
+            {
+                let value = self.application_argument(type_id, 0)?.ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "checked WithAccess application {type_id:?} has no value argument"
+                    ))
+                })?;
+
+                return self.default_ownership(value);
+            }
             dir::Type::Application(instance) => {
                 return self.nominal_ownership(instance.symbol);
             }

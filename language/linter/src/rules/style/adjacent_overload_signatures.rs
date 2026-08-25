@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use destack_core::FxIndexMap;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_repository::ProviderError;
 use destack_source::Span;
@@ -39,6 +39,11 @@ declare function format(value: string): string;
 /// Report overload declarations separated by another authored item.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
+    let implementations = module
+        .definitions
+        .member_conformances()
+        .map(|conformance| conformance.member)
+        .collect::<FxIndexSet<_>>();
     let mut output = LintOutput::default();
 
     // inspect top-level function declarations in authored order
@@ -85,19 +90,20 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             let overloads = members
                 .iter()
                 .copied()
-                .map(|member| member_overload(module, &view, member));
-            report_separated_overloads(lint, overloads, &mut output)?;
-        }
-
-        // inspect structural type members
-        if let Some(members) = declaration.type_member_ids() {
-            let overloads = members
-                .iter()
-                .copied()
-                .map(|member| type_member_overload(module, &view, member));
+                .map(|member| member_overload(module, &view, member, &implementations));
             report_separated_overloads(lint, overloads, &mut output)?;
         }
     }
+
+    // inspect every structural type member list
+    module.visit_type_member_lists(|members| {
+        let overloads = members
+            .iter()
+            .copied()
+            .map(|member| type_member_overload(module, &view, member));
+
+        report_separated_overloads(lint, overloads, &mut output)
+    })?;
 
     Ok(output)
 }
@@ -156,6 +162,7 @@ fn member_overload(
     module: &DirModule<'_>,
     view: &dir::View<'_>,
     member: dir::LocalNodeId<dir::Member>,
+    implementations: &FxIndexSet<dir::GlobalSymbolId>,
 ) -> Result<Option<((dir::MemberSpace, dir::MemberSlot), Span)>, ProviderError> {
     // select a callable non-accessor member
     let value = view.get(member);
@@ -166,6 +173,10 @@ fn member_overload(
         signature.role,
         Some(dir::FunctionRole::Getter | dir::FunctionRole::Setter)
     ) {
+        return Ok(None);
+    }
+    let symbol = module.declaration_symbol(member)?;
+    if implementations.contains(&symbol) {
         return Ok(None);
     }
     let (Some(space), Some(slot)) = (value.space(), value.slot()) else {
@@ -275,6 +286,66 @@ interface Store {
         );
 
         session.assert_no_diagnostics();
+    }
+
+    /// Accept separate implementations of same-named interface requirements.
+    #[test]
+    fn test_accepts_separated_conformance_methods() {
+        let session = TestSession::dir(
+            &ADJACENT_OVERLOAD_SIGNATURES,
+            r#"
+interface Equal<T> {
+    equal(&readonly this, other: &readonly T): boolean;
+}
+
+struct Value {}
+
+extension of Value implements Equal<int32>, Equal<string> {
+    equal(&readonly this, other: &readonly int32): boolean {
+        return false;
+    }
+
+    inspect(&readonly this): void {}
+
+    equal(&readonly this, other: &readonly string): boolean {
+        return false;
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Report separated overloads in a structural object type.
+    #[test]
+    fn test_reports_separated_object_type_overloads() {
+        let session = TestSession::dir(
+            &ADJACENT_OVERLOAD_SIGNATURES,
+            r#"
+type Parser = {
+    parse(value: string): string;
+
+    format(value: string): string;
+
+    parse(value: int32): string;
+};
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[adjacent-overload-signatures]: overload signature is separated from its group
+ ──▶ main.ds:6:5
+  │
+4 │     format(value: string): string;
+5 │
+6 │     parse(value: int32): string;
+  │     ^^^^^
+7 │ };
+  │
+"#,
+        );
     }
 
     /// Report separated call signatures.

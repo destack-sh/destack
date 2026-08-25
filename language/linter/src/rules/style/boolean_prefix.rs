@@ -271,4 +271,28 @@ warning[boolean-prefix]: boolean value `ready` needs a predicate prefix
 "#,
         );
     }
+
+    /// Accept non-boolean discriminator fields in structural newtype variants.
+    #[test]
+    fn test_accepts_structural_discriminators() {
+        let session = TestSession::dir(
+            &BOOLEAN_PREFIX,
+            r#"
+import { Panic } from "destack:error";
+
+/// Worker exit status observed by the supervising parent.
+newtype WorkerExit =
+    | { kind: "completed" }
+    | { kind: "terminated" }
+    | { kind: "panicked"; panic: shared readonly Panic };
+
+/// Worker request failure.
+newtype WorkerError =
+    | { kind: "terminated" }
+    | { kind: "panicked"; panic: shared readonly Panic };
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
 }
