@@ -1,307 +1,152 @@
-use std::collections::HashSet;
-use std::hash::{Hash, Hasher};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::ops::Range;
+use std::sync::{Arc, Weak};
 
 use dashmap::DashMap;
 use dashmap::mapref::entry::Entry;
-use destack_core::{Blob, StringPool};
+use rustc_hash::FxBuildHasher;
 
-use crate::DiagnosticRecord;
-use parking_lot::RwLock;
-use rustc_hash::{FxBuildHasher, FxHasher};
-
-use super::binding::ArtifactBindingIndex;
-use super::dependency::{ArtifactDependencyOwner, ArtifactDependent};
-use super::entry::{
-    ArtifactBinding, ArtifactBindingId, ArtifactEntry, ArtifactId, ArtifactOutcome,
-};
-use super::pin::ArtifactBindingPin;
 use crate::{
-    Artifact, ArtifactDependency, ArtifactError, ArtifactFailure, ArtifactKey, ArtifactPayload,
-    ArtifactProjection, ArtifactProjectionFingerprint, ArtifactProjectionKey, ArtifactRecord,
-    ArtifactVersion,
+    Artifact, ArtifactDependency, ArtifactEntry, ArtifactError, ArtifactFailure,
+    ArtifactInvalidation, ArtifactKey, ArtifactOutcome, ArtifactPayload, ArtifactProjection,
+    ArtifactProjectionFingerprint, ArtifactProjectionKey, ArtifactVersion, DiagnosticRecord,
 };
 
-/// Table of published artifact results and exact bindings.
+/// Shared immutable artifact results indexed by exact version.
 #[derive(Debug, Default)]
 pub struct ArtifactTable {
-    /// Reusable artifact results by version.
-    entries: DashMap<ArtifactVersion, ArtifactEntry, FxBuildHasher>,
-    /// Dense ids by artifact key.
-    artifact_ids: DashMap<ArtifactKey, ArtifactId, FxBuildHasher>,
-    /// The next dense artifact id.
-    next_artifact_id: AtomicU32,
-
-    /// Immutable live bindings by compact id.
-    bindings: ArtifactBindingIndex,
-    /// Exact binding ids grouped by reusable artifact version and dependency list hash.
-    bindings_by_version: DashMap<(ArtifactVersion, u64), Vec<ArtifactBindingId>, FxBuildHasher>,
-    /// Every published binding of one artifact key, in publish order.
-    bindings_by_artifact: DashMap<ArtifactId, Vec<ArtifactBindingId>, FxBuildHasher>,
-
-    /// Immutable binding dependencies indexed by their owners.
-    dependents: DashMap<ArtifactDependencyOwner, Vec<ArtifactDependent>, FxBuildHasher>,
-
-    /// Projection fingerprints calculated for observed artifact values.
+    /// Live artifact results by exact version.
+    entries: DashMap<ArtifactVersion, Weak<ArtifactEntry>, FxBuildHasher>,
+    /// Live artifact results grouped by key for incremental derivation.
+    candidates: DashMap<ArtifactKey, Vec<Weak<ArtifactEntry>>, FxBuildHasher>,
+    /// Live dependent ranges indexed by the values they observe.
+    dependents: DashMap<ArtifactInvalidation, Vec<ArtifactDependent>, FxBuildHasher>,
+    /// Calculated projection fingerprints by exact artifact version.
     projections: DashMap<
         (ArtifactVersion, ArtifactProjectionKey),
         ArtifactProjectionFingerprint,
         FxBuildHasher,
     >,
-
-    /// The live retain count for each exact artifact binding.
-    retained_bindings: DashMap<ArtifactBindingId, usize, FxBuildHasher>,
-    /// Synchronizes binding retention with pruning.
-    retention: RwLock<()>,
 }
 
 impl ArtifactTable {
-    /// Create an artifact table.
+    /// Create an empty artifact table.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Increase the live reference count for one exact artifact binding.
-    fn retain_binding(&self, binding: ArtifactBindingId) {
-        if !self.bindings.contains(binding) {
-            unreachable!("artifact pins can only retain published bindings: {binding:?}");
-        }
-
-        let mut retain_count = self.retained_bindings.entry(binding).or_insert(0);
-        *retain_count += 1;
+    /// Return one live artifact result.
+    pub fn entry(&self, version: &ArtifactVersion) -> Option<Arc<ArtifactEntry>> {
+        self.entries.get(version)?.upgrade()
     }
 
-    /// Retain one exact live artifact binding with RAII release on drop.
-    pub fn pin_binding(self: &Arc<Self>, binding: ArtifactBindingId) -> Option<ArtifactBindingPin> {
-        let _retention = self.retention.read();
-        if !self.bindings.contains(binding) {
-            return None;
-        }
+    /// Return one live successful result available as an incremental base.
+    pub fn base(&self, key: ArtifactKey) -> Option<Arc<ArtifactEntry>> {
+        let candidates = self.candidates.get(&key)?;
 
-        self.retain_binding(binding);
-
-        Some(ArtifactBindingPin::new(Arc::clone(self), binding))
+        candidates.iter().rev().find_map(|candidate| {
+            let candidate = candidate.upgrade()?;
+            matches!(candidate.outcome(), ArtifactOutcome::Ok).then_some(candidate)
+        })
     }
 
-    /// Decrease the live reference count for one exact artifact binding.
-    pub(crate) fn release_binding(&self, binding: ArtifactBindingId) {
-        // drop or decrement the retain count under the entry lock
-        match self.retained_bindings.entry(binding) {
-            Entry::Occupied(mut retained) => {
-                if *retained.get() == 1 {
-                    retained.remove();
-                } else {
-                    *retained.get_mut() -= 1;
-                }
-            }
-            Entry::Vacant(_) => {
-                unreachable!("artifact pins can only release retained bindings: {binding:?}")
-            }
-        }
-    }
+    /// Remove lookup slots for released artifact results.
+    pub fn prune(&self) {
+        self.entries
+            .retain(|_version, entry| entry.strong_count() > 0);
+        self.candidates.retain(|_key, candidates| {
+            candidates.retain(|candidate| candidate.strong_count() > 0);
 
-    /// Retain selected and explicitly pinned artifact bindings.
-    pub fn retain_bindings(
-        &self,
-        selected: &HashSet<ArtifactBindingId>,
-    ) -> Result<HashSet<ArtifactVersion>, ArtifactError> {
-        let _retention = self.retention.write();
-        let pinned = self
-            .retained_bindings
-            .iter()
-            .map(|entry| *entry.key())
-            .collect::<HashSet<_>>();
-        let mut retained = selected.clone();
-        retained.extend(pinned);
-
-        // collect the exact artifact versions to retain
-        let mut versions = HashSet::with_capacity(retained.len());
-        for binding_id in &retained {
-            let binding = self.binding(*binding_id).ok_or(ArtifactError::Invalid(
-                "retained artifact binding is missing",
-            ))?;
-            versions.insert(binding.version);
-        }
-
-        // release unreachable binding entries and version indexes
-        self.bindings_by_version.retain(|_version, bindings| {
-            bindings.retain(|binding| retained.contains(binding));
-
-            !bindings.is_empty()
+            !candidates.is_empty()
         });
-        self.bindings.retain(&retained);
-        self.dependents.retain(|_owner, entries| {
-            entries.retain(|dependent| retained.contains(&dependent.binding));
+        self.dependents.retain(|_owner, dependents| {
+            dependents.retain(|dependent| dependent.entry.strong_count() > 0);
 
-            !entries.is_empty()
+            !dependents.is_empty()
         });
-
-        // release payloads not produced by any retained binding
-        self.entries.retain(|version, _| versions.contains(version));
         self.projections
-            .retain(|(version, _key), _fingerprint| versions.contains(version));
+            .retain(|(version, _projection), _fingerprint| self.entry(version).is_some());
+    }
 
-        Ok(versions)
+    /// Return live artifacts that observe one dependency owner.
+    pub fn dependents(
+        &self,
+        invalidation: ArtifactInvalidation,
+    ) -> Vec<(Arc<ArtifactEntry>, Range<u32>)> {
+        let Some(dependents) = self.dependents.get(&invalidation) else {
+            return Vec::new();
+        };
+
+        dependents
+            .iter()
+            .filter_map(|dependent| {
+                let entry = dependent.entry.upgrade()?;
+
+                Some((entry, dependent.dependencies.clone()))
+            })
+            .collect()
     }
 
     /// Return the recorded diagnostics for one exact artifact version.
     pub fn diagnostics(&self, version: &ArtifactVersion) -> Option<Arc<[DiagnosticRecord]>> {
-        self.entries
-            .get(version)
-            .map(|entry| Arc::clone(&entry.diagnostics))
+        self.entry(version).map(|entry| entry.diagnostics())
     }
 
-    /// Return whether one exact artifact version reported any error diagnostic.
+    /// Return whether one exact artifact version reported an error diagnostic.
     pub fn has_errors(&self, version: &ArtifactVersion) -> Option<bool> {
-        self.entries.get(version).map(|entry| entry.has_errors)
-    }
-
-    /// Intern one artifact key into a dense process-local id.
-    pub fn intern_artifact_key(&self, key: ArtifactKey) -> ArtifactId {
-        match self.artifact_ids.entry(key) {
-            Entry::Occupied(entry) => *entry.get(),
-            Entry::Vacant(entry) => {
-                let id = self.next_artifact_id.fetch_add(1, Ordering::Relaxed);
-                let id = ArtifactId(id);
-                entry.insert(id);
-
-                id
-            }
-        }
-    }
-
-    /// Return the dense id for one interned artifact key.
-    pub fn artifact_id(&self, key: ArtifactKey) -> Option<ArtifactId> {
-        self.artifact_ids.get(&key).map(|entry| *entry)
-    }
-
-    /// Return one immutable artifact binding.
-    pub fn binding(&self, id: ArtifactBindingId) -> Option<ArtifactBinding> {
-        self.bindings.get(id)
-    }
-
-    /// Return binding dependencies that observe one owner.
-    pub fn dependents(&self, owner: ArtifactDependencyOwner) -> Vec<ArtifactDependent> {
-        match self.dependents.get(&owner) {
-            Some(dependents) => dependents.clone(),
-            None => Vec::new(),
-        }
+        self.entry(version).map(|entry| entry.has_errors())
     }
 
     /// Return the exact terminal outcome for one artifact version.
     pub fn outcome(&self, version: &ArtifactVersion) -> Option<ArtifactOutcome> {
-        self.entries
-            .get(version)
-            .map(|entry| entry.result.outcome())
+        self.entry(version).map(|entry| entry.outcome())
     }
 
-    /// Return one self-contained artifact record.
-    pub fn record(
+    /// Publish one ready artifact result.
+    pub fn publish(
         &self,
         version: ArtifactVersion,
-        blob: Blob,
-        dependencies: &[ArtifactDependency],
-        strings: &StringPool,
-    ) -> Result<ArtifactRecord, ArtifactError> {
-        let Some(entry) = self.entries.get(&version).map(|entry| entry.clone()) else {
-            return Err(ArtifactError::Invalid(
-                "artifact record has no result entry",
-            ));
-        };
-        let Some(payload) = entry.result.payload() else {
-            return Err(ArtifactError::Invalid(
-                "failed artifact cannot be persisted as a ready record",
-            ));
-        };
-
-        let dependencies = dependencies.to_vec();
-        let diagnostics = entry.diagnostics.to_vec();
-        let record = ArtifactRecord::new(
-            version,
-            blob,
-            payload.as_ref(),
-            strings,
-            dependencies,
-            diagnostics,
-        )?;
-
-        Ok(record)
-    }
-
-    /// Publish one ready result and its exact binding.
-    pub fn publish(
-        self: &Arc<Self>,
-        version: ArtifactVersion,
-        payload: ArtifactPayload,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
+        payload: ArtifactPayload,
         diagnostics: impl Into<Arc<[DiagnosticRecord]>>,
-    ) -> Result<ArtifactBindingPin, ArtifactError> {
+    ) -> Result<Arc<ArtifactEntry>, ArtifactError> {
         if !payload.matches_key(&version.key) {
             return Err(ArtifactError::Invalid(
                 "artifact payload does not match its result key",
             ));
         }
 
-        let dependencies = dependencies.into();
-        let diagnostics = diagnostics.into();
-        let _retention = self.retention.read();
-        self.insert_result(version, payload, diagnostics);
-        let binding = self.intern_binding(version, dependencies)?;
-        self.retain_binding(binding);
+        let entry = Arc::new(ArtifactEntry::ok(
+            version,
+            dependencies,
+            payload,
+            diagnostics,
+        ));
+        let entry = self.insert(entry);
 
-        Ok(ArtifactBindingPin::new(Arc::clone(self), binding))
+        Ok(entry)
     }
 
-    /// Publish one exact binding for an existing result.
-    pub fn publish_binding(
-        self: &Arc<Self>,
-        version: ArtifactVersion,
-        dependencies: impl Into<Arc<[ArtifactDependency]>>,
-    ) -> Result<ArtifactBindingPin, ArtifactError> {
-        let _retention = self.retention.read();
-        if self.outcome(&version).is_none() {
-            return Err(ArtifactError::Invalid(
-                "artifact binding references a missing result",
-            ));
-        }
-
-        let dependencies = dependencies.into();
-        let binding = self.intern_binding(version, dependencies)?;
-        self.retain_binding(binding);
-
-        let pin = ArtifactBindingPin::new(Arc::clone(self), binding);
-
-        Ok(pin)
-    }
-
-    /// Fail one artifact.
+    /// Publish one failed artifact result.
     pub fn fail(
-        self: &Arc<Self>,
+        &self,
         version: ArtifactVersion,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: impl Into<Arc<[DiagnosticRecord]>>,
         failure: ArtifactFailure,
-    ) -> Result<ArtifactBindingPin, ArtifactError> {
-        let dependencies = dependencies.into();
-        let diagnostics = diagnostics.into();
-        let _retention = self.retention.read();
-        self.entries
-            .entry(version)
-            .or_insert_with(|| ArtifactEntry::failed(diagnostics, failure));
-        let binding = self.intern_binding(version, dependencies)?;
-        self.retain_binding(binding);
+    ) -> Arc<ArtifactEntry> {
+        let entry = Arc::new(ArtifactEntry::failed(
+            version,
+            dependencies,
+            diagnostics,
+            failure,
+        ));
 
-        let pin = ArtifactBindingPin::new(Arc::clone(self), binding);
-
-        Ok(pin)
+        self.insert(entry)
     }
 
     /// Return the successful payload for one artifact version.
     pub fn payload(&self, version: &ArtifactVersion) -> Option<ArtifactPayload> {
-        let entry = self.entries.get(version)?;
-
-        entry.result.payload()
+        self.entry(version)?.payload()
     }
 
     /// Return one typed artifact payload.
@@ -311,149 +156,100 @@ impl ArtifactTable {
         A::from_payload(payload)
     }
 
-    /// Insert one already fingerprinted ready result.
-    fn insert_result(
-        &self,
-        version: ArtifactVersion,
-        payload: ArtifactPayload,
-        diagnostics: Arc<[DiagnosticRecord]>,
-    ) {
-        self.entries
-            .entry(version)
-            .or_insert_with(|| ArtifactEntry::ok(payload, diagnostics));
-    }
-
     /// Return the stable fingerprint of one projected artifact value.
     pub fn projection_fingerprint(
         &self,
         version: &ArtifactVersion,
         projection: &ArtifactProjection,
-    ) -> Option<ArtifactProjectionFingerprint> {
+    ) -> Result<Option<ArtifactProjectionFingerprint>, ArtifactError> {
         if version.key != projection.artifact {
-            return None;
+            return Ok(None);
         }
 
-        let identity = (*version, projection.key);
-        if let Some(fingerprint) = self.projections.get(&identity) {
-            return Some(*fingerprint);
+        let Some(entry) = self.entry(version) else {
+            return Ok(None);
+        };
+        let projection_key = (*version, projection.key);
+        if let Some(fingerprint) = self.projections.get(&projection_key) {
+            return Ok(Some(*fingerprint));
         }
 
         // calculate each requested projection at most once
-        let entry = self.entries.get(version)?;
-        let payload = entry.result.payload()?;
-        let fingerprint = payload.as_ref().fingerprint_projection(projection.key)?;
-        let fingerprint = self.projections.entry(identity).or_insert(fingerprint);
-
-        Some(*fingerprint)
-    }
-
-    /// Return every published binding of one artifact, newest first.
-    pub fn artifact_bindings(&self, artifact: ArtifactId) -> Vec<ArtifactBindingId> {
-        let Some(bindings) = self.bindings_by_artifact.get(&artifact) else {
-            return Vec::new();
+        let Some(payload) = entry.payload() else {
+            return Ok(None);
         };
-
-        bindings.iter().rev().copied().collect()
-    }
-
-    /// Return the newest published binding of one artifact.
-    pub fn latest_artifact_binding(&self, artifact: ArtifactId) -> Option<ArtifactBindingId> {
-        let bindings = self.bindings_by_artifact.get(&artifact)?;
-
-        bindings.last().copied()
-    }
-
-    /// Return every Blob retained by one exact artifact result.
-    pub fn blobs(&self, version: &ArtifactVersion) -> Option<Vec<Blob>> {
-        // collect payload Blobs when this artifact succeeded
-        let entry = self.entries.get(version)?;
-        let mut blobs = match entry.result.payload() {
-            Some(payload) => payload.blobs(),
-            None => Vec::new(),
+        let Some(fingerprint) = payload.as_ref().fingerprint_projection(projection.key)? else {
+            return Ok(None);
         };
+        let fingerprint = *self
+            .projections
+            .entry(projection_key)
+            .or_insert(fingerprint);
 
-        // include diagnostics for every terminal result
-        blobs.extend(
-            entry
-                .diagnostics
-                .iter()
-                .flat_map(|record| record.diagnostic.blobs()),
-        );
-
-        // canonicalize the retained closure
-        blobs.sort_unstable();
-        blobs.dedup();
-
-        Some(blobs)
+        Ok(Some(fingerprint))
     }
 
-    /// Intern one exact artifact binding.
-    fn intern_binding(
-        &self,
-        version: ArtifactVersion,
-        dependencies: Arc<[ArtifactDependency]>,
-    ) -> Result<ArtifactBindingId, ArtifactError> {
-        // intern the artifact selected by this binding
-        let artifact = self.intern_artifact_key(version.key);
-        let mut hasher = FxHasher::default();
-        dependencies.as_ref().hash(&mut hasher);
-        let mut bindings = self
-            .bindings_by_version
-            .entry((version, hasher.finish()))
-            .or_default();
+    /// Intern one exact immutable artifact result.
+    fn insert(&self, entry: Arc<ArtifactEntry>) -> Arc<ArtifactEntry> {
+        match self.entries.entry(entry.version) {
+            Entry::Occupied(mut occupied) => {
+                let Some(existing) = occupied.get().upgrade() else {
+                    occupied.insert(Arc::downgrade(&entry));
+                    self.index(&entry);
 
-        // reuse only a binding with the same exact dependency observations
-        for binding_id in bindings.iter().copied() {
-            let binding = self.binding(binding_id).ok_or(ArtifactError::Invalid(
-                "artifact version references a missing binding",
-            ))?;
-            if binding.dependencies.as_ref() == dependencies.as_ref() {
-                return Ok(binding_id);
+                    return entry;
+                };
+
+                existing
+            }
+            Entry::Vacant(vacant) => {
+                vacant.insert(Arc::downgrade(&entry));
+                self.index(&entry);
+
+                entry
             }
         }
-
-        // publish one new exact binding and its reverse dependency edges
-        let binding = ArtifactBinding {
-            version,
-            dependencies,
-        };
-        let id = self.bindings.insert(binding.clone())?;
-        self.bindings_by_artifact
-            .entry(artifact)
-            .or_default()
-            .push(id);
-        self.record_dependents(artifact, id, &binding);
-        bindings.push(id);
-
-        Ok(id)
     }
 
-    /// Index every dependency of one immutable artifact binding.
-    fn record_dependents(
-        &self,
-        artifact: ArtifactId,
-        binding_id: ArtifactBindingId,
-        binding: &ArtifactBinding,
-    ) {
+    /// Index one newly interned artifact result.
+    fn index(&self, entry: &Arc<ArtifactEntry>) {
+        self.candidates
+            .entry(entry.version.key)
+            .or_default()
+            .push(Arc::downgrade(entry));
+        self.record_dependents(entry);
+    }
+
+    /// Index adjacent dependency ranges by their invalidation owner.
+    fn record_dependents(&self, entry: &Arc<ArtifactEntry>) {
         let mut first = 0;
 
-        // append adjacent edges for one owner under one shard lock
-        while first < binding.dependencies.len() {
-            let owner = ArtifactDependencyOwner::from(&binding.dependencies[first]);
+        while first < entry.dependencies.len() {
+            let invalidation = entry.dependencies[first].invalidation();
             let mut last = first + 1;
-            while last < binding.dependencies.len()
-                && ArtifactDependencyOwner::from(&binding.dependencies[last]) == owner
+            while last < entry.dependencies.len()
+                && entry.dependencies[last].invalidation() == invalidation
             {
                 last += 1;
             }
 
-            let mut dependents = self.dependents.entry(owner).or_default();
-            dependents.extend((first..last).map(|dependency| ArtifactDependent {
-                artifact,
-                binding: binding_id,
-                dependency: dependency as u32,
-            }));
+            self.dependents
+                .entry(invalidation)
+                .or_default()
+                .push(ArtifactDependent {
+                    entry: Arc::downgrade(entry),
+                    dependencies: first as u32..last as u32,
+                });
             first = last;
         }
     }
+}
+
+/// One live artifact range observing the same dependency owner.
+#[derive(Debug, Clone)]
+struct ArtifactDependent {
+    /// The dependent artifact result.
+    entry: Weak<ArtifactEntry>,
+    /// Adjacent dependency ordinals observing the owner.
+    dependencies: Range<u32>,
 }

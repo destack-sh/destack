@@ -1,13 +1,13 @@
 mod artifact;
 mod core;
 mod diagnostic;
+mod error;
 mod schema;
-mod store;
 mod table;
 
 pub use artifact::*;
 pub use core::*;
 pub use diagnostic::*;
+pub use error::*;
 pub use schema::*;
-pub use store::*;
 pub use table::*;

@@ -127,22 +127,16 @@ impl ArtifactProjectionFingerprint {
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub enum ArtifactProjectionKey {
+    /// The complete payload, independent of the inputs that built it.
+    Payload,
     /// The sorted modules of one module graph.
-    Modules,
+    ModuleGraphModules,
     /// The import edges of one module in the module graph.
-    ModuleEdges(ModuleId),
+    ModuleGraphEdges(ModuleId),
     /// The implementations of one interface resolved across the module graph.
-    Implementations(GlobalSymbolId),
-    /// The declared output fingerprint of one declared module.
-    Declared,
-    /// The elaborated output fingerprint of one elaborated module.
-    Elaborated,
-    /// The checked output fingerprint of one checked module.
-    Checked,
-    /// The resolved import relationships that shape module graph edges.
-    ImportEdges,
-    /// The full payload content, independent of the inputs that built it.
-    Content,
+    ModuleGraphImplementations(GlobalSymbolId),
+    /// The resolved relationships that shape the component graph.
+    DirResolvedComponentRelations,
 }
 
 /// One artifact projection selected by owner artifact and projection key.
@@ -290,6 +284,11 @@ impl ArtifactDependencySet {
         self.requirements.push(ArtifactRequirement::artifact(key));
     }
 
+    /// Declare one required artifact payload.
+    pub fn require_payload(&mut self, artifact: ArtifactKey) {
+        self.require_projection(artifact, ArtifactProjectionKey::Payload);
+    }
+
     /// Declare one required artifact projection.
     pub fn require_projection(&mut self, artifact: ArtifactKey, key: ArtifactProjectionKey) {
         let projection = ArtifactProjection::new(artifact, key);
@@ -330,33 +329,6 @@ impl ArtifactDependencySet {
         self.sources.sort_unstable();
         self.sources.dedup();
     }
-
-    /// Return whether dependencies follow this set's requirement order.
-    pub fn matches(&self, dependencies: &[ArtifactDependency]) -> bool {
-        if self.is_partial || dependencies.len() != self.requirements.len() + self.sources.len() {
-            return false;
-        }
-
-        // match artifact declarations by requirement
-        let (requirements, sources) = dependencies.split_at(self.requirements.len());
-        let is_requirements_match = self
-            .requirements
-            .iter()
-            .zip(requirements)
-            .all(|(requirement, dependency)| dependency.requirement() == Some(*requirement));
-
-        // match source declarations without comparing observed values
-        let is_sources_match = self
-            .sources
-            .iter()
-            .zip(sources)
-            .all(|(source, dependency)| match dependency {
-                ArtifactDependency::Source(dependency) => source.key() == dependency.key(),
-                ArtifactDependency::Artifact(_) | ArtifactDependency::Projection(_) => false,
-            });
-
-        is_requirements_match && is_sources_match
-    }
 }
 
 /// One exact dependency read while building an artifact.
@@ -367,6 +339,17 @@ pub enum ArtifactDependency {
     /// One exact projected artifact value.
     Projection(ArtifactProjectionDependency),
     /// One exact primitive source observation.
+    Source(SourceDependency),
+}
+
+/// One changed observation propagated through artifact dependencies.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ArtifactInvalidation {
+    /// One exact artifact result.
+    Artifact(ArtifactVersion),
+    /// The projected values of one artifact.
+    Projections(ArtifactKey),
+    /// One exact repository source observation.
     Source(SourceDependency),
 }
 
@@ -406,6 +389,15 @@ impl ArtifactDependency {
                 Some(ArtifactRequirement::Projection(dependency.projection()))
             }
             Self::Source(_) => None,
+        }
+    }
+
+    /// Return the invalidation propagated by a changed dependency.
+    pub const fn invalidation(&self) -> ArtifactInvalidation {
+        match self {
+            Self::Artifact(version) => ArtifactInvalidation::Artifact(*version),
+            Self::Projection(projection) => ArtifactInvalidation::Projections(projection.artifact),
+            Self::Source(source) => ArtifactInvalidation::Source(*source),
         }
     }
 }

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-/// One persisted module index.
+/// One module query index.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum ModuleIndex {
     /// Declared symbols.
@@ -53,7 +53,7 @@ impl ModuleIndex {
     }
 }
 
-/// One persisted program index.
+/// One program query index.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum ProgramIndex {
     /// Symbol name postings.

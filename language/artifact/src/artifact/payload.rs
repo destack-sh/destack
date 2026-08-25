@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use destack_core::{Blob, BlobMemory, SectionStorage};
+use destack_core::Blob;
 use destack_program::{Object, Program};
 use destack_serde as serde;
 use destack_serde::Reflect;
@@ -164,21 +164,6 @@ pub trait Artifact: Sized {
 }
 
 impl ArtifactPayload {
-    /// Decode one payload from its artifact storage representation.
-    pub(crate) fn decode(
-        key: &ArtifactKey,
-        memory: Arc<BlobMemory>,
-    ) -> Result<Self, ArtifactError> {
-        if matches!(key, ArtifactKey::Program { .. }) {
-            let storage = SectionStorage::from_memory(memory);
-            let program = Program::load(storage)?;
-
-            return Ok(Self::Program(Arc::new(program)));
-        }
-
-        serde::from_slice(memory.bytes()).map_err(|error| ArtifactError::Codec(Box::new(error)))
-    }
-
     /// Return whether this payload belongs to one artifact key.
     pub fn matches_key(&self, key: &ArtifactKey) -> bool {
         match (key, self) {
@@ -385,115 +370,29 @@ impl<'a> ArtifactPayloadRef<'a> {
     pub(crate) fn fingerprint_projection(
         self,
         projection: ArtifactProjectionKey,
-    ) -> Option<ArtifactProjectionFingerprint> {
-        match (self, projection) {
+    ) -> Result<Option<ArtifactProjectionFingerprint>, ArtifactError> {
+        let fingerprint = match (self, projection) {
+            (Self::DirDeclared(payload), ArtifactProjectionKey::Payload) => {
+                Some(payload.fingerprint)
+            }
+            (Self::DirElaborated(payload), ArtifactProjectionKey::Payload) => {
+                Some(payload.fingerprint)
+            }
+            (Self::DirChecked(payload), ArtifactProjectionKey::Payload) => {
+                Some(payload.fingerprint)
+            }
+            (payload, ArtifactProjectionKey::Payload) => Some(
+                ArtifactProjectionFingerprint::from_serialized_payload(&payload)?,
+            ),
             (Self::ModuleGraph(payload), projection) => payload.fingerprint_projection(projection),
-            (Self::DirResolved(payload), ArtifactProjectionKey::ImportEdges) => {
-                Some(payload.component_edges_fingerprint())
-            }
-            (Self::DirDeclared(payload), ArtifactProjectionKey::Declared) => {
-                Some(payload.fingerprint)
-            }
-            (Self::DirElaborated(payload), ArtifactProjectionKey::Elaborated) => {
-                Some(payload.fingerprint)
-            }
-            (Self::DirChecked(payload), ArtifactProjectionKey::Checked) => {
-                Some(payload.fingerprint)
-            }
-            // hash content directly, ignoring the inputs that rebuilt identical payloads
-            (Self::DirBound(payload), ArtifactProjectionKey::Content) => {
-                ArtifactProjectionFingerprint::from_serialized_payload(payload).ok()
-            }
-            (Self::DirExpanded(payload), ArtifactProjectionKey::Content) => {
-                ArtifactProjectionFingerprint::from_serialized_payload(payload).ok()
-            }
-            (Self::DirResolved(payload), ArtifactProjectionKey::Content) => {
-                ArtifactProjectionFingerprint::from_serialized_payload(payload).ok()
-            }
-            (Self::EnvironmentBound(payload), ArtifactProjectionKey::Content) => {
-                ArtifactProjectionFingerprint::from_serialized_payload(payload).ok()
-            }
-            (Self::EnvironmentDeclared(payload), ArtifactProjectionKey::Content) => {
-                ArtifactProjectionFingerprint::from_serialized_payload(payload).ok()
-            }
-            (Self::DirExported(payload), ArtifactProjectionKey::Content) => {
-                ArtifactProjectionFingerprint::from_serialized_payload(payload).ok()
+            (Self::DirResolved(payload), ArtifactProjectionKey::DirResolvedComponentRelations) => {
+                Some(payload.component_relations_fingerprint())
             }
             _ => None,
-        }
-    }
-
-    /// Return all observable projection fingerprints for this payload.
-    pub(crate) fn fingerprint_projections(
-        self,
-    ) -> Result<Vec<(ArtifactProjectionKey, ArtifactProjectionFingerprint)>, ArtifactProjectionKey>
-    {
-        let mut projections = Vec::new();
-
-        // index module graph columns at their natural entry granularity
-        if let Self::ModuleGraph(graph) = self {
-            for module in graph.modules() {
-                let keys = [ArtifactProjectionKey::ModuleEdges(*module)];
-                push_projection_fingerprints(self, keys, &mut projections)?;
-            }
-            for interface in graph.implemented_interfaces() {
-                let keys = [ArtifactProjectionKey::Implementations(interface)];
-                push_projection_fingerprints(self, keys, &mut projections)?;
-            }
-            push_projection_fingerprints(self, [ArtifactProjectionKey::Modules], &mut projections)?;
-        }
-
-        // index independently reusable resolved DIR relationships
-        if matches!(self, Self::DirResolved(_)) {
-            push_projection_fingerprints(
-                self,
-                [ArtifactProjectionKey::ImportEdges],
-                &mut projections,
-            )?;
-        }
-
-        // index independently reusable module outputs
-        match self {
-            Self::DirDeclared(declared) => {
-                projections.push((ArtifactProjectionKey::Declared, declared.fingerprint));
-            }
-            Self::DirElaborated(elaborated) => {
-                projections.push((ArtifactProjectionKey::Elaborated, elaborated.fingerprint));
-            }
-            Self::DirChecked(checked) => {
-                projections.push((ArtifactProjectionKey::Checked, checked.fingerprint));
-            }
-            _ => {}
-        }
-
-        // canonicalize and reject duplicate projection keys
-        projections.sort_unstable_by_key(|(key, _fingerprint)| *key);
-        if let Some(projection) = projections
-            .windows(2)
-            .find(|entries| entries[0].0 == entries[1].0)
-        {
-            return Err(projection[0].0);
-        }
-
-        Ok(projections)
-    }
-}
-
-/// Append all present projection fingerprints for one payload.
-fn push_projection_fingerprints(
-    payload: ArtifactPayloadRef<'_>,
-    keys: impl IntoIterator<Item = ArtifactProjectionKey>,
-    projections: &mut Vec<(ArtifactProjectionKey, ArtifactProjectionFingerprint)>,
-) -> Result<(), ArtifactProjectionKey> {
-    for key in keys {
-        let Some(fingerprint) = payload.fingerprint_projection(key) else {
-            return Err(key);
         };
 
-        projections.push((key, fingerprint));
+        Ok(fingerprint)
     }
-
-    Ok(())
 }
 
 macro_rules! artifact {

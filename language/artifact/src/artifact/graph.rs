@@ -246,22 +246,19 @@ impl ModuleGraph {
         projection: ArtifactProjectionKey,
     ) -> Option<ArtifactProjectionFingerprint> {
         match projection {
-            ArtifactProjectionKey::Modules => {
+            ArtifactProjectionKey::ModuleGraphModules => {
                 Some(ArtifactProjectionFingerprint::new(self.modules()))
             }
-            ArtifactProjectionKey::ModuleEdges(module) => {
+            ArtifactProjectionKey::ModuleGraphEdges(module) => {
                 let edges = self.edges(module)?;
 
                 Some(ArtifactProjectionFingerprint::new(edges.as_ref()))
             }
-            ArtifactProjectionKey::Implementations(interface) => Some(
+            ArtifactProjectionKey::ModuleGraphImplementations(interface) => Some(
                 ArtifactProjectionFingerprint::new(self.interface_implementations(interface)),
             ),
-            ArtifactProjectionKey::Declared
-            | ArtifactProjectionKey::Elaborated
-            | ArtifactProjectionKey::Checked
-            | ArtifactProjectionKey::ImportEdges
-            | ArtifactProjectionKey::Content => None,
+            ArtifactProjectionKey::DirResolvedComponentRelations
+            | ArtifactProjectionKey::Payload => None,
         }
     }
 

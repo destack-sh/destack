@@ -6,31 +6,13 @@ use crate::{
     ArtifactDependency, ArtifactFailure, ArtifactPayload, ArtifactVersion, DiagnosticRecord,
 };
 
-/// Dense in-process id for one artifact key.
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ArtifactId(pub(crate) u32);
-
-impl ArtifactId {
-    /// Build one dense artifact id from a table index.
-    pub const fn from_index(index: usize) -> Self {
-        Self(index as u32)
-    }
-
-    /// Return this dense artifact id as a table index.
-    pub const fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
-/// Compact in-process id for one immutable artifact binding.
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ArtifactBindingId(pub(crate) u32);
-
 /// One reusable artifact result entry.
-#[derive(Debug, Clone)]
-pub(crate) struct ArtifactEntry {
+#[derive(Debug)]
+pub struct ArtifactEntry {
+    /// The exact artifact version.
+    pub version: ArtifactVersion,
+    /// The exact dependencies observed while building this version.
+    pub dependencies: Arc<[ArtifactDependency]>,
     /// The exact terminal result.
     pub(crate) result: ArtifactResult,
     /// The diagnostics for this exact artifact version.
@@ -39,24 +21,19 @@ pub(crate) struct ArtifactEntry {
     pub(crate) has_errors: bool,
 }
 
-/// One immutable artifact version and its exact dependency observations.
-#[derive(Debug, Clone)]
-pub struct ArtifactBinding {
-    /// The reusable artifact result.
-    pub version: ArtifactVersion,
-    /// The exact dependency observations.
-    pub dependencies: Arc<[ArtifactDependency]>,
-}
-
 impl ArtifactEntry {
     /// Create one successful artifact entry.
     pub(crate) fn ok(
+        version: ArtifactVersion,
+        dependencies: impl Into<Arc<[ArtifactDependency]>>,
         payload: ArtifactPayload,
         diagnostics: impl Into<Arc<[DiagnosticRecord]>>,
     ) -> Self {
         let diagnostics = diagnostics.into();
 
         Self {
+            version,
+            dependencies: dependencies.into(),
             result: ArtifactResult::Ok(payload),
             has_errors: diagnostics
                 .iter()
@@ -67,18 +44,42 @@ impl ArtifactEntry {
 
     /// Create one failed artifact entry.
     pub(crate) fn failed(
+        version: ArtifactVersion,
+        dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: impl Into<Arc<[DiagnosticRecord]>>,
         failure: ArtifactFailure,
     ) -> Self {
         let diagnostics = diagnostics.into();
 
         Self {
+            version,
+            dependencies: dependencies.into(),
             result: ArtifactResult::Failed(failure),
             has_errors: diagnostics
                 .iter()
                 .any(|record| record.diagnostic.severity == DiagnosticSeverity::Error),
             diagnostics,
         }
+    }
+
+    /// Return the exact terminal outcome.
+    pub fn outcome(&self) -> ArtifactOutcome {
+        self.result.outcome()
+    }
+
+    /// Return the successful payload when present.
+    pub fn payload(&self) -> Option<ArtifactPayload> {
+        self.result.payload()
+    }
+
+    /// Return the diagnostics for this artifact version.
+    pub fn diagnostics(&self) -> Arc<[DiagnosticRecord]> {
+        self.diagnostics.clone()
+    }
+
+    /// Return whether this artifact version reported an error diagnostic.
+    pub fn has_errors(&self) -> bool {
+        self.has_errors
     }
 }
 

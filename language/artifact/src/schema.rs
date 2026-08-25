@@ -2,14 +2,14 @@ use destack_program::Object;
 use destack_serde::Schema;
 
 use crate::{
-    ArtifactDependency, ArtifactKey, ArtifactPayload, ArtifactRecord, ArtifactReference,
-    ArtifactVersion, Asset, Build, BuildLinkage, BuildManifest, BuildProfile, Bundle, BundleFile,
-    BundleMode, BundleSection, Code, Data, DirBound, DirChecked, DirDeclared, DirElaborated,
-    DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
-    EnvironmentBound, EnvironmentDeclared, Host, LanguageEnvironment, LanguageIntrinsics,
-    MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleEdges, ModuleGraph,
-    ModuleIndex, ModuleLinted, Output, Platform, Product, ProductTarget, ProgramAnalysis,
-    ProgramIndex, ProgramLinted, Runtime, Script, SourceMap,
+    ArtifactDependency, ArtifactKey, ArtifactPayload, ArtifactReference, ArtifactVersion, Asset,
+    Build, BuildLinkage, BuildManifest, BuildProfile, Bundle, BundleFile, BundleMode,
+    BundleSection, Code, Data, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded,
+    DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, EnvironmentBound,
+    EnvironmentDeclared, Host, LanguageEnvironment, LanguageIntrinsics, MirAnalyzed, MirElaborated,
+    MirLowered, MirOptimized, MirVerified, ModuleEdges, ModuleGraph, ModuleIndex, ModuleLinted,
+    Output, Platform, Product, ProductTarget, ProgramAnalysis, ProgramIndex, ProgramLinted,
+    Runtime, Script, SourceMap,
 };
 
 /// Include public artifact schema roots.
@@ -17,7 +17,6 @@ pub fn schema(schema: &mut Schema) {
     schema.register::<ArtifactKey>();
     schema.register::<ArtifactVersion>();
     schema.register::<ArtifactDependency>();
-    schema.register::<ArtifactRecord>();
     schema.register::<ArtifactPayload>();
     schema.register::<ArtifactReference>();
 

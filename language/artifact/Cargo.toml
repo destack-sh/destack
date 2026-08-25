@@ -28,7 +28,6 @@ destack_source = { workspace = true }
 blake3 = { workspace = true }
 dashmap = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
-parking_lot = { workspace = true }
 rustc-hash = { workspace = true }
 siphasher = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
