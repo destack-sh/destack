@@ -70,62 +70,18 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
 
-        // require a block callback with work before its unchanged value
+        // require an iterator callback arity accepted by inspect
         let Some(lambda) = module.lambda(*callback) else {
             continue;
         };
-        if lambda.signature.asynchrony != dir::Asynchrony::Sync || lambda.signature.is_generator {
+        if lambda.signature.parameters.is_empty() || lambda.signature.parameters.len() > 2 {
             continue;
         }
-        let [parameter, ..] = lambda.signature.parameters.as_slice() else {
-            continue;
-        };
-        if lambda.signature.parameters.len() > 2
-            || !matches!(
-                view.get(*parameter),
-                dir::Parameter::Named {
-                    declared_type: None,
-                    default: None,
-                    is_optional: false,
-                    ..
-                }
-            )
-        {
-            continue;
-        }
-        let Some(body) = lambda.body else {
-            continue;
-        };
-        let dir::Expression::Block(block) = view.get(body) else {
-            continue;
-        };
-        let block = view.get(*block);
-        let (returned, removed) = if let Some(returned) = block.tail_expression {
-            if block.leading_expressions.is_empty() {
-                continue;
-            }
-
-            (returned, returned)
-        } else if let [preceding @ .., returned] = block.leading_expressions.as_slice()
-            && !preceding.is_empty()
-            && let dir::Expression::Return { value: Some(value) } = view.get(*returned)
-        {
-            (*value, *returned)
-        } else {
+        let Some(removed) = module.removable_parameter_return(*callback)? else {
             continue;
         };
 
-        // require an unchanged value and readonly-compatible observation
-        let parameter = module.declaration_symbol(*parameter)?;
-        if module.selected_symbol(returned)? != Some(parameter)
-            || !module.binding_accepts_readonly_borrow(
-                parameter,
-                body.into_any(),
-                Some(removed.into_any()),
-            )?
-        {
-            continue;
-        }
+        // require the identity mapping to preserve the iterator type
         if module.adjusted_type_id(expression.into_any())?
             != module.adjusted_type_id(call.receiver.into_any())?
         {

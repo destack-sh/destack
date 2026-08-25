@@ -74,6 +74,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         if module.dir.borrow_access(value_type)?.is_some() {
             continue;
         }
+        let member = dir::LanguageItem::Result.member("unwrapOrDefault");
+        if module.is_within_language_member(expression.into_any(), member)? {
+            continue;
+        }
 
         // replace the complete match with unwrapOrDefault
         let extent = module.source_extent(expression.into_any())?;
@@ -225,6 +229,7 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Recognize reversed Result arm ordering.
     #[test]
     fn test_replaces_reversed_arms() {

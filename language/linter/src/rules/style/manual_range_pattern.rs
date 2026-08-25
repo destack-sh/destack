@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use destack_dir as dir;
 use destack_repository::ProviderError;
 use destack_source::{DiagnosticSuggestion, Patch};
@@ -82,28 +84,37 @@ fn consecutive_bounds(
 
     // collect direct scalar expression patterns
     let view = module.view();
-    let mut expressions = Vec::with_capacity(patterns.len());
-    let mut values = Vec::with_capacity(patterns.len());
+    let mut alternatives: Vec<(dir::LocalNodeId<dir::Expression>, dir::Literal)> =
+        Vec::with_capacity(patterns.len());
     for pattern in patterns {
         let dir::Pattern::Expression { value } = view.get(*pattern) else {
             return Ok(None);
         };
-        let Some(value_literal) = module.scalar_constant(*value)? else {
+        let Some(literal) = module.scalar_constant(*value)? else {
             return Ok(None);
         };
-        expressions.push(*value);
-        values.push(value_literal);
+
+        // insert each alternative into its interval order
+        let mut index = alternatives.len();
+        while index > 0 {
+            match literal.interval_ordering(&alternatives[index - 1].1) {
+                Some(Ordering::Less) => index -= 1,
+                Some(_) => break,
+                None => return Ok(None),
+            }
+        }
+        alternatives.insert(index, (*value, literal));
     }
 
-    // require each value to follow its predecessor exactly
-    if !values
+    // require every interval value exactly once
+    if !alternatives
         .windows(2)
-        .all(|pair| pair[0].successor() == Some(pair[1]))
+        .all(|pair| pair[0].1.successor() == Some(pair[1].1))
     {
         return Ok(None);
     }
-    let first = expressions[0];
-    let last = expressions[expressions.len() - 1];
+    let first = alternatives[0].0;
+    let last = alternatives[alternatives.len() - 1].0;
 
     Ok(Some((first, last)))
 }
@@ -157,6 +168,33 @@ function small(value: int32): boolean {
 function small(value: int32): boolean {
     return match (value) {
         1..=3 => true
+        _ => false
+    };
+}
+"#,
+        );
+    }
+
+    /// Replace unordered consecutive alternatives with their ordered range.
+    #[test]
+    fn test_replaces_unordered_union() {
+        let session = TestSession::dir(
+            &MANUAL_RANGE_PATTERN,
+            r#"
+function digit(value: char): boolean {
+    return match (value) {
+        '3' | '0' | '2' | '1' => true
+        _ => false
+    };
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+function digit(value: char): boolean {
+    return match (value) {
+        '0'..='3' => true
         _ => false
     };
 }

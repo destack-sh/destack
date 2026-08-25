@@ -78,6 +78,13 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         if module.uses_enclosing_control(fallback.body)? {
             continue;
         }
+        let result = dir::LanguageItem::Result;
+        if module.is_within_language_member(expression.into_any(), result.member("unwrapOr"))?
+            || module
+                .is_within_language_member(expression.into_any(), result.member("unwrapOrElse"))?
+        {
+            continue;
+        }
 
         // require the fallback to retain the Result payload type
         let payload_type = module
@@ -87,6 +94,12 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             .dir
             .strip_form(module.adjusted_type_id(fallback.value.into_any())?)?;
         if payload_type != fallback_type {
+            continue;
+        }
+        if fallback.is_single_value
+            && module.language_member(fallback.value)?
+                == Some(dir::LanguageItem::Default.member("default"))
+        {
             continue;
         }
 
@@ -334,6 +347,25 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
+    /// Leave canonical default fallbacks to manual-unwrap-or-default.
+    #[test]
+    fn test_accepts_default_fallback() {
+        let session = TestSession::dir(
+            &MANUAL_UNWRAP_OR,
+            r#"
+function value<T: Default>(result: Result<T, string>): T {
+    return match (result) {
+        Ok { value } => value
+        Err { error: _ } => T.default()
+    };
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
     /// Preserve an error-dependent fallback with unwrapOrElse.
     #[test]
     fn test_replaces_error_fallback() {

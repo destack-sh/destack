@@ -123,6 +123,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let mut diagnostic =
             lint.diagnostic("Result chain only rebuilds the selected variant", span);
         if call.generic_arguments.is_empty()
+            && lambda.signature.return_type.is_none()
             && let Some(suggestion) = suggestion(module, lint, call.callee, method, &constructions)?
         {
             diagnostic = diagnostic.suggestion(suggestion);
@@ -170,6 +171,7 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Replace a failed Result chain.
     #[test]
     fn test_replaces_or_else() {
@@ -264,5 +266,31 @@ function parse(result: Result<string, string>): Result<int32, string> {
         );
 
         session.assert_no_diagnostics();
+    }
+
+    /// Report without changing an explicit callback return type.
+    #[test]
+    fn test_preserves_callback_return_type() {
+        let session = TestSession::dir(
+            &PREFER_MAP_OVER_AND_THEN,
+            r#"
+function forward(result: Result<int32, string>): Result<int32, string> {
+    return result.andThen((value): Result<int32, string> => Result.ok(value));
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[prefer-map-over-and-then]: Result chain only rebuilds the selected variant
+ ──▶ main.ds:2:12
+  │
+1 │ function forward(result: Result<int32, string>): Result<int32, string> {
+2 │     return result.andThen((value): Result<int32, string> => Result.ok(value));
+  │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3 │ }
+  │
+"#,
+        );
     }
 }

@@ -81,7 +81,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                     continue;
                 };
 
-                let mut selected = LetElse::from_match(
+                let mut selected = LetElse::select_match(
                     module,
                     *first,
                     *second,
@@ -96,7 +96,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                         .match_coverage(initializer)
                         .is_some_and(|coverage| coverage.is_disjoint)
                 {
-                    selected = LetElse::from_match(
+                    selected = LetElse::select_match(
                         module,
                         *second,
                         *first,
@@ -109,7 +109,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 selected
             }
             dir::Expression::If { .. } => {
-                LetElse::from_conditional(module, initializer, *declared_name)?
+                LetElse::select_conditional(module, initializer, *declared_name)?
             }
             _ => None,
         };
@@ -144,7 +144,7 @@ struct LetElse {
 
 impl LetElse {
     /// Return a let-else rewrite from one match binding and exiting fallback.
-    fn from_match(
+    fn select_match(
         module: &DirModule<'_>,
         value_arm: dir::LocalNodeId<dir::MatchArm>,
         exit_arm: dir::LocalNodeId<dir::MatchArm>,
@@ -199,7 +199,7 @@ impl LetElse {
     }
 
     /// Return a let-else rewrite from one if-let binding and exiting fallback.
-    fn from_conditional(
+    fn select_conditional(
         module: &DirModule<'_>,
         expression: dir::LocalNodeId<dir::Expression>,
         declared_name: dir::StringId,

@@ -4,6 +4,24 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
+    /// Return an unused binding name derived from one preferred name.
+    pub(crate) fn fresh_binding_name(&self, preferred: &str) -> String {
+        let mut candidate = preferred.to_string();
+        let mut suffix = 2;
+
+        // advance until no checked binding uses the candidate
+        while self.bindings.symbols().any(|symbol| {
+            symbol
+                .name()
+                .is_some_and(|name| self.dir.strings.get(name) == candidate)
+        }) {
+            candidate = format!("{preferred}{suffix}");
+            suffix += 1;
+        }
+
+        candidate
+    }
+
     /// Return whether declarations in nested subtrees shadow bindings in enclosing subtrees.
     pub(crate) fn shadows_bindings(
         &self,

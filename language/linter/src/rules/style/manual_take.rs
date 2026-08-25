@@ -84,6 +84,18 @@ fn taken_place(
     let Some(place) = declarator.value else {
         return Ok(None);
     };
+
+    // require a plain assignment back into the same checked place
+    let Some(assignment) = module.place_assignment(assignment) else {
+        return Ok(None);
+    };
+    if assignment.operator != dir::AssignOperator::Assign
+        || !module.is_same_computation(place, assignment.target)?
+    {
+        return Ok(None);
+    }
+
+    // require the temporary to receive the unadjusted place value
     let place_type = module.node_type_id(place.into_any())?;
     let place_type = module.dir.strip_form(place_type)?;
     let temporary_type = module.node_type_id(declarator.pattern.into_any())?;
@@ -93,16 +105,6 @@ fn taken_place(
             .coercions
             .coercion(place.into_global_any(module.id))
             .is_some()
-    {
-        return Ok(None);
-    }
-
-    // require a plain assignment back into the same checked place
-    let Some(assignment) = module.place_assignment(assignment) else {
-        return Ok(None);
-    };
-    if assignment.operator != dir::AssignOperator::Assign
-        || !module.is_same_computation(place, assignment.target)?
     {
         return Ok(None);
     }

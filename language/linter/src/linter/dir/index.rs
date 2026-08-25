@@ -538,6 +538,23 @@ impl<'a> Dir<'a> {
         self.type_includes(type_id, dir::Type::is_undefined)
     }
 
+    /// Return the sole nullish literal included by one checked type.
+    pub(crate) fn sole_nullish(
+        &self,
+        type_id: dir::GlobalTypeId,
+    ) -> Result<Option<dir::Literal>, ProviderError> {
+        let includes_null = self.type_includes(type_id, |ty| *ty == dir::Type::Null)?;
+        let includes_undefined = self.type_includes_undefined(type_id)?;
+
+        let literal = match (includes_null, includes_undefined) {
+            (true, false) => Some(dir::Literal::Null),
+            (false, true) => Some(dir::Literal::Undefined),
+            _ => None,
+        };
+
+        Ok(literal)
+    }
+
     /// Return one checked type's union elements, or the type itself.
     pub fn union_elements(
         &self,

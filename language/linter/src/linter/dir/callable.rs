@@ -424,6 +424,71 @@ impl DirModule<'_> {
         Some(function)
     }
 
+    /// Return the removable expression that returns a lambda's first parameter after readonly work.
+    pub(crate) fn removable_parameter_return(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<dir::LocalNodeId<dir::Expression>>, ProviderError> {
+        // select one synchronous block lambda with an inferred first parameter
+        let Some(lambda) = self.lambda(expression) else {
+            return Ok(None);
+        };
+        if lambda.signature.asynchrony != dir::Asynchrony::Sync || lambda.signature.is_generator {
+            return Ok(None);
+        }
+        let Some(parameter) = lambda.signature.parameters.first() else {
+            return Ok(None);
+        };
+        if !matches!(
+            self.view().get(*parameter),
+            dir::Parameter::Named {
+                declared_type: None,
+                default: None,
+                is_optional: false,
+                ..
+            }
+        ) {
+            return Ok(None);
+        }
+        let Some(body) = lambda.body else {
+            return Ok(None);
+        };
+        let dir::Expression::Block(block) = self.view().get(body) else {
+            return Ok(None);
+        };
+
+        // select a final return preceded by work
+        let block = self.view().get(*block);
+        let (returned, removed) = if let Some(returned) = block.tail_expression {
+            if block.leading_expressions.is_empty() {
+                return Ok(None);
+            }
+
+            (returned, returned)
+        } else if let [preceding @ .., returned] = block.leading_expressions.as_slice()
+            && !preceding.is_empty()
+            && let dir::Expression::Return { value: Some(value) } = self.view().get(*returned)
+        {
+            (*value, *returned)
+        } else {
+            return Ok(None);
+        };
+
+        // require the work to observe its parameter through readonly access
+        let parameter = self.declaration_symbol(*parameter)?;
+        if self.selected_symbol(returned)? != Some(parameter)
+            || !self.binding_accepts_readonly_borrow(
+                parameter,
+                body.into_any(),
+                Some(removed.into_any()),
+            )?
+        {
+            return Ok(None);
+        }
+
+        Ok(Some(removed))
+    }
+
     /// Return whether one callback is exactly `firstParameter !== undefined`.
     pub(crate) fn is_defined_predicate(
         &self,

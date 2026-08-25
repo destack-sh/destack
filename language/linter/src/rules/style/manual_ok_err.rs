@@ -74,6 +74,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         if module.dir.borrow_access(value_type)?.is_some() {
             continue;
         }
+        let member = dir::LanguageItem::Result.member(method);
+        if module.is_within_language_member(expression.into_any(), member)? {
+            continue;
+        }
 
         // replace the complete match with its canonical projection
         let extent = module.source_extent(expression.into_any())?;
@@ -207,6 +211,7 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Replace error projection with reversed arm ordering.
     #[test]
     fn test_replaces_err_projection() {

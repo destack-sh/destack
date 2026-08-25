@@ -1,5 +1,6 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
+use destack_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -27,7 +28,7 @@ function popExpected(values: int32[], expected: int32): int32 | undefined {
         },
         category: Style,
         level: Warning,
-        fixable: None,
+        fixable: Suggestion,
         check: DirModule(check),
     }
 }
@@ -56,31 +57,43 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(fallback) = module.sole_value_expression(*else_expression) else {
             continue;
         };
-        if module.view().get(fallback).as_scalar() != Some(dir::Literal::Undefined)
-            || !is_pop_if(module, condition, popped)?
-        {
+        if module.view().get(fallback).as_scalar() != Some(dir::Literal::Undefined) {
             continue;
         }
+        let Some((receiver, predicate)) = pop_if(module, condition, popped)? else {
+            continue;
+        };
 
+        // replace the complete conditional when every comment survives
         let span = module.source_extent(expression.into_any())?;
-        let diagnostic = lint.diagnostic("array pop repeats a preceding last-element test", span);
+        let mut diagnostic =
+            lint.diagnostic("array pop repeats a preceding last-element test", span);
+        if let Some(suggestion) = suggestion(module, lint, span, receiver, predicate)? {
+            diagnostic = diagnostic.suggestion(suggestion);
+        }
         output.report(diagnostic);
     }
 
     Ok(output)
 }
 
-/// Return whether a positive equality test guards a pop from the tested array.
-fn is_pop_if(
+/// Select the receiver and predicate of a manual popIf operation.
+fn pop_if(
     module: &DirModule<'_>,
     condition: dir::LocalNodeId<dir::Expression>,
     popped: dir::LocalNodeId<dir::Expression>,
-) -> Result<bool, ProviderError> {
+) -> Result<
+    Option<(
+        dir::LocalNodeId<dir::Expression>,
+        dir::LocalNodeId<dir::Expression>,
+    )>,
+    ProviderError,
+> {
     let Some((operator, [left, right])) = module.builtin_binary(condition)? else {
-        return Ok(false);
+        return Ok(None);
     };
     if !operator.is_equality() || operator.is_negative_equality() {
-        return Ok(false);
+        return Ok(None);
     }
 
     // select the canonical last call from either operand
@@ -91,18 +104,18 @@ fn is_pop_if(
     } else if is_array_last(module, right)? {
         (right, left)
     } else {
-        return Ok(false);
+        return Ok(None);
     };
     if !module.is_speculatable_expression(predicate_value)? {
-        return Ok(false);
+        return Ok(None);
     }
     let Some(last) = module.member_call(last) else {
-        return Ok(false);
+        return Ok(None);
     };
 
     // require a canonical pop on the same stable array
     let Some(pop) = module.member_call(popped) else {
-        return Ok(false);
+        return Ok(None);
     };
     if pop.is_optional()
         || !pop.generic_arguments.is_empty()
@@ -111,10 +124,10 @@ fn is_pop_if(
         || !module.is_duplicable_expression(last.receiver)?
         || !module.is_same_computation(last.receiver, pop.receiver)?
     {
-        return Ok(false);
+        return Ok(None);
     }
 
-    Ok(true)
+    Ok(Some((pop.receiver, predicate_value)))
 }
 
 /// Return whether one expression is a canonical zero-argument Array.last call.
@@ -133,14 +146,40 @@ fn is_array_last(
     Ok(is_last)
 }
 
+/// Build one popIf replacement.
+fn suggestion(
+    module: &DirModule<'_>,
+    lint: &Lint,
+    extent: destack_source::Span,
+    receiver: dir::LocalNodeId<dir::Expression>,
+    predicate: dir::LocalNodeId<dir::Expression>,
+) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
+    // retain the receiver and compared value exactly as authored
+    let receiver_extent = module.source_extent(receiver.into_any())?;
+    let predicate_extent = module.source_extent(predicate.into_any())?;
+    if module.has_unretained_comment(extent, &[receiver_extent, predicate_extent])? {
+        return Ok(None);
+    }
+
+    // build the canonical operation with a collision free parameter
+    let name = module.fresh_binding_name("value");
+    let receiver = module.expression_source(receiver, dir::OperatorPrecedence::Postfix)?;
+    let predicate = module.expression_source(predicate, dir::OperatorPrecedence::Equality)?;
+    let replacement = format!("{receiver}.popIf(({name}) => {name} === {predicate})");
+    let patch = Patch::replace(extent, replacement);
+    let suggestion = lint.suggestion("use popIf", patch)?;
+
+    Ok(Some(suggestion))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Report a conditional pop guarded by the last element.
+    /// Replace a conditional pop guarded by the last element.
     #[test]
-    fn test_reports_conditional_pop() {
+    fn test_replaces_conditional_pop() {
         let session = TestSession::dir(
             &MANUAL_POP_IF,
             r#"
@@ -150,16 +189,53 @@ function popExpected(values: int32[], expected: int32): int32 | undefined {
 "#,
         );
 
-        session.assert_diagnostics(
+        session.assert_suggestions(
             r#"
-warning[manual-pop-if]: array pop repeats a preceding last-element test
- ──▶ main.ds:2:12
-  │
-1 │ function popExpected(values: int32[], expected: int32): int32 | undefined {
-2 │     return values.last() === expected ? values.pop() : undefined;
-  │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-3 │ }
-  │
+function popExpected(values: int32[], expected: int32): int32 | undefined {
+    return values.popIf((value) => value === expected);
+}
+"#,
+        );
+    }
+
+    /// Replace reversed equality with the same canonical predicate.
+    #[test]
+    fn test_replaces_reversed_equality() {
+        let session = TestSession::dir(
+            &MANUAL_POP_IF,
+            r#"
+function popExpected(values: int32[], expected: int32): int32 | undefined {
+    return expected === values.last() ? values.pop() : undefined;
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+function popExpected(values: int32[], expected: int32): int32 | undefined {
+    return values.popIf((value) => value === expected);
+}
+"#,
+        );
+    }
+
+    /// Avoid shadowing a binding used by the predicate.
+    #[test]
+    fn test_avoids_binding_collision() {
+        let session = TestSession::dir(
+            &MANUAL_POP_IF,
+            r#"
+function popExpected(values: int32[], value: int32): int32 | undefined {
+    return values.last() === value ? values.pop() : undefined;
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+function popExpected(values: int32[], value: int32): int32 | undefined {
+    return values.popIf((value2) => value2 === value);
+}
 "#,
         );
     }
