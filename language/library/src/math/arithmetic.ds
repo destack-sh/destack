@@ -217,6 +217,11 @@ export extension Arithmetic<T: Integer> of T {
         todo("Integer.saturatingMultiply")
     }
 
+    /// Return `this / other`, clamping signed division overflow at the maximum.
+    saturatingDivide(other: T): T {
+        todo("Integer.saturatingDivide")
+    }
+
     /// Return `-this`, clamping at the bounds.
     saturatingNegate(): T {
         todo("Integer.saturatingNegate")

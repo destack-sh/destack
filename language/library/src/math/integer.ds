@@ -47,6 +47,24 @@ export extension<T: Integer> of T {
         divideCeil(this, other)
     }
 
+    /// Return the Euclidean quotient.
+    ///
+    /// Traps on division by zero or signed division overflow.
+    divideEuclidean(other: T): T {
+        let quotient = this / other;
+        let remainder = this % other;
+
+        if (remainder < 0) {
+            if (other > 0) {
+                quotient - 1
+            } else {
+                quotient + 1
+            }
+        } else {
+            quotient
+        }
+    }
+
     /// Return the least nonnegative remainder.
     ///
     /// Traps on division by zero or signed division overflow.
