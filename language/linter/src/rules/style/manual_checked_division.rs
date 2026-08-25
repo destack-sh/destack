@@ -5,13 +5,14 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Prefer checked division over manual zero guards.
-    pub MANUAL_CHECKED_OPERATION {
-        id: "manual-checked-operation",
+    /// Prefer checked division and remainder operations over manual zero guards.
+    pub MANUAL_CHECKED_DIVISION {
+        id: "manual-checked-division",
         summary: "Prefer checked division over manual zero guards",
         explanation: r#"
-Guarding unsigned division with a zero comparison manually implements checked division.
-Instead, you SHOULD use `checkedDivide` and handle its `undefined` result.
+Guarding an unsigned division or remainder operation with a zero comparison
+manually implements checked division.
+Instead, you SHOULD use the corresponding checked method and handle its `undefined` result.
 "#,
         example: {
             reported: r#"
@@ -74,21 +75,21 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(branch) = branch else {
             continue;
         };
-        let divisions = guarded_divisions(module, branch, divisor)?;
-        if divisions.is_empty() {
+        let operations = guarded_operations(module, branch, divisor)?;
+        if operations.is_empty() {
             continue;
         }
 
-        // report the guard and every division it protects
+        // report the guard and every division operation it protects
         let span = module.source_extent(condition.into_any())?;
         let mut diagnostic = lint
             .diagnostic("manual zero guard precedes checked division", span)
             .primary("zero check");
-        for division in divisions {
-            let span = module.source_extent(division.into_any())?;
-            diagnostic = diagnostic.label(span, "division performed here");
+        for operation in operations {
+            let span = module.source_extent(operation.into_any())?;
+            diagnostic = diagnostic.label(span, "division operation here");
         }
-        output.report(diagnostic.help("use checkedDivide and handle its undefined result"));
+        output.report(diagnostic.help("use the corresponding checked division method"));
     }
 
     Ok(output)
@@ -115,7 +116,10 @@ fn guarded_divisor(
         return Ok(None);
     };
     let divisor = comparison.value;
-    if unsigned_integer(module, divisor)?.is_none() || !module.is_duplicable_expression(divisor)? {
+    let primitive = module.primitive_type(divisor.into_any())?;
+    if !primitive.is_some_and(dir::PrimitiveType::is_unsigned_integer)
+        || !module.is_duplicable_expression(divisor)?
+    {
         return Ok(None);
     }
 
@@ -123,7 +127,7 @@ fn guarded_divisor(
 }
 
 /// Return guarded divisions when the first branch use of the divisor is a division.
-fn guarded_divisions(
+fn guarded_operations(
     module: &DirModule<'_>,
     branch: dir::LocalNodeId<dir::Expression>,
     divisor: dir::LocalNodeId<dir::Expression>,
@@ -141,81 +145,99 @@ fn guarded_divisions(
             continue;
         }
         let span = module.source_extent(expression.into_any())?;
-        let division = containing_division(module, expression, divisor)?;
-        uses.push((span.start, division));
+        let operation = containing_division(module, expression, divisor)?;
+        uses.push((span.start, operation));
     }
     uses.sort_by_key(|(start, _)| *start);
 
     // require division to be the first use after the guard
-    if uses.first().is_none_or(|(_, division)| division.is_none()) {
+    if uses
+        .first()
+        .is_none_or(|(_, operation)| operation.is_none())
+    {
         return Ok(Vec::new());
     }
-    let mut divisions = Vec::new();
-    for (_, division) in uses {
-        if let Some(division) = division
-            && !divisions.contains(&division)
+    let mut operations = Vec::new();
+    for (_, operation) in uses {
+        if let Some(operation) = operation
+            && !operations.contains(&operation)
         {
-            divisions.push(division);
+            operations.push(operation);
         }
     }
 
-    Ok(divisions)
+    Ok(operations)
 }
 
-/// Return the direct unsigned division that consumes one divisor occurrence.
+/// Return the direct unsigned division or remainder that consumes one divisor occurrence.
 fn containing_division(
     module: &DirModule<'_>,
     occurrence: dir::LocalNodeId<dir::Expression>,
     divisor: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<dir::LocalNodeId<dir::Expression>>, ProviderError> {
     let view = module.view();
-    let Some(parent) = view.get_parent_for(occurrence) else {
-        return Ok(None);
-    };
-    let Ok(parent) = parent.try_into_typed::<dir::Expression>() else {
-        return Ok(None);
-    };
-    let Some(divisor_type) = unsigned_integer(module, divisor)? else {
+    let Some(divisor_type) = module.primitive_type(divisor.into_any())? else {
         return Ok(None);
     };
 
-    // recognize ordinary builtin division by the guarded value
-    if let Some((dir::BinaryOperator::Divide, [left, right])) = module.builtin_binary(parent)?
-        && right.source.local_id == occurrence
-        && unsigned_integer(module, left.source.local_id)? == Some(divisor_type)
+    // recognize builtin division and remainder by the guarded value
+    if let Some(parent) = view
+        .get_parent_for(occurrence)
+        .and_then(|parent| parent.try_into_typed::<dir::Expression>().ok())
     {
-        return Ok(Some(parent));
+        if let Some((operator, [left, right])) = module.builtin_binary(parent)?
+            && matches!(
+                operator,
+                dir::BinaryOperator::Divide | dir::BinaryOperator::Remainder
+            )
+            && right.source.local_id == occurrence
+            && module.primitive_type(left.source.local_id.into_any())? == Some(divisor_type)
+        {
+            return Ok(Some(parent));
+        }
+
+        // recognize compound division and remainder by the guarded value
+        if let Some(assignment) = module.place_assignment(parent)
+            && let Ok(operator) = dir::BinaryOperator::try_from(assignment.operator)
+            && matches!(
+                operator,
+                dir::BinaryOperator::Divide | dir::BinaryOperator::Remainder
+            )
+            && assignment.value == occurrence
+            && module.primitive_type(assignment.target.into_any())? == Some(divisor_type)
+        {
+            return Ok(Some(parent));
+        }
     }
 
-    // recognize builtin compound division by the guarded value
-    let Some(assignment) = module.place_assignment(parent) else {
+    // recognize canonical Euclidean division and remainder calls
+    let Some(call_expression) = module.argument_call(occurrence) else {
         return Ok(None);
     };
-    let Ok(operator) = dir::BinaryOperator::try_from(assignment.operator) else {
+    let Some(call) = module.member_call(call_expression) else {
         return Ok(None);
     };
-    if operator == dir::BinaryOperator::Divide
-        && assignment.value == occurrence
-        && unsigned_integer(module, assignment.target)? == Some(divisor_type)
+    let [argument] = call.arguments else {
+        return Ok(None);
+    };
+    if call.is_optional()
+        || !call.generic_arguments.is_empty()
+        || view.get(*argument).value() != Some(occurrence)
+        || module.primitive_type(call.receiver.into_any())? != Some(divisor_type)
     {
-        return Ok(Some(parent));
+        return Ok(None);
+    }
+    let member = module.language_member(call_expression)?;
+    if matches!(
+        member,
+        Some(member)
+            if member == dir::LanguageItem::Integer.member("divideEuclidean")
+                || member == dir::LanguageItem::Integer.member("remainderEuclidean")
+    ) {
+        return Ok(Some(call_expression));
     }
 
     Ok(None)
-}
-
-/// Return one expression's exact unsigned builtin integer type.
-fn unsigned_integer(
-    module: &DirModule<'_>,
-    expression: dir::LocalNodeId<dir::Expression>,
-) -> Result<Option<dir::PrimitiveType>, ProviderError> {
-    let primitive = module.primitive_type(expression.into_any())?;
-    let is_unsigned = matches!(
-        primitive,
-        Some(dir::PrimitiveType::Integer(integer)) if !integer.is_signed()
-    );
-
-    Ok(is_unsigned.then_some(primitive).flatten())
 }
 
 #[cfg(test)]
@@ -227,24 +249,24 @@ mod tests {
     #[test]
     fn test_reports_nonzero_guard() {
         let session = TestSession::dir(
-            &MANUAL_CHECKED_OPERATION,
-            MANUAL_CHECKED_OPERATION.example.reported.source(),
+            &MANUAL_CHECKED_DIVISION,
+            MANUAL_CHECKED_DIVISION.example.reported.source(),
         );
 
         session.assert_diagnostics(
-            r#"warning[manual-checked-operation]: manual zero guard precedes checked division
+            r#"warning[manual-checked-division]: manual zero guard precedes checked division
  ──▶ main.ds:2:9
   │
 1 │ function divide(value: uint32, divisor: uint32): uint32 | undefined {
 2 │     if (divisor != 0) {
   │         ^^^^^^^^^^^^ zero check
 3 │         return value / divisor;
-  │                --------------- division performed here
+  │                --------------- division operation here
 4 │     }
 5 │
   │
 
- = help: use checkedDivide and handle its undefined result
+ = help: use the corresponding checked division method
 "#,
         );
     }
@@ -253,7 +275,7 @@ mod tests {
     #[test]
     fn test_reports_zero_branch() {
         let session = TestSession::dir(
-            &MANUAL_CHECKED_OPERATION,
+            &MANUAL_CHECKED_DIVISION,
             r#"
 function divide(value: uint32, divisor: uint32): uint32 {
     if (divisor == 0) {
@@ -266,7 +288,7 @@ function divide(value: uint32, divisor: uint32): uint32 {
         );
 
         session.assert_diagnostics(
-            r#"warning[manual-checked-operation]: manual zero guard precedes checked division
+            r#"warning[manual-checked-division]: manual zero guard precedes checked division
  ──▶ main.ds:2:9
   │
 1 │ function divide(value: uint32, divisor: uint32): uint32 {
@@ -275,12 +297,12 @@ function divide(value: uint32, divisor: uint32): uint32 {
 3 │         return value;
 4 │     } else {
 5 │         return value / divisor;
-  │                --------------- division performed here
+  │                --------------- division operation here
 6 │     }
 7 │ }
   │
 
- = help: use checkedDivide and handle its undefined result
+ = help: use the corresponding checked division method
 "#,
         );
     }
@@ -289,7 +311,7 @@ function divide(value: uint32, divisor: uint32): uint32 {
     #[test]
     fn test_reports_multiple_divisions() {
         let session = TestSession::dir(
-            &MANUAL_CHECKED_OPERATION,
+            &MANUAL_CHECKED_DIVISION,
             r#"
 declare function consume(value: uint32): void;
 
@@ -303,7 +325,7 @@ function divide(first: uint32, second: uint32, divisor: uint32): void {
         );
 
         session.assert_diagnostics(
-            r#"warning[manual-checked-operation]: manual zero guard precedes checked division
+            r#"warning[manual-checked-division]: manual zero guard precedes checked division
  ──▶ main.ds:4:9
   │
 2 │
@@ -311,14 +333,14 @@ function divide(first: uint32, second: uint32, divisor: uint32): void {
 4 │     if (divisor > 0) {
   │         ^^^^^^^^^^^ zero check
 5 │         consume(first / divisor);
-  │                 --------------- division performed here
+  │                 --------------- division operation here
 6 │         consume(second / divisor);
-  │                 ---------------- division performed here
+  │                 ---------------- division operation here
 7 │     }
 8 │ }
   │
 
- = help: use checkedDivide and handle its undefined result
+ = help: use the corresponding checked division method
 "#,
         );
     }
@@ -327,7 +349,7 @@ function divide(first: uint32, second: uint32, divisor: uint32): void {
     #[test]
     fn test_reports_compound_division() {
         let session = TestSession::dir(
-            &MANUAL_CHECKED_OPERATION,
+            &MANUAL_CHECKED_DIVISION,
             r#"
 function divide(value: uint32, divisor: uint32): uint32 {
     let result = value;
@@ -340,7 +362,7 @@ function divide(value: uint32, divisor: uint32): uint32 {
         );
 
         session.assert_diagnostics(
-            r#"warning[manual-checked-operation]: manual zero guard precedes checked division
+            r#"warning[manual-checked-division]: manual zero guard precedes checked division
  ──▶ main.ds:3:9
   │
 1 │ function divide(value: uint32, divisor: uint32): uint32 {
@@ -348,12 +370,84 @@ function divide(value: uint32, divisor: uint32): uint32 {
 3 │     if (0 < divisor) {
   │         ^^^^^^^^^^^ zero check
 4 │         result /= divisor;
-  │         ----------------- division performed here
+  │         ----------------- division operation here
 5 │     }
 6 │     return result;
   │
 
- = help: use checkedDivide and handle its undefined result
+ = help: use the corresponding checked division method
+"#,
+        );
+    }
+
+    /// Report remainder protected by one nonzero comparison.
+    #[test]
+    fn test_reports_remainder() {
+        let session = TestSession::dir(
+            &MANUAL_CHECKED_DIVISION,
+            r#"
+function remainder(value: uint32, divisor: uint32): uint32 | undefined {
+    if (divisor !== 0) {
+        return value % divisor;
+    }
+
+    return undefined;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"warning[manual-checked-division]: manual zero guard precedes checked division
+ ──▶ main.ds:2:9
+  │
+1 │ function remainder(value: uint32, divisor: uint32): uint32 | undefined {
+2 │     if (divisor !== 0) {
+  │         ^^^^^^^^^^^^^ zero check
+3 │         return value % divisor;
+  │                --------------- division operation here
+4 │     }
+5 │
+  │
+
+ = help: use the corresponding checked division method
+"#,
+        );
+    }
+
+    /// Report canonical Euclidean operations protected by one nonzero comparison.
+    #[test]
+    fn test_reports_euclidean_operations() {
+        let session = TestSession::dir(
+            &MANUAL_CHECKED_DIVISION,
+            r#"
+declare function consume(value: uint32): void;
+
+function divide(value: uint32, divisor: uint32): void {
+    if (divisor > 0) {
+        consume(value.divideEuclidean(divisor));
+        consume(value.remainderEuclidean(divisor));
+    }
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"warning[manual-checked-division]: manual zero guard precedes checked division
+ ──▶ main.ds:4:9
+  │
+2 │
+3 │ function divide(value: uint32, divisor: uint32): void {
+4 │     if (divisor > 0) {
+  │         ^^^^^^^^^^^ zero check
+5 │         consume(value.divideEuclidean(divisor));
+  │                 ------------------------------ division operation here
+6 │         consume(value.remainderEuclidean(divisor));
+  │                 --------------------------------- division operation here
+7 │     }
+8 │ }
+  │
+
+ = help: use the corresponding checked division method
 "#,
         );
     }
@@ -362,7 +456,7 @@ function divide(value: uint32, divisor: uint32): uint32 {
     #[test]
     fn test_accepts_signed_division() {
         let session = TestSession::dir(
-            &MANUAL_CHECKED_OPERATION,
+            &MANUAL_CHECKED_DIVISION,
             r#"
 function divide(value: int32, divisor: int32): int32 | undefined {
     if (divisor != 0) {
@@ -380,7 +474,7 @@ function divide(value: int32, divisor: int32): int32 | undefined {
     #[test]
     fn test_accepts_earlier_divisor_use() {
         let session = TestSession::dir(
-            &MANUAL_CHECKED_OPERATION,
+            &MANUAL_CHECKED_DIVISION,
             r#"
 declare function consume(value: uint32): void;
 
@@ -400,7 +494,7 @@ function divide(value: uint32, divisor: uint32): void {
     #[test]
     fn test_accepts_other_divisor() {
         let session = TestSession::dir(
-            &MANUAL_CHECKED_OPERATION,
+            &MANUAL_CHECKED_DIVISION,
             r#"
 function divide(value: uint32, checked: uint32, divisor: uint32): uint32 | undefined {
     if (checked != 0) {

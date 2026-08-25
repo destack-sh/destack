@@ -94,7 +94,7 @@ static LINTS: &[&Lint] = &[
     &style::MANUAL_ASCII_CHECK,
     &style::MANUAL_ASSERT,
     &style::MANUAL_ASSERT_EQUAL,
-    &style::MANUAL_CHECKED_OPERATION,
+    &style::MANUAL_CHECKED_DIVISION,
     &style::MANUAL_CLAMP,
     &style::MANUAL_DIV_CEIL,
     &style::MANUAL_EUCLIDEAN_REMAINDER,
