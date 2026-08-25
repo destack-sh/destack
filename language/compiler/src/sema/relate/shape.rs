@@ -1139,7 +1139,7 @@ impl CheckState<'_> {
         parameters: &[GenericParameterId],
         substitution: &mut TypeSubstitution,
     ) -> CompilerResult<()> {
-        // extents erase, so the frame extent stands for any; spaces elect local
+        // extents erase at the frame, spaces elect local, accesses elect mutable
         for parameter in parameters.iter().copied() {
             if substitution.argument(parameter).is_some() {
                 continue;
@@ -1151,8 +1151,13 @@ impl CheckState<'_> {
                 Some(dir::MemoryParameter::Region) => {
                     Some(self.lifetime_literal(dir::Lifetime::Frame)?)
                 }
-                Some(dir::MemoryParameter::Place) => Some(self.place_literal(dir::Space::Local)?),
-                _ => None,
+                Some(dir::MemoryParameter::Place | dir::MemoryParameter::Space) => {
+                    Some(self.place_literal(dir::Space::Local)?)
+                }
+                Some(dir::MemoryParameter::Access) => {
+                    Some(self.access_literal(dir::Access::Mutable)?)
+                }
+                Some(dir::MemoryParameter::Ownership) | None => None,
             };
             if let Some(fill) = fill {
                 substitution.bind(parameter, fill)?;
