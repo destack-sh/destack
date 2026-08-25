@@ -33,7 +33,7 @@ use crate::DaemonError;
 #[derive(Clone)]
 pub(crate) struct WorldRegistry {
     /// Content-addressed bytes shared by daemon services.
-    blobs: Arc<dyn BlobStore>,
+    blobs: Arc<BlobStore>,
     /// Runtime bindings available to every hosted World.
     bindings: Arc<BindingTable>,
     /// World registrations and identifier allocation.
@@ -61,7 +61,7 @@ impl fmt::Debug for WorldRegistry {
 
 impl WorldRegistry {
     /// Create one empty World registry.
-    pub(crate) fn new(blobs: Arc<dyn BlobStore>) -> Self {
+    pub(crate) fn new(blobs: Arc<BlobStore>) -> Self {
         let bindings = BindingTable::new().with_fiber_bindings();
         let state = WorldRegistryState {
             next_world_id: 1,
@@ -229,7 +229,7 @@ impl WorldRegistry {
             let mut bytes = Cursor::new(program.bytes());
             let published = self
                 .blobs
-                .put(&mut bytes)
+                .retain(&mut bytes)
                 .map_err(DaemonError::from)
                 .map_err(Status::from)?;
             if published != expected {
@@ -712,7 +712,7 @@ impl WorldService for WorldRegistry {
         let mut input = Cursor::new(bytes);
         let blob = self
             .blobs
-            .put(&mut input)
+            .retain(&mut input)
             .map_err(DaemonError::from)
             .map_err(Status::from)?;
 

@@ -6,9 +6,7 @@ use std::sync::Arc;
 use destack_artifact::ArtifactPayload;
 use destack_core::Blob;
 use destack_repository as repository;
-use destack_repository::{
-    BlobStore, Commit, DestackLayoutOverride, Host, Repository, Revision, Settings,
-};
+use destack_repository::{Commit, DestackLayoutOverride, Host, Repository, Revision, Settings};
 use destack_rpc::{Code, Request, Response, ResponseSender, Status};
 use destack_session::Executor;
 use destack_workspace as workspace;
@@ -49,13 +47,10 @@ impl fmt::Debug for WorkspaceRegistry {
 
 impl WorkspaceRegistry {
     /// Create one registry containing an initial workspace.
-    pub(crate) fn new(
-        workspace: Workspace,
-        blob_store: Arc<dyn BlobStore>,
-    ) -> Result<Self, DaemonError> {
+    pub(crate) fn new(workspace: Workspace) -> Result<Self, DaemonError> {
         let executor = workspace.session().executor();
         let repository = workspace.session().repository();
-        let host = repository.host().clone().with_blob_store(blob_store);
+        let host = repository.host().clone();
         let settings = repository.settings().clone();
         let layout = DestackLayoutOverride {
             home: Some(repository.layout().home.clone()),

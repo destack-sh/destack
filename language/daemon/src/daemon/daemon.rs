@@ -22,7 +22,7 @@ pub struct Daemon {
     /// Discovery and transport addresses.
     endpoint: DaemonEndpoint,
     /// Immutable bytes shared by daemon services.
-    blobs: Arc<dyn BlobStore>,
+    blobs: Arc<BlobStore>,
     /// Root-bound workspaces exposed by this daemon.
     workspaces: WorkspaceRegistry,
     /// Runtime Worlds exposed by this daemon.
@@ -49,7 +49,7 @@ impl Daemon {
         let blobs = workspace.session().repository().blob_store().clone();
 
         // host shared workspace state and physical changes
-        let workspaces = WorkspaceRegistry::new(workspace, blobs.clone())?;
+        let workspaces = WorkspaceRegistry::new(workspace)?;
 
         // host runtime Worlds over the same immutable Blob storage
         let worlds = WorldRegistry::new(blobs.clone());

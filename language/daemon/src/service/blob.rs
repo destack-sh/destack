@@ -85,14 +85,14 @@ impl ReadBlobRequest {
     }
 }
 
-impl BlobService for dyn BlobStore {
+impl BlobService for BlobStore {
     /// Store one streamed Blob.
     async fn put(
         &self,
         _request: Request<()>,
         mut requests: RequestStream<Vec<u8>>,
     ) -> Result<Response<Blob>, Status> {
-        let mut writer = self.writer().map_err(DaemonError::from)?;
+        let mut writer = self.writer();
 
         // write each bounded input chunk directly into unpublished storage
         while let Some(bytes) = requests
