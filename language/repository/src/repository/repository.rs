@@ -1,21 +1,19 @@
-use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_artifact::{ArtifactTable, BuildId};
-use destack_core::{Blob, BlobMemory, StringPool, Treap, TreapRoot};
+use destack_artifact::{ArtifactCache, ArtifactTable, BuildId};
+use destack_core::{Blob, BlobMemory, BlobStore, StringPool, Treap, TreapRoot};
 use destack_source as source;
 use destack_source::{FileId, FileSystem, MemoryFileSystem};
 use rustc_hash::FxBuildHasher;
 
 use crate::repository::{
-    EmbeddedBuiltinPackage, FileCache, FileEntry, RepositoryError, Revision, RevisionEntry,
-    RevisionState,
+    FileCache, FileEntry, RepositoryError, Revision, RevisionEntry, RevisionState,
 };
 use crate::{
-    ArtifactSelection, BlobStore, DestackLayout, DestackLayoutOverride, Environment, Host, Root,
-    RootKind, Settings, SourceRoot,
+    ArtifactSelection, DestackLayout, DestackLayoutOverride, Environment, Host, Root, RootKind,
+    Settings, SourceRoot,
 };
 
 /// Revisioned source repository backed by shared host state.
@@ -33,8 +31,6 @@ pub struct Repository {
     pub(crate) layout: DestackLayout,
     /// Machine-local settings used to open this repository.
     pub(crate) settings: Settings,
-    /// Embedded Builtin Package shipped with the current build.
-    pub(crate) embedded_builtin: EmbeddedBuiltinPackage,
     /// Persistent file entry tree.
     pub(crate) file_tree: Treap<FileId, FileEntry>,
     /// Loaded source state caches.
@@ -130,7 +126,6 @@ impl Repository {
             host,
             layout,
             settings,
-            embedded_builtin: EmbeddedBuiltinPackage::new(),
             file_tree: Treap::new(),
             file_cache: FileCache::default(),
             mounts: DashMap::default(),
@@ -147,6 +142,11 @@ impl Repository {
     /// Return the repository artifact table.
     pub fn artifact_table(&self) -> &Arc<ArtifactTable> {
         self.host.artifact_table()
+    }
+
+    /// Return persistent artifact storage when configured.
+    pub fn artifact_cache(&self) -> Option<&ArtifactCache> {
+        self.host.artifact_cache()
     }
 
     /// Return the repository string pool.
@@ -211,7 +211,7 @@ impl Repository {
 
     /// Resolve the repository cache directory.
     pub fn cache_directory(&self) -> PathBuf {
-        self.layout.workspace_cache.clone()
+        self.layout.cache.clone()
     }
 
     /// Return one immutable revision state.
@@ -227,21 +227,24 @@ impl Repository {
 
     /// Retain exact immutable bytes on this repository's host.
     pub fn retain_blob(&self, bytes: &[u8]) -> Result<Blob, RepositoryError> {
-        let mut input = Cursor::new(bytes);
         self.blob_store()
-            .retain(&mut input)
+            .retain_bytes(bytes)
             .map_err(|error| RepositoryError::Blob {
                 message: error.to_string(),
             })
     }
 
-    /// Open one exact Blob, serving embedded builtin content directly.
-    pub fn open_blob(&self, blob: Blob) -> Result<Arc<BlobMemory>, RepositoryError> {
-        // serve embedded builtin sources from their retained memory
-        if let Some(memory) = self.embedded_builtin.builtin_blob_memory(blob.id) {
-            return Ok(memory);
-        }
+    /// Return whether one exact Blob is available from this repository.
+    pub fn contains_blob(&self, blob: Blob) -> Result<bool, RepositoryError> {
+        self.blob_store()
+            .contains(blob)
+            .map_err(|error| RepositoryError::Blob {
+                message: error.to_string(),
+            })
+    }
 
+    /// Open one exact Blob.
+    pub fn open_blob(&self, blob: Blob) -> Result<Arc<BlobMemory>, RepositoryError> {
         self.blob_store()
             .open(blob)
             .map_err(|error| RepositoryError::Blob {
@@ -249,20 +252,9 @@ impl Repository {
             })
     }
 
-    /// Require one exact Blob, counting embedded builtin content as present.
+    /// Require one exact Blob.
     pub(crate) fn require_blob(&self, blob: Blob) -> Result<(), RepositoryError> {
-        // embedded builtin sources are always present in their retained memory
-        if self.embedded_builtin.builtin_blob_memory(blob.id).is_some() {
-            return Ok(());
-        }
-
-        let is_present =
-            self.blob_store()
-                .contains(blob)
-                .map_err(|error| RepositoryError::Blob {
-                    message: error.to_string(),
-                })?;
-        if !is_present {
+        if !self.contains_blob(blob)? {
             return Err(RepositoryError::Blob {
                 message: format!("missing Blob {blob}"),
             });

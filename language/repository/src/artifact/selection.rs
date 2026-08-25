@@ -2,7 +2,8 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactEntry, ArtifactInvalidation, ArtifactKey, ArtifactTable, SourceDependency,
+    ArtifactDependency, ArtifactEntry, ArtifactInvalidation, ArtifactKey, ArtifactTable,
+    SourceDependency,
 };
 use im::OrdMap;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -17,6 +18,10 @@ pub(crate) struct ArtifactSelection {
     candidates: OrdMap<ArtifactKey, Arc<ArtifactEntry>>,
     /// Possibly changed dependency ordinals by artifact key.
     dirty: FxHashMap<ArtifactKey, SmallVec<[u32; 2]>>,
+    /// Number of changes to the current artifact selection.
+    generation: u64,
+    /// Latest generation represented by the repository manifest.
+    persisted_generation: u64,
 }
 
 impl ArtifactSelection {
@@ -25,9 +30,38 @@ impl ArtifactSelection {
         Self::default()
     }
 
+    /// Return the current artifact selection generation.
+    pub(crate) fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    /// Return whether the current selection requires persistent storage.
+    pub(crate) fn needs_persistence(&self) -> bool {
+        self.generation != self.persisted_generation
+    }
+
+    /// Return the number of artifact results proved current.
+    pub(crate) fn len(&self) -> usize {
+        self.candidates.len() - self.dirty.len()
+    }
+
+    /// Build one selection from exact completed artifact entries.
+    pub(crate) fn from_entries(
+        entries: impl IntoIterator<Item = Arc<ArtifactEntry>>,
+    ) -> Result<Self, RepositoryError> {
+        let mut selection = Self::new();
+        for entry in entries {
+            selection.select(entry)?;
+        }
+        selection.persisted_generation = selection.generation;
+
+        Ok(selection)
+    }
+
     /// Fork candidates and mark observations reached by changed sources.
     pub(crate) fn fork(&self, invalidated: &[SourceDependency], artifacts: &ArtifactTable) -> Self {
         let mut selection = self.clone();
+        selection.generation += 1;
         let mut pending = invalidated
             .iter()
             .copied()
@@ -112,12 +146,19 @@ impl ArtifactSelection {
 
         self.candidates.insert(key, entry);
         self.dirty.remove(&key);
+        self.generation += 1;
 
         Ok(())
     }
 
     /// Merge artifacts learned for an equal repository revision.
     pub(crate) fn adopt(&mut self, other: &Self) -> Result<(), RepositoryError> {
+        if self.candidates.is_empty() && self.dirty.is_empty() {
+            *self = other.clone();
+
+            return Ok(());
+        }
+
         // select every result already proved current in the equal revision
         for (key, entry) in &other.candidates {
             if !other.dirty.contains_key(key) {
@@ -140,8 +181,31 @@ impl ArtifactSelection {
         Ok(())
     }
 
+    /// Mark one successfully written generation as persistent.
+    pub(crate) fn mark_persisted(&mut self, generation: u64) {
+        if generation > self.persisted_generation {
+            self.persisted_generation = generation;
+        }
+    }
+
     /// Return every artifact candidate retained by this revision.
     pub(crate) fn candidates(&self) -> Vec<Arc<ArtifactEntry>> {
         self.candidates.values().cloned().collect()
+    }
+
+    /// Iterate dependencies observed by every selected artifact candidate.
+    pub(crate) fn dependencies(&self) -> impl Iterator<Item = &ArtifactDependency> {
+        self.candidates
+            .values()
+            .flat_map(|entry| entry.dependencies.iter())
+    }
+
+    /// Return every artifact result proved current in this revision.
+    pub(crate) fn current_entries(&self) -> Vec<Arc<ArtifactEntry>> {
+        self.candidates
+            .iter()
+            .filter(|(key, _entry)| !self.dirty.contains_key(key))
+            .map(|(_key, entry)| entry.clone())
+            .collect()
     }
 }

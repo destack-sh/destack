@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
 
-use destack_artifact::{ArtifactKey, ArtifactVersion};
+use destack_artifact::{ArtifactCacheError, ArtifactKey, ArtifactVersion};
 use destack_source::{FileId, ModuleId, PackageId, ProfileId, TargetId};
 
 use crate::repository::Revision;
@@ -84,6 +84,11 @@ pub enum RepositoryError {
     CircularArtifactDependency { key: ArtifactKey },
     /// Artifact state violates an internal invariant.
     InvalidArtifact { message: String },
+    /// One persistent cache operation failed.
+    Cache {
+        /// The underlying cache failure.
+        source: Box<ArtifactCacheError>,
+    },
     /// The requested file does not exist in the base revision.
     MissingFile { path: String },
     /// The requested file already exists in the base revision.
@@ -238,6 +243,9 @@ impl fmt::Display for RepositoryError {
             Self::InvalidArtifact { message } => {
                 write!(formatter, "invalid repository artifact state: {message}")
             }
+            Self::Cache { source } => {
+                write!(formatter, "repository cache failed: {source}")
+            }
             Self::MissingFile { path } => {
                 write!(formatter, "missing file '{path}'")
             }
@@ -299,4 +307,21 @@ impl fmt::Display for RepositoryError {
     }
 }
 
-impl Error for RepositoryError {}
+impl Error for RepositoryError {
+    /// Return the underlying cache error when present.
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Cache { source } => Some(source.as_ref()),
+            _ => None,
+        }
+    }
+}
+
+impl From<ArtifactCacheError> for RepositoryError {
+    /// Preserve one persistent cache failure.
+    fn from(error: ArtifactCacheError) -> Self {
+        Self::Cache {
+            source: Box::new(error),
+        }
+    }
+}

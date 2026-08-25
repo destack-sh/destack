@@ -15,10 +15,11 @@ impl Repository {
             return Err(RepositoryError::MissingRevision { revision });
         };
         entry.pin();
+        let state = entry.state();
 
         drop(entry);
 
-        Ok(RevisionPin::new(revision, self.clone()))
+        Ok(RevisionPin::new(revision, state, self.clone()))
     }
 
     /// Increment one revision pin count.
@@ -111,15 +112,22 @@ impl Repository {
 pub struct RevisionPin {
     /// The pinned revision identity.
     revision: Revision,
+    /// The pinned immutable revision state.
+    state: Arc<crate::repository::RevisionState>,
     /// The shared repository owner.
     repository: Arc<Repository>,
 }
 
 impl RevisionPin {
     /// Build one revision pin.
-    pub(crate) fn new(revision: Revision, repository: Arc<Repository>) -> Self {
+    pub(crate) fn new(
+        revision: Revision,
+        state: Arc<crate::repository::RevisionState>,
+        repository: Arc<Repository>,
+    ) -> Self {
         Self {
             revision,
+            state,
             repository,
         }
     }
@@ -132,6 +140,11 @@ impl RevisionPin {
     /// Return the shared repository owner.
     pub fn repository(&self) -> &Repository {
         self.repository.as_ref()
+    }
+
+    /// Return the retained immutable revision state.
+    pub(crate) fn state(&self) -> &Arc<crate::repository::RevisionState> {
+        &self.state
     }
 
     /// Return one file for one file id.
@@ -171,6 +184,7 @@ impl Clone for RevisionPin {
 
         Self {
             revision: self.revision,
+            state: self.state.clone(),
             repository: self.repository.clone(),
         }
     }
@@ -333,7 +347,13 @@ mod tests {
         first
             .prune_unreachable()
             .expect("first repository should prune");
-        assert!(second.artifact_table().payload(&version).is_some());
+        assert!(
+            second
+                .artifact_table()
+                .payload(&version)
+                .expect("read shared artifact payload")
+                .is_some()
+        );
 
         drop(second_pin);
         let _ = fs::remove_dir_all(&first_root);
@@ -525,12 +545,14 @@ mod tests {
             repository
                 .artifact_table()
                 .payload(&first_version)
+                .expect("read first artifact payload")
                 .is_some()
         );
         assert!(
             repository
                 .artifact_table()
                 .payload(&second_version)
+                .expect("read second artifact payload")
                 .is_some()
         );
 
@@ -543,12 +565,14 @@ mod tests {
             repository
                 .artifact_table()
                 .payload(&first_version)
+                .expect("read released artifact payload")
                 .is_none()
         );
         assert!(
             repository
                 .artifact_table()
                 .payload(&second_version)
+                .expect("read retained artifact payload")
                 .is_some()
         );
 
@@ -590,12 +614,14 @@ mod tests {
             repository
                 .artifact_table()
                 .payload(&second_version)
+                .expect("read preceding artifact payload")
                 .is_some()
         );
         assert!(
             repository
                 .artifact_table()
                 .payload(&third_version)
+                .expect("read current artifact payload")
                 .is_some()
         );
 

@@ -110,8 +110,17 @@ impl Repository {
         let Some(entry) = entry else {
             return Ok(None);
         };
+        let payload = self
+            .artifact_table()
+            .payload(&entry.version)
+            .map_err(|error| RepositoryError::InvalidArtifact {
+                message: error.to_string(),
+            })?
+            .ok_or(RepositoryError::MissingArtifact {
+                version: entry.version,
+            })?;
 
-        let base = ArtifactBase::new(entry);
+        let base = ArtifactBase::new(entry, payload);
 
         Ok(Some(Arc::new(base)))
     }
@@ -534,6 +543,9 @@ impl Repository {
         let bound = self
             .artifact_table()
             .artifact::<DirBound>(&bound_version)
+            .map_err(|error| RepositoryError::InvalidArtifact {
+                message: error.to_string(),
+            })?
             .ok_or_else(|| RepositoryError::InvalidArtifact {
                 message: format!("bound artifact has no DIR payload: {bound_version:?}"),
             })?;
@@ -559,6 +571,9 @@ impl Repository {
         let parsed = self
             .artifact_table()
             .artifact::<DirParsed>(&parsed_version)
+            .map_err(|error| RepositoryError::InvalidArtifact {
+                message: error.to_string(),
+            })?
             .ok_or_else(|| RepositoryError::InvalidArtifact {
                 message: format!("parsed artifact has no DIR payload: {parsed_version:?}"),
             })?;

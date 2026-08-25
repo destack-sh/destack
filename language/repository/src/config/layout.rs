@@ -3,9 +3,9 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    DEFAULT_PACKAGE_DIRECTORY, DEFAULT_VENDOR_DIRECTORY, DEFAULT_WORKSPACE_CACHE_DIRECTORY,
-    DESTACK_CACHE_DIR, DESTACK_HOME, DESTACK_PACKAGE_DIR, Environment, HOME, LOCAL_APPDATA,
-    Settings, UNIX_DESTACK_HOME_DIRECTORY, USERPROFILE, WINDOWS_DESTACK_HOME_DIRECTORY,
+    DEFAULT_PACKAGE_DIRECTORY, DEFAULT_VENDOR_DIRECTORY, DESTACK_CACHE_DIR, DESTACK_HOME,
+    DESTACK_PACKAGE_DIR, Environment, HOME, LOCAL_APPDATA, Settings, UNIX_DESTACK_HOME_DIRECTORY,
+    USERPROFILE, WINDOWS_DESTACK_HOME_DIRECTORY, XDG_CACHE_HOME,
 };
 
 /// Resolved Destack storage layout for one invocation.
@@ -17,8 +17,8 @@ pub struct DestackLayout {
     pub home: PathBuf,
     /// Machine-local package directory.
     pub packages: PathBuf,
-    /// Workspace-local cache and session directory.
-    pub workspace_cache: PathBuf,
+    /// Machine-local cache directory.
+    pub cache: PathBuf,
     /// Workspace-owned vendor directory.
     pub vendor: PathBuf,
 }
@@ -34,8 +34,8 @@ impl DestackLayout {
         vendor_path: Option<&Path>,
     ) -> Self {
         // resolve machine-owned roots
-        let home = resolve_home(cwd, environment, overrides.home.as_deref());
-        let packages = resolve_packages(
+        let home = Self::resolve_home(cwd, environment, overrides.home.as_deref());
+        let packages = Self::resolve_packages(
             cwd,
             environment,
             settings,
@@ -43,20 +43,21 @@ impl DestackLayout {
             &home,
         );
 
-        // resolve workspace-owned roots
-        let workspace_cache = resolve_workspace_cache(
+        let cache = Self::resolve_cache(
             cwd,
-            workspace_root,
+            &home,
             environment,
             settings,
-            overrides.workspace_cache.as_deref(),
+            overrides.cache.as_deref(),
         );
-        let vendor = resolve_vendor(workspace_root, vendor_path);
+
+        // resolve workspace-owned roots
+        let vendor = Self::resolve_vendor(workspace_root, vendor_path);
 
         Self {
             home,
             packages,
-            workspace_cache,
+            cache,
             vendor,
         }
     }
@@ -67,7 +68,109 @@ impl DestackLayout {
         environment: &Environment,
         override_path: Option<&Path>,
     ) -> PathBuf {
-        resolve_home(cwd, environment, override_path)
+        // cli override
+        if let Some(path) = override_path {
+            resolve_path(path, cwd)
+        }
+        // environment override
+        else if let Some(path) = environment_path(environment, DESTACK_HOME) {
+            resolve_path(&path, cwd)
+        }
+        // unix home
+        else if let Some(home) = environment_path(environment, HOME) {
+            home.join(UNIX_DESTACK_HOME_DIRECTORY)
+        }
+        // windows local app data
+        else if let Some(local) = environment_path(environment, LOCAL_APPDATA) {
+            local.join(WINDOWS_DESTACK_HOME_DIRECTORY)
+        }
+        // windows profile fallback
+        else if let Some(profile) = environment_path(environment, USERPROFILE) {
+            profile.join(UNIX_DESTACK_HOME_DIRECTORY)
+        }
+        // invocation fallback
+        else {
+            cwd.join(UNIX_DESTACK_HOME_DIRECTORY)
+        }
+    }
+
+    /// Resolve the machine-local cache without loading repository state.
+    pub fn resolve_cache(
+        cwd: &Path,
+        home: &Path,
+        environment: &Environment,
+        settings: &Settings,
+        override_path: Option<&Path>,
+    ) -> PathBuf {
+        // cli override
+        if let Some(path) = override_path {
+            resolve_path(path, cwd)
+        }
+        // environment override
+        else if let Some(path) = environment_path(environment, DESTACK_CACHE_DIR) {
+            resolve_path(&path, cwd)
+        }
+        // settings override
+        else if let Some(path) = settings.cache.path.as_deref() {
+            resolve_path(path, home)
+        }
+        // windows local app data
+        else if cfg!(windows)
+            && let Some(path) = environment_path(environment, LOCAL_APPDATA)
+        {
+            path.join(WINDOWS_DESTACK_HOME_DIRECTORY)
+        }
+        // macOS user caches
+        else if cfg!(target_os = "macos")
+            && let Some(path) = environment_path(environment, HOME)
+        {
+            path.join("Library/Caches/Destack")
+        }
+        // freedesktop user cache
+        else if let Some(path) = environment_path(environment, XDG_CACHE_HOME) {
+            path.join("destack")
+        }
+        // unix home fallback
+        else if let Some(path) = environment_path(environment, HOME) {
+            path.join(".cache/destack")
+        }
+        // invocation fallback
+        else {
+            cwd.join(".destack")
+        }
+    }
+
+    /// Resolve the machine-local package directory.
+    fn resolve_packages(
+        cwd: &Path,
+        environment: &Environment,
+        settings: &Settings,
+        override_path: Option<&Path>,
+        home: &Path,
+    ) -> PathBuf {
+        // cli override
+        if let Some(path) = override_path {
+            resolve_path(path, cwd)
+        }
+        // environment override
+        else if let Some(path) = environment_path(environment, DESTACK_PACKAGE_DIR) {
+            resolve_path(&path, cwd)
+        }
+        // settings override
+        else if let Some(path) = settings.packages.path.as_deref() {
+            resolve_path(path, home)
+        }
+        // default to home directory
+        else {
+            home.join(DEFAULT_PACKAGE_DIRECTORY)
+        }
+    }
+
+    /// Resolve the workspace-owned vendor directory.
+    fn resolve_vendor(workspace_root: &Path, vendor_path: Option<&Path>) -> PathBuf {
+        let path = vendor_path.unwrap_or_else(|| Path::new(DEFAULT_VENDOR_DIRECTORY));
+
+        resolve_path(path, workspace_root)
     }
 }
 
@@ -81,120 +184,8 @@ pub struct DestackLayoutOverride {
     pub home: Option<PathBuf>,
     /// Package directory override.
     pub packages: Option<PathBuf>,
-    /// Workspace cache override.
-    pub workspace_cache: Option<PathBuf>,
-}
-
-/// Resolve one cache root from one workspace root and optional directory override.
-pub fn resolve_cache_root(
-    workspace_root: &Path,
-    cache_directory_override: Option<&Path>,
-) -> PathBuf {
-    // honor explicit cache roots first
-    if let Some(cache_directory_override) = cache_directory_override {
-        resolve_path(cache_directory_override, workspace_root)
-    }
-    // use the workspace default
-    else {
-        workspace_root.join(DEFAULT_WORKSPACE_CACHE_DIRECTORY)
-    }
-}
-
-/// Resolve one global cache root directory for the given name.
-pub fn resolve_global_cache_root(dir_name: &str, environment: &Environment) -> Option<PathBuf> {
-    // derive the root from captured invocation state
-    let cwd = environment.cwd.as_deref().unwrap_or_else(|| Path::new("."));
-    let home = resolve_home(cwd, environment, None);
-
-    Some(home.join(dir_name))
-}
-
-/// Resolve the home directory in a given context.
-fn resolve_home(cwd: &Path, environment: &Environment, override_path: Option<&Path>) -> PathBuf {
-    // cli override
-    if let Some(path) = override_path {
-        resolve_path(path, cwd)
-    }
-    // environment override
-    else if let Some(path) = environment_path(environment, DESTACK_HOME) {
-        resolve_path(&path, cwd)
-    }
-    // unix home
-    else if let Some(home) = environment_path(environment, HOME) {
-        home.join(UNIX_DESTACK_HOME_DIRECTORY)
-    }
-    // windows local app data
-    else if let Some(local) = environment_path(environment, LOCAL_APPDATA) {
-        local.join(WINDOWS_DESTACK_HOME_DIRECTORY)
-    }
-    // windows profile fallback
-    else if let Some(profile) = environment_path(environment, USERPROFILE) {
-        profile.join(UNIX_DESTACK_HOME_DIRECTORY)
-    }
-    // default to unix fallback
-    else {
-        cwd.join(UNIX_DESTACK_HOME_DIRECTORY)
-    }
-}
-
-/// Resolve the package directory in a given context.
-fn resolve_packages(
-    cwd: &Path,
-    environment: &Environment,
-    settings: &Settings,
-    override_path: Option<&Path>,
-    home: &Path,
-) -> PathBuf {
-    // cli override
-    if let Some(path) = override_path {
-        resolve_path(path, cwd)
-    }
-    // environment override
-    else if let Some(path) = environment_path(environment, DESTACK_PACKAGE_DIR) {
-        resolve_path(&path, cwd)
-    }
-    // settings override
-    else if let Some(path) = settings.packages.path.as_deref() {
-        resolve_path(path, home)
-    }
-    // default to home directory
-    else {
-        home.join(DEFAULT_PACKAGE_DIRECTORY)
-    }
-}
-
-/// Resolve the workspace cache directory in a given context.
-fn resolve_workspace_cache(
-    cwd: &Path,
-    workspace_root: &Path,
-    environment: &Environment,
-    settings: &Settings,
-    override_path: Option<&Path>,
-) -> PathBuf {
-    // cli override
-    if let Some(path) = override_path {
-        resolve_path(path, cwd)
-    }
-    // environment override
-    else if let Some(path) = environment_path(environment, DESTACK_CACHE_DIR) {
-        resolve_path(&path, cwd)
-    }
-    // settings override
-    else if let Some(path) = settings.cache.path.as_deref() {
-        resolve_path(path, workspace_root)
-    }
-    // default to workspace root
-    else {
-        workspace_root.join(DEFAULT_WORKSPACE_CACHE_DIRECTORY)
-    }
-}
-
-/// Resolve the vendor directory in a given workspace.
-fn resolve_vendor(workspace_root: &Path, vendor_path: Option<&Path>) -> PathBuf {
-    // manifest path or default
-    let path = vendor_path.unwrap_or_else(|| Path::new(DEFAULT_VENDOR_DIRECTORY));
-
-    resolve_path(path, workspace_root)
+    /// Cache directory override.
+    pub cache: Option<PathBuf>,
 }
 
 /// Read one nonempty environment path.
@@ -235,7 +226,7 @@ mod tests {
         let overrides = DestackLayoutOverride {
             home: Some(PathBuf::from("home")),
             packages: Some(PathBuf::from("packages")),
-            workspace_cache: Some(PathBuf::from("cache")),
+            cache: Some(PathBuf::from("cache")),
         };
 
         let layout = DestackLayout::resolve(
@@ -249,7 +240,7 @@ mod tests {
 
         assert_eq!(layout.home, cwd.join("home"));
         assert_eq!(layout.packages, cwd.join("packages"));
-        assert_eq!(layout.workspace_cache, cwd.join("cache"));
+        assert_eq!(layout.cache, cwd.join("cache"));
         assert_eq!(layout.vendor, workspace_root.join("third_party"));
     }
 
@@ -277,7 +268,12 @@ mod tests {
             layout.packages,
             PathBuf::from("/Users/tester/.destack/packages")
         );
-        assert_eq!(layout.workspace_cache, workspace_root.join(".destack"));
+        let cache = if cfg!(target_os = "macos") {
+            PathBuf::from("/Users/tester/Library/Caches/Destack")
+        } else {
+            PathBuf::from("/Users/tester/.cache/destack")
+        };
+        assert_eq!(layout.cache, cache);
         assert_eq!(layout.vendor, workspace_root.join("vendor"));
     }
 }

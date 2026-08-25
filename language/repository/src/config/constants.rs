@@ -2,9 +2,6 @@
 pub(crate) const DEFAULT_PACKAGE_DIRECTORY: &str = "packages";
 /// Default vendor directory below a workspace.
 pub(crate) const DEFAULT_VENDOR_DIRECTORY: &str = "vendor";
-/// Default workspace cache directory.
-pub(crate) const DEFAULT_WORKSPACE_CACHE_DIRECTORY: &str = ".destack";
-
 /// Default package source include patterns.
 pub(crate) const DEFAULT_SOURCE_INCLUDE: &[&str] = &["src/**"];
 /// Default package source exclude patterns.

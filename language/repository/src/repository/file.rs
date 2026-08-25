@@ -197,7 +197,7 @@ impl Repository {
     /// Build one file id for one workspace path.
     pub fn file_id(&self, path: &Path) -> FileId {
         // resolve embedded Builtin source URIs before authored paths
-        if let Some(file_id) = self.embedded_builtin.file_id_for_path(path) {
+        if let Some(file_id) = self.embedded_builtin().file_id_for_path(path) {
             return file_id;
         }
 
@@ -214,7 +214,7 @@ impl Repository {
         file_id: FileId,
     ) -> Result<Option<Arc<source::File>>, RepositoryError> {
         // resolve embedded Builtin FileIds from their immutable table
-        if let Some(builtin) = self.embedded_builtin.file(file_id) {
+        if let Some(builtin) = self.embedded_builtin().file(file_id) {
             return Ok(Some(builtin.clone()));
         }
 
@@ -272,7 +272,7 @@ impl Repository {
         path: &Path,
     ) -> Result<Option<FileMetadata>, RepositoryError> {
         // resolve embedded Builtin source URIs before authored paths
-        if let Some(builtin) = self.embedded_builtin.builtin_file_for_path(path) {
+        if let Some(builtin) = self.embedded_builtin().builtin_file_for_path(path) {
             return Ok(Some(builtin.metadata()));
         }
 
@@ -311,7 +311,7 @@ impl Repository {
         file_id: FileId,
     ) -> Result<Option<Blob>, RepositoryError> {
         // resolve embedded Builtin FileIds from their immutable table
-        if let Some(blob) = self.embedded_builtin.builtin_blob(file_id) {
+        if let Some(blob) = self.embedded_builtin().builtin_blob(file_id) {
             return Ok(Some(blob));
         }
 
@@ -332,7 +332,7 @@ impl Repository {
         file_id: FileId,
     ) -> Result<Option<String>, RepositoryError> {
         // resolve embedded Builtin FileIds from their immutable table
-        if let Some(builtin) = self.embedded_builtin.builtin_file(file_id) {
+        if let Some(builtin) = self.embedded_builtin().builtin_file(file_id) {
             return Ok(Some(builtin.uri.to_string()));
         }
 
@@ -376,7 +376,7 @@ impl Repository {
         let package = self.builtin_package(revision)?;
         if package.path.is_none() {
             file_ids.extend(
-                self.embedded_builtin
+                self.embedded_builtin()
                     .files()
                     .iter()
                     .map(|builtin| builtin.file_id()),

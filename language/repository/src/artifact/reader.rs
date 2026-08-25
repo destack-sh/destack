@@ -309,6 +309,7 @@ impl<'a> ArtifactReader<'a> {
             .repository
             .artifact_table()
             .artifact::<A>(&version)
+            .map_err(|error| ProviderError::internal(error.to_string()))?
             .ok_or(ProviderError::Corrupt { version })?;
 
         Ok(payload)
@@ -330,6 +331,7 @@ impl<'a> ArtifactReader<'a> {
             .repository
             .artifact_table()
             .artifact::<DirResolved>(&version)
+            .map_err(|error| ProviderError::internal(error.to_string()))?
             .ok_or(ProviderError::Corrupt { version })?;
 
         Ok(ComponentRelationsReader { resolved })
@@ -346,6 +348,7 @@ impl<'a> ArtifactReader<'a> {
             .repository
             .artifact_table()
             .artifact::<ModuleGraph>(&version)
+            .map_err(|error| ProviderError::internal(error.to_string()))?
             .ok_or(ProviderError::Corrupt { version })?;
 
         Ok(ModuleGraphReader {

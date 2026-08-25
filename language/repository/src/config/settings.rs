@@ -17,7 +17,7 @@ use super::SETTINGS_FILE_NAME;
 pub struct Settings {
     /// Package directory settings.
     pub packages: PackageSettings,
-    /// Workspace cache settings.
+    /// Cache directory settings.
     pub cache: CacheSettings,
     /// Registry settings keyed by registry name.
     pub registries: IndexMap<String, RegistrySettings>,
@@ -65,7 +65,7 @@ pub struct PackageSettings {
     pub maximum_bytes: Option<u64>,
 }
 
-/// Workspace cache settings.
+/// Cache directory and retention settings.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]

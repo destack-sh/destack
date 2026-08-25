@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    Artifact, ArtifactDependency, ArtifactEntry, ArtifactKey, ArtifactVersion, DiagnosticContext,
-    DiagnosticError, DiagnosticLike, DiagnosticRecord,
+    Artifact, ArtifactDependency, ArtifactEntry, ArtifactKey, ArtifactPayload, ArtifactVersion,
+    DiagnosticContext, DiagnosticError, DiagnosticLike, DiagnosticRecord,
 };
 
 use crate::{ArtifactAttemptRecorder, Moment, Revision, TraceEvent};
@@ -12,12 +12,14 @@ use crate::{ArtifactAttemptRecorder, Moment, Revision, TraceEvent};
 pub struct ArtifactBase {
     /// The retained base result.
     entry: Arc<ArtifactEntry>,
+    /// The decoded base payload.
+    payload: ArtifactPayload,
 }
 
 impl ArtifactBase {
     /// Build one retained artifact base.
-    pub(crate) fn new(entry: Arc<ArtifactEntry>) -> Self {
-        Self { entry }
+    pub(crate) fn new(entry: Arc<ArtifactEntry>, payload: ArtifactPayload) -> Self {
+        Self { entry, payload }
     }
 
     /// Return the base artifact version.
@@ -32,9 +34,7 @@ impl ArtifactBase {
 
     /// Return the typed base artifact payload.
     pub fn artifact<A: Artifact>(&self) -> Option<Arc<A>> {
-        let payload = self.entry.payload()?;
-
-        A::from_payload(payload)
+        A::from_payload(self.payload.clone())
     }
 }
 

@@ -633,6 +633,14 @@ impl StringPool {
         state.ensure_text(string_id, text);
     }
 
+    /// Ensure this pool contains every exact string in one sequence.
+    pub fn ensure_all<'a>(&self, strings: impl IntoIterator<Item = (StringId, &'a str)>) {
+        let mut state = self.inner.write();
+        for (string_id, text) in strings {
+            state.ensure_text(string_id, text);
+        }
+    }
+
     /// Ensure this pool contains every string from another pool.
     pub fn ensure_all_from(&self, other: &StringPool) {
         if std::ptr::eq(self, other) {

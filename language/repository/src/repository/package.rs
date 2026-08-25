@@ -30,11 +30,11 @@ impl Repository {
         let config = configuration.as_deref();
         let is_builtin = config
             .and_then(|config| config.name.as_deref())
-            .is_some_and(|name| name == self.embedded_builtin.package_name());
+            .is_some_and(|name| name == self.embedded_builtin().package_name());
         let kind = discovered_kind;
         let id = self.package_id(is_builtin, package_root);
         let uri = if is_builtin {
-            self.embedded_builtin.package_uri().clone()
+            self.embedded_builtin().package_uri().clone()
         } else {
             Uri::logical(package_root.to_string_lossy())
         };
@@ -106,7 +106,7 @@ impl Repository {
             let package = self.build_package(revision, discovered_kind, &package_root)?;
             if package.is_builtin && packages.contains_key(&package.id) {
                 return Err(RepositoryError::DuplicatePackageName {
-                    name: self.embedded_builtin.package_name().to_string(),
+                    name: self.embedded_builtin().package_name().to_string(),
                 });
             }
 
@@ -114,8 +114,8 @@ impl Repository {
         }
 
         // insert the embedded Builtin Package only when authored sources do not replace it
-        if !packages.contains_key(&self.embedded_builtin.package_id()) {
-            let package = self.embedded_builtin.package();
+        if !packages.contains_key(&self.embedded_builtin().package_id()) {
+            let package = self.embedded_builtin().package();
             packages.insert(package.id, package);
         }
 
@@ -378,7 +378,7 @@ impl Repository {
     /// Return the package id for one package root.
     fn package_id(&self, is_builtin: bool, root: &Path) -> PackageId {
         if is_builtin {
-            self.embedded_builtin.package_id()
+            self.embedded_builtin().package_id()
         } else {
             PackageId::from_path(root)
         }

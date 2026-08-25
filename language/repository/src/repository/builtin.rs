@@ -1,7 +1,7 @@
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use destack_core::{Blob, BlobId, BlobMemory};
+use destack_core::{Blob, BlobMemory, BlobStore};
 use destack_source::{
     File, FileId, FileMetadata, FileType, LanguageType, Loader, ModuleId, PackageId, TargetId, Uri,
 };
@@ -55,15 +55,13 @@ pub struct EmbeddedBuiltinPackage {
     file_by_id: IndexMap<FileId, Arc<File>>,
     /// Content blobs keyed by file id, hashed once at construction.
     blob_by_id: IndexMap<FileId, Blob>,
-    /// Retained content memory keyed by blob id, hashed once at construction.
-    memory_by_blob: IndexMap<BlobId, Arc<BlobMemory>>,
     /// The modules shipped in this package.
     modules: Vec<(ModuleId, Arc<Module>)>,
 }
 
 impl EmbeddedBuiltinPackage {
     /// Create the embedded Builtin Package.
-    pub fn new() -> Self {
+    pub fn new(blobs: &BlobStore) -> Self {
         let exports = BUILTIN_EXPORTS
             .iter()
             .map(|export| (export.specifier.to_string(), export.package_export()))
@@ -121,14 +119,14 @@ impl EmbeddedBuiltinPackage {
             .map(|builtin| (builtin.file_id(), Arc::new(builtin.file())))
             .collect();
 
-        // hash each content once, keying blobs by file and memory by blob
+        // retain each embedded file in the shared host store
         let mut blob_by_id = IndexMap::new();
-        let mut memory_by_blob = IndexMap::new();
         for builtin in Self::shipped_files() {
             let memory = Arc::new(BlobMemory::from_shared(Arc::new(builtin.content)));
-            let blob = memory.blob();
+            let blob = blobs
+                .retain_memory(memory)
+                .expect("embedded builtin Blob should be unique");
             blob_by_id.insert(builtin.file_id(), blob);
-            memory_by_blob.insert(blob.id, memory);
         }
 
         Self {
@@ -138,7 +136,6 @@ impl EmbeddedBuiltinPackage {
             builtin_file_by_path,
             file_by_id,
             blob_by_id,
-            memory_by_blob,
             modules,
         }
     }
@@ -234,11 +231,6 @@ impl EmbeddedBuiltinPackage {
     /// Return one builtin file's content blob by file id.
     pub fn builtin_blob(&self, file_id: FileId) -> Option<Blob> {
         self.blob_by_id.get(&file_id).copied()
-    }
-
-    /// Return one builtin file's retained content memory by blob id.
-    pub fn builtin_blob_memory(&self, blob_id: BlobId) -> Option<Arc<BlobMemory>> {
-        self.memory_by_blob.get(&blob_id).cloned()
     }
 
     /// Return one loaded builtin source file by file id.
@@ -350,25 +342,25 @@ impl BuiltinExport {
 impl Repository {
     /// Return the embedded Builtin Package.
     pub fn embedded_builtin(&self) -> &EmbeddedBuiltinPackage {
-        &self.embedded_builtin
+        self.host.embedded_builtin()
     }
 
     /// Return the Builtin Package selected for one revision.
     pub fn builtin_package(&self, revision: Revision) -> Result<Arc<Package>, RepositoryError> {
-        self.package(revision, self.embedded_builtin.package_id())?
+        self.package(revision, self.embedded_builtin().package_id())?
             .ok_or(RepositoryError::MissingPackage {
-                package: self.embedded_builtin.package_id(),
+                package: self.embedded_builtin().package_id(),
             })
     }
 
     /// Return whether one package id is the canonical builtin identity.
     pub fn is_builtin_package(&self, package: PackageId) -> bool {
-        package == self.embedded_builtin.package_id()
+        package == self.embedded_builtin().package_id()
     }
 
     /// Return module ids from the Builtin Package selected for one revision.
     pub fn builtin_module_ids(&self, revision: Revision) -> Result<Vec<ModuleId>, RepositoryError> {
-        self.package_module_ids(revision, self.embedded_builtin.package_id())
+        self.package_module_ids(revision, self.embedded_builtin().package_id())
     }
 
     /// Resolve one public specifier through the Builtin Package selected for one revision.
@@ -394,14 +386,14 @@ impl Repository {
 
         // embedded package exports already use canonical builtin URIs
         let Some(package_root) = package.path.as_deref() else {
-            return Ok(self.embedded_builtin.module_uri_for_specifier(specifier));
+            return Ok(self.embedded_builtin().module_uri_for_specifier(specifier));
         };
 
         // authored package exports resolve from their physical source paths
         let export_path = export.path.strip_prefix("./").unwrap_or(&export.path);
         let export_path = package_root.join(export_path);
         let uri = self
-            .embedded_builtin
+            .embedded_builtin()
             .module_uri_for_path(&export_path, package_root)?;
 
         Ok(Some(uri))
@@ -424,7 +416,7 @@ impl Repository {
         // embedded sources resolve through their generated file table
         if package.path.is_none() {
             return Ok(self
-                .embedded_builtin
+                .embedded_builtin()
                 .module_uri_for_internal_specifier(specifier));
         }
 
@@ -440,7 +432,7 @@ impl Repository {
     ) -> Result<Option<Uri>, RepositoryError> {
         let package = self.builtin_package(revision)?;
         let Some(uri) = self
-            .embedded_builtin
+            .embedded_builtin()
             .module_uri_for_relative_specifier(base_uri, specifier)
         else {
             return Ok(None);
@@ -479,13 +471,6 @@ impl Repository {
         }
 
         Ok(None)
-    }
-}
-
-impl Default for EmbeddedBuiltinPackage {
-    /// Create the default embedded Builtin Package.
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -588,6 +573,7 @@ fn canonical_builtin_path(path: &str) -> &str {
 mod tests {
     use std::path::{Path, PathBuf};
 
+    use destack_core::BlobStore;
     use destack_source::{Edit, FileId, ModuleId};
 
     use super::{EmbeddedBuiltinPackage, RepositoryError, Uri};
@@ -634,7 +620,8 @@ mod tests {
 
     #[test]
     fn test_resolve_relative_from_builtin_index_uri() {
-        let package = EmbeddedBuiltinPackage::new();
+        let blobs = BlobStore::new();
+        let package = EmbeddedBuiltinPackage::new(&blobs);
         let uri = package
             .module_uri_for_relative_specifier("destack://error", "./panic.ds")
             .expect("builtin relative import should resolve");
@@ -644,7 +631,8 @@ mod tests {
 
     #[test]
     fn test_resolve_relative_from_builtin_file_uri() {
-        let package = EmbeddedBuiltinPackage::new();
+        let blobs = BlobStore::new();
+        let package = EmbeddedBuiltinPackage::new(&blobs);
         let uri = package
             .module_uri_for_relative_specifier("destack://error/host", "./panic.ds")
             .expect("builtin relative import should resolve");
