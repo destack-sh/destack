@@ -17,6 +17,8 @@ impl Parser<'_> {
         if name != "atomic.fence" {
             return Err(ParseError::new("unknown atomic operation", token.span));
         }
+
+        // parse the result definitions
         let results = self.parse_definitions(Opcode::ATOMIC_FENCE)?;
 
         self.parse_atomic_fence(&results, function)
@@ -30,11 +32,14 @@ impl Parser<'_> {
         token: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
+        // resolve the operation from the mnemonic suffix
         let name = name
             .strip_prefix("atomic.")
             .ok_or_else(|| ParseError::new("expected atomic operation", token.span))?;
         let operation = AtomicOperation::from_name(name)
             .ok_or_else(|| ParseError::new("expected atomic operation", token.span))?;
+
+        // parse the result definitions
         let results = self.parse_results(operation.result_count(), true)?;
 
         self.parse_atomic_access(operation, scalar, token, &results, function)
@@ -46,6 +51,7 @@ impl Parser<'_> {
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
+        // parse the ordering and optional scope
         let order = self.parse_atomic_order()?;
         let scope = self.parse_optional_scope()?;
 
@@ -54,19 +60,21 @@ impl Parser<'_> {
         self.eat_name("storage")?;
         self.eat_token(TokenType::OpenParenthesis)?;
         let storage = self.parse_storage_set()?;
+
+        // reject fences that order nothing
         if order == AtomicOrder::Relaxed || storage == StorageSet::NONE {
             return Err(ParseError::new(
                 "atomic fence requires ordering and storage",
                 self.empty_span(),
             ));
         }
+
+        // encode the complete fence access
         let access = FenceAccess {
             order,
             scope,
             storage,
         };
-
-        // encode the complete fence access
         let mut instruction = InstructionBuilder::new(Opcode::ATOMIC_FENCE);
         instruction.u32(access.bits());
 
@@ -90,6 +98,8 @@ impl Parser<'_> {
         let replacement = self.parse_atomic_replacement(operation)?;
         self.eat_token(TokenType::Comma)?;
         let access = self.parse_atomic_access_bits(operation, token)?;
+
+        // select the opcode for this address space and scalar
         let opcode = Opcode::atomic(operation, address, scalar)
             .ok_or_else(|| ParseError::new("invalid atomic operation", token.span))?;
 
@@ -116,6 +126,7 @@ impl Parser<'_> {
             return Ok(None);
         }
 
+        // parse the scalar operand
         self.eat_token(TokenType::Comma)?;
         let value = self.parse_register()?;
 
@@ -131,6 +142,7 @@ impl Parser<'_> {
             return Ok(None);
         }
 
+        // parse the replacement operand
         self.eat_token(TokenType::Comma)?;
         let replacement = self.parse_register()?;
 
@@ -143,15 +155,18 @@ impl Parser<'_> {
         operation: AtomicOperation,
         token: Token,
     ) -> ParseResult<u16> {
+        // compare exchange carries a second order
         let order = self.parse_atomic_order()?;
         if operation.is_compare_exchange() {
             return self.parse_compare_exchange_access(order, token);
         }
 
+        // parse the optional scope and check the order against the operation
         let scope = self.parse_optional_scope()?;
         if !operation.accepts(order) {
             return Err(ParseError::new("invalid atomic memory order", token.span));
         }
+
         let access = AtomicAccess { order, scope };
 
         Ok(access.bits())
@@ -163,18 +178,22 @@ impl Parser<'_> {
         success: AtomicOrder,
         token: Token,
     ) -> ParseResult<u16> {
+        // parse the failure order and optional scope
         self.eat_token(TokenType::Comma)?;
         self.eat_name("failure")?;
         self.eat_token(TokenType::OpenParenthesis)?;
         let failure = self.parse_atomic_order()?;
         self.eat_token(TokenType::CloseParenthesis)?;
         let scope = self.parse_optional_scope()?;
+
+        // reject a failure order the success order rules out
         if !success.permits_failure(failure) {
             return Err(ParseError::new(
                 "invalid compare exchange order",
                 token.span,
             ));
         }
+
         let access = CompareExchangeAccess {
             success,
             failure,
@@ -194,6 +213,7 @@ impl Parser<'_> {
 
     /// Parse an optional accelerated execution scope.
     fn parse_optional_scope(&mut self) -> ParseResult<ExecutionScope> {
+        // rewind when the trailing clause names something else
         let position = self.cursor.position();
         if !self.eat_token_if(TokenType::Comma) {
             return Ok(ExecutionScope::System);
@@ -203,6 +223,8 @@ impl Parser<'_> {
 
             return Ok(ExecutionScope::System);
         }
+
+        // parse the scope name
         self.eat_token(TokenType::OpenParenthesis)?;
         let token = self.eat_token(TokenType::Identifier)?;
         let scope = ExecutionScope::from_name(self.text(token))
@@ -214,6 +236,7 @@ impl Parser<'_> {
 
     /// Parse one atomic fence storage set.
     fn parse_storage_set(&mut self) -> ParseResult<StorageSet> {
+        // accumulate the comma separated storage regions
         let mut storage = StorageSet::NONE;
         while !self.eat_token_if(TokenType::CloseParenthesis) {
             let token = self.eat_token(TokenType::Identifier)?;
@@ -222,8 +245,6 @@ impl Parser<'_> {
                 "shared" => StorageSet::SHARED,
                 "frame" => StorageSet::FRAME,
                 "global" => StorageSet::GLOBAL,
-                "device" => StorageSet::DEVICE,
-                "workgroup" => StorageSet::WORKGROUP,
                 _ => return Err(ParseError::new("expected storage region", token.span)),
             };
             storage.0 |= selected.0;

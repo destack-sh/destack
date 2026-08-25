@@ -397,19 +397,8 @@ impl StorageSet {
     pub const FRAME: Self = Self(1 << 2);
     /// Program global storage.
     pub const GLOBAL: Self = Self(1 << 3);
-    /// Accelerator device storage.
-    pub const DEVICE: Self = Self(1 << 4);
-    /// Accelerator workgroup storage.
-    pub const WORKGROUP: Self = Self(1 << 5);
     /// Every bytecode-visible storage region.
-    pub const ANY: Self = Self(
-        Self::LOCAL.0
-            | Self::SHARED.0
-            | Self::FRAME.0
-            | Self::GLOBAL.0
-            | Self::DEVICE.0
-            | Self::WORKGROUP.0,
-    );
+    pub const ANY: Self = Self(Self::LOCAL.0 | Self::SHARED.0 | Self::FRAME.0 | Self::GLOBAL.0);
 
     /// Return whether every selected storage region is defined by the ISA.
     pub const fn is_defined(self) -> bool {
@@ -435,6 +424,7 @@ impl AtomicAccess {
         match (order, scope) {
             (Some(order), Some(scope)) => {
                 let access = Self { order, scope };
+
                 if access.bits() == bits {
                     Some(access)
                 } else {
@@ -476,6 +466,7 @@ impl CompareExchangeAccess {
                     failure,
                     scope,
                 };
+
                 if access.bits() == bits {
                     Some(access)
                 } else {
@@ -517,6 +508,7 @@ impl FenceAccess {
                     scope,
                     storage,
                 };
+
                 if access.bits() == bits {
                     Some(access)
                 } else {
