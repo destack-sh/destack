@@ -90,6 +90,22 @@ impl OpenOptionConflict {
         .flatten()
     }
 
+    /// Return the option value that causes this conflict.
+    fn expression(
+        self,
+        flags: dir::LocalNodeId<dir::Expression>,
+        mode: dir::LocalNodeId<dir::Expression>,
+    ) -> dir::LocalNodeId<dir::Expression> {
+        match self {
+            Self::ModeWithoutCreate => mode,
+            Self::MissingAccess
+            | Self::ExclusiveWithoutCreate
+            | Self::TruncateWithoutWrite
+            | Self::AppendWithoutWrite
+            | Self::AppendWithTruncate => flags,
+        }
+    }
+
     /// Return the diagnostic message.
     fn message(self) -> &'static str {
         match self {
@@ -130,25 +146,33 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         {
             continue;
         }
+
+        // read the flag and mode fields
         let flags = dir::StaticKey::Name(dir::StringId::for_text("flags"));
-        let Some((_, flags)) = module.direct_field(properties, flags) else {
+        let Some((_, flags_expression)) = module.direct_field(properties, flags) else {
             continue;
         };
         let mode = dir::StaticKey::Name(dir::StringId::for_text("mode"));
-        let Some((_, mode)) = module.direct_field(properties, mode) else {
+        let Some((_, mode_expression)) = module.direct_field(properties, mode) else {
             continue;
         };
-        let Some((flags, _)) = module.newtype_integral(flags, dir::LanguageItem::FileOpenFlags)?
+
+        // evaluate exact newtype values
+        let Some((flags, _)) =
+            module.newtype_integral(flags_expression, dir::LanguageItem::FileOpenFlags)?
         else {
             continue;
         };
-        let Some((mode, _)) = module.newtype_integral(mode, dir::LanguageItem::FileMode)? else {
+        let Some((mode, _)) =
+            module.newtype_integral(mode_expression, dir::LanguageItem::FileMode)?
+        else {
             continue;
         };
 
         // report every independent invalid selection
-        let span = module.source_extent(expression.into_any())?;
         for conflict in OpenOptionConflict::detect(flags, mode) {
+            let expression = conflict.expression(flags_expression, mode_expression);
+            let span = module.source_extent(expression.into_any())?;
             let diagnostic = lint
                 .diagnostic(conflict.message(), span)
                 .help(conflict.help());
@@ -193,110 +217,74 @@ const OPTIONS = FileOpenOptions {
 
         session.assert_diagnostics(
             r#"warning[nonsensical-open-options]: open options select no access mode
-  ──▶ main.ds:8:17
+  ──▶ main.ds:9:12
    │
- 6 │ } from "destack:fs/binding";
  7 │
  8 │ const OPTIONS = FileOpenOptions {
-   │                 ^^^^^^^^^^^^^^^^^
  9 │     flags: FileOpenFlags(0x0038),
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │            ^^^^^^^^^^^^^^^^^^^^^
 10 │     mode: FileMode(0o600),
-   │     ^^^^^^^^^^^^^^^^^^^^^^
 11 │     resolve: FileResolveFlags(0),
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-12 │ };
-   │ ^
    │
 
  = help: add the read or write flag
 warning[nonsensical-open-options]: exclusive open has no create flag
-  ──▶ main.ds:8:17
+  ──▶ main.ds:9:12
    │
- 6 │ } from "destack:fs/binding";
  7 │
  8 │ const OPTIONS = FileOpenOptions {
-   │                 ^^^^^^^^^^^^^^^^^
  9 │     flags: FileOpenFlags(0x0038),
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │            ^^^^^^^^^^^^^^^^^^^^^
 10 │     mode: FileMode(0o600),
-   │     ^^^^^^^^^^^^^^^^^^^^^^
 11 │     resolve: FileResolveFlags(0),
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-12 │ };
-   │ ^
    │
 
  = help: add the create flag or remove exclusive
 warning[nonsensical-open-options]: truncate open has no write flag
-  ──▶ main.ds:8:17
+  ──▶ main.ds:9:12
    │
- 6 │ } from "destack:fs/binding";
  7 │
  8 │ const OPTIONS = FileOpenOptions {
-   │                 ^^^^^^^^^^^^^^^^^
  9 │     flags: FileOpenFlags(0x0038),
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │            ^^^^^^^^^^^^^^^^^^^^^
 10 │     mode: FileMode(0o600),
-   │     ^^^^^^^^^^^^^^^^^^^^^^
 11 │     resolve: FileResolveFlags(0),
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-12 │ };
-   │ ^
    │
 
  = help: add the write flag or remove truncate
 warning[nonsensical-open-options]: append open has no write flag
-  ──▶ main.ds:8:17
+  ──▶ main.ds:9:12
    │
- 6 │ } from "destack:fs/binding";
  7 │
  8 │ const OPTIONS = FileOpenOptions {
-   │                 ^^^^^^^^^^^^^^^^^
  9 │     flags: FileOpenFlags(0x0038),
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │            ^^^^^^^^^^^^^^^^^^^^^
 10 │     mode: FileMode(0o600),
-   │     ^^^^^^^^^^^^^^^^^^^^^^
 11 │     resolve: FileResolveFlags(0),
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-12 │ };
-   │ ^
    │
 
  = help: add the write flag or remove append
 warning[nonsensical-open-options]: open mode has no create flag
-  ──▶ main.ds:8:17
+  ──▶ main.ds:10:11
    │
- 6 │ } from "destack:fs/binding";
- 7 │
  8 │ const OPTIONS = FileOpenOptions {
-   │                 ^^^^^^^^^^^^^^^^^
  9 │     flags: FileOpenFlags(0x0038),
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 10 │     mode: FileMode(0o600),
-   │     ^^^^^^^^^^^^^^^^^^^^^^
+   │           ^^^^^^^^^^^^^^^
 11 │     resolve: FileResolveFlags(0),
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 12 │ };
-   │ ^
    │
 
  = help: add the create flag or use a zero mode
 warning[nonsensical-open-options]: open options request append and truncate together
-  ──▶ main.ds:8:17
+  ──▶ main.ds:9:12
    │
- 6 │ } from "destack:fs/binding";
  7 │
  8 │ const OPTIONS = FileOpenOptions {
-   │                 ^^^^^^^^^^^^^^^^^
  9 │     flags: FileOpenFlags(0x0038),
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │            ^^^^^^^^^^^^^^^^^^^^^
 10 │     mode: FileMode(0o600),
-   │     ^^^^^^^^^^^^^^^^^^^^^^
 11 │     resolve: FileResolveFlags(0),
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-12 │ };
-   │ ^
    │
 
  = help: choose append or truncate

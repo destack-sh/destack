@@ -13,6 +13,8 @@ declare_lint! {
         explanation: r#"
 Racing one Promise cannot select among competing asynchronous work and often indicates a missing Promise.
 Instead, you SHOULD use the existing Promise directly when no second input is intended.
+
+`Promise.race` creates a distinct Promise and schedules its settlement through the combinator.
 "#,
         example: {
             reported: r#"

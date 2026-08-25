@@ -12,12 +12,12 @@ const MINIMUM_DUPLICATE_NODES: usize = 12;
 const MINIMUM_DUPLICATE_STATEMENTS: usize = 2;
 
 declare_lint! {
-    /// Disallow repeated checked code regions.
+    /// Disallow repeated nontrivial code regions.
     pub NO_DUPLICATE_CODE {
         id: "no-duplicate-code",
-        summary: "Disallow repeated checked code regions",
+        summary: "Disallow repeated nontrivial code regions",
         explanation: r#"
-Multiple nontrivial callables or statement sequences perform the same checked operations.
+Multiple nontrivial callables or statement sequences perform the same operations.
 Instead, you SHOULD extract the repeated statements into one callable.
 "#,
         example: {

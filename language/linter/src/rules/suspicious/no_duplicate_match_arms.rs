@@ -7,9 +7,9 @@ declare_lint! {
     /// Disallow match arms with identical checked bodies.
     pub NO_DUPLICATE_MATCH_ARMS {
         id: "no-duplicate-match-arms",
-        summary: "Disallow match arms with identical checked bodies",
+        summary: "Disallow match arms with identical bodies",
         explanation: r#"
-Identical checked match arm bodies often indicate an editing mistake and repeat one result.
+Identical match arm bodies often indicate an editing mistake and repeat one result.
 Instead, you SHOULD correct an unintended body or combine the patterns when their guards match.
 "#,
         example: {

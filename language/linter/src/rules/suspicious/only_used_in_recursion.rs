@@ -10,7 +10,7 @@ declare_lint! {
         id: "only-used-in-recursion",
         summary: "Disallow parameters used only to calculate their own recursive argument",
         explanation: r#"
-A parameter read only to calculate its corresponding recursive argument cannot affect a returned value.
+A parameter read only to calculate its corresponding recursive argument does not affect the result.
 Instead, you SHOULD remove the parameter and its argument from every recursive call.
 "#,
         example: {
@@ -103,6 +103,12 @@ fn report_parameters(
     output: &mut LintOutput,
 ) -> Result<(), ProviderError> {
     for (position, parameter) in signature.parameters.iter().enumerate() {
+        // pattern bindings do not represent the complete argument position
+        if module.view().get(*parameter).name().is_none() {
+            continue;
+        }
+
+        // compare every use with its recursive argument position
         let symbol = module.declaration_symbol(*parameter)?;
         let mut uses = occurrences
             .iter()
@@ -296,5 +302,24 @@ warning[only-used-in-recursion]: parameter only contributes to its recursive arg
   │
 "#,
         );
+    }
+
+    /// Accept pattern parameters that introduce independently used bindings.
+    #[test]
+    fn test_accepts_pattern_parameter() {
+        let session = TestSession::dir(
+            &ONLY_USED_IN_RECURSION,
+            r#"
+function visit([head, ...tail]: int32[]): int32 {
+    if (tail.isEmpty) {
+        return head;
+    }
+
+    return visit(tail);
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
     }
 }

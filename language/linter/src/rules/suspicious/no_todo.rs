@@ -9,7 +9,7 @@ declare_lint! {
         id: "no-todo",
         summary: "Disallow calls to the canonical todo function",
         explanation: r#"
-A reachable `todo` call leaves a known runtime trap in the program.
+A `todo` call marks unfinished code and traps if execution reaches it.
 Instead, you SHOULD implement the operation or remove the path that requires it.
 "#,
         example: {
