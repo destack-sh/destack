@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::sema::{AssignedPlace, ConditionBranch, FlowBranch, PlaceUse, WalkState};
+use crate::sema::{AssignedPlace, ConditionBranch, FlowBranch, PlaceUse, ElisionSite, WalkState};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
@@ -315,7 +315,7 @@ impl WalkState<'_, '_> {
             }
             // type T
             dir::Expression::Type { value } => {
-                let represented = self.walk_frame_type_expression(*value)?;
+                let represented = self.walk_type_expression_in(*value, ElisionSite::Body)?;
                 let reflected = self
                     .check
                     .language_type(dir::LanguageItem::Type, &[represented])?;
@@ -354,13 +354,13 @@ impl WalkState<'_, '_> {
             } => {
                 let (child, target_type) = (*child, *target_type);
                 self.walk_expression(child, self.tree.get(child))?;
-                self.walk_frame_type_expression(target_type)?;
+                self.walk_type_expression_in(target_type, ElisionSite::Body)?;
             }
             // value is T
             dir::Expression::Is { value, target_type } => {
                 let (value, target_type) = (*value, *target_type);
                 self.walk_expression(value, self.tree.get(value))?;
-                self.walk_frame_type_expression(target_type)?;
+                self.walk_type_expression_in(target_type, ElisionSite::Body)?;
             }
             // value instanceof Target
             dir::Expression::InstanceOf { value, target } => {
@@ -520,9 +520,8 @@ impl WalkState<'_, '_> {
             branches.push(self.collect_flow_branch(before));
         }
 
-        // false branch
+        // walk the written false branch
         if let Some(else_expression) = else_expression {
-            // walk false branch
             self.restore_flow(before);
             self.narrow_condition(condition, ConditionBranch::False)?;
             self.walk_expression(else_expression, self.tree.get(else_expression))?;
@@ -533,9 +532,8 @@ impl WalkState<'_, '_> {
                 branches.push(self.collect_flow_branch(before));
             }
         }
-        // no false branch
+        // collect the implicit false completion
         else {
-            // collect implicit false completion
             self.restore_flow(before);
             self.narrow_condition(condition, ConditionBranch::False)?;
             branches.push(self.collect_flow_branch(before));
@@ -773,25 +771,30 @@ impl WalkState<'_, '_> {
         access: PlaceUse,
     ) -> CompilerResult<Vec<(dir::LocalNodeId<dir::Expression>, AssignedPlace)>> {
         let places = match self.tree.get(id) {
+            // { name: pattern }
             dir::AssignPatternField::Named { pattern, .. } => {
                 let pattern = *pattern;
                 self.walk_assign_pattern(pattern, None, access)?
             }
+            // { [key]: pattern }
             dir::AssignPatternField::Computed { key, pattern } => {
                 let (key, pattern) = (*key, *pattern);
                 self.walk_expression(key, self.tree.get(key))?;
                 self.walk_assign_pattern(pattern, None, access)?
             }
+            // [pattern]
             dir::AssignPatternField::Positional { pattern } => {
                 let pattern = *pattern;
                 self.walk_assign_pattern(pattern, None, access)?
             }
+            // { ...pattern }
             dir::AssignPatternField::Rest {
                 pattern: Some(pattern),
             } => {
                 let pattern = *pattern;
                 self.walk_assign_pattern(pattern, None, access)?
             }
+            // { ... }, [,]
             dir::AssignPatternField::Rest { pattern: None } | dir::AssignPatternField::Elision => {
                 Vec::new()
             }
@@ -812,6 +815,7 @@ impl WalkState<'_, '_> {
             self.clear_mutated_expression_narrowings(expression);
         }
     }
+
     /// Return whether one tree tag names a lowercase builder row.
     fn is_intrinsic_tree_tag(&self, tag: dir::LocalNodeId<dir::Expression>) -> bool {
         match self.tree.get(tag) {

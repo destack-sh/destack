@@ -177,28 +177,28 @@ import { Float, FloatDomain, Integer, IntegerDomain, NumericDomain } from "desta
 import { Float, FloatDomain, Integer, IntegerDomain, NumericDomain } from "destack:math";
 
 1 satisfies IntegerDomain;
-/// @resolution.name source=IntegerDomain target=math.integer.IntegerDomain
+/// @resolution.name source=IntegerDomain target=IntegerDomain
 
 1.5 satisfies FloatDomain;
-/// @resolution.name source=FloatDomain target=math.float.FloatDomain
+/// @resolution.name source=FloatDomain target=FloatDomain
 
 1 satisfies NumericDomain;
-/// @resolution.name source=NumericDomain target=math.numeric.NumericDomain
+/// @resolution.name source=NumericDomain target=NumericDomain
 
 1.5 satisfies NumericDomain;
-/// @resolution.name source=NumericDomain target=math.numeric.NumericDomain
+/// @resolution.name source=NumericDomain target=NumericDomain
 
 1 as int32 satisfies IntegerDomain;
-/// @resolution.name source=IntegerDomain target=math.integer.IntegerDomain
+/// @resolution.name source=IntegerDomain target=IntegerDomain
 
 1.5 as float32 satisfies FloatDomain;
-/// @resolution.name source=FloatDomain target=math.float.FloatDomain
+/// @resolution.name source=FloatDomain target=FloatDomain
 
 1 as int32 satisfies Integer;
-/// @resolution.name source=Integer target=math.integer.Integer
+/// @resolution.name source=Integer target=Integer
 
 1.5 as float32 satisfies Float;
-/// @resolution.name source=Float target=math.float.Float
+/// @resolution.name source=Float target=Float
 "#,
     );
 }
@@ -228,10 +228,10 @@ import { Float, Integer } from "destack:math";
 import { Float, Integer } from "destack:math";
 
 1 satisfies Integer;
-/// @resolution.name source=Integer target=math.integer.Integer
+/// @resolution.name source=Integer target=Integer
 
 1.5 satisfies Float;
-/// @resolution.name source=Float target=math.float.Float
+/// @resolution.name source=Float target=Float
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type '1' does not satisfy 'Integer'"

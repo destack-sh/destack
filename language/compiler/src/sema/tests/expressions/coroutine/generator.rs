@@ -23,23 +23,23 @@ function* count(limit: int32): Generator<int32, void, void> {
 === dir ===
 function* count(limit: int32): Generator<int32, void, void> {
 /// @type.symbol symbol=count type=(int32) => *Generator<int32, void, void>
-/// @generic.instance id="Generator<int32, void, void>" template=async.generator.Generator arguments=(int32, void, void)
-/// @generic.instance id="async.generator.GeneratorPhase<int32, void, void>" template=async.generator.GeneratorPhase arguments=(int32, void, void)
-/// @generic.instance id="async.generator.GeneratorRequest<void, void>" template=async.generator.GeneratorRequest arguments=(void, void)
-/// @generic.instance id="async.generator.GeneratorRequested<void, void>" template=async.generator.GeneratorRequested arguments=(void, void)
-/// @generic.instance id="async.generator.GeneratorResult<int32, void>" template=async.generator.GeneratorResult arguments=(int32, void)
-/// @generic.instance id="async.generator.GeneratorState<int32, void, void>" template=async.generator.GeneratorState arguments=(int32, void, void)
-/// @generic.instance id="iter.iterator.IteratorResult<int32, void>" template=iter.iterator.IteratorResult arguments=(int32, void)
-/// @generic.instance id="memory.cell.cell.Cell<async.generator.GeneratorPhase<int32, void, void>>" template=memory.cell.cell.Cell arguments=(async.generator.GeneratorPhase<int32, void, void>)
-/// @generic.instance id="memory.cell.cell.UnsafeCell<async.generator.GeneratorPhase<int32, void, void>>" template=memory.cell.cell.UnsafeCell arguments=(async.generator.GeneratorPhase<int32, void, void>)
-/// @generic.instance id=async.generator.GeneratorNext<void> template=async.generator.GeneratorNext arguments=(void)
-/// @generic.instance id=async.generator.GeneratorReturn<void> template=async.generator.GeneratorReturn arguments=(void)
-/// @generic.instance id=async.generator.GeneratorReturned<void> template=async.generator.GeneratorReturned arguments=(void)
-/// @generic.instance id=async.generator.GeneratorYielded<int32> template=async.generator.GeneratorYielded arguments=(int32)
-/// @generic.instance id=iter.iterator.IteratorReturn<void> template=iter.iterator.IteratorReturn arguments=(void)
-/// @generic.instance id=iter.iterator.IteratorYield<int32> template=iter.iterator.IteratorYield arguments=(int32)
+/// @generic.instance id="Cell<GeneratorPhase<int32, void, void>>" template=Cell arguments=(GeneratorPhase<int32, void, void>)
+/// @generic.instance id="Generator<int32, void, void>" template=Generator arguments=(int32, void, void)
+/// @generic.instance id="GeneratorPhase<int32, void, void>" template=GeneratorPhase arguments=(int32, void, void)
+/// @generic.instance id="GeneratorRequest<void, void>" template=GeneratorRequest arguments=(void, void)
+/// @generic.instance id="GeneratorRequested<void, void>" template=GeneratorRequested arguments=(void, void)
+/// @generic.instance id="GeneratorResult<int32, void>" template=GeneratorResult arguments=(int32, void)
+/// @generic.instance id="GeneratorState<int32, void, void>" template=GeneratorState arguments=(int32, void, void)
+/// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
+/// @generic.instance id="UnsafeCell<GeneratorPhase<int32, void, void>>" template=UnsafeCell arguments=(GeneratorPhase<int32, void, void>)
+/// @generic.instance id=GeneratorNext<void> template=GeneratorNext arguments=(void)
+/// @generic.instance id=GeneratorReturn<void> template=GeneratorReturn arguments=(void)
+/// @generic.instance id=GeneratorReturned<void> template=GeneratorReturned arguments=(void)
+/// @generic.instance id=GeneratorYielded<int32> template=GeneratorYielded arguments=(int32)
+/// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
+/// @generic.instance id=IteratorYield<int32> template=IteratorYield arguments=(int32)
 /// @type.symbol symbol=count.limit source="limit: int32" type=int32
-/// @resolution.name source=Generator target=async.generator.Generator
+/// @resolution.name source=Generator target=Generator
 
     for (let value: int32 = 0; value < limit; value += 1) {
     /// @type.symbol symbol=count.value source=value type=int32

@@ -28,6 +28,23 @@ impl CheckState<'_> {
         self.open_variable_of(origin, VariableKind::Type, role)
     }
 
+    /// Allocate one memory-kinded inference variable as a type term.
+    pub(in crate::sema) fn open_memory_type(
+        &mut self,
+        origin: Origin,
+        kind: dir::MemoryParameter,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let variable = self.open_variable(
+            origin,
+            VariableRole::Memory {
+                kind,
+                constraint: None,
+            },
+        );
+
+        self.variable_type(variable)
+    }
+
     /// Allocate one inference variable of the given kind.
     pub(in crate::sema) fn open_variable_of(
         &mut self,
@@ -94,18 +111,6 @@ impl CheckState<'_> {
         Ok(state.state.is_open().then_some(variable))
     }
 
-    /// Return the special role attached to one open variable.
-    pub(in crate::sema) fn variable_role(
-        &self,
-        variable: dir::TypeVariableId,
-    ) -> CompilerResult<VariableRole> {
-        let Some(variable) = self.open_root(variable)? else {
-            return Ok(VariableRole::Regular);
-        };
-
-        self.infer.variable_role(variable)
-    }
-
     /// Return the memory parameter kind one variable ranges over, however it arose.
     pub(in crate::sema) fn variable_memory_parameter(
         &self,
@@ -142,8 +147,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Commit the widened union of one variable's literal lower bounds, so a contextual slot
-    /// read before its call decides reads a widened type.
+    /// Commit the widened union of one variable's literal lower bounds.
     pub(in crate::sema) fn fix_literal_candidates(
         &mut self,
         ty: dir::GlobalTypeId,
@@ -152,13 +156,26 @@ impl CheckState<'_> {
             return Ok(());
         };
 
-        // a const or scalar-bounded parameter keeps its literals
+        // memory components keep their singleton literals
+        if matches!(self.infer.variable_role(root)?, VariableRole::Memory { .. }) {
+            return Ok(());
+        }
+
+        // keep literal solutions for const, scalar-bounded, and memory parameters
         if let VariableRole::Instantiation { parameter } = self.infer.variable_role(root)? {
+            if self
+                .generic_parameter(parameter)
+                .is_some_and(|binding| binding.memory_parameter().is_some())
+            {
+                return Ok(());
+            }
             let origin = self.infer.origin(self.infer.variable(root)?.origin);
             if self.parameter_keeps_literals(origin, parameter)? {
                 return Ok(());
             }
         }
+
+        // read the literal lower bounds this variable collected
         let lower = self
             .infer
             .variables
@@ -167,6 +184,8 @@ impl CheckState<'_> {
         if lower.is_empty() {
             return Ok(());
         }
+
+        // widen every literal bound, giving up as soon as one is not a literal
         let mut widened = SmallVec::<[dir::GlobalTypeId; 2]>::new();
         for bound in lower {
             let ty = self.shallow_resolve(bound.ty)?;
@@ -278,18 +297,20 @@ impl CheckState<'_> {
         let default = match self.infer.variables.variable_default(variable) {
             Some(default) => Some(default),
             None => {
-                let memory = match self.variable_memory_parameter(variable)? {
-                    Some(dir::MemoryParameter::Lifetime) => {
-                        Some(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame))
+                let default = match self.variable_memory_parameter(variable)? {
+                    Some(dir::MemoryParameter::Region) => {
+                        Some(self.lifetime_literal(dir::Lifetime::Frame)?)
                     }
                     Some(dir::MemoryParameter::Access) => {
-                        Some(dir::MemoryLiteral::Access(dir::Access::Readonly))
+                        Some(self.access_literal(dir::Access::Readonly)?)
+                    }
+                    Some(dir::MemoryParameter::Place | dir::MemoryParameter::Space) => {
+                        Some(self.local_place()?)
                     }
                     _ => None,
                 };
-                match memory {
-                    Some(memory) => {
-                        let default = self.intern_type(dir::Type::Memory(memory))?;
+                match default {
+                    Some(default) => {
                         self.infer.set_variable_default(variable, default);
 
                         Some(default)
@@ -312,8 +333,9 @@ impl CheckState<'_> {
         Ok(Some(default))
     }
 
-    /// Return whether one generic parameter keeps literal candidates: a const parameter, or one
-    /// bounded by a scalar family.
+    /// Return whether one generic parameter keeps literal candidates.
+    ///
+    /// A const parameter keeps them, as does one bounded by a scalar family.
     pub(in crate::sema) fn parameter_keeps_literals(
         &mut self,
         origin: Origin,
@@ -322,6 +344,8 @@ impl CheckState<'_> {
         if self.require_generic_parameter(parameter)?.is_const {
             return Ok(true);
         }
+
+        // keep literals for a parameter bounded by a scalar family
         for bound in self.declared_parameter_bounds(parameter)? {
             let bound = self.normalize(origin, bound)?;
             if self.scalar_families(origin, bound)?.is_some() {
@@ -358,15 +382,19 @@ impl CheckState<'_> {
             if self.root_variable(bound.ty)? == Some(variable) {
                 continue;
             }
+
+            // mark a bound that mentions this variable as a recursive construction
             if self.type_contains_variable(bound.ty, variable)? {
                 has_recursive_bound = true;
                 continue;
             }
+
             // a numeric variable follows another variable's solution
             if self.numeric_root(bound.ty)?.is_some() {
                 numeric_lower.push(*bound);
                 continue;
             }
+
             closed_lower.push(*bound);
         }
 
@@ -380,13 +408,18 @@ impl CheckState<'_> {
         let mut contextual_types = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         let mut equation = None;
         for bound in &upper {
+            // a bound aliased onto this variable itself carries no information
             if self.root_variable(bound.ty)? == Some(variable) {
                 continue;
             }
+
+            // mark a bound that mentions this variable as a recursive construction
             if self.type_contains_variable(bound.ty, variable)? {
                 has_recursive_bound = true;
                 continue;
             }
+
+            // keep the equation apart from the directed expectations
             closed_upper.push(*bound);
             if bound.relation == Relation::Equal {
                 equation = Some(bound.ty);
@@ -423,7 +456,7 @@ impl CheckState<'_> {
         }
         contextual_types = typed;
 
-        // a variable bounded below by numeric variables alone is that numeric variable
+        // alias a variable bounded below only by numeric variables onto that variable
         if lower_types.is_empty()
             && contextual_types.is_empty()
             && equation.is_none()
@@ -443,6 +476,14 @@ impl CheckState<'_> {
             && numeric_lower.is_empty();
         let lower_solution = match lower_types.is_empty() {
             true => None,
+            // monomorphic space variables take exactly one candidate
+            //  so a second distinct bound reports through its discharge
+            false
+                if self.variable_memory_parameter(variable)?
+                    == Some(dir::MemoryParameter::Place) =>
+            {
+                lower_types.first().copied()
+            }
             false => Some(self.best_common(variable, &lower_types)?),
         };
         let contextual = match contextual_types.as_slice() {
@@ -491,6 +532,12 @@ impl CheckState<'_> {
                     {
                         Some(contextual)
                     }
+                    // extent variables keep their candidate, MIR Verify enforces outlives
+                    _ if self.variable_memory_parameter(variable)?
+                        == Some(dir::MemoryParameter::Region) =>
+                    {
+                        Some(lower_solution)
+                    }
                     _ => {
                         // report every violated bound, then poison the variable
                         for bound in &closed_lower {
@@ -511,7 +558,7 @@ impl CheckState<'_> {
         } else if !defaults.is_empty() {
             Some(self.best_common(variable, defaults)?)
         }
-        // a numeric variable nothing decided falls back to its kind's default at the end
+        // fall back at the end to the kind default of a numeric variable nothing decided
         else if stage == FallbackStage::Final
             && let Some(fallback) = state.kind.fallback()
         {
@@ -520,7 +567,7 @@ impl CheckState<'_> {
             None
         };
 
-        // report a candidate-free structural cycle as an infinite type
+        // report a structural cycle with no candidate as an infinite type
         let solution = match solution {
             Some(solution) => solution,
             None if is_unconstrained_recursion => {
@@ -538,9 +585,9 @@ impl CheckState<'_> {
         let solution = self.reduce_redundant_forms(origin, solution)?;
 
         // commit canonical memory literals for memory variables
-        let solution = match self.variable_memory_parameter(variable)? {
-            Some(kind) => self.normalize_memory_component(origin, solution, kind)?,
-            None => solution,
+        let solution = match self.variable_memory_parameter(variable)?.is_some() {
+            true => self.normalize_memory_component(origin, solution)?,
+            false => solution,
         };
 
         self.commit_solution(variable, solution)?;
@@ -870,12 +917,15 @@ impl CheckState<'_> {
             solution: ty,
         });
 
-        // discharge accumulated bounds against the completed type
-        for bound in &bounds.lower {
-            self.discharge_bound(BoundSide::Lower, bound, ty)?;
-        }
-        for bound in &bounds.upper {
-            self.discharge_bound(BoundSide::Upper, bound, ty)?;
+        // discharge accumulated bounds against the completed type, keeping
+        //  extent bounds without deciding, MIR Verify enforces outlives
+        if self.variable_memory_parameter(variable)? != Some(dir::MemoryParameter::Region) {
+            for bound in &bounds.lower {
+                self.discharge_bound(BoundSide::Lower, bound, ty)?;
+            }
+            for bound in &bounds.upper {
+                self.discharge_bound(BoundSide::Upper, bound, ty)?;
+            }
         }
 
         Ok(())
@@ -945,15 +995,18 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        // discharge a late bound as a relation check
+        // discharge a late bound as a relation check, keeping extent bounds
+        //  without deciding, MIR Verify enforces outlives
         if let Some(solution) = self.infer.variable(variable)?.state.ty() {
-            let late = TypeBound::new(origin, bound, relation, cause);
-            self.discharge_bound(side, &late, solution)?;
+            if self.variable_memory_parameter(variable)? != Some(dir::MemoryParameter::Region) {
+                let late = TypeBound::new(origin, bound, relation, cause);
+                self.discharge_bound(side, &late, solution)?;
+            }
 
             return Ok(());
         }
 
-        // numeric variables bounding one variable from below join into one family variable
+        // join numeric variables that bound one variable from below into one family variable
         if side == BoundSide::Lower
             && let Some(root) = self.numeric_root(bound)?
         {

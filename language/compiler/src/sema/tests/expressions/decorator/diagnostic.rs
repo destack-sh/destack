@@ -23,9 +23,9 @@ if (true) {
 
 === dir ===
 @allow("constant-condition")
-/// @decorator.node source="@allow(\"constant-condition\")" owner="if (true) {}" expression=allow target=decorator.allow type=allow kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.allow backing=(decorator.diagnostic.DiagnosticId,) value="allow(\"constant-condition\")"
+/// @decorator.node source="@allow(\"constant-condition\")" owner="if (true) {}" expression=allow target=decorator.allow type=allow kind=newtype parameters=(DiagnosticId) arguments=(provided("constant-condition") as DiagnosticId) newtype=allow backing=(DiagnosticId,) value="allow(\"constant-condition\")"
 /// @type.node source=allow type=allow
-/// @resolution.name source=allow target=decorator.diagnostic.allow
+/// @resolution.name source=allow target=allow
 /// @type.node source="\"constant-condition\"" type="constant-condition"
 
 if (true) {}
@@ -56,9 +56,9 @@ if (true) {
 
 === dir ===
 @deny("constant-condition")
-/// @decorator.node source="@deny(\"constant-condition\")" owner="if (true) {}" expression=deny target=decorator.deny type=deny kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.deny backing=(decorator.diagnostic.DiagnosticId,) value="deny(\"constant-condition\")"
+/// @decorator.node source="@deny(\"constant-condition\")" owner="if (true) {}" expression=deny target=decorator.deny type=deny kind=newtype parameters=(DiagnosticId) arguments=(provided("constant-condition") as DiagnosticId) newtype=deny backing=(DiagnosticId,) value="deny(\"constant-condition\")"
 /// @type.node source=deny type=deny
-/// @resolution.name source=deny target=decorator.diagnostic.deny
+/// @resolution.name source=deny target=deny
 /// @type.node source="\"constant-condition\"" type="constant-condition"
 
 if (true) {}
@@ -95,9 +95,9 @@ if (true) {
 
 === dir ===
 @expect("constant-condition")
-/// @decorator.node source="@expect(\"constant-condition\")" owner="if (true) {}" expression=expect target=decorator.expect type=expect kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.expect backing=(decorator.diagnostic.DiagnosticId,) value="expect(\"constant-condition\")"
+/// @decorator.node source="@expect(\"constant-condition\")" owner="if (true) {}" expression=expect target=decorator.expect type=expect kind=newtype parameters=(DiagnosticId) arguments=(provided("constant-condition") as DiagnosticId) newtype=expect backing=(DiagnosticId,) value="expect(\"constant-condition\")"
 /// @type.node source=expect type=expect
-/// @resolution.name source=expect target=decorator.diagnostic.expect
+/// @resolution.name source=expect target=expect
 /// @type.node source="\"constant-condition\"" type="constant-condition"
 
 if (true) {}
@@ -127,9 +127,9 @@ const value: 1 = 1;
 
 === dir ===
 @expect("constant-condition", { reason: "intentional assertion" })
-/// @decorator.node source="@expect(\"constant-condition\", { reason: \"intentional assertion\" })" owner="const value = 1" expression=expect target=decorator.expect type=expect kind=newtype parameters=(decorator.diagnostic.DiagnosticId, decorator.diagnostic.DiagnosticControlOptions) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId, provided({ reason: "intentional assertion" }) as decorator.diagnostic.DiagnosticControlOptions) newtype=decorator.diagnostic.expect backing=(decorator.diagnostic.DiagnosticId, decorator.diagnostic.DiagnosticControlOptions) value="expect(\"constant-condition\", { reason: \"intentional assertion\" })"
+/// @decorator.node source="@expect(\"constant-condition\", { reason: \"intentional assertion\" })" owner="const value = 1" expression=expect target=decorator.expect type=expect kind=newtype parameters=(DiagnosticId, DiagnosticControlOptions) arguments=(provided("constant-condition") as DiagnosticId, provided({ reason: "intentional assertion" }) as DiagnosticControlOptions) newtype=expect backing=(DiagnosticId, DiagnosticControlOptions) value="expect(\"constant-condition\", { reason: \"intentional assertion\" })"
 /// @type.node source=expect type=expect
-/// @resolution.name source=expect target=decorator.diagnostic.expect
+/// @resolution.name source=expect target=expect
 /// @type.node source="\"constant-condition\"" type="constant-condition"
 /// @type.node source={ reason: "intentional assertion" } type={ reason: string; if?: never; otherwise?: never }
 /// @type.node source="\"intentional assertion\"" type="intentional assertion"
@@ -173,9 +173,9 @@ if (true) {
 
 === dir ===
 @deny("constant-condition", { if: false, otherwise: "allow" })
-/// @decorator.node source="@deny(\"constant-condition\", { if: false, otherwise: \"allow\" })" owner="if (true) {}" expression=deny target=decorator.deny type=deny kind=newtype parameters=(decorator.diagnostic.DiagnosticId, decorator.diagnostic.DiagnosticControlOptions) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId, provided({ if: false, otherwise: "allow" }) as decorator.diagnostic.DiagnosticControlOptions) newtype=decorator.diagnostic.deny backing=(decorator.diagnostic.DiagnosticId, decorator.diagnostic.DiagnosticControlOptions) value="deny(\"constant-condition\", { if: false; otherwise: \"allow\" })"
+/// @decorator.node source="@deny(\"constant-condition\", { if: false, otherwise: \"allow\" })" owner="if (true) {}" expression=deny target=decorator.deny type=deny kind=newtype parameters=(DiagnosticId, DiagnosticControlOptions) arguments=(provided("constant-condition") as DiagnosticId, provided({ if: false, otherwise: "allow" }) as DiagnosticControlOptions) newtype=deny backing=(DiagnosticId, DiagnosticControlOptions) value="deny(\"constant-condition\", { if: false; otherwise: \"allow\" })"
 /// @type.node source=deny type=deny
-/// @resolution.name source=deny target=decorator.diagnostic.deny
+/// @resolution.name source=deny target=deny
 /// @type.node source="\"constant-condition\"" type="constant-condition"
 /// @type.node source={ if: false, otherwise: "allow" } type={ reason?: string; if: boolean; otherwise?: "allow" | "warn" | "deny" | "forbid" }
 /// @type.node source=false type=false
@@ -211,15 +211,15 @@ if (true) {
 
 === dir ===
 @forbid("constant-condition")
-/// @decorator.node source="@forbid(\"constant-condition\")" owner="if (true) {}" expression=forbid target=decorator.forbid type=forbid kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.forbid backing=(decorator.diagnostic.DiagnosticId,) value="forbid(\"constant-condition\")"
+/// @decorator.node source="@forbid(\"constant-condition\")" owner="if (true) {}" expression=forbid target=decorator.forbid type=forbid kind=newtype parameters=(DiagnosticId) arguments=(provided("constant-condition") as DiagnosticId) newtype=forbid backing=(DiagnosticId,) value="forbid(\"constant-condition\")"
 /// @type.node source=forbid type=forbid
-/// @resolution.name source=forbid target=decorator.diagnostic.forbid
+/// @resolution.name source=forbid target=forbid
 /// @type.node source="\"constant-condition\"" type="constant-condition"
 
 @allow("constant-condition")
-/// @decorator.node source="@allow(\"constant-condition\")" owner="if (true) {}" expression=allow target=decorator.allow type=allow kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("constant-condition") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.allow backing=(decorator.diagnostic.DiagnosticId,) value="allow(\"constant-condition\")"
+/// @decorator.node source="@allow(\"constant-condition\")" owner="if (true) {}" expression=allow target=decorator.allow type=allow kind=newtype parameters=(DiagnosticId) arguments=(provided("constant-condition") as DiagnosticId) newtype=allow backing=(DiagnosticId,) value="allow(\"constant-condition\")"
 /// @type.node source=allow type=allow
-/// @resolution.name source=allow target=decorator.diagnostic.allow
+/// @resolution.name source=allow target=allow
 /// @type.node source="\"constant-condition\"" type="constant-condition"
 
 if (true) {}
@@ -256,9 +256,9 @@ const value: 1 = 1;
 
 === dir ===
 @allow("not-a-diagnostic")
-/// @decorator.node source="@allow(\"not-a-diagnostic\")" owner="const value = 1" expression=allow target=decorator.allow type=allow kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("not-a-diagnostic") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.allow backing=(decorator.diagnostic.DiagnosticId,) value="allow(\"not-a-diagnostic\")"
+/// @decorator.node source="@allow(\"not-a-diagnostic\")" owner="const value = 1" expression=allow target=decorator.allow type=allow kind=newtype parameters=(DiagnosticId) arguments=(provided("not-a-diagnostic") as DiagnosticId) newtype=allow backing=(DiagnosticId,) value="allow(\"not-a-diagnostic\")"
 /// @type.node source=allow type=allow
-/// @resolution.name source=allow target=decorator.diagnostic.allow
+/// @resolution.name source=allow target=allow
 /// @type.node source="\"not-a-diagnostic\"" type="not-a-diagnostic"
 
 const value = 1;
@@ -293,9 +293,9 @@ const value: 1 = 1;
 
 === dir ===
 @allow("not-assignable")
-/// @decorator.node source="@allow(\"not-assignable\")" owner="const value = 1" expression=allow target=decorator.allow type=allow kind=newtype parameters=(decorator.diagnostic.DiagnosticId) arguments=(provided("not-assignable") as decorator.diagnostic.DiagnosticId) newtype=decorator.diagnostic.allow backing=(decorator.diagnostic.DiagnosticId,) value="allow(\"not-assignable\")"
+/// @decorator.node source="@allow(\"not-assignable\")" owner="const value = 1" expression=allow target=decorator.allow type=allow kind=newtype parameters=(DiagnosticId) arguments=(provided("not-assignable") as DiagnosticId) newtype=allow backing=(DiagnosticId,) value="allow(\"not-assignable\")"
 /// @type.node source=allow type=allow
-/// @resolution.name source=allow target=decorator.diagnostic.allow
+/// @resolution.name source=allow target=allow
 /// @type.node source="\"not-assignable\"" type="not-assignable"
 
 const value = 1;

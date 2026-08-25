@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A literal type read back through a name stays exact at generic calls.
 #[test]
 fn test_keep_a_literal_type_read_back_through_a_name_unwidened() {
     let session = TestSession::single(
@@ -76,8 +77,8 @@ const fresh = id("users");
 const tags = [tag];
 /// @type.symbol symbol=tags source=tags type="users"[]
 /// @resolution.pattern source=tags kind=binding target=tags
-/// @resolution.call source=[tag] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(tag) as "users") return="users"[] kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<\"users\">"
-/// @generic.instantiation id="collections.array.arrayFromSlice<\"users\">" template=collections.array.arrayFromSlice arguments=("users")
+/// @resolution.call source=[tag] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(tag) as "users") return="users"[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<\"users\">"
+/// @generic.instantiation id="arrayFromSlice<\"users\">" template=arrayFromSlice arguments=("users")
 /// @resolution.name source=tag target=tag
 /// @resolution.place source=tag placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=tag root=tag
@@ -85,8 +86,8 @@ const tags = [tag];
 const literals = ["users"];
 /// @type.symbol symbol=literals source=literals type=string[]
 /// @resolution.pattern source=literals kind=binding target=literals
-/// @resolution.call source=["users"] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest("users") as string) return=string[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<string>
-/// @generic.instantiation id=collections.array.arrayFromSlice<string> template=collections.array.arrayFromSlice arguments=(string)
+/// @resolution.call source=["users"] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest("users") as string) return=string[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<string>
+/// @generic.instantiation id=arrayFromSlice<string> template=arrayFromSlice arguments=(string)
 
 const echoed = withLabel("users", (label) => label);
 /// @type.symbol symbol=echoed source=echoed type="users"
@@ -105,6 +106,7 @@ const echoed = withLabel("users", (label) => label);
     );
 }
 
+/// Fresh literal forms widen while types read back through a name stay exact.
 #[test]
 fn test_widen_fresh_literal_forms_and_keep_read_back_types() {
     let session = TestSession::single(
@@ -193,8 +195,8 @@ const list = id([tag, "users"]);
 /// @resolution.name source=id target=id
 /// @resolution.call source="id([tag, \"users\"])" parameters=(string[]) arguments=(provided([tag, "users"]) as string[]) return=string[] kind=symbol target=id instance=id<string[]>
 /// @generic.instantiation id=id<string[]> template=id arguments=(string[])
-/// @resolution.call source=[tag, "users"] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(tag, "users") as string) return=string[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<string>
-/// @generic.instantiation id=collections.array.arrayFromSlice<string> template=collections.array.arrayFromSlice arguments=(string)
+/// @resolution.call source=[tag, "users"] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(tag, "users") as string) return=string[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<string>
+/// @generic.instantiation id=arrayFromSlice<string> template=arrayFromSlice arguments=(string)
 /// @resolution.name source=tag target=tag
 /// @resolution.place source=tag placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=tag root=tag

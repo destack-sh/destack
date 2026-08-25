@@ -23,6 +23,8 @@ enum RepresentationCheck {
         /// Report fields when checking their own declaration.
         use_fields: bool,
     },
+    /// Values held across a suspension point must store no borrow.
+    Suspend,
 }
 
 /// One invalid representation found while walking stored children.
@@ -33,6 +35,8 @@ enum RepresentationFailure {
     Circular(dir::GlobalNodeIdAny),
     /// Shared storage keeps a safe local reference.
     LocalReference(dir::GlobalNodeIdAny),
+    /// Storage crossing a suspension keeps a borrow.
+    BorrowedStorage,
 }
 
 impl CheckState<'_> {
@@ -42,10 +46,12 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // reuse the decision recorded by an earlier walk
         if self.is_representation_proven(origin, ty, dir::AutoInterface::Concrete)? {
             return Ok(true);
         }
 
+        // walk the stored representation for abstract slots
         let source = self.origin_source(origin)?;
         let interface = self.language_type(dir::LanguageItem::Concrete, &[])?;
         let mut visited = FxIndexSet::default();
@@ -69,6 +75,7 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // reuse the decision recorded by an earlier walk
         if self.is_representation_proven(origin, ty, dir::AutoInterface::SharedSafe)? {
             return Ok(true);
         }
@@ -77,7 +84,6 @@ impl CheckState<'_> {
         let value = self.strip_form(origin, ty)?;
         let symbol = match self.ty(value)? {
             dir::Type::Application(instance) => Some(instance.symbol),
-            dir::Type::Reference(reference) => Some(reference.symbol),
             _ => None,
         };
         if let Some(symbol) = symbol
@@ -88,9 +94,7 @@ impl CheckState<'_> {
 
         // walk the stored representation for shared containment
         let source = self.origin_source(origin)?;
-        let place = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Place(
-            dir::Place::Space(dir::Space::Shared),
-        )))?;
+        let place = self.place_literal(dir::Space::Shared)?;
         let mut visited = FxIndexSet::default();
         let failure = self.representation_failure(
             origin,
@@ -109,18 +113,48 @@ impl CheckState<'_> {
         Ok(failure.is_none())
     }
 
-    /// Check the finite and shared-safety properties of one stored type.
+    /// Return whether values of one type may stay live across a suspension point.
+    pub(in crate::sema) fn is_suspend_safe(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        // reuse the decision recorded by an earlier walk
+        if self.is_representation_proven(origin, ty, dir::AutoInterface::SuspendSafe)? {
+            return Ok(true);
+        }
+
+        // walk the stored representation for borrow containment
+        let source = self.origin_source(origin)?;
+        let mut visited = FxIndexSet::default();
+        let failure = self.representation_failure(
+            origin,
+            ty,
+            source,
+            RepresentationCheck::Suspend,
+            &mut visited,
+        )?;
+        if failure.is_none() {
+            self.prove_representation(origin, ty, dir::AutoInterface::SuspendSafe)?;
+        }
+
+        Ok(failure.is_none())
+    }
+
+    /// Check the finite and shared safety properties of one stored type.
     pub(in crate::sema) fn check_representation(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<ObligationCheck> {
+        // reuse the decision recorded by an earlier walk
         if let Some(key) = self.storage_key(origin, ty)?
             && self.storables.contains(&key)
         {
             return Ok(ObligationCheck::holds());
         }
 
+        // walk the stored representation for inline cycles
         let source = self.origin_source(origin)?;
         let mut visited = FxIndexSet::default();
         let failure = self.representation_failure(
@@ -148,7 +182,7 @@ impl CheckState<'_> {
                     return Ok(ObligationCheck::holds());
                 }
                 let use_fields = match self.ty(chain.base())? {
-                    // require an own-module declaration to name the source site
+                    // require a declaration in our own module to name the source site
                     dir::Type::Application(instance)
                         if self.is_own_module(instance.symbol.module_id) =>
                     {
@@ -185,8 +219,13 @@ impl CheckState<'_> {
             Some(RepresentationFailure::LocalReference(source)) => {
                 ObligationFailure::LocalReferenceInSharedStorage { source }
             }
+            Some(RepresentationFailure::BorrowedStorage) => {
+                return Err(CompilerError::Internal {
+                    message: "representation validation entered a suspend marker check".into(),
+                });
+            }
             None => {
-                // prove storage away from the field's own declaration site
+                // prove storage outside the field's own declaration site
                 if !is_declaration_site {
                     self.prove_storage(origin, ty)?;
                 }
@@ -309,9 +348,10 @@ impl CheckState<'_> {
 
                 RepresentationCheck::Shared { place, use_fields }
             }
+            RepresentationCheck::Suspend => RepresentationCheck::Suspend,
         };
 
-        // reuse the per-node proofs of the place independent walks
+        // reuse the decisions recorded by the walks that ignore the place
         match check {
             RepresentationCheck::Concrete { .. } => {
                 if self.is_representation_proven(origin, ty, dir::AutoInterface::Concrete)? {
@@ -326,9 +366,14 @@ impl CheckState<'_> {
                 }
             }
             RepresentationCheck::Shared { .. } => {}
+            RepresentationCheck::Suspend => {
+                if self.is_representation_proven(origin, ty, dir::AutoInterface::SuspendSafe)? {
+                    return Ok(None);
+                }
+            }
         }
 
-        // an open numeric variable stores like the scalar it settles to
+        // treat an open numeric variable like the scalar it settles to
         let ty = self.shallow_resolve(ty)?;
         if self.numeric_root(ty)?.is_some() {
             return Ok(None);
@@ -339,7 +384,7 @@ impl CheckState<'_> {
             let failure = match check {
                 RepresentationCheck::Concrete { .. } => None,
                 RepresentationCheck::Finite => Some(RepresentationFailure::Circular(source)),
-                RepresentationCheck::Shared { .. } => None,
+                RepresentationCheck::Shared { .. } | RepresentationCheck::Suspend => None,
             };
 
             return Ok(failure);
@@ -359,6 +404,9 @@ impl CheckState<'_> {
                     self.prove_storage(origin, ty)?;
                 }
                 RepresentationCheck::Shared { .. } => {}
+                RepresentationCheck::Suspend => {
+                    self.prove_representation(origin, ty, dir::AutoInterface::SuspendSafe)?;
+                }
             }
         }
 
@@ -387,7 +435,7 @@ impl CheckState<'_> {
 
                 return Ok((!is_proven).then_some(RepresentationFailure::Abstract));
             }
-            // skip abstract type expressions, they select no runtime representation
+            // fail abstract type expressions, they select no runtime representation
             dir::Type::Unknown
             | dir::Type::Intrinsic
             | dir::Type::Erased(_)
@@ -407,13 +455,20 @@ impl CheckState<'_> {
                 dir::Form::Owned if matches!(check, RepresentationCheck::Finite) => {
                     return Ok(None);
                 }
-                dir::Form::Owned | dir::Form::Placed { .. } | dir::Form::Readonly => {
+                dir::Form::Owned | dir::Form::Readonly => {
                     SmallVec::from_slice(&[(form.value, source)])
                 }
-                dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Raw => {
+                // refuse a stored borrow held across a suspension
+                dir::Form::Borrowed(_) if matches!(check, RepresentationCheck::Suspend) => {
+                    return Ok(Some(RepresentationFailure::BorrowedStorage));
+                }
+                // accept managed storage, borrows that escaped to the heap
+                //  already satisfied the heap escape lifetime rules
+                dir::Form::Managed { .. } | dir::Form::Borrowed(_) | dir::Form::Raw => {
                     return Ok(None);
                 }
             },
+            // walk the element of a bare slice for the shared reachability check
             dir::Type::Slice(slice) if matches!(check, RepresentationCheck::Shared { .. }) => {
                 SmallVec::from_slice(&[(slice.element, source)])
             }
@@ -455,7 +510,7 @@ impl CheckState<'_> {
         check: RepresentationCheck,
         visited: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<RepresentationFailure>> {
-        // vectors store their element inline, other opaque intrinsics store no visible children
+        // walk the element of a vector inline, and stop at every other intrinsic
         if let Some(item) = self.language_item(instance.symbol)? {
             if item == dir::LanguageItem::Vector
                 && let Some(element) = self.type_ids(owner, instance.arguments)?.first().copied()

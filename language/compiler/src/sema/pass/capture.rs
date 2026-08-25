@@ -15,7 +15,7 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        // collect managed fields per lifted lexical scope
+        // collect managed symbols per lifted lexical scope
         let mut managed_symbols =
             FxIndexMap::<dir::LocalScopeId, FxIndexSet<dir::GlobalSymbolId>>::default();
         for capture in &captures {
@@ -42,7 +42,6 @@ impl CheckState<'_> {
         let mut frames = FxIndexMap::default();
         for (scope, symbols) in managed_symbols {
             let frame = self.write_capture_frame(module, scope, &symbols)?;
-
             frames.insert(scope, frame);
         }
 
@@ -116,8 +115,9 @@ impl CheckState<'_> {
 
         // build the managed frame object type
         let shape = self.intern_object(&object_properties)?;
+        let place = self.local_place()?;
         let ty = self.intern_type(dir::Type::Form(dir::FormType {
-            form: dir::Form::Managed,
+            form: dir::Form::Managed { place },
             value: shape,
         }))?;
 
@@ -202,6 +202,7 @@ impl CheckState<'_> {
             None => None,
         };
 
+        // assemble the function's capture record
         let capture = dir::Capture {
             frames: used_frames.into_iter().collect(),
             captures: captured,

@@ -57,8 +57,9 @@ impl WalkState<'_, '_> {
             // [T]
             dir::TypeExpression::Slice { element } => {
                 let element = self.walk_type_expression(*element)?;
+                let place = self.check.local_place()?;
 
-                self.intern_type(dir::Type::Slice(dir::SliceType { element }))
+                self.intern_type(dir::Type::Slice(dir::SliceType { element, place }))
             }
             // [T; N]
             dir::TypeExpression::FixedArray { element, length } => {
@@ -99,9 +100,7 @@ impl WalkState<'_, '_> {
                     _ => None,
                 };
                 match literal {
-                    Some(literal) => {
-                        self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(literal)))
-                    }
+                    Some(literal) => self.check.lifetime_literal(literal),
                     None => self.walk_reference_type(id, &dir::Path::from_segment(name), &[]),
                 }
             }
@@ -233,6 +232,15 @@ impl WalkState<'_, '_> {
                 target_type,
                 ..
             } => {
+                // owned values live in their container's space
+                if matches!(
+                    self.tree.get(*target_type),
+                    dir::TypeExpression::Local { .. } | dir::TypeExpression::Shared { .. }
+                ) {
+                    self.check
+                        .report_placement_on_owned(self.module, id.into_any());
+                }
+
                 let value = self.walk_type_expression(*target_type)?;
                 let value = if *mutability == Some(dir::Mutability::Immutable) {
                     self.intern_type(dir::Type::Form(dir::FormType {
@@ -262,14 +270,14 @@ impl WalkState<'_, '_> {
                 let access = mutability
                     .map(dir::Mutability::access)
                     .unwrap_or(dir::Access::Mutable);
-                let access =
-                    self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(access)))?;
-                let lifetime = match lifetime {
-                    Some(lifetime) => self.walk_type_expression(*lifetime)?,
-                    None => self.elided_borrow_lifetime(source)?,
-                };
+                let access = self.access_literal(access)?;
 
-                let form = self.intern_borrow(lifetime, access)?;
+                // take a written region term whole, it carries both coordinates
+                let region = match lifetime {
+                    Some(lifetime) => self.walk_type_expression(*lifetime)?,
+                    None => self.elided_borrow_region(source)?,
+                };
+                let form = self.check.intern_borrow(region, access)?;
 
                 self.intern_type(dir::Type::Form(dir::FormType { form, value }))
             }
@@ -299,6 +307,27 @@ impl WalkState<'_, '_> {
                 for element in elements {
                     element_types.push(self.walk_type_expression(element)?);
                 }
+
+                // intern a written extent & space intersection as its region
+                if let [first, second] = element_types.as_slice() {
+                    let first_kind = self.check.memory_kind(*first)?;
+                    let second_kind = self.check.memory_kind(*second)?;
+                    let pair = if first_kind == Some(dir::MemoryParameter::Region)
+                        && second_kind == Some(dir::MemoryParameter::Place)
+                    {
+                        Some((*first, *second))
+                    } else if first_kind == Some(dir::MemoryParameter::Place)
+                        && second_kind == Some(dir::MemoryParameter::Region)
+                    {
+                        Some((*second, *first))
+                    } else {
+                        None
+                    };
+                    if let Some((extent, spaces)) = pair {
+                        return self.check.intern_region(extent, spaces);
+                    }
+                }
+
                 let elements = self.intern_type_ids(&element_types)?;
                 let written =
                     self.intern_type(dir::Type::Intersection(dir::IntersectionType { elements }))?;
@@ -787,8 +816,7 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Walk one generic argument's type expression, keeping a bare value
-    /// binding reference symbolic for its parameter slot to interpret.
+    /// Walk one generic argument, keeping a bare value binding symbolic for its parameter slot.
     pub(in crate::sema) fn walk_argument_type_expression(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
@@ -1051,18 +1079,14 @@ impl WalkState<'_, '_> {
                 });
             };
 
-            // slot only written lifetimes into lifetime parameters
-            let wants_lifetime = binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime);
-            let next_is_lifetime = cursor < written.len()
+            // memory parameters consume only written arguments of their own kind
+            let kind_matches = cursor < written.len()
                 && self
                     .check
-                    .written_argument_is_lifetime(written[cursor].ty)?;
+                    .argument_fills_parameter(&binding, written[cursor].ty)?;
 
             // bind the next written argument to the next writable slot
-            let argument = if binding.is_writable()
-                && cursor < written.len()
-                && (!wants_lifetime || next_is_lifetime)
-            {
+            let argument = if binding.is_writable() && kind_matches {
                 let argument = written[cursor].ty;
                 cursor += 1;
 
@@ -1083,8 +1107,17 @@ impl WalkState<'_, '_> {
                     None => argument,
                 };
 
+                // lift a bare space term into the region holding that coordinate
+                let argument = if binding.memory_parameter() == Some(dir::MemoryParameter::Region)
+                    && self.check.memory_kind(argument)? == Some(dir::MemoryParameter::Place)
+                {
+                    self.lift_place_to_region(source, argument)?
+                } else {
+                    argument
+                };
+
                 // a rigid argument parameter inherits the callee slot's cardinality
-                if self.imposes_requirements
+                if !self.is_body
                     && let dir::Type::Parameter(argument_parameter) = self.check.ty(argument)?
                     && argument_parameter.module_id == self.module
                     && argument_parameter != parameter
@@ -1107,8 +1140,8 @@ impl WalkState<'_, '_> {
             // elide omitted memory parameters like unwritten borrow lifetimes
             else if let Some(kind) = binding.memory_parameter() {
                 match kind {
-                    dir::MemoryParameter::Lifetime => self.elided_borrow_lifetime(source)?,
-                    kind => self.open_memory_hole(source, kind)?,
+                    dir::MemoryParameter::Region => self.elided_borrow_region(source)?,
+                    kind => self.elided_memory_component(source, kind)?,
                 }
             }
             // reject unbound parameters
@@ -1119,11 +1152,9 @@ impl WalkState<'_, '_> {
             };
 
             // store memory arguments canonically
-            let argument = match binding.memory_parameter() {
-                Some(kind) => self
-                    .check
-                    .normalize_memory_component(origin, argument, kind)?,
-                None => argument,
+            let argument = match binding.memory_parameter().is_some() {
+                true => self.check.normalize_memory_component(origin, argument)?,
+                false => argument,
             };
 
             substitution
@@ -1149,11 +1180,11 @@ impl WalkState<'_, '_> {
         arguments: &[dir::GlobalTypeId],
         applied: &[GenericArgument],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // build carrier applications as their canonical memory forms
+        // build memory form applications as their canonical forms
         let ty = if let Some(item) = self.check.language_item(symbol)?
-            && item.is_memory_carrier()
+            && item.is_memory_form()
         {
-            self.build_carrier_form(source, item, symbol, arguments)?
+            self.build_memory_form(source, item, symbol, arguments)?
         } else {
             let arguments = self.intern_type_ids(arguments)?;
             self.intern_type(dir::Type::Application(dir::GenericApplication {
@@ -1165,15 +1196,15 @@ impl WalkState<'_, '_> {
         self.apply_named_refinements(ty, applied)
     }
 
-    /// Build one written carrier application as its canonical memory form.
-    fn build_carrier_form(
+    /// Build one written memory form application as its canonical form.
+    fn build_memory_form(
         &mut self,
         source: dir::LocalNodeIdAny,
         item: dir::LanguageItem,
         symbol: dir::GlobalSymbolId,
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // require the payload the carrier stores
+        // require the payload the form stores
         let Some(value) = arguments.first().copied() else {
             let name = self.check.format_symbol(symbol);
             self.check
@@ -1191,32 +1222,47 @@ impl WalkState<'_, '_> {
         // build the form the item constructs
         let form = match item {
             // take the plain forms the item names
-            dir::LanguageItem::Managed => dir::Form::Managed,
+            dir::LanguageItem::Managed => {
+                let place = self.check.local_place()?;
+
+                dir::Form::Managed { place }
+            }
             dir::LanguageItem::Owned => dir::Form::Owned,
             dir::LanguageItem::Raw => dir::Form::Raw,
             dir::LanguageItem::Readonly => dir::Form::Readonly,
             // carry the written borrow components, eliding like the `&T` sugar
             dir::LanguageItem::Borrowed => {
-                let lifetime = match arguments.get(1).copied() {
-                    Some(lifetime) => self.check.normalize_memory_component(
-                        origin,
-                        lifetime,
-                        dir::MemoryParameter::Lifetime,
-                    )?,
-                    None => self.elided_borrow_lifetime(source)?,
-                };
-                let access = match arguments.get(2).copied() {
-                    Some(access) => self.check.normalize_memory_component(
-                        origin,
-                        access,
-                        dir::MemoryParameter::Access,
-                    )?,
-                    None => self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
-                        dir::Access::Mutable,
-                    )))?,
+                // slide an access-kinded second argument into the access slot
+                let second = arguments.get(1).copied();
+                let third = arguments.get(2).copied();
+                let (region_argument, access_argument) = match (second, third) {
+                    (Some(second), None)
+                        if self.check.memory_kind(second)?
+                            == Some(dir::MemoryParameter::Access) =>
+                    {
+                        (None, Some(second))
+                    }
+                    slots => slots,
                 };
 
-                self.intern_borrow(lifetime, access)?
+                let region = match region_argument {
+                    // lift a bare space term into the region holding that coordinate
+                    Some(region)
+                        if self.check.memory_kind(region)? == Some(dir::MemoryParameter::Place) =>
+                    {
+                        let place = self.check.normalize_memory_component(origin, region)?;
+
+                        self.lift_place_to_region(source, place)?
+                    }
+                    Some(region) => self.check.normalize_memory_component(origin, region)?,
+                    None => self.elided_borrow_region(source)?,
+                };
+                let access = match access_argument {
+                    Some(access) => self.check.normalize_memory_component(origin, access)?,
+                    None => self.access_literal(dir::Access::Mutable)?,
+                };
+
+                self.check.intern_borrow(region, access)?
             }
             // carry the written place
             dir::LanguageItem::Placed => {
@@ -1232,18 +1278,14 @@ impl WalkState<'_, '_> {
 
                     return self.intern_type(dir::Type::Error);
                 };
-                let place = self.check.normalize_memory_component(
-                    origin,
-                    place,
-                    dir::MemoryParameter::Place,
-                )?;
+                let place = self.check.normalize_memory_component(origin, place)?;
 
-                dir::Form::Placed { place }
+                dir::Form::Managed { place }
             }
             // fail on every other head
             _ => {
                 return Err(CompilerError::Internal {
-                    message: "carrier build entered a non-carrier language item".to_string(),
+                    message: "memory form build entered another language item".to_string(),
                 });
             }
         };
@@ -1354,6 +1396,7 @@ impl WalkState<'_, '_> {
         for member in members {
             let member = *member;
             match self.tree.get(member) {
+                // name: T
                 dir::TypeMember::Field {
                     name,
                     declared_type,
@@ -1387,6 +1430,7 @@ impl WalkState<'_, '_> {
                         },
                     );
                 }
+                // method(): T
                 dir::TypeMember::Method {
                     name,
                     signature,
@@ -1427,16 +1471,19 @@ impl WalkState<'_, '_> {
                         },
                     );
                 }
+                // (value: T): U
                 dir::TypeMember::CallSignature { signature } => {
                     let signature = signature.clone();
                     let ty = self.walk_function_type(member.into_any(), &signature, None)?;
                     call_signatures.push(ty);
                 }
+                // new (value: T): U
                 dir::TypeMember::ConstructSignature { signature } => {
                     let signature = signature.clone();
                     let ty = self.walk_constructor_type(member.into_any(), &signature, None)?;
                     construct_signatures.push(ty);
                 }
+                // [key: K]: V
                 dir::TypeMember::IndexSignature {
                     name,
                     key_type,
@@ -1513,6 +1560,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::TupleElement>,
     ) -> CompilerResult<dir::TypeElement> {
         match self.tree.get(id) {
+            // label: T
             dir::TupleElement::Element {
                 label,
                 value,
@@ -1530,6 +1578,7 @@ impl WalkState<'_, '_> {
                     is_rest: false,
                 })
             }
+            // damaged element
             dir::TupleElement::Error => {
                 let ty = self.intern_type(dir::Type::Error)?;
 
@@ -1541,6 +1590,7 @@ impl WalkState<'_, '_> {
                     is_rest: false,
                 })
             }
+            // ...T
             dir::TupleElement::Spread { label, value } => {
                 let label = *label;
                 let ty = self.walk_type_expression(*value)?;
@@ -1559,21 +1609,58 @@ impl WalkState<'_, '_> {
     /// Return one placed type expression.
     fn walk_placed_type(
         &mut self,
-        _id: dir::LocalNodeId<dir::TypeExpression>,
+        id: dir::LocalNodeId<dir::TypeExpression>,
         target_type: dir::LocalNodeId<dir::TypeExpression>,
         space: dir::Space,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let value = self.walk_type_expression(target_type)?;
-        let place = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Place(
-            dir::Place::Space(space),
-        )))?;
+        let place = self.check.place_literal(space)?;
 
-        let ty = self.intern_type(dir::Type::Form(dir::FormType {
-            form: dir::Form::Placed { place },
-            value,
-        }))?;
+        // write the space onto the reference type it qualifies
+        match self.check.ty(value)? {
+            dir::Type::Form(form) if let dir::Form::Borrowed(borrow) = form.form => {
+                let borrow = self.check.type_borrow(value.module_id, borrow)?;
+                let region = self.check.with_region_space(borrow.region, place)?;
+                let rebuilt = self.check.intern_borrow(region, borrow.access)?;
 
-        Ok(ty)
+                return self.intern_type(dir::Type::Form(dir::FormType {
+                    form: rebuilt,
+                    value: form.value,
+                }));
+            }
+            dir::Type::Slice(slice) => {
+                return self.intern_type(dir::Type::Slice(dir::SliceType {
+                    element: slice.element,
+                    place,
+                }));
+            }
+            dir::Type::Dynamic(dynamic) => {
+                return self.intern_type(dir::Type::Dynamic(dir::DynamicType {
+                    constraint: dynamic.constraint,
+                    place,
+                }));
+            }
+            dir::Type::Function(function) => {
+                return self
+                    .intern_type(dir::Type::Function(dir::FunctionType { place, ..function }));
+            }
+            // owned values live in their container's space
+            dir::Type::Form(form) if matches!(form.form, dir::Form::Owned) => {
+                self.check
+                    .report_placement_on_owned(self.module, id.into_any());
+
+                return Ok(value);
+            }
+            _ => {}
+        }
+
+        // place the referent of every other written type
+        let origin = Origin::Node(
+            id.into_global_any(self.module),
+            self.flow().template_scope(),
+        );
+
+        self.check.with_referent_place(origin, value, place)
     }
 
     /// Return one range type expression from its literal bounds.
@@ -1608,7 +1695,7 @@ impl WalkState<'_, '_> {
             return self.intern_type(dir::Type::Error);
         };
 
-        // both bounds must share one domain
+        // require both bounds in one domain
         if start_domain != end_domain {
             self.check
                 .report_invalid_interval_domain(self.module, id.into_any());

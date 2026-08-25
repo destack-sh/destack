@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Assigning a backing value to a newtype reports a diagnostic.
 #[test]
 fn test_backing_value_assigned_to_newtype_reports_error() {
     let session = TestSession::single(
@@ -37,6 +38,7 @@ const id: UserId = 42;
     );
 }
 
+/// Assigning a newtype to its backing type reports a diagnostic.
 #[test]
 fn test_newtype_assigned_to_backing_type_reports_error() {
     let session = TestSession::single(
@@ -75,6 +77,7 @@ const raw: int64 = UserId(42);
     );
 }
 
+/// An explicit cast converts a newtype to its backing type.
 #[test]
 fn test_newtype_cast_to_backing_type_is_explicit() {
     let session = TestSession::single(
@@ -113,17 +116,18 @@ const raw = id as int64;
 /// @type.symbol symbol=raw source=raw type=int64
 /// @resolution.pattern source=raw kind=binding target=raw
 /// @resolution.name source=id target=id
-/// @resolution.place source=id placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=id placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=id root=id
 
 raw satisfies int64;
 /// @resolution.name source=raw target=raw
-/// @resolution.place source=raw placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=raw placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=raw root=raw
 "#,
     );
 }
 
+/// A newtype assigns to another binding of the same declaration.
 #[test]
 fn test_newtype_assigns_to_same_declaration() {
     let session = TestSession::single(
@@ -163,18 +167,19 @@ const target: UserId = source;
 /// @resolution.pattern source=target kind=binding target=target
 /// @resolution.name source=UserId target=UserId
 /// @resolution.name source=source target=source
-/// @resolution.place source=source placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=source placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=source root=source
 
 target satisfies UserId;
 /// @resolution.name source=target target=target
-/// @resolution.place source=target placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=target placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=target root=target
 /// @resolution.name source=UserId target=UserId
 "#,
     );
 }
 
+/// Assigning between two newtypes over one backing type reports a diagnostic.
 #[test]
 fn test_distinct_newtypes_with_same_backing_report_error() {
     let session = TestSession::single(
@@ -218,7 +223,7 @@ const order: OrderId = user;
 /// @resolution.pattern source=order kind=binding target=order
 /// @resolution.name source=OrderId target=OrderId
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=user placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=user root=user
 "#,
         r#"
@@ -229,6 +234,7 @@ const order: OrderId = user;
     );
 }
 
+/// Assigning between two imported newtypes of the same name reports a diagnostic.
 #[test]
 fn test_imported_newtypes_with_same_name_report_error() {
     let compiler = TestSession::builder()
@@ -284,6 +290,7 @@ const id: LeftUserId = RightUserId(42);
     );
 }
 
+/// Assigning an object literal to a newtype over an object reports a diagnostic.
 #[test]
 fn test_object_literal_assigned_to_newtype_reports_error() {
     let session = TestSession::single(

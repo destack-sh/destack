@@ -1,8 +1,9 @@
 use crate::tests::{DirRows, TestSession};
 
+/// An extends relation evaluates to the assignability of its two sides.
 #[test]
 fn test_extends_relation_evaluates_assignability() {
-    // scalar widths never widen implicitly, so int32 does not extend number
+    // scalar widths widen only explicitly, so int32 extends number reduces to false
     let session = TestSession::single(
         r#"
 type IsString = "id" extends string;
@@ -46,6 +47,7 @@ const no: IsNumber = false;
     );
 }
 
+/// Void and unit extend each other.
 #[test]
 fn test_void_and_unit_extend_each_other() {
     let session = TestSession::single(
@@ -91,6 +93,7 @@ const right: UnitExtendsVoid = true;
     );
 }
 
+/// Never extends both void and unit.
 #[test]
 fn test_never_extends_void_and_unit() {
     let session = TestSession::single(
@@ -136,6 +139,7 @@ const right: NeverExtendsUnit = true;
     );
 }
 
+/// Void and unit extend never to false.
 #[test]
 fn test_void_and_unit_do_not_extend_never() {
     let session = TestSession::single(
@@ -181,6 +185,7 @@ const right: UnitExtendsNever = false;
     );
 }
 
+/// An implements relation evaluates to the nominal conformance of its two sides.
 #[test]
 fn test_implements_relation_evaluates_nominal_conformance() {
     let session = TestSession::single(
@@ -249,7 +254,7 @@ struct DrawnPoint implements Drawable {
 /// @definition.where symbol=DrawnPoint source=Drawable relation=satisfies left=this right=Drawable
 /// @definition.implements symbol=DrawnPoint source=Drawable target=Drawable
 /// @definition.field symbol=DrawnPoint.x source="x: int32" key=x type=int32
-/// @definition.method symbol=DrawnPoint.draw source="draw(): void {}" slot=draw type=<DrawnPoint.draw.'a>(this: &DrawnPoint.draw.'a readonly DrawnPoint) => void
+/// @definition.method symbol=DrawnPoint.draw source="draw(): void {}" slot=draw type=<DrawnPoint.draw.'a, DrawnPoint.draw.P1: Place>(this: Borrowed<DrawnPoint, DrawnPoint.draw.'a & DrawnPoint.draw.P1, "readonly">) => void
 /// @definition.conformance symbol=DrawnPoint member=DrawnPoint.draw requirement=Drawable.draw
 /// @resolution.name source=Drawable target=Drawable
 
@@ -257,8 +262,8 @@ struct DrawnPoint implements Drawable {
     /// @type.symbol symbol=DrawnPoint.x source="x: int32" type=int32
 
     draw(): void {}
-    /// @generic.template symbol=DrawnPoint.draw parent=template#1 parameters=('a)
-    /// @type.symbol symbol=DrawnPoint.draw source="draw(): void {}" type=<DrawnPoint.draw.'a>(this: &DrawnPoint.draw.'a readonly DrawnPoint) => void
+    /// @generic.template symbol=DrawnPoint.draw parent=template#1 parameters=('a, P1: Place)
+    /// @type.symbol symbol=DrawnPoint.draw source="draw(): void {}" type=<DrawnPoint.draw.'a, DrawnPoint.draw.P1: Place>(this: Borrowed<DrawnPoint, DrawnPoint.draw.'a & DrawnPoint.draw.P1, "readonly">) => void
 
 }
 

@@ -6,14 +6,15 @@ use destack_source::{DiffOptions, format_diff};
 
 const BLESS_ENV: &str = "DESTACK_BLESS";
 
-/// Line deltas from earlier rewrites, keyed by file and original caller line.
-static BLESS_DELTAS: Mutex<Option<HashMap<PathBuf, Vec<(u32, i64)>>>> = Mutex::new(None);
+/// Original file contents at first bless, keyed by file, anchoring caller lines.
+static BLESS_ORIGINALS: Mutex<Option<HashMap<PathBuf, String>>> = Mutex::new(None);
 
 /// Assert one complete inline snapshot and bless its raw literal when requested.
 #[track_caller]
 pub(crate) fn assert_snapshot(actual: impl AsRef<str>, expected: &str) {
     let actual = actual.as_ref().trim_matches('\n');
     let expected = expected.trim_matches('\n');
+
     assert_snapshot_at(actual, expected, expected);
 }
 
@@ -23,6 +24,7 @@ pub(crate) fn assert_formatted_snapshot(actual: impl AsRef<str>, expected: &str,
     let actual = actual.as_ref().trim_matches('\n');
     let expected = expected.trim_matches('\n');
     let formatted = formatted.trim_matches('\n');
+
     assert_snapshot_at(actual, expected, formatted);
 }
 
@@ -51,47 +53,79 @@ fn is_blessing() -> bool {
     std::env::var_os(BLESS_ENV).is_some_and(|value| !value.is_empty() && value != "0")
 }
 
-/// Rewrite the raw snapshot nearest one call site.
+/// Rewrite the expected raw snapshot the calling test owns.
+///
+/// The caller's compiled line resolves to its enclosing test function in the
+/// original file, and the rewrite targets that function's region in the
+/// current file by name, so no rewrite can land in another test.
 fn bless_snapshot(file: &str, line: u32, expected: &str, actual: &str) {
-    // recover from panics under the lock; they occur before any delta mutation
-    let mut deltas = BLESS_DELTAS
+    // recover from panics under the lock; they occur before any mutation
+    let mut originals = BLESS_ORIGINALS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let deltas = deltas.get_or_insert_with(HashMap::new);
+    let originals = originals.get_or_insert_with(HashMap::new);
     let path = source_path(file);
-    let source = std::fs::read_to_string(&path).expect("read snapshot source");
+    let original = originals
+        .entry(path.clone())
+        .or_insert_with(|| std::fs::read_to_string(&path).expect("read snapshot source"))
+        .clone();
 
-    // correct the compiled caller line by earlier rewrites in this file
-    let shift = deltas
-        .get(&path)
-        .map(|writes| {
-            writes
-                .iter()
-                .filter(|(at, _)| *at < line)
-                .map(|(_, delta)| *delta)
-                .sum::<i64>()
-        })
-        .unwrap_or(0);
-    let call_offset = line_offset(&source, (line as i64 + shift).max(1) as u32);
-    let range = select_snapshot_range(&source, call_offset, expected).unwrap_or_else(|| {
+    // name the calling test from the compiled caller line
+    let call_offset = line_offset(&original, line);
+    let name = enclosing_function_name(&original, call_offset).unwrap_or_else(|| {
         panic!(
-            "snapshot at {}:{line} must be one raw string",
+            "snapshot at {}:{line} must sit inside one test function",
             path.display()
         )
     });
 
+    // bound the rewrite to the named function's current region
+    let source = std::fs::read_to_string(&path).expect("read snapshot source");
+    let header = format!("fn {name}(");
+    let region_start = source.find(&header).unwrap_or_else(|| {
+        panic!(
+            "snapshot function {name} is missing from {}",
+            path.display()
+        )
+    });
+    let region_end = source[region_start + header.len()..]
+        .find("\nfn ")
+        .map(|at| region_start + header.len() + at)
+        .unwrap_or(source.len());
+    let range = select_snapshot_range(&source, region_start, region_end, expected)
+        .unwrap_or_else(|| {
+            let candidates = raw_strings(&source)
+                .into_iter()
+                .filter(|(start, end)| *start >= region_start && *end <= region_end)
+                .map(|(start, end)| {
+                    let content = source[start..end].trim_matches('\n');
+                    format!("  [{}..{}] {:?}", start, end, &content[..content.len().min(60)])
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            panic!(
+                "snapshot at {}:{line} must be one raw string in {name}\nexpected {:?}\nregion candidates:\n{candidates}",
+                path.display(),
+                &expected[..expected.len().min(60)],
+            )
+        });
+
     // preserve the conventional leading and trailing newline around snapshots
     let replacement = format!("\n{actual}\n");
-    let removed = source[range.0..range.1].matches('\n').count() as i64;
-    let added = replacement.matches('\n').count() as i64;
-    deltas
-        .entry(path.clone())
-        .or_default()
-        .push((line, added - removed));
-
     let mut source = source;
     source.replace_range(range.0..range.1, &replacement);
     std::fs::write(path, source).expect("write snapshot source");
+}
+
+/// Return the name of the function enclosing one source offset.
+fn enclosing_function_name(source: &str, offset: usize) -> Option<String> {
+    let start = source[..offset].rfind("\nfn ")?;
+    let name = source[start + 4..]
+        .chars()
+        .take_while(|character| character.is_alphanumeric() || *character == '_')
+        .collect::<String>();
+
+    (!name.is_empty()).then_some(name)
 }
 
 /// Return the workspace path for one compiler source location.
@@ -106,16 +140,17 @@ fn source_path(file: &str) -> PathBuf {
         .join(path)
 }
 
-/// Return the first expected raw string after one call site, which owns its literals.
+/// Return the expected raw string one test region owns.
 fn select_snapshot_range(
     source: &str,
-    call_offset: usize,
+    region_start: usize,
+    region_end: usize,
     expected: &str,
 ) -> Option<(usize, usize)> {
     raw_strings(source)
         .into_iter()
+        .filter(|(start, end)| *start >= region_start && *end <= region_end)
         .filter(|(start, end)| source[*start..*end].trim_matches('\n') == expected)
-        .filter(|(start, _)| *start >= call_offset)
         .min_by_key(|(start, _)| *start)
 }
 
@@ -189,19 +224,19 @@ fn raw_string_end(bytes: &[u8], mut cursor: usize, hashes: usize) -> Option<usiz
 mod tests {
     use super::{raw_strings, select_snapshot_range};
 
-    /// Skip an identical earlier literal that belongs to another call.
+    /// Skip an identical literal that belongs to another test region.
     #[test]
-    fn test_select_the_expected_literal_after_the_call_site() {
+    fn test_select_the_expected_literal_inside_the_region() {
         let source = r####"
 first(r#"
 "#);
 second(r#"
 "#);
 "####;
-        let call_offset = source.find("second").unwrap();
-        let range = select_snapshot_range(source, call_offset, "").unwrap();
+        let region_start = source.find("second").unwrap();
+        let range = select_snapshot_range(source, region_start, source.len(), "").unwrap();
 
-        assert!(range.0 > call_offset);
+        assert!(range.0 > region_start);
     }
 
     /// Find ordinary and hash-delimited raw string contents.

@@ -35,6 +35,8 @@ impl CheckState<'_> {
         match kind {
             // leave an open variable or canonical hole undecided
             dir::Type::Variable(_) | dir::Type::Hole(_) => Ok(Verdict::Ambiguous),
+            // accept region terms outright, they carry no runtime values
+            dir::Type::Region(_) => Ok(Verdict::Holds),
             // look through the refinement to its base
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(ty.module_id, refined)?;
@@ -51,7 +53,6 @@ impl CheckState<'_> {
             | dir::Type::Primitive(_)
             | dir::Type::Literal(_)
             | dir::Type::Key(_)
-            | dir::Type::Memory(_)
             | dir::Type::Static(_)
             | dir::Type::Intrinsic
             | dir::Type::Range(_) => Ok(Verdict::Holds),
@@ -68,7 +69,7 @@ impl CheckState<'_> {
 
                 Ok(Verdict::decided(is_type_reference))
             }
-            // memory parameters qualify storage and impose none of their own
+            // accept memory parameters, they qualify storage alone
             dir::Type::Parameter(parameter) if self.is_memory_parameter(parameter) => {
                 Ok(Verdict::Holds)
             }
@@ -82,7 +83,7 @@ impl CheckState<'_> {
             }
             // refuse unreduced type operations
             dir::Type::Member(_) | dir::Type::Operation(_) => Ok(Verdict::Fails),
-            // represent a memory carrier through its payload
+            // represent a memory form through its payload
             dir::Type::Form(form) => self.decide_dynamic_safe(origin, form.value, active),
             // represent an erased type through its constraint
             dir::Type::Dynamic(dynamic) => {
@@ -103,7 +104,7 @@ impl CheckState<'_> {
                     state.decide_dynamic_safe(origin, id, active)
                 })
             }
-            // an object type declaring signatures erases through the members it declares
+            // erase an object type with signatures through its members
             dir::Type::Object(shape) if shape.declares_signatures() => {
                 let mut ids: SmallVec<[dir::GlobalTypeId; 8]> = self
                     .object_properties(ty.module_id, shape.properties)?

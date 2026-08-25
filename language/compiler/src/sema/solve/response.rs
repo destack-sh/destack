@@ -194,7 +194,7 @@ impl CheckState<'_> {
             return Ok(*done);
         }
 
-        // reopen hole and rigid carriers, keeping closed types verbatim
+        // reopen hole and rigid representations, keeping closed types verbatim
         let flags = self.type_flags(ty)?;
         let done = if flags.has_hole() || flags.has_parameter() {
             let module = self.module_id;

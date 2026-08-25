@@ -50,6 +50,8 @@ impl CheckState<'_> {
                     });
                 }
             };
+
+            // relate the receiver against the compared operand
             if let Some(other) = other {
                 // read the argument solutions resolved after the bound was queued
                 let other = self.shallow_resolve(other)?;
@@ -63,7 +65,7 @@ impl CheckState<'_> {
                     return Ok(Verdict::decided(is_equatable));
                 }
 
-                // numeric scalars compare across their exact domains
+                // compare numeric scalars across their exact domains
                 let domains = (
                     self.ty(ty)?.scalar_domain(),
                     self.ty(other)?.scalar_domain(),
@@ -162,6 +164,9 @@ impl CheckState<'_> {
                 .map(Verdict::decided),
             dir::AutoInterface::Copy => self.decide_copy(origin, ty, &mut active),
             dir::AutoInterface::SharedSafe => self.is_shared_safe(origin, ty).map(Verdict::decided),
+            dir::AutoInterface::SuspendSafe => {
+                self.is_suspend_safe(origin, ty).map(Verdict::decided)
+            }
             dir::AutoInterface::Concrete => self.is_concrete(origin, ty).map(Verdict::decided),
             dir::AutoInterface::StrictEqual => self
                 .has_strict_equal_conformance(origin, ty, ty)
@@ -292,16 +297,19 @@ impl CheckState<'_> {
             if node.module_id != module {
                 continue;
             }
+
             if let Some(ty) = self.node_types.get(&node) {
                 targets.insert((ty, node));
             }
         }
+
         // collect the argument types of committed instances and instantiations at their sites
         for (_, instance) in self.module(module).generics_tail.iter_instances() {
             for binding in &instance.selection.arguments {
                 targets.insert((binding.argument, instance.source));
             }
         }
+
         for instantiation in self.module(module).generics_tail.iter_instantiations() {
             for binding in &instantiation.selection.arguments {
                 targets.insert((binding.argument, instantiation.source));
@@ -310,6 +318,7 @@ impl CheckState<'_> {
 
         // decide each value type against the representation markers
         for (target, site) in targets {
+            // skip the types still awaiting solutions
             let flags = self.type_flags(target)?;
             if flags.has_variable() || flags.has_hole() {
                 continue;
@@ -329,7 +338,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // an open type assumes the bounds of the template governing its site
+            // assume the bounds of the template governing an open type's site
             let scope = match flags.has_parameter() || flags.has_this() {
                 true => self.template_at_node(site),
                 false => None,
@@ -386,6 +395,7 @@ impl CheckState<'_> {
         // commit the markers this type holds, deciding each once
         // NOTE #Performance: foreign-owned targets decide again in every asking module
         for interface in dir::AutoInterface::REPRESENTATION {
+            // skip a marker already committed
             if self.module(module).auto.conforms(target, scope, interface) {
                 continue;
             }

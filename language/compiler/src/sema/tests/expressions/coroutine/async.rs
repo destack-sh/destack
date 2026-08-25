@@ -22,25 +22,25 @@ async function fetchCount(): Promise<int32> {
 === dir ===
 async function fetchCount(): Promise<int32> {
 /// @type.symbol symbol=fetchCount type=async () => Promise<int32>
-/// @generic.instance id=Promise<int32> template=async.promise.Promise arguments=(int32)
-/// @generic.instance id=Promise<void> template=async.promise.Promise arguments=(void)
-/// @generic.instance id=async.awaitable.Awaitable<int32> template=async.awaitable.Awaitable arguments=(int32)
-/// @generic.instance id=async.awaitable.Awaitable<void> template=async.awaitable.Awaitable arguments=(void)
-/// @generic.instance id=async.promise.PromiseAwaiter<int32> template=async.promise.PromiseAwaiter arguments=(int32)
-/// @generic.instance id=async.promise.PromiseAwaiter<void> template=async.promise.PromiseAwaiter arguments=(void)
-/// @generic.instance id=async.promise.PromiseForwarded<int32> template=async.promise.PromiseForwarded arguments=(int32)
-/// @generic.instance id=async.promise.PromiseForwarded<void> template=async.promise.PromiseForwarded arguments=(void)
-/// @generic.instance id=async.promise.PromiseFulfilled<int32> template=async.promise.PromiseFulfilled arguments=(int32)
-/// @generic.instance id=async.promise.PromiseFulfilled<void> template=async.promise.PromiseFulfilled arguments=(void)
-/// @generic.instance id=async.promise.PromisePending<int32> template=async.promise.PromisePending arguments=(int32)
-/// @generic.instance id=async.promise.PromisePending<void> template=async.promise.PromisePending arguments=(void)
-/// @generic.instance id=async.promise.PromiseReaction<int32> template=async.promise.PromiseReaction arguments=(int32)
-/// @generic.instance id=async.promise.PromiseReaction<void> template=async.promise.PromiseReaction arguments=(void)
-/// @generic.instance id=async.promise.PromiseState<int32> template=async.promise.PromiseState arguments=(int32)
-/// @generic.instance id=async.promise.PromiseState<void> template=async.promise.PromiseState arguments=(void)
-/// @generic.instance id=async.promise.PromiseWaiter<int32> template=async.promise.PromiseWaiter arguments=(int32)
-/// @generic.instance id=async.promise.PromiseWaiter<void> template=async.promise.PromiseWaiter arguments=(void)
-/// @resolution.name source=Promise target=async.promise.Promise
+/// @generic.instance id=Awaitable<int32> template=Awaitable arguments=(int32)
+/// @generic.instance id=Awaitable<void> template=Awaitable arguments=(void)
+/// @generic.instance id=Promise<int32> template=Promise arguments=(int32)
+/// @generic.instance id=Promise<void> template=Promise arguments=(void)
+/// @generic.instance id=PromiseAwaiter<int32> template=PromiseAwaiter arguments=(int32)
+/// @generic.instance id=PromiseAwaiter<void> template=PromiseAwaiter arguments=(void)
+/// @generic.instance id=PromiseForwarded<int32> template=PromiseForwarded arguments=(int32)
+/// @generic.instance id=PromiseForwarded<void> template=PromiseForwarded arguments=(void)
+/// @generic.instance id=PromiseFulfilled<int32> template=PromiseFulfilled arguments=(int32)
+/// @generic.instance id=PromiseFulfilled<void> template=PromiseFulfilled arguments=(void)
+/// @generic.instance id=PromisePending<int32> template=PromisePending arguments=(int32)
+/// @generic.instance id=PromisePending<void> template=PromisePending arguments=(void)
+/// @generic.instance id=PromiseReaction<int32> template=PromiseReaction arguments=(int32)
+/// @generic.instance id=PromiseReaction<void> template=PromiseReaction arguments=(void)
+/// @generic.instance id=PromiseState<int32> template=PromiseState arguments=(int32)
+/// @generic.instance id=PromiseState<void> template=PromiseState arguments=(void)
+/// @generic.instance id=PromiseWaiter<int32> template=PromiseWaiter arguments=(int32)
+/// @generic.instance id=PromiseWaiter<void> template=PromiseWaiter arguments=(void)
+/// @resolution.name source=Promise target=Promise
 
     return 1;
 }
@@ -79,32 +79,32 @@ async function double(): Promise<int32> {
 === dir ===
 async function fetchCount(): Promise<int32> {
 /// @type.symbol symbol=fetchCount type=async () => Promise<int32>
-/// @generic.instance id=Promise<int32> template=async.promise.Promise arguments=(int32)
-/// @generic.instance id=Promise<void> template=async.promise.Promise arguments=(void)
-/// @generic.instance id=async.awaitable.Awaitable<int32> template=async.awaitable.Awaitable arguments=(int32)
-/// @generic.instance id=async.awaitable.Awaitable<void> template=async.awaitable.Awaitable arguments=(void)
-/// @generic.instance id=async.promise.PromiseAwaiter<int32> template=async.promise.PromiseAwaiter arguments=(int32)
-/// @generic.instance id=async.promise.PromiseAwaiter<void> template=async.promise.PromiseAwaiter arguments=(void)
-/// @generic.instance id=async.promise.PromiseForwarded<int32> template=async.promise.PromiseForwarded arguments=(int32)
-/// @generic.instance id=async.promise.PromiseForwarded<void> template=async.promise.PromiseForwarded arguments=(void)
-/// @generic.instance id=async.promise.PromiseFulfilled<int32> template=async.promise.PromiseFulfilled arguments=(int32)
-/// @generic.instance id=async.promise.PromiseFulfilled<void> template=async.promise.PromiseFulfilled arguments=(void)
-/// @generic.instance id=async.promise.PromisePending<int32> template=async.promise.PromisePending arguments=(int32)
-/// @generic.instance id=async.promise.PromisePending<void> template=async.promise.PromisePending arguments=(void)
-/// @generic.instance id=async.promise.PromiseReaction<int32> template=async.promise.PromiseReaction arguments=(int32)
-/// @generic.instance id=async.promise.PromiseReaction<void> template=async.promise.PromiseReaction arguments=(void)
-/// @generic.instance id=async.promise.PromiseState<int32> template=async.promise.PromiseState arguments=(int32)
-/// @generic.instance id=async.promise.PromiseState<void> template=async.promise.PromiseState arguments=(void)
-/// @generic.instance id=async.promise.PromiseWaiter<int32> template=async.promise.PromiseWaiter arguments=(int32)
-/// @generic.instance id=async.promise.PromiseWaiter<void> template=async.promise.PromiseWaiter arguments=(void)
-/// @resolution.name source=Promise target=async.promise.Promise
+/// @generic.instance id=Awaitable<int32> template=Awaitable arguments=(int32)
+/// @generic.instance id=Awaitable<void> template=Awaitable arguments=(void)
+/// @generic.instance id=Promise<int32> template=Promise arguments=(int32)
+/// @generic.instance id=Promise<void> template=Promise arguments=(void)
+/// @generic.instance id=PromiseAwaiter<int32> template=PromiseAwaiter arguments=(int32)
+/// @generic.instance id=PromiseAwaiter<void> template=PromiseAwaiter arguments=(void)
+/// @generic.instance id=PromiseForwarded<int32> template=PromiseForwarded arguments=(int32)
+/// @generic.instance id=PromiseForwarded<void> template=PromiseForwarded arguments=(void)
+/// @generic.instance id=PromiseFulfilled<int32> template=PromiseFulfilled arguments=(int32)
+/// @generic.instance id=PromiseFulfilled<void> template=PromiseFulfilled arguments=(void)
+/// @generic.instance id=PromisePending<int32> template=PromisePending arguments=(int32)
+/// @generic.instance id=PromisePending<void> template=PromisePending arguments=(void)
+/// @generic.instance id=PromiseReaction<int32> template=PromiseReaction arguments=(int32)
+/// @generic.instance id=PromiseReaction<void> template=PromiseReaction arguments=(void)
+/// @generic.instance id=PromiseState<int32> template=PromiseState arguments=(int32)
+/// @generic.instance id=PromiseState<void> template=PromiseState arguments=(void)
+/// @generic.instance id=PromiseWaiter<int32> template=PromiseWaiter arguments=(int32)
+/// @generic.instance id=PromiseWaiter<void> template=PromiseWaiter arguments=(void)
+/// @resolution.name source=Promise target=Promise
 
     return 1;
 }
 
 async function double(): Promise<int32> {
 /// @type.symbol symbol=double type=async () => Promise<int32>
-/// @resolution.name source=Promise target=async.promise.Promise
+/// @resolution.name source=Promise target=Promise
 
     const count = await fetchCount();
     /// @type.symbol symbol=double.count source=count type=int32
@@ -162,14 +162,14 @@ async function sum(): Promise<int32> {
 === dir ===
 async function* stream(): AsyncGenerator<int32, void, void> {
 /// @type.symbol symbol=stream type=async () => *AsyncGenerator<int32, void, void>
-/// @resolution.name source=AsyncGenerator target=async.generator.AsyncGenerator
+/// @resolution.name source=AsyncGenerator target=AsyncGenerator
 
     yield 1;
 }
 
 async function sum(): Promise<int32> {
 /// @type.symbol symbol=sum type=async () => Promise<int32>
-/// @resolution.name source=Promise target=async.promise.Promise
+/// @resolution.name source=Promise target=Promise
 
     let total: int32 = 0;
     /// @type.symbol symbol=sum.total source=total type=int32

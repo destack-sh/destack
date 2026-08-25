@@ -19,13 +19,13 @@ let values: int64[] = [1, 2];
 let values = [1, 2];
 /// @type.symbol symbol=values source=values type=int64[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
-/// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
+/// @generic.instance id=Array<int64> template=Array arguments=(int64)
+/// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
+/// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
 /// @type.node source=[1, 2] type=int64[]
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
-/// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
+/// @resolution.call source=[1, 2] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+/// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
+/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
 /// @type.node source=1 type=1
 /// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int64 }] origin=implicit
 /// @type.node source=2 type=2
@@ -53,13 +53,13 @@ const values: int64[] = [1, 2];
 const values = [1, 2];
 /// @type.symbol symbol=values source=values type=int64[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
-/// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
+/// @generic.instance id=Array<int64> template=Array arguments=(int64)
+/// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
+/// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
 /// @type.node source=[1, 2] type=int64[]
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
-/// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
+/// @resolution.call source=[1, 2] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+/// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
+/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
 /// @type.node source=1 type=1
 /// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int64 }] origin=implicit
 /// @type.node source=2 type=2
@@ -100,7 +100,7 @@ const first = values[0];
 /// @type.node source=values type=readonly [1, 2]
 /// @type.node source=values[0] type=1
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=values placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=1 kind=member target="receiver=readonly [1, 2], target=field(receiver=[1, 2], target=0, type=1), type=1"
@@ -128,13 +128,13 @@ const values: never[] = [];
 const values = [];
 /// @type.symbol symbol=values source=values type=never[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<never> template=collections.array.Array arguments=(never)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<never>> template=collections.slice.new arguments=(memory.init.MaybeUninit<never>)
-/// @generic.instance id=memory.init.MaybeUninit<never> template=memory.init.MaybeUninit arguments=(never)
+/// @generic.instance id=Array<never> template=Array arguments=(never)
+/// @generic.instance id=MaybeUninit<never> template=MaybeUninit arguments=(never)
+/// @generic.instance id=new<MaybeUninit<never>> template=new arguments=(MaybeUninit<never>)
 /// @type.node source=[] type=never[]
-/// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as never) return=never[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<never>
-/// @generic.instantiation id=collections.array.arrayFromSlice<never> template=collections.array.arrayFromSlice arguments=(never)
-/// @generic.instance id=collections.array.arrayFromSlice<never> template=collections.array.arrayFromSlice arguments=(never)
+/// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as never) return=never[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<never>
+/// @generic.instantiation id=arrayFromSlice<never> template=arrayFromSlice arguments=(never)
+/// @generic.instance id="arrayFromSlice<never, \"local\">" template=arrayFromSlice arguments=(never, "local")
 "#,
     );
 }
@@ -158,13 +158,13 @@ const values: int32[] = [];
 const values: int32[] = [];
 /// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @type.node source=[] type=int32[]
-/// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
-/// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
-/// @generic.instance id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
+/// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+/// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
+/// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
 "#,
     );
 }
@@ -191,8 +191,8 @@ let values = [1, "two", true];
 /// @type.symbol symbol=values source=values type=string | boolean[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, "two", true] type=string | boolean[]
-/// @resolution.call source=[1, "two", true] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, "two", true) as string | boolean) return=string | boolean[] kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<string | boolean>"
-/// @generic.instantiation id="collections.array.arrayFromSlice<string | boolean>" template=collections.array.arrayFromSlice arguments=(string | boolean)
+/// @resolution.call source=[1, "two", true] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, "two", true) as string | boolean) return=string | boolean[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<string | boolean>"
+/// @generic.instantiation id="arrayFromSlice<string | boolean>" template=arrayFromSlice arguments=(string | boolean)
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 /// @coercion.node source="\"two\"" from="two" adjustments=[{ kind: union, target: string | boolean, cases: ({ source: "two", target: string, adjustments: [{ kind: widen, target: string }] }) }] origin=implicit
@@ -225,13 +225,13 @@ const values: float64[] = [1, 2, 3];
 const values: number[] = [1, 2, 3];
 /// @type.symbol symbol=values source=values type=float64[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<float64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=Array<float64> template=Array arguments=(float64)
+/// @generic.instance id=MaybeUninit<float64> template=MaybeUninit arguments=(float64)
+/// @generic.instance id=new<MaybeUninit<float64>> template=new arguments=(MaybeUninit<float64>)
 /// @type.node source=[1, 2, 3] type=float64[]
-/// @resolution.call source=[1, 2, 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2, 3) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
-/// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+/// @resolution.call source=[1, 2, 3] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2, 3) as float64) return=float64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<float64>
+/// @generic.instantiation id=arrayFromSlice<float64> template=arrayFromSlice arguments=(float64)
+/// @generic.instance id="arrayFromSlice<float64, \"local\">" template=arrayFromSlice arguments=(float64, "local")
 /// @type.node source=1 type=1
 /// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: float64 }] origin=implicit
 /// @type.node source=2 type=2
@@ -261,19 +261,19 @@ const values: (1 | 2)[] = [1, 2] satisfies readonly number[];
 const values = [1, 2] satisfies readonly number[];
 /// @type.symbol symbol=values source=values type=1 | 2[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id="Array<1 | 2>" template=collections.array.Array arguments=(1 | 2)
-/// @generic.instance id="collections.slice.new<memory.init.MaybeUninit<1 | 2>>" template=collections.slice.new arguments=(memory.init.MaybeUninit<1 | 2>)
-/// @generic.instance id="memory.init.MaybeUninit<1 | 2>" template=memory.init.MaybeUninit arguments=(1 | 2)
+/// @generic.instance id="Array<1 | 2>" template=Array arguments=(1 | 2)
+/// @generic.instance id="MaybeUninit<1 | 2>" template=MaybeUninit arguments=(1 | 2)
+/// @generic.instance id="new<MaybeUninit<1 | 2>>" template=new arguments=(MaybeUninit<1 | 2>)
 /// @type.node source=[1, 2] satisfies readonly number[] type=1 | 2[]
 /// @type.node source=[1, 2] type=1 | 2[]
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as 1 | 2) return=1 | 2[] kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<1 | 2>"
-/// @generic.instantiation id="collections.array.arrayFromSlice<1 | 2>" template=collections.array.arrayFromSlice arguments=(1 | 2)
-/// @generic.instance id="collections.array.arrayFromSlice<1 | 2>" template=collections.array.arrayFromSlice arguments=(1 | 2)
+/// @resolution.call source=[1, 2] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2) as 1 | 2) return=1 | 2[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<1 | 2>"
+/// @generic.instantiation id="arrayFromSlice<1 | 2>" template=arrayFromSlice arguments=(1 | 2)
+/// @generic.instance id="arrayFromSlice<1 | 2, \"local\">" template=arrayFromSlice arguments=(1 | 2, "local")
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
-/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<float64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=Array<float64> template=Array arguments=(float64)
+/// @generic.instance id=MaybeUninit<float64> template=MaybeUninit arguments=(float64)
+/// @generic.instance id=new<MaybeUninit<float64>> template=new arguments=(MaybeUninit<float64>)
 "#,
     );
 }
@@ -298,8 +298,8 @@ const values: number[] = [1, "two"];
 /// @type.symbol symbol=values source=values type=float64[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, "two"] type=float64[]
-/// @resolution.call source=[1, "two"] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, "two") as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+/// @resolution.call source=[1, "two"] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, "two") as float64) return=float64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<float64>
+/// @generic.instantiation id=arrayFromSlice<float64> template=arrayFromSlice arguments=(float64)
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 "#,

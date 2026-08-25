@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A fitting literal constructs a family-bounded generic result.
 #[test]
 fn test_construct_a_family_bounded_result_from_a_fitting_literal() {
     let session = TestSession::single(
@@ -34,6 +35,7 @@ function make<T: int8 | int64>(): T {
     );
 }
 
+/// A generic return type contextualizes an empty array field literal.
 #[test]
 fn test_generic_return_contextualizes_empty_array_field() {
     let session = TestSession::single(
@@ -65,14 +67,15 @@ function capture<T>(value: T): { reactions: T[] } {
     return { reactions: [] };
     /// @type.node source={ reactions: [] } type={ reactions: T[] }
     /// @type.node source=[] type=T[]
-    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as T) return=T[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T>
-    /// @generic.instantiation id=collections.array.arrayFromSlice<T> template=collections.array.arrayFromSlice arguments=(T) owner=capture
+    /// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as T) return=T[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T>
+    /// @generic.instantiation id=arrayFromSlice<T> template=arrayFromSlice arguments=(T) owner=capture
 
 }
 "#,
     );
 }
 
+/// A generic union return type contextualizes an empty array field literal.
 #[test]
 fn test_generic_union_return_contextualizes_empty_array_field() {
     let session = TestSession::single(
@@ -174,14 +177,15 @@ function pending<T>(): State<T> {
     /// @type.node source={ kind: "pending", reactions: [] } type={ kind: "pending"; reactions: T#4[] }
     /// @type.node source="\"pending\"" type="pending"
     /// @type.node source=[] type=T#4[]
-    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as T#4) return=T#4[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T#4>
-    /// @generic.instantiation id=collections.array.arrayFromSlice<T#4> template=collections.array.arrayFromSlice arguments=(T#4) owner=pending
+    /// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as T#4) return=T#4[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#4>
+    /// @generic.instantiation id=arrayFromSlice<T#4> template=arrayFromSlice arguments=(T#4) owner=pending
 
 }
 "#,
     );
 }
 
+/// Inferring the return type of a recursive function requires an annotation.
 #[test]
 fn test_recursive_return_inference_requires_annotation() {
     let session = TestSession::single(
@@ -230,6 +234,7 @@ function countdown(n: float64) {
 "#,
     );
 }
+/// Inferring the return types of mutually recursive functions requires annotations.
 #[test]
 fn test_mutually_recursive_returns_require_annotations() {
     let session = TestSession::single(

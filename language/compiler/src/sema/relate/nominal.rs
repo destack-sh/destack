@@ -78,7 +78,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        // formed sources prove capability and interface targets directly
+        // decide formed sources against capability and interface targets directly
         if matches!(self.ty(source)?, dir::Type::Form(_)) {
             // capability targets decide through their intrinsic rule
             if let Some(interface) = self
@@ -121,7 +121,7 @@ impl CheckState<'_> {
             return self.relate_any_source(origin, cause, relation, &elements, target);
         }
 
-        // generic parameters prove relations through their bounds, then their form
+        // decide generic parameters through their bounds, then through their form
         if let dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) = self.ty(source)? {
             let decision = self
                 .relate_parameter_bounds(origin, cause, relation, parameter, target)?
@@ -143,18 +143,13 @@ impl CheckState<'_> {
             return Ok(decision);
         }
 
-        // memory singletons inhabit their stdlib singleton kind
-        let memory_kind = match self.ty(source)? {
-            dir::Type::Memory(source) => Some(source.kind_language_item()),
-            _ => None,
-        };
-        let target_item = self
-            .type_symbol(target)?
-            .map(|symbol| self.language_item(symbol))
-            .transpose()?
-            .flatten();
-        if let Some(memory_kind) = memory_kind
-            && target_item == Some(memory_kind)
+        // accept region pairs and extent terms against the opaque region and lifetime kinds
+        if let Some(symbol) = self.type_symbol(target)?
+            && matches!(
+                self.language_item(symbol)?,
+                Some(dir::LanguageItem::Lifetime | dir::LanguageItem::Region)
+            )
+            && self.memory_kind(source)? == Some(dir::MemoryParameter::Region)
         {
             return Ok(Verdict::Holds);
         }
@@ -180,7 +175,7 @@ impl CheckState<'_> {
             return self.relate_any_target(origin, cause, relation, source, &elements);
         }
 
-        // const scalars inhabit closed enums by member value
+        // match const scalars against the member values of a closed enum
         if let dir::Type::Literal(literal) = self.ty(source)?
             && let Some(symbol) = self.type_symbol(target)?
             && let Some(dir::Definition::Enum(definition)) = self.definition(symbol)?
@@ -708,6 +703,7 @@ impl CheckState<'_> {
                         return Ok(Verdict::Fails);
                     }
                 }
+                // relate the found member against the target field
                 Some(member) => {
                     verdict = verdict
                         .and(self.constrain_type(origin, cause, relation, member, field_type)?);
@@ -777,7 +773,7 @@ impl CheckState<'_> {
         let mut closure = HeritageClosure::default();
         let mut active = SmallVec::<[dir::GlobalSymbolId; 8]>::new();
 
-        // dispatch same-symbol extension instantiations by form
+        // let extension declarations repeat one application with different arguments
         let independent = matches!(
             self.definition(instance.symbol)?,
             Some(dir::Definition::Extension(_))
@@ -842,7 +838,7 @@ impl CheckState<'_> {
                 ty,
             };
 
-            // cycles are reported at the branch that exposed the cycle
+            // report cycles at the branch that exposed them
             if active.contains(&instance.symbol) {
                 closure.cycles.push(HeritageCycle {
                     source: application.source,
@@ -983,7 +979,7 @@ impl CheckState<'_> {
         target_module: ModuleId,
         target: &dir::GenericApplication,
     ) -> CompilerResult<Verdict> {
-        // written applications complete their elided arguments
+        // complete the elided arguments of written applications
         let mut source = *source;
         let mut target = *target;
         let mut source_module = source_module;
@@ -1006,7 +1002,7 @@ impl CheckState<'_> {
             }
         }
 
-        // both applications must reach the same arity to pair up
+        // require both applications to carry the same arity
         if source.arguments.len() != target.arguments.len() {
             return Ok(Verdict::Fails);
         }
@@ -1023,7 +1019,7 @@ impl CheckState<'_> {
             )
             .collect::<SmallVec<[_; 4]>>();
 
-        // erase proof-only lifetime slots from instance identity
+        // erase extent arguments from instance identity, Verify enforces them
         let lifetimes = match self.symbol_template(source.symbol)? {
             Some(template) => {
                 let parameters = self.generic_template_parameters(template)?;
@@ -1031,7 +1027,7 @@ impl CheckState<'_> {
                     .iter()
                     .map(|parameter| {
                         self.generic_parameter(*parameter).is_some_and(|binding| {
-                            binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+                            binding.memory_parameter() == Some(dir::MemoryParameter::Region)
                         })
                     })
                     .collect::<SmallVec<[bool; 4]>>()
@@ -1048,13 +1044,11 @@ impl CheckState<'_> {
             }
 
             let relation = Relation::Equal;
-            verdict = verdict.and(self.constrain_type(
-                origin,
-                cause,
-                relation,
-                source_argument,
-                target_argument,
-            )?);
+            let decided =
+                self.constrain_type(origin, cause, relation, source_argument, target_argument)?;
+
+            // stop at the first failing pair
+            verdict = verdict.and(decided);
             if verdict == Verdict::Fails {
                 return Ok(Verdict::Fails);
             }

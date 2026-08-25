@@ -8,8 +8,8 @@ use smallvec::SmallVec;
 use crate::sema::{
     BodyState, Cause, CauseKind, ConditionBranch, ControlTargetForm, Expectation, ExpectedType,
     FlowSite, GeneratorTargets, InferMode, Obligation, Origin, PatternCoverage,
-    PatternCoverageObligation, PlaceUse, Relation, RelationCheck, Value, ValueUse, VariableRole,
-    WalkState,
+    PatternCoverageObligation, PlaceUse, ElisionSite, Relation, RelationCheck, Value, ValueUse,
+    VariableRole, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -50,6 +50,7 @@ impl BodyState<'_, '_> {
                 for declarator in declarators {
                     self.check_declarator(module, *declarator, Some(*kind), exported, *is_ambient)?;
                 }
+
                 let void = self.check.intern_type(dir::Type::Void)?;
                 self.check.commit_node_type(node, void)?;
 
@@ -60,6 +61,7 @@ impl BodyState<'_, '_> {
                 for declarator in declarators {
                     self.check_declarator(module, *declarator, None, false, false)?;
                 }
+
                 let void = self.check.intern_type(dir::Type::Void)?;
                 self.check.commit_node_type(node, void)?;
 
@@ -178,6 +180,7 @@ impl BodyState<'_, '_> {
         let Some(symbol) = self.module(module).declaration_symbol(pattern.into_any()) else {
             return Ok(None);
         };
+
         let Some(slot) = self.check.binding_type_maybe(symbol) else {
             return Ok(None);
         };
@@ -194,6 +197,7 @@ impl BodyState<'_, '_> {
         let Some(adopted) = self.check.family_default_of_owned(ty)? else {
             return Ok(ty);
         };
+
         let cause = self.check.intern_cause(Cause::root(
             site.origin(),
             CauseKind::Initializer { annotation: None },
@@ -240,6 +244,7 @@ impl BodyState<'_, '_> {
                 .report_yield_outside_generator(module, node.local_id);
         }
 
+        // evaluate each yield form against the enclosing targets
         let generator = self.generator;
         let ty = match (cardinality, value) {
             // yield* value: evaluate to the delegate's inner return
@@ -289,6 +294,7 @@ impl BodyState<'_, '_> {
                 self.yield_resume_type(generator)?
             }
         };
+
         self.check.commit_node_type(node, ty)?;
 
         Ok(())
@@ -303,20 +309,20 @@ impl BodyState<'_, '_> {
         let module = site.node.module_id;
         let value_site = self.check.visit_site(value.into_global_any(module))?;
 
-        // without generator targets the delegate value just infers
+        // infer the delegate value alone outside a generator body
         let Some(targets) = self.generator else {
             self.attempt_node(value_site, PlaceUse::Read, None)?;
 
             return self.check.intern_type(dir::Type::Error);
         };
 
-        // the delegate return becomes the yield's own output
+        // open the yield's own output for the delegate return
         let variable = self
             .check
             .open_variable(site.origin(), VariableRole::Regular);
         let output = self.check.variable_type(variable)?;
 
-        // the delegate value must implement the generator protocol
+        // require the generator protocol of the delegate value
         let item = match targets.asynchrony {
             dir::Asynchrony::Sync => dir::LanguageItem::Iterable,
             dir::Asynchrony::Async => dir::LanguageItem::AsyncIterable,
@@ -346,7 +352,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         match generator {
             Some(targets) => Ok(targets.resumed),
-            // yields outside a generator already reported
+            // a yield outside a generator, reported above
             None => self.check.intern_type(dir::Type::Error),
         }
     }
@@ -361,6 +367,8 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<()> {
         let node = site.node;
         let module = node.module_id;
+
+        // check the condition before the loop flow splits
         self.check_condition_operands(module, condition)?;
 
         // check the body under true condition flow inside the loop target
@@ -433,6 +441,7 @@ impl BodyState<'_, '_> {
                 cause,
             ))?;
         }
+
         self.check.merge_flow_branches_from(before_body, &branches);
         self.check.commit_node_type(node, result)?;
 
@@ -459,6 +468,7 @@ impl BodyState<'_, '_> {
                 .visit_site(initialization.into_global_any(module))?;
             self.attempt_node(init_site, PlaceUse::Read, None)?;
         }
+
         if let Some(condition) = condition {
             self.check_condition(module, condition)?;
         }
@@ -472,6 +482,7 @@ impl BodyState<'_, '_> {
             self.check
                 .narrow_expression(condition, ConditionBranch::True)?;
         }
+
         let body_site = self.check.visit_site(body.into_global_any(module))?;
         self.attempt_node(body_site, PlaceUse::Read, None)?;
 
@@ -483,14 +494,20 @@ impl BodyState<'_, '_> {
                 .then(|| self.check.collect_flow_branch(before_body));
             let mut reaching = self.check.take_current_continue_branches();
             reaching.extend(body_flow);
+
+            // reset to the pre-body flow when no path reaches the increment
             if reaching.is_empty() {
                 self.check.restore_flow(before_body);
-            } else {
+            }
+            // otherwise join every reaching path
+            else {
                 self.check.merge_flow_branches_from(before_body, &reaching);
             }
+
             let increment_site = self.check.visit_site(increment.into_global_any(module))?;
             self.attempt_node(increment_site, PlaceUse::Read, None)?;
         }
+
         self.check.restore_flow(before_body);
 
         // collect the normal exit through the false condition
@@ -502,11 +519,12 @@ impl BodyState<'_, '_> {
         } else {
             None
         };
+
         let mut branches = self.check.leave_control_target();
         branches.extend(normal_flow);
         self.check.merge_flow_branches_from(before_body, &branches);
 
-        // for loops evaluate to void
+        // complete the loop with void
         let void = self.check.intern_type(dir::Type::Void)?;
         self.check.commit_node_type(node, void)?;
 
@@ -549,6 +567,7 @@ impl BodyState<'_, '_> {
                     (Some(value), ControlTargetForm::Iteration | ControlTargetForm::Switch) => {
                         self.check
                             .report_break_value_outside_loop(module, node.local_id);
+
                         let value_site = self.check.visit_site(value.into_global_any(module))?;
                         self.attempt_node(value_site, PlaceUse::Read, None)?;
                     }
@@ -567,6 +586,7 @@ impl BodyState<'_, '_> {
                             cause,
                         ))?;
                     }
+                    // bare breaks leave an unvalued target as they are
                     (None, ControlTargetForm::Iteration | ControlTargetForm::Switch) => {}
                 }
 
@@ -579,6 +599,7 @@ impl BodyState<'_, '_> {
             None => {
                 self.check
                     .report_break_outside_control_target(module, node.local_id);
+
                 self.check.flow.insert_unbound_jump(node.local_id);
             }
         }
@@ -617,6 +638,8 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<()> {
         let node = site.node;
         let module = node.module_id;
+
+        // check the matched declarator before the flow splits
         self.check_declarator(module, declarator, Some(kind), false, false)?;
 
         // check the diverging else branch in failed-match flow
@@ -671,7 +694,7 @@ impl BodyState<'_, '_> {
 
         // derive the type the pattern destructures from
         let target = match (declarator.value, written) {
-            // transcribe the written type while declaring
+            // keep the written type while declaring
             (Some(_), Some(written)) if self.is_declaring() => {
                 match self.check.type_flags(written)?.has_variable() {
                     true => None,
@@ -698,7 +721,7 @@ impl BodyState<'_, '_> {
             }
             // leave unexported initializers to the body pass
             (Some(_), None) if self.is_declaring() && !exported => None,
-            // error for exported non-transcribable values
+            // report an exported value the declaration pass cannot read
             (Some(value), None)
                 if exported && !self.check.is_transcribable_literal(module, value) =>
             {
@@ -767,7 +790,7 @@ impl BodyState<'_, '_> {
             let site = self.visit_site(pattern.into_global_any(module))?;
             self.check_pattern(pattern.into_global(module), site.flow, site.scope, target)?;
 
-            // non-matching positions must always match irrefutably
+            // require irrefutable coverage outside a refutable position
             let requires_irrefutable = !self.check.is_refutable_pattern_position(module, id);
             if requires_irrefutable {
                 let value = match declarator.value {
@@ -828,11 +851,13 @@ impl BodyState<'_, '_> {
                         let node = self.module(module).view().get(*declarator);
                         (node.pattern, node.value)
                     };
+
                     let Some(value) = value else {
                         return Err(CompilerError::Internal {
                             message: "a condition binding has no matched value".to_string(),
                         });
                     };
+
                     let origin = self.visit_site(pattern.into_global_any(module))?.origin();
                     self.report_type_shadowing_binding(module, value.into_any(), pattern, origin)?;
 
@@ -890,11 +915,12 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         decorated: dir::LocalNodeIdAny,
     ) -> CompilerResult<bool> {
-        // undecorated nodes are present, no walk decides anything for them
+        // keep undecorated nodes present
         if !self.check.module_view(module).has_decorators_any(decorated) {
             return Ok(true);
         }
 
+        // walk the decorators over the patched view
         let (parsed, expanded) = self.patched_inputs(module);
         let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
         let mut walk = WalkState::new(module, tree, self.check).for_body();
@@ -937,6 +963,8 @@ impl BodyState<'_, '_> {
         {
             return Ok(());
         }
+
+        // walk the construct type over the patched view
         let (parsed, expanded) = self.patched_inputs(module);
         let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
         let mut walk = WalkState::new(module, tree, self.check).for_body();
@@ -990,7 +1018,8 @@ impl BodyState<'_, '_> {
         match is_body_position {
             // open lifetime holes for inference in body positions
             true => walk.walk_type_expression(ty)?,
-            false => walk.walk_static_type_expression(ty)?,
+            // close elided lifetimes at the module in written positions
+            false => walk.walk_type_expression_in(ty, ElisionSite::Module)?,
         };
 
         Ok(())
@@ -1032,10 +1061,12 @@ impl BodyState<'_, '_> {
         {
             return Ok(());
         }
+
+        // walk the guard target with its borrows closing at the frame
         let (parsed, expanded) = self.patched_inputs(module);
         let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
         let mut walk = WalkState::new(module, tree, self.check).for_body();
-        walk.walk_frame_type_expression(ty)?;
+        walk.walk_type_expression_in(ty, ElisionSite::Body)?;
 
         Ok(())
     }
@@ -1055,6 +1086,8 @@ impl BodyState<'_, '_> {
         if !has_unwalked {
             return Ok(());
         }
+
+        // walk the arguments over the patched view
         let (parsed, expanded) = self.patched_inputs(module);
         let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
         let mut walk = WalkState::new(module, tree, self.check).for_body();
@@ -1074,6 +1107,7 @@ impl BodyState<'_, '_> {
         if self.check.lambdas.contains_key(&node) {
             return Ok(true);
         }
+
         let (parsed, expanded) = self.patched_inputs(node.module_id);
         let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
 
@@ -1095,6 +1129,7 @@ impl BodyState<'_, '_> {
         if self.check.lambdas.contains_key(&node) {
             return Ok(());
         }
+
         let (parsed, expanded) = self.patched_inputs(module);
         let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
         let kind = tree.get(declaration).clone();
@@ -1109,9 +1144,11 @@ impl BodyState<'_, '_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("function value {node:?} has no declaration symbol"),
             })?;
+
         if let dir::Declaration::Function(function) = &kind {
-            let _registered = walk.walk_declared_function_body(declaration, function, symbol)?;
+            walk.walk_declared_function_body(declaration, function, symbol)?;
         }
+
         walk.flush_flows()?;
 
         // move the body to its value expression, which owns the check
@@ -1128,7 +1165,7 @@ impl BodyState<'_, '_> {
     /// Commit the function values among one call's arguments.
     ///
     /// The commit is durable syntax; it runs before candidate probes
-    /// so rollbacks never drop a body.
+    /// so every rollback keeps the body.
     pub(in crate::sema) fn commit_argument_function_values(
         &mut self,
         module: ModuleId,
@@ -1138,6 +1175,7 @@ impl BodyState<'_, '_> {
             let Some(value) = self.argument_expression(module, *argument) else {
                 continue;
             };
+
             let expression = self
                 .module(value.module_id)
                 .view()
@@ -1169,6 +1207,8 @@ impl BodyState<'_, '_> {
 
             return Ok(());
         }
+
+        // read the declaration over the patched view
         let (parsed, expanded) = self.patched_inputs(module);
         let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
         let kind = tree.get(declaration).clone();
@@ -1183,6 +1223,7 @@ impl BodyState<'_, '_> {
             dir::Declaration::Module(block) => Some(block.expressions.clone()),
             _ => None,
         };
+
         if let Some(members) = members {
             for member in members {
                 let member_site = self.check.visit_site(member.into_global_any(module))?;

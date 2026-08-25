@@ -35,13 +35,15 @@ impl CheckState<'_> {
         match kind {
             // leave an open variable or canonical hole undecided
             dir::Type::Variable(_) | dir::Type::Hole(_) => Ok(Verdict::Ambiguous),
+            // accept region terms outright, they carry no runtime values
+            dir::Type::Region(_) => Ok(Verdict::Holds),
             // look through the refinement to its base
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(ty.module_id, refined)?;
 
                 self.decide_overwrite_stable(origin, refined.base, active)
             }
-
+            // accept the heads whose stored value has one fixed shape
             dir::Type::Error
             | dir::Type::Never
             | dir::Type::Void
@@ -50,13 +52,14 @@ impl CheckState<'_> {
             | dir::Type::Primitive(_)
             | dir::Type::Literal(_)
             | dir::Type::Key(_)
-            | dir::Type::Memory(_)
             | dir::Type::Static(_)
             | dir::Type::Range(_)
             | dir::Type::Reference(_) => Ok(Verdict::Holds),
+            // decide a variant through its owning enum
             dir::Type::Variant(variant) => {
                 self.decide_overwrite_stable(origin, variant.owner, active)
             }
+            // reject the unresolved and dispatched heads
             dir::Type::Unknown
             | dir::Type::Intrinsic
             | dir::Type::Member(_)
@@ -65,26 +68,32 @@ impl CheckState<'_> {
             | dir::Type::FunctionSignature(_)
             | dir::Type::Function(_)
             | dir::Type::Union(_) => Ok(Verdict::Fails),
+            // generic heads resolve before this decision runs
             dir::Type::Parameter(_)
             | dir::Type::Rigid(_)
             | dir::Type::Erased(_)
             | dir::Type::This => Err(CompilerError::Internal {
                 message: format!("generic type {ty:?} reached structural overwrite stability"),
             }),
+            // decide a form through its qualifier
             dir::Type::Form(form) => match form.form {
-                dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Raw => Ok(Verdict::Holds),
-                dir::Form::Owned => Ok(Verdict::Fails),
-                dir::Form::Placed { .. } | dir::Form::Readonly => {
-                    self.decide_overwrite_stable(origin, form.value, active)
+                dir::Form::Managed { .. } | dir::Form::Borrowed(_) | dir::Form::Raw => {
+                    Ok(Verdict::Holds)
                 }
+                dir::Form::Owned => Ok(Verdict::Fails),
+                dir::Form::Readonly => self.decide_overwrite_stable(origin, form.value, active),
             },
+            // decide a nominal through its definition
             dir::Type::Application(instance) => {
                 self.decide_overwrite_stable_instance(origin, ty.module_id, instance, active)
             }
+            // decide an array through its element
             dir::Type::FixedArray(array) => {
                 self.decide_overwrite_stable(origin, array.element, active)
             }
+            // slices overwrite through their pointer and extent
             dir::Type::Slice(_) => Ok(Verdict::Holds),
+            // decide a tuple through every element
             dir::Type::Tuple(tuple) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
                     .tuple_elements(ty.module_id, tuple.elements)?
@@ -96,6 +105,7 @@ impl CheckState<'_> {
                     state.decide_overwrite_stable(origin, id, active)
                 })
             }
+            // decide an object through every property type
             dir::Type::Object(shape) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
                     .object_properties(ty.module_id, shape.properties)?
@@ -107,7 +117,9 @@ impl CheckState<'_> {
                     state.decide_overwrite_stable(origin, id, active)
                 })
             }
+            // function pointers store one fixed address
             dir::Type::FunctionPointer(_) => Ok(Verdict::Holds),
+            // decide an intersection through every element
             dir::Type::Intersection(intersection) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> =
                     SmallVec::from_slice(self.type_ids(ty.module_id, intersection.elements)?);
@@ -132,9 +144,11 @@ impl CheckState<'_> {
         };
 
         match definition {
+            // decide an alias through its written value
             dir::Definition::TypeAlias(definition) => {
                 self.decide_overwrite_stable(origin, definition.value, active)
             }
+            // decide a struct through its stored fields
             dir::Definition::Struct(definition) => {
                 let fields = self.stored_field_types(&definition.members)?;
 
@@ -142,14 +156,18 @@ impl CheckState<'_> {
                     state.decide_overwrite_stable(origin, id, active)
                 })
             }
+            // classes and interfaces store one reference
             dir::Definition::Class(_) | dir::Definition::Interface(_) => Ok(Verdict::Holds),
+            // an enum's stored payload varies with its tag
             dir::Definition::Enum(_) => Ok(Verdict::Fails),
+            // decide a newtype through its backing type
             dir::Definition::Newtype(definition) => self.decide_all_applied(
                 instance_module,
                 &instance,
                 [definition.backing],
                 |state, id| state.decide_overwrite_stable(origin, id, active),
             ),
+            // extensions store nothing of their own
             dir::Definition::Extension(_) => Ok(Verdict::Fails),
         }
     }

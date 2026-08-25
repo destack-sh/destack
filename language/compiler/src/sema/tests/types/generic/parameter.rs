@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A const type parameter keeps the precision of a scalar literal argument.
 #[test]
 fn test_const_type_parameter_preserves_scalar_literal_precision() {
     let session = TestSession::single(
@@ -39,6 +40,7 @@ const value = id("ready");
     );
 }
 
+/// A const type parameter keeps the precision of an array literal argument.
 #[test]
 fn test_const_type_parameter_preserves_array_literal_precision() {
     let session = TestSession::single(
@@ -81,7 +83,7 @@ const first = values[0];
 /// @type.symbol symbol=first source=first type=1
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=values placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=1 kind=member target="receiver=[1, 2], target=field(receiver=[1, 2], target=0, type=1), type=1"
@@ -89,6 +91,7 @@ const first = values[0];
     );
 }
 
+/// A plain type parameter widens an array literal argument.
 #[test]
 fn test_plain_type_parameter_widens_array_literal_precision() {
     let session = TestSession::single(
@@ -122,16 +125,16 @@ declare function id<T>(value: T): T;
 const values = id([1, 2]);
 /// @type.symbol symbol=values source=values type=int64[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
-/// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
+/// @generic.instance id=Array<int64> template=Array arguments=(int64)
+/// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
+/// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
 /// @resolution.name source=id target=id
 /// @resolution.call source="id([1, 2])" parameters=(int64[]) arguments=(provided([1, 2]) as int64[]) return=int64[] kind=symbol target=id instance=id<int64[]>
 /// @generic.instantiation id=id<int64[]> template=id arguments=(int64[])
 /// @generic.instance id=id<int64[]> template=id arguments=(int64[])
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
-/// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
+/// @resolution.call source=[1, 2] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+/// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
+/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=int64
@@ -140,15 +143,16 @@ const first = values[0];
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=int64 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static int64, \"exclusive\">)"
-/// @generic.instantiation id="collections.array.index#1<int64, \"exclusive\">" template=collections.array.index#1 arguments=(int64, "exclusive")
-/// @generic.instance id="collections.array.index#1<int64, \"exclusive\">" template=collections.array.index#1 arguments=(int64, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame int64, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int64, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame int64[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int64[], "exclusive")
+/// @resolution.subscript source=values[0] type=int64 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static int64, \"exclusive\">)"
+/// @generic.instantiation id="index#1<int64, \"exclusive\", \"local\">" template=index#1 arguments=(int64, "exclusive", "local")
+/// @generic.instance id="WithAccess<&'frame int64, \"exclusive\">" template=WithAccess arguments=(&'frame int64, "exclusive")
+/// @generic.instance id="WithAccess<&'frame int64[], \"exclusive\">" template=WithAccess arguments=(&'frame int64[], "exclusive")
+/// @generic.instance id="index#1<int64, \"exclusive\", \"local\">" template=index#1 arguments=(int64, "exclusive", "local")
 "#,
     );
 }
 
+/// A mutable array argument keeps its element type exact at a widening parameter.
 #[test]
 fn test_mutable_array_alias_does_not_widen_element_type() {
     let session = TestSession::single(
@@ -195,6 +199,7 @@ take(values);
     );
 }
 
+/// An array literal argument materializes as a slice parameter.
 #[test]
 fn test_array_literal_materializes_as_slice_parameter() {
     let session = TestSession::single(
@@ -217,23 +222,24 @@ take([1, 2]);
 === dir ===
 declare function take(values: Slice<float64>): void;
 /// @type.symbol symbol=take source="declare function take(values: Slice<float64>): void" type=(Slice<float64>) => void
-/// @generic.instance id=Slice<float64> template=collections.slice.Slice arguments=(float64)
+/// @generic.instance id=Slice<float64> template=Slice arguments=(float64)
 /// @type.symbol symbol=take.values source="values: Slice<float64>" type=Slice<float64>
-/// @resolution.name source=Slice target=collections.slice.Slice
+/// @resolution.name source=Slice target=Slice
 
 take([1, 2]);
 /// @resolution.name source=take target=take
 /// @resolution.call source="take([1, 2])" parameters=(Slice<float64>) arguments=(provided([1, 2]) as Slice<float64>) return=void kind=symbol target=take
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
-/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
-/// @generic.instance id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<float64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @resolution.call source=[1, 2] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<float64>
+/// @generic.instantiation id=arrayFromSlice<float64> template=arrayFromSlice arguments=(float64)
+/// @generic.instance id="arrayFromSlice<float64, \"local\">" template=arrayFromSlice arguments=(float64, "local")
+/// @generic.instance id=Array<float64> template=Array arguments=(float64)
+/// @generic.instance id=MaybeUninit<float64> template=MaybeUninit arguments=(float64)
+/// @generic.instance id=new<MaybeUninit<float64>> template=new arguments=(MaybeUninit<float64>)
 "#,
     );
 }
 
+/// An array literal argument materializes as a fixed array parameter.
 #[test]
 fn test_array_literal_materializes_as_fixed_array_parameter() {
     let session = TestSession::single(
@@ -265,6 +271,7 @@ take([1, 2]);
     );
 }
 
+/// An array literal of the wrong length reports a diagnostic at a fixed array parameter.
 #[test]
 fn test_array_literal_rejects_mismatched_fixed_array_parameter_length() {
     let session = TestSession::single(
@@ -302,6 +309,7 @@ take([1, 2, 3]);
     );
 }
 
+/// A plain type parameter widens a tuple literal argument.
 #[test]
 fn test_plain_type_parameter_widens_tuple_literal_precision() {
     let session = TestSession::single(
@@ -341,6 +349,7 @@ const value = id((1, "x"));
     );
 }
 
+/// A const type parameter keeps the precision of a nested object literal argument.
 #[test]
 fn test_const_type_parameter_preserves_nested_object_literal_precision() {
     let session = TestSession::single(
@@ -376,16 +385,16 @@ declare function collect<const T>(values: T[]): T[];
 const values = collect([{ kind: "ready" }]);
 /// @type.symbol symbol=values source=values type={ readonly kind: "ready" }[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id="Array<{ readonly kind: \"ready\" }>" template=collections.array.Array arguments=({ readonly kind: "ready" })
-/// @generic.instance id="collections.slice.new<memory.init.MaybeUninit<{ readonly kind: \"ready\" }>>" template=collections.slice.new arguments=(memory.init.MaybeUninit<{ readonly kind: "ready" }>)
-/// @generic.instance id="memory.init.MaybeUninit<{ readonly kind: \"ready\" }>" template=memory.init.MaybeUninit arguments=({ readonly kind: "ready" })
+/// @generic.instance id="Array<{ readonly kind: \"ready\" }>" template=Array arguments=({ readonly kind: "ready" })
+/// @generic.instance id="MaybeUninit<{ readonly kind: \"ready\" }>" template=MaybeUninit arguments=({ readonly kind: "ready" })
+/// @generic.instance id="new<MaybeUninit<{ readonly kind: \"ready\" }>>" template=new arguments=(MaybeUninit<{ readonly kind: "ready" }>)
 /// @resolution.name source=collect target=collect
 /// @resolution.call source="collect([{ kind: \"ready\" }])" parameters=({ readonly kind: "ready" }[]) arguments=(provided([{ kind: "ready" }]) as { readonly kind: "ready" }[]) return={ readonly kind: "ready" }[] kind=symbol target=collect instance="collect<{ readonly kind: \"ready\" }>"
 /// @generic.instantiation id="collect<{ readonly kind: \"ready\" }>" template=collect arguments=({ readonly kind: "ready" })
 /// @generic.instance id="collect<{ readonly kind: \"ready\" }>" template=collect arguments=({ readonly kind: "ready" })
-/// @resolution.call source=[{ kind: "ready" }] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest({ kind: "ready" }) as { readonly kind: "ready" }) return={ readonly kind: "ready" }[] kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<{ readonly kind: \"ready\" }>"
-/// @generic.instantiation id="collections.array.arrayFromSlice<{ readonly kind: \"ready\" }>" template=collections.array.arrayFromSlice arguments=({ readonly kind: "ready" })
-/// @generic.instance id="collections.array.arrayFromSlice<{ readonly kind: \"ready\" }>" template=collections.array.arrayFromSlice arguments=({ readonly kind: "ready" })
+/// @resolution.call source=[{ kind: "ready" }] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest({ kind: "ready" }) as { readonly kind: "ready" }) return={ readonly kind: "ready" }[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<{ readonly kind: \"ready\" }>"
+/// @generic.instantiation id="arrayFromSlice<{ readonly kind: \"ready\" }>" template=arrayFromSlice arguments=({ readonly kind: "ready" })
+/// @generic.instance id="arrayFromSlice<{ readonly kind: \"ready\" }, \"local\">" template=arrayFromSlice arguments=({ readonly kind: "ready" }, "local")
 
 const kind = values[0].kind;
 /// @type.symbol symbol=kind source=kind type="ready"
@@ -396,16 +405,17 @@ const kind = values[0].kind;
 /// @resolution.access source=values root=values
 /// @resolution.place source=values[0] placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type={ readonly kind: "ready" } kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static { readonly kind: \"ready\" }, \"exclusive\">)"
+/// @resolution.subscript source=values[0] type={ readonly kind: "ready" } kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static { readonly kind: \"ready\" }, \"exclusive\">)"
 /// @resolution.access source=values[0].kind root=values keys=[0, kind]
-/// @generic.instantiation id="collections.array.index#1<{ readonly kind: \"ready\" }, \"exclusive\">" template=collections.array.index#1 arguments=({ readonly kind: "ready" }, "exclusive")
-/// @generic.instance id="collections.array.index#1<{ readonly kind: \"ready\" }, \"exclusive\">" template=collections.array.index#1 arguments=({ readonly kind: "ready" }, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame { readonly kind: \"ready\" }, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame { readonly kind: "ready" }, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame { readonly kind: \"ready\" }[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame { readonly kind: "ready" }[], "exclusive")
+/// @generic.instantiation id="index#1<{ readonly kind: \"ready\" }, \"exclusive\", \"local\">" template=index#1 arguments=({ readonly kind: "ready" }, "exclusive", "local")
+/// @generic.instance id="WithAccess<&'frame { readonly kind: \"ready\" }, \"exclusive\">" template=WithAccess arguments=(&'frame { readonly kind: "ready" }, "exclusive")
+/// @generic.instance id="WithAccess<&'frame { readonly kind: \"ready\" }[], \"exclusive\">" template=WithAccess arguments=(&'frame { readonly kind: "ready" }[], "exclusive")
+/// @generic.instance id="index#1<{ readonly kind: \"ready\" }, \"exclusive\", \"local\">" template=index#1 arguments=({ readonly kind: "ready" }, "exclusive", "local")
 "#,
     );
 }
 
+/// A const type parameter keeps literal precision through a union parameter.
 #[test]
 fn test_const_type_parameter_preserves_literal_precision_through_union() {
     let session = TestSession::single(
@@ -443,6 +453,7 @@ const value = maybe({ kind: "ready" });
 "#);
 }
 
+/// A const type parameter keeps the precision of an object literal argument.
 #[test]
 fn test_const_type_parameter_preserves_object_literal_precision() {
     let session = TestSession::single(
@@ -507,6 +518,7 @@ const level = value.level;
     );
 }
 
+/// A plain type parameter widens an object literal argument.
 #[test]
 fn test_plain_type_parameter_widens_object_literal_precision() {
     let session = TestSession::single(
@@ -571,6 +583,7 @@ const level = value.level;
     );
 }
 
+/// A member lookup on a self-recursive bound reports the missing member.
 #[test]
 fn test_recursive_constraint_member_lookup_reports_missing_member() {
     let session = TestSession::single(
@@ -614,6 +627,7 @@ function read<T: T | { name: string }>(value: T): string {
     );
 }
 
+/// A type parameter satisfies the bound its own declaration states.
 #[test]
 fn test_parameter_satisfies_its_own_declared_bound() {
     let session = TestSession::single(
@@ -645,7 +659,7 @@ interface Equal<in T> {
 class Bucket<in out K: Equal<K>> {
     key: K;
 
-    constructor(key: K): this {
+    constructor(key: K) {
         this.key = key;
     }
 
@@ -675,8 +689,8 @@ class Bucket<K: Equal<K>> {
 /// @type.symbol symbol=Bucket type=Bucket
 /// @definition.class symbol=Bucket template=(in out K: Equal<K>)
 /// @definition.field symbol=Bucket.key source="key: K" key=key type=K
-/// @definition.method symbol=Bucket.constructor slot=constructor role=constructor type=(K) => this
-/// @definition.method symbol=Bucket.pair slot=pair type=(this: this) => Bucket<K>
+/// @definition.method symbol=Bucket.constructor slot=constructor role=constructor type=<Bucket.constructor.P0: Place>(K) => Managed<this, Bucket.constructor.P0>
+/// @definition.method symbol=Bucket.pair slot=pair type=<Bucket.pair.P0: Place>(this: Managed<this, Bucket.pair.P0>) => Bucket<K>
 /// @type.symbol symbol=Bucket.K source="K: Equal<K>" type=K
 /// @resolution.name source=Equal target=Equal
 /// @resolution.name source=K target=Bucket.K
@@ -686,7 +700,8 @@ class Bucket<K: Equal<K>> {
     /// @resolution.name source=K target=Bucket.K
 
     constructor(key: K) {
-    /// @type.symbol symbol=Bucket.constructor type=(K) => this
+    /// @generic.template symbol=Bucket.constructor parent=template#1 parameters=(P0: Place)
+    /// @type.symbol symbol=Bucket.constructor type=<Bucket.constructor.P0: Place>(K) => Managed<this, Bucket.constructor.P0>
     /// @type.symbol symbol=Bucket.constructor.key source="key: K" type=K
     /// @resolution.name source=K target=Bucket.K
 
@@ -704,21 +719,22 @@ class Bucket<K: Equal<K>> {
     }
 
     pair(): Bucket<K> {
-    /// @type.symbol symbol=Bucket.pair type=(this: this) => Bucket<K>
+    /// @generic.template symbol=Bucket.pair parent=template#1 parameters=(P0: Place)
+    /// @type.symbol symbol=Bucket.pair type=<Bucket.pair.P0: Place>(this: Managed<this, Bucket.pair.P0>) => Bucket<K>
     /// @resolution.name source=Bucket target=Bucket
     /// @resolution.name source=K target=Bucket.K
 
         return new Bucket<K>(this.key);
-        /// @resolution.construct source="new Bucket<K>(this.key)" parameters=(K) arguments=(provided(this.key) as K) return=Bucket<K> kind=class target=Bucket constructor=Bucket.constructor instance=Bucket<K>
-        /// @generic.instantiation id=Bucket.constructor<K> template=Bucket.constructor arguments=(K) owner=Bucket.pair
-        /// @generic.instantiation id=Bucket<K> template=Bucket arguments=(K) owner=Bucket.pair
+        /// @resolution.construct source="new Bucket<K>(this.key)" parameters=(K) arguments=(provided(this.key) as K) return=local Bucket<K> kind=class target=Bucket constructor=Bucket.constructor instance=Bucket<K>
+        /// @generic.instantiation id="Bucket.constructor<K, \"local\">" template=Bucket.constructor arguments=(K, "local") owner=Bucket.pair
+        /// @generic.instantiation id="Bucket<K, \"local\">" template=Bucket arguments=(K, "local") owner=Bucket.pair
         /// @resolution.name source=Bucket target=Bucket
         /// @resolution.name source=K target=Bucket.K
-        /// @resolution.member source=this.key receiver=Bucket<K> type=K kind=field target_receiver=Bucket<K> key=key target=Bucket.key target_type=K
-        /// @resolution.receiver source=this kind=this declaration=Bucket type=Bucket<K>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.member source=this.key receiver=Managed<Bucket<K>, Bucket.pair.P0> type=K kind=field target_receiver=Managed<Bucket<K>, Bucket.pair.P0> key=key target=Bucket.key target_type=K
+        /// @resolution.receiver source=this kind=this declaration=Bucket type=Managed<Bucket<K>, Bucket.pair.P0>
+        /// @resolution.place source=this placement=Bucket.pair.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.key placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.key placement=Bucket.pair.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this.key root=this keys=[key]
 
     }
@@ -726,6 +742,7 @@ class Bucket<K: Equal<K>> {
 "#, "");
 }
 
+/// An extension where clause satisfies the bound a call inside it requires.
 #[test]
 fn test_extension_where_clause_satisfies_call_bound() {
     let session = TestSession::single(
@@ -763,7 +780,7 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 class Box<in out K> {
     key: K;
 
-    constructor(key: K): this {
+    constructor(key: K) {
         this.key = key;
     }
 }
@@ -804,7 +821,7 @@ class Box<K> {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(in out K#1)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K#1
-/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K#1) => this
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>(K#1) => Managed<this, Box.constructor.P0>
 /// @type.symbol symbol=Box.K source=K type=K#1
 
     key: K;
@@ -812,7 +829,8 @@ class Box<K> {
     /// @resolution.name source=K target=Box.K
 
     constructor(key: K) {
-    /// @type.symbol symbol=Box.constructor type=(K#1) => this
+    /// @generic.template symbol=Box.constructor parent=template#2 parameters=(P0: Place)
+    /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>(K#1) => Managed<this, Box.constructor.P0>
     /// @type.symbol symbol=Box.constructor.key source="key: K" type=K#1
     /// @resolution.name source=K target=Box.K
 
@@ -834,7 +852,7 @@ extension<K> of Box<K> where K: Equal<K> {
 /// @generic.template symbol=<module>#2 parameters=(K#2)
 /// @definition.extension symbol=<module>#2 form=local target=Box<K#2>
 /// @definition.where symbol=<module>#2 source="K: Equal<K>" relation=satisfies left=K#2 right=Equal<K#2>
-/// @definition.method symbol=check slot=check type=(this: this) => boolean
+/// @definition.method symbol=check slot=check type=<check.P0: Place>(this: Managed<this, check.P0>) => boolean
 /// @type.symbol symbol=K source=K type=K#2
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=K target=K
@@ -843,17 +861,18 @@ extension<K> of Box<K> where K: Equal<K> {
 /// @resolution.name source=K target=K
 
     check(): boolean {
-    /// @type.symbol symbol=check type=(this: this) => boolean
+    /// @generic.template symbol=check parent=template#3 parameters=(P0: Place)
+    /// @type.symbol symbol=check type=<check.P0: Place>(this: Managed<this, check.P0>) => boolean
 
         return probe(this.key);
         /// @resolution.name source=probe target=probe
         /// @resolution.call source=probe(this.key) parameters=(K#2) arguments=(provided(this.key) as K#2) return=boolean kind=symbol target=probe instance=probe<K#2>
         /// @generic.instantiation id=probe<K#2> template=probe arguments=(K#2) owner=check
-        /// @resolution.member source=this.key receiver=Box<K#2> type=K#2 kind=field target_receiver=Box<K#2> key=key target=Box.key target_type=K#2
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Box<K#2>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.member source=this.key receiver=Managed<Box<K#2>, check.P0> type=K#2 kind=field target_receiver=Managed<Box<K#2>, check.P0> key=key target=Box.key target_type=K#2
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Managed<Box<K#2>, check.P0>
+        /// @resolution.place source=this placement=check.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.key placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.key placement=check.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this.key root=this keys=[key]
 
     }
@@ -861,6 +880,7 @@ extension<K> of Box<K> where K: Equal<K> {
 "#, "");
 }
 
+/// A method where clause satisfies the bound a call inside it requires.
 #[test]
 fn test_method_where_clause_satisfies_call_bound() {
     let session = TestSession::single(
@@ -896,7 +916,7 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 class Box<in out K> {
     key: K;
 
-    constructor(key: K): this {
+    constructor(key: K) {
         this.key = key;
     }
 
@@ -935,8 +955,8 @@ class Box<K> {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(in out K)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K
-/// @definition.method symbol=Box.check slot=check type=(this: this) => boolean
-/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K) => this
+/// @definition.method symbol=Box.check slot=check type=<Box.check.P0: Place>(this: Managed<this, Box.check.P0>) => boolean
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>(K) => Managed<this, Box.constructor.P0>
 /// @type.symbol symbol=Box.K source=K type=K
 
     key: K;
@@ -944,7 +964,8 @@ class Box<K> {
     /// @resolution.name source=K target=Box.K
 
     constructor(key: K) {
-    /// @type.symbol symbol=Box.constructor type=(K) => this
+    /// @generic.template symbol=Box.constructor parent=template#2 parameters=(P0: Place)
+    /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>(K) => Managed<this, Box.constructor.P0>
     /// @type.symbol symbol=Box.constructor.key source="key: K" type=K
     /// @resolution.name source=K target=Box.K
 
@@ -962,7 +983,8 @@ class Box<K> {
     }
 
     check(): boolean where K: Equal<K> {
-    /// @type.symbol symbol=Box.check type=(this: this) => boolean
+    /// @generic.template symbol=Box.check parent=template#2 parameters=(P0: Place)
+    /// @type.symbol symbol=Box.check type=<Box.check.P0: Place>(this: Managed<this, Box.check.P0>) => boolean
     /// @resolution.name source=K target=Box.K
     /// @resolution.name source=Equal target=Equal
     /// @resolution.name source=K target=Box.K
@@ -971,11 +993,11 @@ class Box<K> {
         /// @resolution.name source=probe target=probe
         /// @resolution.call source=probe(this.key) parameters=(K) arguments=(provided(this.key) as K) return=boolean kind=symbol target=probe instance=probe<K>
         /// @generic.instantiation id=probe<K> template=probe arguments=(K) owner=Box.check
-        /// @resolution.member source=this.key receiver=Box<K> type=K kind=field target_receiver=Box<K> key=key target=Box.key target_type=K
-        /// @resolution.receiver source=this kind=this declaration=Box type=Box<K>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.member source=this.key receiver=Managed<Box<K>, Box.check.P0> type=K kind=field target_receiver=Managed<Box<K>, Box.check.P0> key=key target=Box.key target_type=K
+        /// @resolution.receiver source=this kind=this declaration=Box type=Managed<Box<K>, Box.check.P0>
+        /// @resolution.place source=this placement=Box.check.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.key placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.key placement=Box.check.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this.key root=this keys=[key]
 
     }
@@ -983,6 +1005,7 @@ class Box<K> {
 "#, "");
 }
 
+/// An extension method calls an unbounded generic function of the module.
 #[test]
 fn test_extension_method_calls_module_function() {
     let session = TestSession::single(
@@ -1012,7 +1035,7 @@ declare function probe<T>(value: T): boolean;
 class Box<in out K> {
     key: K;
 
-    constructor(key: K): this {
+    constructor(key: K) {
         this.key = key;
     }
 }
@@ -1036,7 +1059,7 @@ class Box<K> {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(in out K#1)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K#1
-/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K#1) => this
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>(K#1) => Managed<this, Box.constructor.P0>
 /// @type.symbol symbol=Box.K source=K type=K#1
 
     key: K;
@@ -1044,7 +1067,8 @@ class Box<K> {
     /// @resolution.name source=K target=Box.K
 
     constructor(key: K) {
-    /// @type.symbol symbol=Box.constructor type=(K#1) => this
+    /// @generic.template symbol=Box.constructor parent=template#1 parameters=(P0: Place)
+    /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>(K#1) => Managed<this, Box.constructor.P0>
     /// @type.symbol symbol=Box.constructor.key source="key: K" type=K#1
     /// @resolution.name source=K target=Box.K
 
@@ -1065,23 +1089,24 @@ class Box<K> {
 extension<K> of Box<K> {
 /// @generic.template symbol=<module>#2 parameters=(K#2)
 /// @definition.extension symbol=<module>#2 form=local target=Box<K#2>
-/// @definition.method symbol=check slot=check type=(this: this) => boolean
+/// @definition.method symbol=check slot=check type=<check.P0: Place>(this: Managed<this, check.P0>) => boolean
 /// @type.symbol symbol=K source=K type=K#2
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=K target=K
 
     check(): boolean {
-    /// @type.symbol symbol=check type=(this: this) => boolean
+    /// @generic.template symbol=check parent=template#2 parameters=(P0: Place)
+    /// @type.symbol symbol=check type=<check.P0: Place>(this: Managed<this, check.P0>) => boolean
 
         return probe(this.key);
         /// @resolution.name source=probe target=probe
         /// @resolution.call source=probe(this.key) parameters=(K#2) arguments=(provided(this.key) as K#2) return=boolean kind=symbol target=probe instance=probe<K#2>
         /// @generic.instantiation id=probe<K#2> template=probe arguments=(K#2) owner=check
-        /// @resolution.member source=this.key receiver=Box<K#2> type=K#2 kind=field target_receiver=Box<K#2> key=key target=Box.key target_type=K#2
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Box<K#2>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.member source=this.key receiver=Managed<Box<K#2>, check.P0> type=K#2 kind=field target_receiver=Managed<Box<K#2>, check.P0> key=key target=Box.key target_type=K#2
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Managed<Box<K#2>, check.P0>
+        /// @resolution.place source=this placement=check.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.key placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.key placement=check.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this.key root=this keys=[key]
 
     }
@@ -1089,6 +1114,7 @@ extension<K> of Box<K> {
 "#, "");
 }
 
+/// A bounded extension parameter also takes the bounds of the where clause.
 #[test]
 fn test_constrained_parameter_takes_where_clause_bounds() {
     let session = TestSession::single(
@@ -1134,7 +1160,7 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 class Box<in out K> {
     key: K;
 
-    constructor(key: K): this {
+    constructor(key: K) {
         this.key = key;
     }
 }
@@ -1185,7 +1211,7 @@ class Box<K> {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(in out K#1)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K#1
-/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K#1) => this
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>(K#1) => Managed<this, Box.constructor.P0>
 /// @type.symbol symbol=Box.K source=K type=K#1
 
     key: K;
@@ -1193,7 +1219,8 @@ class Box<K> {
     /// @resolution.name source=K target=Box.K
 
     constructor(key: K) {
-    /// @type.symbol symbol=Box.constructor type=(K#1) => this
+    /// @generic.template symbol=Box.constructor parent=template#3 parameters=(P0: Place)
+    /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>(K#1) => Managed<this, Box.constructor.P0>
     /// @type.symbol symbol=Box.constructor.key source="key: K" type=K#1
     /// @resolution.name source=K target=Box.K
 
@@ -1215,7 +1242,7 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
 /// @generic.template symbol=<module>#2 parameters=(K#2: Hash)
 /// @definition.extension symbol=<module>#2 form=local target=Box<K#2>
 /// @definition.where symbol=<module>#2 source="K: Equal<K>" relation=satisfies left=K#2 right=Equal<K#2>
-/// @definition.method symbol=check slot=check type=(this: this) => boolean
+/// @definition.method symbol=check slot=check type=<check.P0: Place>(this: Managed<this, check.P0>) => boolean
 /// @type.symbol symbol=K source="K: Hash" type=K#2
 /// @resolution.name source=Hash target=Hash
 /// @resolution.name source=Box target=Box
@@ -1225,17 +1252,18 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
 /// @resolution.name source=K target=K
 
     check(): boolean {
-    /// @type.symbol symbol=check type=(this: this) => boolean
+    /// @generic.template symbol=check parent=template#4 parameters=(P0: Place)
+    /// @type.symbol symbol=check type=<check.P0: Place>(this: Managed<this, check.P0>) => boolean
 
         return probe(this.key);
         /// @resolution.name source=probe target=probe
         /// @resolution.call source=probe(this.key) parameters=(K#2) arguments=(provided(this.key) as K#2) return=boolean kind=symbol target=probe instance=probe<K#2>
         /// @generic.instantiation id=probe<K#2> template=probe arguments=(K#2) owner=check
-        /// @resolution.member source=this.key receiver=Box<K#2> type=K#2 kind=field target_receiver=Box<K#2> key=key target=Box.key target_type=K#2
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Box<K#2>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.member source=this.key receiver=Managed<Box<K#2>, check.P0> type=K#2 kind=field target_receiver=Managed<Box<K#2>, check.P0> key=key target=Box.key target_type=K#2
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Managed<Box<K#2>, check.P0>
+        /// @resolution.place source=this placement=check.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.key placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.key placement=check.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this.key root=this keys=[key]
 
     }
@@ -1243,6 +1271,7 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
 "#, "");
 }
 
+/// A declared bound and a where bound intersect to constrain the return value.
 #[test]
 fn test_intersected_parameter_bounds_constrain_return_values() {
     let session = TestSession::single(
@@ -1281,6 +1310,7 @@ function active<T: boolean | string>(value: T): boolean where T: boolean {
     );
 }
 
+/// A member selects through the interface a where clause bounds the receiver with.
 #[test]
 fn test_member_selects_through_where_bound() {
     let session = TestSession::single(
@@ -1340,6 +1370,7 @@ function twice<T>(value: T): int32 where T: Doubling {
     );
 }
 
+/// A static member call infers the parameters of an exported extension.
 #[test]
 fn test_exported_static_member_infers_extension_parameters() {
     let session = TestSession::single(
@@ -1465,6 +1496,7 @@ export extension<T> of Cell<T> {
 "#);
 }
 
+/// A where equality rejects arguments that are only assignable one way.
 #[test]
 fn test_where_equality_rejects_one_way_assignability() {
     let session = TestSession::single(
@@ -1525,6 +1557,7 @@ requireEqual<{ x: int32; y: string }, { x: int32 }>(wider, narrower);
     );
 }
 
+/// A where equality infers one common type for both parameters.
 #[test]
 fn test_where_equality_infers_common_type() {
     let session = TestSession::single(
@@ -1589,6 +1622,7 @@ requireEqual(wider, narrower);
     );
 }
 
+/// A static member selects through the interface a parameter bound names.
 #[test]
 fn test_static_member_selects_through_a_parameter_bound() {
     let session = TestSession::single(
@@ -1640,6 +1674,7 @@ function build<T: Makeable>(): T {
 "#);
 }
 
+/// A static member selects through every arm of a union parameter bound.
 #[test]
 fn test_static_member_selects_through_a_union_parameter_bound() {
     let session = TestSession::single(
@@ -1721,6 +1756,7 @@ function zero<T: Numeric>(): T {
     );
 }
 
+/// Arithmetic on a float-bounded parameter accepts scalar literal operands.
 #[test]
 fn test_generic_float_arithmetic_accepts_scalar_literals() {
     let session = TestSession::single(
@@ -1754,28 +1790,28 @@ function asinh<T: Float>(x: T): T {
 import { Float } from "destack:math";
 
 declare function log<T: Float>(value: T): T;
-/// @generic.template symbol=log parameters=(T#1: math.float.Float)
-/// @type.symbol symbol=log source="declare function log<T: Float>(value: T): T" type=<T#1: math.float.Float>(T#1) => T#1
+/// @generic.template symbol=log parameters=(T#1: Float)
+/// @type.symbol symbol=log source="declare function log<T: Float>(value: T): T" type=<T#1: Float>(T#1) => T#1
 /// @type.symbol symbol=log.T source="T: Float" type=T#1
-/// @resolution.name source=Float target=math.float.Float
+/// @resolution.name source=Float target=Float
 /// @type.symbol symbol=log.value source="value: T" type=T#1
 /// @resolution.name source=T target=log.T
 /// @resolution.name source=T target=log.T
 
 declare function sqrt<T: Float>(value: T): T;
-/// @generic.template symbol=sqrt parameters=(T#2: math.float.Float)
-/// @type.symbol symbol=sqrt source="declare function sqrt<T: Float>(value: T): T" type=<T#2: math.float.Float>(T#2) => T#2
+/// @generic.template symbol=sqrt parameters=(T#2: Float)
+/// @type.symbol symbol=sqrt source="declare function sqrt<T: Float>(value: T): T" type=<T#2: Float>(T#2) => T#2
 /// @type.symbol symbol=sqrt.T source="T: Float" type=T#2
-/// @resolution.name source=Float target=math.float.Float
+/// @resolution.name source=Float target=Float
 /// @type.symbol symbol=sqrt.value source="value: T" type=T#2
 /// @resolution.name source=T target=sqrt.T
 /// @resolution.name source=T target=sqrt.T
 
 function asinh<T: Float>(x: T): T {
-/// @generic.template symbol=asinh parameters=(T#3: math.float.Float)
-/// @type.symbol symbol=asinh type=<T#3: math.float.Float>(T#3) => T#3
+/// @generic.template symbol=asinh parameters=(T#3: Float)
+/// @type.symbol symbol=asinh type=<T#3: Float>(T#3) => T#3
 /// @type.symbol symbol=asinh.T source="T: Float" type=T#3
-/// @resolution.name source=Float target=math.float.Float
+/// @resolution.name source=Float target=Float
 /// @type.symbol symbol=asinh.x source="x: T" type=T#3
 /// @resolution.name source=T target=asinh.T
 /// @resolution.name source=T target=asinh.T
@@ -1805,6 +1841,7 @@ function asinh<T: Float>(x: T): T {
     );
 }
 
+/// A static member call infers the parameters of the extension declaring it.
 #[test]
 fn test_static_member_infers_extension_parameters_at_calls() {
     let session = TestSession::single(
@@ -1836,7 +1873,7 @@ extension<T> of Box<T> {
 class Box<in out T> {
     value: T;
 
-    constructor(value: T): this {
+    constructor(value: T) {
         this.value = value;
     }
 }
@@ -1859,7 +1896,7 @@ class Box<T> {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(in out T#1)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T#1
-/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(T#1) => this
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>(T#1) => Managed<this, Box.constructor.P0>
 /// @type.symbol symbol=Box.T source=T type=T#1
 
     value: T;
@@ -1867,7 +1904,8 @@ class Box<T> {
     /// @resolution.name source=T target=Box.T
 
     constructor(value: T) {
-    /// @type.symbol symbol=Box.constructor type=(T#1) => this
+    /// @generic.template symbol=Box.constructor parent=template#0 parameters=(P0: Place)
+    /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>(T#1) => Managed<this, Box.constructor.P0>
     /// @type.symbol symbol=Box.constructor.value source="value: T" type=T#1
     /// @resolution.name source=T target=Box.T
 
@@ -1901,9 +1939,9 @@ extension<T> of Box<T> {
     /// @resolution.name source=T target=T#1
 
         new Box<T>(value)
-        /// @resolution.construct source="new Box<T>(value)" parameters=(T#2) arguments=(provided(value) as T#2) return=Box<T#2> kind=class target=Box constructor=Box.constructor instance=Box<T#2>
-        /// @generic.instantiation id=Box.constructor<T#2> template=Box.constructor arguments=(T#2) owner=make
-        /// @generic.instantiation id=Box<T#2> template=Box arguments=(T#2) owner=make
+        /// @resolution.construct source="new Box<T>(value)" parameters=(T#2) arguments=(provided(value) as T#2) return=local Box<T#2> kind=class target=Box constructor=Box.constructor instance=Box<T#2>
+        /// @generic.instantiation id="Box.constructor<T#2, \"local\">" template=Box.constructor arguments=(T#2, "local") owner=make
+        /// @generic.instantiation id="Box<T#2, \"local\">" template=Box arguments=(T#2, "local") owner=make
         /// @resolution.name source=Box target=Box
         /// @resolution.name source=T target=T#1
         /// @resolution.name source=value target=make.value
@@ -1942,6 +1980,7 @@ extension<T> of Box<T> {
 "#);
 }
 
+/// An expected field type infers the arguments of a static member call.
 #[test]
 fn test_expected_field_type_drives_static_member_inference() {
     let session = TestSession::single(
@@ -2072,6 +2111,7 @@ extension<T> of Outer<T> {
 "#);
 }
 
+/// A generic call result assigns into a union return type.
 #[test]
 fn test_call_result_assigns_into_a_union_result() {
     let session = TestSession::single(
@@ -2161,6 +2201,7 @@ function check<T>(a: T): T | undefined {
 }
 "#);
 }
+/// A static member on a bound infers the method's own type argument.
 #[test]
 fn test_static_bound_member_infers_method_type_argument() {
     let session = TestSession::single(
@@ -2257,6 +2298,7 @@ extension<T, R, I: Iterator<T, R>> of I {
 "#);
 }
 
+/// A declaration naming lifetimes keeps its written parameter arity.
 #[test]
 fn test_keep_written_arity_for_named_lifetimes() {
     let session = TestSession::single(
@@ -2273,7 +2315,7 @@ struct Named<'a> {
         r#"
 === annotated ===
 struct Named<'a> {
-    first: &'a string;
+    first: Borrowed<string, 'a, "mutable">;
 }
 
 === dir ===
@@ -2293,6 +2335,7 @@ struct Named<'a> {
     );
 }
 
+/// An elided borrow inside a lifetime-naming declaration reports a diagnostic.
 #[test]
 fn test_reject_elided_borrows_in_lifetime_naming_declarations() {
     let session = TestSession::single(
@@ -2310,7 +2353,7 @@ struct Mixed<'a> {
         r#"
 === annotated ===
 struct Mixed<'a> {
-    first: &'a string;
+    first: Borrowed<string, 'a, "mutable">;
     second: &string;
 }
 
@@ -2320,7 +2363,7 @@ struct Mixed<'a> {
 /// @type.symbol symbol=Mixed type=Mixed
 /// @definition.struct symbol=Mixed template=('a)
 /// @definition.field symbol=Mixed.first source="first: &'a string" key=first type=&'a string
-/// @definition.field symbol=Mixed.second source="second: &string" key=second type=Borrowed<string, <error>, "mutable">
+/// @definition.field symbol=Mixed.second source="second: &string" key=second type=Borrowed<string, <error> & PlaceOf<this>, "mutable">
 /// @type.symbol symbol=Mixed.'a source='a type='a
 
     first: &'a string;
@@ -2328,7 +2371,7 @@ struct Mixed<'a> {
     /// @resolution.name source='a target=Mixed.'a
 
     second: &string;
-    /// @type.symbol symbol=Mixed.second source="second: &string" type=Borrowed<string, <error>, "mutable">
+    /// @type.symbol symbol=Mixed.second source="second: &string" type=Borrowed<string, <error> & PlaceOf<this>, "mutable">
 
 }
 "#,
@@ -2340,6 +2383,7 @@ struct Mixed<'a> {
     );
 }
 
+/// A where equality rejects a bounded parameter passed as its argument.
 #[test]
 fn test_where_equality_rejects_a_bounded_parameter_argument() {
     let session = TestSession::single(
@@ -2395,6 +2439,7 @@ function forward<U: int32>(value: U): void {
     );
 }
 
+/// A subtract expression projects the output of an imported extension.
 #[test]
 fn test_project_the_output_of_an_imported_subtract_extension() {
     let session = TestSession::builder()
@@ -2446,7 +2491,7 @@ function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
 import { Numericish, Vec } from "./a.ds";
 
 function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
-    (a - b).length<T>()
+    (a - b).length<T, "local">()
 }
 
 === dir ===
@@ -2466,14 +2511,15 @@ function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
 /// @resolution.name source=T target=f.T
 
     (a - b).length()
-    /// @resolution.member source="(a - b).length" receiver=a.Vec<T>.Output type=(this: a.Vec<T>) => T kind=symbol target_receiver=a.Vec<T>.Output target=a.Vec.length
-    /// @resolution.call source=(a - b).length() parameters=() return=T kind=symbol target=a.Vec.length receiver=a.Vec<T>.Output instance=a.Vec<T>.length
+    /// @resolution.member source="(a - b).length" receiver=a.Vec<T>.Output type=<a.Vec.length.P0: Place>(this: Managed<a.Vec<T>, a.Vec.length.P0>) => T kind=symbol target_receiver=a.Vec<T>.Output target=a.Vec.length
+    /// @resolution.call source=(a - b).length() parameters=() return=T kind=symbol target=a.Vec.length receiver=a.Vec<T>.Output instance="a.Vec<T>.length<\"local\">"
+    /// @generic.instantiation id="a.Vec.length<T, \"local\">" template=a.Vec.length arguments=(T, "local") owner=f
     /// @generic.instantiation id=a.Vec.length<T> template=a.Vec.length arguments=(T) owner=f
     /// @resolution.name source=a target=f.a
-    /// @resolution.operator source="a - b" type=a.Vec<T>.Output operator="-" kind=call parameters=(a.Vec<T>) arguments=(provided(b) as a.Vec<T>) return=a.Vec<T>.Output kind=symbol target=a.subtract receiver=a.Vec<T> instance=a.Vec<T>.<extension#1>.subtract
+    /// @resolution.operator source="a - b" type=a.Vec<T>.Output operator="-" kind=call parameters=(a.Vec<T>) arguments=(provided(b) as a.Vec<T>) return=a.Vec<T>.Output kind=symbol target=a.subtract receiver=a.Vec<T> instance="a.Vec<T>.<extension#1>.subtract<\"local\">"
     /// @resolution.place source=a placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=a root=f.a
-    /// @generic.instantiation id=a.subtract<T> template=a.subtract arguments=(T) owner=f
+    /// @generic.instantiation id="a.subtract<T, \"local\">" template=a.subtract arguments=(T, "local") owner=f
     /// @resolution.name source=b target=f.b
     /// @resolution.place source=b placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=b root=f.b
@@ -2529,7 +2575,7 @@ export newtype interface Parameterized<P: readonly unknown[]> {
     (name: string, body?: Function<P, void>): void;
     /// @type.symbol symbol=Parameterized.name source="name: string" type=string
     /// @type.symbol symbol=Parameterized.body source="body?: Function<P, void>" type=Function<P#1, void> | undefined
-    /// @resolution.name source=Function target=types.function.Function
+    /// @resolution.name source=Function target=Function
     /// @resolution.name source=P target=Parameterized.P
 
     readonly skip: Parameterized<P>;
@@ -2542,14 +2588,14 @@ export newtype interface Parameterized<P: readonly unknown[]> {
 export newtype interface Suite {
 /// @type.symbol symbol=Suite type=Suite
 /// @definition.interface symbol=Suite nominal=true
-/// @definition.method symbol=Suite.each source="each<P: readonly unknown[]>(values: Iterable<P>): Parameterized<P>" slot=each type=<P#2: readonly unknown[]>(this: this, iter.iterator.Iterable<P#2>) => Parameterized<P#2>
+/// @definition.method symbol=Suite.each source="each<P: readonly unknown[]>(values: Iterable<P>): Parameterized<P>" slot=each type=<P#2: readonly unknown[]>(this: this, Iterable<P#2>) => Parameterized<P#2>
 
     each<P: readonly unknown[]>(values: Iterable<P>): Parameterized<P>;
     /// @generic.template symbol=Suite.each parent=template#1 parameters=(P#2: readonly unknown[])
-    /// @type.symbol symbol=Suite.each source="each<P: readonly unknown[]>(values: Iterable<P>): Parameterized<P>" type=<P#2: readonly unknown[]>(this: this, iter.iterator.Iterable<P#2>) => Parameterized<P#2>
+    /// @type.symbol symbol=Suite.each source="each<P: readonly unknown[]>(values: Iterable<P>): Parameterized<P>" type=<P#2: readonly unknown[]>(this: this, Iterable<P#2>) => Parameterized<P#2>
     /// @type.symbol symbol=Suite.each.P source="P: readonly unknown[]" type=P#2
-    /// @type.symbol symbol=Suite.each.values source="values: Iterable<P>" type=iter.iterator.Iterable<P#2>
-    /// @resolution.name source=Iterable target=iter.iterator.Iterable
+    /// @type.symbol symbol=Suite.each.values source="values: Iterable<P>" type=Iterable<P#2>
+    /// @resolution.name source=Iterable target=Iterable
     /// @resolution.name source=P target=Suite.each.P
     /// @resolution.name source=Parameterized target=Parameterized
     /// @resolution.name source=P target=Suite.each.P
@@ -2585,18 +2631,18 @@ export newtype interface Parameterized<in out P: readonly unknown[] & Copy> {
 import { Copy } from "destack:memory";
 
 export newtype interface Parameterized<P: readonly unknown[] & Copy> {
-/// @generic.template symbol=Parameterized parameters=(in out P: readonly unknown[] & memory.capability.Copy)
+/// @generic.template symbol=Parameterized parameters=(in out P: readonly unknown[] & Copy)
 /// @type.symbol symbol=Parameterized type=Parameterized
-/// @definition.interface symbol=Parameterized template=(in out P: readonly unknown[] & memory.capability.Copy) nominal=true
+/// @definition.interface symbol=Parameterized template=(in out P: readonly unknown[] & Copy) nominal=true
 /// @definition.where symbol=Parameterized relation=satisfies left=this right=Parameterized<P>
 /// @definition.signature kind=call source="(name: string, body?: Function<P, void>): void" type=Function<(string, Function<P, void> | undefined?), void>
 /// @type.symbol symbol=Parameterized.P source="P: readonly unknown[] & Copy" type=P
-/// @resolution.name source=Copy target=memory.capability.Copy
+/// @resolution.name source=Copy target=Copy
 
     (name: string, body?: Function<P, void>): void;
     /// @type.symbol symbol=Parameterized.name source="name: string" type=string
     /// @type.symbol symbol=Parameterized.body source="body?: Function<P, void>" type=Function<P, void> | undefined
-    /// @resolution.name source=Function target=types.function.Function
+    /// @resolution.name source=Function target=Function
     /// @resolution.name source=P target=Parameterized.P
 
 }
@@ -2642,7 +2688,7 @@ export newtype interface Test<TestValues = {}> {
     /// @type.symbol symbol=Test.override.value source="value: TestValues[Name]" type=TestValues[Name]
     /// @resolution.name source=TestValues target=Test.TestValues
     /// @resolution.name source=Name target=Test.override.Name
-    /// @resolution.name source=Omit target=types.object.Omit
+    /// @resolution.name source=Omit target=Omit
     /// @resolution.name source=TestValues target=Test.TestValues
     /// @resolution.name source=Name target=Test.override.Name
 

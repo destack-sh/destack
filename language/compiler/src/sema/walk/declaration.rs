@@ -5,7 +5,8 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     CauseKind, CheckError, CheckState, FunctionHeader, GenericTemplateId, InducedParameterOwner,
-    Origin, Receiver, ReceiverBinding, Relation, TypeSubstitution, VariableRole, WalkState,
+    Origin, Receiver, ReceiverBinding, ElisionSite, Relation, TypeSubstitution, VariableRole,
+    WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -34,6 +35,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<()> {
+        // gather every nominal type definition the module binds
         let binding_table = self.module(module).binding_table();
         let candidates = binding_table
             .symbol_ids()
@@ -47,6 +49,7 @@ impl CheckState<'_> {
             }
         }
 
+        // commit each one as its own reference type
         for symbol in symbols {
             self.commit_nominal_reference_type(symbol)?;
         }
@@ -399,6 +402,7 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
+        self.induced_owner = Some(induction);
         let template = self.check.template_by_source(source);
         let _scope = self.enter_template_scope(template);
 
@@ -419,9 +423,8 @@ impl WalkState<'_, '_> {
         };
         let _receiver = receiver.map(|receiver| self.enter_receiver_scope(Some(receiver)));
 
-        // walk the written value
+        // walk the written value under the declaration owner
         let value = self.walk_type_expression(declaration.value)?;
-        self.push_induced_parameter_site(induction, value);
 
         // transparent aliases expand to their value, newtypes wrap it
         let definition = if receiver.is_some() {
@@ -615,6 +618,7 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
+        self.induced_owner = Some(induction);
         let template = self.check.template_by_source(source);
         let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Owned))?;
@@ -642,6 +646,7 @@ impl WalkState<'_, '_> {
             }
         }
 
+        // commit the struct definition
         let template = self.induced_owner_template(induction, template)?;
         let (derives, conformances) = self.declared_derives(id)?;
         let mut implements = implements;
@@ -672,6 +677,7 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
+        self.induced_owner = Some(induction);
         let template = self.check.template_by_source(source);
         let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Managed))?;
@@ -682,7 +688,6 @@ impl WalkState<'_, '_> {
         let mut super_ty = None;
         if let Some(extends_type) = declaration.extends_type {
             let ty = self.walk_type_expression(extends_type)?;
-            self.push_induced_parameter_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(extends_type, ty)? {
                 if self
                     .check
@@ -735,6 +740,7 @@ impl WalkState<'_, '_> {
         let constructors =
             self.class_construct_candidates(receiver.ty, extends.is_some(), &members)?;
 
+        // commit the class definition
         let template = self.induced_owner_template(induction, template)?;
         let (derives, conformances) = self.declared_derives(id)?;
         let mut implements = implements;
@@ -766,8 +772,12 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<Vec<dir::NominalConformance>> {
         let mut implements = Vec::new();
         for implemented_type in implements_types {
-            let ty = self.walk_type_expression(*implemented_type)?;
-            self.push_induced_parameter_site(induction, ty);
+            // induce elided heritage borrows on the declaring template
+            let previous_owner = self.induced_owner;
+            self.induced_owner = Some(induction);
+            let ty = self.walk_type_expression_in(*implemented_type, ElisionSite::Signature);
+            self.induced_owner = previous_owner;
+            let ty = ty?;
 
             // require a written interface instance
             let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? else {
@@ -886,6 +896,7 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
+        self.induced_owner = Some(induction);
         let template = self.check.template_by_source(source);
         let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Owned))?;
@@ -959,6 +970,8 @@ impl WalkState<'_, '_> {
             next_value = Some(variant.value.increment());
             members.push(dir::DefinitionMember::EnumVariant(variant));
         }
+
+        // walk the members declared beside the variants
         for member in &declaration.members {
             if let Some(definition) = self.walk_member_header(
                 *member,
@@ -971,6 +984,7 @@ impl WalkState<'_, '_> {
             }
         }
 
+        // commit the enum definition
         let template = self.induced_owner_template(induction, template)?;
         let (derives, conformances) = self.declared_derives(id)?;
         let mut implements = implements;
@@ -1002,6 +1016,7 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
+        self.induced_owner = Some(induction);
         let template = self.check.template_by_source(source);
         let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Managed))?;
@@ -1011,7 +1026,6 @@ impl WalkState<'_, '_> {
         let mut extends = Vec::new();
         for extends_type in &declaration.extends_types {
             let ty = self.walk_type_expression(*extends_type)?;
-            self.push_induced_parameter_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*extends_type, ty)? {
                 if self
                     .check
@@ -1046,6 +1060,7 @@ impl WalkState<'_, '_> {
             )?);
         }
 
+        // commit the interface definition
         let template = self.induced_owner_template(induction, template)?;
         let definition = dir::Definition::Interface(dir::InterfaceDefinition {
             space: declaration.place.map(dir::PlaceModifier::space),
@@ -1072,12 +1087,12 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
+        self.induced_owner = Some(induction);
         let template = self.check.template_by_source(source);
         let _scope = self.enter_template_scope(template);
 
         // expose members under the extended receiver
         let target_type = self.walk_type_expression(declaration.target_type)?;
-        self.push_induced_parameter_site(induction, target_type);
         let origin = Origin::Node(source, self.flow().template_scope());
         let target = self.walk_extension_target(origin, target_type)?;
         let target_name = match &target {
@@ -1101,7 +1116,6 @@ impl WalkState<'_, '_> {
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type)?;
-            self.push_induced_parameter_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 // skip kind validation on foreign symbols, checking reads their kind
                 if self
@@ -1151,6 +1165,7 @@ impl WalkState<'_, '_> {
         } else {
             dir::ExtensionForm::Local
         };
+        // commit the extension definition
         let template = self.induced_owner_template(induction, template)?;
         let definition = dir::Definition::Extension(dir::ExtensionDefinition {
             symbol,
@@ -1174,7 +1189,10 @@ impl WalkState<'_, '_> {
         let symbol = self.declared_symbol(id.into_any());
         let Some(symbol) = symbol else {
             // validate local signatures without a declaration symbol
-            self.walk_function_signature(None, &declaration.signature)?;
+            let previous = self.induced_owner.take();
+            let result = self.walk_function_signature(None, &declaration.signature);
+            self.induced_owner = previous;
+            result?;
 
             return Ok(());
         };
@@ -1182,6 +1200,7 @@ impl WalkState<'_, '_> {
         // open signature parameters before building the function type
         let source = id.into_global_any(self.module);
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
+        self.induced_owner = Some(induction);
         let template = self.open_signature_template(source, &declaration.signature)?;
 
         let (header, result, tracked) = self.walk_signature_header(
@@ -1215,7 +1234,6 @@ impl WalkState<'_, '_> {
         } else {
             signature
         };
-        self.push_induced_parameter_site(induction, function);
         self.commit_symbol_type(symbol, function)?;
 
         Ok(())
@@ -1260,6 +1278,7 @@ impl WalkState<'_, '_> {
         implicit: Option<Result<dir::EnumVariantValue, dir::EnumVariantIncrementError>>,
     ) -> CompilerResult<Option<dir::EnumVariantValue>> {
         match expression {
+            // evaluate a written value
             Some(expression) => {
                 let static_type = self.walk_static_term(expression)?;
                 let origin = Origin::Node(
@@ -1293,6 +1312,7 @@ impl WalkState<'_, '_> {
 
                 Ok(Some(value))
             }
+            // take the value implied by the preceding variant
             None => {
                 let value = match implicit {
                     Some(Ok(value)) => value,
@@ -1318,6 +1338,7 @@ impl WalkState<'_, '_> {
                     }
                     None => return Ok(None),
                 };
+
                 Ok(Some(value))
             }
         }
@@ -1336,7 +1357,7 @@ impl WalkState<'_, '_> {
         let right = self.walk_type_expression(right)?;
 
         // require a lifetime bound to name exactly one lifetime
-        if self.check.is_lifetime_term(left)?
+        if self.check.memory_kind(left)? == Some(dir::MemoryParameter::Region)
             && matches!(self.check.ty(right)?, dir::Type::Union(_))
         {
             self.check
@@ -1348,7 +1369,7 @@ impl WalkState<'_, '_> {
         // require the clause to bound one parameter of the declaration
         let bounds_parameter = self.check.type_flags(left)?.has_parameter()
             || self.check.type_flags(right)?.has_parameter()
-            || self.check.is_lifetime_term(left)?;
+            || self.check.memory_kind(left)? == Some(dir::MemoryParameter::Region);
         let Some(template) = template.filter(|_| bounds_parameter) else {
             self.check
                 .report_where_clause_without_parameter(id.into_global_any(self.module))?;
@@ -1356,7 +1377,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
 
-        // preserve template predicate relation for later proof
+        // record the predicate relation for the template to check later
         self.check.push_template_predicate(
             template,
             dir::WherePredicate {
@@ -1390,7 +1411,7 @@ impl WalkState<'_, '_> {
             });
         }
 
-        // declared callable parameters need annotations
+        // require annotations on every declared callable parameter
         let is_annotation_required = signature.form != dir::FunctionForm::Lambda;
         let this_parameter = if let Some(parameter) = signature.this_parameter {
             self.walk_parameter(parameter, self.tree.get(parameter), is_annotation_required)?
@@ -1398,6 +1419,7 @@ impl WalkState<'_, '_> {
             None
         };
 
+        // walk the value parameters
         let mut parameters = Vec::new();
         for parameter in &signature.parameters {
             let Some(ty) = self.walk_parameter(
@@ -1408,9 +1430,7 @@ impl WalkState<'_, '_> {
             else {
                 continue;
             };
-            if let Some(parameter) = self.function_parameter_type(*parameter, ty)? {
-                parameters.push(parameter);
-            }
+            parameters.push(self.function_parameter_type(*parameter, ty)?);
         }
 
         // walk where clauses
@@ -1455,6 +1475,7 @@ impl WalkState<'_, '_> {
             });
         };
 
+        // apply the surrounding receiver scope to the written type
         let ty = self.apply_receiver_scope(scope, ty)?;
 
         Ok(ReceiverBinding {
@@ -1628,12 +1649,12 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<dir::ExtensionTarget> {
         // root written memory forms at their payload's family
         let mut payload = ty;
-        let mut carrier = None;
+        let mut form_root = None;
         loop {
             // peel form heads, keeping the outermost constructor as the root fallback
             if let dir::Type::Form(form) = self.check.ty(payload)? {
                 let symbol = self.check.language_symbol(form.form.language_item())?;
-                carrier.get_or_insert(symbol);
+                form_root.get_or_insert(symbol);
                 payload = form.value;
 
                 continue;
@@ -1646,15 +1667,7 @@ impl WalkState<'_, '_> {
             let Some(item) = self.check.language_item(instance.symbol)? else {
                 break;
             };
-            if !matches!(
-                item,
-                dir::LanguageItem::WithBase
-                    | dir::LanguageItem::WithOwnership
-                    | dir::LanguageItem::WithPlace
-                    | dir::LanguageItem::WithSpace
-                    | dir::LanguageItem::WithLifetime
-                    | dir::LanguageItem::WithAccess
-            ) {
+            if !matches!(item, dir::LanguageItem::WithAccess) {
                 break;
             }
             let Some(carried) = self
@@ -1666,7 +1679,7 @@ impl WalkState<'_, '_> {
                 break;
             };
 
-            carrier.get_or_insert(instance.symbol);
+            form_root.get_or_insert(instance.symbol);
             payload = carried;
         }
 
@@ -1677,7 +1690,7 @@ impl WalkState<'_, '_> {
         if let Some(root) = value_instance
             .or(target_instance)
             .map(|instance| instance.symbol)
-            .or(carrier)
+            .or(form_root)
         {
             return Ok(dir::ExtensionTarget::Rooted {
                 root: dir::TypeRoot::Declaration(root),

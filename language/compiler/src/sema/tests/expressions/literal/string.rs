@@ -153,13 +153,15 @@ const isEmpty = "".isEmpty;
 /// @resolution.pattern source=isEmpty kind=binding target=isEmpty
 /// @type.node source="\"\"" type=""
 /// @type.node source="\"\".isEmpty" type=boolean
-/// @resolution.member source="\"\".isEmpty" receiver="" type=boolean kind=call target="string.string.isEmpty(parameters=(), arguments=(), return=boolean)"
+/// @resolution.member source="\"\".isEmpty" receiver="" type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
+/// @generic.instantiation id="isEmpty<\"local\">" template=isEmpty arguments=("local")
+/// @generic.instance id="isEmpty<\"local\">" template=isEmpty arguments=("local")
 
 isEmpty satisfies boolean;
 /// @type.node source="isEmpty satisfies boolean" type=boolean
 /// @type.node source=isEmpty type=boolean
 /// @resolution.name source=isEmpty target=isEmpty
-/// @resolution.place source=isEmpty placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=isEmpty placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=isEmpty root=isEmpty
 "#,
     );
@@ -201,15 +203,17 @@ const isEmpty = value.isEmpty;
 /// @type.node source=value type=string
 /// @type.node source=value.isEmpty type=boolean
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="string.string.isEmpty(parameters=(), arguments=(), return=boolean)"
+/// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
+/// @generic.instantiation id="isEmpty<\"local\">" template=isEmpty arguments=("local")
+/// @generic.instance id="isEmpty<\"local\">" template=isEmpty arguments=("local")
 
 isEmpty satisfies boolean;
 /// @type.node source="isEmpty satisfies boolean" type=boolean
 /// @type.node source=isEmpty type=boolean
 /// @resolution.name source=isEmpty target=isEmpty
-/// @resolution.place source=isEmpty placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=isEmpty placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=isEmpty root=isEmpty
 "#,
     );

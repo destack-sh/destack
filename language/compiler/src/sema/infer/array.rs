@@ -335,7 +335,7 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         elements: &[dir::LocalNodeId<dir::Argument>],
-        carrier: dir::GlobalTypeId,
+        representation: dir::GlobalTypeId,
         target_value: dir::GlobalTypeId,
         expectation: Expectation,
     ) -> CompilerResult<CheckAttempt> {
@@ -444,7 +444,7 @@ impl BodyState<'_, '_> {
         }
 
         // preserve the authored elements for a check-only expression
-        let (carrier, constructed) = if expectation.relation == Relation::Satisfies {
+        let (representation, constructed) = if expectation.relation == Relation::Satisfies {
             let source_element =
                 self.normalized_union_type(source_elements.iter().map(|(_, storage)| *storage))?;
             let array = self.array_type(source_element)?;
@@ -462,7 +462,7 @@ impl BodyState<'_, '_> {
             }))?;
 
             (
-                self.replace_form_value(site.origin(), carrier, value)?,
+                self.replace_form_value(site.origin(), representation, value)?,
                 None,
             )
         }
@@ -471,7 +471,7 @@ impl BodyState<'_, '_> {
             let value = self.array_type(element)?;
 
             (
-                self.replace_form_value(site.origin(), carrier, value)?,
+                self.replace_form_value(site.origin(), representation, value)?,
                 Some((element, value)),
             )
         }
@@ -481,13 +481,13 @@ impl BodyState<'_, '_> {
 
             (value, Some((element, value)))
         }
-        // otherwise keep the checked carrier
+        // otherwise keep the checked representation
         else {
             let value = self.array_type(element)?;
 
-            (carrier, Some((element, value)))
+            (representation, Some((element, value)))
         };
-        self.commit_node_type(node.into_any(), carrier)?;
+        self.commit_node_type(node.into_any(), representation)?;
 
         // commit the pack constructor call over the literal elements
         if let Some((element, array)) = constructed
@@ -505,14 +505,14 @@ impl BodyState<'_, '_> {
 
         // convert the array into the interface it adapted to
         if adapts_interface {
-            let checked = self.check_value(site, carrier, expectation)?;
+            let checked = self.check_value(site, representation, expectation)?;
 
             return Ok(CheckAttempt::Checked(checked));
         }
 
         Ok(CheckAttempt::Checked(ValueCheck {
-            source: carrier,
-            stored: carrier,
+            source: representation,
+            stored: representation,
             outcome: check,
             target,
         }))
@@ -552,7 +552,7 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         value: dir::LocalNodeId<dir::Expression>,
         length: dir::LocalNodeId<dir::Expression>,
-        carrier: dir::GlobalTypeId,
+        representation: dir::GlobalTypeId,
         target_value: dir::GlobalTypeId,
         expectation: Expectation,
     ) -> CompilerResult<CheckAttempt> {
@@ -593,7 +593,7 @@ impl BodyState<'_, '_> {
         // preserve the authored value for a check-only expression
         let ty = match expectation.relation {
             Relation::Satisfies => value,
-            _ => self.replace_form_value(site.origin(), carrier, value)?,
+            _ => self.replace_form_value(site.origin(), representation, value)?,
         };
         self.commit_node_type(node.into_any(), ty)?;
 
@@ -610,7 +610,7 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         elements: &[dir::LocalNodeId<dir::Argument>],
-        carrier: dir::GlobalTypeId,
+        representation: dir::GlobalTypeId,
         target_value: dir::GlobalTypeId,
         expectation: Expectation,
     ) -> CompilerResult<CheckAttempt> {
@@ -668,7 +668,7 @@ impl BodyState<'_, '_> {
         }
 
         // preserve the authored elements for a check-only expression
-        let carrier = if expectation.relation == Relation::Satisfies {
+        let representation = if expectation.relation == Relation::Satisfies {
             let elements = self.intern_elements(&source_elements)?;
 
             self.intern_type(dir::Type::Tuple(dir::TupleType {
@@ -676,15 +676,15 @@ impl BodyState<'_, '_> {
                 elements,
             }))?
         }
-        // otherwise keep the checked carrier
+        // otherwise keep the checked representation
         else {
-            carrier
+            representation
         };
-        self.commit_node_type(node.into_any(), carrier)?;
+        self.commit_node_type(node.into_any(), representation)?;
 
         Ok(CheckAttempt::Checked(ValueCheck {
-            source: carrier,
-            stored: carrier,
+            source: representation,
+            stored: representation,
             outcome: check,
             target,
         }))

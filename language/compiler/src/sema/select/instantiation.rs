@@ -24,15 +24,12 @@ pub(in crate::sema) enum TypeArgumentInference<'a> {
 
 impl CheckState<'_> {
     /// Interpret one written argument for a parameter slot.
-    ///
-    /// A const slot resolves a value binding to its static value; a type slot
-    /// rejects value bindings, refusing the candidate.
     fn slot_written_argument(
         &mut self,
         binding: &dir::GenericParameterBinding,
         written: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // pass every argument except a symbolic value binding through
+        // pass through arguments other than symbolic value bindings
         let dir::Type::Reference(reference) = self.ty(written)? else {
             return Ok(Some(written));
         };
@@ -73,7 +70,10 @@ impl CheckState<'_> {
         for parameter in parameters.iter().copied() {
             let binding = *self.require_generic_parameter(parameter)?;
             let is_explicit = matches!(binding.origin, dir::GenericParameterOrigin::Explicit);
-            if binding.is_writable() && cursor < written.len() {
+            if binding.is_writable()
+                && cursor < written.len()
+                && self.argument_fills_parameter(&binding, written[cursor])?
+            {
                 // interpret a value binding argument by the slot's kind
                 let Some(argument) = self.slot_written_argument(&binding, written[cursor])? else {
                     return Ok(None);
@@ -95,6 +95,7 @@ impl CheckState<'_> {
                 continue;
             }
 
+            // reject an explicit parameter left without an argument
             if is_explicit {
                 return Ok(None);
             }
@@ -113,6 +114,8 @@ impl CheckState<'_> {
         _inference: TypeArgumentInference<'_>,
     ) -> CompilerResult<Option<TypeSubstitution>> {
         self.counters.instantiations += 1;
+
+        // reject more written arguments than the template can take
         let writable = parameters
             .iter()
             .filter(|parameter| {
@@ -129,11 +132,16 @@ impl CheckState<'_> {
         // bind written parameters and open omitted inference parameters
         let mut cursor = 0;
         for parameter in parameters.iter().copied() {
+            // keep the parameters the caller already bound
             if substitution.argument(parameter).is_some() {
                 continue;
             }
+
             let binding = *self.require_generic_parameter(parameter)?;
-            if binding.is_writable() && cursor < written.len() {
+            if binding.is_writable()
+                && cursor < written.len()
+                && self.argument_fills_parameter(&binding, written[cursor])?
+            {
                 // interpret a value binding argument by the slot's kind
                 let Some(argument) = self.slot_written_argument(&binding, written[cursor])? else {
                     return Ok(None);
@@ -147,10 +155,14 @@ impl CheckState<'_> {
             // reuse a parameter opened earlier at this typing position
             let origin_id = self.infer.intern_origin(origin);
             if let Some(existing) = self.infer.instantiation(origin_id, parameter) {
-                let argument = self.variable_type(existing)?;
-                substitution.bind(parameter, argument)?;
+                let is_stale_memory =
+                    binding.memory_parameter().is_some() && self.open_root(existing)?.is_none();
+                if !is_stale_memory {
+                    let argument = self.variable_type(existing)?;
+                    substitution.bind(parameter, argument)?;
 
-                continue;
+                    continue;
+                }
             }
 
             // open one inference variable for the omitted parameter
@@ -182,7 +194,7 @@ impl CheckState<'_> {
         let mut pending = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(&[ty]);
         let mut visited = SmallVec::<[dir::GlobalTypeId; 8]>::new();
 
-        // follow only unions, intersections, and conditional result alternatives
+        // follow forms, unions, intersections, and conditional alternatives
         while let Some(ty) = pending.pop() {
             if ty == exposed {
                 return Ok(true);

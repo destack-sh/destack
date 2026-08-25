@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::sema::{AssignedPlace, WalkState};
+use crate::sema::{AssignedPlace, ElisionSite, WalkState};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
@@ -84,7 +84,7 @@ impl WalkState<'_, '_> {
                 expression,
                 target_type,
             } => {
-                self.walk_frame_type_expression(target_type)?;
+                self.walk_type_expression_in(target_type, ElisionSite::Body)?;
 
                 self.walk_assigned_place(expression)
             }

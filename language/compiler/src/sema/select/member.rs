@@ -134,6 +134,7 @@ impl BodyState<'_, '_> {
             MemberLookup::Missing | MemberLookup::Ambiguous => Ok(None),
             MemberLookup::Field(field) => field.read_type(self),
             MemberLookup::Found(candidates) => {
+                // keep the first single-slot declaration among the selected candidates
                 let candidates = MemberLookup::selected_candidates(candidates);
                 let single_slot = candidates
                     .iter()
@@ -143,6 +144,7 @@ impl BodyState<'_, '_> {
                     None => candidates,
                 };
 
+                // intersect what every surviving candidate reads
                 let mut types = Vec::with_capacity(candidates.len());
                 for candidate in candidates {
                     types.extend(candidate.read_type(self)?);
@@ -189,6 +191,7 @@ impl BodyState<'_, '_> {
             MemberLookup::Missing | MemberLookup::Ambiguous => Ok(None),
             MemberLookup::Field(field) => Ok(field.write_type()),
             MemberLookup::Found(candidates) => {
+                // require exactly one writable candidate
                 let writable = MemberLookup::selected_candidates(candidates)
                     .into_iter()
                     .filter(|candidate| candidate.is_writable)
@@ -290,17 +293,16 @@ impl BodyState<'_, '_> {
                     .collect::<Vec<_>>();
 
                 // report survivors from several blocks or interfaces as ambiguous
-                let block = |candidate: &MemberCandidate| match candidate.requirement {
-                    Some(interface) => interface,
-                    None => candidate.owner,
-                };
-                let first = block(candidates[0]);
-                let candidates = if candidates.iter().any(|candidate| block(candidate) != first) {
+                let first = candidates[0].declaring_block();
+                let is_split = candidates
+                    .iter()
+                    .any(|candidate| candidate.declaring_block() != first);
+                let candidates = if is_split {
                     let key = self.format_static_key(&key);
                     self.report_ambiguous_member(origin, key)?;
                     candidates
                         .into_iter()
-                        .filter(|candidate| block(candidate) == first)
+                        .filter(|candidate| candidate.declaring_block() == first)
                         .collect::<Vec<_>>()
                 } else {
                     candidates
@@ -324,7 +326,7 @@ impl BodyState<'_, '_> {
                     };
 
                     let access = if candidate.role == MemberRole::Getter {
-                        // rejecting receivers skip to the next declared candidate
+                        // skip a rejecting receiver to the next declared candidate
                         let Some(call) = self.select_getter_call(origin, receiver, candidate)?
                         else {
                             continue;
@@ -465,7 +467,7 @@ impl BodyState<'_, '_> {
         &mut self,
         mut accesses: Vec<dir::MemberAccess>,
     ) -> CompilerResult<dir::MemberAccess> {
-        // take a lone access without intersecting
+        // take a lone access as it stands
         if accesses.len() == 1 {
             return Ok(accesses.remove(0));
         }
@@ -612,7 +614,7 @@ impl BodyState<'_, '_> {
         let written_receiver = self.flow_type_at(receiver_site, receiver)?;
         self.commit_expression_place(receiver_site, written_receiver)?;
 
-        // unknown receivers defer selection until their value settles
+        // defer selection on an unknown receiver until its value settles
         if let Some(stalled_on) = self.check.root_variable(written_receiver)? {
             self.defer_selection(site, stalled_on)?;
 
@@ -713,9 +715,18 @@ impl BodyState<'_, '_> {
             return Ok(());
         }
 
-        // commit the exact runtime target tree and joined value type
+        // read the joined value type and the stored key the resolution names
         let ty = resolution.ty();
         let stored_key = resolution.stored_key();
+
+        // requalify stored reads at the receiver's storage placement
+        let ty = match stored_key {
+            Some(_) => {
+                let placement = self.value_place(origin, receiver)?.placement;
+                self.place_relative_type(origin, placement, ty)?
+            }
+            None => ty,
+        };
         self.commit_decision(node, dir::Decision::Member(resolution))?;
         if let Some(key) = stored_key {
             self.commit_projected_access(node, receiver_node, key)?;
@@ -817,6 +828,7 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 }
+
 /// Return whether one member target selects an instance method.
 fn is_bound_method(target: &dir::MemberTarget) -> bool {
     match target {

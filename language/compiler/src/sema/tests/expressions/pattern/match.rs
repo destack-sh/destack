@@ -404,7 +404,7 @@ let observed: int32;
 switch (selected) {
 /// @type.node source=selected type=int32
 /// @resolution.name source=selected target=selected
-/// @resolution.place source=selected placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=selected placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=selected root=selected
 
     default: break;
@@ -646,7 +646,7 @@ declare const mode: Mode;
 switch (mode) {
 /// @type.node source=mode type=Mode
 /// @resolution.name source=mode target=mode
-/// @resolution.place source=mode placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=mode placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=mode root=mode
 
     case Mode.Read:
@@ -659,7 +659,7 @@ switch (mode) {
         mode;
         /// @type.node source=mode type=Mode.Read
         /// @resolution.name source=mode target=mode
-        /// @resolution.place source=mode placement="local" lifetime="static" access="readonly"
+        /// @resolution.place source=mode placement="constant" lifetime="static" access="readonly"
         /// @resolution.access source=mode root=mode
 
         break;
@@ -676,7 +676,7 @@ switch (mode) {
         mode;
         /// @type.node source=mode type=Mode.Write
         /// @resolution.name source=mode target=mode
-        /// @resolution.place source=mode placement="local" lifetime="static" access="readonly"
+        /// @resolution.place source=mode placement="constant" lifetime="static" access="readonly"
         /// @resolution.access source=mode root=mode
 
         break;
@@ -687,7 +687,7 @@ switch (mode) {
         mode;
         /// @type.node source=mode type=Mode.Execute
         /// @resolution.name source=mode target=mode
-        /// @resolution.place source=mode placement="local" lifetime="static" access="readonly"
+        /// @resolution.place source=mode placement="constant" lifetime="static" access="readonly"
         /// @resolution.access source=mode root=mode
 
 }
@@ -748,7 +748,7 @@ declare const state: Ready | Pending;
 switch (state) {
 /// @type.node source=state type=Ready | Pending
 /// @resolution.name source=state target=state
-/// @resolution.place source=state placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=state placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=state root=state
 
     case Ready("ready"):
@@ -822,7 +822,7 @@ const label = match (value) {
 /// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=value type=boolean
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
     true => "yes"
@@ -841,7 +841,7 @@ label satisfies "yes" | "no";
 /// @type.node source="label satisfies \"yes\" | \"no\"" type="yes" | "no"
 /// @type.node source=label type="yes" | "no"
 /// @resolution.name source=label target=label
-/// @resolution.place source=label placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=label placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=label root=label
 "#,
     );
@@ -882,14 +882,14 @@ const result = match (value) {};
 /// @resolution.coverage source="match (value) {}" exhaustive=true disjoint=true
 /// @type.node source=value type=never
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
 result satisfies never;
 /// @type.node source="result satisfies never" type=never
 /// @type.node source=result type=never
 /// @resolution.name source=result target=result
-/// @resolution.place source=result placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=result placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=result root=result
 "#,
     );
@@ -936,7 +936,7 @@ const label = match (status) {
 /// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
-/// @resolution.place source=status placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=status placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=status root=status
 
     "ready" => "go"
@@ -955,7 +955,7 @@ label satisfies "go" | "stop";
 /// @type.node source="label satisfies \"go\" | \"stop\"" type="go" | "stop"
 /// @type.node source=label type="go" | "stop"
 /// @resolution.name source=label target=label
-/// @resolution.place source=label placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=label placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=label root=label
 "#,
     );
@@ -996,7 +996,7 @@ const label = match (status) {
 /// @resolution.coverage exhaustive=false disjoint=true
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
-/// @resolution.place source=status placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=status placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=status root=status
 
     "ready" => "go"
@@ -1051,7 +1051,7 @@ const label = match (status) {
 /// @resolution.coverage exhaustive=false disjoint=false
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
-/// @resolution.place source=status placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=status placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=status root=status
 
     "ready" if (true) => "go"
@@ -1150,7 +1150,7 @@ result satisfies int32;
 /// @type.node source="result satisfies int32" type=int32
 /// @type.node source=result type=int32
 /// @resolution.name source=result target=result
-/// @resolution.place source=result placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=result placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=result root=result
 "#,
     );
@@ -1204,7 +1204,7 @@ const output = match (input) {
 /// @resolution.coverage exhaustive=true disjoint=false
 /// @type.node source=input type=(string, boolean) | null
 /// @resolution.name source=input target=input
-/// @resolution.place source=input placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=input placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=input root=input
 
     (text, ready) if (ready && let (value, label) = parse(text) && value > 0 && true) => label
@@ -1389,10 +1389,10 @@ match (packet) {
 
         labels: [first, second],
         /// @resolution.pattern source=[first, second] kind=sequence element=string arity=2 fields=(first, second)
-        /// @generic.instantiation id="collections.fixed-array.index#1<string, 2, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(string, 2, "exclusive")
-        /// @generic.instance id="collections.fixed-array.index#1<string, 2, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(string, 2, "exclusive")
-        /// @generic.instance id="memory.type.WithAccess<&'frame FixedArray<string, 2>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame FixedArray<string, 2>, "exclusive")
-        /// @generic.instance id="memory.type.WithAccess<&'frame string, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame string, "exclusive")
+        /// @generic.instantiation id="index#1<string, 2, \"exclusive\", \"local\">" template=index#1 arguments=(string, 2, "exclusive", "local")
+        /// @generic.instance id="WithAccess<&'frame FixedArray<string, 2>, \"exclusive\">" template=WithAccess arguments=(&'frame FixedArray<string, 2>, "exclusive")
+        /// @generic.instance id="WithAccess<&'frame string, \"exclusive\">" template=WithAccess arguments=(&'frame string, "exclusive")
+        /// @generic.instance id="index#1<string, 2, \"exclusive\", \"local\">" template=index#1 arguments=(string, 2, "exclusive", "local")
         /// @type.symbol symbol=first source=first type=string
         /// @resolution.pattern source=first kind=binding target=first
         /// @type.symbol symbol=second source=second type=string
@@ -1461,7 +1461,7 @@ match (user) {
 class User {
     name: string;
 
-    constructor(name: string): this {
+    constructor(name: string) {
         this.name = name;
     }
 }
@@ -1477,13 +1477,14 @@ class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
-/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(string) => User
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>
 
     name: string;
     /// @type.symbol symbol=User.name source="name: string" type=string
 
     constructor(name: string) {
-    /// @type.symbol symbol=User.constructor type=(string) => User
+    /// @generic.template symbol=User.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=User.constructor type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 
         this.name = name;
@@ -1565,9 +1566,9 @@ match (values) {
 declare const values: int32[];
 /// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 
 match (values) {
 /// @resolution.coverage exhaustive=true disjoint=true
@@ -1578,12 +1579,12 @@ match (values) {
 
     [head, ...tail] => {
     /// @resolution.pattern source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
-    /// @generic.instantiation id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
-    /// @generic.instantiation id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
-    /// @generic.instance id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
-    /// @generic.instance id="memory.type.WithAccess<&'frame int32, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int32, "exclusive")
-    /// @generic.instance id="memory.type.WithAccess<&'frame int32[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int32[], "exclusive")
-    /// @generic.instance id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
+    /// @generic.instantiation id="index#1<int32, \"exclusive\", \"local\">" template=index#1 arguments=(int32, "exclusive", "local")
+    /// @generic.instantiation id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
+    /// @generic.instance id="WithAccess<&'frame int32, \"exclusive\">" template=WithAccess arguments=(&'frame int32, "exclusive")
+    /// @generic.instance id="WithAccess<&'frame int32[], \"exclusive\">" template=WithAccess arguments=(&'frame int32[], "exclusive")
+    /// @generic.instance id="index#1<int32, \"exclusive\", \"local\">" template=index#1 arguments=(int32, "exclusive", "local")
+    /// @generic.instance id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
     /// @type.symbol symbol=head source=head type=int32
     /// @resolution.pattern source=head kind=binding target=head
     /// @type.symbol symbol=tail source=tail type=Owned<int32[]>
@@ -1642,7 +1643,7 @@ match (value) {
 /// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=value type={ left: int32 } | { right: int32 }
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
     { left: item } | { right: item } => item satisfies int32
@@ -1700,7 +1701,7 @@ const label = match (status) {
 /// @resolution.coverage exhaustive=true disjoint=false
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
-/// @resolution.place source=status placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=status placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=status root=status
 
     "ready" => "go"

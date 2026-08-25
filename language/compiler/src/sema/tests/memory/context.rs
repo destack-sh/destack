@@ -82,14 +82,14 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare function load(): shared User;
-/// @type.symbol symbol=load source="declare function load(): shared User" type=() => Placed<User, "shared">
+/// @type.symbol symbol=load source="declare function load(): shared User" type=() => shared User
 /// @resolution.name source=User target=User
 
 const user = load();
-/// @type.symbol symbol=user source=user type=Placed<User, "shared">
+/// @type.symbol symbol=user source=user type=shared User
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=load target=load
-/// @resolution.call source=load() parameters=() return=Placed<User, "shared"> kind=symbol target=load
+/// @resolution.call source=load() parameters=() return=shared User kind=symbol target=load
 
 user satisfies shared User;
 /// @resolution.name source=user target=user
@@ -138,7 +138,7 @@ declare function load(): User;
 /// @resolution.name source=User target=User
 
 shared const user = load();
-/// @type.symbol symbol=user source=user type=Placed<User, "shared">
+/// @type.symbol symbol=user source=user type=shared User
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=load target=load
 /// @resolution.call source=load() parameters=() return=User kind=symbol target=load
@@ -175,8 +175,8 @@ struct Point {
     x: int32;
 }
 
-const localPoint: local Point = local Point { x: 1 };
-const sharedPoint: shared Point = shared Point { x: 2 };
+const localPoint: Point = Point { x: 1 };
+const sharedPoint: Point = Point { x: 2 };
 
 === dir ===
 struct Point { x: int32; }
@@ -186,13 +186,13 @@ struct Point { x: int32; }
 /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
 const localPoint: local Point = Point { x: 1 };
-/// @type.symbol symbol=localPoint source=localPoint type=Placed<Point, "local">
+/// @type.symbol symbol=localPoint source=localPoint type=Point
 /// @resolution.pattern source=localPoint kind=binding target=localPoint
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=Point target=Point
 
 const sharedPoint: shared Point = Point { x: 2 };
-/// @type.symbol symbol=sharedPoint source=sharedPoint type=Placed<Point, "shared">
+/// @type.symbol symbol=sharedPoint source=sharedPoint type=Point
 /// @resolution.pattern source=sharedPoint kind=binding target=sharedPoint
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=Point target=Point
@@ -275,8 +275,8 @@ struct Point {
     x: int32;
 }
 
-declare const localPoint: local Point;
-declare const sharedPoint: shared Point;
+declare const localPoint: Point;
+declare const sharedPoint: Point;
 
 localPoint.x satisfies local int32;
 sharedPoint.x satisfies shared int32;
@@ -289,29 +289,29 @@ struct Point { x: int32; }
 /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
 declare const localPoint: local Point;
-/// @type.symbol symbol=localPoint source=localPoint type=Placed<Point, "local">
+/// @type.symbol symbol=localPoint source=localPoint type=Point
 /// @resolution.pattern source=localPoint kind=binding target=localPoint
 /// @resolution.name source=Point target=Point
 
 declare const sharedPoint: shared Point;
-/// @type.symbol symbol=sharedPoint source=sharedPoint type=Placed<Point, "shared">
+/// @type.symbol symbol=sharedPoint source=sharedPoint type=Point
 /// @resolution.pattern source=sharedPoint kind=binding target=sharedPoint
 /// @resolution.name source=Point target=Point
 
 localPoint.x satisfies local int32;
 /// @resolution.name source=localPoint target=localPoint
-/// @resolution.member source=localPoint.x receiver=Placed<Point, "local"> type=int32 kind=field target_receiver=Placed<Point, "local"> key=x target=Point.x target_type=int32
-/// @resolution.place source=localPoint placement="local" lifetime="static" access="readonly"
+/// @resolution.member source=localPoint.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
+/// @resolution.place source=localPoint placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=localPoint root=localPoint
-/// @resolution.place source=localPoint.x placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=localPoint.x placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=localPoint.x root=localPoint keys=[x]
 
 sharedPoint.x satisfies shared int32;
 /// @resolution.name source=sharedPoint target=sharedPoint
-/// @resolution.member source=sharedPoint.x receiver=Placed<Point, "shared"> type=int32 kind=field target_receiver=Placed<Point, "shared"> key=x target=Point.x target_type=int32
-/// @resolution.place source=sharedPoint placement="shared" lifetime="static" access="readonly"
+/// @resolution.member source=sharedPoint.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
+/// @resolution.place source=sharedPoint placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=sharedPoint root=sharedPoint
-/// @resolution.place source=sharedPoint.x placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=sharedPoint.x placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=sharedPoint.x root=sharedPoint keys=[x]
 "#,
         r#"
@@ -343,7 +343,7 @@ struct State {
     user: shared User;
 }
 
-declare const state: local State;
+declare const state: State;
 state.user satisfies shared User;
 
 === dir ===
@@ -354,19 +354,19 @@ class User {}
 struct State { user: shared User; }
 /// @type.symbol symbol=State source="struct State { user: shared User; }" type=State
 /// @definition.struct symbol=State source="struct State { user: shared User; }"
-/// @definition.field symbol=State.user source="user: shared User" key=user type=Placed<User, "shared">
-/// @type.symbol symbol=State.user source="user: shared User" type=Placed<User, "shared">
+/// @definition.field symbol=State.user source="user: shared User" key=user type=shared User
+/// @type.symbol symbol=State.user source="user: shared User" type=shared User
 /// @resolution.name source=User target=User
 
 declare const state: local State;
-/// @type.symbol symbol=state source=state type=Placed<State, "local">
+/// @type.symbol symbol=state source=state type=State
 /// @resolution.pattern source=state kind=binding target=state
 /// @resolution.name source=State target=State
 
 state.user satisfies shared User;
 /// @resolution.name source=state target=state
-/// @resolution.member source=state.user receiver=Placed<State, "local"> type=Placed<User, "shared"> kind=field target_receiver=Placed<State, "local"> key=user target=State.user target_type=Placed<User, "shared">
-/// @resolution.place source=state placement="local" lifetime="static" access="readonly"
+/// @resolution.member source=state.user receiver=State type=shared User kind=field target_receiver=State key=user target=State.user target_type=shared User
+/// @resolution.place source=state placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=state root=state
 /// @resolution.place source=state.user placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=state.user root=state keys=[user]
@@ -391,22 +391,22 @@ values[0] satisfies shared int32;
         DirRows::checked(),
         r#"
 === annotated ===
-declare const values: shared [int32; 2];
+declare const values: [int32; 2];
 values[0] satisfies shared int32;
 
 === dir ===
 declare const values: shared [int32; 2];
-/// @type.symbol symbol=values source=values type=Placed<FixedArray<int32, 2>, "shared">
+/// @type.symbol symbol=values source=values type=FixedArray<int32, 2>
 /// @resolution.pattern source=values kind=binding target=values
 
 values[0] satisfies shared int32;
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="shared" lifetime="static" access="readonly"
+/// @resolution.place source=values placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
-/// @resolution.place source=values[0] placement="shared" lifetime="static" access="readonly"
+/// @resolution.place source=values[0] placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=&'static readonly int32 kind=call target="collections.fixed-array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=Placed<memory.type.WithAccess<&'static int32, \"readonly\">, \"shared\">)"
-/// @generic.instantiation id="collections.fixed-array.index#1<int32, 2, \"readonly\">" template=collections.fixed-array.index#1 arguments=(int32, 2, "readonly")
+/// @resolution.subscript source=values[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static constant int32, \"readonly\">)"
+/// @generic.instantiation id="index#1<int32, 2, \"readonly\", \"constant\">" template=index#1 arguments=(int32, 2, "readonly", "constant")
 "#,
         r#"
 
@@ -429,24 +429,24 @@ value satisfies local int32;
         DirRows::checked(),
         r#"
 === annotated ===
-declare const source: shared int32;
-const value: shared int32 = source;
+declare const source: int32;
+const value: int32 = source;
 value satisfies local int32;
 
 === dir ===
 declare const source: shared int32;
-/// @type.symbol symbol=source source=source type=Placed<int32, "shared">
+/// @type.symbol symbol=source source=source type=int32
 /// @resolution.pattern source=source kind=binding target=source
 
 const value = source;
-/// @type.symbol symbol=value source=value type=Placed<int32, "shared">
+/// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=source target=source
 /// @resolution.access source=source root=source
 
 value satisfies local int32;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="shared" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
         r#"
@@ -473,7 +473,7 @@ shared const sharedWorld: ^World = world;
 class World {}
 declare const world: ^World;
 
-shared const sharedWorld: shared ^World = world;
+shared const sharedWorld: ^World = world;
 
 === dir ===
 class World {}
@@ -486,11 +486,11 @@ declare const world: ^World;
 /// @resolution.name source=World target=World
 
 shared const sharedWorld: ^World = world;
-/// @type.symbol symbol=sharedWorld source=sharedWorld type=Placed<Owned<World>, "shared">
+/// @type.symbol symbol=sharedWorld source=sharedWorld type=Owned<World>
 /// @resolution.pattern source=sharedWorld kind=binding target=sharedWorld
 /// @resolution.name source=World target=World
 /// @resolution.name source=world target=world
-/// @resolution.place source=world placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=world placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=world root=world
 "#,
         r#"

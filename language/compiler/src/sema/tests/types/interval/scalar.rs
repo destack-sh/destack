@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// An interval alias keeps its bounds in the checked type.
 #[test]
 fn test_interval_alias_preserves_bounds() {
     let session = TestSession::single(
@@ -32,6 +33,7 @@ declare const count: Count;
     );
 }
 
+/// An interval literal satisfies the integer domain interface.
 #[test]
 fn test_interval_satisfies_integer_domain() {
     let session = TestSession::single(
@@ -64,9 +66,9 @@ declare const value: 0..=255;
 
 value satisfies IntegerDomain;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
-/// @resolution.name source=IntegerDomain target=math.integer.IntegerDomain
+/// @resolution.name source=IntegerDomain target=IntegerDomain
 "#,
     );
 }

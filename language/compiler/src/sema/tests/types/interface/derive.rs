@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A struct derives equality from each of its fields.
 #[test]
 fn test_check_derives_struct_equality_field_wise() {
     let session = TestSession::single(
@@ -54,7 +55,7 @@ function requireEqual<T: Equal>(value: T): T {
 /// @generic.template symbol=requireEqual parameters=(T: Equal)
 /// @type.symbol symbol=requireEqual type=<T: Equal>(T) => T
 /// @type.symbol symbol=requireEqual.T source="T: Equal" type=T
-/// @resolution.name source=Equal target=ops.equality.Equal
+/// @resolution.name source=Equal target=Equal
 /// @type.symbol symbol=requireEqual.value source="value: T" type=T
 /// @resolution.name source=T target=requireEqual.T
 /// @resolution.name source=T target=requireEqual.T
@@ -77,13 +78,14 @@ const value = requireEqual(Point { x: 1, y: 2 });
 
 value satisfies Point;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 /// @resolution.name source=Point target=Point
 "#,
     );
 }
 
+/// A struct with a float field derives partial equality and rejects total equality.
 #[test]
 fn test_check_blocks_total_equality_on_float_field() {
     let session = TestSession::single(
@@ -146,7 +148,7 @@ function requireEqual<T: Equal>(value: T): T {
 /// @generic.template symbol=requireEqual parameters=(T#1: Equal)
 /// @type.symbol symbol=requireEqual type=<T#1: Equal>(T#1) => T#1
 /// @type.symbol symbol=requireEqual.T source="T: Equal" type=T#1
-/// @resolution.name source=Equal target=ops.equality.Equal
+/// @resolution.name source=Equal target=Equal
 /// @type.symbol symbol=requireEqual.value source="value: T" type=T#1
 /// @resolution.name source=T target=requireEqual.T
 /// @resolution.name source=T target=requireEqual.T
@@ -162,7 +164,7 @@ function requirePartial<T: PartialEqual>(value: T): T {
 /// @generic.template symbol=requirePartial parameters=(T#2: PartialEqual)
 /// @type.symbol symbol=requirePartial type=<T#2: PartialEqual>(T#2) => T#2
 /// @type.symbol symbol=requirePartial.T source="T: PartialEqual" type=T#2
-/// @resolution.name source=PartialEqual target=ops.equality.PartialEqual
+/// @resolution.name source=PartialEqual target=PartialEqual
 /// @type.symbol symbol=requirePartial.value source="value: T" type=T#2
 /// @resolution.name source=T target=requirePartial.T
 /// @resolution.name source=T target=requirePartial.T
@@ -198,6 +200,7 @@ const total = requireEqual(Sample { label: "a", weight: 1.0 });
     );
 }
 
+/// A recursive struct derives Clone.
 #[test]
 fn test_check_derives_recursive_struct_clone() {
     let session = TestSession::single(
@@ -245,9 +248,9 @@ struct Node {
 
     next: Box<Node> | null;
     /// @type.symbol symbol=Node.next source="next: Box<Node> | null" type=Box<Node> | null
-    /// @generic.instance id=Box<Node> template=memory.box.Box arguments=(Node)
-    /// @generic.instance id=memory.box.Unique<Owned<Node>> template=memory.box.Unique arguments=(Owned<Node>)
-    /// @resolution.name source=Box target=memory.box.Box
+    /// @generic.instance id=Box<Node> template=Box arguments=(Node)
+    /// @generic.instance id=Unique<Owned<Node>> template=Unique arguments=(Owned<Node>)
+    /// @resolution.name source=Box target=Box
     /// @resolution.name source=Node target=Node
 
 }
@@ -256,7 +259,7 @@ function requireClone<T: Clone>(value: T): T {
 /// @generic.template symbol=requireClone parameters=(T: Clone)
 /// @type.symbol symbol=requireClone type=<T: Clone>(T) => T
 /// @type.symbol symbol=requireClone.T source="T: Clone" type=T
-/// @resolution.name source=Clone target=memory.capability.Clone
+/// @resolution.name source=Clone target=Clone
 /// @type.symbol symbol=requireClone.value source="value: T" type=T
 /// @resolution.name source=T target=requireClone.T
 /// @resolution.name source=T target=requireClone.T
@@ -279,13 +282,14 @@ const node = requireClone(Node { value: 1, next: null });
 
 node satisfies Node;
 /// @resolution.name source=node target=node
-/// @resolution.place source=node placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=node placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=node root=node
 /// @resolution.name source=Node target=Node
 "#,
     );
 }
 
+/// A struct derives Hash when no field holds a float.
 #[test]
 fn test_check_derives_struct_hash_without_floats() {
     let session = TestSession::single(
@@ -358,7 +362,7 @@ function requireHash<T: Hash>(value: T): T {
 /// @generic.template symbol=requireHash parameters=(T: Hash)
 /// @type.symbol symbol=requireHash type=<T: Hash>(T) => T
 /// @type.symbol symbol=requireHash.T source="T: Hash" type=T
-/// @resolution.name source=Hash target=ops.hash.Hash
+/// @resolution.name source=Hash target=Hash
 /// @type.symbol symbol=requireHash.value source="value: T" type=T
 /// @resolution.name source=T target=requireHash.T
 /// @resolution.name source=T target=requireHash.T
@@ -394,6 +398,7 @@ const measure = requireHash(Measure { value: 1.0 });
     );
 }
 
+/// Compare holds only where a derive list names it.
 #[test]
 fn test_check_requires_written_derive_for_compare() {
     let session = TestSession::single(
@@ -446,7 +451,7 @@ function requireCompare<T: Compare>(value: T): T {
 /// @generic.template symbol=requireCompare parameters=(T: Compare)
 /// @type.symbol symbol=requireCompare type=<T: Compare>(T) => T
 /// @type.symbol symbol=requireCompare.T source="T: Compare" type=T
-/// @resolution.name source=Compare target=ops.comparison.Compare
+/// @resolution.name source=Compare target=Compare
 /// @type.symbol symbol=requireCompare.value source="value: T" type=T
 /// @resolution.name source=T target=requireCompare.T
 /// @resolution.name source=T target=requireCompare.T
@@ -474,6 +479,7 @@ const value = requireCompare(Point { x: 1, y: 2 });
     );
 }
 
+/// A class derives equality and hashing from its identity.
 #[test]
 fn test_check_equates_classes_by_identity() {
     let session = TestSession::single(
@@ -530,7 +536,7 @@ function requireEqual<T: Equal>(value: T): T {
 /// @generic.template symbol=requireEqual parameters=(T#1: Equal)
 /// @type.symbol symbol=requireEqual type=<T#1: Equal>(T#1) => T#1
 /// @type.symbol symbol=requireEqual.T source="T: Equal" type=T#1
-/// @resolution.name source=Equal target=ops.equality.Equal
+/// @resolution.name source=Equal target=Equal
 /// @type.symbol symbol=requireEqual.value source="value: T" type=T#1
 /// @resolution.name source=T target=requireEqual.T
 /// @resolution.name source=T target=requireEqual.T
@@ -546,7 +552,7 @@ function requireHash<T: Hash>(value: T): T {
 /// @generic.template symbol=requireHash parameters=(T#2: Hash)
 /// @type.symbol symbol=requireHash type=<T#2: Hash>(T#2) => T#2
 /// @type.symbol symbol=requireHash.T source="T: Hash" type=T#2
-/// @resolution.name source=Hash target=ops.hash.Hash
+/// @resolution.name source=Hash target=Hash
 /// @type.symbol symbol=requireHash.value source="value: T" type=T#2
 /// @resolution.name source=T target=requireHash.T
 /// @resolution.name source=T target=requireHash.T
@@ -581,6 +587,7 @@ const hashed = requireHash(new Session());
     );
 }
 
+/// A derive the fields cannot satisfy reports a diagnostic at the declaration.
 #[test]
 fn test_check_reports_unsatisfiable_written_derive_at_declaration() {
     let session = TestSession::single(
@@ -604,8 +611,8 @@ struct Sample {
 
 === dir ===
 @derive(Equal)
-/// @resolution.name source=derive target=decorator.derive.derive
-/// @resolution.name source=Equal target=ops.equality.Equal
+/// @resolution.name source=derive target=derive
+/// @resolution.name source=Equal target=Equal
 
 struct Sample {
 /// @type.symbol symbol=Sample type=Sample
@@ -657,7 +664,7 @@ const value = 1;
 /// @resolution.pattern source=value kind=binding target=value
 
 @derive(value)
-/// @resolution.name source=derive target=decorator.derive.derive
+/// @resolution.name source=derive target=derive
 /// @resolution.name source=value target=value
 
 struct Point {
@@ -701,9 +708,9 @@ struct Point {
 
 === dir ===
 @derive(Clone, Clone)
-/// @resolution.name source=derive target=decorator.derive.derive
-/// @resolution.name source=Clone target=memory.capability.Clone
-/// @resolution.name source=Clone target=memory.capability.Clone
+/// @resolution.name source=derive target=derive
+/// @resolution.name source=Clone target=Clone
+/// @resolution.name source=Clone target=Clone
 
 struct Point {
 /// @type.symbol symbol=Point type=Point
@@ -763,8 +770,8 @@ const invalid = 1;
 /// @resolution.pattern source=invalid kind=binding target=invalid
 
 @derive(Clone, invalid)
-/// @resolution.name source=derive target=decorator.derive.derive
-/// @resolution.name source=Clone target=memory.capability.Clone
+/// @resolution.name source=derive target=derive
+/// @resolution.name source=Clone target=Clone
 /// @resolution.name source=invalid target=invalid
 
 struct Point {
@@ -781,7 +788,7 @@ function requireClone<T: Clone>(value: T): void {}
 /// @generic.template symbol=requireClone parameters=(T#1: Clone)
 /// @type.symbol symbol=requireClone source="function requireClone<T: Clone>(value: T): void {}" type=<T#1: Clone>(T#1) => void
 /// @type.symbol symbol=requireClone.T source="T: Clone" type=T#1
-/// @resolution.name source=Clone target=memory.capability.Clone
+/// @resolution.name source=Clone target=Clone
 /// @type.symbol symbol=requireClone.value source="value: T" type=T#1
 /// @resolution.name source=T target=requireClone.T
 
@@ -789,7 +796,7 @@ function requireEqual<T: Equal>(value: T): void {}
 /// @generic.template symbol=requireEqual parameters=(T#2: Equal)
 /// @type.symbol symbol=requireEqual source="function requireEqual<T: Equal>(value: T): void {}" type=<T#2: Equal>(T#2) => void
 /// @type.symbol symbol=requireEqual.T source="T: Equal" type=T#2
-/// @resolution.name source=Equal target=ops.equality.Equal
+/// @resolution.name source=Equal target=Equal
 /// @type.symbol symbol=requireEqual.value source="value: T" type=T#2
 /// @resolution.name source=T target=requireEqual.T
 
@@ -816,6 +823,7 @@ requireEqual(Point { x: 1 });
 "#);
 }
 
+/// A written derive list bounds the interfaces a struct conforms to.
 #[test]
 fn test_limit_derived_interfaces_to_the_written_derive_list() {
     let session = TestSession::single(
@@ -861,8 +869,8 @@ const value = requireEqual(Point { x: 1 });
 
 === dir ===
 @derive(Copy)
-/// @resolution.name source=derive target=decorator.derive.derive
-/// @resolution.name source=Copy target=memory.capability.Copy
+/// @resolution.name source=derive target=derive
+/// @resolution.name source=Copy target=Copy
 
 struct Point {
 /// @type.symbol symbol=Point type=Point
@@ -879,7 +887,7 @@ function requireClone<T: Clone>(value: T): T {
 /// @generic.template symbol=requireClone parameters=(T#1: Clone)
 /// @type.symbol symbol=requireClone type=<T#1: Clone>(T#1) => T#1
 /// @type.symbol symbol=requireClone.T source="T: Clone" type=T#1
-/// @resolution.name source=Clone target=memory.capability.Clone
+/// @resolution.name source=Clone target=Clone
 /// @type.symbol symbol=requireClone.value source="value: T" type=T#1
 /// @resolution.name source=T target=requireClone.T
 /// @resolution.name source=T target=requireClone.T
@@ -895,7 +903,7 @@ function requireEqual<T: Equal>(value: T): T {
 /// @generic.template symbol=requireEqual parameters=(T#2: Equal)
 /// @type.symbol symbol=requireEqual type=<T#2: Equal>(T#2) => T#2
 /// @type.symbol symbol=requireEqual.T source="T: Equal" type=T#2
-/// @resolution.name source=Equal target=ops.equality.Equal
+/// @resolution.name source=Equal target=Equal
 /// @type.symbol symbol=requireEqual.value source="value: T" type=T#2
 /// @resolution.name source=T target=requireEqual.T
 /// @resolution.name source=T target=requireEqual.T
@@ -931,6 +939,7 @@ const value = requireEqual(Point { x: 1 });
     );
 }
 
+/// An equality expression dispatches through the PartialEqual conformance.
 #[test]
 fn test_check_dispatches_equality_through_partial_equal() {
     let session = TestSession::single(
@@ -1017,18 +1026,18 @@ const same = a == b;
 /// @type.symbol symbol=same source=same type=boolean
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=a target=a
-/// @resolution.operator source="a == b" type=boolean operator="==" kind=call parameters=(&'static readonly Point) arguments=(provided(b) as &'static readonly Point) return=boolean kind=symbol target=ops.equality.PartialEqual.equal receiver=Point adjustments=(borrow(&'static readonly Point)) instance=PartialEqual<Point>.equal
-/// @resolution.place source=a placement="local" lifetime="static" access="readonly"
+/// @resolution.operator source="a == b" type=boolean operator="==" kind=call parameters=(&'static readonly constant Point) arguments=(provided(b) as &'static readonly constant Point) return=boolean kind=symbol target=PartialEqual.equal receiver=Point adjustments=(borrow(&'static readonly constant Point)) instance="PartialEqual<Point>.equal<\"constant\", \"constant\">"
+/// @resolution.place source=a placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=a root=a
-/// @generic.instantiation id=ops.equality.PartialEqual.equal<Point> template=ops.equality.PartialEqual.equal arguments=(Point)
-/// @generic.instance id=ops.equality.PartialEqual.equal<Point> template=ops.equality.PartialEqual.equal arguments=(Point)
+/// @generic.instantiation id="PartialEqual.equal<Point, \"constant\", \"constant\">" template=PartialEqual.equal arguments=(Point, "constant", "constant")
+/// @generic.instance id="PartialEqual.equal<Point, \"constant\", \"constant\">" template=PartialEqual.equal arguments=(Point, "constant", "constant")
 /// @resolution.name source=b target=b
-/// @resolution.place source=b placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=b placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=b root=b
 
 same satisfies boolean;
 /// @resolution.name source=same target=same
-/// @resolution.place source=same placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=same placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=same root=same
 
 const s1 = new Session();
@@ -1047,11 +1056,11 @@ const csame = s1 == s2;
 /// @type.symbol symbol=csame source=csame type=boolean
 /// @resolution.pattern source=csame kind=binding target=csame
 /// @resolution.name source=s1 target=s1
-/// @resolution.operator source="s1 == s2" type=boolean operator="==" kind=call parameters=(&'static readonly Session) arguments=(provided(s2) as &'static readonly Session) return=boolean kind=symbol target=ops.equality.PartialEqual.equal receiver=Session adjustments=(borrow(&'static readonly Session)) instance=PartialEqual<Session>.equal
+/// @resolution.operator source="s1 == s2" type=boolean operator="==" kind=call parameters=(&'static readonly Session) arguments=(provided(s2) as &'static readonly Session) return=boolean kind=symbol target=PartialEqual.equal receiver=Session adjustments=(borrow(&'static readonly Session)) instance="PartialEqual<Session>.equal<\"local\", \"local\">"
 /// @resolution.place source=s1 placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=s1 root=s1
-/// @generic.instantiation id=ops.equality.PartialEqual.equal<Session> template=ops.equality.PartialEqual.equal arguments=(Session)
-/// @generic.instance id=ops.equality.PartialEqual.equal<Session> template=ops.equality.PartialEqual.equal arguments=(Session)
+/// @generic.instantiation id="PartialEqual.equal<Session, \"local\", \"local\">" template=PartialEqual.equal arguments=(Session, "local", "local")
+/// @generic.instance id="PartialEqual.equal<Session, \"local\", \"local\">" template=PartialEqual.equal arguments=(Session, "local", "local")
 /// @resolution.name source=s2 target=s2
 /// @resolution.place source=s2 placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=s2 root=s2
@@ -1069,17 +1078,18 @@ const cstrict = s1 === s2;
 
 csame satisfies boolean;
 /// @resolution.name source=csame target=csame
-/// @resolution.place source=csame placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=csame placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=csame root=csame
 
 cstrict satisfies boolean;
 /// @resolution.name source=cstrict target=cstrict
-/// @resolution.place source=cstrict placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=cstrict placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=cstrict root=cstrict
 "#,
     );
 }
 
+/// Strict equality on a value type reports a diagnostic.
 #[test]
 fn test_check_rejects_strict_equality_on_value_types() {
     let session = TestSession::single(
@@ -1132,10 +1142,10 @@ const strict = a === b;
 /// @type.symbol symbol=strict source=strict type=<error>
 /// @resolution.pattern source=strict kind=binding target=strict
 /// @resolution.name source=a target=a
-/// @resolution.place source=a placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=a placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=a root=a
 /// @resolution.name source=b target=b
-/// @resolution.place source=b placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=b placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=b root=b
 "#,
         r#"
@@ -1145,6 +1155,7 @@ const strict = a === b;
     );
 }
 
+/// A Clone bound reports a diagnostic once a later argument fixes the parameter.
 #[test]
 fn test_reject_a_clone_bound_on_a_type_argument_inferred_later() {
     let session = TestSession::single(
@@ -1178,6 +1189,7 @@ const cloned = requireClone(hold(), holdBlocker());
     );
 }
 
+/// A Clone bound on a struct holding a function field reports a diagnostic.
 #[test]
 fn test_reject_a_clone_bound_on_a_struct_with_a_function_field() {
     let session = TestSession::single(

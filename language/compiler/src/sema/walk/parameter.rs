@@ -1,6 +1,9 @@
 use destack_dir as dir;
 
-use crate::sema::{CauseKind, GenericParameterId, GenericTemplateId, Origin, ValueUse, WalkState};
+use crate::sema::{
+    CauseKind, GenericParameterId, GenericTemplateId, InducedParameterOwner, Origin, ElisionSite,
+    ValueUse, WalkState,
+};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
@@ -57,7 +60,7 @@ impl WalkState<'_, '_> {
             // <'a>
             dir::GenericParameter::Lifetime { .. } => (
                 None,
-                dir::GenericParameterKind::Memory(dir::MemoryParameter::Lifetime),
+                dir::GenericParameterKind::Memory(dir::MemoryParameter::Region),
                 false,
                 false,
             ),
@@ -117,12 +120,23 @@ impl WalkState<'_, '_> {
                 ..
             } => {
                 let (constraint, default) = (*constraint, *default);
+
+                // induce elided bound borrows on the declaring template
+                let previous_owner = self.induced_owner;
+                if let Some(declared) = self.check.generic_template(template) {
+                    let induction =
+                        InducedParameterOwner::new(declared.source, None, declared.symbol);
+                    self.induced_owner = Some(induction);
+                }
                 let constraint = constraint
-                    .map(|constraint| self.walk_type_expression(constraint))
+                    .map(|constraint| {
+                        self.walk_type_expression_in(constraint, ElisionSite::Signature)
+                    })
                     .transpose()?;
                 let default = default
-                    .map(|default| self.walk_type_expression(default))
+                    .map(|default| self.walk_type_expression_in(default, ElisionSite::Signature))
                     .transpose()?;
+                self.induced_owner = previous_owner;
 
                 self.check
                     .update_generic_parameter_bounds(parameter, constraint, default)?;
@@ -175,6 +189,7 @@ impl WalkState<'_, '_> {
             return Ok(None);
         }
 
+        // build the declared type for the parameter's own form
         let mut result = None;
         match parameter {
             // (p: T), (p: ...T)
@@ -193,7 +208,7 @@ impl WalkState<'_, '_> {
 
                 let parameter_type = self.walk_parameter_type(id)?;
 
-                // validate defaults while checking, declaring transcribes them
+                // validate defaults while checking, the declaring pass copies them as written
                 if let Some(default) = default.filter(|_| !self.check.is_declaring()) {
                     let before_default = self.fork_flow();
                     self.walk_expression(default, self.tree.get(default))?;

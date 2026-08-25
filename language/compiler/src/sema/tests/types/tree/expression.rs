@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A tree fragment checks against the builder its expected type names.
 #[test]
 fn test_check_a_tree_fragment_against_the_contextual_builder() {
     let session = TestSession::single(
@@ -93,15 +94,15 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
-/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
-/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
-/// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
+/// @resolution.name source=TreeBuilder target=TreeBuilder
 
     type Tags = {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
@@ -116,9 +117,9 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
     /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
-    /// @generic.instance id=Array<unknown> template=collections.array.Array arguments=(unknown)
-    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<unknown>> template=collections.slice.new arguments=(memory.init.MaybeUninit<unknown>)
-    /// @generic.instance id=memory.init.MaybeUninit<unknown> template=memory.init.MaybeUninit arguments=(unknown)
+    /// @generic.instance id=Array<unknown> template=Array arguments=(unknown)
+    /// @generic.instance id=MaybeUninit<unknown> template=MaybeUninit arguments=(unknown)
+    /// @generic.instance id=new<MaybeUninit<unknown>> template=new arguments=(MaybeUninit<unknown>)
 
         tag: Tag,
         /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
@@ -182,6 +183,7 @@ function render(): Panel {
     );
 }
 
+/// A tree element checks its text children and its expression children.
 #[test]
 fn test_check_text_and_expression_tree_children() {
     let session = TestSession::single(
@@ -275,15 +277,15 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
-/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
-/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
-/// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
+/// @resolution.name source=TreeBuilder target=TreeBuilder
 
     type Tags = {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
@@ -298,9 +300,9 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
     /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
-    /// @generic.instance id=Array<unknown> template=collections.array.Array arguments=(unknown)
-    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<unknown>> template=collections.slice.new arguments=(memory.init.MaybeUninit<unknown>)
-    /// @generic.instance id=memory.init.MaybeUninit<unknown> template=memory.init.MaybeUninit arguments=(unknown)
+    /// @generic.instance id=Array<unknown> template=Array arguments=(unknown)
+    /// @generic.instance id=MaybeUninit<unknown> template=MaybeUninit arguments=(unknown)
+    /// @generic.instance id=new<MaybeUninit<unknown>> template=new arguments=(MaybeUninit<unknown>)
 
         tag: Tag,
         /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
@@ -367,6 +369,7 @@ function render(title: string): Panel {
     );
 }
 
+/// A tag outside the builder's declared tags reports a diagnostic.
 #[test]
 fn test_reject_an_unknown_tree_tag() {
     let session = TestSession::single(
@@ -413,6 +416,7 @@ function render(): Panel {
     );
 }
 
+/// An attribute outside the tag's declared row reports a diagnostic.
 #[test]
 fn test_reject_an_unknown_tree_attribute() {
     let session = TestSession::single(
@@ -456,6 +460,7 @@ function render(): Panel {
 "#);
 }
 
+/// A tag missing a required attribute reports a diagnostic.
 #[test]
 fn test_require_a_missing_tree_attribute() {
     let session = TestSession::single(
@@ -499,6 +504,7 @@ function render(): Panel {
     );
 }
 
+/// An attribute value of another type reports a diagnostic.
 #[test]
 fn test_reject_a_mismatched_tree_attribute_value() {
     let session = TestSession::single(
@@ -543,6 +549,7 @@ function render(): Panel {
 "#);
 }
 
+/// A spread attribute checks against the tag's declared row.
 #[test]
 fn test_spread_tree_attributes_into_the_declared_row() {
     let session = TestSession::single(
@@ -587,6 +594,7 @@ function render(): Panel {
     );
 }
 
+/// A component tag checks its attributes against the component's props.
 #[test]
 fn test_check_a_component_tree_tag_with_props() {
     let session = TestSession::single(
@@ -683,15 +691,15 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
-/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
-/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
-/// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
+/// @resolution.name source=TreeBuilder target=TreeBuilder
 
     type Tags = {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
@@ -706,9 +714,9 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
     /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
-    /// @generic.instance id=Array<unknown> template=collections.array.Array arguments=(unknown)
-    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<unknown>> template=collections.slice.new arguments=(memory.init.MaybeUninit<unknown>)
-    /// @generic.instance id=memory.init.MaybeUninit<unknown> template=memory.init.MaybeUninit arguments=(unknown)
+    /// @generic.instance id=Array<unknown> template=Array arguments=(unknown)
+    /// @generic.instance id=MaybeUninit<unknown> template=MaybeUninit arguments=(unknown)
+    /// @generic.instance id=new<MaybeUninit<unknown>> template=new arguments=(MaybeUninit<unknown>)
 
         tag: Tag,
         /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
@@ -779,6 +787,7 @@ function render(): Panel {
     );
 }
 
+/// A spread child from a tuple splats into the children the builder takes.
 #[test]
 fn test_splat_spread_tree_children_from_a_tuple() {
     let session = TestSession::single(
@@ -869,15 +878,15 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
-/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
-/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
-/// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
+/// @resolution.name source=TreeBuilder target=TreeBuilder
 
     type Tags = {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
@@ -892,9 +901,9 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
     /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
-    /// @generic.instance id=Array<unknown> template=collections.array.Array arguments=(unknown)
-    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<unknown>> template=collections.slice.new arguments=(memory.init.MaybeUninit<unknown>)
-    /// @generic.instance id=memory.init.MaybeUninit<unknown> template=memory.init.MaybeUninit arguments=(unknown)
+    /// @generic.instance id=Array<unknown> template=Array arguments=(unknown)
+    /// @generic.instance id=MaybeUninit<unknown> template=MaybeUninit arguments=(unknown)
+    /// @generic.instance id=new<MaybeUninit<unknown>> template=new arguments=(MaybeUninit<unknown>)
 
         tag: Tag,
         /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
@@ -967,6 +976,7 @@ function render(): Panel {
     );
 }
 
+/// A spread child from a dynamic array reports a diagnostic.
 #[test]
 fn test_reject_spread_tree_children_from_a_dynamic_array() {
     let session = TestSession::single(
@@ -1010,6 +1020,7 @@ function render(items: Panel[]): Panel {
 "#);
 }
 
+/// A component checks its children against its children prop.
 #[test]
 fn test_check_component_children_through_the_children_prop() {
     let session = TestSession::single(
@@ -1110,15 +1121,15 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
-/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
-/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
-/// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
+/// @resolution.name source=TreeBuilder target=TreeBuilder
 
     type Tags = {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
@@ -1133,9 +1144,9 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
     /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
-    /// @generic.instance id=Array<unknown> template=collections.array.Array arguments=(unknown)
-    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<unknown>> template=collections.slice.new arguments=(memory.init.MaybeUninit<unknown>)
-    /// @generic.instance id=memory.init.MaybeUninit<unknown> template=memory.init.MaybeUninit arguments=(unknown)
+    /// @generic.instance id=Array<unknown> template=Array arguments=(unknown)
+    /// @generic.instance id=MaybeUninit<unknown> template=MaybeUninit arguments=(unknown)
+    /// @generic.instance id=new<MaybeUninit<unknown>> template=new arguments=(MaybeUninit<unknown>)
 
         tag: Tag,
         /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
@@ -1210,6 +1221,7 @@ function render(): Panel {
     );
 }
 
+/// A component without a children prop reports a diagnostic for its children.
 #[test]
 fn test_reject_component_children_without_a_children_prop() {
     let session = TestSession::single(
@@ -1257,6 +1269,7 @@ function render(): Panel {
 "#);
 }
 
+/// A class component constructs through its constructor.
 #[test]
 fn test_construct_a_class_component_through_its_constructor() {
     let session = TestSession::single(
@@ -1336,7 +1349,7 @@ extension of Panel implements TreeBuilder {
 class Card {
     heading: string;
 
-    constructor(props: { heading: string }): this {
+    constructor(props: { heading: string }) {
         this.heading = props.heading;
     }
 }
@@ -1365,15 +1378,15 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
-/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
-/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
-/// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
+/// @resolution.name source=TreeBuilder target=TreeBuilder
 
     type Tags = {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
@@ -1388,9 +1401,9 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
     /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
-    /// @generic.instance id=Array<unknown> template=collections.array.Array arguments=(unknown)
-    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<unknown>> template=collections.slice.new arguments=(memory.init.MaybeUninit<unknown>)
-    /// @generic.instance id=memory.init.MaybeUninit<unknown> template=memory.init.MaybeUninit arguments=(unknown)
+    /// @generic.instance id=Array<unknown> template=Array arguments=(unknown)
+    /// @generic.instance id=MaybeUninit<unknown> template=MaybeUninit arguments=(unknown)
+    /// @generic.instance id=new<MaybeUninit<unknown>> template=new arguments=(MaybeUninit<unknown>)
 
         tag: Tag,
         /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
@@ -1432,13 +1445,14 @@ class Card {
 /// @type.symbol symbol=Card type=Card
 /// @definition.class symbol=Card
 /// @definition.field symbol=Card.heading source="heading: string" key=heading type=string
-/// @definition.method symbol=Card.constructor slot=constructor role=constructor type=({ heading: string }) => Card
+/// @definition.method symbol=Card.constructor slot=constructor role=constructor type=<Card.constructor.P0: Place>({ heading: string }) => Managed<Card, Card.constructor.P0>
 
     heading: string;
     /// @type.symbol symbol=Card.heading source="heading: string" type=string
 
     constructor(props: { heading: string }) {
-    /// @type.symbol symbol=Card.constructor type=({ heading: string }) => Card
+    /// @generic.template symbol=Card.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=Card.constructor type=<Card.constructor.P0: Place>({ heading: string }) => Managed<Card, Card.constructor.P0>
     /// @type.symbol symbol=Card.constructor.props source="props: { heading: string }" type={ heading: string }
 
         this.heading = props.heading;
@@ -1466,10 +1480,14 @@ function render(): Panel {
     /// @type.symbol symbol=render.page source=page type=Panel
     /// @resolution.pattern source=page kind=binding target=render.page
     /// @resolution.name source=Panel target=Panel
-    /// @resolution.tree source="<><Card heading=\"hi\"/></>" builder=Panel form=fragment call=fragment children=(Card) type=Panel
-    /// @generic.instantiation id=fragment<(Card,)> template=fragment arguments=((Card,))
-    /// @generic.instance id=fragment<(Card,)> template=fragment arguments=((Card,))
-    /// @resolution.tree source="<Card heading=\"hi\"/>" builder=Panel form=component callee=Card construct=Card attributes=(heading: "hi") children=() type=Card
+    /// @resolution.tree source="<><Card heading=\"hi\"/></>" builder=Panel form=fragment call=fragment children=(local Card) type=Panel
+    /// @generic.instantiation id="fragment<(local Card,)>" template=fragment arguments=((local Card,))
+    /// @generic.instance id="fragment<(local Card,)>" template=fragment arguments=((local Card,))
+    /// @resolution.tree source="<Card heading=\"hi\"/>" builder=Panel form=component callee=Card construct=Card attributes=(heading: "hi") children=() type=local Card
+    /// @generic.instantiation id="Card.constructor<\"local\">" template=Card.constructor arguments=("local")
+    /// @generic.instantiation id="Card<\"local\">" template=Card arguments=("local")
+    /// @generic.instance id="Card.constructor<\"local\">" template=Card.constructor arguments=("local")
+    /// @generic.instance id="Card<\"local\">" template=Card arguments=("local")
     /// @resolution.name source=Card target=Card
 
     return page;
@@ -1482,6 +1500,7 @@ function render(): Panel {
     );
 }
 
+/// A struct component constructs through its field literal.
 #[test]
 fn test_construct_a_struct_component_through_its_field_form() {
     let session = TestSession::single(
@@ -1582,15 +1601,15 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
-/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
-/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
-/// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
+/// @resolution.name source=TreeBuilder target=TreeBuilder
 
     type Tags = {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
@@ -1605,9 +1624,9 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
     /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
-    /// @generic.instance id=Array<unknown> template=collections.array.Array arguments=(unknown)
-    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<unknown>> template=collections.slice.new arguments=(memory.init.MaybeUninit<unknown>)
-    /// @generic.instance id=memory.init.MaybeUninit<unknown> template=memory.init.MaybeUninit arguments=(unknown)
+    /// @generic.instance id=Array<unknown> template=Array arguments=(unknown)
+    /// @generic.instance id=MaybeUninit<unknown> template=MaybeUninit arguments=(unknown)
+    /// @generic.instance id=new<MaybeUninit<unknown>> template=new arguments=(MaybeUninit<unknown>)
 
         tag: Tag,
         /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
@@ -1679,6 +1698,7 @@ function render(): Panel {
     );
 }
 
+/// A struct component missing a required field reports a diagnostic.
 #[test]
 fn test_require_a_missing_struct_component_field() {
     let session = TestSession::single(
@@ -1726,6 +1746,7 @@ function render(): Panel {
 "#);
 }
 
+/// A tree literal without an expected type checks through the default builder.
 #[test]
 fn test_check_a_tree_literal_through_the_default_builder() {
     let session = TestSession::builder()
@@ -1817,6 +1838,7 @@ function render(): Panel {
     );
 }
 
+/// A tree element checks the attributes its tag requires.
 #[test]
 fn test_check_tree_elements_with_required_attributes() {
     let session = TestSession::single(
@@ -1917,15 +1939,15 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ title: {}; meta: { content: string; name: string }; link: { rel: string; href: string } }
 /// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
-/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
-/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
-/// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
+/// @resolution.name source=TreeBuilder target=TreeBuilder
 
     type Tags = {
     /// @type.symbol symbol=Tags type={ title: {}; meta: { content: string; name: string }; link: { rel: string; href: string } }

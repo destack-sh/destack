@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A scalar family bound admits every width in that family.
 #[test]
 fn test_scalar_markers_admit_every_width() {
     let session = TestSession::single(
@@ -33,12 +34,12 @@ const floats: Vector<float32> = Vector<float32> { x: 1.5 as float32 };
 import { Numeric } from "destack:math";
 
 struct Vector<T: Numeric> {
-/// @generic.template symbol=Vector parameters=(out T: math.numeric.Numeric)
+/// @generic.template symbol=Vector parameters=(out T: Numeric)
 /// @type.symbol symbol=Vector type=Vector
-/// @definition.struct symbol=Vector template=(out T: math.numeric.Numeric)
+/// @definition.struct symbol=Vector template=(out T: Numeric)
 /// @definition.field symbol=Vector.x source="x: T" key=x type=T
 /// @type.symbol symbol=Vector.T source="T: Numeric" type=T
-/// @resolution.name source=Numeric target=math.numeric.Numeric
+/// @resolution.name source=Numeric target=Numeric
 
     x: T;
     /// @type.symbol symbol=Vector.x source="x: T" type=T
@@ -61,6 +62,7 @@ const floats = Vector { x: 1.5 as float32 };
     );
 }
 
+/// A sized scalar alias bound admits only its own width.
 #[test]
 fn test_scalar_aliases_admit_only_their_sized_type() {
     let session = TestSession::single(
@@ -118,6 +120,7 @@ const narrow = Index { value: 1 as int32 };
     );
 }
 
+/// An integer literal outside its annotated width reports a diagnostic.
 #[test]
 fn test_integer_literals_fit_their_annotated_width() {
     let session = TestSession::single(
@@ -167,7 +170,7 @@ const index: usize = key;
 /// @type.symbol symbol=index source=index type=usize
 /// @resolution.pattern source=index kind=binding target=index
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=key placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=key root=key
 "#,
         r#"
@@ -178,6 +181,7 @@ const index: usize = key;
     );
 }
 
+/// Const arithmetic keeps the type of its operands.
 #[test]
 fn test_const_arithmetic_keeps_the_operand_type() {
     let session = TestSession::single(
@@ -238,7 +242,7 @@ function shrink<const Rank: int>(tensor: Tensor<Rank>): Tensor<Rank - 1> {
     );
 }
 
-/// Reject the removed u-prefixed integer width spellings.
+/// Reject the removed u-prefixed integer width names.
 #[test]
 fn test_reject_u_prefixed_width_names() {
     let session = TestSession::single(

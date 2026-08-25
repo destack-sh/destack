@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A conditional selects a branch per check type it is applied to.
 #[test]
 fn test_select_a_conditional_branch_per_check_type() {
     let session = TestSession::single(
@@ -56,6 +57,7 @@ declare const number: Number;
     );
 }
 
+/// A conditional over a naked parameter distributes across a union check type.
 #[test]
 fn test_distribute_a_conditional_over_a_naked_parameter() {
     let session = TestSession::single(
@@ -99,6 +101,7 @@ declare const value: Result;
     );
 }
 
+/// A tuple-wrapped check type keeps a conditional undistributed.
 #[test]
 fn test_keep_a_tuple_wrapped_check_type_undistributed() {
     let session = TestSession::single(
@@ -141,6 +144,7 @@ declare const value: Result;
     );
 }
 
+/// A distributed conditional over never reduces to never.
 #[test]
 fn test_distribute_never_to_never() {
     let session = TestSession::single(
@@ -189,6 +193,7 @@ let value: Result = "no";
     );
 }
 
+/// An infer binder captures the argument of a type application.
 #[test]
 fn test_capture_an_application_argument() {
     let session = TestSession::single(
@@ -243,6 +248,7 @@ declare const value: Value;
     );
 }
 
+/// An infer binder captures the argument of a const type parameter.
 #[test]
 fn test_capture_a_const_parameter_argument() {
     let session = TestSession::single(
@@ -299,6 +305,7 @@ declare const count: Count;
     );
 }
 
+/// A capture failing its infer constraint takes the false branch.
 #[test]
 fn test_reject_a_capture_that_fails_its_infer_constraint() {
     let session = TestSession::single(
@@ -358,6 +365,7 @@ let value: Value = "no";
     );
 }
 
+/// An anonymous infer binder matches without naming the captured type.
 #[test]
 fn test_match_an_anonymous_infer_binder() {
     let session = TestSession::single(
@@ -425,6 +433,7 @@ const no: No = false;
     );
 }
 
+/// A distributed conditional captures one infer binding per union element.
 #[test]
 fn test_capture_per_distributed_union_element() {
     let session = TestSession::single(
@@ -536,8 +545,8 @@ const first: Element<typeof values> = values[0];
 /// @resolution.access source=values root=values
 /// @resolution.place source=values[0] placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=int32[] kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static int32[], \"exclusive\">)"
-/// @generic.instantiation id="collections.array.index#1<int32[], \"exclusive\">" template=collections.array.index#1 arguments=(int32[], "exclusive")
+/// @resolution.subscript source=values[0] type=int32[] kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static int32[], \"exclusive\">)"
+/// @generic.instantiation id="index#1<int32[], \"exclusive\", \"local\">" template=index#1 arguments=(int32[], "exclusive", "local")
 "#,
         r#"
 "#,
@@ -573,12 +582,12 @@ export type Poll<T> = T | (T extends Copy ? Holder<T> : never);
 import { Copy } from "destack:memory";
 
 struct Holder<T: Copy> {
-/// @generic.template symbol=Holder parameters=(out T#1: memory.capability.Copy)
+/// @generic.template symbol=Holder parameters=(out T#1: Copy)
 /// @type.symbol symbol=Holder type=Holder
-/// @definition.struct symbol=Holder template=(out T#1: memory.capability.Copy)
+/// @definition.struct symbol=Holder template=(out T#1: Copy)
 /// @definition.field symbol=Holder.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Holder.T source="T: Copy" type=T#1
-/// @resolution.name source=Copy target=memory.capability.Copy
+/// @resolution.name source=Copy target=Copy
 
     value: T;
     /// @type.symbol symbol=Holder.value source="value: T" type=T#1
@@ -588,12 +597,12 @@ struct Holder<T: Copy> {
 
 export type Poll<T> = T | (T extends Copy ? Holder<T> : never);
 /// @generic.template symbol=Poll parameters=(T#2)
-/// @type.symbol symbol=Poll source="export type Poll<T> = T | (T extends Copy ? Holder<T> : never)" type=T#2 | T#2 extends memory.capability.Copy ? Holder<T#2> : never
-/// @definition.type symbol=Poll source="export type Poll<T> = T | (T extends Copy ? Holder<T> : never)" template=(T#2) value=T#2 | T#2 extends memory.capability.Copy ? Holder<T#2> : never
+/// @type.symbol symbol=Poll source="export type Poll<T> = T | (T extends Copy ? Holder<T> : never)" type=T#2 | T#2 extends Copy ? Holder<T#2> : never
+/// @definition.type symbol=Poll source="export type Poll<T> = T | (T extends Copy ? Holder<T> : never)" template=(T#2) value=T#2 | T#2 extends Copy ? Holder<T#2> : never
 /// @type.symbol symbol=Poll.T source=T type=T#2
 /// @resolution.name source=T target=Poll.T
 /// @resolution.name source=T target=Poll.T
-/// @resolution.name source=Copy target=memory.capability.Copy
+/// @resolution.name source=Copy target=Copy
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=T target=Poll.T
 "#, r#""#);
@@ -628,12 +637,12 @@ export type Poll<T> = T extends Copy ? never : Holder<T>;
 import { Copy } from "destack:memory";
 
 struct Holder<T: Copy> {
-/// @generic.template symbol=Holder parameters=(out T#1: memory.capability.Copy)
+/// @generic.template symbol=Holder parameters=(out T#1: Copy)
 /// @type.symbol symbol=Holder type=Holder
-/// @definition.struct symbol=Holder template=(out T#1: memory.capability.Copy)
+/// @definition.struct symbol=Holder template=(out T#1: Copy)
 /// @definition.field symbol=Holder.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Holder.T source="T: Copy" type=T#1
-/// @resolution.name source=Copy target=memory.capability.Copy
+/// @resolution.name source=Copy target=Copy
 
     value: T;
     /// @type.symbol symbol=Holder.value source="value: T" type=T#1
@@ -643,11 +652,11 @@ struct Holder<T: Copy> {
 
 export type Poll<T> = T extends Copy ? never : Holder<T>;
 /// @generic.template symbol=Poll parameters=(T#2)
-/// @type.symbol symbol=Poll source="export type Poll<T> = T extends Copy ? never : Holder<T>" type=T#2 extends memory.capability.Copy ? never : Holder<T#2>
-/// @definition.type symbol=Poll source="export type Poll<T> = T extends Copy ? never : Holder<T>" template=(T#2) value=T#2 extends memory.capability.Copy ? never : Holder<T#2>
+/// @type.symbol symbol=Poll source="export type Poll<T> = T extends Copy ? never : Holder<T>" type=T#2 extends Copy ? never : Holder<T#2>
+/// @definition.type symbol=Poll source="export type Poll<T> = T extends Copy ? never : Holder<T>" template=(T#2) value=T#2 extends Copy ? never : Holder<T#2>
 /// @type.symbol symbol=Poll.T source=T type=T#2
 /// @resolution.name source=T target=Poll.T
-/// @resolution.name source=Copy target=memory.capability.Copy
+/// @resolution.name source=Copy target=Copy
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=T target=Poll.T
 "#, r#"
@@ -705,12 +714,12 @@ struct Buffer {
 }
 
 struct Holder<T: Copy> {
-/// @generic.template symbol=Holder parameters=(out T: memory.capability.Copy)
+/// @generic.template symbol=Holder parameters=(out T: Copy)
 /// @type.symbol symbol=Holder type=Holder
-/// @definition.struct symbol=Holder template=(out T: memory.capability.Copy)
+/// @definition.struct symbol=Holder template=(out T: Copy)
 /// @definition.field symbol=Holder.value source="value: T" key=value type=T
 /// @type.symbol symbol=Holder.T source="T: Copy" type=T
-/// @resolution.name source=Copy target=memory.capability.Copy
+/// @resolution.name source=Copy target=Copy
 
     value: T;
     /// @type.symbol symbol=Holder.value source="value: T" type=T
@@ -1292,7 +1301,7 @@ declare const direct: Deep<{ value: string }>;
 }
 
 /// Bind a nested array infer variable inside an outer conditional.
-// TODO: this reports "nominal relation has missing definitions" instead of checking the module.
+// TODO #Broken: this reports "nominal relation has missing definitions" instead of checking the module.
 #[test]
 fn test_bind_a_nested_array_infer_variable() {
     let session = TestSession::single(

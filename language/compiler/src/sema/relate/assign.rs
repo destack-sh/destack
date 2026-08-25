@@ -16,6 +16,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Verdict> {
         let widens = relation == Relation::Widens;
 
+        // read the callable signature behind each side, when one stands there
         let source_signature = self.callable_signature(source)?;
         let target_signature = self.callable_signature(target)?;
 
@@ -27,6 +28,7 @@ impl CheckState<'_> {
                 true => Verdict::Fails,
                 false => self.erasable_source(origin, source)?,
             },
+            // an uninhabited source flows into every target
             (dir::Type::Never, _) => Verdict::Holds,
 
             // string literals inhabit matching template literal patterns
@@ -44,6 +46,8 @@ impl CheckState<'_> {
                 for &span in self.type_ids(target.module_id, template.spans)? {
                     is_open = is_open || self.type_flags(span)?.has_variable();
                 }
+
+                // capture the text into the open spans
                 if is_open {
                     self.relate_template_captures(
                         origin,
@@ -52,7 +56,9 @@ impl CheckState<'_> {
                         target.module_id,
                         &template,
                     )?
-                } else {
+                }
+                // otherwise match the text against the closed pattern
+                else {
                     self.relate_template_string(origin, &text, target.module_id, &template)?
                 }
             }
@@ -111,6 +117,13 @@ impl CheckState<'_> {
                     .into();
 
                 self.relate_all_targets(origin, cause, relation, source, &elements)?
+            }
+            // an intersection source enters a memory-form target as one whole payload
+            (dir::Type::Intersection(_), dir::Type::Form(_))
+                if let Some(decision) =
+                    self.constrain_form_assignable(origin, cause, relation, source, target)? =>
+            {
+                decision
             }
             // intersection sources assign through any element
             (dir::Type::Intersection(intersection), _) => {
@@ -213,7 +226,7 @@ impl CheckState<'_> {
 
                 self.relate_any_target(origin, cause, relation, source, &elements)?
             }
-            // relate two erased carriers through their constraints, which rebuild the fat pointer
+            // relate two erased representations through their constraints, which rebuild the fat pointer
             (dir::Type::Dynamic(source_dynamic), dir::Type::Dynamic(target_dynamic)) => {
                 let constraint_relation = match widens {
                     true => Relation::Equal,
@@ -241,7 +254,7 @@ impl CheckState<'_> {
                     target_constraint,
                 )?
             }
-            // erased carriers refuse widening, the literal materializes first
+            // erased representations refuse widening, the literal materializes first
             _ if widens && (self.is_erased_value(source)? || self.is_erased_value(target)?) => {
                 Verdict::Fails
             }
@@ -258,10 +271,11 @@ impl CheckState<'_> {
                 target,
             )?,
 
-            // reject widening for literals without a uniform carrier
-            (dir::Type::Literal(literal), _) if widens && !literal.has_uniform_carrier() => {
+            // reject widening for literals without a uniform representation
+            (dir::Type::Literal(literal), _) if widens && !literal.has_uniform_representation() => {
                 Verdict::Fails
             }
+            // reject widening for intervals
             (dir::Type::Range(_), _) if widens => Verdict::Fails,
 
             // adapt a const literal to a parameter its scalar-family admits
@@ -300,6 +314,7 @@ impl CheckState<'_> {
             {
                 Verdict::Fails
             }
+            // keep slice views element-invariant
             (dir::Type::Slice(source), dir::Type::Slice(target)) => self.constrain_type(
                 origin,
                 cause,
@@ -341,6 +356,7 @@ impl CheckState<'_> {
             {
                 Verdict::Fails
             }
+            // relate two tuples position by position
             (dir::Type::Tuple(_), dir::Type::Tuple(_)) => {
                 self.relate_tuple_assignable(origin, cause, relation, source, target)?
             }
@@ -376,7 +392,7 @@ impl CheckState<'_> {
             {
                 self.relate_reference_construct_assignable(origin, cause, relation, source, target)?
             }
-            // satisfy a target from a struct static's carrier type
+            // satisfy a target from a struct static's representation type
             (dir::Type::Static(value), _)
                 if !matches!(self.ty(target)?, dir::Type::Static(_))
                     && let dir::StaticTerm::Struct { ty, .. } = self.r#static(value).clone() =>
@@ -431,10 +447,10 @@ impl CheckState<'_> {
             {
                 self.relate_erased_assignable(origin, cause, source, target)?
             }
+            // relate argument pairs of one declaration by their parameter variances
             (dir::Type::Application(source_instance), dir::Type::Application(target_instance))
                 if source_instance.symbol == target_instance.symbol =>
             {
-                // relate argument pairs by their parameter variances
                 let symbol = source_instance.symbol;
                 let source_arguments = SmallVec::<[_; 4]>::from_slice(
                     self.type_ids(source.module_id, source_instance.arguments)?,
@@ -454,12 +470,12 @@ impl CheckState<'_> {
                     &target_arguments,
                 )?
             }
+            // box erasable values only behind an erased interface target
             (dir::Type::Application(_), dir::Type::Application(instance))
                 if self
                     .symbol_kind(instance.symbol)
                     .map(|kind| kind.is_interface())? =>
             {
-                // box erasable values only behind an erased interface target
                 match self.erasable_source(origin, source)? {
                     Verdict::Holds => {
                         self.relate_application_assignable(origin, cause, source, target)?
@@ -467,6 +483,7 @@ impl CheckState<'_> {
                     verdict @ (Verdict::Fails | Verdict::Ambiguous) => verdict,
                 }
             }
+            // relate the remaining nominal instances through their declarations
             (dir::Type::Application(_), dir::Type::Application(_)) => {
                 self.relate_application_assignable(origin, cause, source, target)?
             }
@@ -475,17 +492,20 @@ impl CheckState<'_> {
             (dir::Type::FunctionSignature(_), dir::Type::FunctionSignature(_)) => {
                 self.relate_function_assignable(origin, cause, relation, source, target)?
             }
+            // reach the signature behind a callable source
             (_, dir::Type::FunctionSignature(_)) if let Some(source) = source_signature => {
                 self.relate_function_assignable(origin, cause, relation, source, target)?
             }
+            // reach the signature behind a callable target
             (dir::Type::FunctionSignature(_), _) if let Some(target) = target_signature => {
                 self.relate_function_assignable(origin, cause, relation, source, target)?
             }
+            // reach the signatures behind two callable values
             (_, _) if let (Some(source), Some(target)) = (source_signature, target_signature) => {
                 self.relate_function_assignable(origin, cause, relation, source, target)?
             }
 
-            // a keyof stuck on a parameter proves through the property key domain
+            // resolve a keyof stuck on a parameter through the property key domain
             (dir::Type::Operation(operation), _)
                 if !widens
                     && self.type_flags(source)?.has_parameter()
@@ -498,6 +518,7 @@ impl CheckState<'_> {
 
                 self.constrain_type(origin, cause, relation, keys, target)?
             }
+            // reject every remaining pair
             _ => Verdict::Fails,
         };
 
@@ -512,6 +533,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
+        // require the source to erase behind a dynamic payload
         match self.erasable_source(origin, source)? {
             Verdict::Holds => {}
             verdict @ (Verdict::Fails | Verdict::Ambiguous) => return Ok(verdict),
@@ -520,7 +542,7 @@ impl CheckState<'_> {
         self.relate_interface(origin, cause, Relation::Assignable, source, target)
     }
 
-    /// Judge whether one source value erases behind a dynamic payload.
+    /// Return whether one source value erases behind a dynamic payload.
     pub(in crate::sema) fn erasable_source(
         &mut self,
         origin: Origin,
@@ -537,6 +559,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         constraint: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
+        // read an already erased source through its own constraint
         let source = match self.ty(source)? {
             dir::Type::Dynamic(dynamic) => dynamic.constraint,
             _ => source,
@@ -551,7 +574,7 @@ impl CheckState<'_> {
         self.constrain_type(origin, cause, Relation::Assignable, source, constraint)
     }
 
-    /// Return the rest container of a tuple written as `...T[]`, if it is.
+    /// Return the rest container of a tuple written as `...T[]`.
     fn sole_rest_container(
         &mut self,
         tuple_id: dir::GlobalTypeId,
@@ -582,6 +605,7 @@ impl CheckState<'_> {
         for bound in &bounds {
             is_open = is_open || self.type_flags(*bound)?.has_variable();
         }
+
         if is_open {
             let candidates = bounds
                 .iter()
@@ -591,7 +615,7 @@ impl CheckState<'_> {
             return self.constrain_any_relation(origin, cause, relation, &candidates);
         }
 
-        // prove through any declared or assumed bound
+        // accept any declared or assumed bound
         let mut verdict = Verdict::Fails;
         for bound in bounds {
             verdict = verdict.or(self.constrain_type(origin, cause, relation, bound, target)?);
@@ -618,6 +642,7 @@ impl CheckState<'_> {
         for bound in &bounds {
             is_open = is_open || self.type_flags(*bound)?.has_variable();
         }
+
         if is_open {
             let candidates = bounds
                 .iter()
@@ -627,7 +652,7 @@ impl CheckState<'_> {
             return self.constrain_any_relation(origin, cause, relation, &candidates);
         }
 
-        // prove through any assumed this bound
+        // accept any assumed this bound
         let mut verdict = Verdict::Fails;
         for bound in bounds {
             verdict = verdict.or(self.constrain_type(origin, cause, relation, bound, target)?);

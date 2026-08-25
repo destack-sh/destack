@@ -16,10 +16,10 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
         r#"
 === annotated ===
 function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
-    values.iterator<int32 | undefined>().map<int32 | undefined, int32 | undefined>(
+    values.iterator<int32 | undefined, "local">().map<int32 | undefined, int32 | undefined>(
         (value: int32 | undefined): int32 | undefined => value,
     ).find<int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>>(
-        (value: &'a readonly (int32 | undefined)): boolean =>
+        (value: Borrowed<int32 | undefined, 'a & P1, "readonly">): boolean =>
             value !== (undefined as int32 | undefined) && (value as int32) > 0,
     )
 }
@@ -27,56 +27,61 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
 === dir ===
 function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
 /// @type.symbol symbol=firstPositive type=(int32 | undefined[]) => int32 | undefined
-/// @generic.instance id="Array<int32 | undefined>" template=collections.array.Array arguments=(int32 | undefined)
-/// @generic.instance id="collections.slice.new<memory.init.MaybeUninit<int32 | undefined>>" template=collections.slice.new arguments=(memory.init.MaybeUninit<int32 | undefined>)
-/// @generic.instance id="memory.init.MaybeUninit<int32 | undefined>" template=memory.init.MaybeUninit arguments=(int32 | undefined)
+/// @generic.instance id="Array<int32 | undefined>" template=Array arguments=(int32 | undefined)
+/// @generic.instance id="MaybeUninit<int32 | undefined>" template=MaybeUninit arguments=(int32 | undefined)
+/// @generic.instance id="new<MaybeUninit<int32 | undefined>>" template=new arguments=(MaybeUninit<int32 | undefined>)
 /// @type.symbol symbol=firstPositive.values source="values: (int32 | undefined)[]" type=int32 | undefined[]
 
     values.iterator().map((value) => value).find((value) => value !== undefined && value > 0)
     /// @resolution.name source=values target=firstPositive.values
-    /// @resolution.member source="values.iterator().map((value) => value).find" receiver=iter.iterator.MapIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> type=(this: iter.iterator.MapIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => int32 | undefined kind=symbol target_receiver=iter.iterator.MapIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> target=iter.iterator.Iterator.find
-    /// @resolution.member source=values.iterator receiver=int32 | undefined[] type=(this: int32 | undefined[]) => iter.iterator.Iterator<int32 | undefined> kind=symbol target_receiver=int32 | undefined[] target=collections.array.iterator#2
-    /// @resolution.member source=values.iterator().map receiver=iter.iterator.Iterator<int32 | undefined> type=<iter.iterator.Iterator.map.U>(this: iter.iterator.Iterator<int32 | undefined>, Function<(int32 | undefined, isize), iter.iterator.Iterator.map.U>) => iter.iterator.MapIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined, iter.iterator.Iterator.map.U> kind=symbol target_receiver=iter.iterator.Iterator<int32 | undefined> dispatch=dynamic constraint=iter.iterator.Iterator<int32 | undefined> target=iter.iterator.Iterator.map
-    /// @resolution.call parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value !== undefined && value > 0) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=int32 | undefined kind=symbol target=iter.iterator.Iterator.find receiver=iter.iterator.MapIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> instance="iter.iterator.MapIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>.<extension#3>.find"
-    /// @resolution.call source="values.iterator().map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=iter.iterator.MapIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> kind=dynamic target=iter.iterator.Iterator.map receiver=iter.iterator.Iterator<int32 | undefined> constraint=iter.iterator.Iterator<int32 | undefined> generic_arguments=(int32 | undefined, int32 | undefined)
-    /// @resolution.call source=values.iterator() parameters=() return=iter.iterator.Iterator<int32 | undefined> kind=symbol target=collections.array.iterator#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#3>.iterator#2"
+    /// @resolution.member source="values.iterator().map((value) => value).find" receiver=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> type=(this: MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>, Function<(Borrowed<int32 | undefined, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) => int32 | undefined kind=symbol target_receiver=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> target=Iterator.find
+    /// @resolution.member source=values.iterator receiver=int32 | undefined[] type=<iterator#2.P0: Place>(this: Managed<int32 | undefined[], iterator#2.P0>) => Iterator<int32 | undefined> kind=symbol target_receiver=int32 | undefined[] target=iterator#2
+    /// @resolution.member source=values.iterator().map receiver=Iterator<int32 | undefined> type=<Iterator.map.U>(this: Iterator<int32 | undefined>, Function<(int32 | undefined, isize), Iterator.map.U>) => MapIterator<Iterator<int32 | undefined>, int32 | undefined, Iterator.map.U> kind=symbol target_receiver=Iterator<int32 | undefined> dispatch=dynamic constraint=Iterator<int32 | undefined> target=Iterator.map
+    /// @resolution.call parameters=(Function<(Borrowed<int32 | undefined, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) arguments=(provided((value) => value !== undefined && value > 0) as Function<(Borrowed<int32 | undefined, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) return=int32 | undefined kind=symbol target=Iterator.find receiver=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> instance="MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>.<extension#3>.find"
+    /// @resolution.call source="values.iterator().map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> kind=dynamic target=Iterator.map receiver=Iterator<int32 | undefined> constraint=Iterator<int32 | undefined> generic_arguments=(int32 | undefined, int32 | undefined)
+    /// @resolution.call source=values.iterator() parameters=() return=Iterator<int32 | undefined> kind=symbol target=iterator#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#3>.iterator#2<\"local\">"
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=firstPositive.values
-    /// @generic.instantiation id="collections.array.iterator#2<int32 | undefined>" template=collections.array.iterator#2 arguments=(int32 | undefined)
-    /// @generic.instantiation id="iter.iterator.Iterator.find<int32 | undefined, int32 | undefined, int32 | undefined, iter.iterator.Iterator<int32 | undefined>>" template=iter.iterator.Iterator.find arguments=(int32 | undefined, int32 | undefined, int32 | undefined, iter.iterator.Iterator<int32 | undefined>)
-    /// @generic.instantiation id="iter.iterator.Iterator.map<int32 | undefined>" template=iter.iterator.Iterator.map arguments=(int32 | undefined)
-    /// @generic.instance id="collections.array.iterator#2<int32 | undefined>" template=collections.array.iterator#2 arguments=(int32 | undefined)
-    /// @generic.instance id="iter.iterator.DropIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined>" template=iter.iterator.DropIterator arguments=(iter.iterator.Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id="iter.iterator.DropWhileIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined>" template=iter.iterator.DropWhileIterator arguments=(iter.iterator.Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id="iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined>" template=iter.iterator.EnumeratedIterator arguments=(iter.iterator.Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id="iter.iterator.FilterIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined>" template=iter.iterator.FilterIterator arguments=(iter.iterator.Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id="iter.iterator.InspectIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined>" template=iter.iterator.InspectIterator arguments=(iter.iterator.Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id="iter.iterator.Iterator.find<int32 | undefined, int32 | undefined, int32 | undefined, iter.iterator.Iterator<int32 | undefined>>" template=iter.iterator.Iterator.find arguments=(int32 | undefined, int32 | undefined, int32 | undefined, iter.iterator.Iterator<int32 | undefined>)
-    /// @generic.instance id="iter.iterator.Iterator<int32 | undefined>" template=iter.iterator.Iterator arguments=(int32 | undefined)
-    /// @generic.instance id="iter.iterator.IteratorResult<int32 | undefined, iter.iterator.Iterator<int32 | undefined>.Return>" template=iter.iterator.IteratorResult arguments=(int32 | undefined, iter.iterator.Iterator<int32 | undefined>.Return)
-    /// @generic.instance id="iter.iterator.IteratorResult<int32 | undefined, void>" template=iter.iterator.IteratorResult arguments=(int32 | undefined, void)
-    /// @generic.instance id="iter.iterator.IteratorReturn<iter.iterator.Iterator<int32 | undefined>.Return>" template=iter.iterator.IteratorReturn arguments=(iter.iterator.Iterator<int32 | undefined>.Return)
-    /// @generic.instance id="iter.iterator.IteratorYield<int32 | undefined>" template=iter.iterator.IteratorYield arguments=(int32 | undefined)
-    /// @generic.instance id="iter.iterator.MapIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>" template=iter.iterator.MapIterator arguments=(iter.iterator.Iterator<int32 | undefined>, int32 | undefined, int32 | undefined)
-    /// @generic.instance id="iter.iterator.PeekableIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined>" template=iter.iterator.PeekableIterator arguments=(iter.iterator.Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id="iter.iterator.TakeIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined>" template=iter.iterator.TakeIterator arguments=(iter.iterator.Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id="iter.iterator.TakeWhileIterator<iter.iterator.Iterator<int32 | undefined>, int32 | undefined>" template=iter.iterator.TakeWhileIterator arguments=(iter.iterator.Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id=iter.iterator.IteratorReturn<void> template=iter.iterator.IteratorReturn arguments=(void)
+    /// @generic.instantiation id="Iterator.find<int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>>" template=Iterator.find arguments=(int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>)
+    /// @generic.instantiation id="Iterator.map<int32 | undefined>" template=Iterator.map arguments=(int32 | undefined)
+    /// @generic.instantiation id="iterator#2<int32 | undefined, \"local\">" template=iterator#2 arguments=(int32 | undefined, "local")
+    /// @generic.instantiation id="iterator#2<int32 | undefined>" template=iterator#2 arguments=(int32 | undefined)
+    /// @generic.instance id="DropIterator<Iterator<int32 | undefined>, int32 | undefined>" template=DropIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
+    /// @generic.instance id="DropWhileIterator<Iterator<int32 | undefined>, int32 | undefined>" template=DropWhileIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
+    /// @generic.instance id="EnumeratedIterator<Iterator<int32 | undefined>, int32 | undefined>" template=EnumeratedIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
+    /// @generic.instance id="FilterIterator<Iterator<int32 | undefined>, int32 | undefined>" template=FilterIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
+    /// @generic.instance id="InspectIterator<Iterator<int32 | undefined>, int32 | undefined>" template=InspectIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
+    /// @generic.instance id="Iterator.find<int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>>" template=Iterator.find arguments=(int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>)
+    /// @generic.instance id="Iterator<int32 | undefined>" template=Iterator arguments=(int32 | undefined)
+    /// @generic.instance id="IteratorResult<int32 | undefined, Iterator<int32 | undefined>.Return>" template=IteratorResult arguments=(int32 | undefined, Iterator<int32 | undefined>.Return)
+    /// @generic.instance id="IteratorResult<int32 | undefined, void>" template=IteratorResult arguments=(int32 | undefined, void)
+    /// @generic.instance id="IteratorReturn<Iterator<int32 | undefined>.Return>" template=IteratorReturn arguments=(Iterator<int32 | undefined>.Return)
+    /// @generic.instance id="IteratorYield<int32 | undefined>" template=IteratorYield arguments=(int32 | undefined)
+    /// @generic.instance id="MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>" template=MapIterator arguments=(Iterator<int32 | undefined>, int32 | undefined, int32 | undefined)
+    /// @generic.instance id="PeekableIterator<Iterator<int32 | undefined>, int32 | undefined>" template=PeekableIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
+    /// @generic.instance id="PlaceOf<DropWhileIterator<Iterator<int32 | undefined>, int32 | undefined>>" template=PlaceOf arguments=(DropWhileIterator<Iterator<int32 | undefined>, int32 | undefined>)
+    /// @generic.instance id="PlaceOf<FilterIterator<Iterator<int32 | undefined>, int32 | undefined>>" template=PlaceOf arguments=(FilterIterator<Iterator<int32 | undefined>, int32 | undefined>)
+    /// @generic.instance id="PlaceOf<InspectIterator<Iterator<int32 | undefined>, int32 | undefined>>" template=PlaceOf arguments=(InspectIterator<Iterator<int32 | undefined>, int32 | undefined>)
+    /// @generic.instance id="PlaceOf<TakeWhileIterator<Iterator<int32 | undefined>, int32 | undefined>>" template=PlaceOf arguments=(TakeWhileIterator<Iterator<int32 | undefined>, int32 | undefined>)
+    /// @generic.instance id="TakeIterator<Iterator<int32 | undefined>, int32 | undefined>" template=TakeIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
+    /// @generic.instance id="TakeWhileIterator<Iterator<int32 | undefined>, int32 | undefined>" template=TakeWhileIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
+    /// @generic.instance id="iterator#2<int32 | undefined, \"local\">" template=iterator#2 arguments=(int32 | undefined, "local")
+    /// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
     /// @type.symbol symbol=firstPositive.symbol3 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined>
     /// @type.symbol symbol=firstPositive.symbol3.value source=value type=int32 | undefined
     /// @resolution.name source=value target=firstPositive.symbol3.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=firstPositive.symbol3.value
-    /// @type.symbol symbol=firstPositive.symbol5 source="(value) => value !== undefined && value > 0" type=Function<(&type_expression.'a readonly int32 | undefined,), boolean>
-    /// @type.symbol symbol=firstPositive.symbol5.value source=value type=&type_expression.'a readonly int32 | undefined
+    /// @type.symbol symbol=firstPositive.symbol5 source="(value) => value !== undefined && value > 0" type=Function<(Borrowed<int32 | undefined, type_expression.'a & type_expression.P1, "readonly">,), boolean>
+    /// @type.symbol symbol=firstPositive.symbol5.value source=value type=Borrowed<int32 | undefined, type_expression.'a & type_expression.P1, "readonly">
     /// @resolution.name source=value target=firstPositive.symbol5.value
     /// @resolution.operator source="value !== undefined && value > 0" type=boolean operator="&&" kind=builtin operands=[value !== undefined as boolean families=(boolean), value > 0 as boolean families=(boolean)]
     /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
-    /// @resolution.place source=value placement="local" lifetime=type_expression.'a access="readonly"
+    /// @resolution.place source=value placement=type_expression.P1 lifetime=type_expression.'a access="readonly"
     /// @resolution.access source=value root=firstPositive.symbol5.value
     /// @resolution.name source=value target=firstPositive.symbol5.value
     /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
-    /// @resolution.place source=value placement="local" lifetime=type_expression.'a access="readonly"
+    /// @resolution.place source=value placement=type_expression.P1 lifetime=type_expression.'a access="readonly"
     /// @resolution.access source=value root=firstPositive.symbol5.value
 
 }
@@ -206,12 +211,13 @@ const value = add(1, 2);
     );
 }
 
+/// Reject an optional-parameter function where a required-parameter function type is expected.
+///
+/// An optional-parameter callback stores its parameter as a union, so passing it into a
+/// required-parameter function type changes the interior representation.
+/// A synthesized thunk coercion is the designed path to make this flow again.
 #[test]
 fn test_optional_parameter_function_needs_a_thunk_for_required_targets() {
-    // an optional-parameter callback stores its parameter as a union
-    //  carrier, so passing it where a required-parameter function type is
-    //  expected changes the interior representation; a compiler-synthesized
-    //  thunk coercion is the designed path to make this flow again
     let session = TestSession::single(
         r#"
 function source(value?: unknown): void {}
@@ -303,10 +309,9 @@ const value = map(() => 1);
     );
 }
 
+/// Omit a defaulted parameter at the call site while keeping its exact type inside the body.
 #[test]
 fn test_defaulted_parameter_may_be_omitted_at_the_call() {
-    // a parameter with a default value is optional at the call site
-    // while keeping its exact type inside the body
     let session = TestSession::single(
         r#"
 function greet(name: string = "world"): string {

@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A readonly index signature reads a finite object and widens misses to undefined.
 #[test]
 fn test_readonly_index_signature_views_finite_object() {
     let session = TestSession::single(
@@ -34,7 +35,7 @@ function read(bag: Bag): int32 | undefined {
 }
 
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
-const x: int32 | undefined = read(point);
+const x: int32 | undefined = read(point as Bag);
 x satisfies int32 | undefined;
 
 === dir ===
@@ -92,12 +93,13 @@ const x = read(point);
 
 x satisfies int32 | undefined;
 /// @resolution.name source=x target=x#2
-/// @resolution.place source=x placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=x placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=x root=x#2
 "#,
     );
 }
 
+/// A finite object with a field of another type reports a diagnostic at an index signature.
 #[test]
 fn test_readonly_index_signature_rejects_incompatible_field() {
     let session = TestSession::single(
@@ -155,6 +157,7 @@ const value = read(mixed);
     );
 }
 
+/// A satisfies check keeps the object type its expression writes.
 #[test]
 fn test_satisfies_keeps_the_written_object_type() {
     let session = TestSession::single(
@@ -201,6 +204,7 @@ const missing = checked["missing"];
     );
 }
 
+/// A writable index signature accepts a finite object whose fields it covers.
 #[test]
 fn test_writable_index_signature_accepts_covered_finite_object() {
     let session = TestSession::single(
@@ -224,7 +228,7 @@ type Bag = { [key: string]: int32 };
 declare function write(bag: Bag): int32 | undefined;
 
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
-const bad: int32 | undefined = write(point);
+const bad: int32 | undefined = write(point as Bag);
 
 === dir ===
 type Bag = { [key: string]: int32 };
@@ -254,6 +258,7 @@ const bad = write(point);
     );
 }
 
+/// Assigning a computed key through a structural index signature reports a diagnostic.
 #[test]
 fn test_writable_index_signature_rejects_keyed_write() {
     let session = TestSession::single(
@@ -320,7 +325,7 @@ function write(bag: Bag): int32 | undefined {
 declare const map: Map<string, int32>;
 /// @type.symbol symbol=map source=map type=Map<string, int32>
 /// @resolution.pattern source=map kind=binding target=map
-/// @resolution.name source=Map target=collections.map.Map
+/// @resolution.name source=Map target=Map
 
 const value = write(map);
 /// @type.symbol symbol=value source=value type=int32 | undefined
@@ -333,7 +338,7 @@ const value = write(map);
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
         r#"
@@ -343,6 +348,7 @@ value satisfies int32 | undefined;
     );
 }
 
+/// A writable index signature accepts a type implementing the index operators.
 #[test]
 fn test_writable_index_signature_accepts_operator_implementation() {
     let session = TestSession::single(
@@ -416,53 +422,53 @@ struct Store {
 
     storage: Map<string, int32>;
     /// @type.symbol symbol=Store.storage source="storage: Map<string, int32>" type=Map<string, int32>
-    /// @generic.instance id="Map<string, int32>" template=collections.map.Map arguments=(string, int32)
-    /// @generic.instance id="collections.map.MapEntry<string, int32>" template=collections.map.MapEntry arguments=(string, int32)
-    /// @generic.instance id="collections.map.MapSlot<string, int32>" template=collections.map.MapSlot arguments=(string, int32)
-    /// @generic.instance id="collections.slice.new<memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>>" template=collections.slice.new arguments=(memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>)
-    /// @generic.instance id="memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>" template=memory.init.MaybeUninit arguments=(collections.map.MapSlot<string, int32>)
-    /// @generic.instance id=collections.slice.new<uint32> template=collections.slice.new arguments=(uint32)
-    /// @resolution.name source=Map target=collections.map.Map
+    /// @generic.instance id="Map<string, int32>" template=Map arguments=(string, int32)
+    /// @generic.instance id="MapEntry<string, int32>" template=MapEntry arguments=(string, int32)
+    /// @generic.instance id="MapSlot<string, int32>" template=MapSlot arguments=(string, int32)
+    /// @generic.instance id="MaybeUninit<MapSlot<string, int32>>" template=MaybeUninit arguments=(MapSlot<string, int32>)
+    /// @generic.instance id="new<MaybeUninit<MapSlot<string, int32>>>" template=new arguments=(MaybeUninit<MapSlot<string, int32>>)
+    /// @generic.instance id=new<uint32> template=new arguments=(uint32)
+    /// @resolution.name source=Map target=Map
 
 }
 
 extension of Store implements Index<string>, IndexSet<string, int32> {
-/// @generic.instance id="Index<string, \"readonly\">" template=ops.subscript.Index arguments=(string, "readonly")
-/// @generic.instance id="IndexSet<string, int32>" template=ops.subscript.IndexSet arguments=(string, int32)
+/// @generic.instance id="Index<string, \"readonly\">" template=Index arguments=(string, "readonly")
+/// @generic.instance id="IndexSet<string, int32>" template=IndexSet arguments=(string, int32)
 /// @definition.extension symbol=<module>#2 form=local target=Store
 /// @definition.implements symbol=<module>#2 source="IndexSet<string, int32>" target="IndexSet<string, int32>"
 /// @definition.implements symbol=<module>#2 source=Index<string> target="Index<string, \"readonly\">"
 /// @definition.associated.type symbol=Output source="type Output = int32 | undefined" key=Output value="int32 | undefined"
-/// @definition.method symbol=index slot=index type=<index.'a>(this: &index.'a readonly Store, string) => int32 | undefined
-/// @definition.method symbol=indexSet slot=indexSet type=<indexSet.'a>(this: &indexSet.'a exclusive Store, string, int32) => void
-/// @definition.conformance symbol=<module>#2 member=Output requirement=ops.subscript.Index.Output
-/// @definition.conformance symbol=<module>#2 member=index requirement=ops.subscript.Index.index
-/// @definition.conformance symbol=<module>#2 member=indexSet requirement=ops.subscript.IndexSet.indexSet
-/// @definition.conformance symbol=<module>#2 member=ops.subscript.Index.Missing requirement=ops.subscript.Index.Missing
+/// @definition.method symbol=index slot=index type=<index.'a, index.P1: Place>(this: Borrowed<Store, index.'a & index.P1, "readonly">, string) => int32 | undefined
+/// @definition.method symbol=indexSet slot=indexSet type=<indexSet.'a, indexSet.P1: Place>(this: Borrowed<Store, indexSet.'a & indexSet.P1, "exclusive">, string, int32) => void
+/// @definition.conformance symbol=<module>#2 member=Index.Missing requirement=Index.Missing
+/// @definition.conformance symbol=<module>#2 member=Output requirement=Index.Output
+/// @definition.conformance symbol=<module>#2 member=index requirement=Index.index
+/// @definition.conformance symbol=<module>#2 member=indexSet requirement=IndexSet.indexSet
 /// @resolution.name source=Store target=Store
-/// @resolution.name source=Index target=ops.subscript.Index
-/// @resolution.name source=IndexSet target=ops.subscript.IndexSet
+/// @resolution.name source=Index target=Index
+/// @resolution.name source=IndexSet target=IndexSet
 
     type Output = int32 | undefined;
     /// @type.symbol symbol=Output source="type Output = int32 | undefined" type=int32 | undefined
 
     index(key: string): this.Output {
-    /// @generic.template symbol=index parent=template#0 parameters=('a)
-    /// @type.symbol symbol=index type=<index.'a>(this: &index.'a readonly Store, string) => int32 | undefined
+    /// @generic.template symbol=index parent=template#0 parameters=('a, P1: Place)
+    /// @type.symbol symbol=index type=<index.'a, index.P1: Place>(this: Borrowed<Store, index.'a & index.P1, "readonly">, string) => int32 | undefined
     /// @type.symbol symbol=index.key source="key: string" type=string
 
         return this.storage[key];
-        /// @resolution.member source=this.storage receiver=&index.'a readonly Store type=Readonly<Map<string, int32>> kind=field target_receiver=&index.'a readonly Store key=storage target=Store.storage target_type=Readonly<Map<string, int32>>
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&index.'a readonly Store
-        /// @resolution.place source=this placement="local" lifetime=index.'a access="readonly"
+        /// @resolution.member source=this.storage receiver=Borrowed<Store, index.'a & index.P1, "readonly"> type=Readonly<Map<string, int32>> kind=field target_receiver=Borrowed<Store, index.'a & index.P1, "readonly"> key=storage target=Store.storage target_type=Readonly<Map<string, int32>>
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Store, index.'a & index.P1, "readonly">
+        /// @resolution.place source=this placement=index.P1 lifetime=index.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.storage placement="local" lifetime=index.'a access="readonly"
+        /// @resolution.place source=this.storage placement=index.P1 lifetime=index.'a access="readonly"
         /// @resolution.access source=this.storage root=this keys=[storage]
-        /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="collections.map.index(parameters=(string), arguments=(provided(key) as string), return=memory.type.WithAccess<&index.'a int32, \"readonly\"> | undefined)"
-        /// @generic.instantiation id="collections.map.index<string, int32, \"readonly\">" template=collections.map.index arguments=(string, int32, "readonly")
-        /// @generic.instance id="collections.map.index<string, int32, \"readonly\">" template=collections.map.index arguments=(string, int32, "readonly")
-        /// @generic.instance id="memory.type.WithAccess<&'frame Map<string, int32>, \"readonly\">" template=memory.type.WithAccess arguments=(&'frame Map<string, int32>, "readonly")
-        /// @generic.instance id="memory.type.WithAccess<&'frame int32, \"readonly\">" template=memory.type.WithAccess arguments=(&'frame int32, "readonly")
+        /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="index(parameters=(Managed<string, index.P1>), arguments=(provided(key) as Managed<string, index.P1>), return=WithAccess<Borrowed<int32, index.'a & index.P1, \"mutable\">, \"readonly\"> | undefined)"
+        /// @generic.instantiation id="index<string, int32, \"readonly\", index.P1>" template=index arguments=(string, int32, "readonly", index.P1)
+        /// @generic.instance id="WithAccess<&'frame Map<string, int32>, \"readonly\">" template=WithAccess arguments=(&'frame Map<string, int32>, "readonly")
+        /// @generic.instance id="WithAccess<&'frame int32, \"readonly\">" template=WithAccess arguments=(&'frame int32, "readonly")
+        /// @generic.instance id="index<string, int32, \"readonly\", \"local\">" template=index arguments=(string, int32, "readonly", "local")
         /// @resolution.name source=key target=index.key
         /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=key root=index.key
@@ -470,24 +476,24 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
     }
 
     indexSet(&exclusive this, key: string, value: int32): void {
-    /// @generic.template symbol=indexSet parent=template#0 parameters=('a)
-    /// @type.symbol symbol=indexSet type=<indexSet.'a>(this: &indexSet.'a exclusive Store, string, int32) => void
-    /// @type.symbol symbol=indexSet.this source="&exclusive this" type=&indexSet.'a exclusive this
+    /// @generic.template symbol=indexSet parent=template#0 parameters=('a, P1: Place)
+    /// @type.symbol symbol=indexSet type=<indexSet.'a, indexSet.P1: Place>(this: Borrowed<Store, indexSet.'a & indexSet.P1, "exclusive">, string, int32) => void
+    /// @type.symbol symbol=indexSet.this source="&exclusive this" type=Borrowed<this, indexSet.'a & indexSet.P1, "exclusive">
     /// @type.symbol symbol=indexSet.key source="key: string" type=string
     /// @type.symbol symbol=indexSet.value source="value: int32" type=int32
 
         this.storage[key] = value;
-        /// @resolution.member source=this.storage receiver=&indexSet.'a exclusive Store type=Map<string, int32> kind=field target_receiver=&indexSet.'a exclusive Store key=storage target=Store.storage target_type=Map<string, int32>
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&indexSet.'a exclusive Store
-        /// @resolution.place source=this placement="local" lifetime=indexSet.'a access="exclusive"
+        /// @resolution.member source=this.storage receiver=Borrowed<Store, indexSet.'a & indexSet.P1, "exclusive"> type=Map<string, int32> kind=field target_receiver=Borrowed<Store, indexSet.'a & indexSet.P1, "exclusive"> key=storage target=Store.storage target_type=Map<string, int32>
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Store, indexSet.'a & indexSet.P1, "exclusive">
+        /// @resolution.place source=this placement=indexSet.P1 lifetime=indexSet.'a access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.storage placement="local" lifetime=indexSet.'a access="exclusive"
+        /// @resolution.place source=this.storage placement=indexSet.P1 lifetime=indexSet.'a access="exclusive"
         /// @resolution.access source=this.storage root=this keys=[storage]
         /// @resolution.pattern.assign source=this.storage[key] kind=place
-        /// @resolution.assignment source=this.storage[key] write="collections.map.indexSet(parameters=(string, int32), arguments=(provided(key) as string, write as int32), return=void)" type=int32
-        /// @generic.instantiation id="collections.map.indexSet<string, int32>" template=collections.map.indexSet arguments=(string, int32)
-        /// @generic.instance id="collections.map.indexSet<string, int32>" template=collections.map.indexSet arguments=(string, int32)
-        /// @generic.instance id="collections.map.set#2<string, int32>" template=collections.map.set#2 arguments=(string, int32)
+        /// @resolution.assignment source=this.storage[key] write="indexSet(parameters=(Managed<string, indexSet.P1>, int32), arguments=(provided(key) as Managed<string, indexSet.P1>, write as int32), return=void)" type=int32
+        /// @generic.instantiation id="indexSet<string, int32>" template=indexSet arguments=(string, int32)
+        /// @generic.instance id="indexSet<string, int32, \"local\">" template=indexSet arguments=(string, int32, "local")
+        /// @generic.instance id="set#2<string, int32, \"local\">" template=set#2 arguments=(string, int32, "local")
         /// @resolution.name source=key target=indexSet.key
         /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=key root=indexSet.key
@@ -519,12 +525,13 @@ const value = write(store);
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
 }
 
+/// A Record parameter accepts a finite object with matching fixed keys.
 #[test]
 fn test_record_string_keys_require_writable_index_access() {
     let session = TestSession::single(
@@ -548,13 +555,13 @@ type Bag = Record<string, int32>;
 declare function read(bag: Bag): int32 | undefined;
 
 const point: { x: int32 } = { x: 1 };
-const bad: int32 | undefined = read(point);
+const bad: int32 | undefined = read(point as Bag);
 
 === dir ===
 type Bag = Record<string, int32>;
 /// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value={ [P: string]: int32 }
-/// @resolution.name source=Record target=types.object.Record
+/// @resolution.name source=Record target=Record
 
 declare function read(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
@@ -575,10 +582,12 @@ const bad = read(point);
 /// @resolution.access source=point root=point
 "#,
         r#"
+
 "#,
     );
 }
 
+/// A Record with string keys reads through bracket access.
 #[test]
 fn test_record_string_keys_use_bracket_access() {
     let session = TestSession::single(
@@ -608,7 +617,7 @@ value satisfies int32 | undefined;
 type Bag = Record<string, int32>;
 /// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value={ [P: string]: int32 }
-/// @resolution.name source=Record target=types.object.Record
+/// @resolution.name source=Record target=Record
 
 declare const bag: Bag;
 /// @type.symbol symbol=bag source=bag type={ [P: string]: int32 }
@@ -626,12 +635,13 @@ const value = bag["missing"];
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
 }
 
+/// A Record with usize keys reads through bracket access.
 #[test]
 fn test_record_usize_keys_use_bracket_access() {
     let session = TestSession::single(
@@ -661,7 +671,7 @@ value satisfies int32 | undefined;
 type Bag = Record<usize, int32>;
 /// @type.symbol symbol=Bag source="type Bag = Record<usize, int32>" type={ [P: usize]: int32 }
 /// @definition.type symbol=Bag source="type Bag = Record<usize, int32>" value={ [P: usize]: int32 }
-/// @resolution.name source=Record target=types.object.Record
+/// @resolution.name source=Record target=Record
 
 declare const bag: Bag;
 /// @type.symbol symbol=bag source=bag type={ [P: usize]: int32 }
@@ -679,12 +689,13 @@ const value = bag[1];
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
 }
 
+/// A Record with string keys reports a diagnostic at dot access.
 #[test]
 fn test_record_string_keys_reject_dot_access() {
     let session = TestSession::single(
@@ -710,7 +721,7 @@ const value = bag.missing;
 type Bag = Record<string, int32>;
 /// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value={ [P: string]: int32 }
-/// @resolution.name source=Record target=types.object.Record
+/// @resolution.name source=Record target=Record
 
 declare const bag: Bag;
 /// @type.symbol symbol=bag source=bag type={ [P: string]: int32 }
@@ -732,6 +743,7 @@ const value = bag.missing;
     );
 }
 
+/// An index signature on a generic interface keeps its key domain.
 #[test]
 fn test_interface_index_signature_carries_its_key_domain() {
     let session = TestSession::single(
@@ -792,6 +804,7 @@ const value = bag["name"];
     );
 }
 
+/// An object type satisfies an interface declaring a matching index signature.
 #[test]
 fn test_object_satisfies_interface_index_signature() {
     let session = TestSession::single(
@@ -839,6 +852,7 @@ values satisfies Bag;
     );
 }
 
+/// An object type with another value type reports a diagnostic at an index signature.
 #[test]
 fn test_object_rejects_incompatible_interface_index_signature() {
     let session = TestSession::single(
@@ -890,6 +904,7 @@ values satisfies Bag;
     );
 }
 
+/// A struct implementing an index signature interface must declare that signature.
 #[test]
 fn test_struct_implements_clause_requires_index_signature() {
     let session = TestSession::single(
@@ -936,6 +951,7 @@ struct Values implements Bag {}
     );
 }
 
+/// A compound subscript assignment feeds the read result into the write type.
 #[test]
 fn test_subscript_update_assigns_read_result_to_write_type() {
     let session = TestSession::single(
@@ -945,10 +961,10 @@ struct Counter {}
 extension of Counter implements Index<string>, IndexSet<string, int32 | float64> {
     type Output = int32;
 
-    index<const L: Lifetime>(
-        this: Borrowed<this, L, "readonly">,
+    index<const R: Lifetime>(
+        this: Borrowed<this, R, "readonly">,
         key: string,
-    ): Borrowed<this.Output, L, "readonly"> {
+    ): Borrowed<this.Output, R, "readonly"> {
         return todo("Counter.index");
     }
 
@@ -970,10 +986,10 @@ struct Counter {}
 extension of Counter implements Index<string>, IndexSet<string, int32 | float64> {
     type Output = int32;
 
-    index<const L: Lifetime>(
-        this: Borrowed<this, L, "readonly">,
+    index<const R: Lifetime>(
+        this: Borrowed<this, R, "readonly">,
         key: string,
-    ): Borrowed<this.Output, L, "readonly"> {
+    ): Borrowed<this.Output, R, "readonly"> {
         return todo("Counter.index" as string | undefined);
     }
 
@@ -989,53 +1005,53 @@ struct Counter {}
 /// @definition.struct symbol=Counter source="struct Counter {}"
 
 extension of Counter implements Index<string>, IndexSet<string, int32 | float64> {
-/// @generic.instance id="Index<string, \"readonly\">" template=ops.subscript.Index arguments=(string, "readonly")
-/// @generic.instance id="IndexSet<string, int32 | float64>" template=ops.subscript.IndexSet arguments=(string, int32 | float64)
+/// @generic.instance id="Index<string, \"readonly\">" template=Index arguments=(string, "readonly")
+/// @generic.instance id="IndexSet<string, int32 | float64>" template=IndexSet arguments=(string, int32 | float64)
 /// @definition.extension symbol=<module>#2 form=local target=Counter
 /// @definition.implements symbol=<module>#2 source="IndexSet<string, int32 | float64>" target="IndexSet<string, int32 | float64>"
 /// @definition.implements symbol=<module>#2 source=Index<string> target="Index<string, \"readonly\">"
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=index slot=index type=<const L>(this: Borrowed<Counter, L, "readonly">, string) => Borrowed<int32, L, "readonly">
-/// @definition.method symbol=indexSet source="indexSet(&exclusive this, key: string, value: int32 | float64): void {}" slot=indexSet type=<indexSet.'a>(this: &indexSet.'a exclusive Counter, string, int32 | float64) => void
-/// @definition.conformance symbol=<module>#2 member=Output requirement=ops.subscript.Index.Output
-/// @definition.conformance symbol=<module>#2 member=index requirement=ops.subscript.Index.index
-/// @definition.conformance symbol=<module>#2 member=indexSet requirement=ops.subscript.IndexSet.indexSet
-/// @definition.conformance symbol=<module>#2 member=ops.subscript.Index.Missing requirement=ops.subscript.Index.Missing
+/// @definition.method symbol=index slot=index type=<const R>(this: Borrowed<Counter, R, "readonly">, string) => Borrowed<int32, R, "readonly">
+/// @definition.method symbol=indexSet source="indexSet(&exclusive this, key: string, value: int32 | float64): void {}" slot=indexSet type=<indexSet.'a, indexSet.P1: Place>(this: Borrowed<Counter, indexSet.'a & indexSet.P1, "exclusive">, string, int32 | float64) => void
+/// @definition.conformance symbol=<module>#2 member=Index.Missing requirement=Index.Missing
+/// @definition.conformance symbol=<module>#2 member=Output requirement=Index.Output
+/// @definition.conformance symbol=<module>#2 member=index requirement=Index.index
+/// @definition.conformance symbol=<module>#2 member=indexSet requirement=IndexSet.indexSet
 /// @resolution.name source=Counter target=Counter
-/// @resolution.name source=Index target=ops.subscript.Index
-/// @resolution.name source=IndexSet target=ops.subscript.IndexSet
+/// @resolution.name source=Index target=Index
+/// @resolution.name source=IndexSet target=IndexSet
 
     type Output = int32;
     /// @type.symbol symbol=Output source="type Output = int32" type=int32
 
-    index<const L: Lifetime>(
-    /// @generic.template symbol=index parent=template#0 parameters=(const L: Lifetime)
-    /// @type.symbol symbol=index type=<const L>(this: Borrowed<Counter, L, "readonly">, string) => Borrowed<int32, L, "readonly">
-    /// @type.symbol symbol=index.L source="const L: Lifetime" type=L
-    /// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
+    index<const R: Lifetime>(
+    /// @generic.template symbol=index parent=template#0 parameters=(const R: Lifetime)
+    /// @type.symbol symbol=index type=<const R>(this: Borrowed<Counter, R, "readonly">, string) => Borrowed<int32, R, "readonly">
+    /// @type.symbol symbol=index.R source="const R: Lifetime" type=R
+    /// @resolution.name source=Lifetime target=Lifetime
 
-        this: Borrowed<this, L, "readonly">,
-        /// @type.symbol symbol=index.this source="this: Borrowed<this, L, \"readonly\">" type=Borrowed<this, L, "readonly">
-        /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
-        /// @resolution.name source=L target=index.L
+        this: Borrowed<this, R, "readonly">,
+        /// @type.symbol symbol=index.this source="this: Borrowed<this, R, \"readonly\">" type=Borrowed<this, R, "readonly">
+        /// @resolution.name source=Borrowed target=Borrowed
+        /// @resolution.name source=R target=index.R
 
         key: string,
         /// @type.symbol symbol=index.key source="key: string" type=string
 
-    ): Borrowed<this.Output, L, "readonly"> {
-    /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
-    /// @resolution.name source=L target=index.L
+    ): Borrowed<this.Output, R, "readonly"> {
+    /// @resolution.name source=Borrowed target=Borrowed
+    /// @resolution.name source=R target=index.R
 
         return todo("Counter.index");
-        /// @resolution.name source=todo target=error.panic.todo
-        /// @resolution.call source="todo(\"Counter.index\")" parameters=(string | undefined) arguments=(provided("Counter.index") as string | undefined) return=never kind=symbol target=error.panic.todo
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"Counter.index\")" parameters=(string | undefined) arguments=(provided("Counter.index") as string | undefined) return=never kind=symbol target=todo
 
     }
 
     indexSet(&exclusive this, key: string, value: int32 | float64): void {}
-    /// @generic.template symbol=indexSet parent=template#0 parameters=('a)
-    /// @type.symbol symbol=indexSet source="indexSet(&exclusive this, key: string, value: int32 | float64): void {}" type=<indexSet.'a>(this: &indexSet.'a exclusive Counter, string, int32 | float64) => void
-    /// @type.symbol symbol=indexSet.this source="&exclusive this" type=&indexSet.'a exclusive this
+    /// @generic.template symbol=indexSet parent=template#0 parameters=('a, P1: Place)
+    /// @type.symbol symbol=indexSet source="indexSet(&exclusive this, key: string, value: int32 | float64): void {}" type=<indexSet.'a, indexSet.P1: Place>(this: Borrowed<Counter, indexSet.'a & indexSet.P1, "exclusive">, string, int32 | float64) => void
+    /// @type.symbol symbol=indexSet.this source="&exclusive this" type=Borrowed<this, indexSet.'a & indexSet.P1, "exclusive">
     /// @type.symbol symbol=indexSet.key source="key: string" type=string
     /// @type.symbol symbol=indexSet.value source="value: int32 | float64" type=int32 | float64
 
@@ -1057,6 +1073,7 @@ counter["value"] += 1;
     );
 }
 
+/// A named property beside an index signature reports a diagnostic.
 #[test]
 fn test_reject_a_named_property_beside_an_index_signature() {
     let session = TestSession::single(
@@ -1084,6 +1101,7 @@ type Row = { name: string; [key: string]: string };
     );
 }
 
+/// A named property beside a construct signature reports a diagnostic.
 #[test]
 fn test_reject_a_named_property_beside_a_construct_signature() {
     let session = TestSession::single(

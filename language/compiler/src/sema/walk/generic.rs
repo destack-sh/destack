@@ -1,7 +1,6 @@
-use destack_core::FxIndexMap;
 use destack_dir as dir;
 
-use crate::sema::{CheckState, GenericTemplateId, InducedParameterSite, Receiver, WalkState};
+use crate::sema::{GenericTemplateId, Receiver, WalkState};
 use crate::{CompilerError, CompilerResult};
 
 /// One declaration that receives induced parameters.
@@ -102,94 +101,12 @@ impl WalkState<'_, '_> {
         Ok(Some(template))
     }
 
-    /// Return one declaration's template, opened when its walked types induced memory holes.
+    /// Return one declaration's template, opened when its signature induced parameters.
     pub(in crate::sema) fn induced_owner_template(
         &mut self,
         owner: InducedParameterOwner,
         template: Option<GenericTemplateId>,
     ) -> CompilerResult<Option<GenericTemplateId>> {
-        if template.is_some() {
-            return Ok(template);
-        }
-
-        // open the template only when walked declaration types left induced holes
-        let types = self.check.induced_site_types(owner.declaration);
-        let mut induced = false;
-        for ty in types {
-            if !self.check.induced_memory_variables(ty)?.is_empty() {
-                induced = true;
-                break;
-            }
-        }
-        if !induced {
-            return Ok(None);
-        }
-
-        self.check
-            .open_generic_template(owner.declaration)
-            .map(Some)
-    }
-
-    /// Push one declaration type that can contain induced memory holes.
-    pub(in crate::sema) fn push_induced_parameter_site(
-        &mut self,
-        declaration: InducedParameterOwner,
-        ty: dir::GlobalTypeId,
-    ) {
-        self.check.induced_sites.push(InducedParameterSite {
-            declaration: declaration.declaration,
-            ty,
-        });
-    }
-}
-
-impl CheckState<'_> {
-    /// Propagate induced memory variables into declaration templates.
-    pub(in crate::sema) fn induce_signature_lifetimes(&mut self) -> CompilerResult<()> {
-        let sites = std::mem::take(&mut self.induced_sites);
-
-        // collect induced parameters before mutating generic tables
-        let mut parameters = FxIndexMap::default();
-        for site in sites {
-            for (variable, role) in self.induced_memory_variables(site.ty)? {
-                parameters
-                    .entry(variable)
-                    .or_insert((site.declaration, role));
-            }
-        }
-
-        // insert parameters in allocation order
-        let mut parameters = parameters.into_iter().collect::<Vec<_>>();
-        parameters.sort_by_key(|(variable, _)| variable.0);
-
-        for (variable, (declaration, role)) in parameters {
-            // derive the site from the hole's origin: the elided position
-            let origin = self.infer.origin(self.infer.variable(variable)?.origin);
-            let site = self
-                .origin_source_node(origin)?
-                .into_global(origin.module());
-
-            // report elision on type declarations, induce parameters for value signatures
-            let template = self.open_generic_template(declaration)?;
-            let declaration_symbol = self
-                .module(declaration.module_id)
-                .declaration_symbol(declaration.local_id);
-            let is_type_declaration = match declaration_symbol {
-                Some(symbol) => self.symbol_kind(symbol)?.is_type_definition(),
-                None => false,
-            };
-            if is_type_declaration {
-                self.report_elided_lifetime_in_named_declaration(declaration, site)?;
-                let error = self.intern_type(dir::Type::Error)?;
-                self.commit_solution(variable, error)?;
-
-                continue;
-            }
-            let parameter = self.push_induced_memory_parameter(template, site, role)?;
-            let solution = self.intern_type(dir::Type::Parameter(parameter))?;
-            self.commit_solution(variable, solution)?;
-        }
-
-        Ok(())
+        Ok(template.or_else(|| self.check.template_by_source(owner.declaration)))
     }
 }

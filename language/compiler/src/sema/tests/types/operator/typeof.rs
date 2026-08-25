@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A typeof lifts the type of a local binding.
 #[test]
 fn test_typeof_lifts_local_value_type() {
     let session = TestSession::single(
@@ -41,6 +42,7 @@ let ok: ValueType = 42;
     );
 }
 
+/// A value of another type reports a diagnostic against a typeof alias.
 #[test]
 fn test_typeof_rejects_incompatible_local_value() {
     let session = TestSession::single(
@@ -87,6 +89,7 @@ let bad: ValueType = "no";
     );
 }
 
+/// A typeof over a class projects its statics and satisfies construct signatures.
 #[test]
 fn test_typeof_class_projects_statics_and_satisfies_construct_shapes() {
     let session = TestSession::single(
@@ -118,7 +121,7 @@ class Counter {
     static version: int32 = 0;
     value: int32;
 
-    constructor(value: int32): this {
+    constructor(value: int32) {
         this.value = value;
     }
 }
@@ -136,7 +139,7 @@ class Counter {
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
 /// @definition.field symbol=Counter.version source="static version: int32 = 0" key=version static=true type=int32
-/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(int32) => Counter
+/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=<Counter.constructor.P0: Place>(int32) => Managed<Counter, Counter.constructor.P0>
 
     static version: int32 = 0;
     /// @type.symbol symbol=Counter.version source="static version: int32 = 0" type=int32
@@ -145,7 +148,8 @@ class Counter {
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     constructor(value: int32) {
-    /// @type.symbol symbol=Counter.constructor type=(int32) => Counter
+    /// @generic.template symbol=Counter.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=Counter.constructor type=<Counter.constructor.P0: Place>(int32) => Managed<Counter, Counter.constructor.P0>
     /// @type.symbol symbol=Counter.constructor.value source="value: int32" type=int32
 
         this.value = value;

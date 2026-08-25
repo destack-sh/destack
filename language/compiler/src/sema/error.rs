@@ -199,7 +199,7 @@ pub enum CheckError {
         module: ModuleId,
     },
 
-    /// Parsed type form is not part of the language model.
+    /// Parsed type form falls outside the language model.
     ///
     /// ```ds
     /// let value: object;
@@ -275,7 +275,7 @@ pub enum CheckError {
         target: String,
     },
 
-    /// Source type cannot be erased behind an erased carrier target.
+    /// Source type cannot be erased into an erased target.
     ///
     /// ```ds
     /// function keep<T>(value: T): unknown {
@@ -1094,7 +1094,7 @@ pub enum CheckError {
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-        /// The nullish part of the receiver.
+        /// The nullish arm of the receiver.
         nullish: String,
     },
 
@@ -1447,8 +1447,7 @@ pub enum CheckError {
         name: String,
     },
 
-    /// Drop conformance is declared on an extension whose parameters do not
-    /// mirror its target.
+    /// Drop conformance is declared on an extension whose parameters do not mirror its target.
     ///
     /// ```ds
     /// extension<U> of Guard<Vec<U>> implements Drop { ... }
@@ -1677,7 +1676,7 @@ pub enum CheckError {
     /// ```
     #[diagnostic(
         id = "invalid-try-operand",
-        message = "'{operator}' requires a Try carrier or nullish value, found '{ty}'"
+        message = "'{operator}' requires a Try representation or nullish value, found '{ty}'"
     )]
     InvalidTryOperand {
         /// Report the try expression.
@@ -3170,6 +3169,22 @@ pub enum CheckError {
         written: String,
         /// The declared placement.
         declared: String,
+    },
+
+    /// A written placement qualifies an owned value, which lives in its container's space.
+    ///
+    /// ```ds
+    /// declare const boxed: shared ^Buffer;
+    /// ```
+    #[diagnostic(
+        id = "placement-on-owned",
+        message = "an owned value lives in its container's space and takes no placement"
+    )]
+    PlacementOnOwned {
+        /// Report the misplaced qualifier.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
     },
 
     /// A declaration's heritage requires inconsistent placements.

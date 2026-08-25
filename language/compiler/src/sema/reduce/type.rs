@@ -169,7 +169,7 @@ impl CheckState<'_> {
         Ok(Some(spread))
     }
 
-    /// Return the elements one rest carrier spreads, when its head settles to a closed tuple.
+    /// Return the elements one rest parameter spreads, when its head settles to a closed tuple.
     fn rest_tuple_elements(
         &mut self,
         origin: Origin,
@@ -189,7 +189,7 @@ impl CheckState<'_> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // keep the reductions of parameter carriers lazy under their assuming scope
+        // keep the reductions of open heads lazy under their assuming scope
         let flags = self.type_flags(id)?;
         if flags.has_parameter() || flags.has_this() {
             return Ok(id);
@@ -237,17 +237,9 @@ impl CheckState<'_> {
             dir::Type::Member(_) | dir::Type::Operation(_) => self.normalize(origin, id),
             // reduce memory accessor applications, which name computations over forms
             dir::Type::Application(instance)
-                if self.language_item(instance.symbol)?.is_some_and(|item| {
-                    matches!(
-                        item,
-                        dir::LanguageItem::WithBase
-                            | dir::LanguageItem::WithOwnership
-                            | dir::LanguageItem::WithPlace
-                            | dir::LanguageItem::WithSpace
-                            | dir::LanguageItem::WithLifetime
-                            | dir::LanguageItem::WithAccess
-                    )
-                }) =>
+                if self
+                    .language_item(instance.symbol)?
+                    .is_some_and(|item| matches!(item, dir::LanguageItem::WithAccess)) =>
             {
                 self.normalize(origin, id)
             }
@@ -264,6 +256,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let mut current = id;
         loop {
+            // stop at the first head that is not a named alias
             let symbol = match self.ty(current)? {
                 dir::Type::Application(instance) => instance.symbol,
                 dir::Type::Reference(reference) => reference.symbol,
@@ -275,10 +268,13 @@ impl CheckState<'_> {
             ) {
                 return Ok(current);
             }
+
+            // stop once the alias reaches its fixed point
             let reduced = self.structurally_normalize(origin, current)?;
             if reduced == current {
                 return Ok(current);
             }
+
             current = reduced;
         }
     }
@@ -325,7 +321,7 @@ impl CheckState<'_> {
         let id = self.shallow_resolve(id)?;
         let flags = self.type_flags(id)?;
 
-        // parameter and This heads reduce under their assuming template
+        // reduce parameter and This heads under their assuming template
         let assumes = self.decision_scope(origin, flags)?;
 
         // reuse decided reductions
@@ -400,13 +396,29 @@ impl CheckState<'_> {
             return Ok(error);
         }
 
+        let reduced = self.normalize_chain_step(origin, id, expanding);
+        expanding.swap_remove(&id);
+
+        reduced
+    }
+
+    /// Reduce one type head with the head held on the active expansion path.
+    fn normalize_chain_step(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+        expanding: &mut FxIndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the head through its solution
+        let id = self.shallow_resolve(id)?;
+
         // load foreign heads before their chains expand
         if !self.is_own_module(id.module_id) {
             self.import_external_module(id.module_id)?;
         }
 
         match self.ty(id)? {
-            // open variables block the chain as its own head
+            // block the chain on an open variable
             dir::Type::Variable(_) => Ok(id),
 
             // continue written names as their nominal application
@@ -425,7 +437,7 @@ impl CheckState<'_> {
                         };
                         if binding.is_writable()
                             && binding.default.is_none()
-                            && binding.memory_parameter() != Some(dir::MemoryParameter::Lifetime)
+                            && binding.memory_parameter() != Some(dir::MemoryParameter::Region)
                         {
                             return Ok(id);
                         }
@@ -445,7 +457,7 @@ impl CheckState<'_> {
                 self.normalize_chain(origin, applied, expanding)
             }
 
-            // unions normalize their canonical elements in place
+            // normalize a union's canonical elements in place
             dir::Type::Union(union) => {
                 let elements: SmallVec<[_; 8]> =
                     self.type_ids(id.module_id, union.elements)?.into();
@@ -463,7 +475,7 @@ impl CheckState<'_> {
                 None => Ok(id),
             },
 
-            // rest parameters with closed tuple types spread positionally
+            // spread a closed tuple rest parameter positionally
             dir::Type::FunctionSignature(signature) => {
                 let signature = self.type_signature(id.module_id, signature)?;
                 match self.reduce_signature_rest_spread(origin, id, signature)? {
@@ -472,7 +484,7 @@ impl CheckState<'_> {
                 }
             }
 
-            // written applications complete their elided arguments
+            // complete the elided arguments of a written application
             dir::Type::Application(instance) => {
                 if let Some(filled) = self.fill_elided_application(id.module_id, &instance)? {
                     return self.normalize_head(origin, filled);
@@ -495,7 +507,7 @@ impl CheckState<'_> {
                 }
             }
 
-            // member projections resolve through their owners
+            // resolve a member projection through its owner
             dir::Type::Member(member) => {
                 let member = self.type_member(id.module_id, member)?;
 
@@ -510,14 +522,19 @@ impl CheckState<'_> {
                     return Ok(error);
                 }
 
-                // unqualified projections select one declaring interface
+                // select one declaring interface for an unqualified projection,
+                //  preferring the formed owner's conformances over its payload's
                 let mut qualifier = member.qualifier;
+                if qualifier.is_none() {
+                    qualifier = self
+                        .body()
+                        .select_associated_qualifier(origin, owner, member.key)?;
+                }
                 if qualifier.is_none() {
                     qualifier = self
                         .body()
                         .select_associated_qualifier(origin, peeled, member.key)?;
                 }
-
                 // shed owner forms for unqualified member lookup
                 let owner = if qualifier.is_none() { peeled } else { owner };
 
@@ -537,6 +554,7 @@ impl CheckState<'_> {
                     return self.normalize_chain(origin, rebuilt, expanding);
                 }
 
+                // continue the chain through the projected type
                 let projection = self.body().project_member(origin, &member)?;
                 let Some(projected) = projection else {
                     return Ok(id);
@@ -559,7 +577,64 @@ impl CheckState<'_> {
                 self.normalize_chain(origin, reduced, expanding)
             }
 
-            // borrows absorb payload forms and retain placement around the resulting handle
+            // collapse a managed form over a fat pointer onto the pointer's own place
+            dir::Type::Form(form)
+                if let dir::Form::Managed { place } = form.form
+                    && let value = {
+                        let reduced = self.normalize_chain(origin, form.value, expanding)?;
+
+                        self.shallow_resolve(reduced)?
+                    }
+                    && matches!(
+                        self.ty(value)?,
+                        dir::Type::Slice(_)
+                            | dir::Type::Dynamic(_)
+                            | dir::Type::Function(_)
+                            | dir::Type::Form(dir::FormType {
+                                form: dir::Form::Borrowed(_),
+                                ..
+                            })
+                    ) =>
+            {
+                // rebuild the fat pointer at the managed handle's place
+                let rebuilt = match self.ty(value)? {
+                    dir::Type::Slice(slice) => {
+                        self.intern_type(dir::Type::Slice(dir::SliceType {
+                            element: slice.element,
+                            place,
+                        }))?
+                    }
+                    dir::Type::Dynamic(dynamic) => {
+                        self.intern_type(dir::Type::Dynamic(dir::DynamicType {
+                            constraint: dynamic.constraint,
+                            place,
+                        }))?
+                    }
+                    dir::Type::Function(function) => {
+                        self.intern_type(dir::Type::Function(dir::FunctionType {
+                            place,
+                            ..function
+                        }))?
+                    }
+                    dir::Type::Form(payload_form)
+                        if let dir::Form::Borrowed(borrow) = payload_form.form =>
+                    {
+                        let borrow = self.type_borrow(value.module_id, borrow)?;
+                        let region = self.with_region_space(borrow.region, place)?;
+                        let form = self.intern_borrow(region, borrow.access)?;
+
+                        self.intern_type(dir::Type::Form(dir::FormType {
+                            form,
+                            value: payload_form.value,
+                        }))?
+                    }
+                    _ => value,
+                };
+
+                self.normalize_head(origin, rebuilt)
+            }
+
+            // absorb the view forms a borrow's payload carries
             dir::Type::Form(form) if let dir::Form::Borrowed(borrow) = form.form => {
                 let borrow = self.type_borrow(id.module_id, borrow)?;
 
@@ -570,20 +645,23 @@ impl CheckState<'_> {
                     return Ok(id);
                 }
 
-                // rebuild the borrow around the absorbed payload
-                let closed_form = self.intern_borrow(borrow.lifetime, access)?;
-                let mut rebuilt = self.intern_type(dir::Type::Form(dir::FormType {
+                // rebuild the borrow
+                let resolved = self.shallow_resolve(borrow.region)?;
+                let region = match (place, self.ty(resolved)?) {
+                    (Some(spaces), dir::Type::Region(pair)) => {
+                        self.intern_region(pair.extent, spaces)?
+                    }
+                    _ => borrow.region,
+                };
+                let closed_form = self.intern_borrow(region, access)?;
+                let rebuilt = self.intern_type(dir::Type::Form(dir::FormType {
                     form: closed_form,
                     value: payload,
                 }))?;
-                if let Some(place) = place {
-                    rebuilt = self.intern_type(dir::Type::Form(dir::FormType {
-                        form: dir::Form::Placed { place },
-                        value: rebuilt,
-                    }))?;
-                }
 
-                self.normalize_head(origin, rebuilt)
+                let headed = self.normalize_head(origin, rebuilt)?;
+
+                Ok(headed)
             }
 
             // reduce family-default ownership constructors anywhere in the form chain
@@ -596,7 +674,7 @@ impl CheckState<'_> {
                 self.normalize_chain(origin, reduced, expanding)
             }
 
-            // intersections merge their structural shape elements
+            // merge the structural shape elements of an intersection
             dir::Type::Intersection(intersection) => {
                 let elements: SmallVec<[_; 4]> =
                     SmallVec::from_slice(self.type_ids(id.module_id, intersection.elements)?);
@@ -605,7 +683,7 @@ impl CheckState<'_> {
                 Ok(merged)
             }
 
-            // return every other root unchanged, it is already simplest
+            // return every other root unchanged, already at its simplest
             _ => Ok(id),
         }
     }
@@ -629,37 +707,32 @@ impl CheckState<'_> {
                 break;
             };
             match payload.form {
-                // readonly payloads clamp the borrow access
+                // clamp the borrow access on a readonly payload
                 dir::Form::Readonly => {
-                    access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
-                        dir::Access::Readonly,
-                    )))?;
+                    access = self.access_literal(dir::Access::Readonly)?;
                     value = payload.value;
                 }
 
-                // borrowed payloads reborrow at the clamped access
+                // reborrow a borrowed payload at the clamped access
                 dir::Form::Borrowed(payload_borrow) => {
                     let payload_access = self.type_borrow(value.module_id, payload_borrow)?.access;
                     let payload_access = self.shallow_resolve(payload_access)?;
-                    if matches!(
-                        self.ty(payload_access)?,
-                        dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly))
-                    ) {
+                    if self.access_of(payload_access)? == Some(dir::Access::Readonly) {
                         access = payload_access;
                     }
                     value = payload.value;
                 }
 
-                // look through ownership forms, which contribute storage
-                dir::Form::Managed | dir::Form::Owned => value = payload.value,
-
-                // placement qualifies the resulting borrow handle
-                dir::Form::Placed { place: current } => {
-                    place = Some(current);
+                // borrow through a managed handle at the handle's place
+                dir::Form::Managed { place: handle } => {
+                    place = Some(handle);
                     value = payload.value;
                 }
 
-                // raw payloads keep their written form
+                // lend the inline payload of an owned value
+                dir::Form::Owned => value = payload.value,
+
+                // keep the written form of a raw payload
                 dir::Form::Raw => break,
             }
         }
@@ -722,7 +795,7 @@ impl CheckState<'_> {
 
         // read payloads from their owner, intern the rebuilt type in this module
         let ty = self.ty(id)?;
-        let ty = self.map_type_children(id.module_id, target, ty, &mut |_state, child| {
+        let ty = self.map_type_children(id.module_id, ty, &mut |_state, child| {
             Ok(replacements.get(&child).copied().unwrap_or(child))
         })?;
         let rebuilt = match ty {
@@ -753,6 +826,7 @@ impl CheckState<'_> {
             }
             _ => rebuilt,
         };
+
         memo.insert(original, rebuilt);
 
         Ok(rebuilt)
@@ -764,6 +838,7 @@ impl CheckState<'_> {
         module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // fill only an application written short of its parameters
         let Some(template) = self.symbol_template(instance.symbol)? else {
             return Ok(None);
         };
@@ -773,6 +848,7 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
+        // take the elided arguments from the instance substitution
         let substitution = self.instance_substitution(module, instance)?;
         let arguments = substitution
             .bindings
@@ -782,6 +858,8 @@ impl CheckState<'_> {
         if arguments.len() != parameters.len() {
             return Ok(None);
         }
+
+        // apply the name with its completed arguments
         let arguments = self.intern_type_ids(&arguments)?;
         let filled = self.intern_type(dir::Type::Application(dir::GenericApplication {
             symbol: instance.symbol,

@@ -53,9 +53,9 @@ struct Cancelled {
 }
 
 function read(value: Result<int32, Cancelled>): int32 {
-/// @type.symbol symbol=read type=(error.result.Result<int32, Cancelled>) => int32
-/// @type.symbol symbol=read.value source="value: Result<int32, Cancelled>" type=error.result.Result<int32, Cancelled>
-/// @resolution.name source=Result target=error.result.Result
+/// @type.symbol symbol=read type=(Result<int32, Cancelled>) => int32
+/// @type.symbol symbol=read.value source="value: Result<int32, Cancelled>" type=Result<int32, Cancelled>
+/// @resolution.name source=Result target=Result
 /// @resolution.name source=Cancelled target=Cancelled
 
     try {
@@ -63,7 +63,7 @@ function read(value: Result<int32, Cancelled>): int32 {
         /// @resolution.name source=value target=read.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=read.value
-        /// @resolution.residual source=value? target=try residual=TryResidual<error.result.Result<int32, Cancelled>>
+        /// @resolution.residual source=value? target=try residual=TryResidual<Result<int32, Cancelled>>
 
     } catch (Cancelled) {
     /// @type.symbol symbol=read.Cancelled source=Cancelled type=Cancelled
@@ -113,10 +113,10 @@ try {
 === dir ===
 declare function read(): Result<string, { code: int32; message: string }>;
 /// @type.symbol symbol=read source="declare function read(): Result<string, { code: int32; message: string }>" type=() => Result<string, { code: int32; message: string }>
-/// @generic.instance id="Result<string, { code: int32; message: string }>" template=error.result.Result arguments=(string, { code: int32; message: string })
-/// @generic.instance id="error.result.Err<{ code: int32; message: string }>" template=error.result.Err arguments=({ code: int32; message: string })
-/// @generic.instance id=error.result.Ok<string> template=error.result.Ok arguments=(string)
-/// @resolution.name source=Result target=error.result.Result
+/// @generic.instance id="Err<{ code: int32; message: string }>" template=Err arguments=({ code: int32; message: string })
+/// @generic.instance id="Result<string, { code: int32; message: string }>" template=Result arguments=(string, { code: int32; message: string })
+/// @generic.instance id=Ok<string> template=Ok arguments=(string)
+/// @resolution.name source=Result target=Result
 
 try {
 /// @type.node type=string | void
@@ -183,10 +183,10 @@ try {
 === dir ===
 declare function read(): Result<string, string>;
 /// @type.symbol symbol=read source="declare function read(): Result<string, string>" type=() => Result<string, string>
-/// @generic.instance id="Result<string, string>" template=error.result.Result arguments=(string, string)
-/// @generic.instance id=error.result.Err<string> template=error.result.Err arguments=(string)
-/// @generic.instance id=error.result.Ok<string> template=error.result.Ok arguments=(string)
-/// @resolution.name source=Result target=error.result.Result
+/// @generic.instance id="Result<string, string>" template=Result arguments=(string, string)
+/// @generic.instance id=Err<string> template=Err arguments=(string)
+/// @generic.instance id=Ok<string> template=Ok arguments=(string)
+/// @resolution.name source=Result target=Result
 
 try {
 /// @type.node type=string | void
@@ -240,10 +240,10 @@ try {
 === dir ===
 declare function read(): Result<string, { message: string }>;
 /// @type.symbol symbol=read source="declare function read(): Result<string, { message: string }>" type=() => Result<string, { message: string }>
-/// @generic.instance id="Result<string, { message: string }>" template=error.result.Result arguments=(string, { message: string })
-/// @generic.instance id="error.result.Err<{ message: string }>" template=error.result.Err arguments=({ message: string })
-/// @generic.instance id=error.result.Ok<string> template=error.result.Ok arguments=(string)
-/// @resolution.name source=Result target=error.result.Result
+/// @generic.instance id="Err<{ message: string }>" template=Err arguments=({ message: string })
+/// @generic.instance id="Result<string, { message: string }>" template=Result arguments=(string, { message: string })
+/// @generic.instance id=Ok<string> template=Ok arguments=(string)
+/// @resolution.name source=Result target=Result
 
 try {
 /// @type.node type=string | void
@@ -304,7 +304,7 @@ try {
 === dir ===
 declare function read(): Result<string, "missing" | "denied">;
 /// @type.symbol symbol=read source="declare function read(): Result<string, \"missing\" | \"denied\">" type=() => Result<string, "missing" | "denied">
-/// @resolution.name source=Result target=error.result.Result
+/// @resolution.name source=Result target=Result
 
 try {
 /// @type.node type=string | void

@@ -372,8 +372,8 @@ declare const sharedUser: shared SharedUser;
 local class LocalUser {}
 shared class SharedUser {}
 
-declare const localUser: local LocalUser;
-declare const sharedUser: shared SharedUser;
+declare const localUser: LocalUser;
+declare const sharedUser: SharedUser;
 
 === dir ===
 local class LocalUser {}
@@ -385,12 +385,12 @@ shared class SharedUser {}
 /// @definition.class symbol=SharedUser source="shared class SharedUser {}"
 
 declare const localUser: local LocalUser;
-/// @type.symbol symbol=localUser source=localUser type=Placed<LocalUser, "local">
+/// @type.symbol symbol=localUser source=localUser type=LocalUser
 /// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=LocalUser target=LocalUser
 
 declare const sharedUser: shared SharedUser;
-/// @type.symbol symbol=sharedUser source=sharedUser type=Placed<SharedUser, "shared">
+/// @type.symbol symbol=sharedUser source=sharedUser type=SharedUser
 /// @resolution.pattern source=sharedUser kind=binding target=sharedUser
 /// @resolution.name source=SharedUser target=SharedUser
 "#,
@@ -433,12 +433,12 @@ shared class SharedUser {}
 /// @definition.class symbol=SharedUser source="shared class SharedUser {}"
 
 declare const wrongLocal: shared LocalUser;
-/// @type.symbol symbol=wrongLocal source=wrongLocal type=Placed<LocalUser, "shared">
+/// @type.symbol symbol=wrongLocal source=wrongLocal type=shared LocalUser
 /// @resolution.pattern source=wrongLocal kind=binding target=wrongLocal
 /// @resolution.name source=LocalUser target=LocalUser
 
 declare const wrongShared: local SharedUser;
-/// @type.symbol symbol=wrongShared source=wrongShared type=Placed<SharedUser, "local">
+/// @type.symbol symbol=wrongShared source=wrongShared type=local SharedUser
 /// @resolution.pattern source=wrongShared kind=binding target=wrongShared
 /// @resolution.name source=SharedUser target=SharedUser
 "#,
@@ -481,8 +481,8 @@ struct Point {
 
 declare const localUser: local User;
 declare const sharedUser: shared User;
-declare const localPoint: local Point;
-declare const sharedPoint: shared Point;
+declare const localPoint: Point;
+declare const sharedPoint: Point;
 
 === dir ===
 class User {}
@@ -496,22 +496,22 @@ struct Point { x: int32; }
 /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
 declare const localUser: local User;
-/// @type.symbol symbol=localUser source=localUser type=Placed<User, "local">
+/// @type.symbol symbol=localUser source=localUser type=local User
 /// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=User target=User
 
 declare const sharedUser: shared User;
-/// @type.symbol symbol=sharedUser source=sharedUser type=Placed<User, "shared">
+/// @type.symbol symbol=sharedUser source=sharedUser type=shared User
 /// @resolution.pattern source=sharedUser kind=binding target=sharedUser
 /// @resolution.name source=User target=User
 
 declare const localPoint: local Point;
-/// @type.symbol symbol=localPoint source=localPoint type=Placed<Point, "local">
+/// @type.symbol symbol=localPoint source=localPoint type=Point
 /// @resolution.pattern source=localPoint kind=binding target=localPoint
 /// @resolution.name source=Point target=Point
 
 declare const sharedPoint: shared Point;
-/// @type.symbol symbol=sharedPoint source=sharedPoint type=Placed<Point, "shared">
+/// @type.symbol symbol=sharedPoint source=sharedPoint type=Point
 /// @resolution.pattern source=sharedPoint kind=binding target=sharedPoint
 /// @resolution.name source=Point target=Point
 "#,
@@ -771,12 +771,12 @@ interface Readable { read(): int32; }
 /// @type.symbol symbol=Readable.read source="read(): int32" type=(this: this) => int32
 
 declare const localReadable: local Readable;
-/// @type.symbol symbol=localReadable source=localReadable type=Placed<Readable, "local">
+/// @type.symbol symbol=localReadable source=localReadable type=local Readable
 /// @resolution.pattern source=localReadable kind=binding target=localReadable
 /// @resolution.name source=Readable target=Readable
 
 declare const sharedReadable: shared Readable;
-/// @type.symbol symbol=sharedReadable source=sharedReadable type=Placed<Readable, "shared">
+/// @type.symbol symbol=sharedReadable source=sharedReadable type=shared Readable
 /// @resolution.pattern source=sharedReadable kind=binding target=sharedReadable
 /// @resolution.name source=Readable target=Readable
 "#,

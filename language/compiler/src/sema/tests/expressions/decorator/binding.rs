@@ -54,7 +54,7 @@ interface IoControlBinding {
 /// @definition.method symbol=IoControlBinding.executeIoControl slot=executeIoControl type=(this: this, ResourceId, IoControlRequest) => IoControlRequest
 
     @binding("destack.io.control", {
-    /// @resolution.name source=binding target=runtime.binding.binding
+    /// @resolution.name source=binding target=binding
 
         provider: "host",
         effect: "external",

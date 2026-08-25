@@ -142,7 +142,7 @@ const sound = horn.whisper();
 /// @resolution.name source=horn target=horn
 /// @resolution.member source=horn.whisper receiver=Horn type=(this: Horn) => string kind=symbol target_receiver=Horn target=whisper
 /// @resolution.call source=horn.whisper() parameters=() return=string kind=symbol target=whisper receiver=Horn instance=Horn.<extension#1>.whisper
-/// @resolution.place source=horn placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=horn placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=horn root=horn
 /// @generic.instantiation id=whisper<Horn> template=whisper arguments=(Horn)
 /// @generic.instance id=whisper<Horn> template=whisper arguments=(Horn)
@@ -424,7 +424,7 @@ const sound = stone.whisper();
 /// @type.symbol symbol=sound source=sound type=<error>
 /// @resolution.pattern source=sound kind=binding target=sound
 /// @resolution.name source=stone target=stone
-/// @resolution.place source=stone placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=stone placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=stone root=stone
 /// @resolution.rejected source=stone.whisper
 /// @resolution.rejected source=stone.whisper()
@@ -901,8 +901,8 @@ extension<T, U> of T implements Give<(U, U.Mark)> where U: Seed<T> {
     /// @resolution.path source=U.Mark index=1 target=Seed.Mark
 
         todo("give")
-        /// @resolution.name source=todo target=error.panic.todo
-        /// @resolution.call source="todo(\"give\")" parameters=(string | undefined) arguments=(provided("give") as string | undefined) return=never kind=symbol target=error.panic.todo
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"give\")" parameters=(string | undefined) arguments=(provided("give") as string | undefined) return=never kind=symbol target=todo
 
     }
 }
@@ -1041,52 +1041,52 @@ struct Token {}
 /// @definition.struct symbol=Token source="struct Token {}"
 
 extension of Token implements TryFrom<string> {
-/// @generic.instance id="error.result.Result<convert.from.TryFrom<string>, convert.from.TryFrom<string>.Error>" template=error.result.Result arguments=(convert.from.TryFrom<string>, convert.from.TryFrom<string>.Error)
-/// @generic.instance id=convert.from.TryFrom<string> template=convert.from.TryFrom arguments=(string)
-/// @generic.instance id=error.result.Err<convert.from.TryFrom<string>.Error> template=error.result.Err arguments=(convert.from.TryFrom<string>.Error)
-/// @generic.instance id=error.result.Ok<convert.from.TryFrom<string>> template=error.result.Ok arguments=(convert.from.TryFrom<string>)
+/// @generic.instance id="Result<TryFrom<string>, TryFrom<string>.Error>" template=Result arguments=(TryFrom<string>, TryFrom<string>.Error)
+/// @generic.instance id=Err<TryFrom<string>.Error> template=Err arguments=(TryFrom<string>.Error)
+/// @generic.instance id=Ok<TryFrom<string>> template=Ok arguments=(TryFrom<string>)
+/// @generic.instance id=TryFrom<string> template=TryFrom arguments=(string)
 /// @definition.extension symbol=<module>#2 form=local target=Token
-/// @definition.implements symbol=<module>#2 source=TryFrom<string> target=convert.from.TryFrom<string>
-/// @definition.method symbol=tryFrom slot=tryFrom static=true type=(string) => error.result.Result<Token, error.error.Error>
-/// @definition.conformance symbol=<module>#2 member=convert.from.TryFrom.Error requirement=convert.from.TryFrom.Error
-/// @definition.conformance symbol=<module>#2 member=tryFrom requirement=convert.from.TryFrom.tryFrom
+/// @definition.implements symbol=<module>#2 source=TryFrom<string> target=TryFrom<string>
+/// @definition.method symbol=tryFrom slot=tryFrom static=true type=(string) => Result<Token, Error>
+/// @definition.conformance symbol=<module>#2 member=TryFrom.Error requirement=TryFrom.Error
+/// @definition.conformance symbol=<module>#2 member=tryFrom requirement=TryFrom.tryFrom
 /// @resolution.name source=Token target=Token
-/// @resolution.name source=TryFrom target=convert.from.TryFrom
+/// @resolution.name source=TryFrom target=TryFrom
 
     static tryFrom(value: string): Result<Token, Error> {
-    /// @type.symbol symbol=tryFrom type=(string) => error.result.Result<Token, error.error.Error>
-    /// @generic.instance id="error.result.Result<Token, error.error.Error>" template=error.result.Result arguments=(Token, error.error.Error)
-    /// @generic.instance id=error.result.Err<error.error.Error> template=error.result.Err arguments=(error.error.Error)
-    /// @generic.instance id=error.result.Ok<Token> template=error.result.Ok arguments=(Token)
+    /// @type.symbol symbol=tryFrom type=(string) => Result<Token, Error>
+    /// @generic.instance id="Result<Token, Error>" template=Result arguments=(Token, Error)
+    /// @generic.instance id=Err<Error> template=Err arguments=(Error)
+    /// @generic.instance id=Ok<Token> template=Ok arguments=(Token)
     /// @type.symbol symbol=tryFrom.value source="value: string" type=string
-    /// @resolution.name source=Result target=error.result.Result
+    /// @resolution.name source=Result target=Result
     /// @resolution.name source=Token target=Token
-    /// @resolution.name source=Error target=error.error.Error
+    /// @resolution.name source=Error target=Error
 
         return Result.ok(Token {});
-        /// @resolution.name source=Result target=error.result.Result
-        /// @resolution.member source=Result.ok receiver=error.result.Result type=(error.result.T#1) => error.result.Result<error.result.T#1, error.result.E#1> kind=symbol target_receiver=error.result.Result target=error.result.ok#1
-        /// @resolution.call source="Result.ok(Token {})" parameters=(Token) arguments=(provided(Token {}) as Token) return=error.result.Result<Token, error.error.Error> kind=symbol target=error.result.ok#1 instance="error.result.Result<Token, error.error.Error>.<extension#1>.ok#1"
-        /// @generic.instantiation id="error.result.ok#1<Token, error.error.Error>" template=error.result.ok#1 arguments=(Token, error.error.Error)
-        /// @generic.instance id="error.result.ok#1<Token, error.error.Error>" template=error.result.ok#1 arguments=(Token, error.error.Error)
+        /// @resolution.name source=Result target=Result
+        /// @resolution.member source=Result.ok receiver=Result type=(T#1) => Result<T#1, E#1> kind=symbol target_receiver=Result target=ok#1
+        /// @resolution.call source="Result.ok(Token {})" parameters=(Token) arguments=(provided(Token {}) as Token) return=Result<Token, Error> kind=symbol target=ok#1 instance="Result<Token, Error>.<extension#1>.ok#1"
+        /// @generic.instantiation id="ok#1<Token, Error>" template=ok#1 arguments=(Token, Error)
+        /// @generic.instance id="ok#1<Token, Error>" template=ok#1 arguments=(Token, Error)
         /// @resolution.name source=Token target=Token
 
     }
 }
 
 function parse(value: string): Result<Token, Token.Error> {
-/// @type.symbol symbol=parse type=(string) => error.result.Result<Token, error.error.Error>
+/// @type.symbol symbol=parse type=(string) => Result<Token, Error>
 /// @type.symbol symbol=parse.value source="value: string" type=string
-/// @resolution.name source=Result target=error.result.Result
-/// @generic.instance id="error.result.Result<Token, error.error.Error>" template=error.result.Result arguments=(Token, error.error.Error)
+/// @resolution.name source=Result target=Result
+/// @generic.instance id="Result<Token, Error>" template=Result arguments=(Token, Error)
 /// @resolution.name source=Token target=Token
 /// @resolution.name source=Token.Error target=Token
-/// @resolution.path source=Token.Error index=1 target=convert.from.TryFrom.Error
+/// @resolution.path source=Token.Error index=1 target=TryFrom.Error
 
     return Token.tryFrom(value);
     /// @resolution.name source=Token target=Token
-    /// @resolution.member source=Token.tryFrom receiver=Token type=(string) => error.result.Result<Token, error.error.Error> kind=symbol target_receiver=Token target=tryFrom
-    /// @resolution.call source=Token.tryFrom(value) parameters=(string) arguments=(provided(value) as string) return=error.result.Result<Token, error.error.Error> kind=symbol target=tryFrom
+    /// @resolution.member source=Token.tryFrom receiver=Token type=(string) => Result<Token, Error> kind=symbol target_receiver=Token target=tryFrom
+    /// @resolution.call source=Token.tryFrom(value) parameters=(string) arguments=(provided(value) as string) return=Result<Token, Error> kind=symbol target=tryFrom
     /// @resolution.name source=value target=parse.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=parse.value
@@ -1094,16 +1094,16 @@ function parse(value: string): Result<Token, Token.Error> {
 }
 
 declare const failure: Token.Error;
-/// @type.symbol symbol=failure source=failure type=error.error.Error
+/// @type.symbol symbol=failure source=failure type=Error
 /// @resolution.pattern source=failure kind=binding target=failure
 /// @resolution.name source=Token.Error target=Token
-/// @resolution.path source=Token.Error index=1 target=convert.from.TryFrom.Error
+/// @resolution.path source=Token.Error index=1 target=TryFrom.Error
 
 failure satisfies Error;
 /// @resolution.name source=failure target=failure
 /// @resolution.place source=failure placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=failure root=failure
-/// @resolution.name source=Error target=error.error.Error
+/// @resolution.name source=Error target=Error
 "#);
 }
 

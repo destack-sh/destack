@@ -40,7 +40,7 @@ function make(): () => int64 {
     /// @type.node source="() => count + 1" type=Function<(), int64>
     /// @capture.function function=make.symbol3 bindings=1 frames=(main.<frame0>)
     /// @capture.binding function=make.symbol3 symbol=count mode=manage type=int64 frame=main.<frame0>
-    /// @capture.frame frame=main.<frame0> scope=scope4 type=Managed<{ count: int64 }> fields={ count: int64 }
+    /// @capture.frame frame=main.<frame0> scope=scope4 type=local { count: int64 } fields={ count: int64 }
     /// @type.node source="count + 1" type=int64
     /// @type.node source=count type=int64
     /// @resolution.name source=count target=make.count
@@ -137,7 +137,7 @@ function run(): void {
     /// @capture.function function=run.symbol5 bindings=2 frames=(main.<frame0>)
     /// @capture.binding function=run.symbol5 symbol=a mode=manage type=int64 frame=main.<frame0>
     /// @capture.binding function=run.symbol5 symbol=b mode=manage type=int64 frame=main.<frame0>
-    /// @capture.frame frame=main.<frame0> scope=scope3 type=Managed<{ a: int64; b: int64; c: int64 }> fields={ a: int64, b: int64, c: int64 }
+    /// @capture.frame frame=main.<frame0> scope=scope3 type=local { a: int64; b: int64; c: int64 } fields={ a: int64, b: int64, c: int64 }
 
         a += 1;
         /// @type.node source="a += 1" type=int64
@@ -269,8 +269,8 @@ function make(): () => int64 {
 
     @capture({
     /// @type.node source=capture type=capture
-    /// @resolution.name source=capture target=decorator.capture.capture
-    /// @type.node type={ default: decorator.capture.CaptureMode; step: decorator.capture.CaptureMode }
+    /// @resolution.name source=capture target=capture
+    /// @type.node type={ default: CaptureMode; step: CaptureMode }
 
         default: "manage",
         /// @type.node source="\"manage\"" type="manage"
@@ -289,7 +289,7 @@ function make(): () => int64 {
     /// @capture.binding function=make.symbol4 symbol=step mode=copy type=int64
     /// @capture.directive function=make.symbol4 default=manage rules=1
     /// @capture.rule function=make.symbol4 binding=step mode=copy
-    /// @capture.frame frame=main.<frame0> scope=scope4 type=Managed<{ count: int64 }> fields={ count: int64 }
+    /// @capture.frame frame=main.<frame0> scope=scope4 type=local { count: int64 } fields={ count: int64 }
     /// @type.node source="count + step" type=int64
     /// @type.node source=count type=int64
     /// @resolution.name source=count target=make.count
@@ -357,7 +357,7 @@ function connect(): void {
     })
     const send: ^((arg0: string) => void) = (message: string): void => {
         count += 1;
-        socket.write(message);
+        socket.write<"local">(message);
     };
 
     send("ping");
@@ -367,11 +367,11 @@ function connect(): void {
 struct Socket {
 /// @type.symbol symbol=Socket type=Socket
 /// @definition.struct symbol=Socket
-/// @definition.method symbol=Socket.write source="write(message: string): void {}" slot=write type=<Socket.write.'a>(this: &Socket.write.'a readonly Socket, string) => void
+/// @definition.method symbol=Socket.write source="write(message: string): void {}" slot=write type=<Socket.write.'a, Socket.write.P1: Place>(this: Borrowed<Socket, Socket.write.'a & Socket.write.P1, "readonly">, string) => void
 
     write(message: string): void {}
-    /// @generic.template symbol=Socket.write parameters=('a)
-    /// @type.symbol symbol=Socket.write source="write(message: string): void {}" type=<Socket.write.'a>(this: &Socket.write.'a readonly Socket, string) => void
+    /// @generic.template symbol=Socket.write parameters=('a, P1: Place)
+    /// @type.symbol symbol=Socket.write source="write(message: string): void {}" type=<Socket.write.'a, Socket.write.P1: Place>(this: Borrowed<Socket, Socket.write.'a & Socket.write.P1, "readonly">, string) => void
     /// @capture.function function=Socket.write bindings=0
     /// @type.symbol symbol=Socket.write.message source="message: string" type=string
 
@@ -394,8 +394,8 @@ function connect(): void {
 
     @capture({
     /// @type.node source=capture type=capture
-    /// @resolution.name source=capture target=decorator.capture.capture
-    /// @type.node type={ default: decorator.capture.CaptureMode; socket: decorator.capture.CaptureMode }
+    /// @resolution.name source=capture target=capture
+    /// @type.node type={ default: CaptureMode; socket: CaptureMode }
 
         default: "manage",
         /// @type.node source="\"manage\"" type="manage"
@@ -407,7 +407,7 @@ function connect(): void {
     const send: ^Function<(string,), void> = (message) => {
     /// @type.symbol symbol=connect.send source=send type=Owned<Function<(string,), void>>
     /// @resolution.pattern source=send kind=binding target=connect.send
-    /// @resolution.name source=Function target=types.function.Function
+    /// @resolution.name source=Function target=Function
     /// @type.symbol symbol=connect.symbol8 type=Function<(string,), void>
     /// @type.node type=Owned<Function<(string,), void>>
     /// @capture.function function=connect.symbol8 bindings=2 frames=(main.<frame0>)
@@ -415,7 +415,7 @@ function connect(): void {
     /// @capture.binding function=connect.symbol8 symbol=socket mode=move type=Socket
     /// @capture.directive function=connect.symbol8 default=manage rules=1
     /// @capture.rule function=connect.symbol8 binding=socket mode=move
-    /// @capture.frame frame=main.<frame0> scope=scope6 type=Managed<{ count: int64 }> fields={ count: int64 }
+    /// @capture.frame frame=main.<frame0> scope=scope6 type=local { count: int64 } fields={ count: int64 }
     /// @type.symbol symbol=connect.symbol8.message source=message type=string
 
         count += 1;
@@ -431,13 +431,15 @@ function connect(): void {
 
         socket.write(message);
         /// @type.node source=socket type=Socket
-        /// @type.node source=socket.write type=<Socket.write.'a>(this: &Socket.write.'a readonly Socket, string) => void
+        /// @type.node source=socket.write type=<Socket.write.'a, Socket.write.P1: Place>(this: Borrowed<Socket, Socket.write.'a & Socket.write.P1, "readonly">, string) => void
         /// @type.node source=socket.write(message) type=void
         /// @resolution.name source=socket target=connect.socket
-        /// @resolution.member source=socket.write receiver=Socket type=<Socket.write.'a>(this: &Socket.write.'a readonly Socket, string) => void kind=symbol target_receiver=Socket target=Socket.write
-        /// @resolution.call source=socket.write(message) parameters=(string) arguments=(provided(message) as string) return=void kind=symbol target=Socket.write receiver=Socket adjustments=(borrow(&'frame readonly Socket))
+        /// @resolution.member source=socket.write receiver=Socket type=<Socket.write.'a, Socket.write.P1: Place>(this: Borrowed<Socket, Socket.write.'a & Socket.write.P1, "readonly">, string) => void kind=symbol target_receiver=Socket target=Socket.write
+        /// @resolution.call source=socket.write(message) parameters=(string) arguments=(provided(message) as string) return=void kind=symbol target=Socket.write receiver=Socket adjustments=(borrow(&'frame readonly Socket)) instance="Socket.write<\"local\">"
         /// @resolution.place source=socket placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=socket root=connect.socket
+        /// @generic.instantiation id="Socket.write<\"local\">" template=Socket.write arguments=("local")
+        /// @generic.instance id="Socket.write<\"local\">" template=Socket.write arguments=("local")
         /// @type.node source=message type=string
         /// @resolution.name source=message target=connect.symbol8.message
         /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
@@ -490,7 +492,7 @@ function make(): () => Promise<string> {
     let client: Client = new Client();
 
     @capture("copy")
-    const load = async () => await client.read();
+    const load = async () => await client.read<"local">();
     return load;
 }
 
@@ -498,36 +500,37 @@ function make(): () => Promise<string> {
 declare class Client {
 /// @type.symbol symbol=Client type=Client
 /// @definition.class symbol=Client
-/// @definition.method symbol=Client.read source="read(): Promise<string>" slot=read type=(this: Client) => Promise<string>
+/// @definition.method symbol=Client.read source="read(): Promise<string>" slot=read type=<Client.read.P0: Place>(this: Managed<Client, Client.read.P0>) => Promise<string>
 
     read(): Promise<string>;
-    /// @type.symbol symbol=Client.read source="read(): Promise<string>" type=(this: Client) => Promise<string>
-    /// @resolution.name source=Promise target=async.promise.Promise
+    /// @generic.template symbol=Client.read parameters=(P0: Place)
+    /// @type.symbol symbol=Client.read source="read(): Promise<string>" type=<Client.read.P0: Place>(this: Managed<Client, Client.read.P0>) => Promise<string>
+    /// @resolution.name source=Promise target=Promise
 
 }
 
 function make(): () => Promise<string> {
 /// @type.symbol symbol=make type=() => Function<(), Promise<string>>
-/// @generic.instance id=Promise<string> template=async.promise.Promise arguments=(string)
-/// @generic.instance id=Promise<void> template=async.promise.Promise arguments=(void)
-/// @generic.instance id=async.awaitable.Awaitable<string> template=async.awaitable.Awaitable arguments=(string)
-/// @generic.instance id=async.awaitable.Awaitable<void> template=async.awaitable.Awaitable arguments=(void)
-/// @generic.instance id=async.promise.PromiseAwaiter<string> template=async.promise.PromiseAwaiter arguments=(string)
-/// @generic.instance id=async.promise.PromiseAwaiter<void> template=async.promise.PromiseAwaiter arguments=(void)
-/// @generic.instance id=async.promise.PromiseForwarded<string> template=async.promise.PromiseForwarded arguments=(string)
-/// @generic.instance id=async.promise.PromiseForwarded<void> template=async.promise.PromiseForwarded arguments=(void)
-/// @generic.instance id=async.promise.PromiseFulfilled<string> template=async.promise.PromiseFulfilled arguments=(string)
-/// @generic.instance id=async.promise.PromiseFulfilled<void> template=async.promise.PromiseFulfilled arguments=(void)
-/// @generic.instance id=async.promise.PromisePending<string> template=async.promise.PromisePending arguments=(string)
-/// @generic.instance id=async.promise.PromisePending<void> template=async.promise.PromisePending arguments=(void)
-/// @generic.instance id=async.promise.PromiseReaction<string> template=async.promise.PromiseReaction arguments=(string)
-/// @generic.instance id=async.promise.PromiseReaction<void> template=async.promise.PromiseReaction arguments=(void)
-/// @generic.instance id=async.promise.PromiseState<string> template=async.promise.PromiseState arguments=(string)
-/// @generic.instance id=async.promise.PromiseState<void> template=async.promise.PromiseState arguments=(void)
-/// @generic.instance id=async.promise.PromiseWaiter<string> template=async.promise.PromiseWaiter arguments=(string)
-/// @generic.instance id=async.promise.PromiseWaiter<void> template=async.promise.PromiseWaiter arguments=(void)
+/// @generic.instance id=Awaitable<string> template=Awaitable arguments=(string)
+/// @generic.instance id=Awaitable<void> template=Awaitable arguments=(void)
+/// @generic.instance id=Promise<string> template=Promise arguments=(string)
+/// @generic.instance id=Promise<void> template=Promise arguments=(void)
+/// @generic.instance id=PromiseAwaiter<string> template=PromiseAwaiter arguments=(string)
+/// @generic.instance id=PromiseAwaiter<void> template=PromiseAwaiter arguments=(void)
+/// @generic.instance id=PromiseForwarded<string> template=PromiseForwarded arguments=(string)
+/// @generic.instance id=PromiseForwarded<void> template=PromiseForwarded arguments=(void)
+/// @generic.instance id=PromiseFulfilled<string> template=PromiseFulfilled arguments=(string)
+/// @generic.instance id=PromiseFulfilled<void> template=PromiseFulfilled arguments=(void)
+/// @generic.instance id=PromisePending<string> template=PromisePending arguments=(string)
+/// @generic.instance id=PromisePending<void> template=PromisePending arguments=(void)
+/// @generic.instance id=PromiseReaction<string> template=PromiseReaction arguments=(string)
+/// @generic.instance id=PromiseReaction<void> template=PromiseReaction arguments=(void)
+/// @generic.instance id=PromiseState<string> template=PromiseState arguments=(string)
+/// @generic.instance id=PromiseState<void> template=PromiseState arguments=(void)
+/// @generic.instance id=PromiseWaiter<string> template=PromiseWaiter arguments=(string)
+/// @generic.instance id=PromiseWaiter<void> template=PromiseWaiter arguments=(void)
 /// @capture.function function=make bindings=0
-/// @resolution.name source=Promise target=async.promise.Promise
+/// @resolution.name source=Promise target=Promise
 
     let client = new Client();
     /// @type.symbol symbol=make.client source=client type=Client
@@ -538,7 +541,7 @@ function make(): () => Promise<string> {
 
     @capture("copy")
     /// @type.node source=capture type=capture
-    /// @resolution.name source=capture target=decorator.capture.capture
+    /// @resolution.name source=capture target=capture
     /// @type.node source="\"copy\"" type="copy"
 
     const load = async () => await client.read();
@@ -551,13 +554,15 @@ function make(): () => Promise<string> {
     /// @capture.directive function=make.symbol6 default=copy rules=0
     /// @type.node source="await client.read()" type=string
     /// @type.node source=client type=Client
-    /// @type.node source=client.read type=(this: Client) => Promise<string>
+    /// @type.node source=client.read type=<Client.read.P0: Place>(this: Managed<Client, Client.read.P0>) => Promise<string>
     /// @type.node source=client.read() type=Promise<string>
     /// @resolution.name source=client target=make.client
-    /// @resolution.member source=client.read receiver=Client type=(this: Client) => Promise<string> kind=symbol target_receiver=Client target=Client.read
-    /// @resolution.call source=client.read() parameters=() return=Promise<string> kind=symbol target=Client.read receiver=Client
+    /// @resolution.member source=client.read receiver=Client type=<Client.read.P0: Place>(this: Managed<Client, Client.read.P0>) => Promise<string> kind=symbol target_receiver=Client target=Client.read
+    /// @resolution.call source=client.read() parameters=() return=Promise<string> kind=symbol target=Client.read receiver=Client instance="Client.read<\"local\">"
     /// @resolution.place source=client placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=client root=make.client
+    /// @generic.instantiation id="Client.read<\"local\">" template=Client.read arguments=("local")
+    /// @generic.instance id="Client.read<\"local\">" template=Client.read arguments=("local")
 
     return load;
     /// @type.node source=load type=Function<(), Promise<string>>
@@ -602,29 +607,30 @@ class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32 = 0" key=value type=int32
-/// @definition.method symbol=Counter.make slot=make type=(this: Counter) => Function<(), int32>
+/// @definition.method symbol=Counter.make slot=make type=<Counter.make.P0: Place>(this: Managed<Counter, Counter.make.P0>) => Function<(), int32>
 
     value: int32 = 0;
     /// @type.symbol symbol=Counter.value source="value: int32 = 0" type=int32
     /// @type.node source=0 type=0
 
     make(): () => int32 {
-    /// @type.symbol symbol=Counter.make type=(this: Counter) => Function<(), int32>
+    /// @generic.template symbol=Counter.make parameters=(P0: Place)
+    /// @type.symbol symbol=Counter.make type=<Counter.make.P0: Place>(this: Managed<Counter, Counter.make.P0>) => Function<(), int32>
     /// @capture.function function=Counter.make bindings=0
 
         return () => this.value;
         /// @type.symbol symbol=Counter.make.symbol6 source="() => this.value" type=Function<(), int32>
         /// @type.node source="() => this.value" type=Function<(), int32>
         /// @capture.function function=Counter.make.symbol6 bindings=0
-        /// @capture.receiver function=Counter.make.symbol6 symbol=this mode=manage type=Counter
-        /// @type.node source=this type=Counter
+        /// @capture.receiver function=Counter.make.symbol6 symbol=this mode=manage type=Managed<Counter, Counter.make.P0>
+        /// @type.node source=this type=Managed<Counter, Counter.make.P0>
         /// @type.node source=this.value type=int32
         /// @resolution.name source=this target=Counter.make.this
-        /// @resolution.member source=this.value receiver=Counter type=int32 kind=field target_receiver=Counter key=value target=Counter.value target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.member source=this.value receiver=Managed<Counter, Counter.make.P0> type=int32 kind=field target_receiver=Managed<Counter, Counter.make.P0> key=value target=Counter.value target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Managed<Counter, Counter.make.P0>
+        /// @resolution.place source=this placement=Counter.make.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.value placement=Counter.make.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this.value root=this keys=[value]
 
     }

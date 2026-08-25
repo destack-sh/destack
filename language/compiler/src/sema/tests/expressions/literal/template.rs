@@ -152,27 +152,27 @@ struct Point {
 
 extension of Point implements Display {
 /// @definition.extension symbol=<module>#2 form=local target=Point
-/// @definition.implements symbol=<module>#2 source=Display target=ops.format.Display
-/// @definition.method symbol=display slot=display type=<display.'a>(this: &display.'a readonly Point) => memory.cow.cow.MaybeOwned<string>
-/// @definition.conformance symbol=<module>#2 member=display requirement=ops.format.Display.display
+/// @definition.implements symbol=<module>#2 source=Display target=Display
+/// @definition.method symbol=display slot=display type=<display.'a, display.P1: Place>(this: Borrowed<Point, display.'a & display.P1, "readonly">) => MaybeOwned<string>
+/// @definition.conformance symbol=<module>#2 member=display requirement=Display.display
 /// @resolution.name source=Point target=Point
-/// @resolution.name source=Display target=ops.format.Display
+/// @resolution.name source=Display target=Display
 
     display(&readonly this): MaybeOwned<string> {
-    /// @generic.template symbol=display parent=template#0 parameters=('a)
-    /// @type.symbol symbol=display type=<display.'a>(this: &display.'a readonly Point) => memory.cow.cow.MaybeOwned<string>
-    /// @generic.instance id=memory.cow.cow.MaybeOwned<string> template=memory.cow.cow.MaybeOwned arguments=(string)
-    /// @type.symbol symbol=display.this source="&readonly this" type=&display.'a readonly this
-    /// @resolution.name source=MaybeOwned target=memory.cow.cow.MaybeOwned
-    /// @generic.instance id="memory.cow.cow.CowBorrowed<&'frame readonly string>" template=memory.cow.cow.CowBorrowed arguments=(&'frame readonly string)
-    /// @generic.instance id=memory.cow.cow.Cow<string> template=memory.cow.cow.Cow arguments=(string)
-    /// @generic.instance id=memory.cow.cow.CowOwned<Owned<string>> template=memory.cow.cow.CowOwned arguments=(Owned<string>)
+    /// @generic.template symbol=display parent=template#0 parameters=('a, P1: Place)
+    /// @type.symbol symbol=display type=<display.'a, display.P1: Place>(this: Borrowed<Point, display.'a & display.P1, "readonly">) => MaybeOwned<string>
+    /// @generic.instance id=MaybeOwned<string> template=MaybeOwned arguments=(string)
+    /// @type.symbol symbol=display.this source="&readonly this" type=Borrowed<this, display.'a & display.P1, "readonly">
+    /// @resolution.name source=MaybeOwned target=MaybeOwned
+    /// @generic.instance id="CowBorrowed<&'frame readonly string>" template=CowBorrowed arguments=(&'frame readonly string)
+    /// @generic.instance id=Cow<string> template=Cow arguments=(string)
+    /// @generic.instance id=CowOwned<Owned<string>> template=CowOwned arguments=(Owned<string>)
 
         return todo("Point.display");
         /// @type.node source="todo(\"Point.display\")" type=never
         /// @type.node source=todo type=(string | undefined?) => never
-        /// @resolution.name source=todo target=error.panic.todo
-        /// @resolution.call source="todo(\"Point.display\")" parameters=(string | undefined) arguments=(provided("Point.display") as string | undefined) return=never kind=symbol target=error.panic.todo
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"Point.display\")" parameters=(string | undefined) arguments=(provided("Point.display") as string | undefined) return=never kind=symbol target=todo
         /// @type.node source="\"Point.display\"" type="Point.display"
 
     }
@@ -253,7 +253,7 @@ const rendered = `x${count}`;
 /// @type.node source=`x${count}` type=string
 /// @type.node source=count type=float64
 /// @resolution.name source=count target=count
-/// @resolution.place source=count placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=count placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=count root=count
 "#,
         r#"
@@ -294,7 +294,7 @@ const contextual: `x${number}` = `x${count}`;
 /// @type.node source=`x${count}` type=`x${float64}`
 /// @type.node source=count type=float64
 /// @resolution.name source=count target=count
-/// @resolution.place source=count placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=count placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=count root=count
 
 const asserted = `x${count}` as const;
@@ -304,7 +304,7 @@ const asserted = `x${count}` as const;
 /// @type.node source=`x${count}` type=`x${float64}`
 /// @type.node source=count type=float64
 /// @resolution.name source=count target=count
-/// @resolution.place source=count placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=count placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=count root=count
 "#,
         r#"

@@ -1,12 +1,11 @@
-use destack_dir as dir;
-
 use destack_core::StringPool;
+use destack_dir as dir;
 use smallvec::{SmallVec, smallvec};
 
 use crate::CompilerResult;
 use crate::sema::{CheckState, Origin, Protocol, Relation, Verdict};
 
-/// Result produced by one operator expression protocol.
+/// The result one operator expression protocol produces.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::sema) enum OperatorExpressionResult {
     /// Use the selected method return.
@@ -17,14 +16,14 @@ pub(in crate::sema) enum OperatorExpressionResult {
     Boolean,
 }
 
-/// Static generic argument required by one operator protocol.
+/// The static generic argument one operator protocol requires.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::sema) enum OperatorProtocolArgument {
     /// Static access argument.
     Access(dir::Access),
 }
 
-/// Method required by one operator protocol.
+/// The method one operator protocol requires.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::sema) enum OperatorMethod {
     /// Addition method.
@@ -99,7 +98,7 @@ impl OperatorMethod {
     }
 }
 
-/// Language item protocol used by one operator.
+/// The language item protocol one operator uses.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::sema) struct OperatorProtocol {
     /// The operator interface language item.
@@ -108,7 +107,7 @@ pub(in crate::sema) struct OperatorProtocol {
     pub(in crate::sema) arguments: SmallVec<[OperatorProtocolArgument; 2]>,
     /// The required operator method.
     pub(in crate::sema) method: OperatorMethod,
-    /// The result produced by the operator expression.
+    /// The result the operator expression produces.
     pub(in crate::sema) expression_result: OperatorExpressionResult,
 }
 
@@ -143,7 +142,7 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        // prove the exact capability through the ordinary interface relation
+        // decide the exact capability through the ordinary interface relation
         let target = self.language_type(dir::LanguageItem::StrictEqual, &[right])?;
         if self.decide_relation(origin, Relation::Satisfies, left, target)? != Verdict::Fails {
             return Ok(true);
@@ -167,6 +166,7 @@ impl CheckState<'_> {
         if let Some(instance) = self.decompose_newtype(origin, left)? {
             return self.has_builtin_strict_equality(origin, instance.backing, right);
         }
+
         if let Some(instance) = self.decompose_newtype(origin, right)? {
             return self.has_builtin_strict_equality(origin, left, instance.backing);
         }
@@ -187,6 +187,7 @@ impl CheckState<'_> {
 
             return Ok(true);
         }
+
         if let dir::Type::Union(union) = self.ty(right)? {
             let elements = self.type_ids(right.module_id, union.elements)?.to_vec();
             for element in elements {
@@ -240,8 +241,8 @@ impl CheckState<'_> {
         for argument in &protocol.arguments {
             match argument {
                 OperatorProtocolArgument::Access(access) => {
-                    let ty = dir::Type::Memory(dir::MemoryLiteral::Access(*access));
-                    arguments.push(self.intern_type(ty)?);
+                    let ty = self.access_literal(*access)?;
+                    arguments.push(ty);
                 }
             }
         }

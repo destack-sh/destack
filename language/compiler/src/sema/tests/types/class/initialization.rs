@@ -127,7 +127,10 @@ enum EnumState {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 class ClassState {
     static value: int32;
@@ -177,14 +180,16 @@ enum EnumState {
     /// @type.symbol symbol=EnumState.value source="static value: int32" type=int32
 
 }
-"#, r#"
+"#,
+        r#"
 /// @diagnostic.error id=static-field-missing-initializer message="static field 'value' requires an initializer"
 /// @diagnostic.label line=3 column=12 span="value" line_source="static value: int32;"
 /// @diagnostic.error id=static-field-missing-initializer message="static field 'value' requires an initializer"
 /// @diagnostic.label line=7 column=12 span="value" line_source="static value: int32;"
 /// @diagnostic.error id=static-field-missing-initializer message="static field 'value' requires an initializer"
 /// @diagnostic.label line=13 column=12 span="value" line_source="static value: int32;"
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -315,7 +320,7 @@ class User {
 class User {
     name: string;
 
-    constructor(name: string): this {
+    constructor(name: string) {
         this.name = name;
     }
 }
@@ -325,13 +330,14 @@ class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
-/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(string) => User
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>
 
     name: string;
     /// @type.symbol symbol=User.name source="name: string" type=string
 
     constructor(name: string) {
-    /// @type.symbol symbol=User.constructor type=(string) => User
+    /// @generic.template symbol=User.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=User.constructor type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 
         this.name = name;
@@ -378,7 +384,7 @@ class User {
 class User {
     name: string;
 
-    constructor(enabled: boolean, name: string): this {
+    constructor(enabled: boolean, name: string) {
         if (enabled) {
             this.name = name;
         }
@@ -390,13 +396,14 @@ class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
-/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(boolean, string) => this
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=<User.constructor.P0: Place>(boolean, string) => Managed<this, User.constructor.P0>
 
     name: string;
     /// @type.symbol symbol=User.name source="name: string" type=string
 
     constructor(enabled: boolean, name: string) {
-    /// @type.symbol symbol=User.constructor type=(boolean, string) => this
+    /// @generic.template symbol=User.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=User.constructor type=<User.constructor.P0: Place>(boolean, string) => Managed<this, User.constructor.P0>
     /// @type.symbol symbol=User.constructor.enabled source="enabled: boolean" type=boolean
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 

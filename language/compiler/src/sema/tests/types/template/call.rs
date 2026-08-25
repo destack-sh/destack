@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A call through a prefixed template literal infers the captured span.
 #[test]
 fn test_infer_a_captured_prefix_span_through_a_template_literal_call() {
     let session = TestSession::single(
@@ -48,6 +49,7 @@ segment satisfies "users";
     );
 }
 
+/// A call returning a template literal builds it from the captured span.
 #[test]
 fn test_build_a_template_literal_from_a_captured_span() {
     let session = TestSession::single(
@@ -90,12 +92,13 @@ const key = build("users");
 
 key satisfies "id:users";
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=key root=key
 "#,
     );
 }
 
+/// A bare template span accepts a widened string argument.
 #[test]
 fn test_accept_widened_string_inputs_in_a_generic_template_literal_call() {
     let session = TestSession::single(
@@ -155,6 +158,7 @@ text satisfies string;
     );
 }
 
+/// A prefixed template span reports a diagnostic for a widened string argument.
 #[test]
 fn test_reject_widened_string_inputs_in_a_prefixed_template_literal_call() {
     let session = TestSession::single(
@@ -207,6 +211,7 @@ parse(key);
     );
 }
 
+/// A call matching only the prefix infers an empty captured span.
 #[test]
 fn test_infer_an_empty_span_at_a_literal_boundary_through_a_template_literal_call() {
     let session = TestSession::single(
@@ -255,6 +260,7 @@ segment satisfies "";
     );
 }
 
+/// A call through a numeric template span infers the captured number.
 #[test]
 fn test_infer_a_constrained_numeric_span_through_a_template_literal_call() {
     let session = TestSession::single(
@@ -297,12 +303,13 @@ const value = parse("42");
 
 value satisfies 42;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
 }
 
+/// A non-numeric argument reports a diagnostic at a numeric template span.
 #[test]
 fn test_reject_an_invalid_numeric_span_in_a_template_literal_call() {
     let session = TestSession::single(
@@ -370,7 +377,7 @@ declare function parse<T: string>(value: `id:${NoInfer<T>}`, fallback: T): T;
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${NoInfer<T>}`, fallback: T): T" type=<T: string>(`id:${NoInfer<T>}`, T) => T
 /// @type.symbol symbol=parse.T source="T: string" type=T
 /// @type.symbol symbol=parse.value source="value: `id:${NoInfer<T>}`" type=`id:${NoInfer<T>}`
-/// @resolution.name source=NoInfer target=types.object.NoInfer
+/// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=T target=parse.T
 /// @type.symbol symbol=parse.fallback source="fallback: T" type=T
 /// @resolution.name source=T target=parse.T

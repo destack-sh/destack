@@ -38,6 +38,7 @@ interface User {
     );
 }
 
+/// An extension records the interface members it selects.
 #[test]
 fn test_interface_implementation_records_selected_members() {
     let session = TestSession::single(
@@ -79,19 +80,20 @@ struct Value {}
 extension of Value implements ForeignProtocol {
 /// @definition.extension symbol=<module>#2 form=local target=Value
 /// @definition.implements symbol=<module>#2 source=ForeignProtocol target=ForeignProtocol
-/// @definition.method symbol=snake_name source="snake_name(): void {}" slot=snake_name type=<snake_name.'a>(this: &snake_name.'a readonly Value) => void
+/// @definition.method symbol=snake_name source="snake_name(): void {}" slot=snake_name type=<snake_name.'a, snake_name.P1: Place>(this: Borrowed<Value, snake_name.'a & snake_name.P1, "readonly">) => void
 /// @definition.conformance symbol=<module>#2 member=snake_name requirement=ForeignProtocol.snake_name
 /// @resolution.name source=Value target=Value
 /// @resolution.name source=ForeignProtocol target=ForeignProtocol
 
     snake_name(): void {}
-    /// @generic.template symbol=snake_name parent=template#1 parameters=('a)
-    /// @type.symbol symbol=snake_name source="snake_name(): void {}" type=<snake_name.'a>(this: &snake_name.'a readonly Value) => void
+    /// @generic.template symbol=snake_name parent=template#1 parameters=('a, P1: Place)
+    /// @type.symbol symbol=snake_name source="snake_name(): void {}" type=<snake_name.'a, snake_name.P1: Place>(this: Borrowed<Value, snake_name.'a & snake_name.P1, "readonly">) => void
 
 }
 "#);
 }
 
+/// An interface declares readonly fields, optional fields, and methods.
 #[test]
 fn test_interface_declares_fields_and_methods() {
     let session = TestSession::single(
@@ -140,6 +142,7 @@ interface Person {
     );
 }
 
+/// A bound naming this holds inside the interface declaring it.
 #[test]
 fn test_this_bound_holds_inside_its_own_interface() {
     let session = TestSession::single(
@@ -218,11 +221,20 @@ export newtype interface Table<T, Context> {
     session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
 export newtype interface Table<out T, in out Context> {
-    (name: string, body?: (value: &'a readonly T, context: &'b Context) => void): void;
+    (
+        name: string,
+        body?: (
+            value: Borrowed<T, 'a & P1, "readonly">,
+            context: Borrowed<Context, 'b & P3, "mutable">,
+        ) => void,
+    ): void;
     (
         name: string,
         options: int32,
-        body?: (value: &'a readonly T, context: &'b Context) => void,
+        body?: (
+            value: Borrowed<T, 'a & P1, "readonly">,
+            context: Borrowed<Context, 'b & P3, "mutable">,
+        ) => void,
     ): void;
     readonly skip: Table<T, Context>;
 }
@@ -234,28 +246,28 @@ export newtype interface Table<T, Context> {
 /// @definition.interface symbol=Table template=(out T, in out Context) nominal=true
 /// @definition.where symbol=Table relation=satisfies left=this right=Table<T, Context>
 /// @definition.field symbol=Table.skip source="readonly skip: Table<T, Context>" key=skip type=Table<T, Context>
-/// @definition.signature kind=call source="(name: string, body?: (value: &readonly T, context: &Context) => void): void" type=Function<(string, Function<(&type_expression.'a readonly T, &type_expression.'b Context), void> | undefined?), void>
-/// @definition.signature kind=call type=Function<(string, int32, Function<(&type_expression.'a readonly T, &type_expression.'b Context), void> | undefined?), void>
+/// @definition.signature kind=call source="(name: string, body?: (value: &readonly T, context: &Context) => void): void" type=Function<(string, Function<(Borrowed<T, type_expression.'a & type_expression.P1, "readonly">, Borrowed<Context, type_expression.'b & type_expression.P3, "mutable">), void> | undefined?), void>
+/// @definition.signature kind=call type=Function<(string, int32, Function<(Borrowed<T, type_expression.'a & type_expression.P1, "readonly">, Borrowed<Context, type_expression.'b & type_expression.P3, "mutable">), void> | undefined?), void>
 /// @type.symbol symbol=Table.T source=T type=T
 /// @type.symbol symbol=Table.Context source=Context type=Context
 
     (name: string, body?: (value: &readonly T, context: &Context) => void): void;
     /// @type.symbol symbol=Table.name#1 source="name: string" type=string
-    /// @type.symbol symbol=Table.body#1 source="body?: (value: &readonly T, context: &Context) => void" type=Function<(&type_expression.'a readonly T, &type_expression.'b Context), void> | undefined
-    /// @generic.template source=type_expression parent=template#2 parameters=('a, 'b)
-    /// @type.symbol symbol=Table.value#1 source="value: &readonly T" type=&type_expression.'a readonly T
+    /// @type.symbol symbol=Table.body#1 source="body?: (value: &readonly T, context: &Context) => void" type=Function<(Borrowed<T, type_expression.'a & type_expression.P1, "readonly">, Borrowed<Context, type_expression.'b & type_expression.P3, "mutable">), void> | undefined
+    /// @generic.template source=type_expression parent=template#0 parameters=('a, P1: Place, 'b, P3: Place)
+    /// @type.symbol symbol=Table.value#1 source="value: &readonly T" type=Borrowed<T, type_expression.'a & type_expression.P1, "readonly">
     /// @resolution.name source=T target=Table.T
-    /// @type.symbol symbol=Table.context#1 source="context: &Context" type=&type_expression.'b Context
+    /// @type.symbol symbol=Table.context#1 source="context: &Context" type=Borrowed<Context, type_expression.'b & type_expression.P3, "mutable">
     /// @resolution.name source=Context target=Table.Context
 
     (name: string, options: int32, body?: (value: &readonly T, context: &Context) => void): void;
     /// @type.symbol symbol=Table.name#2 source="name: string" type=string
     /// @type.symbol symbol=Table.options source="options: int32" type=int32
-    /// @type.symbol symbol=Table.body#2 source="body?: (value: &readonly T, context: &Context) => void" type=Function<(&type_expression.'a readonly T, &type_expression.'b Context), void> | undefined
-    /// @generic.template source=type_expression parent=template#4 parameters=('a, 'b)
-    /// @type.symbol symbol=Table.value#2 source="value: &readonly T" type=&type_expression.'a readonly T
+    /// @type.symbol symbol=Table.body#2 source="body?: (value: &readonly T, context: &Context) => void" type=Function<(Borrowed<T, type_expression.'a & type_expression.P1, "readonly">, Borrowed<Context, type_expression.'b & type_expression.P3, "mutable">), void> | undefined
+    /// @generic.template source=type_expression parent=template#0 parameters=('a, P1: Place, 'b, P3: Place)
+    /// @type.symbol symbol=Table.value#2 source="value: &readonly T" type=Borrowed<T, type_expression.'a & type_expression.P1, "readonly">
     /// @resolution.name source=T target=Table.T
-    /// @type.symbol symbol=Table.context#2 source="context: &Context" type=&type_expression.'b Context
+    /// @type.symbol symbol=Table.context#2 source="context: &Context" type=Borrowed<Context, type_expression.'b & type_expression.P3, "mutable">
     /// @resolution.name source=Context target=Table.Context
 
     readonly skip: Table<T, Context>;

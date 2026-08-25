@@ -31,8 +31,8 @@ impl CheckState<'_> {
             }
         }
 
-        // lifetime variables join through the provenance meet
-        if self.variable_memory_parameter(variable)? == Some(dir::MemoryParameter::Lifetime) {
+        // meet lifetime variables instead of joining them
+        if self.variable_memory_parameter(variable)? == Some(dir::MemoryParameter::Region) {
             let survivors = self.meet_lifetime_survivors(resolved)?;
 
             return match survivors.as_slice() {
@@ -90,21 +90,17 @@ impl CheckState<'_> {
             return Ok(survivors);
         }
 
+        // let one frame bound absorb the whole meet
         for bound in survivors.iter().copied() {
-            if matches!(
-                self.ty(bound)?,
-                dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame))
-            ) {
+            if self.lifetime_of(bound)? == Some(dir::Lifetime::Frame) {
                 return Ok(SmallVec::from_slice(&[bound]));
             }
         }
 
+        // drop static bounds while shorter bounds remain
         let mut kept = SmallVec::new();
         for bound in survivors.iter().copied() {
-            if !matches!(
-                self.ty(bound)?,
-                dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Static))
-            ) {
+            if self.lifetime_of(bound)? != Some(dir::Lifetime::Static) {
                 kept.push(bound);
             }
         }
@@ -144,9 +140,9 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // collect group lifetimes in branch order
+            // collect the group lifetimes in branch order
             let mut lifetimes = SmallVec::<[dir::GlobalTypeId; 2]>::new();
-            lifetimes.push(borrow.lifetime);
+            lifetimes.push(borrow.region);
             for (other_bound, other_value, other_borrow) in borrows.iter().copied().skip(index + 1)
             {
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
@@ -156,8 +152,8 @@ impl CheckState<'_> {
                 let accesses_equal = self.ty(borrow.access)? == self.ty(other_borrow.access)?;
                 if payloads_equal && accesses_equal {
                     consumed.push(other_bound);
-                    if !self.contains_type_root(&lifetimes, other_borrow.lifetime)? {
-                        lifetimes.push(other_borrow.lifetime);
+                    if !self.contains_type_root(&lifetimes, other_borrow.region)? {
+                        lifetimes.push(other_borrow.region);
                     }
                 }
             }
@@ -235,7 +231,7 @@ impl CheckState<'_> {
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // widening rebuilds literal leaves through aggregates and unions
+        // rebuild literal leaves through aggregates and unions
         let mut active = FxIndexSet::default();
         match self.widen_tree(ty.module_id, ty, &mut active)? {
             Some(widened) => Ok(widened),
@@ -243,25 +239,27 @@ impl CheckState<'_> {
         }
     }
 
-    /// Rebuild one widening solution composite with widened leaves.
+    /// Widen one type through its leaves, or return None when nothing widens.
     fn widen_tree(
         &mut self,
         module: ModuleId,
         id: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // self-referential solutions keep their recursive leaves
         let id = self.shallow_resolve(id)?;
+
+        // keep the recursive leaves of a self-referential solution
         if !active.insert(id) {
             return Ok(None);
         }
+
         let widened = self.widen_tree_children(module, id, active);
         active.swap_remove(&id);
 
         widened
     }
 
-    /// Rebuild one reduced composite root with widened children.
+    /// Rebuild one composite type head with widened children.
     fn widen_tree_children(
         &mut self,
         module: ModuleId,
@@ -278,16 +276,16 @@ impl CheckState<'_> {
             // enum member leaves widen to the owner enum
             dir::Type::Variant(member) => Ok(Some(member.owner)),
             // managed forms rebuild around their payloads
-            dir::Type::Form(form) if form.form == dir::Form::Managed => {
+            dir::Type::Form(form) if matches!(form.form, dir::Form::Managed { .. }) => {
                 let Some(widened) = self.widen_tree(module, form.value, active)? else {
                     return Ok(None);
                 };
-                let managed = dir::Type::Form(dir::FormType {
-                    form: dir::Form::Managed,
+                let rebuilt = dir::Type::Form(dir::FormType {
+                    form: form.form,
                     value: widened,
                 });
 
-                Ok(Some(self.intern_type(managed)?))
+                Ok(Some(self.intern_type(rebuilt)?))
             }
             // collections rebuild around widened elements
             _ if let Some(element) = self.array_element(id)? => {
@@ -297,15 +295,20 @@ impl CheckState<'_> {
 
                 Ok(Some(self.array_type(widened)?))
             }
+            // slices rebuild around their widened element
             dir::Type::Slice(slice) => {
                 let Some(widened) = self.widen_tree(module, slice.element, active)? else {
                     return Ok(None);
                 };
 
                 Ok(Some(self.intern_type(dir::Type::Slice(
-                    dir::SliceType { element: widened },
+                    dir::SliceType {
+                        element: widened,
+                        place: slice.place,
+                    },
                 ))?))
             }
+            // fixed arrays rebuild around their widened element and keep their count
             dir::Type::FixedArray(array) => {
                 let Some(widened) = self.widen_tree(module, array.element, active)? else {
                     return Ok(None);
@@ -425,6 +428,7 @@ impl CheckState<'_> {
             _ => Ok(None),
         }
     }
+
     /// Widen one property value slot toward its resolved root.
     fn widen_property_slot(
         &mut self,

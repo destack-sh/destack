@@ -1,12 +1,11 @@
 use destack_core::FxIndexSet;
 use destack_dir as dir;
-use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::sema::{CheckState, Origin};
 
-/// Non-nullish part of one union type.
+/// One union type split around its nullish elements.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::sema) struct NullishSplit {
     /// The type after removing nullish elements.
@@ -47,6 +46,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         // resolve named heads before matching the rejected members
         let resolved = self.structurally_normalize(origin, ty)?;
+
+        // keep the members the position accepts
         let mut kept = Vec::new();
         match self.ty(resolved)? {
             dir::Type::Union(union) => {
@@ -69,7 +70,7 @@ impl CheckState<'_> {
         &mut self,
         elements: impl IntoIterator<Item = dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let elements = self.union_elements(self.module_id, elements)?;
+        let elements = self.union_elements(elements)?;
 
         match elements.as_slice() {
             [single] => Ok(*single),
@@ -103,9 +104,13 @@ impl CheckState<'_> {
             }
             symbol = resolved;
         }
+
+        // keep the element whose symbol resolved to itself
         if symbol == instance.symbol {
             return Ok(element);
         }
+
+        // import the module the resolved symbol lives in
         if !self.is_own_module(symbol.module_id) {
             self.import_external_module(symbol.module_id)?;
         }
@@ -119,7 +124,6 @@ impl CheckState<'_> {
     /// Return flattened and deduplicated union elements.
     fn union_elements(
         &mut self,
-        module: ModuleId,
         elements: impl IntoIterator<Item = dir::GlobalTypeId>,
     ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 4]>> {
         let mut kept = SmallVec::<[dir::GlobalTypeId; 4]>::new();
@@ -137,7 +141,7 @@ impl CheckState<'_> {
                 _ => SmallVec::from_slice(&[element]),
             };
 
-            // keep only elements not covered by a broader element
+            // drop the elements a broader element already covers
             for element in elements {
                 // singleton keys deduplicate by identity and their primitive domains
                 if let Some(key) = self.static_key_from_type(element)? {
@@ -152,13 +156,18 @@ impl CheckState<'_> {
                     continue;
                 }
 
+                // skip the elements a kept element already covers or absorbs
                 if self.union_contains(&kept, element)? {
                     continue;
                 }
-                if self.merge_borrowed_union_element(module, &mut kept, element)? {
+                if self.merge_borrowed_union_element(&mut kept, element)? {
+                    continue;
+                }
+                if self.merge_placed_union_element(&mut kept, element)? {
                     continue;
                 }
 
+                // keep this element and drop the narrower ones it covers
                 self.remove_covered_union_elements(&mut kept, element)?;
                 if let dir::Type::Primitive(primitive) = self.ty(element)? {
                     key_domains.push(primitive);
@@ -173,7 +182,6 @@ impl CheckState<'_> {
     /// Merge borrows of one payload and access by joining their lifetimes.
     fn merge_borrowed_union_element(
         &mut self,
-        _module: ModuleId,
         kept: &mut SmallVec<[dir::GlobalTypeId; 4]>,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
@@ -196,16 +204,74 @@ impl CheckState<'_> {
             if existing.value != form.value || existing_borrow.access != borrow.access {
                 continue;
             }
-            if existing_borrow.lifetime == borrow.lifetime {
+            if existing_borrow.region == borrow.region {
                 return Ok(true);
             }
 
-            // join both lifetimes into one borrow value
-            let joined = self.normalized_union_type([existing_borrow.lifetime, borrow.lifetime])?;
+            // factor borrows sharing one monomorphic space by joining their extents
+            //  distinct spaces keep the union discriminant
+            let existing_region = self.shallow_resolve(existing_borrow.region)?;
+            let region = self.shallow_resolve(borrow.region)?;
+            let (dir::Type::Region(existing_pair), dir::Type::Region(pair)) =
+                (self.ty(existing_region)?, self.ty(region)?)
+            else {
+                continue;
+            };
+            if existing_pair.space != pair.space {
+                continue;
+            }
+            let extent = self.normalized_union_type([existing_pair.extent, pair.extent])?;
+            let joined = self.intern_region(extent, pair.space)?;
             let joined_form = self.intern_borrow(joined, borrow.access)?;
             *slot = self.intern_type(dir::Type::Form(dir::FormType {
                 form: joined_form,
                 value: existing.value,
+            }))?;
+
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    /// Merge one placed element into a kept element sharing its place.
+    ///
+    /// Place representations apply to the whole union, so same-place elements factor
+    /// into one representation over the joined values.
+    fn merge_placed_union_element(
+        &mut self,
+        kept: &mut SmallVec<[dir::GlobalTypeId; 4]>,
+        element: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let dir::Type::Form(form) = self.ty(element)? else {
+            return Ok(false);
+        };
+        let dir::Form::Managed { place } = form.form else {
+            return Ok(false);
+        };
+
+        for slot in kept.iter_mut() {
+            let dir::Type::Form(existing) = self.ty(*slot)? else {
+                continue;
+            };
+            let dir::Form::Managed {
+                place: existing_place,
+            } = existing.form
+            else {
+                continue;
+            };
+            if existing_place != place {
+                continue;
+            }
+            if existing.value == form.value {
+                return Ok(true);
+            }
+
+            // factor both values under the shared place
+            let joined = self.normalized_union_type([existing.value, form.value])?;
+            *slot = self.intern_type(dir::Type::Form(dir::FormType {
+                form: dir::Form::Managed { place },
+                value: joined,
             }))?;
 
             return Ok(true);

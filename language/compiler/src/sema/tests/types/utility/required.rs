@@ -49,7 +49,7 @@ interface Person {
 declare const person: Required<Person>;
 /// @type.symbol symbol=person source=person type={ name: string; age: int32 }
 /// @resolution.pattern source=person kind=binding target=person
-/// @resolution.name source=Required target=types.object.Required
+/// @resolution.name source=Required target=Required
 /// @resolution.name source=Person target=Person
 
 person.name satisfies string;
@@ -114,7 +114,7 @@ interface Person {
 const person: Required<Person> = { name: "Ada" };
 /// @type.symbol symbol=person source=person type={ name: string; age: int32 }
 /// @resolution.pattern source=person kind=binding target=person
-/// @resolution.name source=Required target=types.object.Required
+/// @resolution.name source=Required target=Required
 /// @resolution.name source=Person target=Person
 "#,
         r#"
@@ -164,7 +164,7 @@ interface Person {
 const person: Required<Person> = { name: undefined };
 /// @type.symbol symbol=person source=person type={ name: string | undefined }
 /// @resolution.pattern source=person kind=binding target=person
-/// @resolution.name source=Required target=types.object.Required
+/// @resolution.name source=Required target=Required
 /// @resolution.name source=Person target=Person
 
 person.name satisfies string | undefined;
@@ -217,7 +217,7 @@ interface Person {
 const person: Required<Person> = { name: "Ada" };
 /// @type.symbol symbol=person source=person type={ readonly name: string }
 /// @resolution.pattern source=person kind=binding target=person
-/// @resolution.name source=Required target=types.object.Required
+/// @resolution.name source=Required target=Required
 /// @resolution.name source=Person target=Person
 
 person.name = "Grace";

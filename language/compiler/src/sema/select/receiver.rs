@@ -7,7 +7,7 @@ use crate::sema::{
 };
 use crate::{CompilerError, CompilerResult};
 
-/// The most dereference steps one receiver probe walks, as rustc bounds autoderef.
+/// The most dereference steps one receiver probe walks, matching how rustc bounds autoderef.
 const DEREFERENCE_LIMIT: usize = 8;
 
 /// The implicit adjustments selected for one receiver.
@@ -24,9 +24,6 @@ pub(in crate::sema) struct ReceiverStep {
 
 impl BodyState<'_, '_> {
     /// Probe one member key over the receiver's dereference steps.
-    ///
-    /// Each step offers the key by value, then through its borrows, and selection takes the
-    /// first applicable candidate in that order.
     pub(in crate::sema) fn probe_member(
         &mut self,
         origin: Origin,
@@ -36,7 +33,7 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         access: dir::Access,
     ) -> CompilerResult<MemberLookup> {
-        // statics name their declaration, without a receiver to step
+        // look statics up on their declaration directly
         if subject.space == dir::MemberSpace::Static {
             return self.lookup_member(origin, module, subject, key);
         }
@@ -73,9 +70,11 @@ impl BodyState<'_, '_> {
                 ..receiver
             };
             let adjustment = self.probe_deduction(|state| {
-                Ok(CandidateOutcome::<(), _>::Rejected(
-                    state.dereference_step(origin, stepped, Some(dir::Access::Readonly))?,
-                ))
+                Ok(Some(state.dereference_step(
+                    origin,
+                    stepped,
+                    Some(dir::Access::Readonly),
+                )?))
             })?;
             let Some(Some(adjustment)) = adjustment else {
                 break;
@@ -114,7 +113,7 @@ impl BodyState<'_, '_> {
             let stepped = dir::MemberSubject {
                 receiver: target,
                 target,
-                key_type: target,
+                key_source: target,
                 ..subject
             };
             match self.lookup_member(origin, module, stepped, key)? {
@@ -149,9 +148,6 @@ impl BodyState<'_, '_> {
     }
 
     /// Keep the candidates one step reaches first.
-    ///
-    /// Methods taking the step by value come before methods taking a borrow of it, while fields
-    /// read through every form.
     fn applicable_receiver_tier(
         &mut self,
         origin: Origin,
@@ -213,7 +209,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // a step no tier takes keeps every method for reporting
+        // fall back to every method for reporting when no tier takes the step
         let mut tier = match (by_value.is_empty(), by_borrow.is_empty()) {
             (false, _) => by_value,
             (true, false) => by_borrow,
@@ -225,9 +221,6 @@ impl BodyState<'_, '_> {
     }
 
     /// Walk the receiver's dereference steps under the given access.
-    ///
-    /// The steps run from the receiver itself down through each memory form, newtype, and
-    /// `Dereference` projection.
     pub(in crate::sema) fn autoderef(
         &mut self,
         origin: Origin,
@@ -246,8 +239,7 @@ impl BodyState<'_, '_> {
         self.dereference_steps(origin, receiver, None)
     }
 
-    /// Walk the receiver's dereference steps, through the `Dereference` protocol under the
-    /// given access when one is given.
+    /// Walk the receiver's dereference steps.
     fn dereference_steps(
         &mut self,
         origin: Origin,
@@ -287,11 +279,15 @@ impl BodyState<'_, '_> {
 
         // read through one memory form, stopping where it caps the requested access
         if let dir::Type::Form(form) = self.ty(receiver)? {
+            // stop at an owned form over a value that defaults to managed
             if form.form == dir::Form::Owned
-                && self.check.defaults_to_managed(origin, form.value)?
+                && self.check.default_ownership(origin, form.value)?
+                    == Some(dir::Ownership::Managed)
             {
                 return Ok(None);
             }
+
+            // stop where the form grants less than the requested access
             if let Some(access) = protocol
                 && access != dir::Access::Readonly
             {
@@ -301,22 +297,53 @@ impl BodyState<'_, '_> {
                         let held = self.check.type_borrow(receiver.module_id, borrow)?.access;
                         let held = self.shallow_resolve(held)?;
                         match self.ty(held)? {
-                            dir::Type::Memory(dir::MemoryLiteral::Access(held)) => Some(held),
+                            dir::Type::Literal(dir::Literal::String(held)) => {
+                                dir::Access::from_text(held)
+                            }
                             _ => None,
                         }
                     }
-                    _ => None,
+                    dir::Form::Managed { .. } | dir::Form::Owned | dir::Form::Raw => None,
                 };
                 if granted.is_some_and(|granted| granted < access) {
                     return Ok(None);
                 }
             }
 
+            // keep the handle qualification outside the local space
+            if let dir::Form::Managed { place } = form.form {
+                let place = self.check.shallow_resolve(place)?;
+                let is_erased = self.check.erased_constraint(form.value)?.is_some();
+                if !is_erased
+                    && matches!(
+                        self.check.place_space(place)?,
+                        Some(dir::Space::Shared | dir::Space::Constant)
+                    )
+                {
+                    return Ok(None);
+                }
+            }
+
+            // step to a borrow's payload in the region's referent spaces
+            let ty = match form.form {
+                dir::Form::Borrowed(borrow) => {
+                    let borrow = self.check.type_borrow(receiver.module_id, borrow)?;
+                    let region = self.check.shallow_resolve(borrow.region)?;
+                    let spaces = match self.check.ty(region)? {
+                        dir::Type::Region(pair) => pair.space,
+                        _ => region,
+                    };
+
+                    self.place_relative_type(origin, spaces, form.value)?
+                }
+                _ => form.value,
+            };
+
             return Ok(Some(dir::ReceiverAdjustment::Dereference(
                 dir::Dereference {
                     receiver,
                     target: dir::DereferenceTarget::Direct,
-                    ty: form.value,
+                    ty,
                 },
             )));
         }
@@ -360,8 +387,7 @@ impl BodyState<'_, '_> {
         Ok(None)
     }
 
-    /// Return the frame-lived borrow of one receiver type under the given access: a value
-    /// borrows as is, an owned value lends its payload.
+    /// Return the frame-lived borrow of one receiver type under the given access.
     fn frame_borrow_of(
         &mut self,
         receiver: dir::GlobalTypeId,
@@ -379,11 +405,11 @@ impl BodyState<'_, '_> {
         ) {
             return Ok(None);
         }
-        let lifetime = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(
-            dir::Lifetime::Frame,
-        )))?;
-        let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(access)))?;
-        let form = self.check.intern_borrow(lifetime, access)?;
+        let lifetime = self.lifetime_literal(dir::Lifetime::Frame)?;
+        let access = self.access_literal(access)?;
+        let place = self.check.local_place()?;
+        let region = self.check.intern_region(lifetime, place)?;
+        let form = self.check.intern_borrow(region, access)?;
 
         Ok(Some(self.intern_type(dir::Type::Form(dir::FormType {
             form,
@@ -391,8 +417,7 @@ impl BodyState<'_, '_> {
         }))?))
     }
 
-    /// Return the strongest access the found members require of their receiver: a method's
-    /// `this` access, or the use's own access for fields.
+    /// Return the strongest access the found members require of their receiver.
     fn required_access(
         &mut self,
         lookup: &MemberLookup,
@@ -422,7 +447,9 @@ impl BodyState<'_, '_> {
             };
             let access = self.check.type_borrow(this.module_id, borrow)?.access;
             let access = self.shallow_resolve(access)?;
-            if let dir::Type::Memory(dir::MemoryLiteral::Access(access)) = self.ty(access)? {
+            if let dir::Type::Literal(dir::Literal::String(access)) = self.ty(access)?
+                && let Some(access) = dir::Access::from_text(access)
+            {
                 required = required.max(access);
             }
         }
@@ -437,6 +464,24 @@ impl BodyState<'_, '_> {
         receiver: Value,
         this_parameter: dir::GlobalTypeId,
     ) -> CompilerResult<Option<ReceiverSteps>> {
+        // solve an open this-parameter place from the receiver
+        let parameter_type = self.check.normalize(origin, this_parameter)?;
+        if let Some(place) = self.check.form_chain(origin, parameter_type)?.place() {
+            let place = self.check.shallow_resolve(place)?;
+            if matches!(self.check.ty(place)?, dir::Type::Variable(_)) {
+                // read the referent place of the receiver type
+                let held = match self.check.form_chain(origin, receiver.ty)?.place() {
+                    Some(held) => held,
+                    None => self.value_place(origin, receiver)?.placement,
+                };
+                let cause = self
+                    .check
+                    .intern_cause(Cause::root(origin, CauseKind::Expression));
+                self.check
+                    .constrain_type(origin, cause, Relation::Equal, held, place)?;
+            }
+        }
+
         let steps = self.builtin_steps(origin, receiver)?;
         for step in steps {
             let stepped = Value {
@@ -446,18 +491,23 @@ impl BodyState<'_, '_> {
             let related = self.confirm_candidate(|state| {
                 let cause = state.intern_cause(Cause::root(origin, CauseKind::Expression));
 
-                // take the step as is when it carries the parameter's ownership form
+                // take the step as is when it names the parameter's ownership
                 let step_type = state.normalize(origin, step.ty)?;
-                let step_form = state
+                let step_ownership = state
                     .form_chain(origin, step_type)?
                     .ownership_form()
                     .map(|form| form.form.ownership());
                 let parameter_type = state.normalize(origin, this_parameter)?;
-                let parameter_form = state
+                let parameter_ownership = state
                     .form_chain(origin, parameter_type)?
                     .ownership_form()
                     .map(|form| form.form.ownership());
-                if step_form == parameter_form
+
+                // align two sides that carry no ownership through their defaults
+                let aligned = step_ownership == parameter_ownership
+                    || state.default_ownership(origin, step_type)?
+                        == state.default_ownership(origin, parameter_type)?;
+                let direct = aligned
                     && state
                         .constrain_type(
                             origin,
@@ -466,8 +516,8 @@ impl BodyState<'_, '_> {
                             step.ty,
                             this_parameter,
                         )?
-                        .holds()
-                {
+                        .holds();
+                if direct {
                     return Ok(CandidateOutcome::Accepted(step.adjustments.clone()));
                 }
 
@@ -561,20 +611,20 @@ impl BodyState<'_, '_> {
             return Ok(ReceiverSteps::new());
         }
 
-        // project newtype carriers while keeping their enclosing memory forms
-        let (carrier, mut steps) = self.project_newtype_receiver(origin, source)?;
-        if carrier == narrowed {
+        // project through newtypes while keeping their enclosing memory forms
+        let (payload, mut steps) = self.project_newtype_receiver(origin, source)?;
+        if payload == narrowed {
             return Ok(steps);
         }
 
-        // keep a carrier that names no physical union
-        let Some(arms) = self.union_arms(origin, carrier)? else {
+        // keep the payload when it names no physical union
+        let Some(arms) = self.union_arms(origin, payload)? else {
             return Ok(steps);
         };
 
         // project a precise physical union arm
         if arms.contains(&narrowed) {
-            let union = self.form_chain(origin, carrier)?.base();
+            let union = self.form_chain(origin, payload)?.base();
             let arm = self.form_chain(origin, narrowed)?.base();
             steps.push(dir::ReceiverAdjustment::UnionPayload {
                 union,
@@ -585,7 +635,7 @@ impl BodyState<'_, '_> {
             return Ok(steps);
         }
 
-        // narrowed union subsets keep the physical carrier representation
+        // keep the physical payload for a narrowing that stays inside its arms
         let Some(narrowed_arms) = self.union_arms(origin, narrowed)? else {
             return Ok(steps);
         };
@@ -593,21 +643,20 @@ impl BodyState<'_, '_> {
             return Ok(steps);
         }
 
-        // fail loudly on a narrowing the carrier cannot represent
+        // fail loudly on a narrowing the representation cannot represent
         Err(CompilerError::Internal {
-            message: "narrowed receiver is outside its physical union carrier".to_string(),
+            message: "narrowed receiver is outside its physical union representation".to_string(),
         })
     }
 
-    /// Project one carrier onto the union arm it keeps beside itself, `None` for a type that
-    /// carries no such arm.
+    /// Project one representation onto the union arm it keeps beside itself, or None for other types.
     pub(in crate::sema) fn project_carried_arm(
         &mut self,
         origin: Origin,
-        carrier: dir::GlobalTypeId,
+        representation: dir::GlobalTypeId,
         arm: dir::GlobalTypeId,
     ) -> CompilerResult<Option<ReceiverSteps>> {
-        let (payload, mut steps) = self.project_newtype_receiver(origin, carrier)?;
+        let (payload, mut steps) = self.project_newtype_receiver(origin, representation)?;
         let Some(arms) = self.union_arms(origin, payload)? else {
             return Ok(None);
         };
@@ -634,7 +683,7 @@ impl BodyState<'_, '_> {
         let mut receiver = source;
         let mut steps = ReceiverSteps::new();
 
-        // unwrap each nominal carrier while preserving its memory forms
+        // unwrap each newtype while keeping its enclosing memory forms
         loop {
             let base = self.form_chain(origin, receiver)?.base();
             let Some(instance) = self.decompose_newtype(origin, base)? else {

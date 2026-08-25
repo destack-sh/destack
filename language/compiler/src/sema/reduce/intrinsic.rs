@@ -58,34 +58,13 @@ impl CheckState<'_> {
             dir::LanguageItem::Awaited => self.reduce_awaited_application(origin, module, instance),
 
             // evaluate memory accessors over closed form chains
-            dir::LanguageItem::PayloadOf
-            | dir::LanguageItem::BaseOf
-            | dir::LanguageItem::OwnershipOf
-            | dir::LanguageItem::OwnershipOr
+            dir::LanguageItem::AccessOf
             | dir::LanguageItem::PlaceOf
-            | dir::LanguageItem::PlaceOr
-            | dir::LanguageItem::PlaceIn
-            | dir::LanguageItem::SpaceOf
-            | dir::LanguageItem::SpaceOr
-            | dir::LanguageItem::LifetimeOf
-            | dir::LanguageItem::LifetimeOr
-            | dir::LanguageItem::AccessOf
-            | dir::LanguageItem::AccessOr
-            | dir::LanguageItem::IsManaged
-            | dir::LanguageItem::IsOwned
-            | dir::LanguageItem::IsBorrowed
-            | dir::LanguageItem::IsRaw
-            | dir::LanguageItem::IsShared
-            | dir::LanguageItem::IsSharedIn
-            | dir::LanguageItem::WithBase
-            | dir::LanguageItem::WithOwnership
-            | dir::LanguageItem::WithPlace
-            | dir::LanguageItem::WithSpace
-            | dir::LanguageItem::WithLifetime
             | dir::LanguageItem::WithAccess => {
                 self.reduce_memory_accessor(origin, module, item, instance)
             }
 
+            // leave every other language item to ordinary application
             _ => Ok(None),
         }
     }
@@ -100,12 +79,14 @@ impl CheckState<'_> {
         let [target] = self.type_ids(module, instance.arguments)? else {
             return Ok(None);
         };
+
         let target = self.normalize(origin, *target)?;
 
         // project only resolved builtin integers to their unsigned width
         let dir::Type::Primitive(dir::PrimitiveType::Integer(integer)) = self.ty(target)? else {
             return Ok(None);
         };
+
         let ty = dir::Type::Primitive(dir::PrimitiveType::Integer(integer.unsigned()));
         let ty = self.intern_type(ty)?;
 
@@ -141,14 +122,15 @@ impl CheckState<'_> {
         let Some(mapping) = item.string_mapping() else {
             return Ok(None);
         };
+
         let [target] = self.type_ids(module, instance.arguments)? else {
             return Ok(None);
         };
+
         let operation = dir::TypeOperation::StringMapping {
             mapping,
             target: *target,
         };
-
         let ty = self.intern_operation(operation)?;
 
         Ok(Some(ty))
@@ -164,8 +146,8 @@ impl CheckState<'_> {
         let [target] = self.type_ids(module, instance.arguments)? else {
             return Ok(None);
         };
-        let operation = dir::TypeOperation::NoInfer(dir::UnaryType { target: *target });
 
+        let operation = dir::TypeOperation::NoInfer(dir::UnaryType { target: *target });
         let ty = self.intern_operation(operation)?;
 
         Ok(Some(ty))
@@ -181,8 +163,8 @@ impl CheckState<'_> {
         let [target] = self.type_ids(module, instance.arguments)? else {
             return Ok(None);
         };
-        let operation = dir::TypeOperation::Awaited(dir::UnaryType { target: *target });
 
+        let operation = dir::TypeOperation::Awaited(dir::UnaryType { target: *target });
         let ty = self.intern_operation(operation)?;
 
         Ok(Some(ty))
@@ -198,7 +180,10 @@ impl CheckState<'_> {
         let [element] = self.type_ids(module, instance.arguments)? else {
             return Ok(None);
         };
-        let ty = dir::Type::Slice(dir::SliceType { element: *element });
+
+        let element = *element;
+        let place = self.local_place()?;
+        let ty = dir::Type::Slice(dir::SliceType { element, place });
         let ty = self.intern_type(ty)?;
 
         Ok(Some(ty))
@@ -214,6 +199,7 @@ impl CheckState<'_> {
         let [element, count] = self.type_ids(module, instance.arguments)? else {
             return Ok(None);
         };
+
         let ty = dir::Type::FixedArray(dir::FixedArrayType {
             element: *element,
             count: *count,
@@ -233,9 +219,10 @@ impl CheckState<'_> {
         let [constraint] = self.type_ids(module, instance.arguments)? else {
             return Ok(None);
         };
-        let ty = dir::Type::Dynamic(dir::DynamicType {
-            constraint: *constraint,
-        });
+
+        let constraint = *constraint;
+        let place = self.local_place()?;
+        let ty = dir::Type::Dynamic(dir::DynamicType { constraint, place });
         let ty = self.intern_type(ty)?;
 
         Ok(Some(ty))
@@ -252,18 +239,23 @@ impl CheckState<'_> {
         else {
             return Ok(None);
         };
+
         let (parameters, return_type, multiplicity) = (*parameters, *return_type, *multiplicity);
         let Some(multiplicity) = self.callable_multiplicity(origin, multiplicity)? else {
             return Ok(None);
         };
+
         let Some(signature) =
             self.function_signature_from_application(origin, parameters, return_type)?
         else {
             return Ok(None);
         };
+
+        let place = self.local_place()?;
         let function = dir::Type::Function(dir::FunctionType {
             signature,
             multiplicity,
+            place,
         });
         let ty = self.intern_type(function)?;
 
@@ -280,12 +272,14 @@ impl CheckState<'_> {
         let [parameters, return_type] = self.type_ids(module, instance.arguments)? else {
             return Ok(None);
         };
+
         let (parameters, return_type) = (*parameters, *return_type);
         let Some(signature) =
             self.function_signature_from_application(origin, parameters, return_type)?
         else {
             return Ok(None);
         };
+
         let function = dir::Type::FunctionPointer(dir::FunctionPointerType { signature });
         let ty = self.intern_type(function)?;
 
@@ -299,15 +293,22 @@ impl CheckState<'_> {
         multiplicity: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::Multiplicity>> {
         let multiplicity = self.normalize(origin, multiplicity)?;
+
+        // the count is written as a closed string literal
         let dir::Type::Literal(dir::Literal::String(text)) = self.ty(multiplicity)? else {
             return Ok(None);
         };
 
+        // read a repeatable callable
         let multiplicity = if text == dir::StringId::for_text("repeatable") {
             Some(dir::Multiplicity::Repeatable)
-        } else if text == dir::StringId::for_text("once") {
+        }
+        // read a single-invocation callable
+        else if text == dir::StringId::for_text("once") {
             Some(dir::Multiplicity::Once)
-        } else {
+        }
+        // leave any other text unread
+        else {
             None
         };
 
@@ -345,8 +346,9 @@ impl CheckState<'_> {
             }],
             _ => return Ok(None),
         };
-        let parameters = self.intern_parameters(&parameters)?;
 
+        // intern the signature over the read parameters and written return
+        let parameters = self.intern_parameters(&parameters)?;
         let function = dir::FunctionSignatureType {
             asynchrony: dir::Asynchrony::Sync,
             template: None,

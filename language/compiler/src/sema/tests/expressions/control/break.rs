@@ -90,7 +90,7 @@ const value = loop {
     if (flag) {
     /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=flag
-    /// @resolution.place source=flag placement="local" lifetime="static" access="readonly"
+    /// @resolution.place source=flag placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=flag root=flag
 
         break 1;
@@ -247,7 +247,7 @@ declare const running: boolean;
 outer: while (running) {
 /// @type.node source=running type=boolean
 /// @resolution.name source=running target=running
-/// @resolution.place source=running placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=running placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=running root=running
 
     continue outer;

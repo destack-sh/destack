@@ -85,10 +85,9 @@ Channel.send(message);
     session.assert_dir_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'local Message' is not assignable to parameter of type 'shared &readonly Message'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'Message' is not assignable to parameter of type '&readonly shared Message'"
 /// @diagnostic.label line=10 column=14 span="message" line_source="Channel.send(message);"
 /// @diagnostic.related line=10 column=1 span="Channel.send(message)" line_source="Channel.send(message);" message="in this call"
-/// @diagnostic.note message="expected '&readonly Message', found 'Message'"
 "#,
     );
 }
@@ -112,12 +111,8 @@ channel.send(message);
     );
 
     session.assert_dir_diagnostics(
-        "main.ds",
-        r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'local Message' is not assignable to parameter of type 'shared &readonly Message'"
-/// @diagnostic.label line=11 column=14 span="message" line_source="channel.send(message);"
-/// @diagnostic.related line=11 column=1 span="channel.send(message)" line_source="channel.send(message);" message="in this call"
-/// @diagnostic.note message="expected '&readonly Message', found 'Message'"
+        "main.ds", r#"
+
 "#,
     );
 }
@@ -184,7 +179,7 @@ export extension<T: Compare<T>> of Pack<T> {
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#2>
 /// @definition.method symbol=from#1 slot=from static=true type=(Iterable<T#2>) => Pack<T#2>
 /// @type.symbol symbol=T#1 source="T: Compare<T>" type=T#2
-/// @resolution.name source=Compare target=ops.comparison.Compare
+/// @resolution.name source=Compare target=Compare
 /// @resolution.name source=T target=T#1
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T#1
@@ -192,7 +187,7 @@ export extension<T: Compare<T>> of Pack<T> {
     static from(values: Iterable<T>): ^Pack<T> {
     /// @type.symbol symbol=from#1 type=(Iterable<T#2>) => Pack<T#2>
     /// @type.symbol symbol=from.values#1 source="values: Iterable<T>" type=Iterable<T#2>
-    /// @resolution.name source=Iterable target=iter.iterator.Iterable
+    /// @resolution.name source=Iterable target=Iterable
     /// @resolution.name source=T target=T#1
     /// @resolution.name source=Pack target=Pack
     /// @resolution.name source=T target=T#1
@@ -200,8 +195,8 @@ export extension<T: Compare<T>> of Pack<T> {
         todo("Pack.from")
         /// @type.node source="todo(\"Pack.from\")" type=never
         /// @type.node source=todo type=(string | undefined?) => never
-        /// @resolution.name source=todo target=error.panic.todo
-        /// @resolution.call source="todo(\"Pack.from\")" parameters=(string | undefined) arguments=(provided("Pack.from") as string | undefined) return=never kind=symbol target=error.panic.todo
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"Pack.from\")" parameters=(string | undefined) arguments=(provided("Pack.from") as string | undefined) return=never kind=symbol target=todo
         /// @type.node source="\"Pack.from\"" type="Pack.from"
 
     }
@@ -212,7 +207,7 @@ export extension<T: Compare<T>> of ^Pack<T> {
 /// @definition.extension symbol=<module>#3 form=exported target=Pack<T#3>
 /// @definition.method symbol=from#2 slot=from static=true type=(Iterable<T#3>) => Pack<T#3>
 /// @type.symbol symbol=T#2 source="T: Compare<T>" type=T#3
-/// @resolution.name source=Compare target=ops.comparison.Compare
+/// @resolution.name source=Compare target=Compare
 /// @resolution.name source=T target=T#2
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T#2
@@ -220,7 +215,7 @@ export extension<T: Compare<T>> of ^Pack<T> {
     static from(values: Iterable<T>): ^Pack<T> {
     /// @type.symbol symbol=from#2 type=(Iterable<T#3>) => Pack<T#3>
     /// @type.symbol symbol=from.values#2 source="values: Iterable<T>" type=Iterable<T#3>
-    /// @resolution.name source=Iterable target=iter.iterator.Iterable
+    /// @resolution.name source=Iterable target=Iterable
     /// @resolution.name source=T target=T#2
     /// @resolution.name source=Pack target=Pack
     /// @resolution.name source=T target=T#2
@@ -545,10 +540,9 @@ export extension<T, E> of Outcome<T, E> {
     );
 }
 
+/// Resolve and instantiate statics through a type alias that names its body's root declaration.
 #[test]
 fn test_call_a_static_member_through_a_type_alias_receiver() {
-    // a type alias in static-receiver position names its body's root
-    // declaration, so its statics resolve and instantiate freshly
     let session = TestSession::single(
         r#"
 struct Pack<T> {
@@ -682,7 +676,7 @@ struct Pack<out T> {
     value: T;
 }
 
-function read<T, 'a>(pack: &'a readonly Pack<T>): readonly T {
+function read<T, 'a, P2: Place>(pack: Borrowed<Pack<T>, 'a & P2, "readonly">): readonly T {
     pack.value
 }
 
@@ -701,22 +695,22 @@ struct Pack<T> {
 }
 
 function read<T>(pack: &readonly Pack<T>): readonly T {
-/// @generic.template symbol=read parameters=(T#2, 'a)
-/// @type.symbol symbol=read type=<T#2, read.'a>(&read.'a readonly Pack<T#2>) => Readonly<T#2>
+/// @generic.template symbol=read parameters=(T#2, 'a, P2: Place)
+/// @type.symbol symbol=read type=<T#2, read.'a, read.P2: Place>(Borrowed<Pack<T#2>, read.'a & read.P2, "readonly">) => Readonly<T#2>
 /// @type.symbol symbol=read.T source=T type=T#2
-/// @type.symbol symbol=read.pack source="pack: &readonly Pack<T>" type=&read.'a readonly Pack<T#2>
+/// @type.symbol symbol=read.pack source="pack: &readonly Pack<T>" type=Borrowed<Pack<T#2>, read.'a & read.P2, "readonly">
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=read.T
 /// @resolution.name source=T target=read.T
 
     pack.value
-    /// @type.node source=pack type=&read.'a readonly Pack<T#2>
+    /// @type.node source=pack type=Borrowed<Pack<T#2>, read.'a & read.P2, "readonly">
     /// @type.node source=pack.value type=Readonly<T#2>
     /// @resolution.name source=pack target=read.pack
-    /// @resolution.member source=pack.value receiver=&read.'a readonly Pack<T#2> type=Readonly<T#2> kind=field target_receiver=&read.'a readonly Pack<T#2> key=value target=Pack.value target_type=Readonly<T#2>
-    /// @resolution.place source=pack placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.member source=pack.value receiver=Borrowed<Pack<T#2>, read.'a & read.P2, "readonly"> type=Readonly<T#2> kind=field target_receiver=Borrowed<Pack<T#2>, read.'a & read.P2, "readonly"> key=value target=Pack.value target_type=Readonly<T#2>
+    /// @resolution.place source=pack placement=read.P2 lifetime=read.'a access="readonly"
     /// @resolution.access source=pack root=read.pack
-    /// @resolution.place source=pack.value placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.place source=pack.value placement=read.P2 lifetime=read.'a access="readonly"
     /// @resolution.access source=pack.value root=read.pack keys=[value]
 
 }
@@ -757,7 +751,7 @@ function same<T>(actual: readonly T | T, expected: T): void {
     todo("same" as string | undefined);
 }
 
-function check<T, 'a>(pack: &'a readonly Pack<T>, expected: T): void {
+function check<T, 'a, P2: Place>(pack: Borrowed<Pack<T>, 'a & P2, "readonly">, expected: T): void {
     same<T>(pack.value as readonly T | T, expected);
 }
 
@@ -788,17 +782,17 @@ function same<T>(actual: readonly T | T, expected: T): void {
     todo("same")
     /// @type.node source="todo(\"same\")" type=never
     /// @type.node source=todo type=(string | undefined?) => never
-    /// @resolution.name source=todo target=error.panic.todo
-    /// @resolution.call source="todo(\"same\")" parameters=(string | undefined) arguments=(provided("same") as string | undefined) return=never kind=symbol target=error.panic.todo
+    /// @resolution.name source=todo target=todo
+    /// @resolution.call source="todo(\"same\")" parameters=(string | undefined) arguments=(provided("same") as string | undefined) return=never kind=symbol target=todo
     /// @type.node source="\"same\"" type="same"
 
 }
 
 function check<T>(pack: &readonly Pack<T>, expected: T): void {
-/// @generic.template symbol=check parameters=(T#3, 'a)
-/// @type.symbol symbol=check type=<T#3, check.'a>(&check.'a readonly Pack<T#3>, T#3) => void
+/// @generic.template symbol=check parameters=(T#3, 'a, P2: Place)
+/// @type.symbol symbol=check type=<T#3, check.'a, check.P2: Place>(Borrowed<Pack<T#3>, check.'a & check.P2, "readonly">, T#3) => void
 /// @type.symbol symbol=check.T source=T type=T#3
-/// @type.symbol symbol=check.pack source="pack: &readonly Pack<T>" type=&check.'a readonly Pack<T#3>
+/// @type.symbol symbol=check.pack source="pack: &readonly Pack<T>" type=Borrowed<Pack<T#3>, check.'a & check.P2, "readonly">
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=check.T
 /// @type.symbol symbol=check.expected source="expected: T" type=T#3
@@ -810,13 +804,13 @@ function check<T>(pack: &readonly Pack<T>, expected: T): void {
     /// @resolution.name source=same target=same
     /// @resolution.call source="same(pack.value, expected)" parameters=(Readonly<T#3> | T#3, T#3) arguments=(provided(pack.value) as Readonly<T#3> | T#3, provided(expected) as T#3) return=void kind=symbol target=same instance=same<T#3>
     /// @generic.instantiation id=same<T#3> template=same arguments=(T#3) owner=check
-    /// @type.node source=pack type=&check.'a readonly Pack<T#3>
+    /// @type.node source=pack type=Borrowed<Pack<T#3>, check.'a & check.P2, "readonly">
     /// @type.node source=pack.value type=Readonly<T#3>
     /// @resolution.name source=pack target=check.pack
-    /// @resolution.member source=pack.value receiver=&check.'a readonly Pack<T#3> type=Readonly<T#3> kind=field target_receiver=&check.'a readonly Pack<T#3> key=value target=Pack.value target_type=Readonly<T#3>
-    /// @resolution.place source=pack placement="local" lifetime=check.'a access="readonly"
+    /// @resolution.member source=pack.value receiver=Borrowed<Pack<T#3>, check.'a & check.P2, "readonly"> type=Readonly<T#3> kind=field target_receiver=Borrowed<Pack<T#3>, check.'a & check.P2, "readonly"> key=value target=Pack.value target_type=Readonly<T#3>
+    /// @resolution.place source=pack placement=check.P2 lifetime=check.'a access="readonly"
     /// @resolution.access source=pack root=check.pack
-    /// @resolution.place source=pack.value placement="local" lifetime=check.'a access="readonly"
+    /// @resolution.place source=pack.value placement=check.P2 lifetime=check.'a access="readonly"
     /// @resolution.access source=pack.value root=check.pack keys=[value]
     /// @type.node source=expected type=T#3
     /// @resolution.name source=expected target=check.expected

@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Exclude removes the union members assignable to its second argument.
 #[test]
 fn test_exclude_removes_assignable_union_members() {
     let session = TestSession::single(
@@ -27,7 +28,7 @@ letter satisfies "a" | "c";
 type Letter = Exclude<"a" | "b" | "c", "b">;
 /// @type.symbol symbol=Letter source="type Letter = Exclude<\"a\" | \"b\" | \"c\", \"b\">" type="a" | "c"
 /// @definition.type symbol=Letter source="type Letter = Exclude<\"a\" | \"b\" | \"c\", \"b\">" value="a" | "c"
-/// @resolution.name source=Exclude target=types.object.Exclude
+/// @resolution.name source=Exclude target=Exclude
 
 declare const letter: Letter;
 /// @type.symbol symbol=letter source=letter type="a" | "c"
@@ -36,12 +37,13 @@ declare const letter: Letter;
 
 letter satisfies "a" | "c";
 /// @resolution.name source=letter target=letter
-/// @resolution.place source=letter placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=letter placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=letter root=letter
 "#,
     );
 }
 
+/// A removed member reports a diagnostic against an Exclude type.
 #[test]
 fn test_exclude_rejects_removed_member() {
     let session = TestSession::single(
@@ -65,7 +67,7 @@ const bad: "a" | "c" = "b";
 type Letter = Exclude<"a" | "b" | "c", "b">;
 /// @type.symbol symbol=Letter source="type Letter = Exclude<\"a\" | \"b\" | \"c\", \"b\">" type="a" | "c"
 /// @definition.type symbol=Letter source="type Letter = Exclude<\"a\" | \"b\" | \"c\", \"b\">" value="a" | "c"
-/// @resolution.name source=Exclude target=types.object.Exclude
+/// @resolution.name source=Exclude target=Exclude
 
 const bad: Letter = "b";
 /// @type.symbol symbol=bad source=bad type="a" | "c"
@@ -80,6 +82,7 @@ const bad: Letter = "b";
     );
 }
 
+/// Exclude over never reduces to never.
 #[test]
 fn test_exclude_never_yields_never() {
     let session = TestSession::single(
@@ -103,7 +106,7 @@ let bad: never = "b";
 type Letter = Exclude<never, "b">;
 /// @type.symbol symbol=Letter source="type Letter = Exclude<never, \"b\">" type=never
 /// @definition.type symbol=Letter source="type Letter = Exclude<never, \"b\">" value=never
-/// @resolution.name source=Exclude target=types.object.Exclude
+/// @resolution.name source=Exclude target=Exclude
 
 let bad: Letter = "b";
 /// @type.symbol symbol=bad source=bad type=never

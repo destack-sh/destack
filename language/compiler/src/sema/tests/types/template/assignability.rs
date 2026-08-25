@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A template literal type assigns to a template it refines.
 #[test]
 fn test_assign_a_template_literal_type_to_a_broader_template() {
     let session = TestSession::single(
@@ -42,12 +43,13 @@ const loose: Loose = tight;
 /// @resolution.pattern source=loose kind=binding target=loose
 /// @resolution.name source=Loose target=Loose
 /// @resolution.name source=tight target=tight
-/// @resolution.place source=tight placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=tight placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=tight root=tight
 "#,
     );
 }
 
+/// Assigning a template literal type to a template it refines reports a diagnostic.
 #[test]
 fn test_reject_a_template_literal_type_assigned_to_a_narrower_template() {
     let session = TestSession::single(
@@ -90,7 +92,7 @@ const tight: Tight = loose;
 /// @resolution.pattern source=tight kind=binding target=tight
 /// @resolution.name source=Tight target=Tight
 /// @resolution.name source=loose target=loose
-/// @resolution.place source=loose placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=loose placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=loose root=loose
 "#,
         r#"
@@ -101,6 +103,7 @@ const tight: Tight = loose;
     );
 }
 
+/// A numeric template span assigns to the same template with a string span.
 #[test]
 fn test_assign_a_numeric_template_span_to_a_string_span() {
     let session = TestSession::single(
@@ -143,12 +146,13 @@ const id: StringId = numeric;
 /// @resolution.pattern source=id kind=binding target=id
 /// @resolution.name source=StringId target=StringId
 /// @resolution.name source=numeric target=numeric
-/// @resolution.place source=numeric placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=numeric placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=numeric root=numeric
 "#,
     );
 }
 
+/// Assigning a string template span to a numeric span reports a diagnostic.
 #[test]
 fn test_reject_a_string_template_span_assigned_to_a_numeric_span() {
     let session = TestSession::single(
@@ -191,7 +195,7 @@ const numeric: NumericId = id;
 /// @resolution.pattern source=numeric kind=binding target=numeric
 /// @resolution.name source=NumericId target=NumericId
 /// @resolution.name source=id target=id
-/// @resolution.place source=id placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=id placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=id root=id
 "#,
         r#"

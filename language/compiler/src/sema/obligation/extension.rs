@@ -12,6 +12,7 @@ use crate::{CompilerError, CompilerResult};
 impl CheckState<'_> {
     /// Report the member conflicts inside every definition the checked module declares.
     pub(in crate::sema) fn report_member_conflicts(&mut self) -> CompilerResult<()> {
+        // collect the definitions this module declares
         let module = self.module_id;
         let definitions = self
             .module
@@ -19,6 +20,8 @@ impl CheckState<'_> {
             .filter(|(symbol, _)| symbol.module_id == module)
             .map(|(_, definition)| definition.clone())
             .collect::<Vec<_>>();
+
+        // report the conflicts inside each of them
         for definition in &definitions {
             self.report_definition_member_conflicts(definition)?;
         }
@@ -31,14 +34,17 @@ impl CheckState<'_> {
         &mut self,
         definition: &dir::Definition,
     ) -> CompilerResult<()> {
+        // track the keys seen so far and the overloads recorded under each
         let mut seen = FxIndexMap::<(dir::MemberSpace, dir::StaticKey), bool>::default();
         let mut overloads =
             FxIndexMap::<(dir::MemberSpace, dir::StaticKey), Vec<dir::GlobalSymbolId>>::default();
 
         for member in definition.members() {
+            // read the key this member declares
             let Some(key) = member.key() else {
                 continue;
             };
+
             let entry = (member.space(), key);
             let is_overloadable = member.is_overloadable();
 
@@ -51,10 +57,11 @@ impl CheckState<'_> {
                 seen.insert(entry, is_overloadable);
             }
 
-            // report a later overload an earlier one already subsumes
+            // limit the overload check to methods without a role
             let dir::DefinitionMember::Method(method) = member else {
                 continue;
             };
+
             if method.role.is_some() {
                 continue;
             }
@@ -102,19 +109,26 @@ impl CheckState<'_> {
         earlier: dir::GlobalTypeId,
         later: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // require both sides to be signatures
         let (Some(earlier_head), Some(later_head)) =
             (self.signature_head(earlier)?, self.signature_head(later)?)
         else {
             return Ok(false);
         };
+
+        // read both parameter lists
         let earlier = self.signature_parameters(earlier.module_id, earlier_head.parameters)?;
         let later = self.signature_parameters(later.module_id, later_head.parameters)?;
+
+        // count the parameters every call must pass
         let required = |parameters: &[dir::FunctionParameterType]| {
             parameters
                 .iter()
                 .filter(|parameter| !parameter.is_optional && !parameter.is_rest)
                 .count()
         };
+
+        // note which side absorbs the trailing arguments
         let earlier_rest = earlier.iter().any(|parameter| parameter.is_rest);
         let later_rest = later.iter().any(|parameter| parameter.is_rest);
 
@@ -128,6 +142,7 @@ impl CheckState<'_> {
         origin: Origin,
         obligation: &ImplementationCoherenceObligation,
     ) -> CompilerResult<ObligationCheck> {
+        // read the extension this obligation names
         let source = obligation.source;
         let symbol = obligation.symbol;
         let Some(dir::Definition::Extension(extension)) = self.definition(symbol)? else {
@@ -135,6 +150,8 @@ impl CheckState<'_> {
                 message: format!("extension obligation has no extension definition: {symbol:?}"),
             });
         };
+
+        // read the target it extends and the interfaces it implements
         let target = extension.target;
         let form = extension.form;
         let interfaces = self
@@ -142,9 +159,11 @@ impl CheckState<'_> {
             .into_iter()
             .collect::<SmallVec<[_; 2]>>();
 
-        // reject anonymous exported extensions on nonlocal targets
+        // collect the failures against the extension's own module
         let module = source.module_id;
         let mut failures = Vec::new();
+
+        // reject anonymous exported extensions on nonlocal targets
         if self.is_unnamed_exported_nonlocal_extension(module, symbol, form, target)? {
             failures.push(ObligationFailure::UnnamedExportedNonlocalExtension {
                 source,
@@ -199,6 +218,7 @@ impl CheckState<'_> {
                     }
                 }
 
+                // reject the pairs an earlier visible implementation already covers
                 let conflicts = self.check_conflicting_implementations(
                     origin,
                     module,
@@ -222,6 +242,7 @@ impl CheckState<'_> {
                     }
                 }
 
+                // reject the pairs an earlier visible implementation already covers
                 let conflicts = self.check_conflicting_implementations(
                     origin,
                     module,
@@ -311,6 +332,7 @@ impl CheckState<'_> {
         interfaces: &[dir::GlobalTypeId],
         failures: &mut Vec<ObligationFailure>,
     ) -> CompilerResult<()> {
+        // skip extensions that declare no generic parameters
         let Some(template) = self.symbol_template(symbol)? else {
             return Ok(());
         };
@@ -321,9 +343,12 @@ impl CheckState<'_> {
         pending.push(target);
         while let Some(ty) = pending.pop() {
             for parameter in self.type_parameters(ty)? {
+                // visit each parameter once
                 if !constrained.insert(parameter) {
                     continue;
                 }
+
+                // follow the constraint this parameter declares
                 let constraint = self
                     .generic_parameter(parameter)
                     .and_then(|binding| binding.constraint);
@@ -331,11 +356,12 @@ impl CheckState<'_> {
             }
         }
 
-        // declared type parameters outside the constrained set are rejected
+        // reject declared type parameters outside the constrained set
         for parameter in self.generic_template_parameters(template)? {
             let Some(binding) = self.generic_parameter(parameter).copied() else {
                 continue;
             };
+
             if binding.kind != dir::GenericParameterKind::Type
                 || binding.symbol.is_none()
                 || constrained.contains(&parameter)
@@ -368,10 +394,12 @@ impl CheckState<'_> {
         let mut visited = FxIndexSet::default();
         pending.push(id);
         while let Some(id) = pending.pop() {
+            // visit each type once
             if !visited.insert(id) {
                 continue;
             }
 
+            // record a parameter, else descend into the children
             let ty = self.ty(id)?;
             if let dir::Type::Parameter(parameter) = ty {
                 if !parameters.contains(&parameter) {
@@ -395,6 +423,7 @@ impl CheckState<'_> {
         form: dir::ExtensionForm,
         target: dir::ExtensionTarget,
     ) -> CompilerResult<bool> {
+        // limit the rule to exported extensions
         if form != dir::ExtensionForm::Exported {
             return Ok(false);
         }
@@ -404,6 +433,7 @@ impl CheckState<'_> {
             return Ok(false);
         }
 
+        // accept a target the checked module declares itself
         let target_is_local = target
             .declaration()
             .is_some_and(|root| root.module_id == module);
@@ -411,6 +441,7 @@ impl CheckState<'_> {
             return Ok(false);
         }
 
+        // require a written name on everything else
         let is_unnamed = self
             .binding_table(symbol.module_id)
             .get_symbol(symbol.local_id)
@@ -439,6 +470,7 @@ impl CheckState<'_> {
             return Ok(interfaces);
         }
 
+        // read the conformances off the resolved definition
         let Some(definition) = self.definition(symbol)? else {
             return Err(CompilerError::Internal {
                 message: format!("implementation has no definition: {symbol:?}"),
@@ -464,6 +496,7 @@ impl CheckState<'_> {
         target: dir::ExtensionTarget,
         interfaces: &[dir::GlobalTypeId],
     ) -> CompilerResult<Vec<ObligationFailure>> {
+        // collect the failures against the extended type
         let ty = target.r#type();
         let mut failures = Vec::new();
 
@@ -475,6 +508,7 @@ impl CheckState<'_> {
                 .body()
                 .visible_implementations(module, interface.symbol)?
             {
+                // keep the implementations declared earlier than this one
                 if other == symbol || !self.is_later_definition(source, other) {
                     continue;
                 }
@@ -486,6 +520,7 @@ impl CheckState<'_> {
                 {
                     continue;
                 }
+
                 candidates.push((other, *interface_type));
             }
         }
@@ -503,6 +538,8 @@ impl CheckState<'_> {
             else {
                 continue;
             };
+
+            // name the interface both implementations share
             let (_, interface) = self.nominal_application(interface_type)?;
             failures.push(ObligationFailure::ConflictingImplementation {
                 source,
@@ -521,12 +558,16 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         other: dir::GlobalSymbolId,
     ) -> bool {
+        // treat a definition from outside the checked modules as earlier
         let Some(state) = self.module_maybe(other.module_id) else {
             return true;
         };
+
         let Some(other_source) = state.definition_source_maybe(other) else {
             return true;
         };
+
+        // treat a definition from another module as earlier
         if other_source.module_id != source.module_id {
             return true;
         }
@@ -551,6 +592,7 @@ impl BodyState<'_, '_> {
                 ),
             });
         };
+        // collect the failures against this extension
         let extension = extension.clone();
         let mut failures = Vec::new();
 
@@ -560,6 +602,7 @@ impl BodyState<'_, '_> {
             .receiver_form(extension.target.r#type())?
             .unwrap_or(ReceiverForm::MANAGED);
         let declared = self.keyed_members(&extension.members, target_form, &requirements)?;
+
         if declared.is_empty() {
             return Ok(ObligationCheck::holds());
         }
@@ -606,15 +649,19 @@ impl BodyState<'_, '_> {
             {
                 continue;
             }
+
             // require the competitor to extend the same target
             let Some(dir::Definition::Extension(competitor)) =
                 self.definition(competitor_symbol)?
             else {
                 continue;
             };
+
             if competitor.target.root() != root {
                 continue;
             }
+
+            // read what the competitor declares
             let members = competitor.members.clone();
             let implements = competitor.implements.clone();
             let competitor_target = competitor.target.r#type();
@@ -651,14 +698,18 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<FxIndexSet<dir::StaticKey>> {
         let mut keys = FxIndexSet::default();
         for conformance in implements {
+            // read the interface this conformance names
             let Some((_, interface)) = self.nominal_application_maybe(conformance.interface)?
             else {
                 continue;
             };
+
             let Some(dir::Definition::Interface(definition)) = self.definition(interface.symbol)?
             else {
                 continue;
             };
+
+            // take every key the interface requires
             keys.extend(definition.members.iter().filter_map(|member| member.key()));
         }
 
@@ -674,12 +725,15 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Vec<DeclaredMember>> {
         let mut keyed = Vec::new();
         for member in members {
+            // keep the keyed members an interface does not already require
             let Some(key) = member.key() else {
                 continue;
             };
+
             if requirements.contains(&key) {
                 continue;
             }
+
             let Some(ty) = self.definition_member_type(member)? else {
                 continue;
             };
@@ -733,7 +787,7 @@ impl BodyState<'_, '_> {
                     ownership: dir::Ownership::Raw,
                     access: None,
                 }),
-                _ => Some(ReceiverForm::MANAGED),
+                dir::Form::Managed { .. } | dir::Form::Readonly => Some(ReceiverForm::MANAGED),
             },
             // written memory applications compare like the forms they name
             dir::Type::Application(instance) => {
@@ -761,18 +815,13 @@ impl BodyState<'_, '_> {
                     Some(dir::LanguageItem::Managed | dir::LanguageItem::Readonly) => {
                         Some(ReceiverForm::MANAGED)
                     }
-                    Some(
-                        dir::LanguageItem::Placed
-                        | dir::LanguageItem::WithBase
-                        | dir::LanguageItem::WithOwnership
-                        | dir::LanguageItem::WithPlace
-                        | dir::LanguageItem::WithSpace
-                        | dir::LanguageItem::WithLifetime
-                        | dir::LanguageItem::WithAccess,
-                    ) => match arguments.first() {
-                        Some(inner) => self.receiver_form(*inner)?,
-                        None => None,
-                    },
+                    // read the form through placement and access applications
+                    Some(dir::LanguageItem::Placed | dir::LanguageItem::WithAccess) => {
+                        match arguments.first() {
+                            Some(underlying) => self.receiver_form(*underlying)?,
+                            None => None,
+                        }
+                    }
                     // keep conversion receivers out of the plain slot
                     Some(_) => None,
                     None => Some(ReceiverForm::MANAGED),
@@ -786,10 +835,7 @@ impl BodyState<'_, '_> {
 
     /// Return the access one access type writes, open for an access parameter.
     fn written_access(&mut self, access: dir::GlobalTypeId) -> CompilerResult<Option<dir::Access>> {
-        Ok(match self.ty(access)? {
-            dir::Type::Memory(dir::MemoryLiteral::Access(access)) => Some(access),
-            _ => None,
-        })
+        self.access_of(access)
     }
 }
 
@@ -797,7 +843,7 @@ impl BodyState<'_, '_> {
 struct DeclaredMember {
     /// The member key.
     key: dir::StaticKey,
-    /// The member space declaring the member.
+    /// The space the member is declared in.
     space: dir::MemberSpace,
     /// The receiver form the member takes.
     form: ReceiverForm,
@@ -815,7 +861,7 @@ pub(in crate::sema) struct ReceiverForm {
 }
 
 impl ReceiverForm {
-    /// The family-default managed receiver.
+    /// The default managed receiver.
     pub(in crate::sema) const MANAGED: Self = Self {
         ownership: dir::Ownership::Managed,
         access: None,

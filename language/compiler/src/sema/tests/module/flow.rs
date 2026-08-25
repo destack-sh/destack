@@ -99,7 +99,7 @@ struct Point {
     y: int32;
 }
 
-function shift<'a>(point: &'a Point): int32 {
+function shift<'a, P1: Place>(point: Borrowed<Point, 'a & P1, "mutable">): int32 {
     point.x = point.x + 1;
 
     return max(point.x, point.y);
@@ -204,22 +204,22 @@ class Service {
     }
 }
 
-declare function modify<'a>(value: &'a int32): void;
+declare function modify<'a, P1: Place>(value: Borrowed<int32, 'a & P1, "mutable">): void;
 
 let borrowed: int32 = 0;
 &borrowed;
 
 let passed: int32 = 0;
-modify(passed as &'static int32);
+modify<"local">(passed as &'static int32);
 
 let field: Counter = Counter { value: 0 };
 field.value = 1;
 
 let called: Counter = Counter { value: 0 };
-called.increment();
+called.increment<"local">();
 
 let referenced: Service = new Service();
-referenced.increment();
+referenced.increment<"local">();
 
 === dir ===
 struct Counter {

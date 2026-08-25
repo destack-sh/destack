@@ -221,7 +221,7 @@ impl BodyState<'_, '_> {
             dir::BinaryOperator::And | dir::BinaryOperator::Or => {
                 Some((self.normalized_union_type([left, right])?, left, right))
             }
-            // try-coalesce opens the carrier and joins the alternate
+            // try-coalesce opens the representation and joins the alternate
             dir::BinaryOperator::Coalesce => {
                 let output = self
                     .reduce_operation_type(origin, dir::TypeOperation::TryOutput { value: left })?;
@@ -789,19 +789,20 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // join every numeric operand into one carrier
+        // join every numeric operand into one representation
         let common = if is_numeric {
-            let mut carrier = *first;
+            let mut representation = *first;
             for operand in rest {
-                let Some(joined) = self.builtin_numeric_join(origin, carrier, *operand)? else {
+                let Some(joined) = self.builtin_numeric_join(origin, representation, *operand)?
+                else {
                     return Err(CompilerError::Internal {
                         message: "comparable numeric operands have no common type".to_string(),
                     });
                 };
-                carrier = joined;
+                representation = joined;
             }
 
-            Some(carrier)
+            Some(representation)
         }
         // compare union operands through their joined type
         else if has_union {

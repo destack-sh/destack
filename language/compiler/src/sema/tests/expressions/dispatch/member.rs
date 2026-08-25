@@ -50,7 +50,7 @@ const x = point.x;
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
-/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 /// @resolution.access source=point.x root=point keys=[x]
 "#,
@@ -88,31 +88,31 @@ struct Point {
 }
 
 const point: Point = Point { x: 1 };
-const length: int32 = point.length();
+const length: int32 = point.length<"constant">();
 
 === dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
-/// @definition.method symbol=Point.length slot=length type=<Point.length.'a>(this: &Point.length.'a readonly Point) => int32
+/// @definition.method symbol=Point.length slot=length type=<Point.length.'a, Point.length.P1: Place>(this: Borrowed<Point, Point.length.'a & Point.length.P1, "readonly">) => int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
     length(&readonly this): int32 {
-    /// @generic.template symbol=Point.length parameters=('a)
-    /// @type.symbol symbol=Point.length type=<Point.length.'a>(this: &Point.length.'a readonly Point) => int32
-    /// @type.symbol symbol=Point.length.this source="&readonly this" type=&Point.length.'a readonly this
+    /// @generic.template symbol=Point.length parameters=('a, P1: Place)
+    /// @type.symbol symbol=Point.length type=<Point.length.'a, Point.length.P1: Place>(this: Borrowed<Point, Point.length.'a & Point.length.P1, "readonly">) => int32
+    /// @type.symbol symbol=Point.length.this source="&readonly this" type=Borrowed<this, Point.length.'a & Point.length.P1, "readonly">
 
         return this.x;
-        /// @type.node source=this type=&Point.length.'a readonly Point
+        /// @type.node source=this type=Borrowed<Point, Point.length.'a & Point.length.P1, "readonly">
         /// @type.node source=this.x type=int32
-        /// @resolution.member source=this.x receiver=&Point.length.'a readonly Point type=int32 kind=field target_receiver=&Point.length.'a readonly Point key=x target=Point.x target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.length.'a readonly Point
-        /// @resolution.place source=this placement="local" lifetime=Point.length.'a access="readonly"
+        /// @resolution.member source=this.x receiver=Borrowed<Point, Point.length.'a & Point.length.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Point, Point.length.'a & Point.length.P1, "readonly"> key=x target=Point.x target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=Point type=Borrowed<Point, Point.length.'a & Point.length.P1, "readonly">
+        /// @resolution.place source=this placement=Point.length.P1 lifetime=Point.length.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.x placement="local" lifetime=Point.length.'a access="readonly"
+        /// @resolution.place source=this.x placement=Point.length.P1 lifetime=Point.length.'a access="readonly"
         /// @resolution.access source=this.x root=this keys=[x]
 
     }
@@ -129,13 +129,15 @@ const length = point.length();
 /// @type.symbol symbol=length source=length type=int32
 /// @resolution.pattern source=length kind=binding target=length
 /// @type.node source=point type=Point
-/// @type.node source=point.length type=<Point.length.'a>(this: &Point.length.'a readonly Point) => int32
+/// @type.node source=point.length type=<Point.length.'a, Point.length.P1: Place>(this: Borrowed<Point, Point.length.'a & Point.length.P1, "readonly">) => int32
 /// @type.node source=point.length() type=int32
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.length receiver=Point type=<Point.length.'a>(this: &Point.length.'a readonly Point) => int32 kind=symbol target_receiver=Point target=Point.length
-/// @resolution.call source=point.length() parameters=() return=int32 kind=symbol target=Point.length receiver=Point adjustments=(borrow(&'static readonly Point))
-/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
+/// @resolution.member source=point.length receiver=Point type=<Point.length.'a, Point.length.P1: Place>(this: Borrowed<Point, Point.length.'a & Point.length.P1, "readonly">) => int32 kind=symbol target_receiver=Point target=Point.length
+/// @resolution.call source=point.length() parameters=() return=int32 kind=symbol target=Point.length receiver=Point adjustments=(borrow(&'static readonly constant Point)) instance="Point.length<\"constant\">"
+/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
+/// @generic.instantiation id="Point.length<\"constant\">" template=Point.length arguments=("constant")
+/// @generic.instance id="Point.length<\"constant\">" template=Point.length arguments=("constant")
 "#,
     );
 }
@@ -189,7 +191,7 @@ const x = point.x;
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.x receiver=geometry.Point type=int32 kind=field target_receiver=geometry.Point key=x target=geometry.Point.x target_type=int32
-/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 /// @resolution.access source=point.x root=point keys=[x]
 "#,
@@ -217,13 +219,13 @@ const length: isize = values.length;
 let values: int32[] = [];
 /// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @type.node source=[] type=int32[]
-/// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
-/// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
-/// @generic.instance id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
+/// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+/// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
+/// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
 
 const length = values.length;
 /// @type.symbol symbol=length source=length type=isize
@@ -231,11 +233,11 @@ const length = values.length;
 /// @type.node source=values type=int32[]
 /// @type.node source=values.length type=isize
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.length receiver=int32[] type=isize kind=call target="collections.array.length(parameters=(), arguments=(), return=isize)"
+/// @resolution.member source=values.length receiver=int32[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instantiation id=collections.array.length<int32> template=collections.array.length arguments=(int32)
-/// @generic.instance id=collections.array.length<int32> template=collections.array.length arguments=(int32)
+/// @generic.instantiation id="length<int32, \"local\">" template=length arguments=(int32, "local")
+/// @generic.instance id="length<int32, \"local\">" template=length arguments=(int32, "local")
 "#,
     );
 }
@@ -277,14 +279,14 @@ const length = values.length;
 /// @type.node source=values type=int32[]
 /// @type.node source=values.length type=isize
 /// @resolution.name source=values target=values.values
-/// @resolution.member source=values.length receiver=int32[] type=isize kind=call target="collections.array.length(parameters=(), arguments=(), return=isize)"
+/// @resolution.member source=values.length receiver=int32[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values.values
-/// @generic.instantiation id=collections.array.length<int32> template=collections.array.length arguments=(int32)
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=collections.array.length<int32> template=collections.array.length arguments=(int32)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instantiation id="length<int32, \"local\">" template=length arguments=(int32, "local")
+/// @generic.instance id="length<int32, \"local\">" template=length arguments=(int32, "local")
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 "#,
     );
 }
@@ -339,9 +341,9 @@ function read(): int32 {
     /// @type.node source=state.value type=int32
     /// @resolution.name source=state target=state
     /// @resolution.member source=state.value receiver=State type=int32 kind=field target_receiver=State key=value target=State.value target_type=int32
-    /// @resolution.place source=state placement="local" lifetime="static" access="readonly"
+    /// @resolution.place source=state placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=state root=state
-    /// @resolution.place source=state.value placement="local" lifetime="static" access="readonly"
+    /// @resolution.place source=state.value placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=state.value root=state keys=[value]
 
 }
@@ -371,31 +373,32 @@ values.push(1);
         r#"
 === annotated ===
 let values: int32[] = [];
-values.push<int32>(1);
+values.push<int32, "local">(1);
 
 === dir ===
 let values: int32[] = [];
 /// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @type.node source=[] type=int32[]
-/// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
-/// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
-/// @generic.instance id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
+/// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+/// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
+/// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
 
 values.push(1);
 /// @type.node source=values type=int32[]
-/// @type.node source=values.push type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive int32[], ...int32[]) => isize
+/// @type.node source=values.push type=<push.'a, push.P1: Place>(this: Borrowed<int32[], push.'a & push.P1, "exclusive">, ...int32[]) => isize
 /// @type.node source=values.push(1) type=isize
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.push receiver=int32[] type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=collections.array.push
-/// @resolution.call source=values.push(1) parameters=(int32[]) arguments=(rest(1) pack=collections.array.arrayFromSlice as int32) return=isize kind=symbol target=collections.array.push receiver=int32[] adjustments=(borrow(&'static exclusive int32[])) instance=Array<int32>.<extension#5>.push
+/// @resolution.member source=values.push receiver=int32[] type=<push.'a, push.P1: Place>(this: Borrowed<int32[], push.'a & push.P1, "exclusive">, ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
+/// @resolution.call source=values.push(1) parameters=(int32[]) arguments=(rest(1) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'static exclusive int32[])) instance="Array<int32>.<extension#5>.push<\"local\">"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)
-/// @generic.instance id=collections.array.push<int32> template=collections.array.push arguments=(int32)
+/// @generic.instantiation id="push<int32, \"local\">" template=push arguments=(int32, "local")
+/// @generic.instantiation id=push<int32> template=push arguments=(int32)
+/// @generic.instance id="push<int32, \"local\">" template=push arguments=(int32, "local")
 /// @type.node source=1 type=1
 "#,
     );
@@ -435,8 +438,8 @@ function pending(): int32 {
     let value = todo("later");
     /// @type.symbol symbol=pending.value source=value type=never
     /// @resolution.pattern source=value kind=binding target=pending.value
-    /// @resolution.name source=todo target=error.panic.todo
-    /// @resolution.call source="todo(\"later\")" parameters=(string | undefined) arguments=(provided("later") as string | undefined) return=never kind=symbol target=error.panic.todo
+    /// @resolution.name source=todo target=todo
+    /// @resolution.call source="todo(\"later\")" parameters=(string | undefined) arguments=(provided("later") as string | undefined) return=never kind=symbol target=todo
 
     return value.field;
     /// @resolution.name source=value target=pending.value
@@ -514,7 +517,7 @@ const first = handler.run(1);
 /// @resolution.name source=handler target=handler
 /// @resolution.member source=handler.run receiver=Handler type=Function<(int32,), int32> kind=field target_receiver=Handler key=run target=Handler.run target_type=Function<(int32,), int32>
 /// @resolution.call source=handler.run(1) parameters=(int32) arguments=(provided(1) as int32) return=int32 kind=expression target=expression
-/// @resolution.place source=handler placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=handler placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=handler root=handler
 /// @resolution.access source=handler.run root=handler keys=[run]
 /// @type.node source=1 type=1
@@ -528,7 +531,7 @@ const second = handler.run(2);
 /// @resolution.name source=handler target=handler
 /// @resolution.member source=handler.run receiver=Handler type=Function<(int32,), int32> kind=field target_receiver=Handler key=run target=Handler.run target_type=Function<(int32,), int32>
 /// @resolution.call source=handler.run(2) parameters=(int32) arguments=(provided(2) as int32) return=int32 kind=expression target=expression
-/// @resolution.place source=handler placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=handler placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=handler root=handler
 /// @resolution.access source=handler.run root=handler keys=[run]
 /// @type.node source=2 type=2
@@ -586,7 +589,7 @@ const x = point.x;
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
-/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 /// @resolution.access source=point.x root=point keys=[x]
 "#,
@@ -624,10 +627,11 @@ const log = logger.log;
 class Logger {
 /// @type.symbol symbol=Logger type=Logger
 /// @definition.class symbol=Logger
-/// @definition.method symbol=Logger.log source="log(message: string): void {}" slot=log type=(this: this, string) => void
+/// @definition.method symbol=Logger.log source="log(message: string): void {}" slot=log type=<Logger.log.P0: Place>(this: Managed<this, Logger.log.P0>, string) => void
 
     log(message: string): void {}
-    /// @type.symbol symbol=Logger.log source="log(message: string): void {}" type=(this: this, string) => void
+    /// @generic.template symbol=Logger.log parameters=(P0: Place)
+    /// @type.symbol symbol=Logger.log source="log(message: string): void {}" type=<Logger.log.P0: Place>(this: Managed<this, Logger.log.P0>, string) => void
     /// @type.symbol symbol=Logger.log.message source="message: string" type=string
 
 }
@@ -688,11 +692,11 @@ const chosen: int32 = store.pick<int32>(3);
 class Store {
 /// @type.symbol symbol=Store type=Store
 /// @definition.class symbol=Store
-/// @definition.method symbol=Store.pick slot=pick type=<T>(this: this, T) => T
+/// @definition.method symbol=Store.pick slot=pick type=<T, Store.pick.P1: Place>(this: Managed<this, Store.pick.P1>, T) => T
 
     pick<T>(value: T): T {
-    /// @generic.template symbol=Store.pick parameters=(T)
-    /// @type.symbol symbol=Store.pick type=<T>(this: this, T) => T
+    /// @generic.template symbol=Store.pick parameters=(T, P1: Place)
+    /// @type.symbol symbol=Store.pick type=<T, Store.pick.P1: Place>(this: Managed<this, Store.pick.P1>, T) => T
     /// @type.symbol symbol=Store.pick.T source=T type=T
     /// @type.symbol symbol=Store.pick.value source="value: T" type=T
     /// @resolution.name source=T target=Store.pick.T
@@ -715,12 +719,12 @@ const chosen = store.pick<int32>(3);
 /// @type.symbol symbol=chosen source=chosen type=int32
 /// @resolution.pattern source=chosen kind=binding target=chosen
 /// @resolution.name source=store target=store
-/// @resolution.member source=store.pick receiver=Store type=<T>(this: Store, T) => T kind=symbol target_receiver=Store target=Store.pick
-/// @resolution.call source=store.pick<int32>(3) parameters=(int32) arguments=(provided(3) as int32) return=int32 kind=symbol target=Store.pick receiver=Store instance=Store.pick<int32>
+/// @resolution.member source=store.pick receiver=Store type=<T, Store.pick.P1: Place>(this: Managed<Store, Store.pick.P1>, T) => T kind=symbol target_receiver=Store target=Store.pick
+/// @resolution.call source=store.pick<int32>(3) parameters=(int32) arguments=(provided(3) as int32) return=int32 kind=symbol target=Store.pick receiver=Store instance="Store.pick<int32, \"local\">"
 /// @resolution.place source=store placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=store root=store
-/// @generic.instantiation id=Store.pick<int32> template=Store.pick arguments=(int32)
-/// @generic.instance id=Store.pick<int32> template=Store.pick arguments=(int32)
+/// @generic.instantiation id="Store.pick<int32, \"local\">" template=Store.pick arguments=(int32, "local")
+/// @generic.instance id="Store.pick<int32, \"local\">" template=Store.pick arguments=(int32, "local")
 "#,
     );
 }

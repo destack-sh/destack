@@ -25,7 +25,7 @@ ok satisfies string;
 type Value = Awaited<string>;
 /// @type.symbol symbol=Value source="type Value = Awaited<string>" type=string
 /// @definition.type symbol=Value source="type Value = Awaited<string>" value=string
-/// @resolution.name source=Awaited target=types.object.Awaited
+/// @resolution.name source=Awaited target=Awaited
 
 const ok: Value = "ready";
 /// @type.symbol symbol=ok source=ok type=string
@@ -65,36 +65,36 @@ ok satisfies string;
 type Value = Awaited<Promise<Promise<string>>>;
 /// @type.symbol symbol=Value source="type Value = Awaited<Promise<Promise<string>>>" type=string
 /// @definition.type symbol=Value source="type Value = Awaited<Promise<Promise<string>>>" value=string
-/// @resolution.name source=Awaited target=types.object.Awaited
-/// @resolution.name source=Promise target=async.promise.Promise
-/// @generic.instance id=Promise<Promise<string>> template=async.promise.Promise arguments=(Promise<string>)
-/// @generic.instance id=async.awaitable.Awaitable<Promise<string>> template=async.awaitable.Awaitable arguments=(Promise<string>)
-/// @generic.instance id=async.promise.PromiseAwaiter<Promise<string>> template=async.promise.PromiseAwaiter arguments=(Promise<string>)
-/// @generic.instance id=async.promise.PromiseForwarded<Promise<string>> template=async.promise.PromiseForwarded arguments=(Promise<string>)
-/// @generic.instance id=async.promise.PromiseFulfilled<Promise<string>> template=async.promise.PromiseFulfilled arguments=(Promise<string>)
-/// @generic.instance id=async.promise.PromisePending<Promise<string>> template=async.promise.PromisePending arguments=(Promise<string>)
-/// @generic.instance id=async.promise.PromiseReaction<Promise<string>> template=async.promise.PromiseReaction arguments=(Promise<string>)
-/// @generic.instance id=async.promise.PromiseState<Promise<string>> template=async.promise.PromiseState arguments=(Promise<string>)
-/// @generic.instance id=async.promise.PromiseWaiter<Promise<string>> template=async.promise.PromiseWaiter arguments=(Promise<string>)
-/// @resolution.name source=Promise target=async.promise.Promise
-/// @generic.instance id=Promise<string> template=async.promise.Promise arguments=(string)
-/// @generic.instance id=Promise<void> template=async.promise.Promise arguments=(void)
-/// @generic.instance id=async.awaitable.Awaitable<string> template=async.awaitable.Awaitable arguments=(string)
-/// @generic.instance id=async.awaitable.Awaitable<void> template=async.awaitable.Awaitable arguments=(void)
-/// @generic.instance id=async.promise.PromiseAwaiter<string> template=async.promise.PromiseAwaiter arguments=(string)
-/// @generic.instance id=async.promise.PromiseAwaiter<void> template=async.promise.PromiseAwaiter arguments=(void)
-/// @generic.instance id=async.promise.PromiseForwarded<string> template=async.promise.PromiseForwarded arguments=(string)
-/// @generic.instance id=async.promise.PromiseForwarded<void> template=async.promise.PromiseForwarded arguments=(void)
-/// @generic.instance id=async.promise.PromiseFulfilled<string> template=async.promise.PromiseFulfilled arguments=(string)
-/// @generic.instance id=async.promise.PromiseFulfilled<void> template=async.promise.PromiseFulfilled arguments=(void)
-/// @generic.instance id=async.promise.PromisePending<string> template=async.promise.PromisePending arguments=(string)
-/// @generic.instance id=async.promise.PromisePending<void> template=async.promise.PromisePending arguments=(void)
-/// @generic.instance id=async.promise.PromiseReaction<string> template=async.promise.PromiseReaction arguments=(string)
-/// @generic.instance id=async.promise.PromiseReaction<void> template=async.promise.PromiseReaction arguments=(void)
-/// @generic.instance id=async.promise.PromiseState<string> template=async.promise.PromiseState arguments=(string)
-/// @generic.instance id=async.promise.PromiseState<void> template=async.promise.PromiseState arguments=(void)
-/// @generic.instance id=async.promise.PromiseWaiter<string> template=async.promise.PromiseWaiter arguments=(string)
-/// @generic.instance id=async.promise.PromiseWaiter<void> template=async.promise.PromiseWaiter arguments=(void)
+/// @resolution.name source=Awaited target=Awaited
+/// @resolution.name source=Promise target=Promise
+/// @generic.instance id=Awaitable<Promise<string>> template=Awaitable arguments=(Promise<string>)
+/// @generic.instance id=Promise<Promise<string>> template=Promise arguments=(Promise<string>)
+/// @generic.instance id=PromiseAwaiter<Promise<string>> template=PromiseAwaiter arguments=(Promise<string>)
+/// @generic.instance id=PromiseForwarded<Promise<string>> template=PromiseForwarded arguments=(Promise<string>)
+/// @generic.instance id=PromiseFulfilled<Promise<string>> template=PromiseFulfilled arguments=(Promise<string>)
+/// @generic.instance id=PromisePending<Promise<string>> template=PromisePending arguments=(Promise<string>)
+/// @generic.instance id=PromiseReaction<Promise<string>> template=PromiseReaction arguments=(Promise<string>)
+/// @generic.instance id=PromiseState<Promise<string>> template=PromiseState arguments=(Promise<string>)
+/// @generic.instance id=PromiseWaiter<Promise<string>> template=PromiseWaiter arguments=(Promise<string>)
+/// @resolution.name source=Promise target=Promise
+/// @generic.instance id=Awaitable<string> template=Awaitable arguments=(string)
+/// @generic.instance id=Awaitable<void> template=Awaitable arguments=(void)
+/// @generic.instance id=Promise<string> template=Promise arguments=(string)
+/// @generic.instance id=Promise<void> template=Promise arguments=(void)
+/// @generic.instance id=PromiseAwaiter<string> template=PromiseAwaiter arguments=(string)
+/// @generic.instance id=PromiseAwaiter<void> template=PromiseAwaiter arguments=(void)
+/// @generic.instance id=PromiseForwarded<string> template=PromiseForwarded arguments=(string)
+/// @generic.instance id=PromiseForwarded<void> template=PromiseForwarded arguments=(void)
+/// @generic.instance id=PromiseFulfilled<string> template=PromiseFulfilled arguments=(string)
+/// @generic.instance id=PromiseFulfilled<void> template=PromiseFulfilled arguments=(void)
+/// @generic.instance id=PromisePending<string> template=PromisePending arguments=(string)
+/// @generic.instance id=PromisePending<void> template=PromisePending arguments=(void)
+/// @generic.instance id=PromiseReaction<string> template=PromiseReaction arguments=(string)
+/// @generic.instance id=PromiseReaction<void> template=PromiseReaction arguments=(void)
+/// @generic.instance id=PromiseState<string> template=PromiseState arguments=(string)
+/// @generic.instance id=PromiseState<void> template=PromiseState arguments=(void)
+/// @generic.instance id=PromiseWaiter<string> template=PromiseWaiter arguments=(string)
+/// @generic.instance id=PromiseWaiter<void> template=PromiseWaiter arguments=(void)
 
 const ok: Value = "ready";
 /// @type.symbol symbol=ok source=ok type=string
@@ -134,7 +134,7 @@ const second: null | undefined = undefined as null | undefined;
 type Value = Awaited<null | undefined>;
 /// @type.symbol symbol=Value source="type Value = Awaited<null | undefined>" type=null | undefined
 /// @definition.type symbol=Value source="type Value = Awaited<null | undefined>" value=null | undefined
-/// @resolution.name source=Awaited target=types.object.Awaited
+/// @resolution.name source=Awaited target=Awaited
 
 const first: Value = null;
 /// @type.symbol symbol=first source=first type=null | undefined
@@ -174,13 +174,13 @@ const bad: string = promise;
 type Value = Awaited<Promise<string>>;
 /// @type.symbol symbol=Value source="type Value = Awaited<Promise<string>>" type=string
 /// @definition.type symbol=Value source="type Value = Awaited<Promise<string>>" value=string
-/// @resolution.name source=Awaited target=types.object.Awaited
-/// @resolution.name source=Promise target=async.promise.Promise
+/// @resolution.name source=Awaited target=Awaited
+/// @resolution.name source=Promise target=Promise
 
 declare const promise: Promise<string>;
 /// @type.symbol symbol=promise source=promise type=Promise<string>
 /// @resolution.pattern source=promise kind=binding target=promise
-/// @resolution.name source=Promise target=async.promise.Promise
+/// @resolution.name source=Promise target=Promise
 
 const bad: Value = promise;
 /// @type.symbol symbol=bad source=bad type=string

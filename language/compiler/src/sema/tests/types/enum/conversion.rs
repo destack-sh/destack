@@ -31,7 +31,7 @@ const mode: Mode = 1;
 
 === dir ===
 @repr("uint8")
-/// @resolution.name source=repr target=decorator.representation.repr
+/// @resolution.name source=repr target=repr
 
 enum Mode {
 /// @type.symbol symbol=Mode type=Mode

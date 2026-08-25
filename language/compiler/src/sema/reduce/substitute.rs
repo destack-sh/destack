@@ -68,7 +68,7 @@ impl TypeSubstitution {
         self.bindings.iter().map(|binding| binding.argument)
     }
 
-    /// Return whether this substitution replaces nothing.
+    /// Return whether this substitution is empty.
     pub(in crate::sema) fn is_empty(&self) -> bool {
         self.bindings.is_empty() && self.receiver.is_none()
     }
@@ -76,6 +76,7 @@ impl TypeSubstitution {
     /// Return this substitution with a qualified receiver.
     pub(in crate::sema) fn with_receiver(mut self, receiver: dir::GlobalTypeId) -> Self {
         self.receiver = Some(receiver);
+
         self
     }
 
@@ -142,8 +143,9 @@ enum SubstitutionRule<'a> {
     SubstituteInfer {
         /// The captured types keyed by binder symbol.
         captures: &'a [InferSubstitution],
-        /// The origin closed rebuilt entries normalize under, absent for a branch that tails
-        /// into another conditional and evaluates in place.
+        /// The origin closed rebuilt entries normalize under.
+        ///
+        /// A branch that tails into another conditional evaluates in place and leaves this open.
         origin: Option<Origin>,
     },
     /// Remove every inference barrier.
@@ -389,16 +391,18 @@ impl CheckState<'_> {
             )?;
             let key_type = self.substitute_graph(
                 module,
-                subject.key_type,
+                subject.key_source,
                 SubstitutionRule::Normalize { origin },
             )?;
+
+            // commit the subject only when a head actually moved
             if receiver != subject.receiver
                 || target != subject.target
-                || key_type != subject.key_type
+                || key_type != subject.key_source
             {
                 subject.receiver = receiver;
                 subject.target = target;
-                subject.key_type = key_type;
+                subject.key_source = key_type;
                 self.module.members_tail.commit_subject(site, subject);
             }
         }
@@ -416,6 +420,8 @@ impl CheckState<'_> {
             let Some(definition) = self.module.definition(symbol) else {
                 continue;
             };
+
+            // re-point the definition's roots and store it back
             let mut definition = definition.clone();
             self.translate_definition(module, Origin::Symbol(symbol), &mut definition)?;
             self.module
@@ -434,54 +440,71 @@ impl CheckState<'_> {
         definition: &mut dir::Definition,
     ) -> CompilerResult<()> {
         match definition {
+            // an alias holds its aliased value
             dir::Definition::TypeAlias(alias) => {
                 self.translate_root(module, origin, &mut alias.value)?;
             }
+            // a struct holds its conformances and members
             dir::Definition::Struct(nominal) => {
                 for conformance in &mut nominal.implements {
                     self.translate_root(module, origin, &mut conformance.interface)?;
                 }
+
                 self.translate_members(module, origin, &mut nominal.members)?;
             }
+            // a class holds its base, conformances, constructors, and members
             dir::Definition::Class(nominal) => {
                 if let Some(heritage) = &mut nominal.extends {
                     self.translate_root(module, origin, &mut heritage.ty)?;
                 }
+
                 for conformance in &mut nominal.implements {
                     self.translate_root(module, origin, &mut conformance.interface)?;
                 }
+
                 for constructor in &mut nominal.constructors {
                     self.translate_root(module, origin, &mut constructor.ty)?;
                 }
+
                 self.translate_members(module, origin, &mut nominal.members)?;
             }
+            // an interface holds its bases and members
             dir::Definition::Interface(nominal) => {
                 for heritage in &mut nominal.extends {
                     self.translate_root(module, origin, &mut heritage.ty)?;
                 }
+
                 self.translate_members(module, origin, &mut nominal.members)?;
             }
+            // an enum holds its conformances and members
             dir::Definition::Enum(nominal) => {
                 for conformance in &mut nominal.implements {
                     self.translate_root(module, origin, &mut conformance.interface)?;
                 }
+
                 self.translate_members(module, origin, &mut nominal.members)?;
             }
+            // a newtype holds its backing, constructors, and members
             dir::Definition::Newtype(nominal) => {
                 self.translate_root(module, origin, &mut nominal.backing)?;
+
                 for constructor in &mut nominal.constructors {
                     self.translate_root(module, origin, &mut constructor.backing)?;
                     self.translate_root(module, origin, &mut constructor.ty)?;
                 }
+
                 self.translate_members(module, origin, &mut nominal.members)?;
             }
+            // an extension holds its target, conformances, and members
             dir::Definition::Extension(extension) => {
                 let (dir::ExtensionTarget::Rooted { ty, .. }
                 | dir::ExtensionTarget::Blanket { ty, .. }) = &mut extension.target;
                 self.translate_root(module, origin, ty)?;
+
                 for conformance in &mut extension.implements {
                     self.translate_root(module, origin, &mut conformance.interface)?;
                 }
+
                 self.translate_members(module, origin, &mut extension.members)?;
             }
         }
@@ -498,22 +521,27 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         for member in members {
             match member {
+                // members whose types live on their own symbols
                 dir::DefinitionMember::Field(_)
                 | dir::DefinitionMember::Method(_)
                 | dir::DefinitionMember::AssociatedConst(_)
                 | dir::DefinitionMember::EnumVariant(_) => {}
+                // an associated type holds its constraint and its value
                 dir::DefinitionMember::AssociatedType(member) => {
                     if let Some(constraint) = &mut member.constraint {
                         self.translate_root(module, origin, constraint)?;
                     }
+
                     if let Some(value) = &mut member.value {
                         self.translate_root(module, origin, value)?;
                     }
                 }
+                // a call or construct signature holds its signature type
                 dir::DefinitionMember::CallSignature(member)
                 | dir::DefinitionMember::ConstructSignature(member) => {
                     self.translate_root(module, origin, &mut member.ty)?;
                 }
+                // an index signature holds its key and value types
                 dir::DefinitionMember::IndexSignature(member) => {
                     self.translate_root(module, origin, &mut member.key_type)?;
                     self.translate_root(module, origin, &mut member.value_type)?;
@@ -585,9 +613,12 @@ impl CheckState<'_> {
         let dir::Type::Application(application) = self.ty(id)? else {
             return Ok(None);
         };
+
         if self.language_item(application.symbol)? != Some(dir::LanguageItem::NoInfer) {
             return Ok(None);
         }
+
+        // require the barrier to carry exactly one argument
         let arguments = self.type_ids(id.module_id, application.arguments)?;
         let [target] = arguments else {
             return Err(CompilerError::Internal {
@@ -676,14 +707,18 @@ impl CheckState<'_> {
         // decide leaves directly and inherit composites from their children
         let ty = self.ty_raw(id)?;
         let hit = match (ty, rule) {
+            // a normalize pass rebuilds every node
             _ if matches!(rule, SubstitutionRule::Normalize { .. }) => true,
+            // a replace pass hits its own source id
             _ if matches!(rule, SubstitutionRule::Replace { from, .. } if from == id) => true,
+            // a bare reference to a conditional-infer binder
             (dir::Type::Application(instance), _)
                 if instance.arguments.is_empty()
                     && rule.infer_capture(instance.symbol).is_some() =>
             {
                 true
             }
+            // a direct conditional-infer binder
             (dir::Type::Operation(operation), _)
                 if let dir::TypeOperation::Infer(dir::InferType {
                     symbol: Some(symbol),
@@ -693,10 +728,13 @@ impl CheckState<'_> {
             {
                 true
             }
+            // a bound generic parameter
             (dir::Type::Parameter(parameter), SubstitutionRule::Substitute { .. }) => {
                 rule.substituted(parameter).is_some()
             }
+            // a receiver reference under a receiver rewrite
             (dir::Type::This, SubstitutionRule::Substitute { .. }) => rule.receiver().is_some(),
+            // a variable follows its solution, or its canonical hole when open
             (dir::Type::Variable(variable), _) => match self.infer.solution(variable)? {
                 Some(solution) => self.substitution_affects(solution, rule, affected)?,
                 None => match rule {
@@ -706,17 +744,22 @@ impl CheckState<'_> {
                     _ => false,
                 },
             },
+            // a generic parameter with a canonical rigid number
             (
                 dir::Type::Parameter(parameter),
                 SubstitutionRule::Canonicalize { parameters, .. },
             ) => parameters.contains_key(&parameter),
+            // a canonical hole with a live counterpart
             (dir::Type::Hole(hole), SubstitutionRule::Instantiate { holes, .. }) => {
                 (hole.0 as usize) < holes.len()
             }
+            // a canonical rigid type with a live parameter
             (dir::Type::Rigid(rigid), SubstitutionRule::Instantiate { parameters, .. }) => {
                 (rigid.0 as usize) < parameters.len()
             }
+            // an inference barrier under an erasing pass
             (_, SubstitutionRule::EraseNoInfer) if self.no_infer_target(id)?.is_some() => true,
+            // every other head inherits from its children
             _ => {
                 let mut hit = false;
                 let mut children = SmallVec::<[dir::GlobalTypeId; 8]>::new();
@@ -746,6 +789,8 @@ impl CheckState<'_> {
         if !substituting.insert(id) {
             return Ok(id);
         }
+
+        // hold this id on the active path across the rebuild
         let substituted = ensure_sufficient_stack(|| {
             self.substitute_id(target, id, rule, affected, substituting)
         });
@@ -775,6 +820,7 @@ impl CheckState<'_> {
             dir::Type::Variable(variable) => Some(variable),
             _ => None,
         };
+
         if let Some(variable) = variable {
             return match self.infer.solution(variable)? {
                 // substitute through the solution, which flags apart from its variable entry
@@ -820,6 +866,8 @@ impl CheckState<'_> {
             if let Some(replacement) = rule.substituted(parameter) {
                 return Ok(replacement);
             }
+
+            // leave an unbound parameter in place under a substitution
             if matches!(rule, SubstitutionRule::Substitute { .. }) {
                 return Ok(id);
             }
@@ -878,6 +926,8 @@ impl CheckState<'_> {
         let ty = self.ty(id)?;
         let substituted =
             self.substitute_children(id.module_id, target, ty, rule, affected, substituting)?;
+
+        // rebuild set constructors through their normalizing builders
         let rebuilt = match substituted {
             dir::Type::Union(union) => {
                 let elements: SmallVec<[_; 8]> = self.type_ids(target, union.elements)?.into();
@@ -919,7 +969,7 @@ impl CheckState<'_> {
         affected: &FxIndexMap<dir::GlobalTypeId, bool>,
         substituting: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::Type> {
-        self.map_type_children(source, target, ty, &mut |state, child| {
+        self.map_type_children(source, ty, &mut |state, child| {
             state.substitute_guarded(target, child, rule, affected, substituting)
         })
     }

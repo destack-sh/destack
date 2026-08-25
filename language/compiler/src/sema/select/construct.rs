@@ -30,7 +30,7 @@ impl BodyState<'_, '_> {
             return Ok(target);
         }
 
-        // omitted heads are owned entirely by the expected target
+        // let the expected target decide omitted heads
         if matches!(
             self.module(module).view().get(ty),
             dir::TypeExpression::Infer {
@@ -64,11 +64,11 @@ impl BodyState<'_, '_> {
             return Ok(expected);
         }
 
-        self.written_construct_tag(origin, module, ty)
+        self.construct_head_type(origin, module, ty)
     }
 
-    /// Return the written nominal tag type for one construct or pattern head.
-    pub(in crate::sema) fn written_construct_tag(
+    /// Return the nominal head type one construct or pattern writes.
+    pub(in crate::sema) fn construct_head_type(
         &mut self,
         origin: Origin,
         module: ModuleId,
@@ -81,7 +81,7 @@ impl BodyState<'_, '_> {
             return Ok(target);
         }
 
-        // non-reference heads keep strict annotation typing
+        // keep strict annotation typing for every other head
         let dir::TypeExpression::Reference {
             path,
             generic_arguments,
@@ -113,7 +113,13 @@ impl BodyState<'_, '_> {
                         message: format!("construct target {source:?} decided as {other:?}"),
                     });
                 }
-                // reference heads decide during the walk
+                // accept an undecided head in a module that already reported errors
+                None if !self.module(module).diagnostics.is_empty() => {
+                    let error = self.intern_type(dir::Type::Error)?;
+
+                    return Ok(error);
+                }
+                // reference heads in a clean module decide during the walk
                 None => {
                     return Err(CompilerError::Internal {
                         message: format!(
@@ -150,8 +156,14 @@ impl BodyState<'_, '_> {
         let Some(expected) = expected else {
             return Ok(None);
         };
+
+        // peel the owned and managed forms around the constructed instance
         let target = match self.ty(expected)? {
-            dir::Type::Form(form) if form.form == dir::Form::Owned => form.value,
+            dir::Type::Form(form)
+                if matches!(form.form, dir::Form::Owned | dir::Form::Managed { .. }) =>
+            {
+                form.value
+            }
             _ => expected,
         };
 
@@ -176,7 +188,9 @@ impl BodyState<'_, '_> {
                     }
                     matched = Some(candidate);
                 }
-                dir::Type::Form(form) if form.form == dir::Form::Owned => {
+                dir::Type::Form(form)
+                    if matches!(form.form, dir::Form::Owned | dir::Form::Managed { .. }) =>
+                {
                     pending.push(form.value);
                 }
                 dir::Type::Union(union) => {
@@ -287,7 +301,7 @@ impl BodyState<'_, '_> {
             let dir::Type::Form(form) = self.ty(expected)? else {
                 break;
             };
-            if !matches!(form.form, dir::Form::Owned | dir::Form::Placed { .. }) {
+            if !matches!(form.form, dir::Form::Owned | dir::Form::Managed { .. }) {
                 break;
             }
             forms.push(form.form);
@@ -311,6 +325,7 @@ impl BodyState<'_, '_> {
             );
         }
 
+        // read the nominal instance the target names
         let instance = match self.ty(target)? {
             dir::Type::Application(instance) => instance,
             _ => return self.report_rejected_construct_target(node, origin, target, ""),
@@ -357,6 +372,8 @@ impl BodyState<'_, '_> {
             }
             _ => return self.report_rejected_construct_target(node, origin, target, ""),
         };
+
+        // require at least one construct candidate
         if constructors.is_empty() {
             return Err(CompilerError::Internal {
                 message: format!("class {:?} has no construct candidates", instance.symbol),
@@ -367,12 +384,12 @@ impl BodyState<'_, '_> {
         let receiver = forms
             .iter()
             .find_map(|form| match form {
-                dir::Form::Placed { place } => Some(*place),
+                dir::Form::Managed { place } => Some(*place),
                 _ => None,
             })
             .map(|place| {
                 self.intern_type(dir::Type::Form(dir::FormType {
-                    form: dir::Form::Placed { place },
+                    form: dir::Form::Managed { place },
                     value: target,
                 }))
             })
@@ -483,6 +500,7 @@ impl BodyState<'_, '_> {
             }
         }
 
+        // reject the construction with the first few candidate notes
         rejections.truncate(4);
 
         self.report_rejected_construct(site, node, origin, argument_nodes, &rejections)
@@ -498,10 +516,12 @@ impl BodyState<'_, '_> {
         extends: Option<dir::NominalHeritage>,
         active: &mut SmallVec<[dir::GlobalSymbolId; 4]>,
     ) -> CompilerResult<Vec<dir::ClassConstructorDefinition>> {
+        // keep the constructors the class declares itself
         if !constructors.is_empty() {
             return Ok(constructors);
         }
 
+        // require a base class to forward from
         let Some(extends) = extends else {
             return Err(CompilerError::Internal {
                 message: format!("class {:?} has no construct candidates", instance.symbol),
@@ -519,12 +539,14 @@ impl BodyState<'_, '_> {
         extends: &dir::NominalHeritage,
         active: &mut SmallVec<[dir::GlobalSymbolId; 4]>,
     ) -> CompilerResult<Vec<dir::ClassConstructorDefinition>> {
+        // stop at a heritage cycle and mark this base active
         let (extends_module, instance) = self.nominal_application(extends.ty)?;
         if active.contains(&instance.symbol) {
             return Ok(Vec::new());
         }
         active.push(instance.symbol);
 
+        // read the base class definition
         let base = match self.definition(instance.symbol)? {
             Some(dir::Definition::Class(base)) => base.clone(),
             _ => {
@@ -533,6 +555,8 @@ impl BodyState<'_, '_> {
                 });
             }
         };
+
+        // apply the written heritage arguments to the base instance
         let module = origin.module();
         let arguments: SmallVec<[_; 8]> = self.type_ids(extends_module, instance.arguments)?.into();
         let arguments = self.intern_type_ids(&arguments)?;
@@ -541,6 +565,8 @@ impl BodyState<'_, '_> {
             ..instance
         };
         let base_receiver = self.intern_type(dir::Type::Application(instance))?;
+
+        // collect the constructors the base itself offers
         let base_constructors = self.collect_class_construct_candidates(
             origin,
             base_receiver,
@@ -551,6 +577,7 @@ impl BodyState<'_, '_> {
         )?;
         active.pop();
 
+        // forward each base constructor onto the derived receiver
         let substitution = self
             .instance_substitution(module, &instance)?
             .with_receiver(receiver);
@@ -558,7 +585,7 @@ impl BodyState<'_, '_> {
         for base_constructor in base_constructors {
             let constructor = base_constructor.constructor.forwarded(instance.symbol);
             let ty = self.substitute_type(base_constructor.ty, &substitution)?;
-            let ty = self.class_constructor_returning(origin, ty, receiver)?;
+            let ty = self.class_constructor_returning(ty, receiver)?;
 
             constructors.push(dir::ClassConstructorDefinition { constructor, ty });
         }
@@ -569,7 +596,6 @@ impl BodyState<'_, '_> {
     /// Return one constructor signature with a replaced return type.
     fn class_constructor_returning(
         &mut self,
-        _origin: Origin,
         ty: dir::GlobalTypeId,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -628,7 +654,7 @@ impl BodyState<'_, '_> {
             );
         }
 
-        // applied classes substitute their written arguments
+        // substitute the written arguments of an applied class
         let substitution = self
             .instance_substitution(instance_module, instance)?
             .with_receiver(target);
@@ -639,8 +665,10 @@ impl BodyState<'_, '_> {
             ));
         };
 
+        // fall back to the constructed target as the return type
         let return_type = function.return_type.or(Some(target));
         let carried = self.resolved_argument_bindings(&substitution.bindings)?;
+
         self.match_signature(
             origin,
             function_type.module_id,
@@ -666,6 +694,7 @@ impl BodyState<'_, '_> {
         type_arguments: &[dir::GlobalTypeId],
         expectation: Option<Expectation>,
     ) -> CompilerResult<ValueCheck> {
+        // match the written arguments against the newtype's backings
         let matched = self.match_newtype(
             origin,
             symbol,
@@ -675,10 +704,12 @@ impl BodyState<'_, '_> {
             NewtypeOverload::Ordered,
             ValueUse::Argument,
         )?;
-        let (signature, rejection, outcome) = match matched {
-            NewtypeMatch::Selected(signature) => (signature, None, CheckOutcome::Holds),
+
+        // read the selected signature and the outcome it produced
+        let (signature, outcome) = match matched {
+            NewtypeMatch::Selected(signature) => (signature, CheckOutcome::Holds),
             NewtypeMatch::ReturnMismatch(signature) => {
-                (signature, None, CheckOutcome::Fails(CheckFailure::Relation))
+                (signature, CheckOutcome::Fails(CheckFailure::Relation))
             }
             NewtypeMatch::Invalid {
                 signature,
@@ -686,7 +717,7 @@ impl BodyState<'_, '_> {
             } => {
                 self.report_signature_rejection(origin, rejection)?;
 
-                (signature, None, CheckOutcome::Fails(CheckFailure::Relation))
+                (signature, CheckOutcome::Fails(CheckFailure::Relation))
             }
             NewtypeMatch::Rejected(rejection) => match rejection {
                 NewtypeRejection::Signature(rejection) => {
@@ -722,11 +753,6 @@ impl BodyState<'_, '_> {
                 }
             },
         };
-
-        // report the rejected invocation
-        if let Some(rejection) = rejection {
-            self.report_signature_rejection(origin, rejection)?;
-        }
 
         self.commit_newtype_construct(
             node,
@@ -792,6 +818,7 @@ impl BodyState<'_, '_> {
         signature: SignatureSelection,
         forms: &[dir::Form],
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // bind generic arguments from the class instance when inference stayed closed
         let generic_arguments = if signature.generic_arguments.is_empty() {
             let arguments: SmallVec<[_; 8]> =
                 self.type_ids(instance_module, instance.arguments)?.into();
@@ -812,8 +839,14 @@ impl BodyState<'_, '_> {
             constructor,
         };
 
-        // wrap the produced instance type in the selected forms
+        // wrap the produced instance in the destination forms, replacing its own heap form
         let mut produced = signature.return_type;
+        if !forms.is_empty()
+            && let dir::Type::Form(form) = self.ty(produced)?
+            && matches!(form.form, dir::Form::Managed { .. })
+        {
+            produced = form.value;
+        }
         for form in forms.iter().rev().copied() {
             produced = self.intern_type(dir::Type::Form(dir::FormType {
                 form,
@@ -845,6 +878,7 @@ impl BodyState<'_, '_> {
         arguments: &[CallableArgument],
         forms: &[dir::Form],
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the construct signatures the constraint declares
         let module = node.module_id;
         let signatures = self.apparent_signatures(constraint, SignatureFamily::Construct)?;
         let Some((constraint_module, instance)) = self.nominal_application_maybe(constraint)?
@@ -971,7 +1005,7 @@ impl BodyState<'_, '_> {
             self.commit_coercion(*argument, coercion.clone())?;
         }
 
-        // dispatch through the callee value's own construct slot
+        // dispatch through the callee value's own construct signature
         let construct_target = dir::ConstructTarget::Dynamic {
             dispatch: dir::DynamicDispatch {
                 receiver: dir::AdjustedReceiver::direct(target),
@@ -997,6 +1031,7 @@ impl BodyState<'_, '_> {
         callee: dir::LocalNodeId<dir::Expression>,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
     ) -> CompilerResult<ValueCheck> {
+        // collect the supplied arguments once for every candidate
         let node = site.node;
         let module = node.module_id;
         let origin = site.origin();
@@ -1013,6 +1048,8 @@ impl BodyState<'_, '_> {
         if matches!(self.ty(super_ty)?, dir::Type::Error) {
             return self.poison_call(node, None);
         }
+
+        // read the base class this super call initializes
         let (base_module, instance) = self.nominal_application(super_ty)?;
         let Some(dir::Definition::Class(base)) = self.definition(instance.symbol)? else {
             return Err(CompilerError::Internal {
@@ -1109,7 +1146,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // reject the super call when no base constructor accepts the arguments
+        // reject the super call once every base constructor rejected the arguments
         rejections.truncate(4);
 
         self.report_rejected_construct(site, node, origin, argument_nodes, &rejections)?;
@@ -1143,7 +1180,7 @@ impl BodyState<'_, '_> {
             signature.generic_arguments.clone()
         };
 
-        // initialize this through a super call, which produces no value
+        // initialize this through a super call, which produces void
         let produced = self.intern_type(dir::Type::Void)?;
         let target = dir::ConstructTarget::Class {
             selection: dir::Selection::new(instance.symbol, generic_arguments),
@@ -1196,7 +1233,7 @@ impl BodyState<'_, '_> {
         Ok(produced)
     }
 
-    /// Report one construction whose arguments match no constructor.
+    /// Report one construction that every candidate constructor rejected.
     pub(in crate::sema) fn report_rejected_construct(
         &mut self,
         site: FlowSite,
@@ -1213,7 +1250,7 @@ impl BodyState<'_, '_> {
         Ok(error)
     }
 
-    /// Report one construction whose target cannot use new.
+    /// Report one construct target that new refuses.
     fn report_rejected_construct_target(
         &mut self,
         node: dir::GlobalNodeIdAny,

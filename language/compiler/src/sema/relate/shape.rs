@@ -3,11 +3,12 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Cause, CauseId, CauseKind, CheckState, MemberRole, Origin, Relation, TypeSubstitution, Verdict,
+    Cause, CauseId, CauseKind, CheckState, GenericParameterId, MemberRole, Origin, Relation,
+    TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
-/// One directed function assignment pair with its signature slot.
+/// One directed function assignment pair with the cause it reports under.
 type FunctionAssignabilityPair = (Option<CauseKind>, dir::GlobalTypeId, dir::GlobalTypeId);
 
 /// One signature instantiated at its required signature.
@@ -157,6 +158,7 @@ impl CheckState<'_> {
                 source_end -= 1;
             }
 
+            // pair the leading target elements with source elements in order
             let mut source_index = 0usize;
             for target in target_elements {
                 // rest targets consume every remaining source element
@@ -212,6 +214,7 @@ impl CheckState<'_> {
                 source_index += 1;
             }
 
+            // reject source elements the target left unconsumed
             if source_index != source_end {
                 return Ok(Verdict::Fails);
             }
@@ -271,7 +274,7 @@ impl CheckState<'_> {
                 return Ok(Verdict::Fails);
             }
 
-            // pair the access slots of each property in turn
+            // pair the access modes of each property in turn
             let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
             let source_fields =
                 self.object_properties(source.module_id, source_shape.properties)?;
@@ -359,7 +362,8 @@ impl CheckState<'_> {
                 return Ok(Verdict::Fails);
             };
 
-            // note a constructed source, whose entries adopt the target's storage
+            // NOTE #Broken: source destructured as Object above, so this is always
+            //  true and the write-slot comparison behind !is_constructed never runs
             let is_constructed = matches!(self.ty(source)?, dir::Type::Object(_));
 
             // require each target field from the source shape
@@ -528,7 +532,7 @@ impl CheckState<'_> {
         source: &dir::TypeProperty,
         target: &dir::TypeProperty,
     ) -> Option<SmallVec<[(Relation, dir::GlobalTypeId, dir::GlobalTypeId); 2]>> {
-        // optional sources cannot satisfy required targets
+        // reject optional sources against required targets
         if source.is_optional && !target.is_optional {
             return None;
         }
@@ -546,7 +550,7 @@ impl CheckState<'_> {
                     relations.push((Relation::Widens, target_write, source.access.write()?));
                 }
             }
-            // satisfies compares reads only and grants no writes
+            // satisfies compares reads alone
             Relation::Satisfies => {
                 if let Some(target_read) = target.access.read() {
                     relations.push((Relation::Satisfies, source.access.read()?, target_read));
@@ -679,7 +683,7 @@ impl CheckState<'_> {
             }
         }
 
-        // skip call and index signatures for nominal declaration values
+        // reject call and index signatures on nominal declaration values
         if !target_shape.call_signatures.is_empty() || !target_shape.index_signatures.is_empty() {
             return Ok(Verdict::Fails);
         }
@@ -794,13 +798,13 @@ impl CheckState<'_> {
         source: dir::ObjectType,
         target: &dir::TypeIndexSignature,
     ) -> CompilerResult<Verdict> {
-        // hold covered storage to exactly the value type for keyed finds
+        // compare covered value types exactly outside satisfies
         let value_relation = match relation {
             Relation::Satisfies => Relation::Satisfies,
             _ => Relation::Equal,
         };
 
-        // decide a source with declared index signatures by those signatures
+        // prefer the source's own declared index signatures
         let source_indexes = SmallVec::<[dir::TypeIndexSignature; 2]>::from_slice(
             self.object_index_signatures(module, source.index_signatures)?,
         );
@@ -835,7 +839,7 @@ impl CheckState<'_> {
             return Ok(verdict);
         }
 
-        // prove each finite field covered by the key domain
+        // require each declared field covered by the key domain
         let source_fields = SmallVec::<[dir::TypeProperty; 8]>::from_slice(
             self.object_properties(module, source.properties)?,
         );
@@ -877,7 +881,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        // normalize both signatures so spread slots pair positionally
+        // normalize both signatures so spread parameters pair positionally
         let source = self.normalize(origin, source)?;
         let target = self.normalize(origin, target)?;
 
@@ -918,7 +922,7 @@ impl CheckState<'_> {
         signature: dir::GlobalTypeId,
         required: dir::GlobalTypeId,
     ) -> CompilerResult<Option<SignatureInstantiation>> {
-        // peel callable carriers down to their matchable signatures
+        // peel function and pointer types down to their signatures
         let peeled = match self.ty(signature)? {
             dir::Type::Function(function) => function.signature,
             dir::Type::FunctionPointer(pointer) => pointer.signature,
@@ -961,7 +965,7 @@ impl CheckState<'_> {
         for parameter in parameters.iter().copied() {
             // skip lifetimes, which erase from instance identity
             let is_lifetime = self.generic_parameter(parameter).is_some_and(|binding| {
-                binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+                binding.memory_parameter() == Some(dir::MemoryParameter::Region)
             });
             if is_lifetime {
                 continue;
@@ -977,8 +981,13 @@ impl CheckState<'_> {
             }
         }
 
+        let substituted = self.substitute_type(signature, &substitution)?;
+        if substituted == signature {
+            return Ok(Some(SignatureInstantiation::concrete(signature)));
+        }
+
         Ok(Some(SignatureInstantiation {
-            signature: self.substitute_type(signature, &substitution)?,
+            signature: substituted,
             arguments,
         }))
     }
@@ -1031,7 +1040,7 @@ impl CheckState<'_> {
                     return Ok(Verdict::Fails);
                 };
 
-                // reduce the required slots as a retry, shedding redundant forms
+                // reduce the required parameters as a retry, shedding redundant forms
                 let mut reduced_pairs = SmallVec::<[_; 8]>::new();
                 for (source_slot, target_slot) in written_pairs.iter().copied() {
                     let reduced = self.normalize(origin, target_slot)?;
@@ -1039,7 +1048,7 @@ impl CheckState<'_> {
                     reduced_pairs.push((source_slot, reduced));
                 }
 
-                // bind over the written slots, falling back to the reduced ones
+                // bind over the written parameters, falling back to the reduced ones
                 let mut matched = None;
                 for pairs in [written_pairs, reduced_pairs] {
                     // relate under the receiver, binding this-projected bounds
@@ -1048,7 +1057,7 @@ impl CheckState<'_> {
                         substitution = substitution.with_receiver(receiver);
                     }
 
-                    // bind receiver slots when the two receiver shapes align
+                    // bind receivers when the two receiver shapes align
                     if let (Some(signature), Some(required)) =
                         (self.signature_head(source)?, self.signature_head(target)?)
                         && let (Some(source_this), Some(target_this)) =
@@ -1086,9 +1095,12 @@ impl CheckState<'_> {
                     break;
                 }
 
-                let Some(substitution) = matched else {
+                let Some(mut substitution) = matched else {
                     return Ok(Verdict::Fails);
                 };
+
+                // memory parameters the match left open ground at the ambient election
+                self.ground_ambient_memory_parameters(&parameters, &mut substitution)?;
 
                 // compare the instantiated source from here on
                 source = self.substitute_type(source, &substitution)?;
@@ -1105,18 +1117,49 @@ impl CheckState<'_> {
         // relate each pair with redundant forms shed and closed readonly borrows stripped
         let mut verdict = Verdict::Holds;
         for (_, source, target) in pairs {
+            let source = self.normalize(origin, source)?;
             let source = self.reduce_redundant_forms(origin, source)?;
             let source = self.strip_borrows(origin, source)?;
             let target = self.normalize(origin, target)?;
             let target = self.reduce_redundant_forms(origin, target)?;
             let target = self.strip_borrows(origin, target)?;
-            verdict = verdict.and(self.constrain_type(origin, cause, relation, source, target)?);
+            let decided = self.constrain_type(origin, cause, relation, source, target)?;
+            verdict = verdict.and(decided);
             if verdict == Verdict::Fails {
                 return Ok(Verdict::Fails);
             }
         }
 
         Ok(verdict)
+    }
+
+    /// Ground one substitution's unbound memory parameters at the ambient election.
+    fn ground_ambient_memory_parameters(
+        &mut self,
+        parameters: &[GenericParameterId],
+        substitution: &mut TypeSubstitution,
+    ) -> CompilerResult<()> {
+        // extents erase, so the frame extent stands for any; spaces elect local
+        for parameter in parameters.iter().copied() {
+            if substitution.argument(parameter).is_some() {
+                continue;
+            }
+            let kind = self
+                .generic_parameter(parameter)
+                .and_then(|binding| binding.memory_parameter());
+            let fill = match kind {
+                Some(dir::MemoryParameter::Region) => {
+                    Some(self.lifetime_literal(dir::Lifetime::Frame)?)
+                }
+                Some(dir::MemoryParameter::Place) => Some(self.place_literal(dir::Space::Local)?),
+                _ => None,
+            };
+            if let Some(fill) = fill {
+                substitution.bind(parameter, fill)?;
+            }
+        }
+
+        Ok(())
     }
 
     /// Strip readonly borrows from one type, mapping union arms one level deep.
@@ -1163,7 +1206,7 @@ impl CheckState<'_> {
 
         // require readonly access over a copyable payload
         let access = self.type_borrow(ty.module_id, borrow)?.access;
-        if self.access_literal(origin, access)? != Some(dir::Access::Readonly) {
+        if self.access_of(access)? != Some(dir::Access::Readonly) {
             return Ok(ty);
         }
 
@@ -1228,7 +1271,7 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        // only a constructor satisfies a construct signature
+        // require both signatures to agree on construct
         if source_signature.is_construct != target_signature.is_construct {
             return Ok(None);
         }
@@ -1248,29 +1291,32 @@ impl CheckState<'_> {
         }
 
         // require source parameters to accept every target call arity
-        let source_slots = self.parameter_slots(source.module_id, source_signature.parameters)?;
-        let target_slots = self.parameter_slots(target.module_id, target_signature.parameters)?;
-        let required = source_slots
+        let source_parameters =
+            self.expand_parameters(source.module_id, source_signature.parameters)?;
+        let target_parameters =
+            self.expand_parameters(target.module_id, target_signature.parameters)?;
+        let required = source_parameters
             .iter()
             .filter(|slot| !slot.is_optional && !slot.is_rest)
             .count();
-        if target_slots.len() < required && !target_slots.iter().any(|slot| slot.is_rest) {
+        if target_parameters.len() < required && !target_parameters.iter().any(|slot| slot.is_rest)
+        {
             return Ok(None);
         }
 
-        // compare runtime inputs contravariantly, spreading rest slots over the other positions
+        // compare runtime inputs contravariantly, spreading rest parameters in place
         let mut source_index = 0usize;
-        for (index, target) in target_slots.iter().enumerate() {
+        for (index, target) in target_parameters.iter().enumerate() {
             let cause = Some(CauseKind::Parameter {
                 index: index as u32,
             });
 
             // spread the target rest over every remaining source slot
             if target.is_rest {
-                // bind the remaining source slots as one tuple for an open rest binder
+                // bind the remaining source parameters as one tuple for an open rest binder
                 let rest = self.shallow_resolve(target.ty)?;
                 if matches!(self.ty(rest)?, dir::Type::Variable(_)) {
-                    let elements = source_slots[source_index..]
+                    let elements = source_parameters[source_index..]
                         .iter()
                         .map(|slot| dir::TypeElement {
                             label: None,
@@ -1286,7 +1332,7 @@ impl CheckState<'_> {
                 }
 
                 let element = self.rest_element_type(target.ty)?;
-                while let Some(source) = source_slots.get(source_index) {
+                while let Some(source) = source_parameters.get(source_index) {
                     let target = if source.is_rest { target.ty } else { element };
                     let cause = Some(CauseKind::Parameter {
                         index: source_index as u32,
@@ -1297,8 +1343,8 @@ impl CheckState<'_> {
                 break;
             }
 
-            // stop at the target inputs past the source slots
-            let Some(source) = source_slots.get(source_index) else {
+            // stop at the target inputs past the source parameters
+            let Some(source) = source_parameters.get(source_index) else {
                 break;
             };
 
@@ -1344,45 +1390,48 @@ impl ThisParameterComparison {
     }
 }
 
-/// One positional slot of a parameter list, with rest tuples spread in place.
-pub(in crate::sema) struct ParameterSlot {
-    /// The slot type, the whole container for a rest slot.
+/// One expanded parameter position, with rest tuples spread in place.
+pub(in crate::sema) struct ExpandedParameter {
+    /// The parameter type, the whole container for a rest parameter.
     pub(in crate::sema) ty: dir::GlobalTypeId,
-    /// Whether a call may omit the slot.
+    /// Whether a call may omit the argument.
     pub(in crate::sema) is_optional: bool,
-    /// Whether the slot captures every remaining call argument.
+    /// Whether the parameter captures every remaining call argument.
     pub(in crate::sema) is_rest: bool,
 }
 
 impl CheckState<'_> {
     /// Expand one parameter list, spreading a rest tuple over its elements.
-    pub(in crate::sema) fn parameter_slots(
+    pub(in crate::sema) fn expand_parameters(
         &self,
         module: ModuleId,
         parameters: dir::TypeListId,
-    ) -> CompilerResult<SmallVec<[ParameterSlot; 6]>> {
-        let mut slots = SmallVec::new();
+    ) -> CompilerResult<SmallVec<[ExpandedParameter; 6]>> {
+        let mut expanded = SmallVec::new();
         for parameter in self.signature_parameters(module, parameters)? {
+            // keep plain parameters in their written position
             if !parameter.is_rest {
-                slots.push(ParameterSlot {
+                expanded.push(ExpandedParameter {
                     ty: parameter.ty,
                     is_optional: parameter.is_optional,
                     is_rest: false,
                 });
                 continue;
             }
+
+            // spread a rest tuple over its elements, keeping other rests whole
             let rest = self.shallow_resolve(parameter.ty)?;
             match self.ty(rest)? {
                 dir::Type::Tuple(tuple) => {
                     for element in self.tuple_elements(rest.module_id, tuple.elements)? {
-                        slots.push(ParameterSlot {
+                        expanded.push(ExpandedParameter {
                             ty: element.ty,
                             is_optional: element.is_optional,
                             is_rest: element.is_rest,
                         });
                     }
                 }
-                _ => slots.push(ParameterSlot {
+                _ => expanded.push(ExpandedParameter {
                     ty: rest,
                     is_optional: false,
                     is_rest: true,
@@ -1390,7 +1439,7 @@ impl CheckState<'_> {
             }
         }
 
-        Ok(slots)
+        Ok(expanded)
     }
 
     /// Return the type one rest container supplies to each position it spreads over.

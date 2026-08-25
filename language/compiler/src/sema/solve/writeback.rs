@@ -189,7 +189,8 @@ impl CheckState<'_> {
                     .and_then(|template| self.generic_template(template))
                     .is_some_and(|template| {
                         template.parameters.iter().any(|parameter| {
-                            !self.is_lifetime_parameter(parameter.into_global(symbol.module_id))
+                            self.generic_parameter(parameter.into_global(symbol.module_id))
+                                .is_some_and(|binding| binding.is_instance_parameter())
                         })
                     });
                 if is_parameterized {
@@ -252,8 +253,18 @@ impl CheckState<'_> {
 
         // require the write to close over solutions and holes
         if self.type_flags(resolved)?.has_variable() {
+            let survivors = self.type_variables(resolved)?;
+            let roles = survivors
+                .iter()
+                .map(|variable| format!("{:?}={:?}", variable, self.infer.variable_role(*variable)))
+                .collect::<Vec<_>>()
+                .join(", ");
+
             return Err(CompilerError::Internal {
-                message: format!("check variable survived the write of {resolved:?}"),
+                message: format!(
+                    "check variable survived the write of {} as {resolved:?}: {roles}",
+                    self.format_type(resolved)
+                ),
             });
         }
 
@@ -267,7 +278,7 @@ impl CheckState<'_> {
         active: &mut FxIndexSet<dir::GlobalTypeId>,
         memo: &mut FxIndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // a closed graph without computation heads resolves to itself
+        // return a closed graph with no computation heads as it stands
         let flags = self.type_flags(id)?;
         if !flags.has_variable()
             && !flags.has_member()
@@ -312,16 +323,15 @@ impl CheckState<'_> {
                 None => self.intern_type(dir::Type::Error)?,
             }
         }
-        // keep foreign types; their own module writes them back
+        // keep foreign types, their own module writes them back
         else if !self.is_own_module(id.module_id) {
             id
         }
         // rebuild a composite around its resolved children
         else {
-            let rebuilt =
-                self.map_type_children(id.module_id, id.module_id, ty, &mut |state, child| {
-                    state.resolve_open_type(child, active, memo)
-                })?;
+            let rebuilt = self.map_type_children(id.module_id, ty, &mut |state, child| {
+                state.resolve_open_type(child, active, memo)
+            })?;
 
             // renormalize solved unions like any other construction
             let rebuilt = match rebuilt {
@@ -393,7 +403,7 @@ impl CheckState<'_> {
             return Ok(false);
         }
 
-        // only type aliases stand for a family; every other declaration names itself
+        // only type aliases stand for a family, every other declaration names itself
         let value = match self.definition(symbol)? {
             Some(dir::Definition::TypeAlias(alias)) => alias.value,
             _ => return Ok(false),
@@ -409,6 +419,7 @@ impl CheckState<'_> {
         named: &mut FxIndexSet<dir::GlobalSymbolId>,
     ) -> CompilerResult<bool> {
         match self.ty(value)? {
+            // projections and operations compute, names compute through their value
             dir::Type::Operation(_) | dir::Type::Member(_) => Ok(true),
             dir::Type::Application(instance) => self.is_computed_name(instance.symbol, named),
             dir::Type::Reference(reference) => self.is_computed_name(reference.symbol, named),

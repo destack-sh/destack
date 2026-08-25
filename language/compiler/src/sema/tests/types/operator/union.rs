@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A union binding accepts a value of each member type.
 #[test]
 fn test_union_accepts_each_member() {
     let session = TestSession::single(
@@ -31,6 +32,7 @@ value = 42;
     );
 }
 
+/// A union binding accepts a value declared at one member type.
 #[test]
 fn test_union_accepts_declared_member() {
     let session = TestSession::single(
@@ -63,6 +65,7 @@ const value: string | int32 = text;
     );
 }
 
+/// A union flattens the members of a nested union alias.
 #[test]
 fn test_union_flattens_nested_aliases() {
     let session = TestSession::single(
@@ -103,12 +106,13 @@ const value: B = { c: true };
 
 value satisfies { a: int32 } | { b: string } | { c: boolean };
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
 }
 
+/// A union drops its never members.
 #[test]
 fn test_union_removes_never() {
     let session = TestSession::single(
@@ -148,6 +152,7 @@ value satisfies string;
     );
 }
 
+/// A union of void and never keeps void.
 #[test]
 fn test_void_union_with_never_keeps_void() {
     let session = TestSession::single(
@@ -181,12 +186,13 @@ const value: Value = ();
 
 value satisfies void;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
 }
 
+/// A member call on a union selects the method of each variant.
 #[test]
 fn test_union_member_call_selects_each_variant_method() {
     let session = TestSession::single(
@@ -224,22 +230,22 @@ shape.draw();
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void
+/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<Rectangle.draw.'a, Rectangle.draw.P1: Place>(this: Borrowed<Rectangle, Rectangle.draw.'a & Rectangle.draw.P1, "readonly">) => void
 
     draw(): void {}
-    /// @generic.template symbol=Rectangle.draw parameters=('a)
-    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void
+    /// @generic.template symbol=Rectangle.draw parameters=('a, P1: Place)
+    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'a, Rectangle.draw.P1: Place>(this: Borrowed<Rectangle, Rectangle.draw.'a & Rectangle.draw.P1, "readonly">) => void
 
 }
 
 struct Circle {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.struct symbol=Circle
-/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void
+/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<Circle.draw.'a, Circle.draw.P1: Place>(this: Borrowed<Circle, Circle.draw.'a & Circle.draw.P1, "readonly">) => void
 
     draw(): void {}
-    /// @generic.template symbol=Circle.draw parameters=('a)
-    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void
+    /// @generic.template symbol=Circle.draw parameters=('a, P1: Place)
+    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'a, Circle.draw.P1: Place>(this: Borrowed<Circle, Circle.draw.'a & Circle.draw.P1, "readonly">) => void
 
 }
 
@@ -252,13 +258,18 @@ let shape: Rectangle | Circle = Rectangle {};
 
 shape.draw();
 /// @resolution.name source=shape target=shape
-/// @resolution.member source=shape.draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void | <Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void kind=union arms=[receiver=Rectangle, target=Rectangle.draw, type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void, receiver=Circle, target=Circle.draw, type=<Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void]
+/// @resolution.member source=shape.draw type=<Rectangle.draw.'a, Rectangle.draw.P1: Place>(this: Borrowed<Rectangle, Rectangle.draw.'a & Rectangle.draw.P1, "readonly">) => void | <Circle.draw.'a, Circle.draw.P1: Place>(this: Borrowed<Circle, Circle.draw.'a & Circle.draw.P1, "readonly">) => void kind=union arms=[receiver=Rectangle, target=Rectangle.draw, type=<Rectangle.draw.'a, Rectangle.draw.P1: Place>(this: Borrowed<Rectangle, Rectangle.draw.'a & Rectangle.draw.P1, "readonly">) => void, receiver=Circle, target=Circle.draw, type=<Circle.draw.'a, Circle.draw.P1: Place>(this: Borrowed<Circle, Circle.draw.'a & Circle.draw.P1, "readonly">) => void]
 /// @resolution.call source=shape.draw() return=void kind=union arms=[Rectangle.draw(parameters=(), arguments=(), return=void), Circle.draw(parameters=(), arguments=(), return=void)]
 /// @resolution.place source=shape placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=shape root=shape
+/// @generic.instantiation id="Circle.draw<\"local\">" template=Circle.draw arguments=("local")
+/// @generic.instantiation id="Rectangle.draw<\"local\">" template=Rectangle.draw arguments=("local")
+/// @generic.instance id="Circle.draw<\"local\">" template=Circle.draw arguments=("local")
+/// @generic.instance id="Rectangle.draw<\"local\">" template=Rectangle.draw arguments=("local")
 "#);
 }
 
+/// A member call on a union alias parameter dispatches to each variant.
 #[test]
 fn test_union_alias_parameter_dispatches_each_variant() {
     let session = TestSession::single(
@@ -302,22 +313,22 @@ function draw(shape: Rectangle | Circle): void {
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void
+/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<Rectangle.draw.'a, Rectangle.draw.P1: Place>(this: Borrowed<Rectangle, Rectangle.draw.'a & Rectangle.draw.P1, "readonly">) => void
 
     draw(): void {}
-    /// @generic.template symbol=Rectangle.draw parameters=('a)
-    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void
+    /// @generic.template symbol=Rectangle.draw parameters=('a, P1: Place)
+    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'a, Rectangle.draw.P1: Place>(this: Borrowed<Rectangle, Rectangle.draw.'a & Rectangle.draw.P1, "readonly">) => void
 
 }
 
 struct Circle {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.struct symbol=Circle
-/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void
+/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<Circle.draw.'a, Circle.draw.P1: Place>(this: Borrowed<Circle, Circle.draw.'a & Circle.draw.P1, "readonly">) => void
 
     draw(): void {}
-    /// @generic.template symbol=Circle.draw parameters=('a)
-    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void
+    /// @generic.template symbol=Circle.draw parameters=('a, P1: Place)
+    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'a, Circle.draw.P1: Place>(this: Borrowed<Circle, Circle.draw.'a & Circle.draw.P1, "readonly">) => void
 
 }
 
@@ -334,15 +345,20 @@ function draw(shape: Shape): void {
 
     shape.draw();
     /// @resolution.name source=shape target=draw.shape
-    /// @resolution.member source=shape.draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void | <Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void kind=union arms=[receiver=Rectangle, target=Rectangle.draw, type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void, receiver=Circle, target=Circle.draw, type=<Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void]
+    /// @resolution.member source=shape.draw type=<Rectangle.draw.'a, Rectangle.draw.P1: Place>(this: Borrowed<Rectangle, Rectangle.draw.'a & Rectangle.draw.P1, "readonly">) => void | <Circle.draw.'a, Circle.draw.P1: Place>(this: Borrowed<Circle, Circle.draw.'a & Circle.draw.P1, "readonly">) => void kind=union arms=[receiver=Rectangle, target=Rectangle.draw, type=<Rectangle.draw.'a, Rectangle.draw.P1: Place>(this: Borrowed<Rectangle, Rectangle.draw.'a & Rectangle.draw.P1, "readonly">) => void, receiver=Circle, target=Circle.draw, type=<Circle.draw.'a, Circle.draw.P1: Place>(this: Borrowed<Circle, Circle.draw.'a & Circle.draw.P1, "readonly">) => void]
     /// @resolution.call source=shape.draw() return=void kind=union arms=[Rectangle.draw(parameters=(), arguments=(), return=void), Circle.draw(parameters=(), arguments=(), return=void)]
     /// @resolution.place source=shape placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=shape root=draw.shape
+    /// @generic.instantiation id="Circle.draw<\"local\">" template=Circle.draw arguments=("local")
+    /// @generic.instantiation id="Rectangle.draw<\"local\">" template=Rectangle.draw arguments=("local")
+    /// @generic.instance id="Circle.draw<\"local\">" template=Circle.draw arguments=("local")
+    /// @generic.instance id="Rectangle.draw<\"local\">" template=Rectangle.draw arguments=("local")
 
 }
 "#);
 }
 
+/// A member call on a union selects one overload per variant.
 #[test]
 fn test_union_member_call_selects_one_overload_per_variant() {
     let session = TestSession::single(
@@ -404,20 +420,20 @@ const result: "left-integer" | "right-integer" = parser.parse(1);
 struct Left {
 /// @type.symbol symbol=Left type=Left
 /// @definition.struct symbol=Left
-/// @definition.method symbol=Left.parse#1 slot=parse type=<Left.parse#1.'a>(this: &Left.parse#1.'a readonly Left, string) => "left-string"
-/// @definition.method symbol=Left.parse#2 slot=parse type=<Left.parse#2.'a>(this: &Left.parse#2.'a readonly Left, int32) => "left-integer"
+/// @definition.method symbol=Left.parse#1 slot=parse type=<Left.parse#1.'a, Left.parse#1.P1: Place>(this: Borrowed<Left, Left.parse#1.'a & Left.parse#1.P1, "readonly">, string) => "left-string"
+/// @definition.method symbol=Left.parse#2 slot=parse type=<Left.parse#2.'a, Left.parse#2.P1: Place>(this: Borrowed<Left, Left.parse#2.'a & Left.parse#2.P1, "readonly">, int32) => "left-integer"
 
     parse(value: string): "left-string" {
-    /// @generic.template symbol=Left.parse#1 parameters=('a)
-    /// @type.symbol symbol=Left.parse#1 type=<Left.parse#1.'a>(this: &Left.parse#1.'a readonly Left, string) => "left-string"
+    /// @generic.template symbol=Left.parse#1 parameters=('a, P1: Place)
+    /// @type.symbol symbol=Left.parse#1 type=<Left.parse#1.'a, Left.parse#1.P1: Place>(this: Borrowed<Left, Left.parse#1.'a & Left.parse#1.P1, "readonly">, string) => "left-string"
     /// @type.symbol symbol=Left.parse.value#1 source="value: string" type=string
 
         return "left-string";
     }
 
     parse(value: int32): "left-integer" {
-    /// @generic.template symbol=Left.parse#2 parameters=('a)
-    /// @type.symbol symbol=Left.parse#2 type=<Left.parse#2.'a>(this: &Left.parse#2.'a readonly Left, int32) => "left-integer"
+    /// @generic.template symbol=Left.parse#2 parameters=('a, P1: Place)
+    /// @type.symbol symbol=Left.parse#2 type=<Left.parse#2.'a, Left.parse#2.P1: Place>(this: Borrowed<Left, Left.parse#2.'a & Left.parse#2.P1, "readonly">, int32) => "left-integer"
     /// @type.symbol symbol=Left.parse.value#2 source="value: int32" type=int32
 
         return "left-integer";
@@ -427,20 +443,20 @@ struct Left {
 struct Right {
 /// @type.symbol symbol=Right type=Right
 /// @definition.struct symbol=Right
-/// @definition.method symbol=Right.parse#1 slot=parse type=<Right.parse#1.'a>(this: &Right.parse#1.'a readonly Right, string) => "right-string"
-/// @definition.method symbol=Right.parse#2 slot=parse type=<Right.parse#2.'a>(this: &Right.parse#2.'a readonly Right, int32) => "right-integer"
+/// @definition.method symbol=Right.parse#1 slot=parse type=<Right.parse#1.'a, Right.parse#1.P1: Place>(this: Borrowed<Right, Right.parse#1.'a & Right.parse#1.P1, "readonly">, string) => "right-string"
+/// @definition.method symbol=Right.parse#2 slot=parse type=<Right.parse#2.'a, Right.parse#2.P1: Place>(this: Borrowed<Right, Right.parse#2.'a & Right.parse#2.P1, "readonly">, int32) => "right-integer"
 
     parse(value: string): "right-string" {
-    /// @generic.template symbol=Right.parse#1 parameters=('a)
-    /// @type.symbol symbol=Right.parse#1 type=<Right.parse#1.'a>(this: &Right.parse#1.'a readonly Right, string) => "right-string"
+    /// @generic.template symbol=Right.parse#1 parameters=('a, P1: Place)
+    /// @type.symbol symbol=Right.parse#1 type=<Right.parse#1.'a, Right.parse#1.P1: Place>(this: Borrowed<Right, Right.parse#1.'a & Right.parse#1.P1, "readonly">, string) => "right-string"
     /// @type.symbol symbol=Right.parse.value#1 source="value: string" type=string
 
         return "right-string";
     }
 
     parse(value: int32): "right-integer" {
-    /// @generic.template symbol=Right.parse#2 parameters=('a)
-    /// @type.symbol symbol=Right.parse#2 type=<Right.parse#2.'a>(this: &Right.parse#2.'a readonly Right, int32) => "right-integer"
+    /// @generic.template symbol=Right.parse#2 parameters=('a, P1: Place)
+    /// @type.symbol symbol=Right.parse#2 type=<Right.parse#2.'a, Right.parse#2.P1: Place>(this: Borrowed<Right, Right.parse#2.'a & Right.parse#2.P1, "readonly">, int32) => "right-integer"
     /// @type.symbol symbol=Right.parse.value#2 source="value: int32" type=int32
 
         return "right-integer";
@@ -457,14 +473,19 @@ const result = parser.parse(1);
 /// @type.symbol symbol=result source=result type="left-integer" | "right-integer"
 /// @resolution.pattern source=result kind=binding target=result
 /// @resolution.name source=parser target=parser
-/// @resolution.member source=parser.parse type=<Left.parse#1.'a>(this: &Left.parse#1.'a readonly Left, string) => "left-string" & <Left.parse#2.'a>(this: &Left.parse#2.'a readonly Left, int32) => "left-integer" | <Right.parse#1.'a>(this: &Right.parse#1.'a readonly Right, string) => "right-string" & <Right.parse#2.'a>(this: &Right.parse#2.'a readonly Right, int32) => "right-integer" kind=union arms=[receiver=Left, target=Left.parse#1 | Left.parse#2, type=<Left.parse#1.'a>(this: &Left.parse#1.'a readonly Left, string) => "left-string" & <Left.parse#2.'a>(this: &Left.parse#2.'a readonly Left, int32) => "left-integer", receiver=Right, target=Right.parse#1 | Right.parse#2, type=<Right.parse#1.'a>(this: &Right.parse#1.'a readonly Right, string) => "right-string" & <Right.parse#2.'a>(this: &Right.parse#2.'a readonly Right, int32) => "right-integer"]
+/// @resolution.member source=parser.parse type=<Left.parse#1.'a, Left.parse#1.P1: Place>(this: Borrowed<Left, Left.parse#1.'a & Left.parse#1.P1, "readonly">, string) => "left-string" & <Left.parse#2.'a, Left.parse#2.P1: Place>(this: Borrowed<Left, Left.parse#2.'a & Left.parse#2.P1, "readonly">, int32) => "left-integer" | <Right.parse#1.'a, Right.parse#1.P1: Place>(this: Borrowed<Right, Right.parse#1.'a & Right.parse#1.P1, "readonly">, string) => "right-string" & <Right.parse#2.'a, Right.parse#2.P1: Place>(this: Borrowed<Right, Right.parse#2.'a & Right.parse#2.P1, "readonly">, int32) => "right-integer" kind=union arms=[receiver=Left, target=Left.parse#1 | Left.parse#2, type=<Left.parse#1.'a, Left.parse#1.P1: Place>(this: Borrowed<Left, Left.parse#1.'a & Left.parse#1.P1, "readonly">, string) => "left-string" & <Left.parse#2.'a, Left.parse#2.P1: Place>(this: Borrowed<Left, Left.parse#2.'a & Left.parse#2.P1, "readonly">, int32) => "left-integer", receiver=Right, target=Right.parse#1 | Right.parse#2, type=<Right.parse#1.'a, Right.parse#1.P1: Place>(this: Borrowed<Right, Right.parse#1.'a & Right.parse#1.P1, "readonly">, string) => "right-string" & <Right.parse#2.'a, Right.parse#2.P1: Place>(this: Borrowed<Right, Right.parse#2.'a & Right.parse#2.P1, "readonly">, int32) => "right-integer"]
 /// @resolution.call source=parser.parse(1) return="left-integer" | "right-integer" kind=union arms=[Left.parse#2(parameters=(int32), arguments=(provided(1) as int32), return="left-integer"), Right.parse#2(parameters=(int32), arguments=(provided(1) as int32), return="right-integer")]
-/// @resolution.place source=parser placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=parser placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=parser root=parser
+/// @generic.instantiation id="Left.parse#2<\"constant\">" template=Left.parse#2 arguments=("constant")
+/// @generic.instantiation id="Right.parse#2<\"constant\">" template=Right.parse#2 arguments=("constant")
+/// @generic.instance id="Left.parse#2<\"constant\">" template=Left.parse#2 arguments=("constant")
+/// @generic.instance id="Right.parse#2<\"constant\">" template=Right.parse#2 arguments=("constant")
 "#,
     );
 }
 
+/// A subscript on a union selects the index conformance of each variant.
 #[test]
 fn test_union_subscript_selects_each_protocol_call() {
     let session = TestSession::single(
@@ -486,29 +507,29 @@ const first: int32 | string = values[0];
 declare const values: int32[] | string[];
 /// @type.symbol symbol=values source=values type=int32[] | string[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=Array<string> template=collections.array.Array arguments=(string)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<string>> template=collections.slice.new arguments=(memory.init.MaybeUninit<string>)
-/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
-/// @generic.instance id=memory.init.MaybeUninit<string> template=memory.init.MaybeUninit arguments=(string)
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=Array<string> template=Array arguments=(string)
+/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=MaybeUninit<string> template=MaybeUninit arguments=(string)
+/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
+/// @generic.instance id=new<MaybeUninit<string>> template=new arguments=(MaybeUninit<string>)
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=int32 | string
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=values placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=int32 | string kind=union arms=[collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static int32, "readonly">), collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static string, "readonly">)]
-/// @generic.instantiation id="collections.array.index#1<int32, \"readonly\">" template=collections.array.index#1 arguments=(int32, "readonly")
-/// @generic.instantiation id="collections.array.index#1<string, \"readonly\">" template=collections.array.index#1 arguments=(string, "readonly")
-/// @generic.instance id="collections.array.index#1<int32, \"readonly\">" template=collections.array.index#1 arguments=(int32, "readonly")
-/// @generic.instance id="collections.array.index#1<string, \"readonly\">" template=collections.array.index#1 arguments=(string, "readonly")
-/// @generic.instance id="memory.type.WithAccess<&'frame int32, \"readonly\">" template=memory.type.WithAccess arguments=(&'frame int32, "readonly")
-/// @generic.instance id="memory.type.WithAccess<&'frame int32[], \"readonly\">" template=memory.type.WithAccess arguments=(&'frame int32[], "readonly")
-/// @generic.instance id="memory.type.WithAccess<&'frame string, \"readonly\">" template=memory.type.WithAccess arguments=(&'frame string, "readonly")
-/// @generic.instance id="memory.type.WithAccess<&'frame string[], \"readonly\">" template=memory.type.WithAccess arguments=(&'frame string[], "readonly")
+/// @resolution.subscript source=values[0] type=int32 | string kind=union arms=[index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static constant int32, "readonly">), index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static constant string, "readonly">)]
+/// @generic.instantiation id="index#1<int32, \"readonly\", \"constant\">" template=index#1 arguments=(int32, "readonly", "constant")
+/// @generic.instantiation id="index#1<string, \"readonly\", \"constant\">" template=index#1 arguments=(string, "readonly", "constant")
+/// @generic.instance id="WithAccess<&'frame int32, \"readonly\">" template=WithAccess arguments=(&'frame int32, "readonly")
+/// @generic.instance id="WithAccess<&'frame int32[], \"readonly\">" template=WithAccess arguments=(&'frame int32[], "readonly")
+/// @generic.instance id="WithAccess<&'frame string, \"readonly\">" template=WithAccess arguments=(&'frame string, "readonly")
+/// @generic.instance id="WithAccess<&'frame string[], \"readonly\">" template=WithAccess arguments=(&'frame string[], "readonly")
+/// @generic.instance id="index#1<int32, \"readonly\", \"constant\">" template=index#1 arguments=(int32, "readonly", "constant")
+/// @generic.instance id="index#1<string, \"readonly\", \"constant\">" template=index#1 arguments=(string, "readonly", "constant")
 "#,
     );
 }

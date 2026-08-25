@@ -572,7 +572,7 @@ impl BodyState<'_, '_> {
         pattern: dir::LocalNodeId<dir::Pattern>,
         origin: Origin,
     ) -> CompilerResult<()> {
-        // unwrap marker and carrier patterns to the bare binding name
+        // unwrap marker and representation patterns to the bare binding name
         let view = self.module(module).view();
         let mut inner = pattern;
         while let dir::Pattern::Must(wrapped)

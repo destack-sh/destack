@@ -19,6 +19,11 @@ impl DirSnapshotBuilder<'_> {
     fn type_label_from_value(&self, types: &dir::TypeTable<'_>, ty: &dir::Type) -> String {
         match ty {
             dir::Type::Error => "<error>".to_string(),
+            dir::Type::Region(region) => format!(
+                "{} & {}",
+                self.type_id_label(types, region.extent),
+                self.type_id_label(types, region.space)
+            ),
             dir::Type::Hole(hole) => format!("?{hole}"),
             dir::Type::Rigid(rigid) => format!("^{rigid}"),
             dir::Type::Never => "never".to_string(),
@@ -70,7 +75,6 @@ impl DirSnapshotBuilder<'_> {
                 self.type_id_list_label(types, types.type_ids(union.elements), " | ")
             }
             dir::Type::Variable(variable) => format!("?{}", variable.0),
-            dir::Type::Memory(literal) => self.memory_literal_type_label(literal),
             dir::Type::Static(static_id) => self.global_static_label(*static_id),
             dir::Type::Intersection(intersection) => {
                 self.type_id_list_label(types, types.type_ids(intersection.elements), " & ")
@@ -332,12 +336,24 @@ impl DirSnapshotBuilder<'_> {
 
         // render canonical form constructors
         match &form.form {
-            dir::Form::Managed => format!("Managed<{value}>"),
+            dir::Form::Managed { place } => {
+                let place = self.type_id_label(types, *place);
+                match place.as_str() {
+                    "\"local\"" => format!("local {value}"),
+                    "\"shared\"" => format!("shared {value}"),
+                    "\"constant\"" => format!("constant {value}"),
+                    _ => format!("Managed<{value}, {place}>"),
+                }
+            }
             dir::Form::Owned => format!("Owned<{value}>"),
             dir::Form::Borrowed(borrow) => {
                 let _row = *borrow;
                 let borrow = types.borrow_form(*borrow);
-                let lifetime = self.type_id_label(types, borrow.lifetime);
+                let region = self.type_id_label(types, borrow.region);
+                let (lifetime, place) = match region.split_once(" & ") {
+                    Some((extent, spaces)) => (extent.to_string(), spaces.to_string()),
+                    None => (region.clone(), String::new()),
+                };
                 let access = self.type_id_label(types, borrow.access);
 
                 // spell settled borrows through the tick form
@@ -356,18 +372,19 @@ impl DirSnapshotBuilder<'_> {
                     "\"exclusive\"" => Some("exclusive "),
                     _ => None,
                 };
-                if let (Some(tick), Some(modifier)) = (tick, modifier) {
-                    return format!("&{tick} {modifier}{value}");
+                let spelled = match place.as_str() {
+                    "\"local\"" | "" => Some(""),
+                    "\"shared\"" => Some("shared "),
+                    "\"constant\"" => Some("constant "),
+                    _ => None,
+                };
+                if let (Some(tick), Some(modifier), Some(spelled)) = (tick, modifier, spelled) {
+                    return format!("&{tick} {modifier}{spelled}{value}");
                 }
 
-                format!("Borrowed<{value}, {lifetime}, {access}>")
+                format!("Borrowed<{value}, {region}, {access}>")
             }
             dir::Form::Raw => format!("Raw<{value}>"),
-            dir::Form::Placed { place } => {
-                let place = self.type_id_label(types, *place);
-
-                format!("Placed<{value}, {place}>")
-            }
             dir::Form::Readonly if form.value.module_id == types.module_id => {
                 match types.get_type(form.value.local_id) {
                     dir::Type::Tuple(_) => format!("readonly {value}"),
@@ -466,23 +483,6 @@ impl DirSnapshotBuilder<'_> {
                 format!("{operator}{target}")
             }
         }
-    }
-
-    /// Return one memory literal type label.
-    fn memory_literal_type_label(&self, literal: &dir::MemoryLiteral) -> String {
-        let value = match literal {
-            dir::MemoryLiteral::Access(access) => DirSnapshotBuilder::variant_label(access),
-            dir::MemoryLiteral::Space(space) => DirSnapshotBuilder::variant_label(space),
-            dir::MemoryLiteral::Place(dir::Place::Relative) => "relative".to_string(),
-            dir::MemoryLiteral::Place(dir::Place::Space(space)) => {
-                DirSnapshotBuilder::variant_label(space)
-            }
-            dir::MemoryLiteral::Ownership(ownership) => ownership.text().to_string(),
-            dir::MemoryLiteral::Lifetime(dir::Lifetime::Static) => "static".to_string(),
-            dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame) => "frame".to_string(),
-        };
-
-        format!("{value:?}")
     }
 
     /// Return one string mapping label.
@@ -967,7 +967,7 @@ impl DirSnapshotBuilder<'_> {
         };
 
         // print tick parameters bare, their kind is implied
-        if generic.memory_parameter() == Some(dir::MemoryParameter::Lifetime) {
+        if generic.memory_parameter() == Some(dir::MemoryParameter::Region) {
             return String::new();
         }
 

@@ -69,7 +69,7 @@ impl BodyState<'_, '_> {
                     };
                     let key = name.into();
 
-                    // walk methods inference discovers before their walk
+                    // walk a method that inference reaches before its own walk
                     if let Some(symbol) =
                         self.module(module).declaration_symbol(property.into_any())
                         && self.symbol_type_maybe(symbol).is_none()
@@ -108,13 +108,13 @@ impl BodyState<'_, '_> {
             let key_type = self.intern_object(&target_fields)?;
             let subject = self
                 .member_subject(origin, target, target, dir::MemberSpace::Instance)?
-                .with_key_type(key_type);
+                .with_key_source(key_type);
             self.module_mut(module)
                 .members_tail
                 .commit_subject(dir::MemberSite::Node(node.into_any()), subject);
         }
 
-        // leave every field check to the construct's write obligation
+        // name the construct's write obligation as the parent cause of each field check
         let write_cause = target.map(|_| {
             self.check.intern_cause(Cause::root(
                 origin,
@@ -151,7 +151,7 @@ impl BodyState<'_, '_> {
                                 InferMode::Regular,
                             )?;
 
-                            // the field site reported its own mismatch
+                            // fold in the mismatch the field site already reported
                             check = check.and(match field_check.outcome {
                                 CheckOutcome::Fails(_) => {
                                     CheckOutcome::Fails(CheckFailure::Reported)
@@ -275,8 +275,9 @@ impl BodyState<'_, '_> {
             }
             // object literals bind their managed merged shape
             None => {
+                let place = self.check.local_place()?;
                 let managed = self.intern_type(dir::Type::Form(dir::FormType {
-                    form: dir::Form::Managed,
+                    form: dir::Form::Managed { place },
                     value: shape,
                 }))?;
                 self.commit_node_type(node.into_any(), managed)?;
@@ -330,14 +331,14 @@ impl BodyState<'_, '_> {
         // peel managed forms down to the value they hold
         let mut current = ty;
         while let dir::Type::Form(form) = self.ty(current)? {
-            if form.form != dir::Form::Managed {
+            if !matches!(form.form, dir::Form::Managed { .. }) {
                 break;
             }
             current = self.shallow_resolve(form.value)?;
         }
 
         match self.ty(current)? {
-            // anonymous classes spread their fields directly
+            // object shapes spread their fields directly
             dir::Type::Object(shape) => Ok(Some(
                 self.object_properties(current.module_id, shape.properties)?
                     .to_vec(),
@@ -348,6 +349,7 @@ impl BodyState<'_, '_> {
                 let mut fields = Vec::with_capacity(keys.len());
                 let mut seen = SmallVec::<[dir::StaticKey; 8]>::new();
                 for key in keys {
+                    // keep the first member declared for each key
                     if seen.contains(&key) {
                         continue;
                     }

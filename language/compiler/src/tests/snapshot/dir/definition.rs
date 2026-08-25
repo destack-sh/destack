@@ -282,7 +282,7 @@ fn add_extension_row(
     builder.push(row);
 }
 
-/// Render one declaration template's parameter list, omitting empty carriers.
+/// Render one declaration template's parameter list, omitting empty representations.
 fn template_label(
     builder: &DirSnapshotBuilder<'_>,
     owner: dir::GlobalSymbolId,

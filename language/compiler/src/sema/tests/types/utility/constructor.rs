@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// ConstructorParameters extracts the argument tuple of a class constructor.
 #[test]
 fn test_constructor_parameters_extracts_constructor_arguments() {
     let session = TestSession::single(
@@ -21,7 +22,7 @@ ok satisfies (string, number);
         r#"
 === annotated ===
 class User {
-    constructor(name: string, age: float64): this {}
+    constructor(name: string, age: float64) {}
 }
 
 type Args = ConstructorParameters<typeof User>;
@@ -33,10 +34,11 @@ ok satisfies (string, number);
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
-/// @definition.method symbol=User.constructor source="constructor(name: string, age: number) {}" slot=constructor role=constructor type=(string, float64) => User
+/// @definition.method symbol=User.constructor source="constructor(name: string, age: number) {}" slot=constructor role=constructor type=<User.constructor.P0: Place>(string, float64) => Managed<User, User.constructor.P0>
 
     constructor(name: string, age: number) {}
-    /// @type.symbol symbol=User.constructor source="constructor(name: string, age: number) {}" type=(string, float64) => User
+    /// @generic.template symbol=User.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=User.constructor source="constructor(name: string, age: number) {}" type=<User.constructor.P0: Place>(string, float64) => Managed<User, User.constructor.P0>
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
     /// @type.symbol symbol=User.constructor.age source="age: number" type=float64
 
@@ -45,7 +47,7 @@ class User {
 type Args = ConstructorParameters<typeof User>;
 /// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=(string, float64)
 /// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=(string, float64)
-/// @resolution.name source=ConstructorParameters target=types.function.ConstructorParameters
+/// @resolution.name source=ConstructorParameters target=ConstructorParameters
 /// @resolution.name source=User target=User
 
 const ok: Args = ("Ada", 42);
@@ -55,12 +57,13 @@ const ok: Args = ("Ada", 42);
 
 ok satisfies (string, number);
 /// @resolution.name source=ok target=ok
-/// @resolution.place source=ok placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=ok placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=ok root=ok
 "#,
     );
 }
 
+/// ConstructorParameters extracts the argument tuple of an imported class.
 #[test]
 fn test_constructor_parameters_extracts_imported_class_arguments() {
     let session = TestSession::builder()
@@ -101,7 +104,7 @@ import { User } from "./user.ds";
 type Args = ConstructorParameters<typeof User>;
 /// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=(string, float64)
 /// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=(string, float64)
-/// @resolution.name source=ConstructorParameters target=types.function.ConstructorParameters
+/// @resolution.name source=ConstructorParameters target=ConstructorParameters
 /// @resolution.name source=User target=user.User
 
 const value: Args = ("Ada", 42);
@@ -112,6 +115,7 @@ const value: Args = ("Ada", 42);
     );
 }
 
+/// InstanceType extracts the instance type of a class.
 #[test]
 fn test_instance_type_extracts_class_instance() {
     let session = TestSession::single(
@@ -155,7 +159,7 @@ class User {
 type Value = InstanceType<typeof User>;
 /// @type.symbol symbol=Value source="type Value = InstanceType<typeof User>" type=User
 /// @definition.type symbol=Value source="type Value = InstanceType<typeof User>" value=User
-/// @resolution.name source=InstanceType target=types.function.InstanceType
+/// @resolution.name source=InstanceType target=InstanceType
 /// @resolution.name source=User target=User
 
 const ok: Value = new User();
@@ -176,6 +180,7 @@ ok.name satisfies string;
     );
 }
 
+/// An argument of another type reports a diagnostic against ConstructorParameters.
 #[test]
 fn test_constructor_parameters_rejects_wrong_argument_types() {
     let session = TestSession::single(
@@ -196,7 +201,7 @@ const bad: Args = ("Ada", "old");
         r#"
 === annotated ===
 class User {
-    constructor(name: string, age: float64): this {}
+    constructor(name: string, age: float64) {}
 }
 
 type Args = ConstructorParameters<typeof User>;
@@ -207,10 +212,11 @@ const bad: (string, float64) = ("Ada", "old");
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
-/// @definition.method symbol=User.constructor source="constructor(name: string, age: number) {}" slot=constructor role=constructor type=(string, float64) => this
+/// @definition.method symbol=User.constructor source="constructor(name: string, age: number) {}" slot=constructor role=constructor type=<User.constructor.P0: Place>(string, float64) => Managed<this, User.constructor.P0>
 
     constructor(name: string, age: number) {}
-    /// @type.symbol symbol=User.constructor source="constructor(name: string, age: number) {}" type=(string, float64) => this
+    /// @generic.template symbol=User.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=User.constructor source="constructor(name: string, age: number) {}" type=<User.constructor.P0: Place>(string, float64) => Managed<this, User.constructor.P0>
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
     /// @type.symbol symbol=User.constructor.age source="age: number" type=float64
 
@@ -219,7 +225,7 @@ class User {
 type Args = ConstructorParameters<typeof User>;
 /// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=(string, float64)
 /// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=(string, float64)
-/// @resolution.name source=ConstructorParameters target=types.function.ConstructorParameters
+/// @resolution.name source=ConstructorParameters target=ConstructorParameters
 /// @resolution.name source=User target=User
 
 const bad: Args = ("Ada", "old");

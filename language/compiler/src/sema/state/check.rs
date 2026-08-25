@@ -12,8 +12,8 @@ use smallvec::SmallVec;
 use crate::sema::{
     Answer, BoundSet, CanonicalEntry, CanonicalGoal, Cause, CauseId, CheckCounters,
     CheckModuleState, CheckTrace, DecoratorApplication, ExternalModuleTable, FlowBranch, FlowState,
-    Fulfillment, FunctionBody, GenericParameterId, HeritageReach, InducedParameterSite,
-    InferContext, Origin, OriginId, Premise, Relation, VarianceForm, VarianceState,
+    Fulfillment, FunctionBody, GenericParameterId, HeritageReach, InferContext, Origin, OriginId,
+    Premise, Relation, VarianceForm, VarianceState,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -57,6 +57,7 @@ impl NodeTable {
 
     /// Commit one node type, journaling the prior under open probes.
     pub(in crate::sema) fn insert(&mut self, node: dir::GlobalNodeIdAny, ty: dir::GlobalTypeId) {
+        // grow this module's column to cover the node
         let column = self.columns.entry(node.module_id).or_default();
         let index = node.local_id.id as usize;
         if column.len() <= index {
@@ -69,11 +70,13 @@ impl NodeTable {
             self.journal.push((node, prior));
         }
 
+        // commit the node type
         column[index] = Some((node.local_id.ty, ty));
     }
 
     /// Collect every committed node id.
     pub(in crate::sema) fn nodes(&self) -> Vec<dir::GlobalNodeIdAny> {
+        // collect each column's tagged entries
         let mut nodes = Vec::new();
         for (module, column) in &self.columns {
             for (index, entry) in column.iter().enumerate() {
@@ -98,6 +101,7 @@ impl NodeTable {
 
     /// Roll journaled inserts back to one probe mark.
     pub(in crate::sema) fn close_probe(&mut self, mark: usize) -> CompilerResult<()> {
+        // restore each journaled entry down to the mark
         while self.journal.len() > mark {
             let Some((node, prior)) = self.journal.pop() else {
                 return Err(CompilerError::Internal {
@@ -111,6 +115,8 @@ impl NodeTable {
             };
             column[node.local_id.id as usize] = prior.map(|ty| (node.local_id.ty, ty));
         }
+
+        // close the probe
         self.probes -= 1;
 
         Ok(())
@@ -122,9 +128,9 @@ pub(in crate::sema) struct CheckState<'a> {
     // context
     /// The compiler running this check attempt.
     pub(in crate::sema) compiler: &'a Compiler,
-    /// The provider context that owns artifact reads and diagnostics.
+    /// The provider context for artifact reads and diagnostics.
     pub(in crate::sema) context: &'a dyn ProviderContext,
-    /// The provider's trace recorder, absent outside traced runs.
+    /// The provider's trace recorder, present on traced runs.
     pub(in crate::sema) recorder: Option<&'a ArtifactAttemptRecorder>,
     /// The provider-scoped artifact reader.
     pub(in crate::sema) artifacts: &'a ArtifactReader<'a>,
@@ -150,7 +156,7 @@ pub(in crate::sema) struct CheckState<'a> {
     // solver
     /// The module's transient inference state.
     pub(in crate::sema) infer: InferContext,
-    /// The fulfillment queue driving pending work to verdicts.
+    /// The fulfillment queue running pending work to verdicts.
     pub(in crate::sema) fulfill: Fulfillment,
     /// Flow cursor state for the pass's single body traversal.
     pub(in crate::sema) flow: FlowState,
@@ -162,8 +168,8 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) blocks: Vec<dir::GlobalNodeIdAny>,
     /// Resolved decorators in module walk order.
     pub(in crate::sema) decorators: Vec<DecoratorApplication>,
-    /// Declaration types scanned for induced memory variables.
-    pub(in crate::sema) induced_sites: Vec<InducedParameterSite>,
+
+    // walk
     /// Induced parameters already rebound to their sites this run.
     pub(in crate::sema) claimed_induced: FxIndexSet<GenericParameterId>,
     /// Declarations already walked, when canonicalized or in root order.
@@ -175,10 +181,10 @@ pub(in crate::sema) struct CheckState<'a> {
     /// Active derivability goals closed coinductively on re-entry.
     pub(in crate::sema) deriving: FxIndexSet<(dir::GlobalTypeId, dir::AutoInterface)>,
     /// Active extension member lookups closed coinductively on re-entry.
-    pub(in crate::sema) extending: FxIndexSet<(dir::GlobalSymbolId, dir::GlobalTypeId)>,
+    pub(in crate::sema) active_extensions: FxIndexSet<(dir::GlobalSymbolId, dir::GlobalTypeId)>,
     /// Extension applicability goals currently deciding.
     pub(in crate::sema) deciding: FxIndexSet<(Relation, dir::GlobalTypeId, dir::GlobalTypeId)>,
-    /// Conditional reductions nested on the stack.
+    /// The count of conditional reductions nested on the stack.
     pub(in crate::sema) instantiation_depth: u32,
 
     // memos
@@ -213,18 +219,18 @@ pub(in crate::sema) struct CheckState<'a> {
             dir::GlobalTypeId,
         ),
     >,
-    /// Memoized scalar families per closed type, none standing for a non-scalar.
+    /// Memoized scalar families per closed type, none for types outside every family.
     pub(in crate::sema) scalar_families:
         FxIndexMap<dir::GlobalTypeId, Option<dir::ScalarFamilySet>>,
     /// Memoized aliasing per closed type.
     pub(in crate::sema) aliasing: FxIndexMap<dir::GlobalTypeId, bool>,
-    /// Storable representations proved this pass.
+    /// Storable representations decided this pass.
     pub(in crate::sema) storables:
         FxIndexSet<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>)>,
     /// Derived parameter variances per handle form, with in-flight marks.
     pub(in crate::sema) variances:
         FxIndexMap<(dir::GlobalGenericParameterId, VarianceForm), VarianceState>,
-    /// Written-syntax ranks per generic parameter.
+    /// Written argument ranks per generic parameter.
     pub(in crate::sema) argument_ranks:
         FxIndexMap<GenericParameterId, (usize, Option<dir::GlobalGenericTemplateId>, usize)>,
     /// Declarations reached by each declaration's heritage.
@@ -241,7 +247,7 @@ pub(in crate::sema) struct CheckState<'a> {
         ),
         bool,
     >,
-    /// Memoized drop hook members per nominal, none standing for the absent Drop conformance.
+    /// Memoized drop hook members per nominal, none for nominals outside the Drop conformance.
     pub(in crate::sema) drop_conformers:
         FxIndexMap<dir::GlobalSymbolId, Option<dir::GlobalSymbolId>>,
     /// Extension symbols visible per looking module and target head.
@@ -277,6 +283,8 @@ pub(in crate::sema) struct CheckState<'a> {
     // stats
     /// Work counters for the provider trace.
     pub(in crate::sema) counters: CheckCounters,
+    /// The generic match questions on the active matching path.
+    pub(in crate::sema) active_matches: FxIndexSet<(dir::GlobalTypeId, dir::GlobalTypeId, u64)>,
     /// Trace state kept only when tracing is requested.
     pub(in crate::sema) trace: Option<Box<CheckTrace>>,
 }
@@ -325,13 +333,12 @@ impl<'a> CheckState<'a> {
             lambdas: FxIndexMap::default(),
             blocks: Vec::new(),
             decorators: Vec::new(),
-            induced_sites: Vec::new(),
             claimed_induced: FxIndexSet::default(),
             walked_declarations: FxIndexSet::default(),
             walked_decorators: FxIndexSet::default(),
             walking_declarations: Vec::new(),
             deriving: FxIndexSet::default(),
-            extending: FxIndexSet::default(),
+            active_extensions: FxIndexSet::default(),
             deciding: FxIndexSet::default(),
             instantiation_depth: 0,
             // memos
@@ -366,6 +373,7 @@ impl<'a> CheckState<'a> {
             constructor_branches: FxIndexMap::default(),
             // stats
             counters: CheckCounters::default(),
+            active_matches: FxIndexSet::default(),
             trace: CheckTrace::new(records_events),
         }
     }
@@ -385,7 +393,7 @@ impl<'a> CheckState<'a> {
         self.pass == Pass::Check
     }
 
-    /// Commit the error type to every exported binding without a derived type.
+    /// Commit the error type to every exported binding whose derivation failed.
     pub(in crate::sema) fn commit_underivable_exports(&mut self) -> CompilerResult<()> {
         // view the module tree with its expansion patches
         let module = self.module_id;
@@ -402,6 +410,7 @@ impl<'a> CheckState<'a> {
 
         // report and commit the error type where derivation failed
         for (declarator, symbol) in exported {
+            // keep exports that already derived a type
             if self.symbol_type_maybe(symbol).is_some() {
                 continue;
             }
@@ -460,7 +469,7 @@ impl<'a> CheckState<'a> {
                 }
             }
 
-            // skip statements without exports
+            // skip every other statement
             _ => {}
         }
     }
@@ -529,7 +538,6 @@ impl<'a> CheckState<'a> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
         let symbol = match self.ty(ty)? {
-            dir::Type::Reference(reference) => Some(reference.symbol),
             dir::Type::Application(instance) => Some(instance.symbol),
             _ => None,
         };
@@ -540,6 +548,7 @@ impl<'a> CheckState<'a> {
 
 impl CheckState<'_> {
     /// Return one type head from this module's open overlay or external tables.
+    ///
     /// Reading a solved variable is an internal error, its payloads belong to its solution.
     #[track_caller]
     pub(in crate::sema) fn ty(&self, id: dir::GlobalTypeId) -> CompilerResult<dir::Type> {
@@ -562,6 +571,7 @@ impl CheckState<'_> {
     }
 
     /// Return one type head as written, solved variables included.
+    ///
     /// Reserved for callers that match variables explicitly, like resolution and write-back.
     pub(in crate::sema) fn ty_raw(&self, id: dir::GlobalTypeId) -> CompilerResult<dir::Type> {
         // read this module's open working types
@@ -639,6 +649,7 @@ impl CheckState<'_> {
             return Some(flags);
         }
 
+        // read the committed base where it holds the type
         self.module.types.get_type_maybe(type_id)?;
 
         Some(self.module.types.get_type_flags(type_id))
@@ -718,6 +729,7 @@ impl CheckState<'_> {
         &mut self,
         ty: dir::Type,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // count this intern for the pass stats
         self.counters.interns += 1;
         let module = self.module_id;
 
@@ -732,13 +744,14 @@ impl CheckState<'_> {
             child_flags |= self.type_flags(*child)?;
         }
 
-        // note the foreign modules this type mentions as it stores
+        // note the foreign modules this type's children mention
         for child in &children {
             if child.module_id != module {
                 self.module.references.insert(child.module_id);
             }
         }
 
+        // note the foreign modules the type value itself mentions
         let mut mentions = SmallVec::<[ModuleId; 2]>::new();
         ty.referenced_modules(&mut |mentioned| mentions.push(mentioned));
         for mentioned in mentions {
@@ -853,15 +866,74 @@ impl CheckState<'_> {
     /// Intern one borrow form into a module's working segment.
     pub(in crate::sema) fn intern_borrow(
         &mut self,
-        lifetime: dir::GlobalTypeId,
+        region: dir::GlobalTypeId,
         access: dir::GlobalTypeId,
     ) -> CompilerResult<dir::Form> {
         let id = self
             .module
             .types_tail
-            .intern_borrow(dir::BorrowForm { lifetime, access });
+            .intern_borrow(dir::BorrowForm { region, access });
 
         Ok(dir::Form::Borrowed(id))
+    }
+
+    /// Intern one region pair into a module's working segment.
+    pub(in crate::sema) fn intern_region(
+        &mut self,
+        extent: dir::GlobalTypeId,
+        space: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.intern_type(dir::Type::Region(dir::RegionType { extent, space }))
+    }
+
+    /// Intern one region keeping an existing region's extent under a new space.
+    pub(in crate::sema) fn with_region_space(
+        &mut self,
+        region: dir::GlobalTypeId,
+        space: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let region = self.shallow_resolve(region)?;
+        let extent = match self.ty(region)? {
+            dir::Type::Region(pair) => pair.extent,
+            _ => region,
+        };
+
+        self.intern_region(extent, space)
+    }
+
+    /// Intern the local place singleton, the place bare pointer types elide.
+    pub(in crate::sema) fn local_place(&mut self) -> CompilerResult<dir::GlobalTypeId> {
+        self.place_literal(dir::Space::Local)
+    }
+
+    /// Intern the canonical singleton naming one space.
+    pub(in crate::sema) fn place_literal(
+        &mut self,
+        space: dir::Space,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let value = self.strings().intern(space.text());
+
+        self.intern_type(dir::Type::Literal(dir::Literal::String(value)))
+    }
+
+    /// Intern the canonical singleton naming one lifetime.
+    pub(in crate::sema) fn lifetime_literal(
+        &mut self,
+        lifetime: dir::Lifetime,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let value = self.strings().intern(lifetime.text());
+
+        self.intern_type(dir::Type::Literal(dir::Literal::String(value)))
+    }
+
+    /// Intern the canonical singleton naming one access.
+    pub(in crate::sema) fn access_literal(
+        &mut self,
+        access: dir::Access,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let value = self.strings().intern(access.text());
+
+        self.intern_type(dir::Type::Literal(dir::Literal::String(value)))
     }
 
     /// Adopt one memory form's module-local borrow entry into this module.
@@ -874,7 +946,7 @@ impl CheckState<'_> {
             dir::Form::Borrowed(id) if source != self.module_id => {
                 let borrow = self.type_borrow(source, id)?;
 
-                self.intern_borrow(borrow.lifetime, borrow.access)
+                self.intern_borrow(borrow.region, borrow.access)
             }
             form => Ok(form),
         }
@@ -1278,7 +1350,7 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<&dir::Definition>> {
-        // unloaded foreign definitions stay symbolic
+        // import the symbol's foreign module before the lookup
         if !self.is_own_module(symbol.module_id) {
             self.import_external_module(symbol.module_id)?;
         }
@@ -1286,7 +1358,7 @@ impl CheckState<'_> {
         Ok(self.definition_maybe(symbol))
     }
 
-    /// Return one already loaded definition, without importing.
+    /// Return one already loaded definition, skipping the import.
     pub(in crate::sema) fn definition_maybe(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -1313,7 +1385,7 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         definition: dir::Definition,
     ) -> CompilerResult<()> {
-        // keep checked segments append-grow: unchanged declared entries stay layered
+        // keep checked segments appending, leaving unchanged declared entries layered
         if !self.is_declaring()
             && let Some(declared) = self
                 .module_maybe(symbol.module_id)
@@ -1377,12 +1449,11 @@ impl CheckState<'_> {
     pub(in crate::sema) fn map_type_children(
         &mut self,
         source: ModuleId,
-        target: ModuleId,
         ty: dir::Type,
         map: &mut impl FnMut(&mut Self, dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::Type> {
         let ty = match ty {
-            // leaves without child types
+            // leaf heads
             dir::Type::Variable(_)
             | dir::Type::Hole(_)
             | dir::Type::Rigid(_)
@@ -1395,7 +1466,6 @@ impl CheckState<'_> {
             | dir::Type::Primitive(_)
             | dir::Type::Literal(_)
             | dir::Type::Key(_)
-            | dir::Type::Memory(_)
             | dir::Type::Static(_)
             | dir::Type::Intrinsic
             | dir::Type::Parameter(_)
@@ -1404,10 +1474,17 @@ impl CheckState<'_> {
             | dir::Type::Range(_)
             | dir::Type::Reference(_) => ty,
 
+            // map the region extent and space
+            dir::Type::Region(mut region) => {
+                region.extent = map(self, region.extent)?;
+                region.space = map(self, region.space)?;
+
+                dir::Type::Region(region)
+            }
+
             // declaration applications
             dir::Type::Application(mut instance) => {
-                instance.arguments =
-                    self.map_type_id_list(source, target, instance.arguments, map)?;
+                instance.arguments = self.map_type_id_list(source, instance.arguments, map)?;
 
                 dir::Type::Application(instance)
             }
@@ -1422,7 +1499,7 @@ impl CheckState<'_> {
             dir::Type::Member(member) => {
                 let mut member = self.type_member(source, member)?;
                 member.owner = map(self, member.owner)?;
-                member.arguments = self.map_type_id_list(source, target, member.arguments, map)?;
+                member.arguments = self.map_type_id_list(source, member.arguments, map)?;
                 member.qualifier = member
                     .qualifier
                     .map(|qualifier| map(self, qualifier))
@@ -1443,21 +1520,19 @@ impl CheckState<'_> {
                 match &mut form.form {
                     dir::Form::Borrowed(borrow) => {
                         let mut resolved = self.type_borrow(source, *borrow)?;
-                        resolved.lifetime = map(self, resolved.lifetime)?;
+                        resolved.region = map(self, resolved.region)?;
                         resolved.access = map(self, resolved.access)?;
                         *borrow = self.module.types_tail.intern_borrow(resolved);
                     }
-                    dir::Form::Placed { place } => *place = map(self, *place)?,
-                    dir::Form::Managed
-                    | dir::Form::Owned
-                    | dir::Form::Raw
-                    | dir::Form::Readonly => {}
+                    dir::Form::Managed { place } => *place = map(self, *place)?,
+                    dir::Form::Owned | dir::Form::Raw | dir::Form::Readonly => {}
                 }
 
                 dir::Type::Form(form)
             }
             dir::Type::Dynamic(mut dynamic) => {
                 dynamic.constraint = map(self, dynamic.constraint)?;
+                dynamic.place = map(self, dynamic.place)?;
 
                 dir::Type::Dynamic(dynamic)
             }
@@ -1506,8 +1581,7 @@ impl CheckState<'_> {
                     dir::TypeOperation::TemplateLiteral(mut template) => {
                         let strings = self.template_strings(source, template.strings)?.to_vec();
                         template.strings = self.intern_strings(&strings)?;
-                        template.spans =
-                            self.map_type_id_list(source, target, template.spans, map)?;
+                        template.spans = self.map_type_id_list(source, template.spans, map)?;
 
                         dir::TypeOperation::TemplateLiteral(template)
                     }
@@ -1566,6 +1640,7 @@ impl CheckState<'_> {
             }
             dir::Type::Slice(mut slice) => {
                 slice.element = map(self, slice.element)?;
+                slice.place = map(self, slice.place)?;
 
                 dir::Type::Slice(slice)
             }
@@ -1583,7 +1658,7 @@ impl CheckState<'_> {
 
             // concrete object classes
             dir::Type::Object(shape) => {
-                let shape = self.map_shape(source, target, shape, map)?;
+                let shape = self.map_shape(source, shape, map)?;
 
                 dir::Type::Object(shape)
             }
@@ -1610,6 +1685,7 @@ impl CheckState<'_> {
             }
             dir::Type::Function(mut function) => {
                 function.signature = map(self, function.signature)?;
+                function.place = map(self, function.place)?;
 
                 dir::Type::Function(function)
             }
@@ -1621,13 +1697,13 @@ impl CheckState<'_> {
 
             // algebraic composites
             dir::Type::Union(mut union) => {
-                union.elements = self.map_type_id_list(source, target, union.elements, map)?;
+                union.elements = self.map_type_id_list(source, union.elements, map)?;
 
                 dir::Type::Union(union)
             }
             dir::Type::Intersection(mut intersection) => {
                 intersection.elements =
-                    self.map_type_id_list(source, target, intersection.elements, map)?;
+                    self.map_type_id_list(source, intersection.elements, map)?;
 
                 dir::Type::Intersection(intersection)
             }
@@ -1640,7 +1716,6 @@ impl CheckState<'_> {
     fn map_shape(
         &mut self,
         source: ModuleId,
-        target: ModuleId,
         mut shape: dir::ObjectType,
         map: &mut impl FnMut(&mut Self, dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::ObjectType> {
@@ -1661,10 +1736,9 @@ impl CheckState<'_> {
 
         // map the signature lists as they stand
         shape.properties = self.intern_properties(&properties)?;
-        shape.call_signatures =
-            self.map_type_id_list(source, target, shape.call_signatures, map)?;
+        shape.call_signatures = self.map_type_id_list(source, shape.call_signatures, map)?;
         shape.construct_signatures =
-            self.map_type_id_list(source, target, shape.construct_signatures, map)?;
+            self.map_type_id_list(source, shape.construct_signatures, map)?;
 
         // map each index signature's key and value types
         let mut signatures = SmallVec::<[dir::TypeIndexSignature; 2]>::from_slice(
@@ -1684,7 +1758,6 @@ impl CheckState<'_> {
     fn map_type_id_list(
         &mut self,
         source: ModuleId,
-        _target: ModuleId,
         list: dir::TypeListId,
         map: &mut impl FnMut(&mut Self, dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::TypeListId> {
@@ -1802,6 +1875,7 @@ impl CheckState<'_> {
             id = refined.base;
         }
 
+        // sort the bindings into canonical key order
         bindings.sort_by_key(|(key, _)| *key);
 
         Ok((id, bindings))

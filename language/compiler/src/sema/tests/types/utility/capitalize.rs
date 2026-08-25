@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Capitalize uppercases the first character of a string literal.
 #[test]
 fn test_capitalize_converts_first_character() {
     let session = TestSession::single(
@@ -23,7 +24,7 @@ const ok: "Hello" = "Hello";
 type Value = Capitalize<"hello">;
 /// @type.symbol symbol=Value source="type Value = Capitalize<\"hello\">" type="Hello"
 /// @definition.type symbol=Value source="type Value = Capitalize<\"hello\">" value="Hello"
-/// @resolution.name source=Capitalize target=types.string.Capitalize
+/// @resolution.name source=Capitalize target=Capitalize
 
 const ok: Value = "Hello";
 /// @type.symbol symbol=ok source=ok type="Hello"
@@ -33,6 +34,7 @@ const ok: Value = "Hello";
     );
 }
 
+/// Capitalize distributes over each arm of a union.
 #[test]
 fn test_capitalize_distributes_over_union() {
     let session = TestSession::single(
@@ -60,7 +62,7 @@ value satisfies "Yes" | "No";
 type Value = Capitalize<"yes" | "no">;
 /// @type.symbol symbol=Value source="type Value = Capitalize<\"yes\" | \"no\">" type="Yes" | "No"
 /// @definition.type symbol=Value source="type Value = Capitalize<\"yes\" | \"no\">" value="Yes" | "No"
-/// @resolution.name source=Capitalize target=types.string.Capitalize
+/// @resolution.name source=Capitalize target=Capitalize
 
 declare const value: Value;
 /// @type.symbol symbol=value source=value type="Yes" | "No"
@@ -69,12 +71,13 @@ declare const value: Value;
 
 value satisfies "Yes" | "No";
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
 }
 
+/// The original casing reports a diagnostic against a Capitalize type.
 #[test]
 fn test_capitalize_rejects_original_casing() {
     let session = TestSession::single(
@@ -98,7 +101,7 @@ const bad: "Hello" = "hello";
 type Value = Capitalize<"hello">;
 /// @type.symbol symbol=Value source="type Value = Capitalize<\"hello\">" type="Hello"
 /// @definition.type symbol=Value source="type Value = Capitalize<\"hello\">" value="Hello"
-/// @resolution.name source=Capitalize target=types.string.Capitalize
+/// @resolution.name source=Capitalize target=Capitalize
 
 const bad: Value = "hello";
 /// @type.symbol symbol=bad source=bad type="Hello"

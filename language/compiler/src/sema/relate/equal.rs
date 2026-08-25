@@ -13,15 +13,21 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
+        // error types poison silently
+        if matches!(self.ty(source)?, dir::Type::Error)
+            || matches!(self.ty(target)?, dir::Type::Error)
+        {
+            return Ok(Verdict::Holds);
+        }
+
+        // relate region terms by their own rule
+        if let Some(verdict) =
+            self.relate_region_terms(origin, cause, Relation::Equal, source, target)?
+        {
+            return Ok(verdict);
+        }
+
         let decision = match (self.ty(source)?, self.ty(target)?) {
-            // error types poison silently
-            (dir::Type::Error, _) | (_, dir::Type::Error) => Verdict::Holds,
-            // compare lifetime pairs equal, MIR Verify enforces outlives
-            (_, _)
-                if self.is_lifetime_slot_type(source)? && self.is_lifetime_slot_type(target)? =>
-            {
-                Verdict::Holds
-            }
             // unit types compare by kind
             (dir::Type::Null, dir::Type::Null)
             | (dir::Type::Undefined, dir::Type::Undefined)
@@ -48,14 +54,6 @@ impl CheckState<'_> {
             | (dir::Type::Literal(dir::Literal::Null), dir::Type::Null)
             | (dir::Type::Undefined, dir::Type::Literal(dir::Literal::Undefined))
             | (dir::Type::Literal(dir::Literal::Undefined), dir::Type::Undefined) => Verdict::Holds,
-            // memory singleton values compare against their authored string text
-            (dir::Type::Memory(memory), dir::Type::Literal(dir::Literal::String(text)))
-            | (dir::Type::Literal(dir::Literal::String(text)), dir::Type::Memory(memory)) => {
-                Verdict::decided(text == dir::StringId::for_text(memory.text()))
-            }
-            (dir::Type::Memory(source), dir::Type::Memory(target)) => {
-                Verdict::decided(source == target)
-            }
             (dir::Type::Static(source), dir::Type::Static(target)) => {
                 Verdict::decided(source == target)
             }
@@ -116,7 +114,7 @@ impl CheckState<'_> {
 
                 constructor.and(payload)
             }
-            // anonymous classes
+            // compare anonymous classes by shape
             (dir::Type::Object(_), dir::Type::Object(_)) => {
                 self.relate_shape_equal(origin, cause, source, target)?
             }
@@ -141,6 +139,8 @@ impl CheckState<'_> {
         if source.len() != target.len() {
             return Ok(Verdict::Fails);
         }
+
+        // work on removable copies of both sides
         let mut source = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(source);
         let mut target = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(target);
 
@@ -150,6 +150,8 @@ impl CheckState<'_> {
             let source_type = source[source_index];
             let is_source_open = !self.type_variables(source_type)?.is_empty();
             let mut matched = None;
+
+            // search the target side for an element that already equals this one
             for (target_index, target_type) in target.iter().copied().enumerate() {
                 let is_target_open = !self.type_variables(target_type)?.is_empty();
                 if is_source_open || is_target_open {
@@ -166,6 +168,8 @@ impl CheckState<'_> {
                     break;
                 }
             }
+
+            // drop the matched pair, otherwise carry this element forward
             if let Some(target_index) = matched {
                 source.remove(source_index);
                 target.remove(target_index);
@@ -178,11 +182,13 @@ impl CheckState<'_> {
         if let ([source], [target]) = (source.as_slice(), target.as_slice()) {
             return self.constrain_type(origin, cause, Relation::Equal, *source, *target);
         }
+
+        // hold once every element found its partner
         if source.is_empty() {
             return Ok(Verdict::Holds);
         }
 
-        // unresolved variables on either side leave the equation ambiguous
+        // reject open variables reaching set equality
         let open = self.collect_open_variables(source.into_iter().chain(target))?;
         if !open.is_empty() {
             return Err(CompilerError::Internal {

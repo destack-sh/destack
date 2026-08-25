@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A template literal type matches each arm of a string union span.
 #[test]
 fn test_match_string_union_spans_against_a_template_literal_type() {
     let session = TestSession::single(
@@ -44,18 +45,19 @@ const posts: Route = "api:posts";
 
 users satisfies "api:users" | "api:posts";
 /// @resolution.name source=users target=users
-/// @resolution.place source=users placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=users placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=users root=users
 
 posts satisfies Route;
 /// @resolution.name source=posts target=posts
-/// @resolution.place source=posts placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=posts placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=posts root=posts
 /// @resolution.name source=Route target=Route
 "#,
     );
 }
 
+/// Two union spans in one template match every combination of their arms.
 #[test]
 fn test_cross_product_union_spans_in_a_template_literal_type() {
     let session = TestSession::single(
@@ -113,6 +115,7 @@ const bad: Route = "fr-users";
     );
 }
 
+/// A string outside the union span reports a diagnostic.
 #[test]
 fn test_reject_non_member_string_spans_in_a_template_literal_type() {
     let session = TestSession::single(
@@ -150,6 +153,7 @@ const bad: Route = "api:orders";
     );
 }
 
+/// A template matches boolean, null, and undefined spans by their text.
 #[test]
 fn test_match_stringifiable_primitive_spans_against_a_template_literal_type() {
     let session = TestSession::single(
@@ -195,6 +199,7 @@ const bad: PrimitiveText = "yes-null-undefined";
     );
 }
 
+/// A template holding a never span reduces to never.
 #[test]
 fn test_reduce_a_never_span_to_never_in_a_template_literal_type() {
     let session = TestSession::single(
@@ -232,6 +237,7 @@ const bad: Nothing = "id:anything";
     );
 }
 
+/// A template of broad string spans accepts any string.
 #[test]
 fn test_accept_broad_string_spans_in_a_template_literal_type() {
     let session = TestSession::single(
@@ -273,6 +279,7 @@ const ok: AnyString = value;
     );
 }
 
+/// A template literal type matches a numeric span by its text.
 #[test]
 fn test_match_numeric_spans_against_a_template_literal_type() {
     let session = TestSession::single(
@@ -308,12 +315,13 @@ const item: NumericRoute = "item:42";
 
 item satisfies `item:${number}`;
 /// @resolution.name source=item target=item
-/// @resolution.place source=item placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=item placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=item root=item
 "#,
     );
 }
 
+/// A non-numeric text reports a diagnostic at a numeric span.
 #[test]
 fn test_reject_non_numeric_spans_in_a_template_literal_type() {
     let session = TestSession::single(
@@ -351,6 +359,7 @@ const bad: NumericRoute = "item:abc";
     );
 }
 
+/// A template holding another template matches the flattened text.
 #[test]
 fn test_match_nested_templates_in_a_template_literal_type() {
     let session = TestSession::single(
@@ -383,6 +392,7 @@ const value: Nested = "prefix-id-1";
     );
 }
 
+/// A text failing the nested template reports a diagnostic.
 #[test]
 fn test_reject_nested_template_mismatches_in_a_template_literal_type() {
     let session = TestSession::single(

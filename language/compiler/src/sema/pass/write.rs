@@ -266,11 +266,11 @@ impl CheckState<'_> {
         subject: dir::MemberSubject,
     ) -> CompilerResult<dir::Membership> {
         // reduce projection heads to their identities first
-        let subject = match self.ty(subject.key_type)? {
+        let subject = match self.ty(subject.key_source)? {
             dir::Type::Member(_) | dir::Type::Operation(_) => {
-                let reduced = self.normalize_computation(origin, subject.key_type)?;
+                let reduced = self.normalize_computation(origin, subject.key_source)?;
 
-                subject.with_key_type(reduced)
+                subject.with_key_source(reduced)
             }
             _ => subject,
         };
@@ -279,7 +279,7 @@ impl CheckState<'_> {
         let receiver = self.strip_form(origin, subject.receiver)?;
 
         // reference declaration-backed subjects by their owner and arguments
-        let instance = self.apparent_instance(subject.key_type)?;
+        let instance = self.apparent_instance(subject.key_source)?;
         let is_newtype = match &instance {
             Some(instance) => matches!(
                 self.definition(instance.symbol)?,
@@ -305,7 +305,7 @@ impl CheckState<'_> {
             };
 
             // reference the matching extensions as sources beside the owner
-            let core = self.strip_form(origin, subject.key_type)?;
+            let core = self.strip_form(origin, subject.key_source)?;
             let sources = self.body().decided_extension_sources(
                 origin,
                 module,
@@ -325,7 +325,7 @@ impl CheckState<'_> {
         }
 
         // merge generic parameter subjects over their bounds' sources
-        if let dir::Type::Parameter(parameter) = self.ty(subject.key_type)? {
+        if let dir::Type::Parameter(parameter) = self.ty(subject.key_source)? {
             let bounds = self.body().parameter_bounds(origin, parameter)?;
             let mut membership = dir::Membership {
                 receiver,
@@ -334,7 +334,7 @@ impl CheckState<'_> {
             };
             for bound in bounds {
                 let projected =
-                    self.project_membership(origin, module, subject.with_key_type(bound))?;
+                    self.project_membership(origin, module, subject.with_key_source(bound))?;
 
                 // keep each owner and structural key the bounds contribute once
                 for source in projected.sources {
@@ -545,12 +545,12 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::MemberSubject> {
         let receiver = self.fully_resolve(subject.receiver)?;
         let target = self.fully_resolve(subject.target)?;
-        let key_type = self.fully_resolve(subject.key_type)?;
+        let key_source = self.fully_resolve(subject.key_source)?;
 
         Ok(dir::MemberSubject {
             receiver,
             target,
-            key_type,
+            key_source,
             ..subject
         })
     }

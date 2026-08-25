@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Two recursive object aliases of the same shape accept each other.
 #[test]
 fn test_recursive_object_aliases_accept_each_other() {
     let session = TestSession::single(
@@ -51,6 +52,7 @@ const tree: TreeB = source;
     );
 }
 
+/// Two structs holding each other by value report a circular representation.
 #[test]
 fn test_recursive_struct_fields_report_circular_representation() {
     let session = TestSession::single(
@@ -110,6 +112,7 @@ struct Right {
     );
 }
 
+/// Classes holding each other across modules keep their nominal targets.
 #[test]
 fn test_circular_class_fields_preserve_nominal_targets() {
     let compiler = TestSession::builder()
@@ -155,7 +158,7 @@ import { World } from "./world.ds";
 export class Player {
     world: World;
 
-    constructor(world: World): this {
+    constructor(world: World) {
         this.world = world;
     }
 }
@@ -167,14 +170,15 @@ export class Player {
 /// @type.symbol symbol=Player type=Player
 /// @definition.class symbol=Player
 /// @definition.field symbol=Player.world source="world: World" key=world type=world.World
-/// @definition.method symbol=Player.constructor slot=constructor role=constructor type=(world.World) => Player
+/// @definition.method symbol=Player.constructor slot=constructor role=constructor type=<Player.constructor.P0: Place>(world.World) => Managed<Player, Player.constructor.P0>
 
     world: World;
     /// @type.symbol symbol=Player.world source="world: World" type=world.World
     /// @resolution.name source=World target=world.World
 
     constructor(world: World) {
-    /// @type.symbol symbol=Player.constructor type=(world.World) => Player
+    /// @generic.template symbol=Player.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=Player.constructor type=<Player.constructor.P0: Place>(world.World) => Managed<Player, Player.constructor.P0>
     /// @type.symbol symbol=Player.constructor.world source="world: World" type=world.World
     /// @resolution.name source=World target=world.World
 
@@ -200,7 +204,7 @@ import { Player } from "./player.ds";
 export class World {
     player: Player;
 
-    constructor(player: Player): this {
+    constructor(player: Player) {
         this.player = player;
     }
 }
@@ -212,14 +216,15 @@ export class World {
 /// @type.symbol symbol=World type=World
 /// @definition.class symbol=World
 /// @definition.field symbol=World.player source="player: Player" key=player type=player.Player
-/// @definition.method symbol=World.constructor slot=constructor role=constructor type=(player.Player) => World
+/// @definition.method symbol=World.constructor slot=constructor role=constructor type=<World.constructor.P0: Place>(player.Player) => Managed<World, World.constructor.P0>
 
     player: Player;
     /// @type.symbol symbol=World.player source="player: Player" type=player.Player
     /// @resolution.name source=Player target=player.Player
 
     constructor(player: Player) {
-    /// @type.symbol symbol=World.constructor type=(player.Player) => World
+    /// @generic.template symbol=World.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=World.constructor type=<World.constructor.P0: Place>(player.Player) => Managed<World, World.constructor.P0>
     /// @type.symbol symbol=World.constructor.player source="player: Player" type=player.Player
     /// @resolution.name source=Player target=player.Player
 

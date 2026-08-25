@@ -15,6 +15,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         coercion: dir::Coercion,
     ) -> CompilerResult<()> {
+        // read the coercion already selected at this node
         let previous = self.module(node.module_id).coercions.coercion(node);
 
         // accept repeated identical selections and reject conflicting conversions
@@ -31,6 +32,7 @@ impl CheckState<'_> {
             });
         }
 
+        // bind the first selection
         self.module_mut(node.module_id)
             .coercions
             .bind_coercion(node, coercion);
@@ -56,6 +58,7 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // normalize before reading the head
         let value = self.normalize(origin, id)?;
 
         // observe union values arm-wise
@@ -70,6 +73,8 @@ impl CheckState<'_> {
                 changed |= element_observed.is_some();
                 observed.push(element_observed.unwrap_or(element));
             }
+
+            // rebuild the union once any arm observed through a view
             if changed {
                 return self.normalized_union_type(observed).map(Some);
             }
@@ -77,7 +82,7 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
-        // observation reads through readonly views onto the value they view
+        // read through a readonly view onto the value it views
         let chain = self.form_chain(origin, value)?;
         if chain.is_readonly() {
             let observed = match chain.ownership_form() {
@@ -93,15 +98,18 @@ impl CheckState<'_> {
 }
 
 impl BodyState<'_, '_> {
-    /// Return whether one destination leaves its ownership to inference: an open variable or
-    /// hole, standing alone or as one union arm beside no owned arm.
+    /// Return whether one destination leaves its ownership to inference.
+    ///
+    /// An open variable or hole qualifies on its own; inside a union, an owned arm settles it.
     pub(in crate::sema) fn infers_ownership(
         &mut self,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         let target = self.shallow_resolve(target)?;
         match self.ty(target)? {
+            // an open variable or hole leaves ownership to inference
             dir::Type::Variable(_) | dir::Type::Hole(_) => Ok(true),
+            // a union settles its ownership at the first owned arm
             dir::Type::Union(union) => {
                 let members = self.type_ids(target.module_id, union.elements)?;
                 let mut has_variable = false;
@@ -118,6 +126,7 @@ impl BodyState<'_, '_> {
 
                 Ok(has_variable)
             }
+            // every other type carries its own ownership
             _ => Ok(false),
         }
     }
@@ -129,9 +138,12 @@ impl BodyState<'_, '_> {
         source: Value,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
+        // require an authored source node to record the access against
         let Some(node) = source.node else {
             return Ok(());
         };
+
+        // require a borrowed destination
         let target_chain = self.form_chain(origin, target)?;
         let Some(dir::FormType {
             form: dir::Form::Borrowed(borrow),
@@ -140,8 +152,10 @@ impl BodyState<'_, '_> {
         else {
             return Ok(());
         };
+
+        // record the access the destination borrow requires
         let access = self.type_borrow(target.module_id, borrow)?.access;
-        if let Some(requested) = self.access_literal(origin, access)? {
+        if let Some(requested) = self.access_of(access)? {
             self.commit_required_access(node, requested, true);
         }
 
@@ -166,7 +180,7 @@ impl BodyState<'_, '_> {
         let mut variables = self.type_variables(source.ty)?;
         variables.extend(self.type_variables(target)?);
 
-        // bind open operands, a fresh literal widening unless its destination keeps literals
+        // bind open operands, widening a fresh literal to suit its destination
         let inferred = if variables.is_empty() {
             None
         } else {
@@ -196,6 +210,7 @@ impl BodyState<'_, '_> {
                     coercion: None,
                 });
             }
+
             let holds = verdict.holds();
 
             // finish open conversions once the enclosing inference closes
@@ -243,6 +258,8 @@ impl BodyState<'_, '_> {
                 target,
                 Verdict::decided(holds),
             )?;
+
+            // stop at a failed outcome and at every check only relation
             if outcome != CheckOutcome::Holds
                 || relation != Relation::Assignable
                 || !use_.requires_runtime_coercion()
@@ -275,6 +292,7 @@ impl BodyState<'_, '_> {
         // materialize the closed runtime conversion
         let conversion = self.convert_closed_value(site, origin, cause, source, target, use_)?;
 
+        // split the conversion into its outcome and coercion
         let (outcome, coercion) = match conversion {
             Ok(coercion) => (CheckOutcome::Holds, coercion),
             Err(failure) => (CheckOutcome::Fails(failure), None),
@@ -298,6 +316,8 @@ impl BodyState<'_, '_> {
         if written == widened {
             return coercion;
         }
+
+        // lead the adjustments with the widening
         let mut adjustments = vec![dir::CoercionAdjustment::Widen { target: widened }];
         if let Some(coercion) = coercion {
             adjustments.extend(coercion.adjustments);
@@ -322,7 +342,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Verdict> {
         let origin = site.origin();
 
-        // an owned temporary takes the family default form of an ownership-inferring destination
+        // adopt the family default form for an owned temporary at an inferring destination
         if use_.requires_runtime_coercion()
             && source.place.is_none()
             && self.infers_ownership(target)?
@@ -339,7 +359,7 @@ impl BodyState<'_, '_> {
             return self.constrain_borrow(origin, cause, Relation::Assignable, source, &conversion);
         }
 
-        // compare types for every other check-only relation, without a value place
+        // compare types alone at every check only relation
         if relation != Relation::Assignable || !use_.requires_runtime_coercion() {
             return self.constrain_type(origin, cause, relation, source.ty, target);
         }
@@ -348,7 +368,7 @@ impl BodyState<'_, '_> {
         let source_chain = self.form_chain(origin, source.ty)?;
         let target_chain = self.form_chain(origin, target)?;
 
-        // builtin observation sees through readonly value views without copying storage
+        // observe through a readonly value view, leaving its storage in place
         let may_observe = source_chain.is_readonly()
             || self.type_flags(source.ty)?.has_alias()
             || matches!(self.ty(source_chain.base())?, dir::Type::Union(_));
@@ -359,7 +379,7 @@ impl BodyState<'_, '_> {
             return self.constrain_type(origin, cause, relation, observed, target);
         }
 
-        // expectation sites read directly owned Copy payloads out of borrows
+        // read a directly owned Copy payload out of a borrow at an expectation site
         let source_borrowed = source_chain
             .ownership_form()
             .is_some_and(|form| matches!(form.form, dir::Form::Borrowed(_)));
@@ -377,12 +397,12 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // record the access a reborrow into a borrowed destination demands
+        // record the access a reborrow into a borrowed destination requires
         if source_borrowed && target_borrowed {
             self.commit_reborrow_access(origin, source, target)?;
         }
 
-        // consuming positions transfer owned values into managed storage
+        // transfer an owned value into managed storage at a consuming position
         let is_owned = source_chain
             .ownership_form()
             .is_some_and(|form| form.form == dir::Form::Owned);
@@ -416,6 +436,7 @@ impl BodyState<'_, '_> {
         source: Value,
         conversion: &BorrowConversion,
     ) -> CompilerResult<Verdict> {
+        // require the borrow constructor the conversion target carries
         let place = self.value_place(origin, source)?;
         let dir::Form::Borrowed(target_borrow) = conversion.borrow.form else {
             return Err(CompilerError::Internal {
@@ -439,14 +460,15 @@ impl BodyState<'_, '_> {
             verdict = verdict.and(placement);
         }
 
-        // bind an elided borrow lifetime to the source place provenance
+        // bind an elided borrow region to the source place provenance
         let borrow = self.type_borrow(conversion.module, target_borrow)?;
+        let provenance = self.intern_region(place.lifetime, place.placement)?;
         let lifetime = self.constrain_type(
             origin,
             cause,
             Relation::Assignable,
-            place.lifetime,
-            borrow.lifetime,
+            provenance,
+            borrow.region,
         )?;
         if lifetime == Verdict::Fails {
             return Ok(Verdict::Fails);
@@ -462,7 +484,7 @@ impl BodyState<'_, '_> {
 
         // record the access this borrow requires from the lent place
         if let Some(node) = source.node
-            && let Some(requested) = self.access_literal(origin, borrow.access)?
+            && let Some(requested) = self.access_of(borrow.access)?
         {
             let is_aliased = self.type_is_aliased(origin, source.ty)?;
             self.commit_required_access(node, requested, is_aliased);
@@ -478,11 +500,11 @@ impl BodyState<'_, '_> {
             (_, None) => conversion.source.base(),
         };
 
-        // materialize a literal temporary at the borrowed carrier before it lends
-        let carrier = self.normalize(origin, conversion.borrow.value)?;
-        let carrier_type = self.ty(carrier)?;
+        // widen a literal source to the borrowed value before it lends
+        let borrowed = self.normalize(origin, conversion.borrow.value)?;
+        let borrowed_type = self.ty(borrowed)?;
         let source_value = match self.ty(source_value)? {
-            dir::Type::Literal(literal) if literal.widens_to(&carrier_type) => carrier,
+            dir::Type::Literal(literal) if literal.widens_to(&borrowed_type) => borrowed,
             _ => source_value,
         };
         let payload = self.constrain_form_value(
@@ -501,9 +523,7 @@ impl BodyState<'_, '_> {
             && !self.type_is_aliased(origin, source.ty)?
             && let Some(node) = source.node
         {
-            let readonly = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
-                dir::Access::Readonly,
-            )))?;
+            let readonly = self.access_literal(dir::Access::Readonly)?;
             match self.relate_access_assignable(origin, readonly, borrow.access)? {
                 Verdict::Holds => {}
                 Verdict::Fails => self.commit_access_use(node, dir::BindingUse::MUTATE),
@@ -609,26 +629,29 @@ impl BodyState<'_, '_> {
             });
         }
 
-        // stored positions convert into the resolved written target
+        // resolve the written target at a stored position
         let target = match use_.requires_storage() {
             true => self.deeply_resolve(origin, target)?,
             false => target,
         };
 
-        // skip adjustment for identical and unreachable values, recording the reborrow access
+        // skip adjustment for identical values, recording the reborrow access
         if self
             .decide_relation(origin, Relation::Equal, source.ty, target)?
             .holds()
         {
             self.commit_reborrow_access(origin, source, target)?;
+
             return Ok(Ok(None));
         }
+
+        // skip adjustment for unreachable values
         let source_value = self.strip_form(origin, source.ty)?;
         if matches!(self.ty(source_value)?, dir::Type::Never) {
             return Ok(Ok(None));
         }
 
-        // apply memory carrier conversions before inspecting their payload cases
+        // convert through the memory forms before reading the payload cases
         let source_chain = self.form_chain(origin, source.ty)?;
         let target_chain = self.form_chain(origin, target)?;
         let borrows = self.borrow_conversion(origin, source.ty, target)?.is_some();
@@ -765,6 +788,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         source: dir::GlobalTypeId,
     ) -> CompilerResult<Option<SmallVec<[dir::GlobalTypeId; 4]>>> {
+        // take the declared arms of a union directly
         if let Some(cases) = self.union_arms(origin, source)? {
             return Ok(Some(cases));
         }
@@ -804,6 +828,8 @@ impl BodyState<'_, '_> {
             value_use: use_,
             is_placed: source.place.is_some(),
         };
+
+        // look the selection up under its canonical goal
         if let Some((key, _)) = self
             .check
             .canonicalize_goal(origin, subject, &operands, false)?
@@ -857,6 +883,8 @@ impl BodyState<'_, '_> {
 
                 Ok(outcome)
             })?;
+
+            // keep the sole viable case, rejecting a second one as ambiguous
             if matches!(verdict, Verdict::Holds | Verdict::Ambiguous) {
                 if selected.is_some() {
                     return Ok(Err(CheckFailure::AmbiguousUnionCoercion));
@@ -864,6 +892,7 @@ impl BodyState<'_, '_> {
                 selected = Some((arm, target));
             }
         }
+
         // answer the arm as a failure when every case rejects the source
         let Some((arm, target)) = selected else {
             if let Some(key) = arm_key {
@@ -905,6 +934,8 @@ impl BodyState<'_, '_> {
 
             Ok(outcome)
         })?;
+
+        // require the confirmation to reproduce the probed conversion
         let Some(conversion) = conversion else {
             return Err(CompilerError::Internal {
                 message: "selected union conversion failed during confirmation".into(),
@@ -924,6 +955,7 @@ impl BodyState<'_, '_> {
         target: dir::GlobalTypeId,
         use_: ValueUse,
     ) -> CompilerResult<Result<Option<Box<dir::Coercion>>, CheckFailure>> {
+        // check the logical relation before adjusting the value
         let relation = Relation::Assignable;
         let verdict = self.constrain_conversion(site, cause, relation, source, target, use_)?;
         let outcome =
@@ -945,7 +977,7 @@ impl BodyState<'_, '_> {
             target
         };
 
-        // record no adjustment for a dynamic read at exactly its declared constraint
+        // skip adjustment for a dynamic read at exactly its declared constraint
         if let dir::Type::Dynamic(dynamic) = self.ty(self.shallow_resolve(source.ty)?)?
             && self
                 .decide_relation(origin, Relation::Equal, dynamic.constraint, recorded_target)?
@@ -954,7 +986,7 @@ impl BodyState<'_, '_> {
             return Ok(Ok(None));
         }
 
-        // borrowing creates a reference to the complete source storage
+        // borrow a reference to the complete source storage
         if self.borrow_conversion(origin, source.ty, target)?.is_some() {
             let adjustment = dir::CoercionAdjustment::Borrow {
                 target: recorded_target,
@@ -965,7 +997,7 @@ impl BodyState<'_, '_> {
             return Ok(Ok(Some(Box::new(coercion))));
         }
 
-        // classify the memory carrier on each side
+        // classify the memory form on each side
         let source_chain = self.form_chain(origin, source.ty)?;
         let target_chain = self.form_chain(origin, target)?;
         let source_borrowed = source_chain
@@ -1004,13 +1036,14 @@ impl BodyState<'_, '_> {
             return Ok(Ok(Some(Box::new(coercion))));
         }
 
+        // select the adjustment this conversion requires
         let adjustment = {
             let source_base = source_chain.base();
             let target_base = target_chain.base();
             let source_head = self.ty(source_base)?;
             let target_head = self.ty(target_base)?;
 
-            // erased carriers box their values on entry and exit
+            // erased values box on entry and exit
             if self.is_erased_value(source_base)? || self.is_erased_value(target_base)? {
                 Some(dir::CoercionAdjustment::Erase {
                     target: recorded_target,
@@ -1032,13 +1065,13 @@ impl BodyState<'_, '_> {
                     target: recorded_target,
                 })
             }
-            // explicit ownership changes select a different runtime carrier
+            // an explicit ownership change selects a different runtime representation
             else if (source_chain.ownership_form().is_some()
                 || target_chain.ownership_form().is_some())
                 && self.form_ownership(origin, &source_chain)?
                     != self.form_ownership(origin, &target_chain)?
             {
-                Some(dir::CoercionAdjustment::Carrier {
+                Some(dir::CoercionAdjustment::Representation {
                     target: recorded_target,
                 })
             }
@@ -1047,6 +1080,7 @@ impl BodyState<'_, '_> {
                 None
             }
         };
+        // leave a representation preserving conversion unadjusted
         let Some(adjustment) = adjustment else {
             return Ok(Ok(None));
         };

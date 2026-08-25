@@ -11,6 +11,7 @@ impl BodyState<'_, '_> {
         mutability: Option<dir::Mutability>,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
+        // read the borrowed value and the place it names
         let node = site.node.into_typed::<dir::Expression>();
         let right_site = self.visit_site(right.into_global_any(node.module_id))?;
         let ty = self.infer_node_type(right_site, PlaceUse::Read)?;
@@ -23,16 +24,26 @@ impl BodyState<'_, '_> {
             Some(mutability) => mutability.access(),
             None => dir::Access::Mutable,
         };
-        let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(requested)))?;
+        let access = self.access_literal(requested)?;
 
         // require the requested access from the selected place
         let origin = site.origin();
-        let is_granted = self
+        let mut is_granted = self
             .check
             .constrain_access_assignable(origin, place.access, access)?
             .holds();
+
+        // grant exclusivity over a mutable frame binding's own cell
+        if !is_granted
+            && requested == dir::Access::Exclusive
+            && self.is_exclusive_slot(node.module_id, right)?
+        {
+            is_granted = true;
+        }
+
+        // report a place that withholds the requested access
         if !is_granted {
-            let granted = self.check.access_literal(origin, place.access)?;
+            let granted = self.check.access_of(place.access)?;
             self.check
                 .report_borrow_access_not_granted(origin, requested, granted, value.ty)?;
         }
@@ -43,15 +54,55 @@ impl BodyState<'_, '_> {
             self.commit_required_access(source, requested, is_aliased);
         }
 
-        // wrap the borrowed value in its borrow form
-        let form = self.intern_borrow(lifetime, access)?;
+        // build the borrow form from the lent place's lifetime and placement
+        let placement = self.check.shallow_resolve(place.placement)?;
+        let region = self.check.intern_region(lifetime, placement)?;
+        let form = self.check.intern_borrow(region, access)?;
         let borrowed = self.intern_type(dir::Type::Form(dir::FormType {
             form,
             value: value.ty,
         }))?;
+        let borrowed = self.check.normalize(origin, borrowed)?;
+
         self.commit_node_type(node.into_any(), borrowed)?;
 
         Ok(())
+    }
+
+    /// Return whether one borrowed expression names a mutable frame binding directly.
+    fn is_exclusive_slot(
+        &mut self,
+        module: destack_source::ModuleId,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<bool> {
+        // slot exclusivity applies to bare binding references alone
+        if !self.module(module).view().get(expression).is_reference() {
+            return Ok(false);
+        }
+
+        // require the reference to resolve to a single binding symbol
+        let Some(resolution) = self
+            .name_decision(expression.into_global_any(module))
+            .cloned()
+        else {
+            return Ok(false);
+        };
+
+        let [symbol] = resolution.symbols() else {
+            return Ok(false);
+        };
+
+        if !self.symbol_kind(*symbol)?.is_binding() {
+            return Ok(false);
+        }
+
+        // require a mutable binding declared outside module scope
+        let bindings = self.binding_table(symbol.module_id);
+        let binding = bindings.get_symbol(symbol.local_id);
+        let is_static = binding.scope.id == bindings.module_scope().id;
+        let is_mutable = binding.binding_mutability != Some(dir::Mutability::Immutable);
+
+        Ok(!is_static && is_mutable)
     }
 
     /// Commit the binding uses one borrow of a binding value requires from it.

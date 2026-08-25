@@ -38,7 +38,7 @@ const value = if (enabled) {
 /// @type.node type=1 | 2
 /// @type.node source=enabled type=boolean
 /// @resolution.name source=enabled target=enabled
-/// @resolution.place source=enabled placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=enabled placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=enabled root=enabled
 
     1

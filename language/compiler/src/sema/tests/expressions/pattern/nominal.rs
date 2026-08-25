@@ -116,7 +116,7 @@ match (point) {
 /// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 
     Point { x, y } => x + y
@@ -253,23 +253,24 @@ class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string = \"\"" key=name type=string
-/// @definition.method symbol=User.displayName slot=displayName type=(this: this) => string
+/// @definition.method symbol=User.displayName slot=displayName type=<User.displayName.P0: Place>(this: Managed<this, User.displayName.P0>) => string
 
     name: string = "";
     /// @type.symbol symbol=User.name source="name: string = \"\"" type=string
     /// @type.node source="\"\"" type=""
 
     displayName(): string {
-    /// @type.symbol symbol=User.displayName type=(this: this) => string
+    /// @generic.template symbol=User.displayName parameters=(P0: Place)
+    /// @type.symbol symbol=User.displayName type=<User.displayName.P0: Place>(this: Managed<this, User.displayName.P0>) => string
 
         return this.name;
-        /// @type.node source=this type=User
-        /// @type.node source=this.name type=string
-        /// @resolution.member source=this.name receiver=User type=string kind=field target_receiver=User key=name target=User.name target_type=string
-        /// @resolution.receiver source=this kind=this declaration=User type=User
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @type.node source=this type=Managed<User, User.displayName.P0>
+        /// @type.node source=this.name type=Managed<string, User.displayName.P0>
+        /// @resolution.member source=this.name receiver=Managed<User, User.displayName.P0> type=Managed<string, User.displayName.P0> kind=field target_receiver=Managed<User, User.displayName.P0> key=name target=User.name target_type=Managed<string, User.displayName.P0>
+        /// @resolution.receiver source=this kind=this declaration=User type=Managed<User, User.displayName.P0>
+        /// @resolution.place source=this placement=User.displayName.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.name placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.name placement=User.displayName.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this.name root=this keys=[name]
 
     }

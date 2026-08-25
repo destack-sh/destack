@@ -615,10 +615,10 @@ function double<T: IntegerDomain>(value: T): T {
 import { IntegerDomain } from "destack:math";
 
 function double<T: IntegerDomain>(value: T): T {
-/// @generic.template symbol=double parameters=(T: math.integer.IntegerDomain)
-/// @type.symbol symbol=double type=<T: math.integer.IntegerDomain>(T) => T
+/// @generic.template symbol=double parameters=(T: IntegerDomain)
+/// @type.symbol symbol=double type=<T: IntegerDomain>(T) => T
 /// @type.symbol symbol=double.T source="T: IntegerDomain" type=T
-/// @resolution.name source=IntegerDomain target=math.integer.IntegerDomain
+/// @resolution.name source=IntegerDomain target=IntegerDomain
 /// @type.symbol symbol=double.value source="value: T" type=T
 /// @resolution.name source=T target=double.T
 /// @resolution.name source=T target=double.T
@@ -697,10 +697,10 @@ const doubled = value * value;
 /// @resolution.pattern source=doubled kind=binding target=doubled
 /// @resolution.name source=value target=value
 /// @resolution.operator source="value * value" type=int32 | float64 operator="*" kind=builtin operands=[value as int32 | float64 families=(integer | float), value as int32 | float64 families=(integer | float)]
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -733,19 +733,19 @@ function square<T: Multiply<T>>(value: T): T.Output {
 /// @generic.template symbol=square parameters=(T: Multiply<T>)
 /// @type.symbol symbol=square type=<T: Multiply<T>>(T) => T.Output
 /// @type.symbol symbol=square.T source="T: Multiply<T>" type=T
-/// @resolution.name source=Multiply target=ops.multiply.Multiply
+/// @resolution.name source=Multiply target=Multiply
 /// @resolution.name source=T target=square.T
 /// @type.symbol symbol=square.value source="value: T" type=T
 /// @resolution.name source=T target=square.T
 /// @resolution.name source=T.Output target=square.T
-/// @resolution.path source=T.Output index=1 target=ops.multiply.Multiply.Output
+/// @resolution.path source=T.Output index=1 target=Multiply.Output
 
     return value * value;
     /// @resolution.name source=value target=square.value
-    /// @resolution.operator source="value * value" type=T.Output operator="*" kind=call parameters=(T) arguments=(provided(value) as T) return=T.Output kind=symbol target=ops.multiply.Multiply.multiply receiver=T instance=Multiply<T>.multiply
+    /// @resolution.operator source="value * value" type=T.Output operator="*" kind=call parameters=(T) arguments=(provided(value) as T) return=T.Output kind=symbol target=Multiply.multiply receiver=T instance=Multiply<T>.multiply
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=square.value
-    /// @generic.instantiation id=ops.multiply.Multiply.multiply<T> template=ops.multiply.Multiply.multiply arguments=(T) owner=square
+    /// @generic.instantiation id=Multiply.multiply<T> template=Multiply.multiply arguments=(T) owner=square
     /// @resolution.name source=value target=square.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=square.value

@@ -9,6 +9,7 @@ impl CheckState<'_> {
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // accept the types whose inhabitants their own shape already fixes
         if matches!(
             self.ty(ty)?,
             dir::Type::Void
@@ -16,17 +17,18 @@ impl CheckState<'_> {
                 | dir::Type::Undefined
                 | dir::Type::Literal(_)
                 | dir::Type::Key(_)
-                | dir::Type::Memory(_)
                 | dir::Type::Static(_)
         ) {
             return Ok(true);
         }
+
+        // leave every type outside a precise variant open
         let dir::Type::Variant(variant) = self.ty(ty)? else {
             return Ok(false);
         };
         let owner = self.variant_owner(&variant)?;
 
-        // every enum variant denotes exactly one value
+        // treat each enum variant as exactly one value
         match self.definition(owner.symbol)? {
             Some(dir::Definition::Enum(_)) => Ok(true),
             _ => Err(CompilerError::Internal {
@@ -40,6 +42,7 @@ impl CheckState<'_> {
         &mut self,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Vec<dir::GlobalTypeId>>> {
+        // require the value to name an enum declaration instance
         let dir::Type::Application(instance) = self.ty(value)? else {
             return Ok(None);
         };
@@ -51,6 +54,7 @@ impl CheckState<'_> {
             .map(|variant| variant.symbol)
             .collect::<Vec<_>>();
 
+        // intern one precise variant type per declared member
         let mut types = Vec::with_capacity(variants.len());
         for variant in variants {
             let variant = self.intern_type(dir::Type::Variant(dir::VariantType {
@@ -90,7 +94,7 @@ impl CheckState<'_> {
         &mut self,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Vec<dir::Literal>>> {
-        // case-specific types expose only their selected discriminant
+        // read only the selected discriminant out of a case-specific type
         if let dir::Type::Variant(variant) = self.ty(value)? {
             let discriminant = self.variant_discriminant(&variant)?;
 
@@ -144,6 +148,7 @@ impl CheckState<'_> {
         mut value: dir::GlobalTypeId,
         discriminant: dir::Literal,
     ) -> CompilerResult<Option<dir::StaticKey>> {
+        // step from a case-specific type up to the enum owning it
         if let dir::Type::Variant(variant) = self.ty(value)? {
             value = variant.owner;
         }

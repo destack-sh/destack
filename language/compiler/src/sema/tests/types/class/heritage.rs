@@ -245,12 +245,13 @@ class Document implements Printable {
 /// @definition.class symbol=Document
 /// @definition.where symbol=Document source=Printable relation=satisfies left=this right=Printable
 /// @definition.implements symbol=Document source=Printable target=Printable
-/// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: Document) => void
+/// @definition.method symbol=Document.print source="print(): void {}" slot=print type=<Document.print.P0: Place>(this: Managed<Document, Document.print.P0>) => void
 /// @definition.conformance symbol=Document member=Document.print requirement=Printable.print
 /// @resolution.name source=Printable target=Printable
 
     print(): void {}
-    /// @type.symbol symbol=Document.print source="print(): void {}" type=(this: Document) => void
+    /// @generic.template symbol=Document.print parent=template#1 parameters=(P0: Place)
+    /// @type.symbol symbol=Document.print source="print(): void {}" type=<Document.print.P0: Place>(this: Managed<Document, Document.print.P0>) => void
 
 }
 "#,
@@ -362,11 +363,12 @@ type Alias = Printable;
 class Document implements Alias {
 /// @type.symbol symbol=Document type=Document
 /// @definition.class symbol=Document
-/// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: this) => void
+/// @definition.method symbol=Document.print source="print(): void {}" slot=print type=<Document.print.P0: Place>(this: Managed<this, Document.print.P0>) => void
 /// @resolution.name source=Alias target=Alias
 
     print(): void {}
-    /// @type.symbol symbol=Document.print source="print(): void {}" type=(this: this) => void
+    /// @generic.template symbol=Document.print parent=template#1 parameters=(P0: Place)
+    /// @type.symbol symbol=Document.print source="print(): void {}" type=<Document.print.P0: Place>(this: Managed<this, Document.print.P0>) => void
 
 }
 "#,
@@ -498,11 +500,12 @@ class Point implements Drawable {
 /// @definition.class symbol=Point
 /// @definition.where symbol=Point source=Drawable relation=satisfies left=this right=Drawable
 /// @definition.implements symbol=Point source=Drawable target=Drawable
-/// @definition.method symbol=Point.draw source="draw(): void {}" slot=draw type=(this: this) => void
+/// @definition.method symbol=Point.draw source="draw(): void {}" slot=draw type=<Point.draw.P0: Place>(this: Managed<this, Point.draw.P0>) => void
 /// @resolution.name source=Drawable target=Drawable
 
     draw(): void {}
-    /// @type.symbol symbol=Point.draw source="draw(): void {}" type=(this: this) => void
+    /// @generic.template symbol=Point.draw parent=template#2 parameters=(P0: Place)
+    /// @type.symbol symbol=Point.draw source="draw(): void {}" type=<Point.draw.P0: Place>(this: Managed<this, Point.draw.P0>) => void
 
 }
 "#,
@@ -575,10 +578,11 @@ class Document {
 class Document {
 /// @type.symbol symbol=Document type=Document
 /// @definition.class symbol=Document
-/// @definition.method symbol=Document.print source="override print(): void {}" slot=print override=true type=(this: this) => void
+/// @definition.method symbol=Document.print source="override print(): void {}" slot=print override=true type=<Document.print.P0: Place>(this: Managed<this, Document.print.P0>) => void
 
     override print(): void {}
-    /// @type.symbol symbol=Document.print source="override print(): void {}" type=(this: this) => void
+    /// @generic.template symbol=Document.print parameters=(P0: Place)
+    /// @type.symbol symbol=Document.print source="override print(): void {}" type=<Document.print.P0: Place>(this: Managed<this, Document.print.P0>) => void
 
 }
 "#,
@@ -620,10 +624,11 @@ class Document extends Base {
 class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
-/// @definition.method symbol=Base.print source="virtual print(): void {}" slot=print abstraction=virtual type=(this: this) => void
+/// @definition.method symbol=Base.print source="virtual print(): void {}" slot=print abstraction=virtual type=<Base.print.P0: Place>(this: Managed<this, Base.print.P0>) => void
 
     virtual print(): void {}
-    /// @type.symbol symbol=Base.print source="virtual print(): void {}" type=(this: this) => void
+    /// @generic.template symbol=Base.print parameters=(P0: Place)
+    /// @type.symbol symbol=Base.print source="virtual print(): void {}" type=<Base.print.P0: Place>(this: Managed<this, Base.print.P0>) => void
 
 }
 
@@ -631,11 +636,12 @@ class Document extends Base {
 /// @type.symbol symbol=Document type=Document
 /// @definition.class symbol=Document
 /// @definition.extends symbol=Document source=Base target=Base
-/// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: this) => void
+/// @definition.method symbol=Document.print source="print(): void {}" slot=print type=<Document.print.P0: Place>(this: Managed<this, Document.print.P0>) => void
 /// @resolution.name source=Base target=Base
 
     print(): void {}
-    /// @type.symbol symbol=Document.print source="print(): void {}" type=(this: this) => void
+    /// @generic.template symbol=Document.print parameters=(P0: Place)
+    /// @type.symbol symbol=Document.print source="print(): void {}" type=<Document.print.P0: Place>(this: Managed<this, Document.print.P0>) => void
 
 }
 "#,
@@ -678,10 +684,11 @@ class Document extends Base {
 class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
-/// @definition.method symbol=Base.print source="print(): void {}" slot=print type=(this: this) => void
+/// @definition.method symbol=Base.print source="print(): void {}" slot=print type=<Base.print.P0: Place>(this: Managed<this, Base.print.P0>) => void
 
     print(): void {}
-    /// @type.symbol symbol=Base.print source="print(): void {}" type=(this: this) => void
+    /// @generic.template symbol=Base.print parameters=(P0: Place)
+    /// @type.symbol symbol=Base.print source="print(): void {}" type=<Base.print.P0: Place>(this: Managed<this, Base.print.P0>) => void
 
 }
 
@@ -689,11 +696,12 @@ class Document extends Base {
 /// @type.symbol symbol=Document type=Document
 /// @definition.class symbol=Document
 /// @definition.extends symbol=Document source=Base target=Base
-/// @definition.method symbol=Document.print source="override print(): void {}" slot=print override=true type=(this: this) => void
+/// @definition.method symbol=Document.print source="override print(): void {}" slot=print override=true type=<Document.print.P0: Place>(this: Managed<this, Document.print.P0>) => void
 /// @resolution.name source=Base target=Base
 
     override print(): void {}
-    /// @type.symbol symbol=Document.print source="override print(): void {}" type=(this: this) => void
+    /// @generic.template symbol=Document.print parameters=(P0: Place)
+    /// @type.symbol symbol=Document.print source="override print(): void {}" type=<Document.print.P0: Place>(this: Managed<this, Document.print.P0>) => void
 
 }
 "#,
@@ -765,10 +773,11 @@ class Writer {
 class Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.class symbol=Writer
-/// @definition.method symbol=Writer.write source="abstract write(value: string): void" slot=write abstraction=abstract type=(this: this, string) => void
+/// @definition.method symbol=Writer.write source="abstract write(value: string): void" slot=write abstraction=abstract type=<Writer.write.P0: Place>(this: Managed<this, Writer.write.P0>, string) => void
 
     abstract write(value: string): void;
-    /// @type.symbol symbol=Writer.write source="abstract write(value: string): void" type=(this: this, string) => void
+    /// @generic.template symbol=Writer.write parameters=(P0: Place)
+    /// @type.symbol symbol=Writer.write source="abstract write(value: string): void" type=<Writer.write.P0: Place>(this: Managed<this, Writer.write.P0>, string) => void
     /// @type.symbol symbol=Writer.write.value source="value: string" type=string
 
 }
@@ -807,10 +816,11 @@ class FileWriter extends Writer {}
 abstract class Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.class symbol=Writer abstract=true
-/// @definition.method symbol=Writer.write source="abstract write(value: string): void" slot=write abstraction=abstract type=(this: this, string) => void
+/// @definition.method symbol=Writer.write source="abstract write(value: string): void" slot=write abstraction=abstract type=<Writer.write.P0: Place>(this: Managed<this, Writer.write.P0>, string) => void
 
     abstract write(value: string): void;
-    /// @type.symbol symbol=Writer.write source="abstract write(value: string): void" type=(this: this, string) => void
+    /// @generic.template symbol=Writer.write parameters=(P0: Place)
+    /// @type.symbol symbol=Writer.write source="abstract write(value: string): void" type=<Writer.write.P0: Place>(this: Managed<this, Writer.write.P0>, string) => void
     /// @type.symbol symbol=Writer.write.value source="value: string" type=string
 
 }
@@ -850,12 +860,12 @@ const map: Map<string, int32> = record;
 declare const record: Record<string, int32>;
 /// @type.symbol symbol=record source=record type={ [P: string]: int32 }
 /// @resolution.pattern source=record kind=binding target=record
-/// @resolution.name source=Record target=types.object.Record
+/// @resolution.name source=Record target=Record
 
 const map: Map<string, int32> = record;
 /// @type.symbol symbol=map source=map type=Map<string, int32>
 /// @resolution.pattern source=map kind=binding target=map
-/// @resolution.name source=Map target=collections.map.Map
+/// @resolution.name source=Map target=Map
 /// @resolution.name source=record target=record
 /// @resolution.place source=record placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=record root=record
@@ -943,10 +953,11 @@ class Parser extends Base {
 class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
-/// @definition.method symbol=Base.parse slot=parse abstraction=virtual type=(this: this, string) => string
+/// @definition.method symbol=Base.parse slot=parse abstraction=virtual type=<Base.parse.P0: Place>(this: Managed<this, Base.parse.P0>, string) => string
 
     virtual parse(value: string): string {
-    /// @type.symbol symbol=Base.parse type=(this: this, string) => string
+    /// @generic.template symbol=Base.parse parameters=(P0: Place)
+    /// @type.symbol symbol=Base.parse type=<Base.parse.P0: Place>(this: Managed<this, Base.parse.P0>, string) => string
     /// @type.symbol symbol=Base.parse.value source="value: string" type=string
 
         return value;
@@ -961,11 +972,12 @@ class Parser extends Base {
 /// @type.symbol symbol=Parser type=Parser
 /// @definition.class symbol=Parser
 /// @definition.extends symbol=Parser source=Base target=Base
-/// @definition.method symbol=Parser.parse slot=parse override=true type=(this: this, string) => int32
+/// @definition.method symbol=Parser.parse slot=parse override=true type=<Parser.parse.P0: Place>(this: Managed<this, Parser.parse.P0>, string) => int32
 /// @resolution.name source=Base target=Base
 
     override parse(value: string): int32 {
-    /// @type.symbol symbol=Parser.parse type=(this: this, string) => int32
+    /// @generic.template symbol=Parser.parse parameters=(P0: Place)
+    /// @type.symbol symbol=Parser.parse type=<Parser.parse.P0: Place>(this: Managed<this, Parser.parse.P0>, string) => int32
     /// @type.symbol symbol=Parser.parse.value source="value: string" type=string
 
         return 1;
@@ -973,7 +985,7 @@ class Parser extends Base {
 }
 "#,
         r#"
-/// @diagnostic.error id=incompatible-override message="override 'parse' has type '(value: string) => int32', which is not assignable to the inherited type '(value: string) => string'"
+/// @diagnostic.error id=incompatible-override message="override 'parse' has type '<P0: Place>(value: string) => int32', which is not assignable to the inherited type '<P0: Place>(value: string) => string'"
 /// @diagnostic.label line=9 column=14 span="parse" line_source="override parse(value: string): int32 {"
 "#,
     );
@@ -1017,7 +1029,7 @@ class Child extends Base {
 === dir ===
 class Base {
 /// @definition.class symbol=Base
-/// @definition.method symbol=Base.describe slot=describe abstraction=virtual type=(this: Base) => string
+/// @definition.method symbol=Base.describe slot=describe abstraction=virtual type=<Base.describe.P0: Place>(this: Managed<Base, Base.describe.P0>) => string
 
     virtual describe(): string {
         return "base";
@@ -1027,7 +1039,7 @@ class Base {
 class Child extends Base {
 /// @definition.class symbol=Child
 /// @definition.extends symbol=Child source=Base target=Base
-/// @definition.method symbol=Child.describe slot=describe override=true overrides=Base.describe type=(this: Child) => string
+/// @definition.method symbol=Child.describe slot=describe override=true overrides=Base.describe type=<Child.describe.P0: Place>(this: Managed<Child, Child.describe.P0>) => string
 
     override describe(): string {
         return "child";
@@ -1068,7 +1080,7 @@ class Animal {
 
 class Dog extends Animal {
     override speak(): string {
-        return super.speak();
+        return super.speak<"local">();
     }
 }
 
@@ -1076,10 +1088,11 @@ class Dog extends Animal {
 class Animal {
 /// @type.symbol symbol=Animal type=Animal
 /// @definition.class symbol=Animal
-/// @definition.method symbol=Animal.speak slot=speak abstraction=virtual type=(this: Animal) => string
+/// @definition.method symbol=Animal.speak slot=speak abstraction=virtual type=<Animal.speak.P0: Place>(this: Managed<Animal, Animal.speak.P0>) => string
 
     virtual speak(): string {
-    /// @type.symbol symbol=Animal.speak type=(this: Animal) => string
+    /// @generic.template symbol=Animal.speak parameters=(P0: Place)
+    /// @type.symbol symbol=Animal.speak type=<Animal.speak.P0: Place>(this: Managed<Animal, Animal.speak.P0>) => string
 
         return "sound";
     }
@@ -1089,18 +1102,21 @@ class Dog extends Animal {
 /// @type.symbol symbol=Dog type=Dog
 /// @definition.class symbol=Dog
 /// @definition.extends symbol=Dog source=Animal target=Animal
-/// @definition.method symbol=Dog.speak slot=speak override=true overrides=Animal.speak type=(this: Dog) => string
+/// @definition.method symbol=Dog.speak slot=speak override=true overrides=Animal.speak type=<Dog.speak.P0: Place>(this: Managed<Dog, Dog.speak.P0>) => string
 /// @resolution.name source=Animal target=Animal
 
     override speak(): string {
-    /// @type.symbol symbol=Dog.speak type=(this: Dog) => string
+    /// @generic.template symbol=Dog.speak parameters=(P0: Place)
+    /// @type.symbol symbol=Dog.speak type=<Dog.speak.P0: Place>(this: Managed<Dog, Dog.speak.P0>) => string
 
         return super.speak();
-        /// @resolution.member source=super.speak receiver=Animal type=(this: Animal) => string kind=symbol target_receiver=Animal target=Animal.speak
-        /// @resolution.call source=super.speak() parameters=() return=string kind=symbol target=Animal.speak receiver=Animal
+        /// @resolution.member source=super.speak receiver=Animal type=<Animal.speak.P0: Place>(this: Managed<Animal, Animal.speak.P0>) => string kind=symbol target_receiver=Animal target=Animal.speak
+        /// @resolution.call source=super.speak() parameters=() return=string kind=symbol target=Animal.speak receiver=Animal instance="Animal.speak<\"local\">"
         /// @resolution.receiver source=super kind=super declaration=Dog type=Animal
         /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=super root=this
+        /// @generic.instantiation id="Animal.speak<\"local\">" template=Animal.speak arguments=("local")
+        /// @generic.instance id="Animal.speak<\"local\">" template=Animal.speak arguments=("local")
 
     }
 }
@@ -1141,7 +1157,7 @@ class Animal {
 
 class Dog extends Animal {
     override speak(): string {
-        const inherited: () => string = (): string => super.speak();
+        const inherited: () => string = (): string => super.speak<"local">();
 
         return inherited();
     }
@@ -1151,10 +1167,11 @@ class Dog extends Animal {
 class Animal {
 /// @type.symbol symbol=Animal type=Animal
 /// @definition.class symbol=Animal
-/// @definition.method symbol=Animal.speak slot=speak abstraction=virtual type=(this: Animal) => string
+/// @definition.method symbol=Animal.speak slot=speak abstraction=virtual type=<Animal.speak.P0: Place>(this: Managed<Animal, Animal.speak.P0>) => string
 
     virtual speak(): string {
-    /// @type.symbol symbol=Animal.speak type=(this: Animal) => string
+    /// @generic.template symbol=Animal.speak parameters=(P0: Place)
+    /// @type.symbol symbol=Animal.speak type=<Animal.speak.P0: Place>(this: Managed<Animal, Animal.speak.P0>) => string
     /// @capture.function function=Animal.speak bindings=0
 
         return "sound";
@@ -1165,11 +1182,12 @@ class Dog extends Animal {
 /// @type.symbol symbol=Dog type=Dog
 /// @definition.class symbol=Dog
 /// @definition.extends symbol=Dog source=Animal target=Animal
-/// @definition.method symbol=Dog.speak slot=speak override=true overrides=Animal.speak type=(this: Dog) => string
+/// @definition.method symbol=Dog.speak slot=speak override=true overrides=Animal.speak type=<Dog.speak.P0: Place>(this: Managed<Dog, Dog.speak.P0>) => string
 /// @resolution.name source=Animal target=Animal
 
     override speak(): string {
-    /// @type.symbol symbol=Dog.speak type=(this: Dog) => string
+    /// @generic.template symbol=Dog.speak parameters=(P0: Place)
+    /// @type.symbol symbol=Dog.speak type=<Dog.speak.P0: Place>(this: Managed<Dog, Dog.speak.P0>) => string
     /// @capture.function function=Dog.speak bindings=0
 
         const inherited = () => super.speak();
@@ -1177,12 +1195,14 @@ class Dog extends Animal {
         /// @resolution.pattern source=inherited kind=binding target=Dog.speak.inherited
         /// @type.symbol symbol=Dog.speak.symbol7 source=() => super.speak() type=Function<(), string>
         /// @capture.function function=Dog.speak.symbol7 bindings=0
-        /// @capture.receiver function=Dog.speak.symbol7 symbol=this#2 mode=manage type=Dog
-        /// @resolution.member source=super.speak receiver=Animal type=(this: Animal) => string kind=symbol target_receiver=Animal target=Animal.speak
-        /// @resolution.call source=super.speak() parameters=() return=string kind=symbol target=Animal.speak receiver=Animal
+        /// @capture.receiver function=Dog.speak.symbol7 symbol=this#2 mode=manage type=Managed<Dog, Dog.speak.P0>
+        /// @resolution.member source=super.speak receiver=Animal type=<Animal.speak.P0: Place>(this: Managed<Animal, Animal.speak.P0>) => string kind=symbol target_receiver=Animal target=Animal.speak
+        /// @resolution.call source=super.speak() parameters=() return=string kind=symbol target=Animal.speak receiver=Animal instance="Animal.speak<\"local\">"
         /// @resolution.receiver source=super kind=super declaration=Dog type=Animal
         /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=super root=this
+        /// @generic.instantiation id="Animal.speak<\"local\">" template=Animal.speak arguments=("local")
+        /// @generic.instance id="Animal.speak<\"local\">" template=Animal.speak arguments=("local")
 
         return inherited();
         /// @resolution.name source=inherited target=Dog.speak.inherited

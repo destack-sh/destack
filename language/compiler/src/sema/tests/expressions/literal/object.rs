@@ -66,7 +66,7 @@ const person = { name, age };
 /// @resolution.access source=name root=name
 /// @type.node source=age type=42
 /// @resolution.name source=age target=age
-/// @resolution.place source=age placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=age placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=age root=age
 "#,
     );
@@ -174,14 +174,14 @@ const state: { reactions: int32[] } = { reactions: [] };
 const state: { reactions: int32[] } = { reactions: [] };
 /// @type.symbol symbol=state source=state type={ reactions: int32[] }
 /// @resolution.pattern source=state kind=binding target=state
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @type.node source={ reactions: [] } type={ reactions: int32[] }
 /// @type.node source=[] type=int32[]
-/// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
-/// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
-/// @generic.instance id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
+/// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+/// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
+/// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
 "#,
     );
 }
@@ -413,7 +413,7 @@ const moved = Point { ...point, x: 3 };
 /// @resolution.name source=Point target=Point
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 /// @type.node source=3 type=3
 "#,
@@ -569,12 +569,12 @@ const object = { ...user };
 class User {
     name: string;
 
-    constructor(name: string): this {
+    constructor(name: string) {
         this.name = name;
     }
 }
 
-const user: User = new User("Ada");
+const user: local User = new User<"local">("Ada");
 const object: { name: string } = { ...user };
 
 === dir ===
@@ -582,13 +582,14 @@ class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
-/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(string) => User
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>
 
     name: string;
     /// @type.symbol symbol=User.name source="name: string" type=string
 
     constructor(name: string) {
-    /// @type.symbol symbol=User.constructor type=(string) => User
+    /// @generic.template symbol=User.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=User.constructor type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 
         this.name = name;
@@ -610,10 +611,14 @@ class User {
 }
 
 const user = new User("Ada");
-/// @type.symbol symbol=user source=user type=User
+/// @type.symbol symbol=user source=user type=local User
 /// @resolution.pattern source=user kind=binding target=user
-/// @type.node source="new User(\"Ada\")" type=User
-/// @resolution.construct source="new User(\"Ada\")" parameters=(string) arguments=(provided("Ada") as string) return=User kind=class target=User constructor=User.constructor
+/// @type.node source="new User(\"Ada\")" type=local User
+/// @resolution.construct source="new User(\"Ada\")" parameters=(string) arguments=(provided("Ada") as string) return=local User kind=class target=User constructor=User.constructor
+/// @generic.instantiation id="User.constructor<\"local\">" template=User.constructor arguments=("local")
+/// @generic.instantiation id="User<\"local\">" template=User arguments=("local")
+/// @generic.instance id="User.constructor<\"local\">" template=User.constructor arguments=("local")
+/// @generic.instance id="User<\"local\">" template=User arguments=("local")
 /// @resolution.name source=User target=User
 /// @type.node source="\"Ada\"" type="Ada"
 
@@ -621,7 +626,7 @@ const object = { ...user };
 /// @type.symbol symbol=object source=object type={ name: string }
 /// @resolution.pattern source=object kind=binding target=object
 /// @type.node source={ ...user } type={ name: string }
-/// @type.node source=user type=User
+/// @type.node source=user type=local User
 /// @resolution.name source=user target=user
 /// @resolution.access source=user root=user
 "#,
@@ -1151,12 +1156,12 @@ function retain(source: boolean[]): { active: boolean } {
 
     return source.reduce<{ active: boolean }>(
     /// @resolution.name source=source target=retain.source
-    /// @resolution.member source=source.reduce receiver=boolean[] type=<collections.array.reduce.U#2>(this: boolean[], Function<(collections.array.reduce.U#2, boolean, isize), collections.array.reduce.U#2>, collections.array.reduce.U#2) => collections.array.reduce.U#2 kind=symbol target_receiver=boolean[] target=collections.array.reduce#2
-    /// @resolution.call parameters=(Function<({ active: boolean }, boolean, isize), { active: boolean }>, { active: boolean }) arguments=(provided((output, value) => ({ ...output, active: value })) as Function<({ active: boolean }, boolean, isize), { active: boolean }>, provided({ active: false }) as { active: boolean }) return={ active: boolean } kind=symbol target=collections.array.reduce#2 receiver=boolean[] instance="Array<boolean>.<extension#3>.reduce#2<{ active: boolean }>"
+    /// @resolution.member source=source.reduce receiver=boolean[] type=<reduce.U#2, reduce#2.P1: Place>(this: Managed<boolean[], reduce#2.P1>, Function<(reduce.U#2, boolean, isize), reduce.U#2>, reduce.U#2) => reduce.U#2 kind=symbol target_receiver=boolean[] target=reduce#2
+    /// @resolution.call parameters=(Function<({ active: boolean }, boolean, isize), { active: boolean }>, { active: boolean }) arguments=(provided((output, value) => ({ ...output, active: value })) as Function<({ active: boolean }, boolean, isize), { active: boolean }>, provided({ active: false }) as { active: boolean }) return={ active: boolean } kind=symbol target=reduce#2 receiver=boolean[] instance="Array<boolean>.<extension#3>.reduce#2<{ active: boolean }, \"local\">"
     /// @resolution.place source=source placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=source root=retain.source
-    /// @generic.instantiation id="collections.array.reduce#2<boolean, { active: boolean }>" template=collections.array.reduce#2 arguments=(boolean, { active: boolean })
-    /// @generic.instantiation id=collections.array.reduce#2<boolean> template=collections.array.reduce#2 arguments=(boolean)
+    /// @generic.instantiation id="reduce#2<boolean, { active: boolean }, \"local\">" template=reduce#2 arguments=(boolean, { active: boolean }, "local")
+    /// @generic.instantiation id=reduce#2<boolean> template=reduce#2 arguments=(boolean)
 
         (output, value) => ({ ...output, active: value }),
         /// @type.symbol symbol=retain.symbol7 source=(output, value) => ({ ...output, active: value }) type=Function<({ active: boolean }, boolean), { active: boolean }>

@@ -23,10 +23,11 @@ class User {
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
-/// @definition.method symbol=User.constructor source="constructor(): this {}" slot=constructor role=constructor type=() => this
+/// @definition.method symbol=User.constructor source="constructor(): this {}" slot=constructor role=constructor type=<User.constructor.P0: Place>() => Managed<this, User.constructor.P0>
 
     constructor(): this {}
-    /// @type.symbol symbol=User.constructor source="constructor(): this {}" type=() => this
+    /// @generic.template symbol=User.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=User.constructor source="constructor(): this {}" type=<User.constructor.P0: Place>() => Managed<this, User.constructor.P0>
 
 }
 "#,
@@ -55,7 +56,7 @@ class User {
         r#"
 === annotated ===
 class User {
-    constructor(): this {
+    constructor() {
         return this;
     }
 }
@@ -64,10 +65,11 @@ class User {
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
-/// @definition.method symbol=User.constructor slot=constructor role=constructor type=() => this
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=<User.constructor.P0: Place>() => Managed<this, User.constructor.P0>
 
     constructor() {
-    /// @type.symbol symbol=User.constructor type=() => this
+    /// @generic.template symbol=User.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=User.constructor type=<User.constructor.P0: Place>() => Managed<this, User.constructor.P0>
 
         return this;
         /// @type.node source=this type=User
@@ -103,7 +105,7 @@ class User {
         r#"
 === annotated ===
 class User {
-    constructor(): this {
+    constructor() {
         return;
     }
 }
@@ -112,10 +114,11 @@ class User {
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
-/// @definition.method symbol=User.constructor slot=constructor role=constructor type=() => User
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=<User.constructor.P0: Place>() => Managed<User, User.constructor.P0>
 
     constructor() {
-    /// @type.symbol symbol=User.constructor type=() => User
+    /// @generic.template symbol=User.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=User.constructor type=<User.constructor.P0: Place>() => Managed<User, User.constructor.P0>
 
         return;
     }
@@ -195,27 +198,28 @@ const derived = new Derived(1);
 class Base {
     value: int32;
 
-    constructor(value: int32): this {
+    constructor(value: int32) {
         this.value = value;
     }
 }
 
 class Derived extends Base {}
 
-const derived: Derived = new Derived(1);
+const derived: Derived = new Derived<"local">(1);
 
 === dir ===
 class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
 /// @definition.field symbol=Base.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Base.constructor slot=constructor role=constructor type=(int32) => Base
+/// @definition.method symbol=Base.constructor slot=constructor role=constructor type=<Base.constructor.P0: Place>(int32) => Managed<Base, Base.constructor.P0>
 
     value: int32;
     /// @type.symbol symbol=Base.value source="value: int32" type=int32
 
     constructor(value: int32) {
-    /// @type.symbol symbol=Base.constructor type=(int32) => Base
+    /// @generic.template symbol=Base.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=Base.constructor type=<Base.constructor.P0: Place>(int32) => Managed<Base, Base.constructor.P0>
     /// @type.symbol symbol=Base.constructor.value source="value: int32" type=int32
 
         this.value = value;
@@ -247,6 +251,10 @@ const derived = new Derived(1);
 /// @resolution.pattern source=derived kind=binding target=derived
 /// @type.node source="new Derived(1)" type=Derived
 /// @resolution.construct source="new Derived(1)" parameters=(int32) arguments=(provided(1) as int32) return=Derived kind=class target=Derived constructor=forwarded:Base.constructor
+/// @generic.instantiation id="Base.constructor<\"local\">" template=Base.constructor arguments=("local")
+/// @generic.instantiation id="Derived<\"local\">" template=Derived arguments=("local")
+/// @generic.instance id="Base.constructor<\"local\">" template=Base.constructor arguments=("local")
+/// @generic.instance id="Derived<\"local\">" template=Derived arguments=("local")
 /// @resolution.name source=Derived target=Derived
 /// @type.node source=1 type=1
 "#,
@@ -277,25 +285,26 @@ const counter = new Counter(1);
 class Counter {
     value: int32;
 
-    constructor(value: int32): this {
+    constructor(value: int32) {
         this.value = value;
     }
 }
 
-const counter: Counter = new Counter(1);
+const counter: local Counter = new Counter<"local">(1);
 
 === dir ===
 class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(int32) => Counter
+/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=<Counter.constructor.P0: Place>(int32) => Managed<Counter, Counter.constructor.P0>
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     constructor(value: int32) {
-    /// @type.symbol symbol=Counter.constructor type=(int32) => Counter
+    /// @generic.template symbol=Counter.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=Counter.constructor type=<Counter.constructor.P0: Place>(int32) => Managed<Counter, Counter.constructor.P0>
     /// @type.symbol symbol=Counter.constructor.value source="value: int32" type=int32
 
         this.value = value;
@@ -317,10 +326,14 @@ class Counter {
 }
 
 const counter = new Counter(1);
-/// @type.symbol symbol=counter source=counter type=Counter
+/// @type.symbol symbol=counter source=counter type=local Counter
 /// @resolution.pattern source=counter kind=binding target=counter
-/// @type.node source="new Counter(1)" type=Counter
-/// @resolution.construct source="new Counter(1)" parameters=(int32) arguments=(provided(1) as int32) return=Counter kind=class target=Counter constructor=Counter.constructor
+/// @type.node source="new Counter(1)" type=local Counter
+/// @resolution.construct source="new Counter(1)" parameters=(int32) arguments=(provided(1) as int32) return=local Counter kind=class target=Counter constructor=Counter.constructor
+/// @generic.instantiation id="Counter.constructor<\"local\">" template=Counter.constructor arguments=("local")
+/// @generic.instantiation id="Counter<\"local\">" template=Counter arguments=("local")
+/// @generic.instance id="Counter.constructor<\"local\">" template=Counter.constructor arguments=("local")
+/// @generic.instance id="Counter<\"local\">" template=Counter arguments=("local")
 /// @resolution.name source=Counter target=Counter
 /// @type.node source=1 type=1
 "#,
@@ -356,31 +369,32 @@ const number = new Box(1);
 class Box {
     value: string | int32;
 
-    constructor(value: string): this {
+    constructor(value: string) {
         this.value = value as string | int32;
     }
 
-    constructor(value: int32): this {
+    constructor(value: int32) {
         this.value = value as string | int32;
     }
 }
 
-const text: Box = new Box("x");
-const number: Box = new Box(1);
+const text: local Box = new Box<"local">("x");
+const number: local Box = new Box<"local">(1);
 
 === dir ===
 class Box {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box
 /// @definition.field symbol=Box.value source="value: string | int32" key=value type=string | int32
-/// @definition.method symbol=Box.constructor#1 slot=constructor role=constructor type=(string) => Box
-/// @definition.method symbol=Box.constructor#2 slot=constructor role=constructor type=(int32) => Box
+/// @definition.method symbol=Box.constructor#1 slot=constructor role=constructor type=<Box.constructor#1.P0: Place>(string) => Managed<Box, Box.constructor#1.P0>
+/// @definition.method symbol=Box.constructor#2 slot=constructor role=constructor type=<Box.constructor#2.P0: Place>(int32) => Managed<Box, Box.constructor#2.P0>
 
     value: string | int32;
     /// @type.symbol symbol=Box.value source="value: string | int32" type=string | int32
 
     constructor(value: string) {
-    /// @type.symbol symbol=Box.constructor#1 type=(string) => Box
+    /// @generic.template symbol=Box.constructor#1 parameters=(P0: Place)
+    /// @type.symbol symbol=Box.constructor#1 type=<Box.constructor#1.P0: Place>(string) => Managed<Box, Box.constructor#1.P0>
     /// @type.symbol symbol=Box.constructor.value#1 source="value: string" type=string
 
         this.value = value;
@@ -401,7 +415,8 @@ class Box {
     }
 
     constructor(value: int32) {
-    /// @type.symbol symbol=Box.constructor#2 type=(int32) => Box
+    /// @generic.template symbol=Box.constructor#2 parameters=(P0: Place)
+    /// @type.symbol symbol=Box.constructor#2 type=<Box.constructor#2.P0: Place>(int32) => Managed<Box, Box.constructor#2.P0>
     /// @type.symbol symbol=Box.constructor.value#2 source="value: int32" type=int32
 
         this.value = value;
@@ -423,18 +438,26 @@ class Box {
 }
 
 const text = new Box("x");
-/// @type.symbol symbol=text source=text type=Box
+/// @type.symbol symbol=text source=text type=local Box
 /// @resolution.pattern source=text kind=binding target=text
-/// @type.node source="new Box(\"x\")" type=Box
-/// @resolution.construct source="new Box(\"x\")" parameters=(string) arguments=(provided("x") as string) return=Box kind=class target=Box constructor=Box.constructor#1
+/// @type.node source="new Box(\"x\")" type=local Box
+/// @resolution.construct source="new Box(\"x\")" parameters=(string) arguments=(provided("x") as string) return=local Box kind=class target=Box constructor=Box.constructor#1
+/// @generic.instantiation id="Box.constructor#1<\"local\">" template=Box.constructor#1 arguments=("local")
+/// @generic.instantiation id="Box<\"local\">" template=Box arguments=("local")
+/// @generic.instance id="Box.constructor#1<\"local\">" template=Box.constructor#1 arguments=("local")
+/// @generic.instance id="Box<\"local\">" template=Box arguments=("local")
 /// @resolution.name source=Box target=Box
 /// @type.node source="\"x\"" type="x"
 
 const number = new Box(1);
-/// @type.symbol symbol=number source=number type=Box
+/// @type.symbol symbol=number source=number type=local Box
 /// @resolution.pattern source=number kind=binding target=number
-/// @type.node source="new Box(1)" type=Box
-/// @resolution.construct source="new Box(1)" parameters=(int32) arguments=(provided(1) as int32) return=Box kind=class target=Box constructor=Box.constructor#2
+/// @type.node source="new Box(1)" type=local Box
+/// @resolution.construct source="new Box(1)" parameters=(int32) arguments=(provided(1) as int32) return=local Box kind=class target=Box constructor=Box.constructor#2
+/// @generic.instantiation id="Box.constructor#2<\"local\">" template=Box.constructor#2 arguments=("local")
+/// @generic.instantiation id="Box<\"local\">" template=Box arguments=("local")
+/// @generic.instance id="Box.constructor#2<\"local\">" template=Box.constructor#2 arguments=("local")
+/// @generic.instance id="Box<\"local\">" template=Box arguments=("local")
 /// @resolution.name source=Box target=Box
 /// @type.node source=1 type=1
 "#,
@@ -469,11 +492,11 @@ new Box(true);
 class Box {
     value: string | int32;
 
-    constructor(value: string): this {
+    constructor(value: string) {
         this.value = value as string | int32;
     }
 
-    constructor(value: int32): this {
+    constructor(value: int32) {
         this.value = value as string | int32;
     }
 }
@@ -485,14 +508,15 @@ class Box {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box
 /// @definition.field symbol=Box.value source="value: string | int32" key=value type=string | int32
-/// @definition.method symbol=Box.constructor#1 slot=constructor role=constructor type=(string) => this
-/// @definition.method symbol=Box.constructor#2 slot=constructor role=constructor type=(int32) => this
+/// @definition.method symbol=Box.constructor#1 slot=constructor role=constructor type=<Box.constructor#1.P0: Place>(string) => Managed<this, Box.constructor#1.P0>
+/// @definition.method symbol=Box.constructor#2 slot=constructor role=constructor type=<Box.constructor#2.P0: Place>(int32) => Managed<this, Box.constructor#2.P0>
 
     value: string | int32;
     /// @type.symbol symbol=Box.value source="value: string | int32" type=string | int32
 
     constructor(value: string) {
-    /// @type.symbol symbol=Box.constructor#1 type=(string) => this
+    /// @generic.template symbol=Box.constructor#1 parameters=(P0: Place)
+    /// @type.symbol symbol=Box.constructor#1 type=<Box.constructor#1.P0: Place>(string) => Managed<this, Box.constructor#1.P0>
     /// @type.symbol symbol=Box.constructor.value#1 source="value: string" type=string
 
         this.value = value;
@@ -513,7 +537,8 @@ class Box {
     }
 
     constructor(value: int32) {
-    /// @type.symbol symbol=Box.constructor#2 type=(int32) => this
+    /// @generic.template symbol=Box.constructor#2 parameters=(P0: Place)
+    /// @type.symbol symbol=Box.constructor#2 type=<Box.constructor#2.P0: Place>(int32) => Managed<this, Box.constructor#2.P0>
     /// @type.symbol symbol=Box.constructor.value#2 source="value: int32" type=int32
 
         this.value = value;
@@ -543,8 +568,8 @@ new Box(true);
         r#"
 /// @diagnostic.error id=no-matching-construct message="no constructor matches arguments ('true')"
 /// @diagnostic.label line=14 column=1 span="new Box(true)" line_source="new Box(true);"
-/// @diagnostic.note message="the candidate '(value: string) => this' rejects argument 0: 'true' is not assignable to 'string'"
-/// @diagnostic.note message="the candidate '(value: int32) => this' rejects argument 0: 'true' is not assignable to 'int32'"
+/// @diagnostic.note message="the candidate '<P0: Place>(value: string) => Managed<this, P0>' rejects argument 0: 'true' is not assignable to 'string'"
+/// @diagnostic.note message="the candidate '<P0: Place>(value: int32) => Managed<this, P0>' rejects argument 0: 'true' is not assignable to 'int32'"
 "#,
     );
 }
@@ -579,18 +604,20 @@ declare class Box {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box
 /// @definition.field symbol=Box.value source="value: string | int32" key=value type=string | int32
-/// @definition.method symbol=Box.constructor#1 source="constructor(value: string)" slot=constructor role=constructor type=(string) => Box
-/// @definition.method symbol=Box.constructor#2 source="constructor(value: int32)" slot=constructor role=constructor type=(int32) => Box
+/// @definition.method symbol=Box.constructor#1 source="constructor(value: string)" slot=constructor role=constructor type=<Box.constructor#1.P0: Place>(string) => Managed<Box, Box.constructor#1.P0>
+/// @definition.method symbol=Box.constructor#2 source="constructor(value: int32)" slot=constructor role=constructor type=<Box.constructor#2.P0: Place>(int32) => Managed<Box, Box.constructor#2.P0>
 
     value: string | int32;
     /// @type.symbol symbol=Box.value source="value: string | int32" type=string | int32
 
     constructor(value: string);
-    /// @type.symbol symbol=Box.constructor#1 source="constructor(value: string)" type=(string) => Box
+    /// @generic.template symbol=Box.constructor#1 parameters=(P0: Place)
+    /// @type.symbol symbol=Box.constructor#1 source="constructor(value: string)" type=<Box.constructor#1.P0: Place>(string) => Managed<Box, Box.constructor#1.P0>
     /// @type.symbol symbol=Box.constructor.value#1 source="value: string" type=string
 
     constructor(value: int32);
-    /// @type.symbol symbol=Box.constructor#2 source="constructor(value: int32)" type=(int32) => Box
+    /// @generic.template symbol=Box.constructor#2 parameters=(P0: Place)
+    /// @type.symbol symbol=Box.constructor#2 source="constructor(value: int32)" type=<Box.constructor#2.P0: Place>(int32) => Managed<Box, Box.constructor#2.P0>
     /// @type.symbol symbol=Box.constructor.value#2 source="value: int32" type=int32
 
 }
@@ -621,10 +648,11 @@ class Box {
 class Box {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box
-/// @definition.method symbol=Box.constructor source="constructor(value: string)" slot=constructor role=constructor type=(string) => this
+/// @definition.method symbol=Box.constructor source="constructor(value: string)" slot=constructor role=constructor type=<Box.constructor.P0: Place>(string) => Managed<this, Box.constructor.P0>
 
     constructor(value: string);
-    /// @type.symbol symbol=Box.constructor source="constructor(value: string)" type=(string) => this
+    /// @generic.template symbol=Box.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=Box.constructor source="constructor(value: string)" type=<Box.constructor.P0: Place>(string) => Managed<this, Box.constructor.P0>
     /// @type.symbol symbol=Box.constructor.value source="value: string" type=string
 
 }
@@ -669,7 +697,7 @@ const dog = new Dog("rex", 3);
 class Animal {
     name: string;
 
-    constructor(name: string): this {
+    constructor(name: string) {
         this.name = name;
     }
 }
@@ -677,26 +705,27 @@ class Animal {
 class Dog extends Animal {
     tricks: int32;
 
-    constructor(name: string, tricks: int32): this {
+    constructor(name: string, tricks: int32) {
         super(name);
         this.tricks = tricks;
     }
 }
 
-const dog: Dog = new Dog("rex", 3);
+const dog: local Dog = new Dog<"local">("rex", 3);
 
 === dir ===
 class Animal {
 /// @type.symbol symbol=Animal type=Animal
 /// @definition.class symbol=Animal
 /// @definition.field symbol=Animal.name source="name: string" key=name type=string
-/// @definition.method symbol=Animal.constructor slot=constructor role=constructor type=(string) => Animal
+/// @definition.method symbol=Animal.constructor slot=constructor role=constructor type=<Animal.constructor.P0: Place>(string) => Managed<Animal, Animal.constructor.P0>
 
     name: string;
     /// @type.symbol symbol=Animal.name source="name: string" type=string
 
     constructor(name: string) {
-    /// @type.symbol symbol=Animal.constructor type=(string) => Animal
+    /// @generic.template symbol=Animal.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=Animal.constructor type=<Animal.constructor.P0: Place>(string) => Managed<Animal, Animal.constructor.P0>
     /// @type.symbol symbol=Animal.constructor.name source="name: string" type=string
 
         this.name = name;
@@ -718,14 +747,15 @@ class Dog extends Animal {
 /// @definition.class symbol=Dog
 /// @definition.extends symbol=Dog source=Animal target=Animal
 /// @definition.field symbol=Dog.tricks source="tricks: int32" key=tricks type=int32
-/// @definition.method symbol=Dog.constructor slot=constructor role=constructor type=(string, int32) => Dog
+/// @definition.method symbol=Dog.constructor slot=constructor role=constructor type=<Dog.constructor.P0: Place>(string, int32) => Managed<Dog, Dog.constructor.P0>
 /// @resolution.name source=Animal target=Animal
 
     tricks: int32;
     /// @type.symbol symbol=Dog.tricks source="tricks: int32" type=int32
 
     constructor(name: string, tricks: int32) {
-    /// @type.symbol symbol=Dog.constructor type=(string, int32) => Dog
+    /// @generic.template symbol=Dog.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=Dog.constructor type=<Dog.constructor.P0: Place>(string, int32) => Managed<Dog, Dog.constructor.P0>
     /// @type.symbol symbol=Dog.constructor.name source="name: string" type=string
     /// @type.symbol symbol=Dog.constructor.tricks source="tricks: int32" type=int32
 
@@ -734,6 +764,10 @@ class Dog extends Animal {
         /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=super root=this
         /// @resolution.construct source=super(name) parameters=(string) arguments=(provided(name) as string) return=void kind=class target=Animal constructor=Animal.constructor
+        /// @generic.instantiation id="Animal.constructor<\"local\">" template=Animal.constructor arguments=("local")
+        /// @generic.instantiation id="Animal<\"local\">" template=Animal arguments=("local")
+        /// @generic.instance id="Animal.constructor<\"local\">" template=Animal.constructor arguments=("local")
+        /// @generic.instance id="Animal<\"local\">" template=Animal arguments=("local")
         /// @resolution.name source=name target=Dog.constructor.name
         /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=name root=Dog.constructor.name
@@ -753,9 +787,13 @@ class Dog extends Animal {
 }
 
 const dog = new Dog("rex", 3);
-/// @type.symbol symbol=dog source=dog type=Dog
+/// @type.symbol symbol=dog source=dog type=local Dog
 /// @resolution.pattern source=dog kind=binding target=dog
-/// @resolution.construct source="new Dog(\"rex\", 3)" parameters=(string, int32) arguments=(provided("rex") as string, provided(3) as int32) return=Dog kind=class target=Dog constructor=Dog.constructor
+/// @resolution.construct source="new Dog(\"rex\", 3)" parameters=(string, int32) arguments=(provided("rex") as string, provided(3) as int32) return=local Dog kind=class target=Dog constructor=Dog.constructor
+/// @generic.instantiation id="Dog.constructor<\"local\">" template=Dog.constructor arguments=("local")
+/// @generic.instantiation id="Dog<\"local\">" template=Dog arguments=("local")
+/// @generic.instance id="Dog.constructor<\"local\">" template=Dog.constructor arguments=("local")
+/// @generic.instance id="Dog<\"local\">" template=Dog arguments=("local")
 /// @resolution.name source=Dog target=Dog
 "#,
     );
@@ -797,7 +835,7 @@ import { Animal } from "./base.ds";
 
 class Dog extends Animal<string> {}
 
-const dog: Dog = new Dog("rex");
+const dog: Dog = new Dog<"local">("rex");
 
 === dir ===
 import { Animal } from "./base.ds";
@@ -813,6 +851,10 @@ const dog = new Dog("rex");
 /// @type.symbol symbol=dog source=dog type=Dog
 /// @resolution.pattern source=dog kind=binding target=dog
 /// @resolution.construct source="new Dog(\"rex\")" parameters=(string) arguments=(provided("rex") as string) return=Dog kind=class target=Dog constructor=forwarded:base.Animal.symbol5
+/// @generic.instantiation id="Dog<\"local\">" template=Dog arguments=("local")
+/// @generic.instantiation id="base.Animal.symbol5<\"local\">" template=base.Animal.symbol5 arguments=("local")
+/// @generic.instance id="Dog<\"local\">" template=Dog arguments=("local")
+/// @generic.instance id="base.Animal.symbol5<\"local\">" template=base.Animal.symbol5 arguments=("local")
 /// @resolution.name source=Dog target=Dog
 "#,
     );
@@ -877,7 +919,7 @@ class Holder {
 class State {
     value: unknown | undefined;
 
-    constructor(): this {
+    constructor() {
         this.value = undefined as unknown | undefined;
     }
 }
@@ -885,8 +927,8 @@ class State {
 class Holder {
     state: State;
 
-    constructor(): this {
-        this.state = new State();
+    constructor() {
+        this.state = new State<"local">();
     }
 }
 
@@ -895,13 +937,14 @@ class State {
 /// @type.symbol symbol=State type=State
 /// @definition.class symbol=State
 /// @definition.field symbol=State.value source="value: unknown | undefined" key=value type=unknown | undefined
-/// @definition.method symbol=State.constructor slot=constructor role=constructor type=() => State
+/// @definition.method symbol=State.constructor slot=constructor role=constructor type=<State.constructor.P0: Place>() => Managed<State, State.constructor.P0>
 
     value: unknown | undefined;
     /// @type.symbol symbol=State.value source="value: unknown | undefined" type=unknown | undefined
 
     constructor() {
-    /// @type.symbol symbol=State.constructor type=() => State
+    /// @generic.template symbol=State.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=State.constructor type=<State.constructor.P0: Place>() => Managed<State, State.constructor.P0>
 
         this.value = undefined;
         /// @type.node source="this.value = undefined" type=undefined
@@ -922,17 +965,18 @@ class Holder {
 /// @type.symbol symbol=Holder type=Holder
 /// @definition.class symbol=Holder
 /// @definition.field symbol=Holder.state source="state: State" key=state type=State
-/// @definition.method symbol=Holder.constructor slot=constructor role=constructor type=() => Holder
+/// @definition.method symbol=Holder.constructor slot=constructor role=constructor type=<Holder.constructor.P0: Place>() => Managed<Holder, Holder.constructor.P0>
 
     state: State;
     /// @type.symbol symbol=Holder.state source="state: State" type=State
     /// @resolution.name source=State target=State
 
     constructor() {
-    /// @type.symbol symbol=Holder.constructor type=() => Holder
+    /// @generic.template symbol=Holder.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=Holder.constructor type=<Holder.constructor.P0: Place>() => Managed<Holder, Holder.constructor.P0>
 
         this.state = new State();
-        /// @type.node source="this.state = new State()" type=State
+        /// @type.node source="this.state = new State()" type=local State
         /// @type.node source=this type=Holder
         /// @type.node source=this.state type=State
         /// @resolution.receiver source=this kind=this declaration=Holder type=Holder
@@ -941,8 +985,12 @@ class Holder {
         /// @resolution.pattern.assign source=this.state kind=place
         /// @resolution.access source=this.state root=this keys=[state]
         /// @resolution.assignment source=this.state write="receiver=Holder, target=field(receiver=Holder, target=Holder.state, type=State), type=State" type=State
-        /// @type.node source="new State()" type=State
-        /// @resolution.construct source="new State()" parameters=() return=State kind=class target=State constructor=State.constructor
+        /// @type.node source="new State()" type=local State
+        /// @resolution.construct source="new State()" parameters=() return=local State kind=class target=State constructor=State.constructor
+        /// @generic.instantiation id="State.constructor<\"local\">" template=State.constructor arguments=("local")
+        /// @generic.instantiation id="State<\"local\">" template=State arguments=("local")
+        /// @generic.instance id="State.constructor<\"local\">" template=State.constructor arguments=("local")
+        /// @generic.instance id="State<\"local\">" template=State arguments=("local")
         /// @resolution.name source=State target=State
 
     }
@@ -976,13 +1024,13 @@ const box = new Box(value);
 class Box<in out T> {
     value: T;
 
-    constructor(value: T): this {
+    constructor(value: T) {
         this.value = value;
     }
 }
 
 const value: int32 = 1;
-const box: Box<int32> = new Box<int32>(value);
+const box: local Box<int32> = new Box<int32, "local">(value);
 
 === dir ===
 class Box<T> {
@@ -990,7 +1038,7 @@ class Box<T> {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(in out T)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T
-/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(T) => this
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>(T) => Managed<this, Box.constructor.P0>
 /// @type.symbol symbol=Box.T source=T type=T
 
     value: T;
@@ -998,7 +1046,8 @@ class Box<T> {
     /// @resolution.name source=T target=Box.T
 
     constructor(value: T) {
-    /// @type.symbol symbol=Box.constructor type=(T) => this
+    /// @generic.template symbol=Box.constructor parent=template#0 parameters=(P0: Place)
+    /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>(T) => Managed<this, Box.constructor.P0>
     /// @type.symbol symbol=Box.constructor.value source="value: T" type=T
     /// @resolution.name source=T target=Box.T
 
@@ -1026,18 +1075,19 @@ const value: int32 = 1;
 /// @type.node source=1 type=1
 
 const box = new Box(value);
-/// @type.symbol symbol=box source=box type=Box<int32>
+/// @type.symbol symbol=box source=box type=local Box<int32>
 /// @resolution.pattern source=box kind=binding target=box
 /// @generic.instance id=Box<int32> template=Box arguments=(int32)
-/// @type.node source="new Box(value)" type=Box<int32>
-/// @resolution.construct source="new Box(value)" parameters=(int32) arguments=(provided(value) as int32) return=Box<int32> kind=class target=Box constructor=Box.constructor instance=Box<int32>
-/// @generic.instantiation id=Box.constructor<int32> template=Box.constructor arguments=(int32)
-/// @generic.instantiation id=Box<int32> template=Box arguments=(int32)
-/// @generic.instance id=Box.constructor<int32> template=Box.constructor arguments=(int32)
+/// @type.node source="new Box(value)" type=local Box<int32>
+/// @resolution.construct source="new Box(value)" parameters=(int32) arguments=(provided(value) as int32) return=local Box<int32> kind=class target=Box constructor=Box.constructor instance=Box<int32>
+/// @generic.instantiation id="Box.constructor<int32, \"local\">" template=Box.constructor arguments=(int32, "local")
+/// @generic.instantiation id="Box<int32, \"local\">" template=Box arguments=(int32, "local")
+/// @generic.instance id="Box.constructor<int32, \"local\">" template=Box.constructor arguments=(int32, "local")
+/// @generic.instance id="Box<int32, \"local\">" template=Box arguments=(int32, "local")
 /// @resolution.name source=Box target=Box
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -1067,12 +1117,12 @@ const box = new Box();
 class Box<in out T = string> {
     value: T | undefined;
 
-    constructor(): this {
+    constructor() {
         this.value = undefined as T | undefined;
     }
 }
 
-const box: Box<string> = new Box<string>();
+const box: local Box<string> = new Box<string, "local">();
 
 === dir ===
 class Box<T = string> {
@@ -1080,7 +1130,7 @@ class Box<T = string> {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(in out T = string)
 /// @definition.field symbol=Box.value source="value: T | undefined" key=value type=T | undefined
-/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=() => this
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>() => Managed<this, Box.constructor.P0>
 /// @type.symbol symbol=Box.T source="T = string" type=T
 
     value: T | undefined;
@@ -1088,7 +1138,8 @@ class Box<T = string> {
     /// @resolution.name source=T target=Box.T
 
     constructor() {
-    /// @type.symbol symbol=Box.constructor type=() => this
+    /// @generic.template symbol=Box.constructor parent=template#0 parameters=(P0: Place)
+    /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>() => Managed<this, Box.constructor.P0>
 
         this.value = undefined;
         /// @type.node source="this.value = undefined" type=undefined
@@ -1106,14 +1157,15 @@ class Box<T = string> {
 }
 
 const box = new Box();
-/// @type.symbol symbol=box source=box type=Box<string>
+/// @type.symbol symbol=box source=box type=local Box<string>
 /// @resolution.pattern source=box kind=binding target=box
 /// @generic.instance id=Box<string> template=Box arguments=(string)
-/// @type.node source="new Box()" type=Box<string>
-/// @resolution.construct source="new Box()" parameters=() return=Box<string> kind=class target=Box constructor=Box.constructor instance=Box<string>
-/// @generic.instantiation id=Box.constructor<string> template=Box.constructor arguments=(string)
-/// @generic.instantiation id=Box<string> template=Box arguments=(string)
-/// @generic.instance id=Box.constructor<string> template=Box.constructor arguments=(string)
+/// @type.node source="new Box()" type=local Box<string>
+/// @resolution.construct source="new Box()" parameters=() return=local Box<string> kind=class target=Box constructor=Box.constructor instance=Box<string>
+/// @generic.instantiation id="Box.constructor<string, \"local\">" template=Box.constructor arguments=(string, "local")
+/// @generic.instantiation id="Box<string, \"local\">" template=Box arguments=(string, "local")
+/// @generic.instance id="Box.constructor<string, \"local\">" template=Box.constructor arguments=(string, "local")
+/// @generic.instance id="Box<string, \"local\">" template=Box arguments=(string, "local")
 /// @resolution.name source=Box target=Box
 "#,
     );

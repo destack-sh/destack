@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A NoInfer parameter keeps the inference the earlier arguments produced.
 #[test]
 fn test_noinfer_keeps_inference_from_earlier_arguments() {
     let session = TestSession::single(
@@ -32,7 +33,7 @@ declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 /// @type.symbol symbol=choose.values source="values: C[]" type=C[]
 /// @resolution.name source=C target=choose.C
 /// @type.symbol symbol=choose.fallback source="fallback?: NoInfer<C>" type=NoInfer<C> | undefined
-/// @resolution.name source=NoInfer target=types.object.NoInfer
+/// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=C target=choose.C
 /// @resolution.name source=C target=choose.C
 
@@ -42,23 +43,24 @@ const ok = choose(["red", "blue"], "red");
 /// @resolution.name source=choose target=choose
 /// @resolution.call source="choose([\"red\", \"blue\"], \"red\")" parameters=("red" | "blue"[], "red" | "blue" | undefined) arguments=(provided(["red", "blue"]) as "red" | "blue"[], provided("red") as "red" | "blue" | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
 /// @generic.instantiation id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
-/// @generic.instance id="Array<\"red\" | \"blue\">" template=collections.array.Array arguments=("red" | "blue")
-/// @generic.instance id="NoInfer<\"red\" | \"blue\">" template=types.object.NoInfer arguments=("red" | "blue")
+/// @generic.instance id="Array<\"red\" | \"blue\">" template=Array arguments=("red" | "blue")
+/// @generic.instance id="MaybeUninit<\"red\" | \"blue\">" template=MaybeUninit arguments=("red" | "blue")
+/// @generic.instance id="NoInfer<\"red\" | \"blue\">" template=NoInfer arguments=("red" | "blue")
 /// @generic.instance id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
-/// @generic.instance id="collections.slice.new<memory.init.MaybeUninit<\"red\" | \"blue\">>" template=collections.slice.new arguments=(memory.init.MaybeUninit<"red" | "blue">)
-/// @generic.instance id="memory.init.MaybeUninit<\"red\" | \"blue\">" template=memory.init.MaybeUninit arguments=("red" | "blue")
-/// @resolution.call source=["red", "blue"] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest("red", "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<\"red\" | \"blue\">"
-/// @generic.instantiation id="collections.array.arrayFromSlice<\"red\" | \"blue\">" template=collections.array.arrayFromSlice arguments=("red" | "blue")
-/// @generic.instance id="collections.array.arrayFromSlice<\"red\" | \"blue\">" template=collections.array.arrayFromSlice arguments=("red" | "blue")
+/// @generic.instance id="new<MaybeUninit<\"red\" | \"blue\">>" template=new arguments=(MaybeUninit<"red" | "blue">)
+/// @resolution.call source=["red", "blue"] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest("red", "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<\"red\" | \"blue\">"
+/// @generic.instantiation id="arrayFromSlice<\"red\" | \"blue\">" template=arrayFromSlice arguments=("red" | "blue")
+/// @generic.instance id="arrayFromSlice<\"red\" | \"blue\", \"local\">" template=arrayFromSlice arguments=("red" | "blue", "local")
 
 ok satisfies "red" | "blue";
 /// @resolution.name source=ok target=ok
-/// @resolution.place source=ok placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=ok placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=ok root=ok
 "#,
     );
 }
 
+/// A mismatched NoInfer argument reports a diagnostic on an open parameter.
 #[test]
 fn test_noinfer_rejects_a_mismatched_argument_for_an_open_parameter() {
     let session = TestSession::single(
@@ -92,7 +94,7 @@ declare function choose<C: string>(values: C[], fallback: NoInfer<C>): C;
 /// @type.symbol symbol=choose.values source="values: C[]" type=C[]
 /// @resolution.name source=C target=choose.C
 /// @type.symbol symbol=choose.fallback source="fallback: NoInfer<C>" type=NoInfer<C>
-/// @resolution.name source=NoInfer target=types.object.NoInfer
+/// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=C target=choose.C
 /// @resolution.name source=C target=choose.C
 
@@ -134,6 +136,7 @@ const reds: "red"[] = values;
     );
 }
 
+/// A mismatched element inside a NoInfer array argument reports a diagnostic.
 #[test]
 fn test_noinfer_rejects_a_mismatched_element_in_an_array_argument() {
     let session = TestSession::single(
@@ -167,7 +170,7 @@ declare function keep<C: string>(values: C[], extras: NoInfer<C[]>): C;
 /// @type.symbol symbol=keep.values source="values: C[]" type=C[]
 /// @resolution.name source=C target=keep.C
 /// @type.symbol symbol=keep.extras source="extras: NoInfer<C[]>" type=NoInfer<C[]>
-/// @resolution.name source=NoInfer target=types.object.NoInfer
+/// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=C target=keep.C
 /// @resolution.name source=C target=keep.C
 
@@ -193,8 +196,8 @@ const kept = keep(values, ["green"]);
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @resolution.call source=["green"] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest("green") as "red") return="red"[] kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<\"red\">"
-/// @generic.instantiation id="collections.array.arrayFromSlice<\"red\">" template=collections.array.arrayFromSlice arguments=("red")
+/// @resolution.call source=["green"] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest("green") as "red") return="red"[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<\"red\">"
+/// @generic.instantiation id="arrayFromSlice<\"red\">" template=arrayFromSlice arguments=("red")
 
 const reds: "red"[] = values;
 /// @type.symbol symbol=reds source=reds type="red"[]
@@ -212,6 +215,7 @@ const reds: "red"[] = values;
     );
 }
 
+/// A NoInfer position leaves the sibling parameter's inference alone.
 #[test]
 fn test_noinfer_preserves_sibling_inference() {
     let session = TestSession::single(
@@ -239,7 +243,7 @@ declare function first<T, U = string>(value: (T, NoInfer<U>)): T;
 /// @type.symbol symbol=first.U source="U = string" type=U
 /// @type.symbol symbol=first.value source="value: (T, NoInfer<U>)" type=(T, NoInfer<U>)
 /// @resolution.name source=T target=first.T
-/// @resolution.name source=NoInfer target=types.object.NoInfer
+/// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=U target=first.U
 /// @resolution.name source=T target=first.T
 
@@ -259,6 +263,7 @@ const value = first((1, "text"));
     );
 }
 
+/// A NoInfer position still types a lambda argument contextually.
 #[test]
 fn test_noinfer_still_contextually_types_lambda_arguments() {
     let session = TestSession::single(
@@ -292,7 +297,7 @@ declare function on<T>(seeds: T[], callback: NoInfer<(value: T) => void>): void;
 /// @type.symbol symbol=on.seeds source="seeds: T[]" type=T#1[]
 /// @resolution.name source=T target=on.T
 /// @type.symbol symbol=on.callback source="callback: NoInfer<(value: T) => void>" type=NoInfer<Function<(T#1,), void>>
-/// @resolution.name source=NoInfer target=types.object.NoInfer
+/// @resolution.name source=NoInfer target=NoInfer
 /// @type.symbol symbol=on.value source="value: T" type=T#1
 /// @resolution.name source=T target=on.T
 
@@ -334,6 +339,7 @@ const reds: "red"[] = seeds;
     );
 }
 
+/// An unrelated later argument reports a diagnostic at a NoInfer parameter.
 #[test]
 fn test_noinfer_rejects_unrelated_later_arguments() {
     let session = TestSession::single(
@@ -361,7 +367,7 @@ declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 /// @type.symbol symbol=choose.values source="values: C[]" type=C[]
 /// @resolution.name source=C target=choose.C
 /// @type.symbol symbol=choose.fallback source="fallback?: NoInfer<C>" type=NoInfer<C> | undefined
-/// @resolution.name source=NoInfer target=types.object.NoInfer
+/// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=C target=choose.C
 /// @resolution.name source=C target=choose.C
 
@@ -369,8 +375,8 @@ choose(["red", "blue"], "green");
 /// @resolution.name source=choose target=choose
 /// @resolution.call source="choose([\"red\", \"blue\"], \"green\")" parameters=("red" | "blue"[], "red" | "blue" | undefined) arguments=(provided(["red", "blue"]) as "red" | "blue"[], provided("green") as "red" | "blue" | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
 /// @generic.instantiation id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
-/// @resolution.call source=["red", "blue"] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest("red", "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<\"red\" | \"blue\">"
-/// @generic.instantiation id="collections.array.arrayFromSlice<\"red\" | \"blue\">" template=collections.array.arrayFromSlice arguments=("red" | "blue")
+/// @resolution.call source=["red", "blue"] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest("red", "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<\"red\" | \"blue\">"
+/// @generic.instantiation id="arrayFromSlice<\"red\" | \"blue\">" template=arrayFromSlice arguments=("red" | "blue")
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '\"green\"' is not assignable to parameter of type '\"red\" | \"blue\" | undefined'"

@@ -151,7 +151,7 @@ class User {}
 class Holder {
     user: User;
 
-    constructor(user: User): this {
+    constructor(user: User) {
         this.user = user;
     }
 }
@@ -174,14 +174,15 @@ class Holder {
 /// @type.symbol symbol=Holder type=Holder
 /// @definition.class symbol=Holder
 /// @definition.field symbol=Holder.user source="user: User" key=user type=User
-/// @definition.method symbol=Holder.constructor slot=constructor role=constructor type=(User) => this
+/// @definition.method symbol=Holder.constructor slot=constructor role=constructor type=<Holder.constructor.P0: Place>(User) => Managed<this, Holder.constructor.P0>
 
     user: User;
     /// @type.symbol symbol=Holder.user source="user: User" type=User
     /// @resolution.name source=User target=User
 
     constructor(user: User) {
-    /// @type.symbol symbol=Holder.constructor type=(User) => this
+    /// @generic.template symbol=Holder.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=Holder.constructor type=<Holder.constructor.P0: Place>(User) => Managed<this, Holder.constructor.P0>
     /// @type.symbol symbol=Holder.constructor.user source="user: User" type=User
     /// @resolution.name source=User target=User
 
@@ -287,8 +288,8 @@ function run(): void {
     /// @type.symbol symbol=run.users source=users type=User[]
     /// @resolution.pattern source=users kind=binding target=run.users
     /// @resolution.name source=User target=User
-    /// @resolution.call source=[make()] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(make()) as User) return=User[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<User>
-    /// @generic.instantiation id=collections.array.arrayFromSlice<User> template=collections.array.arrayFromSlice arguments=(User)
+    /// @resolution.call source=[make()] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(make()) as User) return=User[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<User>
+    /// @generic.instantiation id=arrayFromSlice<User> template=arrayFromSlice arguments=(User)
     /// @resolution.name source=make target=make
     /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
     /// @coercion.node source=make() from=Owned<User> adjustments=[{ kind: manage, target: User }] origin=implicit
@@ -657,10 +658,10 @@ function run(): void {
     /// @resolution.pattern source=user kind=binding target=run.user
     /// @resolution.name source=User target=User
     /// @resolution.name source=make target=make
-    /// @resolution.member source=make().intoManaged receiver=Owned<User> type=(this: Owned<User>) => Managed<User> kind=symbol target_receiver=Owned<User> target=memory.owned.intoManaged#1
+    /// @resolution.member source=make().intoManaged receiver=Owned<User> type=(this: Owned<User>) => local User kind=symbol target_receiver=Owned<User> target=intoManaged#1
     /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
-    /// @resolution.call source=make().intoManaged() parameters=() return=Managed<User> kind=symbol target=memory.owned.intoManaged#1 receiver=Owned<User> instance=Owned<memory.owned.T>.<extension#1>.intoManaged#1
-    /// @generic.instantiation id=memory.owned.intoManaged#1<User> template=memory.owned.intoManaged#1 arguments=(User)
+    /// @resolution.call source=make().intoManaged() parameters=() return=local User kind=symbol target=intoManaged#1 receiver=Owned<User> instance=Owned<T>.<extension#1>.intoManaged#1
+    /// @generic.instantiation id=intoManaged#1<User> template=intoManaged#1 arguments=(User)
 
 }
 "#,
@@ -819,7 +820,7 @@ extension<T> of Owned<T> {
 /// @definition.extension symbol=<module>#2 form=local target=Owned<T#1>
 /// @definition.method symbol=release slot=release type=(this: Owned<T#1>) => T#1
 /// @type.symbol symbol=T#1 source=T type=T#1
-/// @resolution.name source=Owned target=memory.owned.Owned
+/// @resolution.name source=Owned target=Owned
 /// @resolution.name source=T target=T#1
 
     release(this: ^T): T {
@@ -832,7 +833,7 @@ extension<T> of Owned<T> {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Owned<T#1>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @coercion.node source=this from=Owned<T#1> adjustments=[{ kind: carrier, target: T#1 }] origin=implicit
+        /// @coercion.node source=this from=Owned<T#1> adjustments=[{ kind: representation, target: T#1 }] origin=implicit
 
     }
 }
@@ -854,7 +855,7 @@ extension<T> of ^T {
         /// @resolution.receiver source=this kind=this declaration=<module>#3 type=Owned<T#2>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @coercion.node source=this from=Owned<T#2> adjustments=[{ kind: carrier, target: T#2 }] origin=implicit
+        /// @coercion.node source=this from=Owned<T#2> adjustments=[{ kind: representation, target: T#2 }] origin=implicit
 
     }
 }

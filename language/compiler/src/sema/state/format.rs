@@ -41,6 +41,7 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
         depth: usize,
     ) -> CompilerResult<String> {
+        // elide the details past the depth limit
         if depth == 0 {
             return Ok("…".to_string());
         }
@@ -70,12 +71,11 @@ impl CheckState<'_> {
             dir::Type::Primitive(primitive) => format_primitive(&primitive),
             dir::Type::Literal(literal) => self.format_scalar_literal(&literal),
             dir::Type::Key(key) => self.format_key_type(&key),
-            dir::Type::Memory(dir::MemoryLiteral::Lifetime(lifetime)) => {
-                format!("'{}", dir::MemoryLiteral::Lifetime(lifetime).text())
-            }
-            dir::Type::Memory(literal) => {
-                format!("\"{}\"", literal.text())
-            }
+            dir::Type::Region(region) => format!(
+                "{} & {}",
+                self.format_depth(region.extent, next)?,
+                self.format_depth(region.space, next)?
+            ),
             dir::Type::Static(value) => self.format_static(value),
             dir::Type::Range(range) => self.format_range(&range),
 
@@ -83,7 +83,7 @@ impl CheckState<'_> {
             dir::Type::Reference(reference) => {
                 self.format_symbol_path_maybe_at(module, reference.symbol)
             }
-            // array applications render in their written rest form
+            // render array applications in their written element form
             dir::Type::Application(_) if let Some(element) = self.array_element(id)? => {
                 let element = self.format_depth_at(module, element, next)?;
 
@@ -119,7 +119,7 @@ impl CheckState<'_> {
                 self.format_symbol_path_maybe_at(module, variant.variant)
             }
 
-            // intrinsic collections render their declared names
+            // render intrinsic collections by their declared names
             dir::Type::Slice(slice) => {
                 format!(
                     "Slice<{}>",
@@ -147,6 +147,7 @@ impl CheckState<'_> {
                 let index_signatures =
                     self.object_index_signatures(id.module_id, shape.index_signatures)?;
 
+                // render each property up to the width
                 let mut fields = Vec::new();
                 for property in object_properties.iter().take(FORMAT_WIDTH) {
                     let key = self.format_static_key(&property.key);
@@ -177,6 +178,7 @@ impl CheckState<'_> {
                     });
                 }
 
+                // render the index signatures in the width the properties left
                 for signature in index_signatures.iter().take(FORMAT_WIDTH - fields.len()) {
                     let readonly = if signature.is_readonly {
                         "readonly "
@@ -191,11 +193,13 @@ impl CheckState<'_> {
                     fields.push(format!("{readonly}[{name}: {key}]{optional}: {value}"));
                 }
 
+                // mark the fields left out of the width
                 let field_count = object_properties.len() + index_signatures.len();
                 if field_count > FORMAT_WIDTH {
                     fields.push("…".to_string());
                 }
 
+                // render an empty shape as braces
                 if fields.is_empty() {
                     "{}".to_string()
                 } else {
@@ -325,14 +329,14 @@ impl CheckState<'_> {
                         message: format!("callable parameter {parameter:?} is missing"),
                     })?;
 
-            // render modifiers from inside out
+            // take the declared parameter name
             let mut label = match binding.key {
                 dir::GenericParameterKey::Symbol(symbol) => self.format_symbol(symbol),
                 dir::GenericParameterKey::Generated(name) => self.text(name),
             };
 
             // print tick parameters bare, their kind is implied
-            if binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+            if binding.memory_parameter() == Some(dir::MemoryParameter::Region)
                 && label
                     .rsplit('.')
                     .next()
@@ -341,6 +345,8 @@ impl CheckState<'_> {
                 parameters.push(label);
                 continue;
             }
+
+            // wrap the written modifiers around the name from inside out
             if binding.is_variadic {
                 label = format!("...{label}");
             }
@@ -362,6 +368,8 @@ impl CheckState<'_> {
             }
             parameters.push(label);
         }
+
+        // drop the brackets on an empty parameter row
         if parameters.is_empty() {
             return Ok(String::new());
         }
@@ -376,6 +384,7 @@ impl CheckState<'_> {
         function: &dir::FunctionPointerType,
         depth: usize,
     ) -> CompilerResult<String> {
+        // read the signature the pointer applies
         let signature_id = self.shallow_resolve(function.signature)?;
         let Some(signature) = self.signature_head(signature_id)? else {
             let signature = self.format_depth_at(module, function.signature, depth)?;
@@ -385,6 +394,7 @@ impl CheckState<'_> {
         let signature_parameters =
             self.signature_parameters(signature_id.module_id, signature.parameters)?;
 
+        // render the parameters up to the width
         let mut parameters = Vec::new();
         for parameter in signature_parameters.iter().take(FORMAT_WIDTH) {
             let parameter = self.format_function_parameter_at(module, parameter, depth)?;
@@ -395,6 +405,7 @@ impl CheckState<'_> {
             parameters.push("…".to_string());
         }
 
+        // render a lone parameter with a trailing comma
         let parameters = match parameters.as_slice() {
             [] => "()".to_string(),
             [parameter] => format!("({parameter},)"),
@@ -415,6 +426,7 @@ impl CheckState<'_> {
         parameter: &dir::FunctionParameterType,
         depth: usize,
     ) -> CompilerResult<String> {
+        // render the parameter type, spreading a rest parameter
         let parameter_type = self.format_depth_at(module, parameter.ty, depth)?;
         let parameter_type = if parameter.is_rest {
             format!("...{parameter_type}")
@@ -442,55 +454,94 @@ impl CheckState<'_> {
         let value = self.format_depth_at(module, form.value, depth)?;
 
         let rendered = match &form.form {
-            dir::Form::Managed => value,
+            dir::Form::Managed { place } => {
+                let place = self.shallow_resolve(*place)?;
+                match self.place_space(place)? {
+                    Some(dir::Space::Local) => format!("local {value}"),
+                    Some(dir::Space::Shared) => format!("shared {value}"),
+                    Some(dir::Space::Constant) => format!("constant {value}"),
+                    None => format!("Managed<{value}, {}>", self.format_type(place)),
+                }
+            }
             dir::Form::Owned => format!("^{value}"),
             dir::Form::Raw => format!("*{value}"),
             dir::Form::Readonly => format!("readonly {value}"),
             dir::Form::Borrowed(borrow) => {
                 let borrow = self.type_borrow(owner, *borrow)?;
-                let access = match self.ty(self.shallow_resolve(borrow.access)?)? {
-                    dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)) => {
-                        "readonly "
-                    }
-                    dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Exclusive)) => {
-                        "exclusive "
-                    }
+                let access = match self.access_of(borrow.access)? {
+                    Some(dir::Access::Readonly) => "readonly ",
+                    Some(dir::Access::Exclusive) => "exclusive ",
                     _ => "",
                 };
 
+                let (extent, spaces) = match self.ty(self.shallow_resolve(borrow.region)?)? {
+                    dir::Type::Region(pair) => (pair.extent, Some(pair.space)),
+                    _ => (borrow.region, None),
+                };
+
                 // render named and static provenance, eliding the frame default
-                let lifetime = match self.ty(self.shallow_resolve(borrow.lifetime)?)? {
+                let lifetime = match self.ty(self.shallow_resolve(extent)?)? {
                     dir::Type::Parameter(parameter) => {
                         let name = self.format_parameter(parameter);
-                        match name
+                        let is_tick = name
                             .rsplit('.')
                             .next()
-                            .is_some_and(|name| name.starts_with('\''))
-                        {
-                            true => format!("{name} "),
-                            false => String::new(),
+                            .is_some_and(|name| name.starts_with('\''));
+                        let is_induced = self
+                            .generic_parameter(parameter)
+                            .is_some_and(|binding| binding.induced_memory_parameter().is_some());
+                        match (is_tick, is_induced) {
+                            (true, _) => format!("{name} "),
+                            (false, true) => String::new(),
+                            // written non-tick extents render the full borrow application
+                            (false, false) => {
+                                let region = self.format_type(borrow.region);
+                                let access = self.format_type(borrow.access);
+
+                                return Ok(format!("Borrowed<{value}, {region}, {access}>"));
+                            }
                         }
                     }
-                    dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Static)) => {
+                    dir::Type::Literal(dir::Literal::String(value))
+                        if dir::Lifetime::from_text(value) == Some(dir::Lifetime::Static) =>
+                    {
                         "'static ".to_string()
                     }
                     _ => String::new(),
                 };
 
-                format!("&{lifetime}{access}{value}")
-            }
-            dir::Form::Placed { place } => {
-                let place = match self.ty(self.shallow_resolve(*place)?)? {
-                    dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(space))) => {
-                        match space {
-                            dir::Space::Local => "local ",
-                            dir::Space::Shared => "shared ",
-                        }
-                    }
-                    _ => return Ok(format!("Placed<{value}, {}>", self.format_type(*place))),
+                // render a bare region through the reference sugar
+                let Some(place) = spaces
+                    .map(|spaces| self.shallow_resolve(spaces))
+                    .transpose()?
+                else {
+                    return Ok(format!("&{lifetime}{access}{value}"));
                 };
 
-                format!("{place}{value}")
+                // render literal referent spaces in target position, keeping written local
+                let value = match self.place_space(place)? {
+                    Some(dir::Space::Local) => format!("local {value}"),
+                    Some(dir::Space::Shared) => format!("shared {value}"),
+                    Some(dir::Space::Constant) => format!("constant {value}"),
+                    None => {
+                        // induced spaces elide back into the reference sugar
+                        if let dir::Type::Parameter(parameter) = self.ty(place)?
+                            && self
+                                .generic_parameter(parameter)
+                                .is_some_and(|binding| binding.induced_memory_parameter().is_some())
+                        {
+                            return Ok(format!("&{lifetime}{access}{value}"));
+                        }
+
+                        // render written parametric spaces through the full borrow application
+                        let region = self.format_type(borrow.region);
+                        let access = self.format_type(borrow.access);
+
+                        return Ok(format!("Borrowed<{value}, {region}, {access}>"));
+                    }
+                };
+
+                format!("&{lifetime}{access}{value}")
             }
         };
 
@@ -798,25 +849,48 @@ impl CheckState<'_> {
         module: Option<ModuleId>,
         symbol: dir::GlobalSymbolId,
     ) -> String {
+        // prefer the compact language item name
         if let Some(name) = self.language_item_symbol_name(symbol) {
             return name;
         }
 
+        // prefer the name the source module imports
         if let Some(name) =
             module.and_then(|module| self.visible_global_symbol_name(module, symbol))
         {
             return name;
         }
 
+        // render own-module symbols by their path alone
         let path = self.format_symbol_path(symbol);
         if module.is_some_and(|module| module == symbol.module_id) {
             return path;
         }
 
+        // qualify foreign symbols with their module label, library names staying bare
         match module {
-            Some(_) => format!("{}.{}", self.format_module_label(symbol.module_id), path),
-            None => path,
+            Some(_) if !self.is_library_module(symbol.module_id) => {
+                format!("{}.{}", self.format_module_label(symbol.module_id), path)
+            }
+            _ => path,
         }
+    }
+
+    /// Return whether one module belongs to the standard library, which owns bare names.
+    fn is_library_module(&self, module: ModuleId) -> bool {
+        if let Some(module) = self.module_maybe(module) {
+            return module.module.uri.as_ref().starts_with("destack://");
+        }
+
+        if let Ok(Some(module)) = self
+            .compiler
+            .repository
+            .module(self.context.revision(), module)
+        {
+            return module.uri.as_ref().starts_with("destack://");
+        }
+
+        false
     }
 
     /// Return the compact language item name for one symbol.
@@ -859,17 +933,19 @@ impl CheckState<'_> {
             })
     }
 
-    /// Format one local symbol path without duplicate suffixes.
+    /// Format one local symbol path, reusing the owner paths it already rendered.
     fn format_symbol_path_base(
         &self,
         bindings: &dir::BindingTable<'_>,
         symbol: dir::LocalSymbolId,
         paths: &mut BTreeMap<dir::LocalSymbolId, String>,
     ) -> String {
+        // reuse the path this symbol already rendered
         if let Some(path) = paths.get(&symbol) {
             return path.clone();
         }
 
+        // render this symbol's own label, keeping bare symbols at it
         let entry = bindings.get_symbol(symbol);
         let label = self.format_symbol(dir::GlobalSymbolId {
             module_id: bindings.module_id,
@@ -881,6 +957,7 @@ impl CheckState<'_> {
             return label;
         }
 
+        // stop at a root scope
         let scope = bindings.get_scope_by_id(entry.scope.id);
         let Some(owner) = scope.owner else {
             paths.insert(symbol, label.clone());
@@ -888,6 +965,7 @@ impl CheckState<'_> {
             return label;
         };
 
+        // stop at an anonymous namespace owner
         let owner_symbol = bindings.get_symbol(owner);
         if owner_symbol.role == dir::SymbolRole::Namespace && owner_symbol.name().is_none() {
             paths.insert(symbol, label.clone());
@@ -895,6 +973,7 @@ impl CheckState<'_> {
             return label;
         }
 
+        // qualify the label with its owner's path
         let owner = self.format_symbol_path_base(bindings, owner, paths);
         let path = format!("{owner}.{label}");
         paths.insert(symbol, path.clone());
@@ -957,6 +1036,7 @@ impl CheckState<'_> {
 
 /// Trim one module URI to a compact label.
 fn trim_module_uri(uri: &str) -> String {
+    // take the file stem of a file uri
     if let Some(path) = uri.strip_prefix("file://") {
         return Path::new(path)
             .file_stem()
@@ -965,6 +1045,7 @@ fn trim_module_uri(uri: &str) -> String {
             .to_string();
     }
 
+    // fold the remaining uri into a dotted label
     let uri = uri.strip_prefix("destack://").unwrap_or(uri);
     let uri = uri.strip_suffix(".ds").unwrap_or(uri);
     let uri = uri.trim_start_matches("./");

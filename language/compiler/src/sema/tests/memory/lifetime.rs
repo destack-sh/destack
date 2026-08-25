@@ -13,7 +13,7 @@ function inspectFrame(): void {
     const framePoint: ^Point = Point { x: 2 };
     const frameBorrow = &readonly framePoint;
 
-    moduleBorrow satisfies local Borrowed<Point, "static", "readonly">;
+    moduleBorrow satisfies Borrowed<Point, "static" & "constant", "readonly">;
     frameBorrow satisfies local Borrowed<Point, "frame", "readonly">;
 }
 "#,
@@ -35,7 +35,7 @@ function inspectFrame(): void {
     const framePoint: Point = Point { x: 2 };
     const frameBorrow: &'frame readonly Point = &readonly framePoint;
 
-    moduleBorrow satisfies local Borrowed<Point, "static", "readonly">;
+    moduleBorrow satisfies Borrowed<Point, "static" & "constant", "readonly">;
     frameBorrow satisfies local Borrowed<Point, "frame", "readonly">;
 }
 
@@ -53,10 +53,10 @@ const modulePoint: ^Point = Point { x: 1 };
 /// @resolution.name source=Point target=Point
 
 const moduleBorrow = &readonly modulePoint;
-/// @type.symbol symbol=moduleBorrow source=moduleBorrow type=&'static readonly Point
+/// @type.symbol symbol=moduleBorrow source=moduleBorrow type=&'static readonly constant Point
 /// @resolution.pattern source=moduleBorrow kind=binding target=moduleBorrow
 /// @resolution.name source=modulePoint target=modulePoint
-/// @resolution.place source=modulePoint placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=modulePoint placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=modulePoint root=modulePoint
 
 function inspectFrame(): void {
@@ -75,18 +75,18 @@ function inspectFrame(): void {
     /// @resolution.place source=framePoint placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=framePoint root=inspectFrame.framePoint
 
-    moduleBorrow satisfies local Borrowed<Point, "static", "readonly">;
+    moduleBorrow satisfies Borrowed<Point, "static" & "constant", "readonly">;
     /// @resolution.name source=moduleBorrow target=moduleBorrow
-    /// @resolution.place source=moduleBorrow placement="local" lifetime="static" access="readonly"
+    /// @resolution.place source=moduleBorrow placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=moduleBorrow root=moduleBorrow
-    /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+    /// @resolution.name source=Borrowed target=Borrowed
     /// @resolution.name source=Point target=Point
 
     frameBorrow satisfies local Borrowed<Point, "frame", "readonly">;
     /// @resolution.name source=frameBorrow target=inspectFrame.frameBorrow
     /// @resolution.place source=frameBorrow placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=frameBorrow root=inspectFrame.frameBorrow
-    /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+    /// @resolution.name source=Borrowed target=Borrowed
     /// @resolution.name source=Point target=Point
 
 }
@@ -106,7 +106,7 @@ function first(a: &Node, b: &Node): &Node {
 "#,
     );
 
-    session.assert_dir(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -115,7 +115,10 @@ struct Node {
     id: int32;
 }
 
-function first<'a, 'b>(a: &'a Node, b: &'b Node): Borrowed<Node, 'a | 'b, "mutable"> {
+function first<'a, P1: Place, 'b, P3: Place>(
+    a: Borrowed<Node, 'a & P1, "mutable">,
+    b: Borrowed<Node, 'b & P3, "mutable">,
+): Borrowed<Node, 'a & P1 | 'b & P3, "mutable"> {
     return a;
 }
 
@@ -127,20 +130,23 @@ struct Node { id: int32; }
 /// @type.symbol symbol=Node.id source="id: int32" type=int32
 
 function first(a: &Node, b: &Node): &Node {
-/// @generic.template symbol=first parameters=('a, 'b)
-/// @type.symbol symbol=first type=<first.'a, first.'b>(&first.'a Node, &first.'b Node) => &first.'a | first.'b Node
-/// @type.symbol symbol=first.a source="a: &Node" type=&first.'a Node
+/// @generic.template symbol=first parameters=('a, P1: Place, 'b, P3: Place)
+/// @type.symbol symbol=first type=<first.'a, first.P1: Place, first.'b, first.P3: Place>(Borrowed<Node, first.'a & first.P1, "mutable">, Borrowed<Node, first.'b & first.P3, "mutable">) => Borrowed<Node, first.'a & first.P1 | first.'b & first.P3, "mutable">
+/// @type.symbol symbol=first.a source="a: &Node" type=Borrowed<Node, first.'a & first.P1, "mutable">
 /// @resolution.name source=Node target=Node
-/// @type.symbol symbol=first.b source="b: &Node" type=&first.'b Node
+/// @type.symbol symbol=first.b source="b: &Node" type=Borrowed<Node, first.'b & first.P3, "mutable">
 /// @resolution.name source=Node target=Node
 /// @resolution.name source=Node target=Node
 
     return a;
     /// @resolution.name source=a target=first.a
-    /// @resolution.place source=a placement="local" lifetime=first.'a access="mutable"
+    /// @resolution.place source=a placement=first.P1 lifetime=first.'a access="mutable"
     /// @resolution.access source=a root=first.a
 
 }
+"#,
+        r#"
+
 "#,
     );
 }
@@ -157,7 +163,7 @@ function choose(a: &Node, b: &Node, flag: boolean): &Node {
 "#,
     );
 
-    session.assert_dir(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -166,11 +172,11 @@ struct Node {
     id: int32;
 }
 
-function choose<'a, 'b>(
-    a: &'a Node,
-    b: &'b Node,
+function choose<'a, P1: Place, 'b, P3: Place>(
+    a: Borrowed<Node, 'a & P1, "mutable">,
+    b: Borrowed<Node, 'b & P3, "mutable">,
     flag: boolean,
-): Borrowed<Node, 'a | 'b, "mutable"> {
+): Borrowed<Node, 'a & P1 | 'b & P3, "mutable"> {
     return flag ? a : b;
 }
 
@@ -182,11 +188,11 @@ struct Node { id: int32; }
 /// @type.symbol symbol=Node.id source="id: int32" type=int32
 
 function choose(a: &Node, b: &Node, flag: boolean): &Node {
-/// @generic.template symbol=choose parameters=('a, 'b)
-/// @type.symbol symbol=choose type=<choose.'a, choose.'b>(&choose.'a Node, &choose.'b Node, boolean) => &choose.'a | choose.'b Node
-/// @type.symbol symbol=choose.a source="a: &Node" type=&choose.'a Node
+/// @generic.template symbol=choose parameters=('a, P1: Place, 'b, P3: Place)
+/// @type.symbol symbol=choose type=<choose.'a, choose.P1: Place, choose.'b, choose.P3: Place>(Borrowed<Node, choose.'a & choose.P1, "mutable">, Borrowed<Node, choose.'b & choose.P3, "mutable">, boolean) => Borrowed<Node, choose.'a & choose.P1 | choose.'b & choose.P3, "mutable">
+/// @type.symbol symbol=choose.a source="a: &Node" type=Borrowed<Node, choose.'a & choose.P1, "mutable">
 /// @resolution.name source=Node target=Node
-/// @type.symbol symbol=choose.b source="b: &Node" type=&choose.'b Node
+/// @type.symbol symbol=choose.b source="b: &Node" type=Borrowed<Node, choose.'b & choose.P3, "mutable">
 /// @resolution.name source=Node target=Node
 /// @type.symbol symbol=choose.flag source="flag: boolean" type=boolean
 /// @resolution.name source=Node target=Node
@@ -196,13 +202,16 @@ function choose(a: &Node, b: &Node, flag: boolean): &Node {
     /// @resolution.place source=flag placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=flag root=choose.flag
     /// @resolution.name source=a target=choose.a
-    /// @resolution.place source=a placement="local" lifetime=choose.'a access="mutable"
+    /// @resolution.place source=a placement=choose.P1 lifetime=choose.'a access="mutable"
     /// @resolution.access source=a root=choose.a
     /// @resolution.name source=b target=choose.b
-    /// @resolution.place source=b placement="local" lifetime=choose.'b access="mutable"
+    /// @resolution.place source=b placement=choose.P3 lifetime=choose.'b access="mutable"
     /// @resolution.access source=b root=choose.b
 
 }
+"#,
+        r#"
+
 "#,
     );
 }
@@ -229,7 +238,10 @@ struct Node {
     id: int32;
 }
 
-declare function choose<'a, 'b>(a: &'a Node, b: &'b Node): &Node;
+declare function choose<'a, 'b>(
+    a: Borrowed<Node, 'a, "mutable">,
+    b: Borrowed<Node, 'b, "mutable">,
+): &Node;
 
 === dir ===
 struct Node { id: int32; }
@@ -246,13 +258,13 @@ declare function choose<'a, 'b>(
 
     a: Borrowed<Node, 'a, "mutable">,
     /// @type.symbol symbol=choose.a source="a: Borrowed<Node, 'a, \"mutable\">" type=&'a Node
-    /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+    /// @resolution.name source=Borrowed target=Borrowed
     /// @resolution.name source=Node target=Node
     /// @resolution.name source='a target=choose.'a
 
     b: Borrowed<Node, 'b, "mutable">,
     /// @type.symbol symbol=choose.b source="b: Borrowed<Node, 'b, \"mutable\">" type=&'b Node
-    /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+    /// @resolution.name source=Borrowed target=Borrowed
     /// @resolution.name source=Node target=Node
     /// @resolution.name source='b target=choose.'b
 
@@ -260,6 +272,7 @@ declare function choose<'a, 'b>(
 /// @resolution.name source=Node target=Node
 "#,
         r#"
+
 "#,
     );
 }
@@ -291,8 +304,8 @@ struct AssetStore {
 }
 
 struct WorldView<'a, 'b> {
-    engine: &'a Engine;
-    assets: &'b AssetStore;
+    engine: Borrowed<Engine, 'a, "mutable">;
+    assets: Borrowed<AssetStore, 'b, "mutable">;
 }
 
 === dir ===
@@ -360,7 +373,7 @@ struct Cell {
 }
 
 extension of Cell {
-    peek(&readonly this): &'a readonly int32 {
+    peek(&readonly this): Borrowed<int32, 'a & P1, "readonly"> {
         todo("peek" as string | undefined)
     }
 }
@@ -376,17 +389,17 @@ struct Cell { value: int32; }
 
 extension of Cell {
 /// @definition.extension symbol=<module>#2 form=local target=Cell
-/// @definition.method symbol=peek slot=peek type=<peek.'a>(this: &peek.'a readonly Cell) => &peek.'a readonly int32
+/// @definition.method symbol=peek slot=peek type=<peek.'a, peek.P1: Place>(this: Borrowed<Cell, peek.'a & peek.P1, "readonly">) => Borrowed<int32, peek.'a & peek.P1, "readonly">
 /// @resolution.name source=Cell target=Cell
 
     peek(&readonly this): &readonly int32 {
-    /// @generic.template symbol=peek parameters=('a)
-    /// @type.symbol symbol=peek type=<peek.'a>(this: &peek.'a readonly Cell) => &peek.'a readonly int32
-    /// @type.symbol symbol=peek.this source="&readonly this" type=&peek.'a readonly this
+    /// @generic.template symbol=peek parameters=('a, P1: Place)
+    /// @type.symbol symbol=peek type=<peek.'a, peek.P1: Place>(this: Borrowed<Cell, peek.'a & peek.P1, "readonly">) => Borrowed<int32, peek.'a & peek.P1, "readonly">
+    /// @type.symbol symbol=peek.this source="&readonly this" type=Borrowed<this, peek.'a & peek.P1, "readonly">
 
         todo("peek")
-        /// @resolution.name source=todo target=error.panic.todo
-        /// @resolution.call source="todo(\"peek\")" parameters=(string | undefined) arguments=(provided("peek") as string | undefined) return=never kind=symbol target=error.panic.todo
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"peek\")" parameters=(string | undefined) arguments=(provided("peek") as string | undefined) return=never kind=symbol target=todo
 
     }
 }
@@ -430,23 +443,23 @@ interface Viewing {
 /// @type.symbol symbol=Viewing type=Viewing
 /// @definition.interface symbol=Viewing
 /// @definition.associated.type symbol=Viewing.View source="type View" key=View
-/// @definition.method symbol=Viewing.view slot=view type=<const A: memory.access.Access = "readonly", Viewing.view.'a>(this: memory.type.WithAccess<&Viewing.view.'a this, A>) => memory.type.WithAccess<&Viewing.view.'a this.View, A>
+/// @definition.method symbol=Viewing.view slot=view type=<const A: Access = "readonly", Viewing.view.'a, Viewing.view.P2: Place>(this: WithAccess<Borrowed<Viewing, Viewing.view.'a & Viewing.view.P2, "mutable">, A>) => WithAccess<Borrowed<Viewing.View, Viewing.view.'a & Viewing.view.P2, "mutable">, A>
 
     type View;
 
     view<const A: Access = "readonly">(
-    /// @generic.template symbol=Viewing.view parent=template#0 parameters=(const A: memory.access.Access = "readonly", 'a)
-    /// @type.symbol symbol=Viewing.view type=<const A: memory.access.Access = "readonly", Viewing.view.'a>(this: memory.type.WithAccess<&Viewing.view.'a this, A>) => memory.type.WithAccess<&Viewing.view.'a this.View, A>
+    /// @generic.template symbol=Viewing.view parent=template#0 parameters=(const A: Access = "readonly", 'a, P2: Place)
+    /// @type.symbol symbol=Viewing.view type=<const A: Access = "readonly", Viewing.view.'a, Viewing.view.P2: Place>(this: WithAccess<Borrowed<Viewing, Viewing.view.'a & Viewing.view.P2, "mutable">, A>) => WithAccess<Borrowed<Viewing.View, Viewing.view.'a & Viewing.view.P2, "mutable">, A>
     /// @type.symbol symbol=Viewing.view.A source="const A: Access = \"readonly\"" type=A
-    /// @resolution.name source=Access target=memory.access.Access
+    /// @resolution.name source=Access target=Access
 
         this: WithAccess<&this, A>,
-        /// @type.symbol symbol=Viewing.view.this source="this: WithAccess<&this, A>" type=memory.type.WithAccess<&Viewing.view.'a this, A>
-        /// @resolution.name source=WithAccess target=memory.type.WithAccess
+        /// @type.symbol symbol=Viewing.view.this source="this: WithAccess<&this, A>" type=WithAccess<Borrowed<this, Viewing.view.'a & Viewing.view.P2, "mutable">, A>
+        /// @resolution.name source=WithAccess target=WithAccess
         /// @resolution.name source=A target=Viewing.view.A
 
     ): WithAccess<&this.View, A>;
-    /// @resolution.name source=WithAccess target=memory.type.WithAccess
+    /// @resolution.name source=WithAccess target=WithAccess
     /// @resolution.name source=A target=Viewing.view.A
 
 }
@@ -483,10 +496,10 @@ type Options<'a> = {
     error?: unknown;
 };
 
-function log<'a>(options?: Options<'a>): void {}
+function log<'a, P1: Place>(options?: Options<'a & P1>): void {}
 
 function warn(count?: int32, cause?: unknown): void {
-    log({ count, error: cause as unknown } as Options<"frame"> | undefined);
+    log<"local">({ count, error: cause as unknown } as Options<"frame" & "local"> | undefined);
 }
 
 === dir ===
@@ -504,9 +517,9 @@ type Options<'a> = {
 };
 
 function log(options?: Options): void {}
-/// @generic.template symbol=log parameters=('a)
-/// @type.symbol symbol=log source="function log(options?: Options): void {}" type=<log.'a>(Options<log.'a> | undefined?) => void
-/// @type.symbol symbol=log.options source="options?: Options" type=Options<log.'a> | undefined
+/// @generic.template symbol=log parameters=('a, P1: Place)
+/// @type.symbol symbol=log source="function log(options?: Options): void {}" type=<log.'a, log.P1: Place>(Options<log.'a & log.P1> | undefined?) => void
+/// @type.symbol symbol=log.options source="options?: Options" type=Options<log.'a & log.P1> | undefined
 /// @resolution.name source=Options target=Options
 
 function warn(count?: int32, cause?: unknown): void {
@@ -516,7 +529,9 @@ function warn(count?: int32, cause?: unknown): void {
 
     log({ count, error: cause });
     /// @resolution.name source=log target=log
-    /// @resolution.call source="log({ count, error: cause })" parameters=(Options<"frame"> | undefined) arguments=(provided({ count, error: cause }) as Options<"frame"> | undefined) return=void kind=symbol target=log
+    /// @resolution.call source="log({ count, error: cause })" parameters=(Options<"frame" & "local"> | undefined) arguments=(provided({ count, error: cause }) as Options<"frame" & "local"> | undefined) return=void kind=symbol target=log instance="log<\"local\">"
+    /// @generic.instantiation id="log<\"local\">" template=log arguments=("local")
+    /// @generic.instance id="log<\"local\">" template=log arguments=("local")
     /// @resolution.name source=count target=warn.count
     /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=count root=warn.count
@@ -557,7 +572,7 @@ struct Holder<'a> {
 }
 
 struct View<'a> {
-    user: &'a readonly User;
+    user: Borrowed<User, 'a, "readonly">;
 }
 
 struct User {
@@ -683,11 +698,11 @@ struct User {
 }
 
 struct View<'a> {
-    user: &'a readonly User;
+    user: Borrowed<User, 'a, "readonly">;
 }
 
-function inspect<'a>(user: &'a readonly User): int32 {
-    const view: View<'a> = View<'a> { user };
+function inspect<'a, P1: Place>(user: Borrowed<User, 'a & P1, "readonly">): int32 {
+    const view: View<'a & P1> = View<'a & P1> { user };
 
     return view.user.id;
 }
@@ -718,29 +733,29 @@ struct View<'a> {
 }
 
 function inspect(user: &readonly User): int32 {
-/// @generic.template symbol=inspect parameters=('a)
-/// @type.symbol symbol=inspect type=<inspect.'a>(&inspect.'a readonly User) => int32
-/// @type.symbol symbol=inspect.user source="user: &readonly User" type=&inspect.'a readonly User
+/// @generic.template symbol=inspect parameters=('a, P1: Place)
+/// @type.symbol symbol=inspect type=<inspect.'a, inspect.P1: Place>(Borrowed<User, inspect.'a & inspect.P1, "readonly">) => int32
+/// @type.symbol symbol=inspect.user source="user: &readonly User" type=Borrowed<User, inspect.'a & inspect.P1, "readonly">
 /// @resolution.name source=User target=User
 
     const view: View = View { user };
-    /// @type.symbol symbol=inspect.view source=view type=View<inspect.'a>
+    /// @type.symbol symbol=inspect.view source=view type=View<inspect.'a & inspect.P1>
     /// @resolution.pattern source=view kind=binding target=inspect.view
     /// @resolution.name source=View target=View
     /// @resolution.name source=View target=View
     /// @resolution.name source=user target=inspect.user
-    /// @resolution.place source=user placement="local" lifetime=inspect.'a access="readonly"
+    /// @resolution.place source=user placement=inspect.P1 lifetime=inspect.'a access="readonly"
     /// @resolution.access source=user root=inspect.user
 
     return view.user.id;
     /// @resolution.name source=view target=inspect.view
-    /// @resolution.member source=view.user receiver=View<inspect.'a> type=&inspect.'a readonly User kind=field target_receiver=View<inspect.'a> key=user target=View.user target_type=&inspect.'a readonly User
-    /// @resolution.member source=view.user.id receiver=&inspect.'a readonly User type=int32 kind=field target_receiver=&inspect.'a readonly User key=id target=User.id target_type=int32
+    /// @resolution.member source=view.user receiver=View<inspect.'a & inspect.P1> type=Borrowed<User, inspect.'a & inspect.P1, "readonly"> kind=field target_receiver=View<inspect.'a & inspect.P1> key=user target=View.user target_type=Borrowed<User, inspect.'a & inspect.P1, "readonly">
+    /// @resolution.member source=view.user.id receiver=Borrowed<User, inspect.'a & inspect.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<User, inspect.'a & inspect.P1, "readonly"> key=id target=User.id target_type=int32
     /// @resolution.place source=view placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=view root=inspect.view
-    /// @resolution.place source=view.user placement="local" lifetime=inspect.'a access="readonly"
+    /// @resolution.place source=view.user placement=inspect.P1 lifetime=inspect.'a access="readonly"
     /// @resolution.access source=view.user root=inspect.view keys=[user]
-    /// @resolution.place source=view.user.id placement="local" lifetime=inspect.'a access="readonly"
+    /// @resolution.place source=view.user.id placement=inspect.P1 lifetime=inspect.'a access="readonly"
     /// @resolution.access source=view.user.id root=inspect.view keys=[user, id]
 
 }
@@ -760,7 +775,7 @@ function first<'a>(a: &'a Node, b: &Node): &'a Node {
 "#,
     );
 
-    session.assert_dir(
+    session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -769,7 +784,10 @@ struct Node {
     id: int32;
 }
 
-function first<'a, 'b>(a: &'a Node, b: &'b Node): &'a Node {
+function first<'a, 'b, P2: Place>(
+    a: Borrowed<Node, 'a, "mutable">,
+    b: Borrowed<Node, 'b & P2, "mutable">,
+): Borrowed<Node, 'a, "mutable"> {
     return a;
 }
 
@@ -781,23 +799,26 @@ struct Node { id: int32; }
 /// @type.symbol symbol=Node.id source="id: int32" type=int32
 
 function first<'a>(a: &'a Node, b: &Node): &'a Node {
-/// @generic.template symbol=first parameters=('a, 'b)
-/// @type.symbol symbol=first type=<'a, first.'b>(&'a Node, &first.'b Node) => &'a Node
+/// @generic.template symbol=first parameters=('a, 'b, P2: Place)
+/// @type.symbol symbol=first type=<'a, first.'b, first.P2: Place>(&'a Node, Borrowed<Node, first.'b & first.P2, "mutable">) => &'a Node
 /// @type.symbol symbol=first.'a source='a type='a
 /// @type.symbol symbol=first.a source="a: &'a Node" type=&'a Node
 /// @resolution.name source='a target=first.'a
 /// @resolution.name source=Node target=Node
-/// @type.symbol symbol=first.b source="b: &Node" type=&first.'b Node
+/// @type.symbol symbol=first.b source="b: &Node" type=Borrowed<Node, first.'b & first.P2, "mutable">
 /// @resolution.name source=Node target=Node
 /// @resolution.name source='a target=first.'a
 /// @resolution.name source=Node target=Node
 
     return a;
     /// @resolution.name source=a target=first.a
-    /// @resolution.place source=a placement="local" lifetime='a access="mutable"
+    /// @resolution.place source=a placement='a lifetime='a access="mutable"
     /// @resolution.access source=a root=first.a
 
 }
+"#,
+        r#"
+
 "#,
     );
 }
@@ -821,7 +842,7 @@ struct Node {
     id: int32;
 }
 
-declare const shared: &'static Node;
+declare const shared: Borrowed<Node, "static", "mutable">;
 
 === dir ===
 struct Node { id: int32; }
@@ -834,6 +855,404 @@ declare const shared: &'static Node;
 /// @type.symbol symbol=shared source=shared type=&'static Node
 /// @resolution.pattern source=shared kind=binding target=shared
 /// @resolution.name source=Node target=Node
+"#,
+    );
+}
+
+#[test]
+fn test_reject_mixed_space_borrow_arguments_for_one_region_parameter() {
+    let session = TestSession::single(
+        r#"
+struct Label { size: int32; }
+
+declare shared const stored: ^Label;
+
+function longest<'a, P: Place>(
+    left: Borrowed<Label, 'a & P, "readonly">,
+    right: Borrowed<Label, 'a & P, "readonly">,
+): Borrowed<Label, 'a & P, "readonly"> {
+    return left.size >= right.size ? left : right;
+}
+
+function pick(): void {
+    const near: ^Label = Label { size: 2 };
+    const widest = longest(&readonly near, &readonly stored);
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Label {
+    size: int32;
+}
+
+declare shared const stored: Label;
+
+function longest<'a, P: Place>(
+    left: Borrowed<Label, 'a & P, "readonly">,
+    right: Borrowed<Label, 'a & P, "readonly">,
+): Borrowed<Label, 'a & P, "readonly"> {
+    return left.size >= right.size ? left : right;
+}
+
+function pick(): void {
+    const near: Label = Label { size: 2 };
+    const widest = longest(&readonly near, &readonly stored);
+}
+
+=== dir ===
+struct Label { size: int32; }
+/// @type.symbol symbol=Label source="struct Label { size: int32; }" type=Label
+/// @definition.struct symbol=Label source="struct Label { size: int32; }"
+/// @definition.field symbol=Label.size source="size: int32" key=size type=int32
+/// @type.symbol symbol=Label.size source="size: int32" type=int32
+
+declare shared const stored: ^Label;
+/// @type.symbol symbol=stored source=stored type=Label
+/// @resolution.pattern source=stored kind=binding target=stored
+/// @resolution.name source=Label target=Label
+
+function longest<'a, P: Place>(
+/// @generic.template symbol=longest parameters=('a, P: Place)
+/// @type.symbol symbol=longest type=<'a, P: Place>(Borrowed<Label, 'a & P, "readonly">, Borrowed<Label, 'a & P, "readonly">) => Borrowed<Label, 'a & P, "readonly">
+/// @type.symbol symbol=longest.'a source='a type='a
+/// @type.symbol symbol=longest.P source="P: Place" type=P
+/// @resolution.name source=Place target=Place
+
+    left: Borrowed<Label, 'a & P, "readonly">,
+    /// @type.symbol symbol=longest.left source="left: Borrowed<Label, 'a & P, \"readonly\">" type=Borrowed<Label, 'a & P, "readonly">
+    /// @resolution.name source=Borrowed target=Borrowed
+    /// @resolution.name source=Label target=Label
+    /// @resolution.name source='a target=longest.'a
+    /// @resolution.name source=P target=longest.P
+
+    right: Borrowed<Label, 'a & P, "readonly">,
+    /// @type.symbol symbol=longest.right source="right: Borrowed<Label, 'a & P, \"readonly\">" type=Borrowed<Label, 'a & P, "readonly">
+    /// @resolution.name source=Borrowed target=Borrowed
+    /// @resolution.name source=Label target=Label
+    /// @resolution.name source='a target=longest.'a
+    /// @resolution.name source=P target=longest.P
+
+): Borrowed<Label, 'a & P, "readonly"> {
+/// @resolution.name source=Borrowed target=Borrowed
+/// @resolution.name source=Label target=Label
+/// @resolution.name source='a target=longest.'a
+/// @resolution.name source=P target=longest.P
+
+    return left.size >= right.size ? left : right;
+    /// @resolution.name source=left target=longest.left
+    /// @resolution.member source=left.size receiver=Borrowed<Label, 'a & P, "readonly"> type=int32 kind=field target_receiver=Borrowed<Label, 'a & P, "readonly"> key=size target=Label.size target_type=int32
+    /// @resolution.operator source="left.size >= right.size" type=boolean operator=">=" kind=builtin operands=[left.size as int32 families=(integer), right.size as int32 families=(integer)]
+    /// @resolution.place source=left placement=P lifetime='a access="readonly"
+    /// @resolution.access source=left root=longest.left
+    /// @resolution.place source=left.size placement=P lifetime='a access="readonly"
+    /// @resolution.access source=left.size root=longest.left keys=[size]
+    /// @resolution.name source=right target=longest.right
+    /// @resolution.member source=right.size receiver=Borrowed<Label, 'a & P, "readonly"> type=int32 kind=field target_receiver=Borrowed<Label, 'a & P, "readonly"> key=size target=Label.size target_type=int32
+    /// @resolution.place source=right placement=P lifetime='a access="readonly"
+    /// @resolution.access source=right root=longest.right
+    /// @resolution.place source=right.size placement=P lifetime='a access="readonly"
+    /// @resolution.access source=right.size root=longest.right keys=[size]
+    /// @resolution.name source=left target=longest.left
+    /// @resolution.place source=left placement=P lifetime='a access="readonly"
+    /// @resolution.access source=left root=longest.left
+    /// @resolution.name source=right target=longest.right
+    /// @resolution.place source=right placement=P lifetime='a access="readonly"
+    /// @resolution.access source=right root=longest.right
+
+}
+
+function pick(): void {
+/// @type.symbol symbol=pick type=() => void
+
+    const near: ^Label = Label { size: 2 };
+    /// @type.symbol symbol=pick.near source=near type=Label
+    /// @resolution.pattern source=near kind=binding target=pick.near
+    /// @resolution.name source=Label target=Label
+    /// @resolution.name source=Label target=Label
+
+    const widest = longest(&readonly near, &readonly stored);
+    /// @type.symbol symbol=pick.widest source=widest type=Borrowed<Label, "frame" & <error>, "readonly">
+    /// @resolution.pattern source=widest kind=binding target=pick.widest
+    /// @resolution.name source=longest target=longest
+    /// @resolution.call source="longest(&readonly near, &readonly stored)" parameters=(Borrowed<Label, "frame" & <error>, "readonly">, Borrowed<Label, "frame" & <error>, "readonly">) arguments=(provided(&readonly near) as Borrowed<Label, "frame" & <error>, "readonly">, provided(&readonly stored) as Borrowed<Label, "frame" & <error>, "readonly">) return=Borrowed<Label, "frame" & <error>, "readonly"> kind=symbol target=longest instance=longest<<error>>
+    /// @generic.instantiation id=longest<<error>> template=longest arguments=(<error>)
+    /// @resolution.name source=near target=pick.near
+    /// @resolution.place source=near placement="local" lifetime="frame" access="readonly"
+    /// @resolution.access source=near root=pick.near
+    /// @resolution.name source=stored target=stored
+    /// @resolution.place source=stored placement="shared" lifetime="static" access="readonly"
+    /// @resolution.access source=stored root=stored
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type '\"shared\"' is not assignable to type '\"local\"'"
+/// @diagnostic.label line=15 column=44 span="&" line_source="const widest = longest(&readonly near, &readonly stored);"
+/// @diagnostic.related line=15 column=20 span="longest(&readonly near, &readonly stored)" line_source="const widest = longest(&readonly near, &readonly stored);" message="in this call"
+"#,
+    );
+}
+
+#[test]
+fn test_join_mixed_space_borrows_through_a_written_union() {
+    let session = TestSession::single(
+        r#"
+struct Label { size: int32; }
+
+declare shared const stored: ^Label;
+declare const wide: boolean;
+
+function pick(): void {
+    const near: ^Label = Label { size: 2 };
+    const widest: Borrowed<Label, "local", "readonly"> | Borrowed<Label, "shared", "readonly"> =
+        wide ? &readonly stored : &readonly near;
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Label {
+    size: int32;
+}
+
+declare shared const stored: Label;
+declare const wide: boolean;
+
+function pick(): void {
+    const near: Label = Label { size: 2 };
+    const widest: &'frame readonly Label | &'static readonly shared Label = wide
+        ? &readonly stored
+        : &readonly near;
+}
+
+=== dir ===
+struct Label { size: int32; }
+/// @type.symbol symbol=Label source="struct Label { size: int32; }" type=Label
+/// @definition.struct symbol=Label source="struct Label { size: int32; }"
+/// @definition.field symbol=Label.size source="size: int32" key=size type=int32
+/// @type.symbol symbol=Label.size source="size: int32" type=int32
+
+declare shared const stored: ^Label;
+/// @type.symbol symbol=stored source=stored type=Label
+/// @resolution.pattern source=stored kind=binding target=stored
+/// @resolution.name source=Label target=Label
+
+declare const wide: boolean;
+/// @type.symbol symbol=wide source=wide type=boolean
+/// @resolution.pattern source=wide kind=binding target=wide
+
+function pick(): void {
+/// @type.symbol symbol=pick type=() => void
+
+    const near: ^Label = Label { size: 2 };
+    /// @type.symbol symbol=pick.near source=near type=Label
+    /// @resolution.pattern source=near kind=binding target=pick.near
+    /// @resolution.name source=Label target=Label
+    /// @resolution.name source=Label target=Label
+
+    const widest: Borrowed<Label, "local", "readonly"> | Borrowed<Label, "shared", "readonly"> =
+    /// @type.symbol symbol=pick.widest source=widest type=&'frame readonly Label | &'static readonly shared Label
+    /// @resolution.pattern source=widest kind=binding target=pick.widest
+    /// @resolution.name source=Borrowed target=Borrowed
+    /// @resolution.name source=Label target=Label
+    /// @resolution.name source=Borrowed target=Borrowed
+    /// @resolution.name source=Label target=Label
+
+        wide ? &readonly stored : &readonly near;
+        /// @resolution.name source=wide target=wide
+        /// @resolution.place source=wide placement="constant" lifetime="static" access="readonly"
+        /// @resolution.access source=wide root=wide
+        /// @resolution.name source=stored target=stored
+        /// @resolution.place source=stored placement="shared" lifetime="static" access="readonly"
+        /// @resolution.access source=stored root=stored
+        /// @resolution.name source=near target=pick.near
+        /// @resolution.place source=near placement="local" lifetime="frame" access="readonly"
+        /// @resolution.access source=near root=pick.near
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_reject_an_elided_heritage_borrow_region() {
+    let session = TestSession::single(
+        r#"
+struct Buffer { size: int32; }
+
+interface Source<T> {
+    read(): T;
+}
+
+declare class Reader implements Source<Borrowed<Buffer, "readonly">> {
+    read(): Borrowed<Buffer, "readonly">;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Buffer {
+    size: int32;
+}
+
+interface Source<out T> {
+    read(): T;
+}
+
+declare class Reader<P0: Place> implements Source<Borrowed<Buffer, "readonly">> {
+    read(): Borrowed<Buffer, "readonly">;
+}
+
+=== dir ===
+struct Buffer { size: int32; }
+/// @type.symbol symbol=Buffer source="struct Buffer { size: int32; }" type=Buffer
+/// @definition.struct symbol=Buffer source="struct Buffer { size: int32; }"
+/// @definition.field symbol=Buffer.size source="size: int32" key=size type=int32
+/// @type.symbol symbol=Buffer.size source="size: int32" type=int32
+
+interface Source<T> {
+/// @generic.template symbol=Source parameters=(out T)
+/// @type.symbol symbol=Source type=Source
+/// @definition.interface symbol=Source template=(out T)
+/// @definition.where symbol=Source relation=satisfies left=this right=Source<T>
+/// @definition.method symbol=Source.read source="read(): T" slot=read type=(this: this) => T
+/// @type.symbol symbol=Source.T source=T type=T
+
+    read(): T;
+    /// @type.symbol symbol=Source.read source="read(): T" type=(this: this) => T
+    /// @resolution.name source=T target=Source.T
+
+}
+
+declare class Reader implements Source<Borrowed<Buffer, "readonly">> {
+/// @generic.template symbol=Reader parameters=(P0: Place)
+/// @type.symbol symbol=Reader type=Reader
+/// @definition.class symbol=Reader template=(P0: Place)
+/// @definition.where symbol=Reader source="Source<Borrowed<Buffer, \"readonly\">>" relation=satisfies left=this right=Source<Borrowed<Buffer, <error> & Reader.P0, "readonly">>
+/// @definition.implements symbol=Reader source="Source<Borrowed<Buffer, \"readonly\">>" target="Source<Borrowed<Buffer, <error> & Reader.P0, \"readonly\">>"
+/// @definition.method symbol=Reader.read source="read(): Borrowed<Buffer, \"readonly\">" slot=read type=<Reader.read.P0: Place, Reader.read.'a, Reader.read.P2: Place>(this: Borrowed<Managed<this, Reader.read.P0>, Reader.read.'a & Reader.read.P2, "readonly">) => Borrowed<Buffer, Reader.read.'a & Reader.read.P2, "readonly">
+/// @definition.conformance symbol=Reader member=Reader.read requirement=Source.read
+/// @resolution.name source=Source target=Source
+/// @resolution.name source=Borrowed target=Borrowed
+/// @resolution.name source=Buffer target=Buffer
+
+    read(): Borrowed<Buffer, "readonly">;
+    /// @generic.template symbol=Reader.read parent=template#1 parameters=(P0: Place, 'a, P2: Place)
+    /// @type.symbol symbol=Reader.read source="read(): Borrowed<Buffer, \"readonly\">" type=<Reader.read.P0: Place, Reader.read.'a, Reader.read.P2: Place>(this: Borrowed<Managed<this, Reader.read.P0>, Reader.read.'a & Reader.read.P2, "readonly">) => Borrowed<Buffer, Reader.read.'a & Reader.read.P2, "readonly">
+    /// @resolution.name source=Borrowed target=Borrowed
+    /// @resolution.name source=Buffer target=Buffer
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=elided-declaration-lifetime message="type declaration 'Reader' writes its lifetimes"
+/// @diagnostic.label line=8 column=40 span="Borrowed" line_source="declare class Reader implements Source<Borrowed<Buffer, \"readonly\">> {"
+/// @diagnostic.help message="declare the lifetime parameter and name it, like &'a"
+"#,
+    );
+}
+
+#[test]
+fn test_elide_the_region_of_an_access_only_borrowed_application() {
+    let session = TestSession::single(
+        r#"
+struct Buffer { size: int32; }
+
+declare function read(borrow: Borrowed<Buffer, "readonly">): int32;
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Buffer {
+    size: int32;
+}
+
+declare function read<'a, P1: Place>(borrow: Borrowed<Buffer, 'a & P1, "readonly">): int32;
+
+=== dir ===
+struct Buffer { size: int32; }
+/// @type.symbol symbol=Buffer source="struct Buffer { size: int32; }" type=Buffer
+/// @definition.struct symbol=Buffer source="struct Buffer { size: int32; }"
+/// @definition.field symbol=Buffer.size source="size: int32" key=size type=int32
+/// @type.symbol symbol=Buffer.size source="size: int32" type=int32
+
+declare function read(borrow: Borrowed<Buffer, "readonly">): int32;
+/// @generic.template symbol=read parameters=('a, P1: Place)
+/// @type.symbol symbol=read source="declare function read(borrow: Borrowed<Buffer, \"readonly\">): int32" type=<read.'a, read.P1: Place>(Borrowed<Buffer, read.'a & read.P1, "readonly">) => int32
+/// @type.symbol symbol=read.borrow source="borrow: Borrowed<Buffer, \"readonly\">" type=Borrowed<Buffer, read.'a & read.P1, "readonly">
+/// @resolution.name source=Borrowed target=Borrowed
+/// @resolution.name source=Buffer target=Buffer
+"#,
+    );
+}
+
+#[test]
+fn test_slide_access_arguments_past_const_region_parameters() {
+    let session = TestSession::single(
+        r#"
+import { Region, Access } from "destack:memory";
+
+struct Pair<const R: Region, const A: Access = "mutable"> {
+    size: int32;
+}
+
+declare function read(pair: Pair<"readonly">): int32;
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Access, Region } from "destack:memory";
+
+struct Pair<const R: Region, const A: Access = "mutable"> {
+    size: int32;
+}
+
+declare function read<'a, P1: Place>(pair: Pair<'a & P1, "readonly">): int32;
+
+=== dir ===
+import { Region, Access } from "destack:memory";
+
+struct Pair<const R: Region, const A: Access = "mutable"> {
+/// @generic.template symbol=Pair parameters=(const R: Region, const A: Access = "mutable")
+/// @type.symbol symbol=Pair type=Pair
+/// @definition.struct symbol=Pair template=(const R: Region, const A: Access = "mutable")
+/// @definition.field symbol=Pair.size source="size: int32" key=size type=int32
+/// @type.symbol symbol=Pair.R source="const R: Region" type=R
+/// @resolution.name source=Region target=Region
+/// @type.symbol symbol=Pair.A source="const A: Access = \"mutable\"" type=A
+/// @resolution.name source=Access target=Access
+
+    size: int32;
+    /// @type.symbol symbol=Pair.size source="size: int32" type=int32
+
+}
+
+declare function read(pair: Pair<"readonly">): int32;
+/// @generic.template symbol=read parameters=('a, P1: Place)
+/// @type.symbol symbol=read source="declare function read(pair: Pair<\"readonly\">): int32" type=<read.'a, read.P1: Place>(Pair<read.'a & read.P1, "readonly">) => int32
+/// @type.symbol symbol=read.pair source="pair: Pair<\"readonly\">" type=Pair<read.'a & read.P1, "readonly">
+/// @resolution.name source=Pair target=Pair
 "#,
     );
 }

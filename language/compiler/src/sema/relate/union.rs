@@ -79,7 +79,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        // membership tags the value into the union carrier, which widening refuses
+        // membership tags the value into the union representation, which widening refuses
         if relation == Relation::Widens {
             return Ok(Verdict::Fails);
         }

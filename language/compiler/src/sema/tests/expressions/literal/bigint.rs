@@ -152,14 +152,14 @@ const isZero = (1n).isZero;
 /// @type.symbol symbol=isZero source=isZero type=boolean
 /// @resolution.pattern source=isZero kind=binding target=isZero
 /// @type.node source=(1n).isZero type=boolean
-/// @resolution.member source=(1n).isZero receiver=1n type=boolean kind=call target="math.bigint.isZero(parameters=(), arguments=(), return=boolean)"
+/// @resolution.member source=(1n).isZero receiver=1n type=boolean kind=call target="isZero(parameters=(), arguments=(), return=boolean)"
 /// @type.node source=1n type=1n
 
 isZero satisfies boolean;
 /// @type.node source="isZero satisfies boolean" type=boolean
 /// @type.node source=isZero type=boolean
 /// @resolution.name source=isZero target=isZero
-/// @resolution.place source=isZero placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=isZero placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=isZero root=isZero
 "#,
     );
@@ -201,7 +201,7 @@ const isZero = value.isZero;
 /// @type.node source=value type=bigint
 /// @type.node source=value.isZero type=boolean
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.isZero receiver=bigint type=boolean kind=call target="math.bigint.isZero(parameters=(), arguments=(), return=boolean)"
+/// @resolution.member source=value.isZero receiver=bigint type=boolean kind=call target="isZero(parameters=(), arguments=(), return=boolean)"
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 
@@ -209,7 +209,7 @@ isZero satisfies boolean;
 /// @type.node source="isZero satisfies boolean" type=boolean
 /// @type.node source=isZero type=boolean
 /// @resolution.name source=isZero target=isZero
-/// @resolution.place source=isZero placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=isZero placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=isZero root=isZero
 "#,
     );

@@ -94,14 +94,19 @@ impl BodyState<'_, '_> {
         value
     }
 
-    /// Probe one deduction under a rollback, keeping only its refused value.
+    /// Probe one deduction under a rollback, keeping only the deduced value.
     pub(in crate::sema) fn probe_deduction<R>(
         &mut self,
-        mut attempt: impl FnMut(&mut Self) -> CompilerResult<CandidateOutcome<(), R>>,
+        mut attempt: impl FnMut(&mut Self) -> CompilerResult<Option<R>>,
     ) -> CompilerResult<Option<R>> {
-        // pull the deduced value out before the rollback consumes the outcome
+        // carry the deduction out through the rejected slot so every effect rolls back
         let mark = self.check.open_probe();
-        let outcome = self.attempt_candidate(&mark, &mut attempt);
+        let outcome = self.attempt_candidate(&mark, &mut |state| {
+            Ok(match attempt(state)? {
+                Some(deduced) => CandidateOutcome::Rejected(deduced),
+                None => CandidateOutcome::Accepted(()),
+            })
+        });
         let (outcome, deduced): (CompilerResult<CandidateAttempt<(), ()>>, Option<R>) =
             match outcome {
                 Ok(CandidateAttempt::Outcome(CandidateOutcome::Rejected(deduced))) => (

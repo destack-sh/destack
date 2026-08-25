@@ -79,13 +79,7 @@ impl BodyState<'_, '_> {
             .clone();
         let place = match expression_kind {
             dir::Expression::Identifier { .. } => self.binding_place(site, ty)?,
-            dir::Expression::This | dir::Expression::Super => Some(self.root_place(
-                site.origin(),
-                site.node.module_id,
-                ty,
-                dir::Space::Local,
-                dir::Lifetime::Frame,
-            )?),
+            dir::Expression::This | dir::Expression::Super => Some(self.this_place(site, ty)?),
             dir::Expression::Member { left, .. } => {
                 let resolution = self
                     .decisions(expression.module_id)
@@ -148,26 +142,72 @@ impl BodyState<'_, '_> {
         let binding = bindings.get_symbol(symbol.local_id);
         let is_static = binding.scope.id == bindings.module_scope().id;
         let is_immutable = binding.binding_mutability == Some(dir::Mutability::Immutable);
+        let binding_space = binding.binding_space;
         let lifetime = if is_static {
             dir::Lifetime::Static
         } else {
             dir::Lifetime::Frame
         };
-        let space = binding.binding_space.unwrap_or(dir::Space::Local);
-        let place = self.root_place(site.origin(), site.node.module_id, ty, space, lifetime)?;
 
-        // select access to the value designated by the binding
+        // immutable direct module bindings live in constant storage
         let is_direct = !self.type_is_aliased(site.origin(), ty)?;
+        let space = binding_space.unwrap_or(if is_static && is_immutable && is_direct {
+            dir::Space::Constant
+        } else {
+            dir::Space::Local
+        });
+        let place = self.root_place(site.origin(), site.node.module_id, ty, space, lifetime)?;
         let access = if is_immutable && is_direct {
-            self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
-                dir::Access::Readonly,
-            )))?
+            self.access_literal(dir::Access::Readonly)?
         } else {
             place.access
         };
         let place = dir::PlaceResolution { access, ..place };
 
         Ok(Some(place))
+    }
+
+    /// Return the place one method receiver roots, parametric for ambient classes.
+    fn this_place(
+        &mut self,
+        site: FlowSite,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::PlaceResolution> {
+        let origin = site.origin();
+        let chain = self.check.form_chain(origin, ty)?;
+
+        // concrete places root in their own space, bare receivers in their declared
+        //  nominal space or in local
+        let space = match chain.place() {
+            Some(place) => self.check.place_space(place)?,
+            None => {
+                let symbol = match self.ty(chain.base())? {
+                    dir::Type::Application(instance) => Some(instance.symbol),
+                    _ => None,
+                };
+                let declared_space = match symbol {
+                    Some(symbol) => self.check.nominal_space(symbol)?,
+                    None => None,
+                };
+
+                Some(declared_space.unwrap_or(dir::Space::Local))
+            }
+        };
+        if let Some(space) = space {
+            return self.root_place(origin, site.node.module_id, ty, space, dir::Lifetime::Frame);
+        }
+
+        // parametric places stay mutable until an instantiation grants more
+        let placement = chain.place().expect("a spaceless chain carries a place");
+        let lifetime = self.lifetime_literal(dir::Lifetime::Frame)?;
+        let access = self.access_literal(dir::Access::Mutable)?;
+        let place = dir::PlaceResolution {
+            placement,
+            lifetime,
+            access,
+        };
+
+        self.project_place(origin, ty, ty, place)
     }
 
     /// Return one root storage place.
@@ -179,27 +219,23 @@ impl BodyState<'_, '_> {
         space: dir::Space,
         lifetime: dir::Lifetime,
     ) -> CompilerResult<dir::PlaceResolution> {
-        let placement = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Place(
-            dir::Place::Space(space),
-        )))?;
-        let lifetime =
-            self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(lifetime)))?;
+        let placement = self.place_literal(space)?;
+        let lifetime = self.lifetime_literal(lifetime)?;
 
         // owned storage stays unique even in shared space
         let exclusive = match space {
             dir::Space::Local => true,
+            dir::Space::Constant => false,
             dir::Space::Shared => {
                 let chain = self.form_chain(origin, ty)?;
 
                 self.form_ownership(origin, &chain)? == Some(dir::Ownership::Owned)
             }
         };
-        let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
-            match exclusive {
-                true => dir::Access::Exclusive,
-                false => dir::Access::Mutable,
-            },
-        )))?;
+        let access = match exclusive {
+            true => self.check.access_literal(dir::Access::Exclusive)?,
+            false => self.check.access_literal(dir::Access::Mutable)?,
+        };
         let place = dir::PlaceResolution {
             placement,
             lifetime,
@@ -268,12 +304,7 @@ impl BodyState<'_, '_> {
         let chain = self.check.form_chain(origin, qualifier)?;
 
         // project explicit placement
-        if let Some(placement) = chain.place()
-            && !matches!(
-                self.ty(placement)?,
-                dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Relative))
-            )
-        {
+        if let Some(placement) = chain.place() {
             place.placement = placement;
 
             // shared storage grants exclusivity only through unique ownership
@@ -282,23 +313,30 @@ impl BodyState<'_, '_> {
                 Some(dir::Form::Owned)
             );
             if self.place_space(placement)? == Some(dir::Space::Shared) && !is_owned {
-                place.access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
-                    dir::Access::Mutable,
-                )))?;
+                place.access = self.access_literal(dir::Access::Mutable)?;
             }
         }
 
-        // project borrow lifetime and access
+        // project borrow lifetime, access, and referent place across the indirection
         if let Some(form) = chain.ownership_form()
             && let dir::Form::Borrowed(borrow) = form.form
         {
             let borrow = self.check.type_borrow(qualifier.module_id, borrow)?;
-            place.lifetime = borrow.lifetime;
             place.access = borrow.access;
+            let region = self.check.shallow_resolve(borrow.region)?;
+            match self.check.ty(region)? {
+                dir::Type::Region(pair) => {
+                    place.lifetime = pair.extent;
+                    place.placement = pair.space;
+                }
+                // an opaque region carries its extent and space as one term
+                _ => {
+                    place.lifetime = borrow.region;
+                    place.placement = borrow.region;
+                }
+            }
         } else if chain.is_readonly() {
-            place.access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
-                dir::Access::Readonly,
-            )))?;
+            place.access = self.access_literal(dir::Access::Readonly)?;
         }
 
         // let the projected value qualify its storage view further
@@ -315,22 +353,13 @@ impl BodyState<'_, '_> {
         node: dir::GlobalNodeIdAny,
         place: dir::PlaceResolution,
     ) -> CompilerResult<()> {
-        if let Some(previous) = self.decisions(node.module_id).place_resolution(node) {
-            if previous == &place {
-                return Ok(());
-            }
-
-            // keep the first resolution of a matching placement
-            if previous.placement == place.placement {
-                return Ok(());
-            }
-
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "check node {} selected two places: previous = {previous:?}, new = {place:?}",
-                    self.node_label(node),
-                ),
-            });
+        // keep the first place a node committed
+        if self
+            .decisions(node.module_id)
+            .place_resolution(node)
+            .is_some()
+        {
+            return Ok(());
         }
 
         self.module_mut(node.module_id)
@@ -399,7 +428,8 @@ impl BodyState<'_, '_> {
                     ty: receiver,
                     ..receiver_value
                 };
-                // the receiver split its nullish arms above, leaving nothing for the subject to reject
+
+                // the receiver split its nullish arms above, so the subject rejects nothing here
                 let key = dir::StaticKey::Name(name);
                 let (subject, _) =
                     self.resolve_member_subject(origin, receiver_node, receiver, receiver)?;
@@ -421,7 +451,6 @@ impl BodyState<'_, '_> {
                 let write = dir::WriteResolution::Member(selection.write);
 
                 let target = self.assignment_target(
-                    origin,
                     read,
                     write,
                     source,
@@ -486,7 +515,6 @@ impl BodyState<'_, '_> {
                 };
 
                 let target = self.assignment_target(
-                    origin,
                     read,
                     write,
                     source,
@@ -542,7 +570,7 @@ impl BodyState<'_, '_> {
                     PlaceUse::Write | PlaceUse::Read => None,
                 };
 
-                // write the exclusive access a write through the pointer requires
+                // record the exclusive access a write through the pointer requires
                 let is_aliased = self.type_is_aliased(origin, receiver)?;
                 self.commit_required_access(receiver_node, dir::Access::Exclusive, is_aliased);
                 let write = dir::WriteResolution::Dereference(write);
@@ -579,7 +607,7 @@ impl BodyState<'_, '_> {
                     None
                 };
 
-                // read-only properties select no write resolution
+                // require a write access from the property
                 let Some(write) = field.write_access(receiver.ty, key) else {
                     return Ok(None);
                 };
@@ -591,6 +619,7 @@ impl BodyState<'_, '_> {
                 self.select_member_candidate_write(origin, receiver, key, use_, candidates)
             }
             MemberLookup::Union(lookups) => {
+                // select one exact place for every runtime arm
                 let mut reads = Vec::with_capacity(lookups.len());
                 let mut writes = Vec::with_capacity(lookups.len());
                 for arm in lookups {
@@ -622,6 +651,8 @@ impl BodyState<'_, '_> {
                     };
                     writes.push(write);
                 }
+
+                // accept a value every arm's write accepts, and read their union
                 let write_types = writes.iter().map(|write| write.ty).collect::<Vec<_>>();
                 let write_type = self.normalized_intersection_type(write_types)?;
                 let write = dir::OperationResolution::Union {
@@ -764,7 +795,6 @@ impl BodyState<'_, '_> {
     /// Build one write target with the stability its place requires.
     fn assignment_target(
         &mut self,
-        origin: Origin,
         read: Option<dir::ReadResolution>,
         write: dir::WriteResolution,
         source: dir::GlobalNodeIdAny,
@@ -775,7 +805,7 @@ impl BodyState<'_, '_> {
         let mode = if let Some(owner) = initializes {
             WriteMode::Initialize { owner }
         } else {
-            match self.access_literal(origin, place.access)? {
+            match self.access_of(place.access)? {
                 Some(dir::Access::Exclusive) => WriteMode::Direct,
                 Some(dir::Access::Mutable | dir::Access::Readonly) | None => {
                     WriteMode::Indirect { receiver }

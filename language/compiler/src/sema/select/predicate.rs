@@ -56,7 +56,7 @@ impl BodyState<'_, '_> {
         let value_site = self.visit_site(value_node)?;
         let value = self.predicate_operand_type(origin, value_site)?;
 
-        // reject failed target expressions without a second diagnostic
+        // reject a failed target expression, its own diagnostic stands
         if matches!(
             self.decision(target_node),
             Some(dir::Decision::Rejected | dir::Decision::Poisoned)
@@ -133,7 +133,7 @@ impl BodyState<'_, '_> {
             return Ok(None);
         }
 
-        // bare generic class targets are existential over their type arguments
+        // erase the type arguments of a bare generic class target
         let arguments = match arguments {
             Some(arguments) => arguments,
             None => self.instanceof_erased_arguments(module, symbol)?,
@@ -307,7 +307,7 @@ impl BodyState<'_, '_> {
             | dir::Type::Hole(_)
             | dir::Type::Rigid(_)
             | dir::Type::Key(_)
-            | dir::Type::Memory(_)
+            | dir::Type::Region(_)
             | dir::Type::Static(_)
             | dir::Type::Intrinsic
             | dir::Type::Parameter(_)
@@ -326,7 +326,7 @@ impl BodyState<'_, '_> {
         Ok(Some(predicate))
     }
 
-    /// Reduce a non-executable predicate from static source and target types.
+    /// Reduce one predicate decided by the static source and target types alone.
     fn static_predicate(
         &mut self,
         origin: Origin,
@@ -339,11 +339,11 @@ impl BodyState<'_, '_> {
         }
 
         match self.union_leaves(origin, value)? {
-            // unions can still test their known runtime arms, expanded to their leaves
+            // test the known runtime arms of a union, expanded to their leaves
             Some(elements) => {
                 let mut alternatives = Vec::with_capacity(elements.len());
                 for element in elements {
-                    // build no predicate for an undecided arm
+                    // give up the whole predicate on an undecided arm
                     let is_matched =
                         match self.decide_relation(origin, Relation::Satisfies, element, target)? {
                             Verdict::Holds => true,
@@ -397,7 +397,7 @@ impl BodyState<'_, '_> {
             return Ok(Some(predicate));
         }
 
-        // arms without a scalar tag still test by their type descriptor
+        // test the remaining arms by their type descriptor
         let predicate = match self.ty(ty)? {
             dir::Type::Object(_)
             | dir::Type::FunctionSignature(_)

@@ -1,7 +1,8 @@
 use destack_dir as dir;
 
 use crate::sema::{
-    CheckState, ObligationCheck, ObligationFailure, Origin, Verdict, WritableTargetObligation,
+    Cause, CauseKind, CheckState, ObligationCheck, ObligationFailure, Origin, Relation, Verdict,
+    WritableTargetObligation,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -69,7 +70,7 @@ impl CheckState<'_> {
             }
         };
 
-        // commit direct mutation below a binding without treating rebinding as interior mutation
+        // commit direct mutation below a binding, rebinding counts as its own write
         let mutates_direct_value = target.mode == WriteMode::Direct
             && !matches!(target.write, dir::WriteResolution::Binding { .. });
         if matches!(check, ObligationCheck::Holds) && mutates_direct_value {
@@ -232,7 +233,7 @@ impl CheckState<'_> {
         receiver: dir::GlobalTypeId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<ObligationCheck> {
-        // accept an exclusive receiver, which nothing observes mid-overwrite
+        // accept an exclusive receiver, only the writer sees the overwrite
         if self.is_exclusive_receiver(receiver)? {
             return Ok(ObligationCheck::holds());
         }
@@ -248,6 +249,18 @@ impl CheckState<'_> {
                 ));
             }
             Verdict::Fails => {}
+        }
+
+        // solve an open receiver place as local, which grants exclusivity
+        if let Some(place) = self.form_chain(origin, receiver)?.place() {
+            let place = self.shallow_resolve(place)?;
+            if matches!(self.ty(place)?, dir::Type::Variable(_)) {
+                let local = self.local_place()?;
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+                self.constrain_type(origin, cause, Relation::Equal, place, local)?;
+
+                return Ok(ObligationCheck::holds());
+            }
         }
 
         let failure = ObligationFailure::OverwriteStabilityNotSatisfied { source, ty };
@@ -268,7 +281,10 @@ impl CheckState<'_> {
                 dir::Form::Borrowed(borrow) => {
                     Some(self.type_borrow(receiver.module_id, borrow)?.access)
                 }
-                _ => None,
+                dir::Form::Managed { .. }
+                | dir::Form::Owned
+                | dir::Form::Readonly
+                | dir::Form::Raw => None,
             },
             _ => None,
         };
@@ -276,11 +292,8 @@ impl CheckState<'_> {
             return Ok(false);
         };
 
-        // exclusive access is the only access that excludes other readers
-        let is_exclusive = matches!(
-            self.ty(access)?,
-            dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Exclusive))
-        );
+        // report whether the borrow grants exclusive access
+        let is_exclusive = self.access_of(access)? == Some(dir::Access::Exclusive);
 
         Ok(is_exclusive)
     }
@@ -298,6 +311,7 @@ impl CheckState<'_> {
             return Ok(ObligationCheck::fail(failure));
         }
 
+        // read the binding the write names
         let input = self.module(symbol.module_id);
         let bindings = input.binding_table();
         let local_symbol = bindings.get_symbol(symbol.local_id);
@@ -398,7 +412,7 @@ impl CheckState<'_> {
         }
     }
 
-    /// Check one declaration-backed field write.
+    /// Check one field write backed by a declaration.
     fn check_writable_nominal_field(
         &mut self,
         source: dir::GlobalNodeIdAny,
@@ -491,6 +505,7 @@ impl CheckState<'_> {
             is_readonly |= !property.access.is_writable();
         }
 
+        // reject the write when any reached field is readonly
         if is_readonly {
             let failure = ObligationFailure::CannotAssignReadonlyMember {
                 source,

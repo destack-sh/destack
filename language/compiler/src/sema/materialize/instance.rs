@@ -37,7 +37,7 @@ impl CheckState<'_> {
                 message: "materialize runs over a checked module".to_string(),
             })?;
 
-        // seed from the module-level instantiations check recorded
+        // seed from the module level instantiations checking recorded
         for instantiation in checked.generics.iter_instantiations() {
             if instantiation.owner.is_none() {
                 let instantiation = instantiation.clone();
@@ -65,6 +65,7 @@ impl CheckState<'_> {
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // walk the type graph, stopping at the first computation
         let mut pending = vec![ty];
         let mut visited = FxIndexSet::default();
         while let Some(id) = pending.pop() {
@@ -127,7 +128,7 @@ impl CheckState<'_> {
         depth: u32,
         worklist: &mut InstanceWorklist,
     ) -> CompilerResult<()> {
-        // spellings that pair no instance stay open
+        // skip an application that pairs with no instance
         let Ok(substitution) = self.instance_substitution(module, application) else {
             return Ok(());
         };
@@ -153,26 +154,63 @@ impl CheckState<'_> {
             return Ok(id);
         }
 
-        // lifetime spellings all erase to one canonical literal
-        if self.written_argument_is_lifetime(id)? {
-            return self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(
-                dir::Lifetime::Frame,
-            )));
+        // lifetime terms all erase to one canonical literal
+        if self.memory_kind(id)? == Some(dir::MemoryParameter::Region) {
+            return self.lifetime_literal(dir::Lifetime::Frame);
         }
 
         visiting.push(id);
         let ty = self.ty(id)?;
-        let rebuilt =
-            self.map_type_children(id.module_id, self.module_id, ty, &mut |state, child| {
-                state.erase_argument_lifetimes(child, visiting)
-            })?;
+        let rebuilt = self.map_type_children(id.module_id, ty, &mut |state, child| {
+            state.erase_argument_lifetimes(child, visiting)
+        })?;
         visiting.pop();
 
         self.intern_type(rebuilt)
     }
 
-    /// Return whether one type mentions a non-lifetime parameter.
+    /// Return whether one type mentions an open type or place parameter.
+    /// Ground the induced place and space parameters one argument carries at local.
+    fn ground_induced_memory_argument(
+        &mut self,
+        argument: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // collect the induced place terms the argument reaches
+        let mut induced = Vec::new();
+        let mut pending = vec![argument];
+        let mut visited = FxIndexSet::default();
+        while let Some(id) = pending.pop() {
+            if !visited.insert(id) {
+                continue;
+            }
+
+            let kind = self.ty(id)?;
+            if let dir::Type::Parameter(parameter) = &kind
+                && self.generic_parameter(*parameter).is_some_and(|binding| {
+                    matches!(
+                        binding.induced_memory_parameter(),
+                        Some(dir::MemoryParameter::Place | dir::MemoryParameter::Space)
+                    )
+                })
+            {
+                induced.push(id);
+            }
+
+            self.for_each_type_child(id.module_id, &kind, |child| pending.push(child))?;
+        }
+
+        // replace each induced place term with the ambient local space
+        let mut argument = argument;
+        for from in induced {
+            let to = self.local_place()?;
+            argument = self.replace_type(argument.module_id, argument, from, to)?;
+        }
+
+        Ok(argument)
+    }
+
     fn has_open_parameter(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        // walk the type graph, stopping at the first open parameter
         let mut pending = vec![ty];
         let mut visited = FxIndexSet::default();
         while let Some(id) = pending.pop() {
@@ -224,6 +262,7 @@ impl CheckState<'_> {
 
             let argument = self.deeply_resolve(origin, binding.argument)?;
             let argument = self.erase_argument_lifetimes(argument, &mut Vec::new())?;
+            let argument = self.ground_induced_memory_argument(argument)?;
 
             // leave open instantiations to close under their enclosing instance
             let flags = self.type_flags(argument)?;
@@ -240,12 +279,12 @@ impl CheckState<'_> {
             ));
         }
 
-        // a selection without type arguments closes nothing
+        // require at least one type argument to close on
         if arguments.is_empty() {
             return Ok(());
         }
 
-        // partial selections stay open: an instance binds every declared parameter
+        // close unbound place parameters at local, dropping every other unbound selection
         if let Some(template_id) = self.symbol_template(template)?
             && let Some(declared) = self.generic_template(template_id)
         {
@@ -255,12 +294,29 @@ impl CheckState<'_> {
                 if self.is_lifetime_parameter(parameter) {
                     continue;
                 }
-                if !arguments
+                if arguments
                     .iter()
                     .any(|binding| binding.parameter == parameter)
                 {
-                    return Ok(());
+                    continue;
                 }
+
+                // close an unbound ambient place parameter at local
+                let is_place = self.generic_parameter(parameter).is_some_and(|binding| {
+                    matches!(
+                        binding.memory_parameter(),
+                        Some(dir::MemoryParameter::Place | dir::MemoryParameter::Space)
+                    )
+                });
+                if is_place {
+                    let local = self.local_place()?;
+                    arguments.push(dir::GenericArgumentBinding::new(parameter, local));
+
+                    continue;
+                }
+
+                // drop the selection at every other unbound parameter
+                return Ok(());
             }
         }
 
@@ -281,6 +337,7 @@ impl CheckState<'_> {
             return Ok(());
         }
 
+        // allocate and queue the new instance
         let instance = self.module.generics_tail.push_instance(dir::Instance {
             selection: dir::Selection::new(template, arguments),
             source,
@@ -329,7 +386,7 @@ impl CheckState<'_> {
             reached.push((instantiation.selection.symbol, arguments));
         }
 
-        // intern the ones that closed, one chain step deeper
+        // intern each substituted instantiation, one chain step deeper
         for (template, arguments) in reached {
             self.intern_instance(
                 template,
@@ -387,7 +444,7 @@ impl CheckState<'_> {
         member: dir::GlobalSymbolId,
         worklist: &mut InstanceWorklist,
     ) -> CompilerResult<()> {
-        // the receiver `this` denotes inside the body
+        // resolve what `this` denotes inside the body
         let receiver = match self.definition(owner)?.cloned() {
             Some(dir::Definition::Extension(extension)) => extension.target.r#type(),
             _ => self.intern_type(dir::Type::Application(dir::GenericApplication {
@@ -417,6 +474,7 @@ impl CheckState<'_> {
             return Ok(());
         };
         for node in nodes {
+            // rewrite the committed type
             let origin = Origin::Node(node, None);
             if let Some(ty) = self.committed_template_type(member.module_id, node) {
                 let resolved = self.materialize_member_type(origin, ty, &substitution, worklist)?;
@@ -425,6 +483,7 @@ impl CheckState<'_> {
                 }
             }
 
+            // rewrite the committed decision
             let decision = self.template_decision(member.module_id, node).cloned();
             if let Some(decision) =
                 self.materialize_member_payload(origin, decision, &substitution, worklist)?
@@ -432,6 +491,7 @@ impl CheckState<'_> {
                 self.module.decisions.set_decision(node, decision);
             }
 
+            // rewrite the committed place resolution
             let place = self.template_place(member.module_id, node).cloned();
             if let Some(place) =
                 self.materialize_member_payload(origin, place, &substitution, worklist)?
@@ -439,6 +499,7 @@ impl CheckState<'_> {
                 self.module.decisions.set_place_resolution(node, place);
             }
 
+            // rewrite the committed coercion
             let coercion = self.template_coercion(member.module_id, node).cloned();
             if let Some(coercion) =
                 self.materialize_member_payload(origin, coercion, &substitution, worklist)?
@@ -458,6 +519,7 @@ impl CheckState<'_> {
         substitution: &TypeSubstitution,
         worklist: &mut InstanceWorklist,
     ) -> CompilerResult<Option<T>> {
+        // leave an absent payload alone
         let Some(mut row) = row else {
             return Ok(None);
         };
@@ -482,12 +544,13 @@ impl CheckState<'_> {
         substitution: &TypeSubstitution,
         worklist: &mut InstanceWorklist,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // only receiver references move in a non-generic body
+        // move receiver references alone in a non generic body
         let flags = self.type_flags(ty)?;
         if !flags.has_this() {
             return Ok(ty);
         }
 
+        // substitute the receiver, evaluating any computation the result reaches
         let substituted = self.substitute_type(ty, substitution)?;
         let resolved = match self.has_reachable_computation(substituted)? {
             true => self.evaluate_type(origin, substituted)?,
@@ -560,6 +623,7 @@ impl CheckState<'_> {
         let member = declaration.local_id.try_into_typed::<dir::Member>().ok()?;
         let member_node = member.into_global_any(template.module_id);
 
+        // search the own module's definitions
         if self.is_own_module(template.module_id) {
             return self
                 .module
@@ -570,6 +634,7 @@ impl CheckState<'_> {
                 .map(|(owner, _)| owner);
         }
 
+        // otherwise search the loaded foreign module
         self.external_modules
             .get(&template.module_id)?
             .definitions
@@ -583,8 +648,9 @@ impl CheckState<'_> {
         &self,
         template: dir::GlobalSymbolId,
     ) -> CompilerResult<Vec<dir::Instantiation>> {
-        // read the own committed rows or the loaded foreign rows
         let owner = Some(template);
+
+        // read the committed rows of the own module
         if self.is_own_module(template.module_id) {
             let checked = self
                 .module
@@ -600,7 +666,9 @@ impl CheckState<'_> {
                 .filter(|instantiation| instantiation.owner == owner)
                 .cloned()
                 .collect())
-        } else {
+        }
+        // otherwise read the rows loaded from the foreign module
+        else {
             let external = self
                 .external_modules
                 .get(&template.module_id)
@@ -626,7 +694,7 @@ impl CheckState<'_> {
         depth: u32,
         worklist: &mut InstanceWorklist,
     ) -> CompilerResult<()> {
-        // materialize the member symbol types lower reads for layouts and slots
+        // materialize the member symbol types the lower stage reads for layouts and slots
         for member in definition.members() {
             let symbol = match member {
                 dir::DefinitionMember::Field(field) => Some(field.symbol),
@@ -647,6 +715,7 @@ impl CheckState<'_> {
             }
         }
 
+        // fold every type the definition carries
         let mut folded = definition;
         dir::TypeFold::map_types(&mut folded, &mut |ty| {
             self.materialize_instance_type(instance, origin, ty, substitution, depth, worklist)
@@ -670,7 +739,7 @@ impl CheckState<'_> {
             self.materialize_instance_type(instance, origin, ty, substitution, depth, worklist)?;
         }
 
-        // bodiless templates contribute no rows beyond their own
+        // stop at a bodiless template
         let Some(nodes) = self.template_body_nodes(template)? else {
             return Ok(());
         };
@@ -687,6 +756,7 @@ impl CheckState<'_> {
                     worklist,
                 )?;
             }
+
             self.materialize_instance_payloads(
                 instance,
                 origin,
@@ -712,7 +782,7 @@ impl CheckState<'_> {
         depth: u32,
         worklist: &mut InstanceWorklist,
     ) -> CompilerResult<()> {
-        // fold for the materialized types alone; instance reads keep the written payloads
+        // fold the committed decision, which records the materialized types alone
         let decision = self.template_decision(module, node).cloned();
         if let Some(mut decision) = decision {
             dir::TypeFold::map_types(&mut decision, &mut |ty| {
@@ -720,6 +790,7 @@ impl CheckState<'_> {
             })?;
         }
 
+        // fold the committed place resolution
         let place = self.template_place(module, node).cloned();
         if let Some(mut place) = place {
             dir::TypeFold::map_types(&mut place, &mut |ty| {
@@ -727,6 +798,7 @@ impl CheckState<'_> {
             })?;
         }
 
+        // fold the committed coercion
         let coercion = self.template_coercion(module, node).cloned();
         if let Some(mut coercion) = coercion {
             dir::TypeFold::map_types(&mut coercion, &mut |ty| {
@@ -811,7 +883,6 @@ impl CheckState<'_> {
 
         // collect every node in the body subtree
         let mut collector = BodyNodeCollector {
-            options: dir::NodeVisitorOptions::default(),
             module: template.module_id,
             nodes: Vec::new(),
         };
@@ -912,8 +983,6 @@ impl CheckState<'_> {
 
 /// Visitor collecting every node in one body subtree.
 struct BodyNodeCollector {
-    /// The visitor options.
-    options: dir::NodeVisitorOptions,
     /// The visited module.
     module: ModuleId,
     /// Every collected node, of any kind.
@@ -921,10 +990,6 @@ struct BodyNodeCollector {
 }
 
 impl dir::NodeVisitor for BodyNodeCollector {
-    fn options(&self) -> &dir::NodeVisitorOptions {
-        &self.options
-    }
-
     fn visit_any(&mut self, _tree: &dir::Tree, ty: dir::NodeType, id: u32) {
         self.nodes.push(dir::GlobalNodeIdAny {
             module_id: self.module,

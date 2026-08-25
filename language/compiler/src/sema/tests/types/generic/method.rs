@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// An extension method forwards to a free generic function of the same name.
 #[test]
 fn test_extension_method_forwards_to_free_generic_function() {
     let session = TestSession::single(
@@ -93,6 +94,7 @@ extension Arithmetic<T: Scalar> of T {
     );
 }
 
+/// An extension method on a generic struct forwards to an unbounded free generic function.
 #[test]
 fn test_extension_method_forwards_to_unbounded_free_generic_function() {
     let session = TestSession::single(
@@ -167,14 +169,14 @@ struct Pair<T> {
 extension Forward<T> of Pair<T> {
 /// @generic.template symbol=Forward parameters=(T#3)
 /// @definition.extension symbol=Forward form=local target=Pair<T#3>
-/// @definition.method symbol=Forward.choose slot=choose type=<Forward.choose.'a>(this: &Forward.choose.'a readonly this, Pair<T#3>) => Pair<T#3>
+/// @definition.method symbol=Forward.choose slot=choose type=<Forward.choose.'a, Forward.choose.P1: Place>(this: Borrowed<this, Forward.choose.'a & Forward.choose.P1, "readonly">, Pair<T#3>) => Pair<T#3>
 /// @type.symbol symbol=Forward.T source=T type=T#3
 /// @resolution.name source=Pair target=Pair
 /// @resolution.name source=T target=Forward.T
 
     choose(other: Pair<T>): Pair<T> {
-    /// @generic.template symbol=Forward.choose parent=template#2 parameters=('a)
-    /// @type.symbol symbol=Forward.choose type=<Forward.choose.'a>(this: &Forward.choose.'a readonly this, Pair<T#3>) => Pair<T#3>
+    /// @generic.template symbol=Forward.choose parent=template#2 parameters=('a, P1: Place)
+    /// @type.symbol symbol=Forward.choose type=<Forward.choose.'a, Forward.choose.P1: Place>(this: Borrowed<this, Forward.choose.'a & Forward.choose.P1, "readonly">, Pair<T#3>) => Pair<T#3>
     /// @type.symbol symbol=Forward.choose.other source="other: Pair<T>" type=Pair<T#3>
     /// @resolution.name source=Pair target=Pair
     /// @resolution.name source=T target=Forward.T
@@ -187,9 +189,9 @@ extension Forward<T> of Pair<T> {
         /// @resolution.name source=choose target=choose
         /// @resolution.call source="choose(this, other)" parameters=(<error>, <error>) arguments=(provided(this) as <error>, provided(other) as <error>) return=<error> kind=symbol target=choose instance=choose<<error>>
         /// @generic.instantiation id=choose<<error>> template=choose arguments=(<error>) owner=Forward.choose
-        /// @type.node source=this type=&Forward.choose.'a readonly Pair<T#3>
-        /// @resolution.receiver source=this kind=this declaration=Forward type=&Forward.choose.'a readonly Pair<T#3>
-        /// @resolution.place source=this placement="local" lifetime=Forward.choose.'a access="readonly"
+        /// @type.node source=this type=Borrowed<Pair<T#3>, Forward.choose.'a & Forward.choose.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=Forward type=Borrowed<Pair<T#3>, Forward.choose.'a & Forward.choose.P1, "readonly">
+        /// @resolution.place source=this placement=Forward.choose.P1 lifetime=Forward.choose.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @type.node source=other type=Pair<T#3>
         /// @resolution.name source=other target=Forward.choose.other
@@ -206,6 +208,7 @@ extension Forward<T> of Pair<T> {
     );
 }
 
+/// A method call infers its receiver lifetime from the borrowed argument.
 #[test]
 fn test_infer_method_receiver_lifetime_from_borrowed_argument() {
     let session = TestSession::single(
@@ -229,8 +232,10 @@ declare class Box<out T> {
     get(&readonly this): &readonly T;
 }
 
-function read<T, 'a>(source: &'a readonly Box<T>): &'a readonly T {
-    return source.get<T>();
+function read<T, 'a, P2: Place>(
+    source: Borrowed<Box<T>, 'a & P2, "readonly">,
+): Borrowed<T, 'a & P2, "readonly"> {
+    return source.get<T, P2>();
 }
 
 === dir ===
@@ -238,35 +243,36 @@ declare class Box<T> {
 /// @generic.template symbol=Box parameters=(out T#1)
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(out T#1)
-/// @definition.method symbol=Box.get source="get(&readonly this): &readonly T" slot=get type=<Box.get.'a>(this: &Box.get.'a readonly this) => &Box.get.'a readonly T#1
+/// @definition.method symbol=Box.get source="get(&readonly this): &readonly T" slot=get type=<Box.get.'a, Box.get.P1: Place>(this: Borrowed<this, Box.get.'a & Box.get.P1, "readonly">) => Borrowed<T#1, Box.get.'a & Box.get.P1, "readonly">
 /// @type.symbol symbol=Box.T source=T type=T#1
 
     get(&readonly this): &readonly T;
-    /// @generic.template symbol=Box.get parent=template#0 parameters=('a)
-    /// @type.symbol symbol=Box.get source="get(&readonly this): &readonly T" type=<Box.get.'a>(this: &Box.get.'a readonly this) => &Box.get.'a readonly T#1
-    /// @type.symbol symbol=Box.get.this source="&readonly this" type=&Box.get.'a readonly this
+    /// @generic.template symbol=Box.get parent=template#0 parameters=('a, P1: Place)
+    /// @type.symbol symbol=Box.get source="get(&readonly this): &readonly T" type=<Box.get.'a, Box.get.P1: Place>(this: Borrowed<this, Box.get.'a & Box.get.P1, "readonly">) => Borrowed<T#1, Box.get.'a & Box.get.P1, "readonly">
+    /// @type.symbol symbol=Box.get.this source="&readonly this" type=Borrowed<this, Box.get.'a & Box.get.P1, "readonly">
     /// @resolution.name source=T target=Box.T
 
 }
 
 function read<T>(source: &readonly Box<T>): &readonly T {
-/// @generic.template symbol=read parameters=(T#2, 'a)
-/// @type.symbol symbol=read type=<T#2, read.'a>(&read.'a readonly Box<T#2>) => &read.'a readonly T#2
+/// @generic.template symbol=read parameters=(T#2, 'a, P2: Place)
+/// @type.symbol symbol=read type=<T#2, read.'a, read.P2: Place>(Borrowed<Box<T#2>, read.'a & read.P2, "readonly">) => Borrowed<T#2, read.'a & read.P2, "readonly">
 /// @type.symbol symbol=read.T source=T type=T#2
-/// @type.symbol symbol=read.source source="source: &readonly Box<T>" type=&read.'a readonly Box<T#2>
+/// @type.symbol symbol=read.source source="source: &readonly Box<T>" type=Borrowed<Box<T#2>, read.'a & read.P2, "readonly">
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=read.T
 /// @resolution.name source=T target=read.T
 
     return source.get();
-    /// @type.node source=source type=&read.'a readonly Box<T#2>
-    /// @type.node source=source.get type=<Box.get.'a>(this: &Box.get.'a readonly Box<T#2>) => &Box.get.'a readonly T#2
-    /// @type.node source=source.get() type=&read.'a readonly T#2
+    /// @type.node source=source type=Borrowed<Box<T#2>, read.'a & read.P2, "readonly">
+    /// @type.node source=source.get type=<Box.get.'a, Box.get.P1: Place>(this: Borrowed<Box<T#2>, Box.get.'a & Box.get.P1, "readonly">) => Borrowed<T#2, Box.get.'a & Box.get.P1, "readonly">
+    /// @type.node source=source.get() type=Borrowed<T#2, read.'a & read.P2, "readonly">
     /// @resolution.name source=source target=read.source
-    /// @resolution.member source=source.get receiver=&read.'a readonly Box<T#2> type=<Box.get.'a>(this: &Box.get.'a readonly Box<T#2>) => &Box.get.'a readonly T#2 kind=symbol target_receiver=&read.'a readonly Box<T#2> target=Box.get
-    /// @resolution.call source=source.get() parameters=() return=&read.'a readonly T#2 kind=symbol target=Box.get receiver=&read.'a readonly Box<T#2> instance=Box<T#2>.get
-    /// @resolution.place source=source placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.member source=source.get receiver=Borrowed<Box<T#2>, read.'a & read.P2, "readonly"> type=<Box.get.'a, Box.get.P1: Place>(this: Borrowed<Box<T#2>, Box.get.'a & Box.get.P1, "readonly">) => Borrowed<T#2, Box.get.'a & Box.get.P1, "readonly"> kind=symbol target_receiver=Borrowed<Box<T#2>, read.'a & read.P2, "readonly"> target=Box.get
+    /// @resolution.call source=source.get() parameters=() return=Borrowed<T#2, read.'a & read.P2, "readonly"> kind=symbol target=Box.get receiver=Borrowed<Box<T#2>, read.'a & read.P2, "readonly"> instance=Box<T#2>.get<read.P2>
+    /// @resolution.place source=source placement=read.P2 lifetime=read.'a access="readonly"
     /// @resolution.access source=source root=read.source
+    /// @generic.instantiation id="Box.get<T#2, read.P2>" template=Box.get arguments=(T#2, read.P2) owner=read
     /// @generic.instantiation id=Box.get<T#2> template=Box.get arguments=(T#2) owner=read
 
 }

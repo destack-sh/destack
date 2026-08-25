@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A struct widens a subclass type argument to its base class.
 #[test]
 fn test_widen_a_subclass_type_argument_to_its_base_class() {
     let session = TestSession::single(
@@ -69,12 +70,13 @@ const shapes: Holder<Shape> = circles;
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=circles placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=circles root=circles
 "#,
     );
 }
 
+/// Widening a type argument into a union reports a diagnostic.
 #[test]
 fn test_reject_widening_a_type_argument_into_a_union() {
     let session = TestSession::single(
@@ -151,7 +153,7 @@ const either: Holder<Circle | Square> = circles;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=circles placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -163,6 +165,7 @@ const either: Holder<Circle | Square> = circles;
     );
 }
 
+/// Widening a literal type argument to its scalar reports a diagnostic.
 #[test]
 fn test_reject_widening_a_literal_type_argument() {
     let session = TestSession::single(
@@ -212,7 +215,7 @@ const wide: Holder<int32> = one;
 /// @resolution.pattern source=wide kind=binding target=wide
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=one target=one
-/// @resolution.place source=one placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=one placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=one root=one
 "#,
         r#"
@@ -224,6 +227,7 @@ const wide: Holder<int32> = one;
     );
 }
 
+/// Erasing a type argument to unknown reports a diagnostic.
 #[test]
 fn test_reject_erasing_a_type_argument_to_unknown() {
     let session = TestSession::single(
@@ -282,7 +286,7 @@ const opaque: Holder<unknown> = circles;
 /// @resolution.pattern source=opaque kind=binding target=opaque
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=circles placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -294,6 +298,7 @@ const opaque: Holder<unknown> = circles;
     );
 }
 
+/// Boxing a type argument into a dynamic reports a diagnostic.
 #[test]
 fn test_reject_boxing_a_type_argument_into_a_dynamic() {
     let session = TestSession::single(
@@ -360,10 +365,10 @@ const dynamic: Holder<Dynamic<Draw>> = circles;
 /// @type.symbol symbol=dynamic source=dynamic type=Holder<Dynamic<Draw>>
 /// @resolution.pattern source=dynamic kind=binding target=dynamic
 /// @resolution.name source=Holder target=Holder
-/// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
+/// @resolution.name source=Dynamic target=Dynamic
 /// @resolution.name source=Draw target=Draw
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=circles placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -375,6 +380,7 @@ const dynamic: Holder<Dynamic<Draw>> = circles;
     );
 }
 
+/// A function-typed argument widens its result to a base class.
 #[test]
 fn test_widen_a_function_result_inside_a_type_argument() {
     let session = TestSession::single(
@@ -444,12 +450,13 @@ const widened: Holder<() => Shape> = makers;
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=makers target=makers
-/// @resolution.place source=makers placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=makers placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=makers root=makers
 "#,
     );
 }
 
+/// Widening a function-typed argument's result into a union reports a diagnostic.
 #[test]
 fn test_reject_a_union_function_result_inside_a_type_argument() {
     let session = TestSession::single(
@@ -526,7 +533,7 @@ const either: Holder<() => Circle | Square> = makers;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=makers target=makers
-/// @resolution.place source=makers placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=makers placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=makers root=makers
 "#,
         r#"
@@ -538,6 +545,7 @@ const either: Holder<() => Circle | Square> = makers;
     );
 }
 
+/// A managed class keeps its type arguments invariant.
 #[test]
 fn test_managed_class_arguments_stay_invariant() {
     let session = TestSession::single(
@@ -617,6 +625,7 @@ const widened: Box<Shape> = boxed;
     );
 }
 
+/// An aliased class with only readonly fields widens its type argument.
 #[test]
 fn test_readonly_field_class_widens_under_aliasing() {
     let session = TestSession::single(
@@ -692,6 +701,7 @@ const widened: Label<Shape> = labeled;
     );
 }
 
+/// An owned handle to a field-only class widens its type argument.
 #[test]
 fn test_owned_handle_widens_field_only_class() {
     let session = TestSession::single(
@@ -761,12 +771,13 @@ const widened: ^Box<Shape> = boxed;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=boxed target=boxed
-/// @resolution.place source=boxed placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=boxed placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=boxed root=boxed
 "#,
     );
 }
 
+/// Widening an owned class with a method taking the parameter reports a diagnostic.
 #[test]
 fn test_reject_widening_an_owned_class_with_an_invariant_method() {
     let session = TestSession::single(
@@ -845,7 +856,7 @@ const widened: ^Pipe<Shape> = pipe;
 /// @resolution.name source=Pipe target=Pipe
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=pipe target=pipe
-/// @resolution.place source=pipe placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=pipe placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=pipe root=pipe
 "#,
         r#"
@@ -857,6 +868,7 @@ const widened: ^Pipe<Shape> = pipe;
     );
 }
 
+/// An aliased class stays invariant when an extension writes its parameter.
 #[test]
 fn test_extension_collection_stays_invariant_when_aliased() {
     let session = TestSession::single(
@@ -921,8 +933,8 @@ class Stack<T> {
     items: T[] = [];
     /// @type.symbol symbol=Stack.items source="items: T[] = []" type=T#1[]
     /// @resolution.name source=T target=Stack.T
-    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as T#1) return=T#1[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T#1>
-    /// @generic.instantiation id=collections.array.arrayFromSlice<T#1> template=collections.array.arrayFromSlice arguments=(T#1) owner=Stack
+    /// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as T#1) return=T#1[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#1>
+    /// @generic.instantiation id=arrayFromSlice<T#1> template=arrayFromSlice arguments=(T#1) owner=Stack
 
 }
 
@@ -947,8 +959,8 @@ extension<T> of Stack<T> {
         /// @resolution.pattern.assign source=this.items kind=place
         /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Stack<T#2>, target=field(receiver=Stack<T#2>, target=Stack.items, type=T#2[]), type=T#2[]" type=T#2[]
-        /// @resolution.call source=[value] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(value) as T#2) return=T#2[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T#2>
-        /// @generic.instantiation id=collections.array.arrayFromSlice<T#2> template=collections.array.arrayFromSlice arguments=(T#2) owner=refill
+        /// @resolution.call source=[value] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(value) as T#2) return=T#2[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#2>
+        /// @generic.instantiation id=arrayFromSlice<T#2> template=arrayFromSlice arguments=(T#2) owner=refill
         /// @resolution.name source=value target=refill.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=refill.value
@@ -980,6 +992,7 @@ const widened: Stack<Shape> = circles;
     );
 }
 
+/// A readonly view of that class widens its type argument.
 #[test]
 fn test_extension_collection_view_is_covariant() {
     let session = TestSession::single(
@@ -1044,8 +1057,8 @@ class Stack<T> {
     items: T[] = [];
     /// @type.symbol symbol=Stack.items source="items: T[] = []" type=T#1[]
     /// @resolution.name source=T target=Stack.T
-    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as T#1) return=T#1[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T#1>
-    /// @generic.instantiation id=collections.array.arrayFromSlice<T#1> template=collections.array.arrayFromSlice arguments=(T#1) owner=Stack
+    /// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as T#1) return=T#1[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#1>
+    /// @generic.instantiation id=arrayFromSlice<T#1> template=arrayFromSlice arguments=(T#1) owner=Stack
 
 }
 
@@ -1070,8 +1083,8 @@ extension<T> of Stack<T> {
         /// @resolution.pattern.assign source=this.items kind=place
         /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Stack<T#2>, target=field(receiver=Stack<T#2>, target=Stack.items, type=T#2[]), type=T#2[]" type=T#2[]
-        /// @resolution.call source=[value] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(value) as T#2) return=T#2[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T#2>
-        /// @generic.instantiation id=collections.array.arrayFromSlice<T#2> template=collections.array.arrayFromSlice arguments=(T#2) owner=refill
+        /// @resolution.call source=[value] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(value) as T#2) return=T#2[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#2>
+        /// @generic.instantiation id=arrayFromSlice<T#2> template=arrayFromSlice arguments=(T#2) owner=refill
         /// @resolution.name source=value target=refill.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=refill.value
@@ -1082,22 +1095,22 @@ extension<T> of Stack<T> {
 declare const circles: Stack<Circle>;
 /// @type.symbol symbol=circles source=circles type=Stack<Circle>
 /// @resolution.pattern source=circles kind=binding target=circles
-/// @generic.instance id=Array<Circle> template=collections.array.Array arguments=(Circle)
+/// @generic.instance id="arrayFromSlice<Circle, \"local\">" template=arrayFromSlice arguments=(Circle, "local")
+/// @generic.instance id=Array<Circle> template=Array arguments=(Circle)
+/// @generic.instance id=MaybeUninit<Circle> template=MaybeUninit arguments=(Circle)
 /// @generic.instance id=Stack<Circle> template=Stack arguments=(Circle)
-/// @generic.instance id=collections.array.arrayFromSlice<Circle> template=collections.array.arrayFromSlice arguments=(Circle)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<Circle>> template=collections.slice.new arguments=(memory.init.MaybeUninit<Circle>)
-/// @generic.instance id=memory.init.MaybeUninit<Circle> template=memory.init.MaybeUninit arguments=(Circle)
+/// @generic.instance id=new<MaybeUninit<Circle>> template=new arguments=(MaybeUninit<Circle>)
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Circle target=Circle
 
 const view: readonly Stack<Shape> = circles;
 /// @type.symbol symbol=view source=view type=Readonly<Stack<Shape>>
 /// @resolution.pattern source=view kind=binding target=view
-/// @generic.instance id=Array<Shape> template=collections.array.Array arguments=(Shape)
+/// @generic.instance id="arrayFromSlice<Shape, \"local\">" template=arrayFromSlice arguments=(Shape, "local")
+/// @generic.instance id=Array<Shape> template=Array arguments=(Shape)
+/// @generic.instance id=MaybeUninit<Shape> template=MaybeUninit arguments=(Shape)
 /// @generic.instance id=Stack<Shape> template=Stack arguments=(Shape)
-/// @generic.instance id=collections.array.arrayFromSlice<Shape> template=collections.array.arrayFromSlice arguments=(Shape)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<Shape>> template=collections.slice.new arguments=(memory.init.MaybeUninit<Shape>)
-/// @generic.instance id=memory.init.MaybeUninit<Shape> template=memory.init.MaybeUninit arguments=(Shape)
+/// @generic.instance id=new<MaybeUninit<Shape>> template=new arguments=(MaybeUninit<Shape>)
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
@@ -1107,6 +1120,7 @@ const view: readonly Stack<Shape> = circles;
     );
 }
 
+/// A method declared on the class keeps even a readonly view invariant.
 #[test]
 fn test_definition_method_blocks_view_covariance() {
     let session = TestSession::single(
@@ -1168,8 +1182,8 @@ class Bag<T> {
     items: T[] = [];
     /// @type.symbol symbol=Bag.items source="items: T[] = []" type=T[]
     /// @resolution.name source=T target=Bag.T
-    /// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as T) return=T[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T>
-    /// @generic.instantiation id=collections.array.arrayFromSlice<T> template=collections.array.arrayFromSlice arguments=(T) owner=Bag
+    /// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as T) return=T[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T>
+    /// @generic.instantiation id=arrayFromSlice<T> template=arrayFromSlice arguments=(T) owner=Bag
 
     refill(this, value: T): void {
     /// @type.symbol symbol=Bag.refill type=(this: this, T) => void
@@ -1184,8 +1198,8 @@ class Bag<T> {
         /// @resolution.pattern.assign source=this.items kind=place
         /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Bag<T>, target=field(receiver=Bag<T>, target=Bag.items, type=T[]), type=T[]" type=T[]
-        /// @resolution.call source=[value] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(value) as T) return=T[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<T>
-        /// @generic.instantiation id=collections.array.arrayFromSlice<T> template=collections.array.arrayFromSlice arguments=(T) owner=Bag.refill
+        /// @resolution.call source=[value] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(value) as T) return=T[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T>
+        /// @generic.instantiation id=arrayFromSlice<T> template=arrayFromSlice arguments=(T) owner=Bag.refill
         /// @resolution.name source=value target=Bag.refill.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=Bag.refill.value
@@ -1216,6 +1230,7 @@ const view: readonly Bag<Shape> = circles;
     );
 }
 
+/// An intrinsic newtype declared covariant widens its argument to a base class.
 #[test]
 fn test_widen_an_intrinsic_newtype_argument_to_a_base_class() {
     let session = TestSession::single(
@@ -1274,12 +1289,13 @@ const widened: Handle<Shape> = handle;
 /// @resolution.name source=Handle target=Handle
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=handle target=handle
-/// @resolution.place source=handle placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=handle placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=handle root=handle
 "#,
     );
 }
 
+/// Widening a covariant newtype argument into a union reports a diagnostic.
 #[test]
 fn test_reject_a_union_argument_on_an_intrinsic_newtype() {
     let session = TestSession::single(
@@ -1345,7 +1361,7 @@ const either: Handle<Circle | Square> = handle;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=handle target=handle
-/// @resolution.place source=handle placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=handle placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=handle root=handle
 "#,
         r#"
@@ -1357,6 +1373,7 @@ const either: Handle<Circle | Square> = handle;
     );
 }
 
+/// Widening a covariant newtype argument behind a managed handle reports a diagnostic.
 #[test]
 fn test_reject_widening_an_intrinsic_newtype_behind_a_handle() {
     let session = TestSession::single(
@@ -1381,8 +1398,8 @@ class Circle extends Shape {}
 
 newtype Handle<out T> = intrinsic;
 
-declare const handle: Managed<Handle<Circle>>;
-const widened: Managed<Handle<Shape>> = handle;
+declare const handle: local Handle<Circle>;
+const widened: local Handle<Shape> = handle;
 
 === dir ===
 class Shape {}
@@ -1402,16 +1419,16 @@ newtype Handle<out T> = intrinsic;
 /// @type.symbol symbol=Handle.T source="out T" type=T
 
 declare const handle: Managed<Handle<Circle>>;
-/// @type.symbol symbol=handle source=handle type=Managed<Handle<Circle>>
+/// @type.symbol symbol=handle source=handle type=local Handle<Circle>
 /// @resolution.pattern source=handle kind=binding target=handle
-/// @resolution.name source=Managed target=memory.managed.Managed
+/// @resolution.name source=Managed target=Managed
 /// @resolution.name source=Handle target=Handle
 /// @resolution.name source=Circle target=Circle
 
 const widened: Managed<Handle<Shape>> = handle;
-/// @type.symbol symbol=widened source=widened type=Managed<Handle<Shape>>
+/// @type.symbol symbol=widened source=widened type=local Handle<Shape>
 /// @resolution.pattern source=widened kind=binding target=widened
-/// @resolution.name source=Managed target=memory.managed.Managed
+/// @resolution.name source=Managed target=Managed
 /// @resolution.name source=Handle target=Handle
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=handle target=handle
@@ -1419,13 +1436,14 @@ const widened: Managed<Handle<Shape>> = handle;
 /// @resolution.access source=handle root=handle
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'Handle<Circle>' is not assignable to type 'Handle<Shape>'"
+/// @diagnostic.error id=not-assignable message="type 'local Handle<Circle>' is not assignable to type 'local Handle<Shape>'"
 /// @diagnostic.label line=8 column=41 span="handle" line_source="const widened: Managed<Handle<Shape>> = handle;"
 /// @diagnostic.related line=8 column=16 span="Managed" line_source="const widened: Managed<Handle<Shape>> = handle;" message="expected due to this annotation"
 "#,
     );
 }
 
+/// A readonly borrow widens its argument to a base class and rejects a union.
 #[test]
 fn test_widen_a_readonly_borrow_to_a_base_class_but_not_to_a_union() {
     let session = TestSession::single(
@@ -1498,26 +1516,26 @@ declare const holder: Holder<Circle>;
 /// @resolution.name source=Circle target=Circle
 
 const view: &readonly Holder<Shape> = &readonly holder;
-/// @type.symbol symbol=view source=view type=&'static readonly Holder<Shape>
+/// @type.symbol symbol=view source=view type=&'static readonly constant Holder<Shape>
 /// @resolution.pattern source=view kind=binding target=view
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=holder target=holder
-/// @resolution.place source=holder placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=holder placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=holder root=holder
 
 const either: &readonly Holder<Circle | Square> = &readonly holder;
-/// @type.symbol symbol=either source=either type=&'static readonly Holder<Circle | Square>
+/// @type.symbol symbol=either source=either type=&'static readonly constant Holder<Circle | Square>
 /// @resolution.pattern source=either kind=binding target=either
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=holder target=holder
-/// @resolution.place source=holder placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=holder placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=holder root=holder
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '&'static readonly Holder<Circle>' is not assignable to type '&'static readonly Holder<Circle | Square>'"
+/// @diagnostic.error id=not-assignable message="type '&'static readonly constant Holder<Circle>' is not assignable to type '&'static readonly constant Holder<Circle | Square>'"
 /// @diagnostic.label line=12 column=51 span="&readonly holder" line_source="const either: &readonly Holder<Circle | Square> = &readonly holder;"
 /// @diagnostic.related line=12 column=15 span="&" line_source="const either: &readonly Holder<Circle | Square> = &readonly holder;" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'Circle | Square', found 'Circle'"

@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Bind each field of an object pattern to its own name.
 #[test]
 fn test_object_pattern_binds_fields() {
     let session = TestSession::single(
@@ -55,6 +56,7 @@ y satisfies string;
     );
 }
 
+/// Check the value of an object pattern against its written annotation.
 #[test]
 fn test_object_pattern_checks_annotated_value() {
     let session = TestSession::single(
@@ -96,6 +98,7 @@ let { x }: { x: int32 } = source;
     );
 }
 
+/// Reject an object pattern over a primitive value.
 #[test]
 fn test_object_pattern_rejects_primitive_value() {
     let session = TestSession::single(
@@ -177,7 +180,7 @@ const result = match (state) {
 /// @resolution.pattern source=result kind=binding target=result
 /// @resolution.coverage exhaustive=true disjoint=false
 /// @resolution.name source=state target=state
-/// @resolution.place source=state placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=state placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=state root=state
 
     { inner: { kind: "a", value } } => value
@@ -293,7 +296,7 @@ const result = match (state) {
 /// @resolution.coverage exhaustive=true disjoint=false
 /// @type.node source=state type=Pending | Ready
 /// @resolution.name source=state target=state
-/// @resolution.place source=state placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=state placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=state root=state
 
     { kind: "pending", waiting } => waiting
@@ -414,7 +417,7 @@ const result = match (frame) {
 /// @resolution.coverage exhaustive=true disjoint=false
 /// @type.node source=frame type=Header | Trailer
 /// @resolution.name source=frame target=frame
-/// @resolution.place source=frame placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=frame placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=frame root=frame
 
     { version: 1, length } => length
@@ -579,7 +582,7 @@ const result = match (envelope) {
 /// @resolution.coverage exhaustive=true disjoint=false
 /// @type.node source=envelope type=Envelope
 /// @resolution.name source=envelope target=envelope
-/// @resolution.place source=envelope placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=envelope placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=envelope root=envelope
 
     { inner: { kind: "a", value } } => value
@@ -688,7 +691,7 @@ type State = Pending | Ready;
 /// @resolution.name source=Ready target=Ready
 
 declare const state: &readonly State;
-/// @type.symbol symbol=state source=state type=&'static readonly State
+/// @type.symbol symbol=state source=state type=&'static readonly constant State
 /// @resolution.pattern source=state kind=binding target=state
 /// @resolution.name source=State target=State
 
@@ -697,9 +700,9 @@ const result = match (state) {
 /// @resolution.pattern source=result kind=binding target=result
 /// @type.node type=int32
 /// @resolution.coverage exhaustive=true disjoint=false
-/// @type.node source=state type=&'static readonly State
+/// @type.node source=state type=&'static readonly constant State
 /// @resolution.name source=state target=state
-/// @resolution.place source=state placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=state placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=state root=state
 
     { kind: "pending", waiting } => waiting

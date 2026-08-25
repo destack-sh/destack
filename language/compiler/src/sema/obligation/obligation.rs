@@ -221,16 +221,16 @@ pub(in crate::sema) enum ObligationFailure {
         /// The supplied key type.
         key: dir::GlobalTypeId,
     },
-    /// A written placement conflicts with a nominal declaration's concrete space.
-    ConflictingDeclarationPlacement {
-        /// The written placed type expression.
+    /// A written placement contradicts the placement its type already carries.
+    ConflictingPlacement {
+        /// The written type's source.
         source: dir::GlobalNodeIdAny,
-        /// The nominal declaration with intrinsic placement.
-        symbol: dir::GlobalSymbolId,
-        /// The written space.
+        /// The outer written space.
         written: dir::Space,
-        /// The declaration's effective space.
+        /// The space the type already carries.
         declared: dir::Space,
+        /// The nominal declaring the space, when a declaration carries it.
+        declaration: Option<dir::GlobalSymbolId>,
     },
     /// A value cannot be assigned to an imported binding.
     CannotAssignImportedBinding {
@@ -680,6 +680,7 @@ impl CheckState<'_> {
         id: CheckId,
         entry: &ObligationEntry,
     ) -> CompilerResult<Option<SmallVec<[dir::TypeVariableId; 2]>>> {
+        // check the obligation under its assuming scope
         let origin = Origin::Node(entry.obligation.source(), entry.scope);
         let check = self.check_obligation(origin, &entry.obligation)?;
 
@@ -688,10 +689,11 @@ impl CheckState<'_> {
             return Ok(Some(stalls));
         }
 
-        // report every failure the check produced, then record the result
+        // report every failure the check produced
         for failure in check.into_failures() {
             self.report_obligation_failure(failure)?;
         }
+        // record the check as finished
         self.record_check_event(id, true)?;
 
         Ok(None)
@@ -708,6 +710,7 @@ impl CheckState<'_> {
             return Ok(ObligationCheck::holds());
         }
 
+        // dispatch to the checker each obligation names
         match obligation {
             Obligation::PatternCoverage(obligation) => {
                 self.check_pattern_coverage(origin, obligation)
@@ -746,6 +749,7 @@ impl CheckState<'_> {
             }
         };
 
+        // check the coverage shape this site declares
         match &obligation.coverage {
             PatternCoverage::Match { arms } => {
                 self.check_match_exhaustive(origin, obligation.source, value, arms)
@@ -778,7 +782,7 @@ impl CheckState<'_> {
             return Ok(ObligationCheck::Ambiguous(stalls));
         }
 
-        // mismatched endpoints join into a union element
+        // spot disagreeing endpoints by the union they unify into
         let element = self.shallow_resolve(obligation.element)?;
         if !matches!(self.ty(element)?, dir::Type::Union(_)) {
             return Ok(ObligationCheck::holds());
@@ -798,6 +802,7 @@ impl CheckState<'_> {
         origin: Origin,
         obligation: &ForInSourceObligation,
     ) -> CompilerResult<ObligationCheck> {
+        // hold for a source exposing string keys
         if self.is_keyed_type(origin, obligation.ty)? {
             return Ok(ObligationCheck::holds());
         }

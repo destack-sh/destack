@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A let array widens its element literals.
 #[test]
 fn test_widen_element_literals_in_a_let_array() {
     let session = TestSession::single(
@@ -21,13 +22,13 @@ const first: int64 = values[0];
 let values = [1, 2];
 /// @type.symbol symbol=values source=values type=int64[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
-/// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
+/// @generic.instance id=Array<int64> template=Array arguments=(int64)
+/// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
+/// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
 /// @type.node source=[1, 2] type=int64[]
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
-/// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
+/// @resolution.call source=[1, 2] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+/// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
+/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
@@ -40,16 +41,17 @@ const first = values[0];
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=int64 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static int64, \"exclusive\">)"
-/// @generic.instantiation id="collections.array.index#1<int64, \"exclusive\">" template=collections.array.index#1 arguments=(int64, "exclusive")
-/// @generic.instance id="collections.array.index#1<int64, \"exclusive\">" template=collections.array.index#1 arguments=(int64, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame int64, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int64, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame int64[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int64[], "exclusive")
+/// @resolution.subscript source=values[0] type=int64 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static int64, \"exclusive\">)"
+/// @generic.instantiation id="index#1<int64, \"exclusive\", \"local\">" template=index#1 arguments=(int64, "exclusive", "local")
+/// @generic.instance id="WithAccess<&'frame int64, \"exclusive\">" template=WithAccess arguments=(&'frame int64, "exclusive")
+/// @generic.instance id="WithAccess<&'frame int64[], \"exclusive\">" template=WithAccess arguments=(&'frame int64[], "exclusive")
+/// @generic.instance id="index#1<int64, \"exclusive\", \"local\">" template=index#1 arguments=(int64, "exclusive", "local")
 /// @type.node source=0 type=0
 "#,
     );
 }
 
+/// A contextual array keeps the union element type its annotation states.
 #[test]
 fn test_preserve_a_union_element_type_in_a_contextual_array() {
     let session = TestSession::single(
@@ -71,13 +73,13 @@ const first: 1 | 2 = values[0];
 const values: (1 | 2)[] = [1, 2];
 /// @type.symbol symbol=values source=values type=1 | 2[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id="Array<1 | 2>" template=collections.array.Array arguments=(1 | 2)
-/// @generic.instance id="collections.slice.new<memory.init.MaybeUninit<1 | 2>>" template=collections.slice.new arguments=(memory.init.MaybeUninit<1 | 2>)
-/// @generic.instance id="memory.init.MaybeUninit<1 | 2>" template=memory.init.MaybeUninit arguments=(1 | 2)
+/// @generic.instance id="Array<1 | 2>" template=Array arguments=(1 | 2)
+/// @generic.instance id="MaybeUninit<1 | 2>" template=MaybeUninit arguments=(1 | 2)
+/// @generic.instance id="new<MaybeUninit<1 | 2>>" template=new arguments=(MaybeUninit<1 | 2>)
 /// @type.node source=[1, 2] type=1 | 2[]
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as 1 | 2) return=1 | 2[] kind=symbol target=collections.array.arrayFromSlice instance="collections.array.arrayFromSlice<1 | 2>"
-/// @generic.instantiation id="collections.array.arrayFromSlice<1 | 2>" template=collections.array.arrayFromSlice arguments=(1 | 2)
-/// @generic.instance id="collections.array.arrayFromSlice<1 | 2>" template=collections.array.arrayFromSlice arguments=(1 | 2)
+/// @resolution.call source=[1, 2] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2) as 1 | 2) return=1 | 2[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<1 | 2>"
+/// @generic.instantiation id="arrayFromSlice<1 | 2>" template=arrayFromSlice arguments=(1 | 2)
+/// @generic.instance id="arrayFromSlice<1 | 2, \"local\">" template=arrayFromSlice arguments=(1 | 2, "local")
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
@@ -90,16 +92,17 @@ const first = values[0];
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=1 | 2 kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static 1 | 2, \"exclusive\">)"
-/// @generic.instantiation id="collections.array.index#1<1 | 2, \"exclusive\">" template=collections.array.index#1 arguments=(1 | 2, "exclusive")
-/// @generic.instance id="collections.array.index#1<1 | 2, \"exclusive\">" template=collections.array.index#1 arguments=(1 | 2, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame 1 | 2, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame 1 | 2, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame 1 | 2[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame 1 | 2[], "exclusive")
+/// @resolution.subscript source=values[0] type=1 | 2 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static 1 | 2, \"exclusive\">)"
+/// @generic.instantiation id="index#1<1 | 2, \"exclusive\", \"local\">" template=index#1 arguments=(1 | 2, "exclusive", "local")
+/// @generic.instance id="WithAccess<&'frame 1 | 2, \"exclusive\">" template=WithAccess arguments=(&'frame 1 | 2, "exclusive")
+/// @generic.instance id="WithAccess<&'frame 1 | 2[], \"exclusive\">" template=WithAccess arguments=(&'frame 1 | 2[], "exclusive")
+/// @generic.instance id="index#1<1 | 2, \"exclusive\", \"local\">" template=index#1 arguments=(1 | 2, "exclusive", "local")
 /// @type.node source=0 type=0
 "#,
     );
 }
 
+/// A literal contextually typed by a mixed union coerces to one arm.
 #[test]
 fn test_require_coercion_for_a_contextual_literal_in_a_mixed_union() {
     let session = TestSession::single(
@@ -128,6 +131,7 @@ const value: number | boolean = 1;
     );
 }
 
+/// A union coercion records the adjustment each arm takes.
 #[test]
 fn test_record_case_adjustments_for_a_union_coercion() {
     let session = TestSession::single(
@@ -177,6 +181,7 @@ function widen(value: 1 | Flag): int32 | Flag {
     );
 }
 
+/// A union of literals coerces to one common target type.
 #[test]
 fn test_coerce_union_members_to_a_common_target() {
     let session = TestSession::single(
@@ -216,6 +221,7 @@ function widen(value: 1 | 2): int32 {
     );
 }
 
+/// A const binding keeps the literal union a conditional produces.
 #[test]
 fn test_preserve_a_literal_union_in_a_const_conditional() {
     let session = TestSession::single(
@@ -247,6 +253,7 @@ const value = true ? 1 : 2;
     );
 }
 
+/// A let binding widens the literal union a conditional produces.
 #[test]
 fn test_widen_a_literal_union_in_a_let_conditional() {
     let session = TestSession::single(

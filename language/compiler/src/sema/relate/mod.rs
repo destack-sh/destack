@@ -8,6 +8,7 @@ mod immutable;
 mod interface;
 mod nominal;
 mod overlap;
+mod region;
 mod relate;
 mod shape;
 mod template;

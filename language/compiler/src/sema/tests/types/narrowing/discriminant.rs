@@ -245,6 +245,7 @@ function read<T>(state: State<T>): T {
 "#);
 }
 
+/// An equality test on a getter leaves a later read of it unnarrowed.
 #[test]
 fn test_getter_equality_does_not_narrow_later_read() {
     let session = TestSession::single(
@@ -322,6 +323,7 @@ function read(source: Source): "ready" {
     );
 }
 
+/// An equality test on an index place narrows a later read of it.
 #[test]
 fn test_index_place_equality_narrows_later_read() {
     let session = TestSession::single(
@@ -361,8 +363,8 @@ function read(values: ("pending" | "ready")[]): "ready" {
     /// @resolution.access source=values root=read.values
     /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values[0] root=read.values keys=[0]
-    /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
-    /// @generic.instantiation id="collections.array.index#1<\"pending\" | \"ready\", \"exclusive\">" template=collections.array.index#1 arguments=("pending" | "ready", "exclusive")
+    /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
+    /// @generic.instantiation id="index#1<\"pending\" | \"ready\", \"exclusive\", \"local\">" template=index#1 arguments=("pending" | "ready", "exclusive", "local")
 
         return values[0];
         /// @resolution.name source=values target=read.values
@@ -370,7 +372,7 @@ function read(values: ("pending" | "ready")[]): "ready" {
         /// @resolution.access source=values root=read.values
         /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=values[0] root=read.values keys=[0]
-        /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
+        /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
 
     }
 
@@ -383,6 +385,7 @@ function read(values: ("pending" | "ready")[]): "ready" {
     );
 }
 
+/// An equality test on a discriminant member narrows the union holding it.
 #[test]
 fn test_member_equality_narrows_parent_union() {
     let session = TestSession::single(
@@ -514,6 +517,7 @@ function read(state: State): int32 {
     );
 }
 
+/// A static index equality test narrows the union holding the discriminant.
 #[test]
 fn test_static_index_equality_narrows_parent_union() {
     let session = TestSession::single(
@@ -646,6 +650,7 @@ function read(state: State): int32 {
     );
 }
 
+/// An assignment to the binding clears the narrowing of its discriminant member.
 #[test]
 fn test_assignment_clears_member_discriminant_narrowing() {
     let session = TestSession::single(
@@ -806,6 +811,7 @@ function read(initial: State, next: State): int32 {
     );
 }
 
+/// An early return narrows a member discriminant for the statements after it.
 #[test]
 fn test_early_return_narrows_a_member_discriminant() {
     let session = TestSession::single(
@@ -844,7 +850,7 @@ class Cell<T> {
         value;
     }
 
-    poke(waiter: Waiter<T>): void {
+    poke(&exclusive this, waiter: Waiter<T>): void {
         if (this.state.kind == "fulfilled") {
             this.consume(this.state.value);
             return;
@@ -871,7 +877,7 @@ class Waiter<in out T> {
     value: T;
     next: Waiter<T> | undefined;
 
-    constructor(value: T): this {
+    constructor(value: T) {
         this.value = value;
         this.next = undefined as Waiter<T> | undefined;
     }
@@ -893,7 +899,7 @@ type State<T> = Pending<T> | Fulfilled<T>;
 class Cell<in out T> {
     state: State<T>;
 
-    constructor(pending: Pending<T>): this {
+    constructor(pending: Pending<T>) {
         this.state = pending as State<T>;
     }
 
@@ -901,9 +907,9 @@ class Cell<in out T> {
         value;
     }
 
-    poke(waiter: Waiter<T>): void {
+    poke(&exclusive this, waiter: Waiter<T>): void {
         if (this.state.kind == "fulfilled") {
-            this.consume<T>(this.state.value);
+            this.consume<T, P1>(this.state.value);
             return;
         }
 
@@ -924,7 +930,7 @@ class Waiter<T> {
 /// @definition.class symbol=Waiter template=(in out T#1)
 /// @definition.field symbol=Waiter.next source="next: Waiter<T> | undefined" key=next type=Waiter<T#1> | undefined
 /// @definition.field symbol=Waiter.value source="value: T" key=value type=T#1
-/// @definition.method symbol=Waiter.constructor slot=constructor role=constructor type=(T#1) => this
+/// @definition.method symbol=Waiter.constructor slot=constructor role=constructor type=<Waiter.constructor.P0: Place>(T#1) => Managed<this, Waiter.constructor.P0>
 /// @type.symbol symbol=Waiter.T source=T type=T#1
 
     value: T;
@@ -937,7 +943,8 @@ class Waiter<T> {
     /// @resolution.name source=T target=Waiter.T
 
     constructor(value: T) {
-    /// @type.symbol symbol=Waiter.constructor type=(T#1) => this
+    /// @generic.template symbol=Waiter.constructor parent=template#0 parameters=(P0: Place)
+    /// @type.symbol symbol=Waiter.constructor type=<Waiter.constructor.P0: Place>(T#1) => Managed<this, Waiter.constructor.P0>
     /// @type.symbol symbol=Waiter.constructor.value source="value: T" type=T#1
     /// @resolution.name source=T target=Waiter.T
 
@@ -1019,9 +1026,9 @@ class Cell<T> {
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.class symbol=Cell template=(in out T#5)
 /// @definition.field symbol=Cell.state source="state: State<T>" key=state type=State<T#5>
-/// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=(Pending<T#5>) => this
-/// @definition.method symbol=Cell.consume slot=consume type=(this: this, T#5) => void
-/// @definition.method symbol=Cell.poke slot=poke type=(this: this, Waiter<T#5>) => void
+/// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=<Cell.constructor.P0: Place>(Pending<T#5>) => Managed<this, Cell.constructor.P0>
+/// @definition.method symbol=Cell.consume slot=consume type=<Cell.consume.P0: Place>(this: Managed<this, Cell.consume.P0>, T#5) => void
+/// @definition.method symbol=Cell.poke slot=poke type=<Cell.poke.'a, Cell.poke.P1: Place>(this: Borrowed<this, Cell.poke.'a & Cell.poke.P1, "exclusive">, Waiter<T#5>) => void
 /// @type.symbol symbol=Cell.T source=T type=T#5
 
     state: State<T>;
@@ -1030,7 +1037,8 @@ class Cell<T> {
     /// @resolution.name source=T target=Cell.T
 
     constructor(pending: Pending<T>) {
-    /// @type.symbol symbol=Cell.constructor type=(Pending<T#5>) => this
+    /// @generic.template symbol=Cell.constructor parent=template#4 parameters=(P0: Place)
+    /// @type.symbol symbol=Cell.constructor type=<Cell.constructor.P0: Place>(Pending<T#5>) => Managed<this, Cell.constructor.P0>
     /// @type.symbol symbol=Cell.constructor.pending source="pending: Pending<T>" type=Pending<T#5>
     /// @resolution.name source=Pending target=Pending
     /// @resolution.name source=T target=Cell.T
@@ -1049,7 +1057,8 @@ class Cell<T> {
     }
 
     consume(value: T): void {
-    /// @type.symbol symbol=Cell.consume type=(this: this, T#5) => void
+    /// @generic.template symbol=Cell.consume parent=template#4 parameters=(P0: Place)
+    /// @type.symbol symbol=Cell.consume type=<Cell.consume.P0: Place>(this: Managed<this, Cell.consume.P0>, T#5) => void
     /// @type.symbol symbol=Cell.consume.value source="value: T" type=T#5
     /// @resolution.name source=T target=Cell.T
 
@@ -1060,62 +1069,65 @@ class Cell<T> {
 
     }
 
-    poke(waiter: Waiter<T>): void {
-    /// @type.symbol symbol=Cell.poke type=(this: this, Waiter<T#5>) => void
+    poke(&exclusive this, waiter: Waiter<T>): void {
+    /// @generic.template symbol=Cell.poke parent=template#4 parameters=('a, P1: Place)
+    /// @type.symbol symbol=Cell.poke type=<Cell.poke.'a, Cell.poke.P1: Place>(this: Borrowed<this, Cell.poke.'a & Cell.poke.P1, "exclusive">, Waiter<T#5>) => void
+    /// @type.symbol symbol=Cell.poke.this source="&exclusive this" type=Borrowed<this, Cell.poke.'a & Cell.poke.P1, "exclusive">
     /// @type.symbol symbol=Cell.poke.waiter source="waiter: Waiter<T>" type=Waiter<T#5>
     /// @resolution.name source=Waiter target=Waiter
     /// @resolution.name source=T target=Cell.T
 
         if (this.state.kind == "fulfilled") {
-        /// @resolution.member source=this.state receiver=Cell<T#5> type=State<T#5> kind=field target_receiver=Cell<T#5> key=state target=Cell.state target_type=State<T#5>
-        /// @resolution.member source=this.state.kind receiver=State<T#5> type="pending" | "fulfilled" kind=projection target="discriminant(State<T#5>, kind, cases=[Pending<T#5>: pending, Fulfilled<T#5>: fulfilled], \"pending\" | \"fulfilled\")"
+        /// @resolution.member source=this.state receiver=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> type=State<T#5> kind=field target_receiver=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> key=state target=Cell.state target_type=State<T#5>
+        /// @resolution.member source=this.state.kind receiver=State<T#5> type="pending" | "fulfilled" kind=projection target="discriminant(Pending<T#5> | Fulfilled<T#5>, kind, cases=[Pending<T#5>: pending, Fulfilled<T#5>: fulfilled], \"pending\" | \"fulfilled\")"
         /// @resolution.operator source="this.state.kind == \"fulfilled\"" type=boolean operator="==" kind=builtin operands=[this.state.kind as "pending" | "fulfilled" families=(string), "fulfilled" as "fulfilled" families=(string)]
-        /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T#5>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.receiver source=this kind=this declaration=Cell type=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive">
+        /// @resolution.place source=this placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.state placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.state placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
         /// @resolution.access source=this.state root=this keys=[state]
-        /// @resolution.place source=this.state.kind placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.state.kind placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
         /// @resolution.access source=this.state.kind root=this keys=[state, kind]
 
             this.consume(this.state.value);
-            /// @resolution.member source=this.consume receiver=Cell<T#5> type=(this: Cell<T#5>, T#5) => void kind=symbol target_receiver=Cell<T#5> target=Cell.consume
-            /// @resolution.call source=this.consume(this.state.value) parameters=(T#5) arguments=(provided(this.state.value) as T#5) return=void kind=symbol target=Cell.consume receiver=Cell<T#5> instance=Cell<T#5>.consume
-            /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T#5>
-            /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.member source=this.consume receiver=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> type=<Cell.consume.P0: Place>(this: Managed<Cell<T#5>, Cell.consume.P0>, T#5) => void kind=symbol target_receiver=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> target=Cell.consume
+            /// @resolution.call source=this.consume(this.state.value) parameters=(T#5) arguments=(provided(this.state.value) as T#5) return=void kind=symbol target=Cell.consume receiver=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> adjustments=(Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> => direct -> Managed<Cell<T#5>, Cell.poke.P1>) instance=Cell<T#5>.consume<Cell.poke.P1>
+            /// @resolution.receiver source=this kind=this declaration=Cell type=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive">
+            /// @resolution.place source=this placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this root=this
+            /// @generic.instantiation id="Cell.consume<T#5, Cell.poke.P1>" template=Cell.consume arguments=(T#5, Cell.poke.P1) owner=Cell.poke
             /// @generic.instantiation id=Cell.consume<T#5> template=Cell.consume arguments=(T#5) owner=Cell.poke
-            /// @resolution.member source=this.state receiver=Cell<T#5> type=State<T#5> kind=field target_receiver=Cell<T#5> key=state target=Cell.state target_type=State<T#5>
+            /// @resolution.member source=this.state receiver=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> type=State<T#5> kind=field target_receiver=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> key=state target=Cell.state target_type=State<T#5>
             /// @resolution.member source=this.state.value receiver=Fulfilled<T#5> type=T#5 kind=field target_receiver=Fulfilled<T#5> key=value target=Fulfilled.value target_type=T#5
-            /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T#5>
-            /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.receiver source=this kind=this declaration=Cell type=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive">
+            /// @resolution.place source=this placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this root=this
-            /// @resolution.place source=this.state placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=this.state placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this.state root=this keys=[state]
-            /// @resolution.place source=this.state.value placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=this.state.value placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this.state.value root=this keys=[state, value]
 
             return;
         }
 
         if (this.state.tail == undefined) {
-        /// @resolution.member source=this.state receiver=Cell<T#5> type=State<T#5> kind=field target_receiver=Cell<T#5> key=state target=Cell.state target_type=State<T#5>
+        /// @resolution.member source=this.state receiver=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> type=State<T#5> kind=field target_receiver=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> key=state target=Cell.state target_type=State<T#5>
         /// @resolution.member source=this.state.tail receiver=Pending<T#5> type=Waiter<T#5> | undefined kind=field target_receiver=Pending<T#5> key=tail target=Pending.tail target_type=Waiter<T#5> | undefined
         /// @resolution.operator source="this.state.tail == undefined" type=boolean operator="==" kind=builtin operands=[this.state.tail as Waiter<T#5> | undefined, undefined as undefined families=(undefined)]
-        /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T#5>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.receiver source=this kind=this declaration=Cell type=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive">
+        /// @resolution.place source=this placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.state placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.state placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
         /// @resolution.access source=this.state root=this keys=[state]
-        /// @resolution.place source=this.state.tail placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.state.tail placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
         /// @resolution.access source=this.state.tail root=this keys=[state, tail]
 
             this.state.head = waiter;
-            /// @resolution.member source=this.state receiver=Cell<T#5> type=State<T#5> kind=field target_receiver=Cell<T#5> key=state target=Cell.state target_type=State<T#5>
-            /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T#5>
-            /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.member source=this.state receiver=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> type=State<T#5> kind=field target_receiver=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> key=state target=Cell.state target_type=State<T#5>
+            /// @resolution.receiver source=this kind=this declaration=Cell type=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive">
+            /// @resolution.place source=this placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this root=this
-            /// @resolution.place source=this.state placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=this.state placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this.state root=this keys=[state]
             /// @resolution.pattern.assign source=this.state.head kind=place
             /// @resolution.access source=this.state.head root=this keys=[state, head]
@@ -1125,11 +1137,11 @@ class Cell<T> {
             /// @resolution.access source=waiter root=Cell.poke.waiter
 
             this.state.tail = waiter;
-            /// @resolution.member source=this.state receiver=Cell<T#5> type=State<T#5> kind=field target_receiver=Cell<T#5> key=state target=Cell.state target_type=State<T#5>
-            /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T#5>
-            /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.member source=this.state receiver=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> type=State<T#5> kind=field target_receiver=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> key=state target=Cell.state target_type=State<T#5>
+            /// @resolution.receiver source=this kind=this declaration=Cell type=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive">
+            /// @resolution.place source=this placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this root=this
-            /// @resolution.place source=this.state placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=this.state placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this.state root=this keys=[state]
             /// @resolution.pattern.assign source=this.state.tail kind=place
             /// @resolution.access source=this.state.tail root=this keys=[state, tail]
@@ -1140,14 +1152,14 @@ class Cell<T> {
 
         } else {
             this.state.tail.next = waiter;
-            /// @resolution.member source=this.state receiver=Cell<T#5> type=State<T#5> kind=field target_receiver=Cell<T#5> key=state target=Cell.state target_type=State<T#5>
+            /// @resolution.member source=this.state receiver=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> type=State<T#5> kind=field target_receiver=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> key=state target=Cell.state target_type=State<T#5>
             /// @resolution.member source=this.state.tail receiver=Pending<T#5> type=Waiter<T#5> | undefined kind=field target_receiver=Pending<T#5> key=tail target=Pending.tail target_type=Waiter<T#5> | undefined
-            /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T#5>
-            /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.receiver source=this kind=this declaration=Cell type=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive">
+            /// @resolution.place source=this placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this root=this
-            /// @resolution.place source=this.state placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=this.state placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this.state root=this keys=[state]
-            /// @resolution.place source=this.state.tail placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=this.state.tail placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this.state.tail root=this keys=[state, tail]
             /// @resolution.pattern.assign source=this.state.tail.next kind=place
             /// @resolution.access source=this.state.tail.next root=this keys=[state, tail, next]
@@ -1157,11 +1169,11 @@ class Cell<T> {
             /// @resolution.access source=waiter root=Cell.poke.waiter
 
             this.state.tail = waiter;
-            /// @resolution.member source=this.state receiver=Cell<T#5> type=State<T#5> kind=field target_receiver=Cell<T#5> key=state target=Cell.state target_type=State<T#5>
-            /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T#5>
-            /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.member source=this.state receiver=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> type=State<T#5> kind=field target_receiver=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive"> key=state target=Cell.state target_type=State<T#5>
+            /// @resolution.receiver source=this kind=this declaration=Cell type=Borrowed<Cell<T#5>, Cell.poke.'a & Cell.poke.P1, "exclusive">
+            /// @resolution.place source=this placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this root=this
-            /// @resolution.place source=this.state placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=this.state placement=Cell.poke.P1 lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this.state root=this keys=[state]
             /// @resolution.pattern.assign source=this.state.tail kind=place
             /// @resolution.access source=this.state.tail root=this keys=[state, tail]
@@ -1177,6 +1189,7 @@ class Cell<T> {
     );
 }
 
+/// A super member narrows and loses that narrowing once it is assigned.
 #[test]
 fn test_narrow_a_super_member_and_clear_it_on_assignment() {
     let session = TestSession::single(
@@ -1239,11 +1252,12 @@ class Child extends Base {
 /// @type.symbol symbol=Child type=Child
 /// @definition.class symbol=Child
 /// @definition.extends symbol=Child source=Base target=Base
-/// @definition.method symbol=Child.read slot=read type=(this: Child, string | undefined) => string | undefined
+/// @definition.method symbol=Child.read slot=read type=<Child.read.P0: Place>(this: Managed<Child, Child.read.P0>, string | undefined) => string | undefined
 /// @resolution.name source=Base target=Base
 
     read(next: string | undefined): string | undefined {
-    /// @type.symbol symbol=Child.read type=(this: Child, string | undefined) => string | undefined
+    /// @generic.template symbol=Child.read parameters=(P0: Place)
+    /// @type.symbol symbol=Child.read type=<Child.read.P0: Place>(this: Managed<Child, Child.read.P0>, string | undefined) => string | undefined
     /// @type.symbol symbol=Child.read.next source="next: string | undefined" type=string | undefined
 
         if (super.label == undefined) {
@@ -1298,6 +1312,7 @@ class Child extends Base {
     );
 }
 
+/// A narrowed member reads the same through this and through super.
 #[test]
 fn test_share_a_narrowed_member_across_this_and_super() {
     let session = TestSession::single(
@@ -1357,20 +1372,21 @@ class Child extends Base {
 /// @type.symbol symbol=Child type=Child
 /// @definition.class symbol=Child
 /// @definition.extends symbol=Child source=Base target=Base
-/// @definition.method symbol=Child.read slot=read type=(this: Child, string | undefined) => string | undefined
+/// @definition.method symbol=Child.read slot=read type=<Child.read.P0: Place>(this: Managed<Child, Child.read.P0>, string | undefined) => string | undefined
 /// @resolution.name source=Base target=Base
 
     read(next: string | undefined): string | undefined {
-    /// @type.symbol symbol=Child.read type=(this: Child, string | undefined) => string | undefined
+    /// @generic.template symbol=Child.read parameters=(P0: Place)
+    /// @type.symbol symbol=Child.read type=<Child.read.P0: Place>(this: Managed<Child, Child.read.P0>, string | undefined) => string | undefined
     /// @type.symbol symbol=Child.read.next source="next: string | undefined" type=string | undefined
 
         if (this.label == undefined) {
-        /// @resolution.member source=this.label receiver=Child type=string | undefined kind=field target_receiver=Child key=label target=Base.label target_type=string | undefined
+        /// @resolution.member source=this.label receiver=Managed<Child, Child.read.P0> type=string | undefined kind=field target_receiver=Managed<Child, Child.read.P0> key=label target=Base.label target_type=string | undefined
         /// @resolution.operator source="this.label == undefined" type=boolean operator="==" kind=builtin operands=[this.label as string | undefined families=(string | undefined), undefined as undefined families=(undefined)]
-        /// @resolution.receiver source=this kind=this declaration=Child type=Child
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.receiver source=this kind=this declaration=Child type=Managed<Child, Child.read.P0>
+        /// @resolution.place source=this placement=Child.read.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.label placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.label placement=Child.read.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this.label root=this keys=[label]
 
             return undefined;
@@ -1399,9 +1415,9 @@ class Child extends Base {
         const cleared = this.label;
         /// @type.symbol symbol=Child.read.cleared source=cleared type=string | undefined
         /// @resolution.pattern source=cleared kind=binding target=Child.read.cleared
-        /// @resolution.member source=this.label receiver=Child type=string | undefined kind=field target_receiver=Child key=label target=Base.label target_type=string | undefined
-        /// @resolution.receiver source=this kind=this declaration=Child type=Child
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.member source=this.label receiver=Managed<Child, Child.read.P0> type=string | undefined kind=field target_receiver=Managed<Child, Child.read.P0> key=label target=Base.label target_type=string | undefined
+        /// @resolution.receiver source=this kind=this declaration=Child type=Managed<Child, Child.read.P0>
+        /// @resolution.place source=this placement=Child.read.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.access source=this.label root=this keys=[label]
 
@@ -1415,6 +1431,7 @@ class Child extends Base {
 "#);
 }
 
+/// A narrowed member reads the same through this and through super inside a closure.
 #[test]
 fn test_share_a_narrowed_member_across_this_and_super_in_a_closure() {
     let session = TestSession::single(
@@ -1478,11 +1495,12 @@ class Child extends Base {
 /// @type.symbol symbol=Child type=Child
 /// @definition.class symbol=Child
 /// @definition.extends symbol=Child source=Base target=Base
-/// @definition.method symbol=Child.read slot=read type=(this: Child, string | undefined) => Function<(), string | undefined>
+/// @definition.method symbol=Child.read slot=read type=<Child.read.P0: Place>(this: Managed<Child, Child.read.P0>, string | undefined) => Function<(), string | undefined>
 /// @resolution.name source=Base target=Base
 
     read(next: string | undefined): () => string | undefined {
-    /// @type.symbol symbol=Child.read type=(this: Child, string | undefined) => Function<(), string | undefined>
+    /// @generic.template symbol=Child.read parameters=(P0: Place)
+    /// @type.symbol symbol=Child.read type=<Child.read.P0: Place>(this: Managed<Child, Child.read.P0>, string | undefined) => Function<(), string | undefined>
     /// @type.symbol symbol=Child.read.next source="next: string | undefined" type=string | undefined
 
         return () => {
@@ -1490,12 +1508,12 @@ class Child extends Base {
 
             if (this.label == undefined) {
             /// @resolution.name source=this target=Child.read.this
-            /// @resolution.member source=this.label receiver=Child type=string | undefined kind=field target_receiver=Child key=label target=Base.label target_type=string | undefined
+            /// @resolution.member source=this.label receiver=Managed<Child, Child.read.P0> type=string | undefined kind=field target_receiver=Managed<Child, Child.read.P0> key=label target=Base.label target_type=string | undefined
             /// @resolution.operator source="this.label == undefined" type=boolean operator="==" kind=builtin operands=[this.label as string | undefined families=(string | undefined), undefined as undefined families=(undefined)]
-            /// @resolution.receiver source=this kind=this declaration=Child type=Child
-            /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.receiver source=this kind=this declaration=Child type=Managed<Child, Child.read.P0>
+            /// @resolution.place source=this placement=Child.read.P0 lifetime="frame" access="mutable"
             /// @resolution.access source=this root=this
-            /// @resolution.place source=this.label placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=this.label placement=Child.read.P0 lifetime="frame" access="mutable"
             /// @resolution.access source=this.label root=this keys=[label]
 
                 return undefined;
@@ -1525,9 +1543,9 @@ class Child extends Base {
             /// @type.symbol symbol=Child.read.symbol8.cleared source=cleared type=string | undefined
             /// @resolution.pattern source=cleared kind=binding target=Child.read.symbol8.cleared
             /// @resolution.name source=this target=Child.read.this
-            /// @resolution.member source=this.label receiver=Child type=string | undefined kind=field target_receiver=Child key=label target=Base.label target_type=string | undefined
-            /// @resolution.receiver source=this kind=this declaration=Child type=Child
-            /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.member source=this.label receiver=Managed<Child, Child.read.P0> type=string | undefined kind=field target_receiver=Managed<Child, Child.read.P0> key=label target=Base.label target_type=string | undefined
+            /// @resolution.receiver source=this kind=this declaration=Child type=Managed<Child, Child.read.P0>
+            /// @resolution.place source=this placement=Child.read.P0 lifetime="frame" access="mutable"
             /// @resolution.access source=this root=this
             /// @resolution.access source=this.label root=this keys=[label]
 
@@ -1542,6 +1560,7 @@ class Child extends Base {
 "#);
 }
 
+/// A member narrows through a function declaring an explicit this parameter.
 #[test]
 fn test_narrow_a_member_through_an_explicit_this_parameter() {
     let session = TestSession::single(
@@ -1655,7 +1674,7 @@ struct Ready {
 
 newtype State = Pending | Ready;
 
-function read<'a>(state: &'a readonly State): int32 {
+function read<'a, P1: Place>(state: Borrowed<State, 'a & P1, "readonly">): int32 {
     if (
         (state.kind as readonly "pending" | readonly "ready" | "ready")
             === ("ready" as readonly "pending" | readonly "ready" | "ready")
@@ -1704,44 +1723,44 @@ newtype State = Pending | Ready;
 /// @resolution.name source=Ready target=Ready
 
 function read(state: &readonly State): int32 {
-/// @generic.template symbol=read parameters=('a)
-/// @type.symbol symbol=read type=<read.'a>(&read.'a readonly State) => int32
-/// @type.symbol symbol=read.state source="state: &readonly State" type=&read.'a readonly State
+/// @generic.template symbol=read parameters=('a, P1: Place)
+/// @type.symbol symbol=read type=<read.'a, read.P1: Place>(Borrowed<State, read.'a & read.P1, "readonly">) => int32
+/// @type.symbol symbol=read.state source="state: &readonly State" type=Borrowed<State, read.'a & read.P1, "readonly">
 /// @resolution.name source=State target=State
 
     if (state.kind === "ready") {
     /// @type.node source="state.kind === \"ready\"" type=boolean
-    /// @type.node source=state type=&read.'a readonly State
+    /// @type.node source=state type=Borrowed<State, read.'a & read.P1, "readonly">
     /// @type.node source=state.kind type=Readonly<"pending"> | Readonly<"ready">
     /// @resolution.name source=state target=read.state
-    /// @resolution.member source=state.kind receiver=&read.'a readonly State type=Readonly<"pending"> | Readonly<"ready"> kind=projection target="discriminant(Pending | Ready, kind, cases=[Pending: pending, Ready: ready], Readonly<\"pending\"> | Readonly<\"ready\">)" adjustments=(newtype.payload(State, &read.'a readonly Pending | Ready))
+    /// @resolution.member source=state.kind receiver=Borrowed<State, read.'a & read.P1, "readonly"> type=Readonly<"pending"> | Readonly<"ready"> kind=projection target="discriminant(Pending | Ready, kind, cases=[Pending: pending, Ready: ready], Readonly<\"pending\"> | Readonly<\"ready\">)" adjustments=(newtype.payload(State, Borrowed<Pending | Ready, read.'a & read.P1, "readonly">))
     /// @resolution.operator source="state.kind === \"ready\"" type=boolean operator="===" kind=builtin operands=[state.kind as Readonly<"pending"> | Readonly<"ready"> | "ready", "ready" as Readonly<"pending"> | Readonly<"ready"> | "ready"]
-    /// @resolution.place source=state placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.place source=state placement=read.P1 lifetime=read.'a access="readonly"
     /// @resolution.access source=state root=read.state
-    /// @resolution.place source=state.kind placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.place source=state.kind placement=read.P1 lifetime=read.'a access="readonly"
     /// @resolution.access source=state.kind root=read.state keys=[kind]
     /// @type.node source="\"ready\"" type="ready"
 
         return state.value;
-        /// @type.node source=state type=&read.'a readonly State & Ready
+        /// @type.node source=state type=Borrowed<State & Ready, read.'a & read.P1, "readonly">
         /// @type.node source=state.value type=int32
         /// @resolution.name source=state target=read.state
-        /// @resolution.member source=state.value receiver=&read.'a readonly State & Ready type=int32 kind=field target_receiver=&read.'a readonly State & Ready adjustments=(newtype.payload(State, &read.'a readonly Pending | Ready), union.payload(Pending | Ready, Ready, &read.'a readonly Ready)) key=value target=Ready.value target_type=int32
-        /// @resolution.place source=state placement="local" lifetime=read.'a access="readonly"
+        /// @resolution.member source=state.value receiver=Borrowed<State & Ready, read.'a & read.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<State & Ready, read.'a & read.P1, "readonly"> adjustments=(newtype.payload(State, Borrowed<Pending | Ready, read.'a & read.P1, "readonly">), union.payload(Pending | Ready, Ready, Borrowed<Ready, read.'a & read.P1, "readonly">)) key=value target=Ready.value target_type=int32
+        /// @resolution.place source=state placement=read.P1 lifetime=read.'a access="readonly"
         /// @resolution.access source=state root=read.state
-        /// @resolution.place source=state.value placement="local" lifetime=read.'a access="readonly"
+        /// @resolution.place source=state.value placement=read.P1 lifetime=read.'a access="readonly"
         /// @resolution.access source=state.value root=read.state keys=[value]
 
     }
 
     return state.waiting;
-    /// @type.node source=state type=&read.'a readonly State & Pending
+    /// @type.node source=state type=Borrowed<State & Pending, read.'a & read.P1, "readonly">
     /// @type.node source=state.waiting type=int32
     /// @resolution.name source=state target=read.state
-    /// @resolution.member source=state.waiting receiver=&read.'a readonly State & Pending type=int32 kind=field target_receiver=&read.'a readonly State & Pending adjustments=(newtype.payload(State, &read.'a readonly Pending | Ready), union.payload(Pending | Ready, Pending, &read.'a readonly Pending)) key=waiting target=Pending.waiting target_type=int32
-    /// @resolution.place source=state placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.member source=state.waiting receiver=Borrowed<State & Pending, read.'a & read.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<State & Pending, read.'a & read.P1, "readonly"> adjustments=(newtype.payload(State, Borrowed<Pending | Ready, read.'a & read.P1, "readonly">), union.payload(Pending | Ready, Pending, Borrowed<Pending, read.'a & read.P1, "readonly">)) key=waiting target=Pending.waiting target_type=int32
+    /// @resolution.place source=state placement=read.P1 lifetime=read.'a access="readonly"
     /// @resolution.access source=state root=read.state
-    /// @resolution.place source=state.waiting placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.place source=state.waiting placement=read.P1 lifetime=read.'a access="readonly"
     /// @resolution.access source=state.waiting root=read.state keys=[waiting]
 
 }
@@ -2306,7 +2325,7 @@ struct Ready {
 
 type State = Pending | Ready;
 
-function read<'a>(state: &'a readonly State): int32 {
+function read<'a, P1: Place>(state: Borrowed<State, 'a & P1, "readonly">): int32 {
     if (
         (state.kind as readonly "pending" | readonly "ready" | "ready")
             === ("ready" as readonly "pending" | readonly "ready" | "ready")
@@ -2353,44 +2372,44 @@ type State = Pending | Ready;
 /// @resolution.name source=Ready target=Ready
 
 function read(state: &readonly State): int32 {
-/// @generic.template symbol=read parameters=('a)
-/// @type.symbol symbol=read type=<read.'a>(&read.'a readonly State) => int32
-/// @type.symbol symbol=read.state source="state: &readonly State" type=&read.'a readonly State
+/// @generic.template symbol=read parameters=('a, P1: Place)
+/// @type.symbol symbol=read type=<read.'a, read.P1: Place>(Borrowed<State, read.'a & read.P1, "readonly">) => int32
+/// @type.symbol symbol=read.state source="state: &readonly State" type=Borrowed<State, read.'a & read.P1, "readonly">
 /// @resolution.name source=State target=State
 
     if (state.kind === "ready") {
     /// @type.node source="state.kind === \"ready\"" type=boolean
-    /// @type.node source=state type=&read.'a readonly State
+    /// @type.node source=state type=Borrowed<State, read.'a & read.P1, "readonly">
     /// @type.node source=state.kind type=Readonly<"pending"> | Readonly<"ready">
     /// @resolution.name source=state target=read.state
-    /// @resolution.member source=state.kind receiver=&read.'a readonly State type=Readonly<"pending"> | Readonly<"ready"> kind=projection target="discriminant(State, kind, cases=[Pending: pending, Ready: ready], Readonly<\"pending\"> | Readonly<\"ready\">)"
+    /// @resolution.member source=state.kind receiver=Borrowed<State, read.'a & read.P1, "readonly"> type=Readonly<"pending"> | Readonly<"ready"> kind=projection target="discriminant(Pending | Ready, kind, cases=[Pending: pending, Ready: ready], Readonly<\"pending\"> | Readonly<\"ready\">)"
     /// @resolution.operator source="state.kind === \"ready\"" type=boolean operator="===" kind=builtin operands=[state.kind as Readonly<"pending"> | Readonly<"ready"> | "ready", "ready" as Readonly<"pending"> | Readonly<"ready"> | "ready"]
-    /// @resolution.place source=state placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.place source=state placement=read.P1 lifetime=read.'a access="readonly"
     /// @resolution.access source=state root=read.state
-    /// @resolution.place source=state.kind placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.place source=state.kind placement=read.P1 lifetime=read.'a access="readonly"
     /// @resolution.access source=state.kind root=read.state keys=[kind]
     /// @type.node source="\"ready\"" type="ready"
 
         return state.value;
-        /// @type.node source=state type=&read.'a readonly Ready
+        /// @type.node source=state type=Borrowed<Ready, read.'a & read.P1, "readonly">
         /// @type.node source=state.value type=int32
         /// @resolution.name source=state target=read.state
-        /// @resolution.member source=state.value receiver=&read.'a readonly Ready type=int32 kind=field target_receiver=&read.'a readonly Ready key=value target=Ready.value target_type=int32
-        /// @resolution.place source=state placement="local" lifetime=read.'a access="readonly"
+        /// @resolution.member source=state.value receiver=Borrowed<Ready, read.'a & read.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Ready, read.'a & read.P1, "readonly"> key=value target=Ready.value target_type=int32
+        /// @resolution.place source=state placement=read.P1 lifetime=read.'a access="readonly"
         /// @resolution.access source=state root=read.state
-        /// @resolution.place source=state.value placement="local" lifetime=read.'a access="readonly"
+        /// @resolution.place source=state.value placement=read.P1 lifetime=read.'a access="readonly"
         /// @resolution.access source=state.value root=read.state keys=[value]
 
     }
 
     return state.waiting;
-    /// @type.node source=state type=&read.'a readonly Pending
+    /// @type.node source=state type=Borrowed<Pending, read.'a & read.P1, "readonly">
     /// @type.node source=state.waiting type=int32
     /// @resolution.name source=state target=read.state
-    /// @resolution.member source=state.waiting receiver=&read.'a readonly Pending type=int32 kind=field target_receiver=&read.'a readonly Pending key=waiting target=Pending.waiting target_type=int32
-    /// @resolution.place source=state placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.member source=state.waiting receiver=Borrowed<Pending, read.'a & read.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Pending, read.'a & read.P1, "readonly"> key=waiting target=Pending.waiting target_type=int32
+    /// @resolution.place source=state placement=read.P1 lifetime=read.'a access="readonly"
     /// @resolution.access source=state root=read.state
-    /// @resolution.place source=state.waiting placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.place source=state.waiting placement=read.P1 lifetime=read.'a access="readonly"
     /// @resolution.access source=state.waiting root=read.state keys=[waiting]
 
 }
@@ -2525,6 +2544,7 @@ function read(state: State): int32 {
 "#);
 }
 
+/// A kind check on a borrowed newtype exposes the field of the arm it keeps.
 #[test]
 fn test_read_a_field_of_the_arm_a_borrowed_newtype_keeps_after_a_kind_check() {
     let session = TestSession::single(
@@ -2568,7 +2588,7 @@ struct Square {
 
 newtype Shape = Circle | Square;
 
-function radius<'a>(shape: &'a readonly Shape): float64 {
+function radius<'a, P1: Place>(shape: Borrowed<Shape, 'a & P1, "readonly">): float64 {
     if (
         (shape.kind as readonly "circle" | readonly "square" | "circle")
             !== ("circle" as readonly "circle" | readonly "square" | "circle")
@@ -2615,18 +2635,18 @@ newtype Shape = Circle | Square;
 /// @resolution.name source=Square target=Square
 
 function radius(shape: &readonly Shape): float64 {
-/// @generic.template symbol=radius parameters=('a)
-/// @type.symbol symbol=radius type=<radius.'a>(&radius.'a readonly Shape) => float64
-/// @type.symbol symbol=radius.shape source="shape: &readonly Shape" type=&radius.'a readonly Shape
+/// @generic.template symbol=radius parameters=('a, P1: Place)
+/// @type.symbol symbol=radius type=<radius.'a, radius.P1: Place>(Borrowed<Shape, radius.'a & radius.P1, "readonly">) => float64
+/// @type.symbol symbol=radius.shape source="shape: &readonly Shape" type=Borrowed<Shape, radius.'a & radius.P1, "readonly">
 /// @resolution.name source=Shape target=Shape
 
     if (shape.kind !== "circle") {
     /// @resolution.name source=shape target=radius.shape
-    /// @resolution.member source=shape.kind receiver=&radius.'a readonly Shape type=Readonly<"circle"> | Readonly<"square"> kind=projection target="discriminant(Circle | Square, kind, cases=[Circle: circle, Square: square], Readonly<\"circle\"> | Readonly<\"square\">)" adjustments=(newtype.payload(Shape, &radius.'a readonly Circle | Square))
+    /// @resolution.member source=shape.kind receiver=Borrowed<Shape, radius.'a & radius.P1, "readonly"> type=Readonly<"circle"> | Readonly<"square"> kind=projection target="discriminant(Circle | Square, kind, cases=[Circle: circle, Square: square], Readonly<\"circle\"> | Readonly<\"square\">)" adjustments=(newtype.payload(Shape, Borrowed<Circle | Square, radius.'a & radius.P1, "readonly">))
     /// @resolution.operator source="shape.kind !== \"circle\"" type=boolean operator="!==" kind=builtin operands=[shape.kind as Readonly<"circle"> | Readonly<"square"> | "circle", "circle" as Readonly<"circle"> | Readonly<"square"> | "circle"]
-    /// @resolution.place source=shape placement="local" lifetime=radius.'a access="readonly"
+    /// @resolution.place source=shape placement=radius.P1 lifetime=radius.'a access="readonly"
     /// @resolution.access source=shape root=radius.shape
-    /// @resolution.place source=shape.kind placement="local" lifetime=radius.'a access="readonly"
+    /// @resolution.place source=shape.kind placement=radius.P1 lifetime=radius.'a access="readonly"
     /// @resolution.access source=shape.kind root=radius.shape keys=[kind]
 
         return 0.0;
@@ -2634,15 +2654,16 @@ function radius(shape: &readonly Shape): float64 {
 
     return shape.radius;
     /// @resolution.name source=shape target=radius.shape
-    /// @resolution.member source=shape.radius receiver=&radius.'a readonly Shape & Circle type=float64 kind=field target_receiver=&radius.'a readonly Shape & Circle adjustments=(newtype.payload(Shape, &radius.'a readonly Circle | Square), union.payload(Circle | Square, Circle, &radius.'a readonly Circle)) key=radius target=Circle.radius target_type=float64
-    /// @resolution.place source=shape placement="local" lifetime=radius.'a access="readonly"
+    /// @resolution.member source=shape.radius receiver=Borrowed<Shape & Circle, radius.'a & radius.P1, "readonly"> type=float64 kind=field target_receiver=Borrowed<Shape & Circle, radius.'a & radius.P1, "readonly"> adjustments=(newtype.payload(Shape, Borrowed<Circle | Square, radius.'a & radius.P1, "readonly">), union.payload(Circle | Square, Circle, Borrowed<Circle, radius.'a & radius.P1, "readonly">)) key=radius target=Circle.radius target_type=float64
+    /// @resolution.place source=shape placement=radius.P1 lifetime=radius.'a access="readonly"
     /// @resolution.access source=shape root=radius.shape
-    /// @resolution.place source=shape.radius placement="local" lifetime=radius.'a access="readonly"
+    /// @resolution.place source=shape.radius placement=radius.P1 lifetime=radius.'a access="readonly"
     /// @resolution.access source=shape.radius root=radius.shape keys=[radius]
 
 }
 "#,
         r#"
+
 "#,
     );
 }

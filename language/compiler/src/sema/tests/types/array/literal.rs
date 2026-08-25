@@ -19,12 +19,12 @@ let values: int64[] = [1, 2];
 let values = [1, 2];
 /// @type.symbol symbol=values source=values type=int64[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
-/// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
-/// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
+/// @generic.instance id=Array<int64> template=Array arguments=(int64)
+/// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
+/// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
+/// @resolution.call source=[1, 2] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+/// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
+/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
 "#,
     );
 }
@@ -48,12 +48,12 @@ const values: int32[] = [1, 2];
 const values: int32[] = [1, 2];
 /// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
-/// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
-/// @generic.instance id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
+/// @resolution.call source=[1, 2] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+/// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
+/// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
 "#,
     );
 }
@@ -71,40 +71,46 @@ const first = [1].iterator().next();
         DirRows::checked(),
         r#"
 === annotated ===
-const first: IteratorResult<int64, Iterator<int64>.Return> = [1].iterator<int64>().next<int64>();
+const first: IteratorResult<int64, Iterator<int64>.Return> = [1].iterator<int64, "local">()
+    .next<int64>();
 
 === dir ===
 const first = [1].iterator().next();
-/// @type.symbol symbol=first source=first type=iter.iterator.IteratorResult<int64, iter.iterator.Iterator<int64>.Return>
+/// @type.symbol symbol=first source=first type=IteratorResult<int64, Iterator<int64>.Return>
 /// @resolution.pattern source=first kind=binding target=first
-/// @generic.instance id="iter.iterator.DropIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.DropIterator arguments=(iter.iterator.Iterator<int64>, int64)
-/// @generic.instance id="iter.iterator.DropWhileIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.DropWhileIterator arguments=(iter.iterator.Iterator<int64>, int64)
-/// @generic.instance id="iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.EnumeratedIterator arguments=(iter.iterator.Iterator<int64>, int64)
-/// @generic.instance id="iter.iterator.FilterIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.FilterIterator arguments=(iter.iterator.Iterator<int64>, int64)
-/// @generic.instance id="iter.iterator.InspectIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.InspectIterator arguments=(iter.iterator.Iterator<int64>, int64)
-/// @generic.instance id="iter.iterator.IteratorResult<int64, iter.iterator.Iterator<int64>.Return>" template=iter.iterator.IteratorResult arguments=(int64, iter.iterator.Iterator<int64>.Return)
-/// @generic.instance id="iter.iterator.IteratorResult<int64, void>" template=iter.iterator.IteratorResult arguments=(int64, void)
-/// @generic.instance id="iter.iterator.PeekableIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.PeekableIterator arguments=(iter.iterator.Iterator<int64>, int64)
-/// @generic.instance id="iter.iterator.TakeIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.TakeIterator arguments=(iter.iterator.Iterator<int64>, int64)
-/// @generic.instance id="iter.iterator.TakeWhileIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.TakeWhileIterator arguments=(iter.iterator.Iterator<int64>, int64)
-/// @generic.instance id=iter.iterator.Iterator<int64> template=iter.iterator.Iterator arguments=(int64)
-/// @generic.instance id=iter.iterator.IteratorReturn<iter.iterator.Iterator<int64>.Return> template=iter.iterator.IteratorReturn arguments=(iter.iterator.Iterator<int64>.Return)
-/// @generic.instance id=iter.iterator.IteratorReturn<void> template=iter.iterator.IteratorReturn arguments=(void)
-/// @generic.instance id=iter.iterator.IteratorYield<int64> template=iter.iterator.IteratorYield arguments=(int64)
-/// @resolution.member source=[1].iterator receiver=int64[] type=(this: int64[]) => iter.iterator.Iterator<int64> kind=symbol target_receiver=int64[] target=collections.array.iterator#2
-/// @resolution.member source=[1].iterator().next receiver=iter.iterator.Iterator<int64> type=(this: iter.iterator.Iterator<int64>) => iter.iterator.IteratorResult<int64, iter.iterator.Iterator<int64>.Return> kind=symbol target_receiver=iter.iterator.Iterator<int64> dispatch=dynamic constraint=iter.iterator.Iterator<int64> target=iter.iterator.Iterator.next
-/// @resolution.call source=[1] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
-/// @resolution.call source=[1].iterator() parameters=() return=iter.iterator.Iterator<int64> kind=symbol target=collections.array.iterator#2 receiver=int64[] instance=Array<int64>.<extension#3>.iterator#2
-/// @resolution.call source=[1].iterator().next() parameters=() return=iter.iterator.IteratorResult<int64, iter.iterator.Iterator<int64>.Return> kind=dynamic target=iter.iterator.Iterator.next receiver=iter.iterator.Iterator<int64> constraint=iter.iterator.Iterator<int64> generic_arguments=(int64)
-/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
-/// @generic.instantiation id=collections.array.iterator#2<int64> template=collections.array.iterator#2 arguments=(int64)
-/// @generic.instantiation id=iter.iterator.Iterator.next<int64> template=iter.iterator.Iterator.next arguments=(int64)
-/// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
-/// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
-/// @generic.instance id=collections.array.iterator#2<int64> template=collections.array.iterator#2 arguments=(int64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
-/// @generic.instance id=iter.iterator.Iterator.next<int64> template=iter.iterator.Iterator.next arguments=(int64)
-/// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
+/// @generic.instance id="DropIterator<Iterator<int64>, int64>" template=DropIterator arguments=(Iterator<int64>, int64)
+/// @generic.instance id="DropWhileIterator<Iterator<int64>, int64>" template=DropWhileIterator arguments=(Iterator<int64>, int64)
+/// @generic.instance id="EnumeratedIterator<Iterator<int64>, int64>" template=EnumeratedIterator arguments=(Iterator<int64>, int64)
+/// @generic.instance id="FilterIterator<Iterator<int64>, int64>" template=FilterIterator arguments=(Iterator<int64>, int64)
+/// @generic.instance id="InspectIterator<Iterator<int64>, int64>" template=InspectIterator arguments=(Iterator<int64>, int64)
+/// @generic.instance id="IteratorResult<int64, Iterator<int64>.Return>" template=IteratorResult arguments=(int64, Iterator<int64>.Return)
+/// @generic.instance id="IteratorResult<int64, void>" template=IteratorResult arguments=(int64, void)
+/// @generic.instance id="PeekableIterator<Iterator<int64>, int64>" template=PeekableIterator arguments=(Iterator<int64>, int64)
+/// @generic.instance id="PlaceOf<DropWhileIterator<Iterator<int64>, int64>>" template=PlaceOf arguments=(DropWhileIterator<Iterator<int64>, int64>)
+/// @generic.instance id="PlaceOf<FilterIterator<Iterator<int64>, int64>>" template=PlaceOf arguments=(FilterIterator<Iterator<int64>, int64>)
+/// @generic.instance id="PlaceOf<InspectIterator<Iterator<int64>, int64>>" template=PlaceOf arguments=(InspectIterator<Iterator<int64>, int64>)
+/// @generic.instance id="PlaceOf<TakeWhileIterator<Iterator<int64>, int64>>" template=PlaceOf arguments=(TakeWhileIterator<Iterator<int64>, int64>)
+/// @generic.instance id="TakeIterator<Iterator<int64>, int64>" template=TakeIterator arguments=(Iterator<int64>, int64)
+/// @generic.instance id="TakeWhileIterator<Iterator<int64>, int64>" template=TakeWhileIterator arguments=(Iterator<int64>, int64)
+/// @generic.instance id=Iterator<int64> template=Iterator arguments=(int64)
+/// @generic.instance id=IteratorReturn<Iterator<int64>.Return> template=IteratorReturn arguments=(Iterator<int64>.Return)
+/// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
+/// @generic.instance id=IteratorYield<int64> template=IteratorYield arguments=(int64)
+/// @resolution.member source=[1].iterator receiver=int64[] type=<iterator#2.P0: Place>(this: Managed<int64[], iterator#2.P0>) => Iterator<int64> kind=symbol target_receiver=int64[] target=iterator#2
+/// @resolution.member source=[1].iterator().next receiver=Iterator<int64> type=(this: Iterator<int64>) => IteratorResult<int64, Iterator<int64>.Return> kind=symbol target_receiver=Iterator<int64> dispatch=dynamic constraint=Iterator<int64> target=Iterator.next
+/// @resolution.call source=[1] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+/// @resolution.call source=[1].iterator() parameters=() return=Iterator<int64> kind=symbol target=iterator#2 receiver=int64[] instance="Array<int64>.<extension#3>.iterator#2<\"local\">"
+/// @resolution.call source=[1].iterator().next() parameters=() return=IteratorResult<int64, Iterator<int64>.Return> kind=dynamic target=Iterator.next receiver=Iterator<int64> constraint=Iterator<int64> generic_arguments=(int64)
+/// @generic.instantiation id="iterator#2<int64, \"local\">" template=iterator#2 arguments=(int64, "local")
+/// @generic.instantiation id=Iterator.next<int64> template=Iterator.next arguments=(int64)
+/// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
+/// @generic.instantiation id=iterator#2<int64> template=iterator#2 arguments=(int64)
+/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
+/// @generic.instance id="iterator#2<int64, \"local\">" template=iterator#2 arguments=(int64, "local")
+/// @generic.instance id=Array<int64> template=Array arguments=(int64)
+/// @generic.instance id=Iterator.next<int64> template=Iterator.next arguments=(int64)
+/// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
+/// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
 "#,
     );
 }
@@ -131,15 +137,15 @@ function extend(values: int32[]): int32[] {
 === dir ===
 function extend(values: int32[]): int32[] {
 /// @type.symbol symbol=extend type=(int32[]) => int32[]
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @type.symbol symbol=extend.values source="values: int32[]" type=int32[]
 
     [...values, 1]
-    /// @resolution.call source=[...values, 1] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
-    /// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
-    /// @generic.instance id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
+    /// @resolution.call source=[...values, 1] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+    /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
+    /// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
     /// @resolution.name source=values target=extend.values
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=extend.values
@@ -168,9 +174,9 @@ let values: (int64 | undefined)[] = [1 as int64 | undefined, , 3 as int64 | unde
 let values = [1, , 3];
 /// @type.symbol symbol=values source=values type=int64 | undefined[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id="Array<int64 | undefined>" template=collections.array.Array arguments=(int64 | undefined)
-/// @generic.instance id="collections.slice.new<memory.init.MaybeUninit<int64 | undefined>>" template=collections.slice.new arguments=(memory.init.MaybeUninit<int64 | undefined>)
-/// @generic.instance id="memory.init.MaybeUninit<int64 | undefined>" template=memory.init.MaybeUninit arguments=(int64 | undefined)
+/// @generic.instance id="Array<int64 | undefined>" template=Array arguments=(int64 | undefined)
+/// @generic.instance id="MaybeUninit<int64 | undefined>" template=MaybeUninit arguments=(int64 | undefined)
+/// @generic.instance id="new<MaybeUninit<int64 | undefined>>" template=new arguments=(MaybeUninit<int64 | undefined>)
 "#,
     );
 }
@@ -418,19 +424,19 @@ const values: Slice<int64> = [1, 2, 3] as Slice<int64>;
 const values = [1, 2, 3] as Slice<_>;
 /// @type.symbol symbol=values source=values type=Slice<int64>
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Slice<int64> template=collections.slice.Slice arguments=(int64)
+/// @generic.instance id=Slice<int64> template=Slice arguments=(int64)
 /// @type.node source="[1, 2, 3] as Slice<_>" type=Slice<int64>
 /// @type.node source=[1, 2, 3] type=int64[]
-/// @resolution.call source=[1, 2, 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
-/// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
-/// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
-/// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
+/// @resolution.call source=[1, 2, 3] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+/// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
+/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
+/// @generic.instance id=Array<int64> template=Array arguments=(int64)
+/// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
+/// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
-/// @resolution.name source=Slice target=collections.slice.Slice
+/// @resolution.name source=Slice target=Slice
 "#,
     );
 }
@@ -456,12 +462,12 @@ const values = [1, 2, 3] as [_];
 /// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, 2, 3] as [_] type=Slice<int64>
 /// @type.node source=[1, 2, 3] type=int64[]
-/// @resolution.call source=[1, 2, 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
-/// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
-/// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
-/// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
+/// @resolution.call source=[1, 2, 3] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+/// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
+/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
+/// @generic.instance id=Array<int64> template=Array arguments=(int64)
+/// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
+/// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
@@ -516,7 +522,7 @@ matrix satisfies [[int32; 2]; 2];
 /// @type.node source="matrix satisfies [[int32; 2]; 2]" type=FixedArray<FixedArray<int32, 2>, 2>
 /// @type.node source=matrix type=FixedArray<FixedArray<int32, 2>, 2>
 /// @resolution.name source=matrix target=matrix
-/// @resolution.place source=matrix placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=matrix placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=matrix root=matrix
 "#,
     );
@@ -579,8 +585,8 @@ const values: Slice<float64> = make();
 === dir ===
 declare function make(): Slice<float64>;
 /// @type.symbol symbol=make source="declare function make(): Slice<float64>" type=() => Slice<float64>
-/// @generic.instance id=Slice<float64> template=collections.slice.Slice arguments=(float64)
-/// @resolution.name source=Slice target=collections.slice.Slice
+/// @generic.instance id=Slice<float64> template=Slice arguments=(float64)
+/// @resolution.name source=Slice target=Slice
 
 const values = make();
 /// @type.symbol symbol=values source=values type=Slice<float64>
@@ -612,28 +618,32 @@ const items: Iterable<int32> = [1, 2];
 const items: Iterable<int32> = [1, 2];
 /// @type.symbol symbol=items source=items type=Iterable<int32>
 /// @resolution.pattern source=items kind=binding target=items
-/// @generic.instance id="iter.iterator.DropIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.DropIterator arguments=(iter.iterator.Iterator<int32>, int32)
-/// @generic.instance id="iter.iterator.DropWhileIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.DropWhileIterator arguments=(iter.iterator.Iterator<int32>, int32)
-/// @generic.instance id="iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.EnumeratedIterator arguments=(iter.iterator.Iterator<int32>, int32)
-/// @generic.instance id="iter.iterator.FilterIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.FilterIterator arguments=(iter.iterator.Iterator<int32>, int32)
-/// @generic.instance id="iter.iterator.InspectIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.InspectIterator arguments=(iter.iterator.Iterator<int32>, int32)
-/// @generic.instance id="iter.iterator.IteratorResult<int32, iter.iterator.Iterator<int32>.Return>" template=iter.iterator.IteratorResult arguments=(int32, iter.iterator.Iterator<int32>.Return)
-/// @generic.instance id="iter.iterator.IteratorResult<int32, void>" template=iter.iterator.IteratorResult arguments=(int32, void)
-/// @generic.instance id="iter.iterator.PeekableIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.PeekableIterator arguments=(iter.iterator.Iterator<int32>, int32)
-/// @generic.instance id="iter.iterator.TakeIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.TakeIterator arguments=(iter.iterator.Iterator<int32>, int32)
-/// @generic.instance id="iter.iterator.TakeWhileIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.TakeWhileIterator arguments=(iter.iterator.Iterator<int32>, int32)
-/// @generic.instance id=Iterable<int32> template=iter.iterator.Iterable arguments=(int32)
-/// @generic.instance id=iter.iterator.Iterator<int32> template=iter.iterator.Iterator arguments=(int32)
-/// @generic.instance id=iter.iterator.IteratorReturn<iter.iterator.Iterator<int32>.Return> template=iter.iterator.IteratorReturn arguments=(iter.iterator.Iterator<int32>.Return)
-/// @generic.instance id=iter.iterator.IteratorReturn<void> template=iter.iterator.IteratorReturn arguments=(void)
-/// @generic.instance id=iter.iterator.IteratorYield<int32> template=iter.iterator.IteratorYield arguments=(int32)
-/// @resolution.name source=Iterable target=iter.iterator.Iterable
-/// @resolution.call source=[1, 2] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
-/// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id="DropIterator<Iterator<int32>, int32>" template=DropIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="DropWhileIterator<Iterator<int32>, int32>" template=DropWhileIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="EnumeratedIterator<Iterator<int32>, int32>" template=EnumeratedIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="FilterIterator<Iterator<int32>, int32>" template=FilterIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="InspectIterator<Iterator<int32>, int32>" template=InspectIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="IteratorResult<int32, Iterator<int32>.Return>" template=IteratorResult arguments=(int32, Iterator<int32>.Return)
+/// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
+/// @generic.instance id="PeekableIterator<Iterator<int32>, int32>" template=PeekableIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="PlaceOf<DropWhileIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(DropWhileIterator<Iterator<int32>, int32>)
+/// @generic.instance id="PlaceOf<FilterIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(FilterIterator<Iterator<int32>, int32>)
+/// @generic.instance id="PlaceOf<InspectIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(InspectIterator<Iterator<int32>, int32>)
+/// @generic.instance id="PlaceOf<TakeWhileIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(TakeWhileIterator<Iterator<int32>, int32>)
+/// @generic.instance id="TakeIterator<Iterator<int32>, int32>" template=TakeIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="TakeWhileIterator<Iterator<int32>, int32>" template=TakeWhileIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id=Iterable<int32> template=Iterable arguments=(int32)
+/// @generic.instance id=Iterator<int32> template=Iterator arguments=(int32)
+/// @generic.instance id=IteratorReturn<Iterator<int32>.Return> template=IteratorReturn arguments=(Iterator<int32>.Return)
+/// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
+/// @generic.instance id=IteratorYield<int32> template=IteratorYield arguments=(int32)
+/// @resolution.name source=Iterable target=Iterable
+/// @resolution.call source=[1, 2] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+/// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
+/// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 "#,
     );
 }

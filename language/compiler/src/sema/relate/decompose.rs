@@ -1,5 +1,8 @@
+use std::hash::{Hash, Hasher};
+
 use destack_dir as dir;
 use destack_source::ModuleId;
+use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
@@ -13,17 +16,17 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<SmallVec<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>>> {
         let pair_lists = match (self.ty(source)?, self.ty(target)?) {
-            // nominal applications decompose by declaration with kind-aware slots
+            // nominal applications decompose by declaration with kind-aware pairing
             (dir::Type::Application(source_type), dir::Type::Application(target_type))
                 if source_type.symbol == target_type.symbol =>
             {
                 let source = self.type_ids(source.module_id, source_type.arguments)?;
                 let target = self.type_ids(target.module_id, target_type.arguments)?;
-                let Some(slots) = self.slot_application_arguments(source, target)? else {
+                let Some(pairs) = self.pair_application_arguments(source, target)? else {
                     return Ok(None);
                 };
 
-                return Ok(Some(slots));
+                return Ok(Some(pairs));
             }
 
             // member projections decompose by key, owner, arguments, and qualifier declaration
@@ -58,51 +61,56 @@ impl CheckState<'_> {
             // memory forms decompose by constructor into their fixed type-valued slots
             (dir::Type::Form(source_type), dir::Type::Form(target_type)) => {
                 match (source_type.form, target_type.form) {
+                    // borrows decompose over region, access, and value
                     (dir::Form::Borrowed(source_borrow), dir::Form::Borrowed(target_borrow)) => {
                         let source_borrow = self.type_borrow(source.module_id, source_borrow)?;
                         let target_borrow = self.type_borrow(target.module_id, target_borrow)?;
 
                         (
                             SmallVec::from_slice(&[
-                                source_borrow.lifetime,
+                                source_borrow.region,
                                 source_borrow.access,
                                 source_type.value,
                             ]),
                             SmallVec::from_slice(&[
-                                target_borrow.lifetime,
+                                target_borrow.region,
                                 target_borrow.access,
                                 target_type.value,
                             ]),
                         )
                     }
+                    // managed forms decompose over place and value
                     (
-                        dir::Form::Placed { place },
-                        dir::Form::Placed {
+                        dir::Form::Managed { place },
+                        dir::Form::Managed {
                             place: target_place,
                         },
                     ) => (
                         SmallVec::from_slice(&[place, source_type.value]),
                         SmallVec::from_slice(&[target_place, target_type.value]),
                     ),
+                    // every other matching form decomposes over its value alone
                     (source_form, target_form) if source_form == target_form => (
                         SmallVec::from_slice(&[source_type.value]),
                         SmallVec::from_slice(&[target_type.value]),
                     ),
+                    // reject two differing form constructors
                     _ => return Ok(None),
                 }
             }
 
-            // dynamic representations decompose over their constraints
+            // dynamic representations decompose over their constraints and places
             (dir::Type::Dynamic(source_type), dir::Type::Dynamic(target_type)) => (
-                SmallVec::from_slice(&[source_type.constraint]),
-                SmallVec::from_slice(&[target_type.constraint]),
+                SmallVec::from_slice(&[source_type.constraint, source_type.place]),
+                SmallVec::from_slice(&[target_type.constraint, target_type.place]),
             ),
 
-            // callables decompose over their signatures
+            // callables decompose over their signatures and environment places
             (dir::Type::Function(source_type), dir::Type::Function(target_type)) => (
-                SmallVec::from_slice(&[source_type.signature]),
-                SmallVec::from_slice(&[target_type.signature]),
+                SmallVec::from_slice(&[source_type.signature, source_type.place]),
+                SmallVec::from_slice(&[target_type.signature, target_type.place]),
             ),
+            // function pointers decompose over their signature alone
             (dir::Type::FunctionPointer(source_type), dir::Type::FunctionPointer(target_type)) => (
                 SmallVec::from_slice(&[source_type.signature]),
                 SmallVec::from_slice(&[target_type.signature]),
@@ -121,11 +129,12 @@ impl CheckState<'_> {
                 );
             }
 
-            // value containers decompose over their contained types
+            // slices decompose over their element and place
             (dir::Type::Slice(source_type), dir::Type::Slice(target_type)) => (
-                SmallVec::from_slice(&[source_type.element]),
-                SmallVec::from_slice(&[target_type.element]),
+                SmallVec::from_slice(&[source_type.element, source_type.place]),
+                SmallVec::from_slice(&[target_type.element, target_type.place]),
             ),
+            // fixed arrays decompose over their element and length
             (dir::Type::FixedArray(source_type), dir::Type::FixedArray(target_type)) => (
                 SmallVec::from_slice(&[source_type.element, source_type.count]),
                 SmallVec::from_slice(&[target_type.element, target_type.count]),
@@ -198,6 +207,7 @@ impl CheckState<'_> {
                 (source_slots, target_slots)
             }
 
+            // reject every other pair of constructors
             _ => return Ok(None),
         };
 
@@ -352,6 +362,7 @@ impl CheckState<'_> {
                     SmallVec::from_slice(&[target.target]),
                 ),
 
+                // reject every other pair of operations
                 _ => return Ok(None),
             };
 
@@ -420,58 +431,82 @@ impl CheckState<'_> {
         pattern: dir::GlobalTypeId,
         actual: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        // bind direct parameters before reducing the authored argument
-        let pattern = self.shallow_resolve(pattern)?;
-        if let dir::Type::Parameter(parameter) = self.ty(pattern)? {
-            // defer open actuals under an already-bound rigid parameter to the relation
-            if !parameters.contains(&parameter) {
-                let actual = self.shallow_resolve(actual)?;
-                if self.root_variable(actual)?.is_some() {
-                    return Ok(true);
-                }
-            }
-            // bind open extension parameters directly
-            else {
-                let actual = self.shallow_resolve(actual)?;
+        // matching is inductive, so reject a pair that recurses into its own question
+        let question = (pattern, actual, substitution_fingerprint(substitution));
+        if !self.active_matches.insert(question) {
+            return Ok(false);
+        }
 
+        // hold the question on the matching path across the step
+        let matched =
+            self.match_generic_type_step(origin, parameters, substitution, pattern, actual);
+        self.active_matches.swap_remove(&question);
+
+        matched
+    }
+
+    /// Match one pattern against one actual, a step beneath the inductive guard.
+    fn match_generic_type_step(
+        &mut self,
+        origin: Origin,
+        parameters: &[GenericParameterId],
+        substitution: &mut TypeSubstitution,
+        pattern: dir::GlobalTypeId,
+        actual: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        // bind an open extension parameter directly, before reducing the authored argument
+        let pattern = self.shallow_resolve(pattern)?;
+        let actual = self.shallow_resolve(actual)?;
+        if let dir::Type::Parameter(parameter) = self.ty(pattern)? {
+            if parameters.contains(&parameter) {
                 return self.bind_generic_argument(origin, substitution, parameter, actual);
+            }
+
+            // defer an open actual under a rigid parameter to the relation
+            if self.root_variable(actual)?.is_some() {
+                return Ok(true);
             }
         }
 
-        // match the written heads, the stuck retry reduces them once matching fails
-        let actual = self.shallow_resolve(actual)?;
+        // leave open pattern slots to the relation, which binds them
+        if self.root_variable(pattern)?.is_some() {
+            return Ok(true);
+        }
 
         // leave parameter-free patterns over an open actual to the relation
         if self.root_variable(actual)?.is_some() && !self.type_flags(pattern)?.has_parameter() {
             return Ok(true);
         }
 
-        // read both constructor heads
-        let pattern_type = self.ty(pattern)?;
-        let actual_type = self.ty(actual)?;
-
-        // accept any lifetime slot pair, since MIR verifies outlives
-        if self.is_lifetime_slot(&pattern_type)? && self.is_lifetime_slot(&actual_type)? {
+        // accept unknown as an actual, which every pattern matches
+        if matches!(self.ty(actual)?, dir::Type::Unknown) {
             return Ok(true);
         }
 
-        // decompose identical parameterized types to record bindings
+        // match region terms by their own rule, binding free coordinates
+        if let Some(matched) =
+            self.match_region_terms(origin, parameters, substitution, pattern, actual)?
+        {
+            return Ok(matched);
+        }
+
+        // accept one identical parameter-free type
         if pattern == actual && !self.type_flags(pattern)?.has_parameter() {
             return Ok(true);
         }
 
         // unions and intersections match as unordered type sets
-        let set = match (pattern_type, actual_type) {
-            (dir::Type::Union(pattern), dir::Type::Union(actual)) => {
-                Some((pattern.elements, actual.elements))
+        let sets = match (self.ty(pattern)?, self.ty(actual)?) {
+            (dir::Type::Union(pattern_set), dir::Type::Union(actual_set)) => {
+                Some((pattern_set.elements, actual_set.elements))
             }
-            (dir::Type::Intersection(pattern), dir::Type::Intersection(actual)) => {
-                Some((pattern.elements, actual.elements))
+            (dir::Type::Intersection(pattern_set), dir::Type::Intersection(actual_set)) => {
+                Some((pattern_set.elements, actual_set.elements))
             }
             _ => None,
         };
 
-        if let Some((pattern_elements, actual_elements)) = set {
+        if let Some((pattern_elements, actual_elements)) = sets {
             let pattern_elements =
                 SmallVec::<[_; 4]>::from_slice(self.type_ids(pattern.module_id, pattern_elements)?);
             let actual_elements =
@@ -486,50 +521,98 @@ impl CheckState<'_> {
             );
         }
 
-        // bind a union actual through whichever arm the pattern matches
-        if !matches!(pattern_type, dir::Type::Union(_))
-            && let dir::Type::Union(actual_union) = actual_type
-        {
-            let arms = SmallVec::<[_; 4]>::from_slice(
-                self.type_ids(actual.module_id, actual_union.elements)?,
-            );
-            for arm in arms {
-                let mut scratch = substitution.clone();
-                if self.match_generic_type(origin, parameters, &mut scratch, pattern, arm)? {
-                    *substitution = scratch;
+        match (self.ty(pattern)?, self.ty(actual)?) {
+            // bind a union actual through whichever arm the pattern matches
+            (_, dir::Type::Union(actual_union)) => {
+                let arms = SmallVec::<[_; 4]>::from_slice(
+                    self.type_ids(actual.module_id, actual_union.elements)?,
+                );
+                for arm in arms {
+                    let mut scratch = substitution.clone();
+                    if self.match_generic_type(origin, parameters, &mut scratch, pattern, arm)? {
+                        *substitution = scratch;
 
-                    return Ok(true);
+                        return Ok(true);
+                    }
                 }
+
+                Ok(false)
             }
 
-            return Ok(false);
+            // a bare managed-family actual matches a managed pattern at its own place
+            (dir::Type::Form(form), actual_type)
+                if matches!(form.form, dir::Form::Managed { .. })
+                    && !matches!(actual_type, dir::Type::Form(_))
+                    && self.default_ownership(origin, actual)? == Some(dir::Ownership::Managed) =>
+            {
+                let place = match self.form_chain(origin, actual)?.place() {
+                    Some(place) => place,
+                    None => self.local_place()?,
+                };
+                let wrapped = self.intern_type(dir::Type::Form(dir::FormType {
+                    form: dir::Form::Managed { place },
+                    value: actual,
+                }))?;
+
+                self.match_generic_type(origin, parameters, substitution, pattern, wrapped)
+            }
+
+            // decompose fixed slots beneath one shared constructor
+            (pattern_type, actual_type) => {
+                if let Some(pairs) = self.decompose_type_pair(pattern, actual)? {
+                    return self.match_generic_arguments(origin, parameters, substitution, &pairs);
+                }
+
+                // accept two heads that already name the same constructor
+                if pattern_type == actual_type {
+                    return Ok(true);
+                }
+
+                // reduce stuck heads once and rematch, or reject a fully reduced mismatch
+                let reduced_pattern = self.match_normalize(origin, pattern)?;
+                let reduced_actual = self.match_normalize(origin, actual)?;
+                if reduced_pattern == pattern && reduced_actual == actual {
+                    return Ok(false);
+                }
+
+                self.match_generic_type(
+                    origin,
+                    parameters,
+                    substitution,
+                    reduced_pattern,
+                    reduced_actual,
+                )
+            }
+        }
+    }
+
+    /// Reduce one stuck head for a rematch.
+    fn match_normalize(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let reduced = self.structurally_normalize(origin, id)?;
+
+        // decide which heads still fold under a full normalization
+        let folds = match self.ty(reduced)? {
+            dir::Type::Form(_) => true,
+            dir::Type::Application(instance) => matches!(
+                self.language_item(instance.symbol)?,
+                Some(
+                    dir::LanguageItem::AccessOf
+                        | dir::LanguageItem::PlaceOf
+                        | dir::LanguageItem::WithAccess
+                )
+            ),
+            _ => false,
+        };
+
+        if folds {
+            return self.normalize(origin, reduced);
         }
 
-        // decompose fixed slots beneath one shared constructor
-        let pairs = self.decompose_type_pair(pattern, actual)?;
-        if let Some(pairs) = pairs {
-            return self.match_generic_arguments(origin, parameters, substitution, &pairs);
-        }
-
-        // accept two heads that already name the same constructor
-        if pattern_type == actual_type {
-            return Ok(true);
-        }
-
-        // retry a stuck match once over reduced heads
-        let reduced_pattern = self.structurally_normalize(origin, pattern)?;
-        let reduced_actual = self.structurally_normalize(origin, actual)?;
-        if reduced_pattern == pattern && reduced_actual == actual {
-            return Ok(false);
-        }
-
-        self.match_generic_type(
-            origin,
-            parameters,
-            substitution,
-            reduced_pattern,
-            reduced_actual,
-        )
+        Ok(reduced)
     }
 
     /// Match two unordered type sets wherever each pattern has one viable target.
@@ -551,6 +634,8 @@ impl CheckState<'_> {
             for (pattern_index, pattern) in patterns.iter().copied().enumerate() {
                 let mut candidate = None;
                 let mut is_ambiguous = false;
+
+                // try this pattern against every remaining actual
                 for (actual_index, actual) in actuals.iter().copied().enumerate() {
                     let mut matched = substitution.clone();
                     match self.match_generic_type(
@@ -586,23 +671,23 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Slot two applied argument lists by kind, collecting lifetimes for proof only.
-    pub(in crate::sema) fn slot_application_arguments(
+    /// Pair two applied argument lists by kind, dropping regions when the arities differ.
+    pub(in crate::sema) fn pair_application_arguments(
         &self,
         source: &[dir::GlobalTypeId],
         target: &[dir::GlobalTypeId],
     ) -> CompilerResult<Option<SmallVec<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>>> {
-        // pair positionally whenever both lists carry the same slots
+        // pair positionally whenever both lists carry the same arity
         if source.len() == target.len() {
             return Ok(Some(
                 source.iter().copied().zip(target.iter().copied()).collect(),
             ));
         }
 
-        // collect the type slots the source lists, dropping its lifetimes
+        // collect the source's type arguments, dropping its lifetimes
         let mut source_types = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for argument in source {
-            if !self.is_lifetime_slot_type(*argument)? {
+            if self.memory_kind(*argument)? != Some(dir::MemoryParameter::Region) {
                 source_types.push(*argument);
             }
         }
@@ -610,12 +695,12 @@ impl CheckState<'_> {
         // mirror that partition over the target arguments
         let mut target_types = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for argument in target {
-            if !self.is_lifetime_slot_type(*argument)? {
+            if self.memory_kind(*argument)? != Some(dir::MemoryParameter::Region) {
                 target_types.push(*argument);
             }
         }
 
-        // reject lists whose type slots fail to pair one for one
+        // reject lists whose type arguments fail to pair one for one
         if source_types.len() != target_types.len() {
             return Ok(None);
         }
@@ -629,45 +714,8 @@ impl CheckState<'_> {
         ))
     }
 
-    /// Return whether one type occupies a lifetime slot.
-    pub(in crate::sema) fn is_lifetime_slot_type(
-        &self,
-        id: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        // read the type through its solution
-        let id = self.shallow_resolve(id)?;
-
-        // treat a union as a lifetime slot once every member is one
-        if let dir::Type::Union(union) = self.ty(id)? {
-            let elements =
-                SmallVec::<[_; 4]>::from_slice(self.type_ids(id.module_id, union.elements)?);
-            for element in elements {
-                if !self.is_lifetime_slot_type(element)? {
-                    return Ok(false);
-                }
-            }
-
-            return Ok(true);
-        }
-
-        self.is_lifetime_slot(&self.ty(id)?)
-    }
-
-    /// Return whether one matched slot is lifetime-shaped.
-    pub(in crate::sema) fn is_lifetime_slot(&self, ty: &dir::Type) -> CompilerResult<bool> {
-        match ty {
-            dir::Type::Memory(dir::MemoryLiteral::Lifetime(_)) => Ok(true),
-            dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) => {
-                Ok(self.generic_parameter(*parameter).is_some_and(|binding| {
-                    binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
-                }))
-            }
-            _ => Ok(false),
-        }
-    }
-
     /// Bind one generic parameter argument in a direct substitution.
-    fn bind_generic_argument(
+    pub(in crate::sema) fn bind_generic_argument(
         &mut self,
         origin: Origin,
         substitution: &mut TypeSubstitution,
@@ -680,7 +728,7 @@ impl CheckState<'_> {
             return Ok(true);
         };
 
-        // match unless the bound is proven unequal
+        // keep the existing bound unless it compares unequal
         let verdict = self.decide_relation(origin, Relation::Equal, bound, argument)?;
 
         Ok(verdict != Verdict::Fails)
@@ -702,6 +750,17 @@ impl CheckState<'_> {
 
         Ok(true)
     }
+}
+
+/// Hash one substitution's bindings into a stable matching fingerprint.
+fn substitution_fingerprint(substitution: &TypeSubstitution) -> u64 {
+    let mut hasher = FxHasher::default();
+    for binding in &substitution.bindings {
+        binding.parameter.hash(&mut hasher);
+        binding.argument.hash(&mut hasher);
+    }
+
+    hasher.finish()
 }
 
 /// Zip two fixed slot lists into relation pairs.

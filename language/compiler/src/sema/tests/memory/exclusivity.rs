@@ -40,24 +40,24 @@ import { Copy, Drop } from "destack:memory";
 struct Guard implements Drop {
 /// @type.symbol symbol=Guard type=Guard
 /// @definition.struct symbol=Guard
-/// @definition.where symbol=Guard source=Drop relation=satisfies left=this right=memory.drop.Drop
-/// @definition.implements symbol=Guard source=Drop target=memory.drop.Drop
-/// @definition.method symbol=Guard.drop source="drop(&exclusive this): void {}" slot=drop type=<Guard.drop.'a>(this: &Guard.drop.'a exclusive this) => void
-/// @definition.conformance symbol=Guard member=Guard.drop requirement=memory.drop.Drop.drop
-/// @resolution.name source=Drop target=memory.drop.Drop
+/// @definition.where symbol=Guard source=Drop relation=satisfies left=this right=Drop
+/// @definition.implements symbol=Guard source=Drop target=Drop
+/// @definition.method symbol=Guard.drop source="drop(&exclusive this): void {}" slot=drop type=<Guard.drop.'a, Guard.drop.P1: Place>(this: Borrowed<this, Guard.drop.'a & Guard.drop.P1, "exclusive">) => void
+/// @definition.conformance symbol=Guard member=Guard.drop requirement=Drop.drop
+/// @resolution.name source=Drop target=Drop
 
     drop(&exclusive this): void {}
-    /// @generic.template symbol=Guard.drop parent=template#0 parameters=('a)
-    /// @type.symbol symbol=Guard.drop source="drop(&exclusive this): void {}" type=<Guard.drop.'a>(this: &Guard.drop.'a exclusive this) => void
-    /// @type.symbol symbol=Guard.drop.this source="&exclusive this" type=&Guard.drop.'a exclusive this
+    /// @generic.template symbol=Guard.drop parent=template#0 parameters=('a, P1: Place)
+    /// @type.symbol symbol=Guard.drop source="drop(&exclusive this): void {}" type=<Guard.drop.'a, Guard.drop.P1: Place>(this: Borrowed<this, Guard.drop.'a & Guard.drop.P1, "exclusive">) => void
+    /// @type.symbol symbol=Guard.drop.this source="&exclusive this" type=Borrowed<this, Guard.drop.'a & Guard.drop.P1, "exclusive">
 
 }
 
 declare function duplicate<T: Copy>(value: T): void;
-/// @generic.template symbol=duplicate parameters=(T: memory.capability.Copy)
-/// @type.symbol symbol=duplicate source="declare function duplicate<T: Copy>(value: T): void" type=<T: memory.capability.Copy>(T) => void
+/// @generic.template symbol=duplicate parameters=(T: Copy)
+/// @type.symbol symbol=duplicate source="declare function duplicate<T: Copy>(value: T): void" type=<T: Copy>(T) => void
 /// @type.symbol symbol=duplicate.T source="T: Copy" type=T
-/// @resolution.name source=Copy target=memory.capability.Copy
+/// @resolution.name source=Copy target=Copy
 /// @type.symbol symbol=duplicate.value source="value: T" type=T
 /// @resolution.name source=T target=duplicate.T
 
@@ -71,7 +71,7 @@ duplicate(guard);
 /// @resolution.call source=duplicate(guard) parameters=(<error>) arguments=(provided(guard) as <error>) return=void kind=symbol target=duplicate instance=duplicate<<error>>
 /// @generic.instantiation id=duplicate<<error>> template=duplicate arguments=(<error>)
 /// @resolution.name source=guard target=guard
-/// @resolution.place source=guard placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=guard placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=guard root=guard
 "#,
         r#"
@@ -82,7 +82,7 @@ duplicate(guard);
     );
 }
 
-/// Reject a Copy bound for a struct with an extension-declared Drop conformance.
+/// Reject a Copy bound for a struct with a Drop conformance declared in an extension.
 #[test]
 fn test_reject_copy_bound_for_extension_drop_struct() {
     let session = TestSession::single(
@@ -139,24 +139,24 @@ struct Guard {
 
 extension of Guard implements Drop {
 /// @definition.extension symbol=<module>#2 form=local target=Guard
-/// @definition.implements symbol=<module>#2 source=Drop target=memory.drop.Drop
-/// @definition.method symbol=drop source="drop(&exclusive this): void {}" slot=drop type=<drop.'a>(this: &drop.'a exclusive this) => void
-/// @definition.conformance symbol=<module>#2 member=drop requirement=memory.drop.Drop.drop
+/// @definition.implements symbol=<module>#2 source=Drop target=Drop
+/// @definition.method symbol=drop source="drop(&exclusive this): void {}" slot=drop type=<drop.'a, drop.P1: Place>(this: Borrowed<this, drop.'a & drop.P1, "exclusive">) => void
+/// @definition.conformance symbol=<module>#2 member=drop requirement=Drop.drop
 /// @resolution.name source=Guard target=Guard
-/// @resolution.name source=Drop target=memory.drop.Drop
+/// @resolution.name source=Drop target=Drop
 
     drop(&exclusive this): void {}
-    /// @generic.template symbol=drop parent=template#0 parameters=('a)
-    /// @type.symbol symbol=drop source="drop(&exclusive this): void {}" type=<drop.'a>(this: &drop.'a exclusive this) => void
-    /// @type.symbol symbol=drop.this source="&exclusive this" type=&drop.'a exclusive this
+    /// @generic.template symbol=drop parent=template#0 parameters=('a, P1: Place)
+    /// @type.symbol symbol=drop source="drop(&exclusive this): void {}" type=<drop.'a, drop.P1: Place>(this: Borrowed<this, drop.'a & drop.P1, "exclusive">) => void
+    /// @type.symbol symbol=drop.this source="&exclusive this" type=Borrowed<this, drop.'a & drop.P1, "exclusive">
 
 }
 
 declare function duplicate<T: Copy>(value: T): void;
-/// @generic.template symbol=duplicate parameters=(T: memory.capability.Copy)
-/// @type.symbol symbol=duplicate source="declare function duplicate<T: Copy>(value: T): void" type=<T: memory.capability.Copy>(T) => void
+/// @generic.template symbol=duplicate parameters=(T: Copy)
+/// @type.symbol symbol=duplicate source="declare function duplicate<T: Copy>(value: T): void" type=<T: Copy>(T) => void
 /// @type.symbol symbol=duplicate.T source="T: Copy" type=T
-/// @resolution.name source=Copy target=memory.capability.Copy
+/// @resolution.name source=Copy target=Copy
 /// @type.symbol symbol=duplicate.value source="value: T" type=T
 /// @resolution.name source=T target=duplicate.T
 
@@ -170,7 +170,7 @@ duplicate(guard);
 /// @resolution.call source=duplicate(guard) parameters=(<error>) arguments=(provided(guard) as <error>) return=void kind=symbol target=duplicate instance=duplicate<<error>>
 /// @generic.instantiation id=duplicate<<error>> template=duplicate arguments=(<error>)
 /// @resolution.name source=guard target=guard
-/// @resolution.place source=guard placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=guard placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=guard root=guard
 "#,
         r#"
@@ -181,7 +181,7 @@ duplicate(guard);
     );
 }
 
-/// Satisfy a Copy bound for a plain struct beside its Drop-conforming sibling.
+/// Satisfy a Copy bound for a plain struct beside a sibling that conforms to Drop.
 #[test]
 fn test_satisfy_copy_bound_for_plain_struct() {
     let session = TestSession::single(
@@ -229,16 +229,16 @@ import { Copy, Drop } from "destack:memory";
 struct Guard implements Drop {
 /// @type.symbol symbol=Guard type=Guard
 /// @definition.struct symbol=Guard
-/// @definition.where symbol=Guard source=Drop relation=satisfies left=this right=memory.drop.Drop
-/// @definition.implements symbol=Guard source=Drop target=memory.drop.Drop
-/// @definition.method symbol=Guard.drop source="drop(&exclusive this): void {}" slot=drop type=<Guard.drop.'a>(this: &Guard.drop.'a exclusive this) => void
-/// @definition.conformance symbol=Guard member=Guard.drop requirement=memory.drop.Drop.drop
-/// @resolution.name source=Drop target=memory.drop.Drop
+/// @definition.where symbol=Guard source=Drop relation=satisfies left=this right=Drop
+/// @definition.implements symbol=Guard source=Drop target=Drop
+/// @definition.method symbol=Guard.drop source="drop(&exclusive this): void {}" slot=drop type=<Guard.drop.'a, Guard.drop.P1: Place>(this: Borrowed<this, Guard.drop.'a & Guard.drop.P1, "exclusive">) => void
+/// @definition.conformance symbol=Guard member=Guard.drop requirement=Drop.drop
+/// @resolution.name source=Drop target=Drop
 
     drop(&exclusive this): void {}
-    /// @generic.template symbol=Guard.drop parent=template#0 parameters=('a)
-    /// @type.symbol symbol=Guard.drop source="drop(&exclusive this): void {}" type=<Guard.drop.'a>(this: &Guard.drop.'a exclusive this) => void
-    /// @type.symbol symbol=Guard.drop.this source="&exclusive this" type=&Guard.drop.'a exclusive this
+    /// @generic.template symbol=Guard.drop parent=template#0 parameters=('a, P1: Place)
+    /// @type.symbol symbol=Guard.drop source="drop(&exclusive this): void {}" type=<Guard.drop.'a, Guard.drop.P1: Place>(this: Borrowed<this, Guard.drop.'a & Guard.drop.P1, "exclusive">) => void
+    /// @type.symbol symbol=Guard.drop.this source="&exclusive this" type=Borrowed<this, Guard.drop.'a & Guard.drop.P1, "exclusive">
 
 }
 
@@ -253,10 +253,10 @@ struct Plain {
 }
 
 declare function duplicate<T: Copy>(value: T): void;
-/// @generic.template symbol=duplicate parameters=(T: memory.capability.Copy)
-/// @type.symbol symbol=duplicate source="declare function duplicate<T: Copy>(value: T): void" type=<T: memory.capability.Copy>(T) => void
+/// @generic.template symbol=duplicate parameters=(T: Copy)
+/// @type.symbol symbol=duplicate source="declare function duplicate<T: Copy>(value: T): void" type=<T: Copy>(T) => void
 /// @type.symbol symbol=duplicate.T source="T: Copy" type=T
-/// @resolution.name source=Copy target=memory.capability.Copy
+/// @resolution.name source=Copy target=Copy
 /// @type.symbol symbol=duplicate.value source="value: T" type=T
 /// @resolution.name source=T target=duplicate.T
 
@@ -270,7 +270,7 @@ duplicate(plain);
 /// @resolution.call source=duplicate(plain) parameters=(Plain) arguments=(provided(plain) as Plain) return=void kind=symbol target=duplicate instance=duplicate<Plain>
 /// @generic.instantiation id=duplicate<Plain> template=duplicate arguments=(Plain)
 /// @resolution.name source=plain target=plain
-/// @resolution.place source=plain placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=plain placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=plain root=plain
 "#,
         r#"

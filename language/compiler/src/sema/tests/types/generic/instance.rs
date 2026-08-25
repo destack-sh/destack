@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Materializing closes the instance a call to a generic function creates.
 #[test]
 fn test_materialize_closes_a_called_function_instance() {
     let session = TestSession::single(
@@ -50,6 +51,7 @@ const chosen = pick(1.5);
     );
 }
 
+/// Materializing emits one instance per distinct argument list.
 #[test]
 fn test_materialize_deduplicates_repeated_instance_arguments() {
     let session = TestSession::single(
@@ -118,6 +120,7 @@ const other = pick("text");
     );
 }
 
+/// Materializing closes the instances a template body reaches transitively.
 #[test]
 fn test_materialize_closes_transitive_instances_through_a_template_body() {
     let session = TestSession::single(
@@ -195,6 +198,7 @@ const chosen = outer(true);
     );
 }
 
+/// Materializing closes instances of templates imported from another module.
 #[test]
 fn test_materialize_closes_an_imported_template_instance() {
     let session = TestSession::single(
@@ -208,26 +212,26 @@ function positive(values: int32[]): int32[] {
     session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 function positive(values: int32[]): int32[] {
-    return values.map<int32, int32>((value: int32): int32 => value + 1) as int32[];
+    return values.map<int32, int32, "local">((value: int32): int32 => value + 1) as int32[];
 }
 
 === dir ===
 function positive(values: int32[]): int32[] {
 /// @type.symbol symbol=positive type=(int32[]) => int32[]
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @type.symbol symbol=positive.values source="values: int32[]" type=int32[]
 
     return values.map((value) => value + 1);
     /// @resolution.name source=values target=positive.values
-    /// @resolution.member source=values.map receiver=int32[] type=<collections.array.map.U#2>(this: int32[], Function<(int32, isize), collections.array.map.U#2>) => Owned<collections.array.map.U#2[]> kind=symbol target_receiver=int32[] target=collections.array.map#2
-    /// @resolution.call source="values.map((value) => value + 1)" parameters=(Function<(int32, isize), int32>) arguments=(provided((value) => value + 1) as Function<(int32, isize), int32>) return=Owned<int32[]> kind=symbol target=collections.array.map#2 receiver=int32[] instance=Array<int32>.<extension#3>.map#2<int32>
+    /// @resolution.member source=values.map receiver=int32[] type=<map.U#2, map#2.P1: Place>(this: Managed<int32[], map#2.P1>, Function<(int32, isize), map.U#2>) => Owned<map.U#2[]> kind=symbol target_receiver=int32[] target=map#2
+    /// @resolution.call source="values.map((value) => value + 1)" parameters=(Function<(int32, isize), int32>) arguments=(provided((value) => value + 1) as Function<(int32, isize), int32>) return=Owned<int32[]> kind=symbol target=map#2 receiver=int32[] instance="Array<int32>.<extension#3>.map#2<int32, \"local\">"
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=positive.values
-    /// @generic.instantiation id="collections.array.map#2<int32, int32>" template=collections.array.map#2 arguments=(int32, int32)
-    /// @generic.instantiation id=collections.array.map#2<int32> template=collections.array.map#2 arguments=(int32)
-    /// @generic.instance id="collections.array.map#2<int32, int32>" template=collections.array.map#2 arguments=(int32, int32)
+    /// @generic.instantiation id="map#2<int32, int32, \"local\">" template=map#2 arguments=(int32, int32, "local")
+    /// @generic.instantiation id=map#2<int32> template=map#2 arguments=(int32)
+    /// @generic.instance id="map#2<int32, int32, \"local\">" template=map#2 arguments=(int32, int32, "local")
     /// @type.symbol symbol=positive.symbol3 source="(value) => value + 1" type=Function<(int32,), int32>
     /// @type.symbol symbol=positive.symbol3.value source=value type=int32
     /// @resolution.name source=value target=positive.symbol3.value
@@ -239,6 +243,7 @@ function positive(values: int32[]): int32[] {
 "#);
 }
 
+/// Materializing evaluates a computed type inside a closed instance.
 #[test]
 fn test_materialize_evaluates_a_computed_template_type() {
     let session = TestSession::single(
@@ -311,6 +316,7 @@ const chosen = tag("name");
 "#);
 }
 
+/// A monomorphic module closes no instances.
 #[test]
 fn test_materialize_adds_no_rows_to_a_monomorphic_module() {
     let session = TestSession::single(
@@ -381,13 +387,25 @@ function checkRight(input: int32): void {
 import * as assert from "destack:assert";
 
 function checkLeft(value: int32): void {
-    assert.assertEqual<int32, int32>(value as &'frame readonly int32, 1 as &'frame readonly int32);
-    assert.assertEqual<int32, int32>(value as &'frame readonly int32, 2 as &'frame readonly int32);
+    assert.assertEqual<int32, int32, "local", "local">(
+        value as &'frame readonly int32,
+        1 as &'frame readonly int32,
+    );
+    assert.assertEqual<int32, int32, "local", "local">(
+        value as &'frame readonly int32,
+        2 as &'frame readonly int32,
+    );
 }
 
 function checkRight(input: int32): void {
-    assert.assertEqual<int32, int32>(input as &'frame readonly int32, 1 as &'frame readonly int32);
-    assert.assertEqual<int32, int32>(input as &'frame readonly int32, 2 as &'frame readonly int32);
+    assert.assertEqual<int32, int32, "local", "local">(
+        input as &'frame readonly int32,
+        1 as &'frame readonly int32,
+    );
+    assert.assertEqual<int32, int32, "local", "local">(
+        input as &'frame readonly int32,
+        2 as &'frame readonly int32,
+    );
 }
 
 === dir ===
@@ -398,16 +416,16 @@ function checkLeft(value: int32): void {
 /// @type.symbol symbol=checkLeft.value source="value: int32" type=int32
 
     assert.assertEqual(value, 1);
-    /// @resolution.name source=assert.assertEqual target=assert.assert.assertEqual
-    /// @resolution.call source="assert.assertEqual(value, 1)" parameters=(&'frame readonly int32, &'frame readonly int32, assert.assert.AssertionMessage | undefined) arguments=(provided(value) as &'frame readonly int32, provided(1) as &'frame readonly int32, omitted as assert.assert.AssertionMessage | undefined) return=void kind=symbol target=assert.assert.assertEqual instance="assert.assert.assertEqual<int32, int32>"
-    /// @generic.instantiation id="assert.assert.assertEqual<int32, int32>" template=assert.assert.assertEqual arguments=(int32, int32)
+    /// @resolution.name source=assert.assertEqual target=assertEqual
+    /// @resolution.call source="assert.assertEqual(value, 1)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(value) as &'frame readonly int32, provided(1) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void kind=symbol target=assertEqual instance="assertEqual<int32, int32, \"local\", \"local\">"
+    /// @generic.instantiation id="assertEqual<int32, int32, \"local\", \"local\">" template=assertEqual arguments=(int32, int32, "local", "local")
     /// @resolution.name source=value target=checkLeft.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=checkLeft.value
 
     assert.assertEqual(value, 2);
-    /// @resolution.name source=assert.assertEqual target=assert.assert.assertEqual
-    /// @resolution.call source="assert.assertEqual(value, 2)" parameters=(&'frame readonly int32, &'frame readonly int32, assert.assert.AssertionMessage | undefined) arguments=(provided(value) as &'frame readonly int32, provided(2) as &'frame readonly int32, omitted as assert.assert.AssertionMessage | undefined) return=void kind=symbol target=assert.assert.assertEqual instance="assert.assert.assertEqual<int32, int32>"
+    /// @resolution.name source=assert.assertEqual target=assertEqual
+    /// @resolution.call source="assert.assertEqual(value, 2)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(value) as &'frame readonly int32, provided(2) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void kind=symbol target=assertEqual instance="assertEqual<int32, int32, \"local\", \"local\">"
     /// @resolution.name source=value target=checkLeft.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=checkLeft.value
@@ -419,15 +437,15 @@ function checkRight(input: int32): void {
 /// @type.symbol symbol=checkRight.input source="input: int32" type=int32
 
     assert.assertEqual(input, 1);
-    /// @resolution.name source=assert.assertEqual target=assert.assert.assertEqual
-    /// @resolution.call source="assert.assertEqual(input, 1)" parameters=(&'frame readonly int32, &'frame readonly int32, assert.assert.AssertionMessage | undefined) arguments=(provided(input) as &'frame readonly int32, provided(1) as &'frame readonly int32, omitted as assert.assert.AssertionMessage | undefined) return=void kind=symbol target=assert.assert.assertEqual instance="assert.assert.assertEqual<int32, int32>"
+    /// @resolution.name source=assert.assertEqual target=assertEqual
+    /// @resolution.call source="assert.assertEqual(input, 1)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(input) as &'frame readonly int32, provided(1) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void kind=symbol target=assertEqual instance="assertEqual<int32, int32, \"local\", \"local\">"
     /// @resolution.name source=input target=checkRight.input
     /// @resolution.place source=input placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=input root=checkRight.input
 
     assert.assertEqual(input, 2);
-    /// @resolution.name source=assert.assertEqual target=assert.assert.assertEqual
-    /// @resolution.call source="assert.assertEqual(input, 2)" parameters=(&'frame readonly int32, &'frame readonly int32, assert.assert.AssertionMessage | undefined) arguments=(provided(input) as &'frame readonly int32, provided(2) as &'frame readonly int32, omitted as assert.assert.AssertionMessage | undefined) return=void kind=symbol target=assert.assert.assertEqual instance="assert.assert.assertEqual<int32, int32>"
+    /// @resolution.name source=assert.assertEqual target=assertEqual
+    /// @resolution.call source="assert.assertEqual(input, 2)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(input) as &'frame readonly int32, provided(2) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void kind=symbol target=assertEqual instance="assertEqual<int32, int32, \"local\", \"local\">"
     /// @resolution.name source=input target=checkRight.input
     /// @resolution.place source=input placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=input root=checkRight.input

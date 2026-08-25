@@ -407,7 +407,7 @@ impl CheckTable {
 
     /// Replace one check's completed outcome.
     ///
-    /// The table stores decided outcomes only; an undecided check keeps its
+    /// The table stores decided outcomes only, an undecided check keeps its
     /// empty slot and its queued work.
     pub(in crate::sema) fn set_result(
         &mut self,
@@ -490,7 +490,7 @@ pub(in crate::sema) enum CheckFailure {
     Undecided,
     /// A value converts to more than one represented union case.
     AmbiguousUnionCoercion,
-    /// The source cannot erase behind an erased carrier target.
+    /// The source cannot erase behind an erased target.
     NotErasable,
     /// Direct property literal missed one required key.
     MissingRequiredProperty {
@@ -507,7 +507,7 @@ pub(in crate::sema) enum CheckFailure {
         /// The required writable index signature.
         signature: dir::TypeIndexSignature,
     },
-    /// An inner site reported the failure, so the outer check stays silent.
+    /// A nested site reported the failure, so the outer check stays silent.
     Reported,
 }
 

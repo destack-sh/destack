@@ -47,7 +47,7 @@ interface Person {
 declare const person: Readonly<Person>;
 /// @type.symbol symbol=person source=person type=Readonly<Person>
 /// @resolution.pattern source=person kind=binding target=person
-/// @resolution.name source=Readonly target=types.object.Readonly
+/// @resolution.name source=Readonly target=Readonly
 /// @resolution.name source=Person target=Person
 
 person.age satisfies int32;
@@ -102,7 +102,7 @@ interface Person {
 const person: Readonly<Person> = {};
 /// @type.symbol symbol=person source=person type=Readonly<Person>
 /// @resolution.pattern source=person kind=binding target=person
-/// @resolution.name source=Readonly target=types.object.Readonly
+/// @resolution.name source=Readonly target=Readonly
 /// @resolution.name source=Person target=Person
 
 person.name satisfies string | undefined;
@@ -163,7 +163,7 @@ interface Person {
 declare const person: Readonly<Person>;
 /// @type.symbol symbol=person source=person type=Readonly<Person>
 /// @resolution.pattern source=person kind=binding target=person
-/// @resolution.name source=Readonly target=types.object.Readonly
+/// @resolution.name source=Readonly target=Readonly
 /// @resolution.name source=Person target=Person
 
 person.name = "Grace";
@@ -228,7 +228,7 @@ interface Person {
 const person: Readonly<Person> = { profile: { name: "Ada" } };
 /// @type.symbol symbol=person source=person type=Readonly<Person>
 /// @resolution.pattern source=person kind=binding target=person
-/// @resolution.name source=Readonly target=types.object.Readonly
+/// @resolution.name source=Readonly target=Readonly
 /// @resolution.name source=Person target=Person
 
 person.profile.name = "Grace";

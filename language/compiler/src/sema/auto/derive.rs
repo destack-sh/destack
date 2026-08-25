@@ -42,17 +42,17 @@ impl CheckState<'_> {
         let ty = self.shallow_resolve(ty)?;
         let kind = self.ty(ty)?;
 
-        // decide explicit memory carriers before their payload types
+        // decide memory forms before their payload types
         if let dir::Type::Form(form) = kind {
             return match form.form {
-                // clone handles and views by duplicating the carrier
-                dir::Form::Managed | dir::Form::Readonly | dir::Form::Borrowed(_)
+                // clone handles and views by duplicating the reference
+                dir::Form::Managed { .. } | dir::Form::Readonly | dir::Form::Borrowed(_)
                     if interface == dir::AutoInterface::Clone =>
                 {
                     Ok(Verdict::Holds)
                 }
-                // refuse default and zero values for reference carriers
-                dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Owned
+                // refuse default and zero values for reference forms
+                dir::Form::Managed { .. } | dir::Form::Borrowed(_) | dir::Form::Owned
                     if matches!(
                         interface,
                         dir::AutoInterface::Default | dir::AutoInterface::Zeroable
@@ -60,29 +60,28 @@ impl CheckState<'_> {
                 {
                     Ok(Verdict::Fails)
                 }
-                // unpin reference carriers
-                dir::Form::Managed | dir::Form::Borrowed(_)
+                // unpin reference forms
+                dir::Form::Managed { .. } | dir::Form::Borrowed(_)
                     if interface == dir::AutoInterface::Unpin =>
                 {
                     Ok(Verdict::Holds)
                 }
                 // raw addresses compare, hash, print, and zero by identity, and refuse a default
                 dir::Form::Raw => Ok(Verdict::decided(interface != dir::AutoInterface::Default)),
-                // forward every other carrier to its payload
-                dir::Form::Managed
+                // forward every other form to its payload
+                dir::Form::Managed { .. }
                 | dir::Form::Readonly
                 | dir::Form::Borrowed(_)
                 | dir::Form::Owned => self.decide_derivable(origin, form.value, interface),
-                // forward a placed carrier to its payload
-                dir::Form::Placed { .. } => self.decide_derivable(origin, form.value, interface),
             };
         }
 
         // decide the remaining structural forms
         match kind {
-            // an open variable answers optimistically, its retained bound re-decides once solved
-            // open inference stays undecided until its solution lands
+            // answer optimistically for an open variable
             dir::Type::Variable(_) | dir::Type::Hole(_) => Ok(Verdict::Ambiguous),
+            // accept region terms outright, they carry no runtime values
+            dir::Type::Region(_) => Ok(Verdict::Holds),
             // look through the refinement to its base
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(ty.module_id, refined)?;
@@ -90,7 +89,7 @@ impl CheckState<'_> {
                 self.decide_derivable(origin, refined.base, interface)
             }
 
-            // trivial singletons conform to every field-wise interface
+            // accept trivial singletons for every field-wise interface
             dir::Type::Error
             | dir::Type::Never
             | dir::Type::Void
@@ -108,11 +107,10 @@ impl CheckState<'_> {
             // decide a variant through its owning enum
             dir::Type::Variant(member) => self.decide_derivable(origin, member.owner, interface),
 
-            // opaque and callable forms carry no field-wise conformance
+            // decide opaque and callable forms by unpin alone
             dir::Type::Unknown
             | dir::Type::Intrinsic
             | dir::Type::Key(_)
-            | dir::Type::Memory(_)
             | dir::Type::Static(_)
             | dir::Type::Member(_)
             | dir::Type::Operation(_)
@@ -123,7 +121,7 @@ impl CheckState<'_> {
             | dir::Type::Reference(_) => {
                 Ok(Verdict::decided(interface == dir::AutoInterface::Unpin))
             }
-            // memory parameters qualify storage and impose none of their own
+            // accept memory parameters, they qualify storage alone
             dir::Type::Parameter(parameter) if self.is_memory_parameter(parameter) => {
                 Ok(Verdict::Holds)
             }
@@ -145,7 +143,7 @@ impl CheckState<'_> {
                 self.decide_derivable_instance(origin, ty.module_id, instance, interface)
             }
 
-            // structural containers stay with their declared library conformances
+            // decide structural containers by unpin, their library declares the rest
             dir::Type::Slice(_) | dir::Type::Object(_) => {
                 Ok(Verdict::decided(interface == dir::AutoInterface::Unpin))
             }
@@ -190,7 +188,7 @@ impl CheckState<'_> {
         };
 
         match definition {
-            // normalization unfolds aliases before this decision
+            // fail loudly, normalization unfolds aliases before this decision
             dir::Definition::TypeAlias(_) => Err(CompilerError::Internal {
                 message: format!(
                     "alias {:?} reached structural derivability",
@@ -202,7 +200,7 @@ impl CheckState<'_> {
                 interface,
                 dir::AutoInterface::Default | dir::AutoInterface::Zeroable
             ))),
-            // structs conform when every stored field conforms
+            // conform structs when every stored field conforms
             dir::Definition::Struct(definition) => {
                 // refuse Unpin for pinned storage
                 if interface == dir::AutoInterface::Unpin
@@ -216,7 +214,7 @@ impl CheckState<'_> {
 
                 self.decide_applied_fields(origin, instance_module, &instance, fields, interface)
             }
-            // newtypes conform through their backing type
+            // conform newtypes through their backing type
             dir::Definition::Newtype(definition) => self.decide_applied_fields(
                 origin,
                 instance_module,
@@ -234,7 +232,7 @@ impl CheckState<'_> {
                     return Ok(Verdict::Fails);
                 }
 
-                // class instances equate, hash, and clone by managed identity
+                // equate, hash, and clone class instances by managed identity
                 let formats = matches!(
                     interface,
                     dir::AutoInterface::Debug | dir::AutoInterface::Display

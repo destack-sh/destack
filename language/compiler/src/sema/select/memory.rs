@@ -11,24 +11,24 @@ impl BodyState<'_, '_> {
         input: Value,
         access: dir::Access,
     ) -> CompilerResult<Option<dir::DereferenceResolution>> {
-        // direct dereference projects physical pointer forms the access grants
+        // project physical pointer forms directly when the access grants it
         if let dir::Type::Form(form) = self.ty(input.ty)?
             && matches!(form.form, dir::Form::Borrowed(_) | dir::Form::Raw)
         {
             if let dir::Form::Borrowed(borrow) = form.form {
                 // require the requested access from the selected borrow
-                let held = self.check.type_borrow(input.ty.module_id, borrow)?.access;
-                let requested =
-                    self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(access)))?;
+                let borrow = self.check.type_borrow(input.ty.module_id, borrow)?;
+                let requested = self.access_literal(access)?;
                 if !self
                     .check
-                    .constrain_access_assignable(origin, held, requested)?
+                    .constrain_access_assignable(origin, borrow.access, requested)?
                     .holds()
                 {
                     return Ok(None);
                 }
             }
 
+            // the referent's own type carries its places, the resolution its placement
             let dereference = dir::Dereference {
                 receiver: input.ty,
                 target: dir::DereferenceTarget::Direct,
@@ -65,7 +65,7 @@ impl BodyState<'_, '_> {
             }));
         }
 
-        // protocol dereference handles smart pointer values
+        // dereference smart pointer values through their protocol
         for operator_protocol in unary_operator_protocols(dir::UnaryOperator::Dereference, access) {
             let key = operator_protocol.method.key(self.strings());
             let protocol = self.operator_protocol(origin, &operator_protocol, &[])?;
@@ -118,13 +118,19 @@ impl BodyState<'_, '_> {
         let access = mutability
             .map(dir::Mutability::access)
             .unwrap_or(dir::Access::Mutable);
-        let access_type =
-            self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(access)))?;
-        let lifetime = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(
-            dir::Lifetime::Frame,
-        )))?;
-        let form = self.intern_borrow(lifetime, access_type)?;
-        let projected = self.intern_type(dir::Type::Form(dir::FormType { form, value: input }))?;
+        let access_type = self.access_literal(access)?;
+        let lifetime = self.lifetime_literal(dir::Lifetime::Frame)?;
+
+        // borrow through a managed handle at the handle's place
+        let (place, value) = match self.ty(input)? {
+            dir::Type::Form(form) if let dir::Form::Managed { place } = form.form => {
+                (place, form.value)
+            }
+            _ => (self.check.local_place()?, input),
+        };
+        let region = self.check.intern_region(lifetime, place)?;
+        let form = self.intern_borrow(region, access_type)?;
+        let projected = self.intern_type(dir::Type::Form(dir::FormType { form, value }))?;
 
         self.check_pattern_projection(flow, scope, projected, pattern.into_global_any(module))?;
 

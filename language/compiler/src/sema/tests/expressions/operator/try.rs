@@ -52,23 +52,23 @@ struct Token {}
 /// @definition.struct symbol=Token source="struct Token {}"
 
 extension of Token implements Add<Token> {
-/// @generic.instance id=ops.plus.Add<Token> template=ops.plus.Add arguments=(Token)
+/// @generic.instance id=Add<Token> template=Add arguments=(Token)
 /// @definition.extension symbol=<module>#2 form=local target=Token
-/// @definition.implements symbol=<module>#2 source=Add<Token> target=ops.plus.Add<Token>
+/// @definition.implements symbol=<module>#2 source=Add<Token> target=Add<Token>
 /// @definition.associated.type symbol=Output source="type Output = string" key=Output value=string
-/// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a readonly Token, Token) => string
-/// @definition.conformance symbol=<module>#2 member=Output requirement=ops.plus.Add.Output
-/// @definition.conformance symbol=<module>#2 member=add requirement=ops.plus.Add.add
+/// @definition.method symbol=add slot=add type=<add.'a, add.P1: Place>(this: Borrowed<Token, add.'a & add.P1, "readonly">, Token) => string
+/// @definition.conformance symbol=<module>#2 member=Output requirement=Add.Output
+/// @definition.conformance symbol=<module>#2 member=add requirement=Add.add
 /// @resolution.name source=Token target=Token
-/// @resolution.name source=Add target=ops.plus.Add
+/// @resolution.name source=Add target=Add
 /// @resolution.name source=Token target=Token
 
     type Output = string;
     /// @type.symbol symbol=Output source="type Output = string" type=string
 
     add(other: Token): string {
-    /// @generic.template symbol=add parent=template#0 parameters=('a)
-    /// @type.symbol symbol=add type=<add.'a>(this: &add.'a readonly Token, Token) => string
+    /// @generic.template symbol=add parent=template#0 parameters=('a, P1: Place)
+    /// @type.symbol symbol=add type=<add.'a, add.P1: Place>(this: Borrowed<Token, add.'a & add.P1, "readonly">, Token) => string
     /// @type.symbol symbol=add.other source="other: Token" type=Token
     /// @resolution.name source=Token target=Token
 
@@ -91,10 +91,10 @@ const selected = token ?? fallback;
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=token target=token
 /// @resolution.operator source="token ?? fallback" type=string | Token operator="??" kind=builtin operands=[token as Token | undefined, fallback as Token]
-/// @resolution.place source=token placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=token placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=token root=token
 /// @resolution.name source=fallback target=fallback
-/// @resolution.place source=fallback placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=fallback placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=fallback root=fallback
 "#,
     );
@@ -179,19 +179,19 @@ struct Attempt {
 
 extension of Attempt implements Try {
 /// @definition.extension symbol=<module>#2 form=local target=Attempt
-/// @definition.implements symbol=<module>#2 source=Try target=ops.try.Try
+/// @definition.implements symbol=<module>#2 source=Try target=Try
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
 /// @definition.associated.type symbol=Residual source="type Residual = string" key=Residual value=string
-/// @definition.method symbol=branch slot=branch type=<branch.'a>(this: &branch.'a readonly Attempt) => ops.try.ControlFlow<string, int32>
+/// @definition.method symbol=branch slot=branch type=<branch.'a, branch.P1: Place>(this: Borrowed<Attempt, branch.'a & branch.P1, "readonly">) => ControlFlow<string, int32>
 /// @definition.method symbol=fromOutput slot=fromOutput static=true type=(int32) => Attempt
 /// @definition.method symbol=fromResidual slot=fromResidual static=true type=(string) => Attempt
-/// @definition.conformance symbol=<module>#2 member=Output requirement=ops.try.Try.Output
-/// @definition.conformance symbol=<module>#2 member=Residual requirement=ops.try.Try.Residual
-/// @definition.conformance symbol=<module>#2 member=branch requirement=ops.try.Try.branch
-/// @definition.conformance symbol=<module>#2 member=fromOutput requirement=ops.try.Try.fromOutput
-/// @definition.conformance symbol=<module>#2 member=fromResidual requirement=ops.try.FromResidual.fromResidual
+/// @definition.conformance symbol=<module>#2 member=Output requirement=Try.Output
+/// @definition.conformance symbol=<module>#2 member=Residual requirement=Try.Residual
+/// @definition.conformance symbol=<module>#2 member=branch requirement=Try.branch
+/// @definition.conformance symbol=<module>#2 member=fromOutput requirement=Try.fromOutput
+/// @definition.conformance symbol=<module>#2 member=fromResidual requirement=FromResidual.fromResidual
 /// @resolution.name source=Attempt target=Attempt
-/// @resolution.name source=Try target=ops.try.Try
+/// @resolution.name source=Try target=Try
 
     type Output = int32;
     /// @type.symbol symbol=Output source="type Output = int32" type=int32
@@ -223,24 +223,24 @@ extension of Attempt implements Try {
     }
 
     branch(): ControlFlow<string, int32> {
-    /// @generic.template symbol=branch parent=template#0 parameters=('a)
-    /// @type.symbol symbol=branch type=<branch.'a>(this: &branch.'a readonly Attempt) => ops.try.ControlFlow<string, int32>
-    /// @resolution.name source=ControlFlow target=ops.try.ControlFlow
-    /// @generic.instance id="ops.try.ControlFlow<string, int32>" template=ops.try.ControlFlow arguments=(string, int32)
-    /// @generic.instance id=ops.try.Break<string> template=ops.try.Break arguments=(string)
-    /// @generic.instance id=ops.try.Continue<int32> template=ops.try.Continue arguments=(int32)
+    /// @generic.template symbol=branch parent=template#0 parameters=('a, P1: Place)
+    /// @type.symbol symbol=branch type=<branch.'a, branch.P1: Place>(this: Borrowed<Attempt, branch.'a & branch.P1, "readonly">) => ControlFlow<string, int32>
+    /// @resolution.name source=ControlFlow target=ControlFlow
+    /// @generic.instance id="ControlFlow<string, int32>" template=ControlFlow arguments=(string, int32)
+    /// @generic.instance id=Break<string> template=Break arguments=(string)
+    /// @generic.instance id=Continue<int32> template=Continue arguments=(int32)
 
         return ControlFlow.continue(this.value);
-        /// @resolution.name source=ControlFlow target=ops.try.ControlFlow
-        /// @resolution.member source=ControlFlow.continue receiver=ops.try.ControlFlow type=(ops.try.C) => ops.try.ControlFlow<ops.try.B, ops.try.C> kind=symbol target_receiver=ops.try.ControlFlow target=ops.try.continue
-        /// @resolution.call source=ControlFlow.continue(this.value) parameters=(int32) arguments=(provided(this.value) as int32) return=ops.try.ControlFlow<string, int32> kind=symbol target=ops.try.continue instance="ops.try.ControlFlow<string, int32>.<extension#1>.continue"
-        /// @generic.instantiation id="ops.try.continue<string, int32>" template=ops.try.continue arguments=(string, int32)
-        /// @generic.instance id="ops.try.continue<string, int32>" template=ops.try.continue arguments=(string, int32)
-        /// @resolution.member source=this.value receiver=&branch.'a readonly Attempt type=int32 kind=field target_receiver=&branch.'a readonly Attempt key=value target=Attempt.value target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&branch.'a readonly Attempt
-        /// @resolution.place source=this placement="local" lifetime=branch.'a access="readonly"
+        /// @resolution.name source=ControlFlow target=ControlFlow
+        /// @resolution.member source=ControlFlow.continue receiver=ControlFlow type=(C) => ControlFlow<B, C> kind=symbol target_receiver=ControlFlow target=continue
+        /// @resolution.call source=ControlFlow.continue(this.value) parameters=(int32) arguments=(provided(this.value) as int32) return=ControlFlow<string, int32> kind=symbol target=continue instance="ControlFlow<string, int32>.<extension#1>.continue"
+        /// @generic.instantiation id="continue<string, int32>" template=continue arguments=(string, int32)
+        /// @generic.instance id="continue<string, int32>" template=continue arguments=(string, int32)
+        /// @resolution.member source=this.value receiver=Borrowed<Attempt, branch.'a & branch.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Attempt, branch.'a & branch.P1, "readonly"> key=value target=Attempt.value target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Attempt, branch.'a & branch.P1, "readonly">
+        /// @resolution.place source=this placement=branch.P1 lifetime=branch.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement="local" lifetime=branch.'a access="readonly"
+        /// @resolution.place source=this.value placement=branch.P1 lifetime=branch.'a access="readonly"
         /// @resolution.access source=this.value root=this keys=[value]
 
     }
@@ -256,14 +256,15 @@ const selected = attempt ?? 0;
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=attempt target=attempt
 /// @resolution.operator source="attempt ?? 0" type=int32 operator="??" kind=builtin operands=[attempt as Attempt, 0 as 0 families=(integer)]
-/// @resolution.place source=attempt placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=attempt placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=attempt root=attempt
 "#,
     );
 }
 
+/// Propagate a residual through a `Result` representation.
 #[test]
-fn test_propagate_try_through_result_carriers() {
+fn test_propagate_try_through_result_representations() {
     let session = TestSession::single(
         r#"
 import { Result } from "destack:error";
@@ -290,13 +291,13 @@ function passthrough(value: Result<int32, string>): Result<int32, string> {
 import { Result } from "destack:error";
 
 function passthrough(value: Result<int32, string>): Result<int32, string> {
-/// @type.symbol symbol=passthrough type=(error.result.Result<int32, string>) => error.result.Result<int32, string>
-/// @generic.instance id="error.result.Result<int32, string>" template=error.result.Result arguments=(int32, string)
-/// @generic.instance id=error.result.Err<string> template=error.result.Err arguments=(string)
-/// @generic.instance id=error.result.Ok<int32> template=error.result.Ok arguments=(int32)
-/// @type.symbol symbol=passthrough.value source="value: Result<int32, string>" type=error.result.Result<int32, string>
-/// @resolution.name source=Result target=error.result.Result
-/// @resolution.name source=Result target=error.result.Result
+/// @type.symbol symbol=passthrough type=(Result<int32, string>) => Result<int32, string>
+/// @generic.instance id="Result<int32, string>" template=Result arguments=(int32, string)
+/// @generic.instance id=Err<string> template=Err arguments=(string)
+/// @generic.instance id=Ok<int32> template=Ok arguments=(int32)
+/// @type.symbol symbol=passthrough.value source="value: Result<int32, string>" type=Result<int32, string>
+/// @resolution.name source=Result target=Result
+/// @resolution.name source=Result target=Result
 
     const total = value?;
     /// @type.symbol symbol=passthrough.total source=total type=int32
@@ -305,16 +306,16 @@ function passthrough(value: Result<int32, string>): Result<int32, string> {
     /// @resolution.name source=value target=passthrough.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=passthrough.value
-    /// @resolution.residual source=value? target=callable residual=TryResidual<error.result.Result<int32, string>>
+    /// @resolution.residual source=value? target=callable residual=TryResidual<Result<int32, string>>
 
     return Result.ok(total);
-    /// @type.node source=Result.ok type=(error.result.T#1) => error.result.Result<error.result.T#1, error.result.E#1>
-    /// @type.node source=Result.ok(total) type=error.result.Result<int32, string>
-    /// @resolution.name source=Result target=error.result.Result
-    /// @resolution.member source=Result.ok receiver=error.result.Result type=(error.result.T#1) => error.result.Result<error.result.T#1, error.result.E#1> kind=symbol target_receiver=error.result.Result target=error.result.ok#1
-    /// @resolution.call source=Result.ok(total) parameters=(int32) arguments=(provided(total) as int32) return=error.result.Result<int32, string> kind=symbol target=error.result.ok#1 instance="error.result.Result<int32, string>.<extension#1>.ok#1"
-    /// @generic.instantiation id="error.result.ok#1<int32, string>" template=error.result.ok#1 arguments=(int32, string)
-    /// @generic.instance id="error.result.ok#1<int32, string>" template=error.result.ok#1 arguments=(int32, string)
+    /// @type.node source=Result.ok type=(T#1) => Result<T#1, E#1>
+    /// @type.node source=Result.ok(total) type=Result<int32, string>
+    /// @resolution.name source=Result target=Result
+    /// @resolution.member source=Result.ok receiver=Result type=(T#1) => Result<T#1, E#1> kind=symbol target_receiver=Result target=ok#1
+    /// @resolution.call source=Result.ok(total) parameters=(int32) arguments=(provided(total) as int32) return=Result<int32, string> kind=symbol target=ok#1 instance="Result<int32, string>.<extension#1>.ok#1"
+    /// @generic.instantiation id="ok#1<int32, string>" template=ok#1 arguments=(int32, string)
+    /// @generic.instance id="ok#1<int32, string>" template=ok#1 arguments=(int32, string)
     /// @resolution.name source=total target=passthrough.total
     /// @resolution.place source=total placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=total root=passthrough.total

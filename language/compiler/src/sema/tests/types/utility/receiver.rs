@@ -25,7 +25,7 @@ ok.id satisfies string;
 type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>;
 /// @type.symbol symbol=Receiver source="type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>" type={ id: string }
 /// @definition.type symbol=Receiver source="type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>" value={ id: string }
-/// @resolution.name source=ThisParameterType target=types.function.ThisParameterType
+/// @resolution.name source=ThisParameterType target=ThisParameterType
 /// @type.symbol symbol=Receiver.this source="this: { id: string }" type={ id: string }
 /// @type.symbol symbol=Receiver.value source="value: number" type=float64
 
@@ -68,7 +68,7 @@ const ok: unknown = { anything: true } as unknown;
 type Receiver = ThisParameterType<(value: number) => void>;
 /// @type.symbol symbol=Receiver source="type Receiver = ThisParameterType<(value: number) => void>" type=unknown
 /// @definition.type symbol=Receiver source="type Receiver = ThisParameterType<(value: number) => void>" value=unknown
-/// @resolution.name source=ThisParameterType target=types.function.ThisParameterType
+/// @resolution.name source=ThisParameterType target=ThisParameterType
 /// @type.symbol symbol=Receiver.value source="value: number" type=float64
 
 const ok: Receiver = { anything: true };
@@ -104,7 +104,7 @@ fn("one") satisfies string;
 type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>;
 /// @type.symbol symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>" type=Function<(string,), string>
 /// @definition.type symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>" value=Function<(string,), string>
-/// @resolution.name source=OmitThisParameter target=types.function.OmitThisParameter
+/// @resolution.name source=OmitThisParameter target=OmitThisParameter
 /// @type.symbol symbol=Fn.this source="this: { id: string }" type={ id: string }
 /// @type.symbol symbol=Fn.value source="value: string" type=string
 
@@ -152,7 +152,7 @@ fn("bad");
 type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>;
 /// @type.symbol symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>" type=Function<(float64,), string>
 /// @definition.type symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>" value=Function<(float64,), string>
-/// @resolution.name source=OmitThisParameter target=types.function.OmitThisParameter
+/// @resolution.name source=OmitThisParameter target=OmitThisParameter
 /// @type.symbol symbol=Fn.this source="this: { id: string }" type={ id: string }
 /// @type.symbol symbol=Fn.value source="value: number" type=float64
 

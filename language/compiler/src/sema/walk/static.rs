@@ -341,7 +341,7 @@ impl WalkState<'_, '_> {
                 // const parameters write their parameter type
                 if let Some(parameter) = self.check.parameter_by_symbol(symbol) {
                     // declared value reads pin the parameter to one exact value
-                    if self.imposes_requirements && parameter.module_id == self.module {
+                    if !self.is_body && parameter.module_id == self.module {
                         let cardinality = dir::Cardinality::One {
                             source: expression.into_any(),
                         };
@@ -351,7 +351,7 @@ impl WalkState<'_, '_> {
                             .set_cardinality(parameter.local_id, cardinality);
                     }
                     // body value reads consume the value the signature must fix
-                    else if !self.imposes_requirements
+                    else if self.is_body
                         && self.check.resolved_cardinality(parameter).is_none()
                     {
                         self.check.report_value_read_not_fixed(

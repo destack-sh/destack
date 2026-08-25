@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A tagged struct literal constructs a value of that struct.
 #[test]
 fn test_struct_tagged_literal_constructs_value() {
     let session = TestSession::single(
@@ -49,7 +50,7 @@ const point = Point { x: 1, y: 2 };
 
 point satisfies Point;
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 /// @resolution.name source=Point target=Point
 "#,
@@ -84,6 +85,7 @@ const store = Store {
     );
 }
 
+/// A generic struct literal takes its arguments from the expected result type.
 #[test]
 fn test_generic_struct_literal_uses_expected_result_arguments() {
     let session = TestSession::single(
@@ -147,6 +149,7 @@ function wrap<T>(value: T): Box<T> {
     );
 }
 
+/// A generic struct literal checks a field initialized by a static bound member.
 #[test]
 fn test_generic_struct_literal_checks_field_with_static_bound_member() {
     let session = TestSession::single(
@@ -228,6 +231,7 @@ function make<T: Zero>(): Box<T> {
     );
 }
 
+/// A generic struct literal checks a field initialized by a scalar operator.
 #[test]
 fn test_generic_struct_literal_checks_field_with_scalar_operator() {
     let session = TestSession::single(
@@ -263,12 +267,12 @@ function doubled<T: Float>(value: T): Box<T> {
 import { Float } from "destack:math";
 
 struct Box<T: Float> {
-/// @generic.template symbol=Box parameters=(out T#1: math.float.Float)
+/// @generic.template symbol=Box parameters=(out T#1: Float)
 /// @type.symbol symbol=Box type=Box
-/// @definition.struct symbol=Box template=(out T#1: math.float.Float)
+/// @definition.struct symbol=Box template=(out T#1: Float)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Box.T source="T: Float" type=T#1
-/// @resolution.name source=Float target=math.float.Float
+/// @resolution.name source=Float target=Float
 
     value: T;
     /// @type.symbol symbol=Box.value source="value: T" type=T#1
@@ -277,10 +281,10 @@ struct Box<T: Float> {
 }
 
 function doubled<T: Float>(value: T): Box<T> {
-/// @generic.template symbol=doubled parameters=(T#2: math.float.Float)
-/// @type.symbol symbol=doubled type=<T#2: math.float.Float>(T#2) => Box<T#2>
+/// @generic.template symbol=doubled parameters=(T#2: Float)
+/// @type.symbol symbol=doubled type=<T#2: Float>(T#2) => Box<T#2>
 /// @type.symbol symbol=doubled.T source="T: Float" type=T#2
-/// @resolution.name source=Float target=math.float.Float
+/// @resolution.name source=Float target=Float
 /// @type.symbol symbol=doubled.value source="value: T" type=T#2
 /// @resolution.name source=T target=doubled.T
 /// @resolution.name source=Box target=Box
@@ -302,6 +306,7 @@ function doubled<T: Float>(value: T): Box<T> {
     );
 }
 
+/// A tagged struct literal exposes the methods the struct declares.
 #[test]
 fn test_struct_tagged_literal_exposes_methods() {
     let session = TestSession::single(
@@ -332,7 +337,7 @@ struct Counter {
     }
 }
 
-const next: Counter = Counter { value: 1 }.increment();
+const next: Counter = Counter { value: 1 }.increment<"local">();
 next satisfies Counter;
 
 === dir ===
@@ -340,24 +345,24 @@ struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a>(this: &Counter.increment.'a readonly Counter) => Counter
+/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "readonly">) => Counter
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     increment(): Counter {
-    /// @generic.template symbol=Counter.increment parameters=('a)
-    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a>(this: &Counter.increment.'a readonly Counter) => Counter
+    /// @generic.template symbol=Counter.increment parameters=('a, P1: Place)
+    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "readonly">) => Counter
     /// @resolution.name source=Counter target=Counter
 
         Counter { value: this.value + 1 }
         /// @resolution.name source=Counter target=Counter
-        /// @resolution.member source=this.value receiver=&Counter.increment.'a readonly Counter type=int32 kind=field target_receiver=&Counter.increment.'a readonly Counter key=value target=Counter.value target_type=int32
+        /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "readonly"> key=value target=Counter.value target_type=int32
         /// @resolution.operator source="this.value + 1" type=int32 operator="+" kind=builtin operands=[this.value as int32 families=(integer), 1 as int32 families=(integer)]
-        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a readonly Counter
-        /// @resolution.place source=this placement="local" lifetime=Counter.increment.'a access="readonly"
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "readonly">
+        /// @resolution.place source=this placement=Counter.increment.P1 lifetime=Counter.increment.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement="local" lifetime=Counter.increment.'a access="readonly"
+        /// @resolution.place source=this.value placement=Counter.increment.P1 lifetime=Counter.increment.'a access="readonly"
         /// @resolution.access source=this.value root=this keys=[value]
 
     }
@@ -367,18 +372,21 @@ const next = Counter { value: 1 }.increment();
 /// @type.symbol symbol=next source=next type=Counter
 /// @resolution.pattern source=next kind=binding target=next
 /// @resolution.name source=Counter target=Counter
-/// @resolution.member source="Counter { value: 1 }.increment" receiver=Counter type=<Counter.increment.'a>(this: &Counter.increment.'a readonly Counter) => Counter kind=symbol target_receiver=Counter target=Counter.increment
-/// @resolution.call source="Counter { value: 1 }.increment()" parameters=() return=Counter kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow(&'frame readonly Counter))
+/// @resolution.member source="Counter { value: 1 }.increment" receiver=Counter type=<Counter.increment.'a, Counter.increment.P1: Place>(this: Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "readonly">) => Counter kind=symbol target_receiver=Counter target=Counter.increment
+/// @resolution.call source="Counter { value: 1 }.increment()" parameters=() return=Counter kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow(&'frame readonly Counter)) instance="Counter.increment<\"local\">"
+/// @generic.instantiation id="Counter.increment<\"local\">" template=Counter.increment arguments=("local")
+/// @generic.instance id="Counter.increment<\"local\">" template=Counter.increment arguments=("local")
 
 next satisfies Counter;
 /// @resolution.name source=next target=next
-/// @resolution.place source=next placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=next placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=next root=next
 /// @resolution.name source=Counter target=Counter
 "#,
     );
 }
 
+/// A tagged struct literal missing a field reports a diagnostic.
 #[test]
 fn test_struct_tagged_literal_requires_fields() {
     let session = TestSession::single(
@@ -431,6 +439,7 @@ const point = Point { x: 1 };
     );
 }
 
+/// A tagged struct literal with an extra field reports a diagnostic.
 #[test]
 fn test_struct_tagged_literal_rejects_extra_fields() {
     let session = TestSession::single(
@@ -484,6 +493,7 @@ const point = Point { x: 1, y: 2, z: 3 };
     );
 }
 
+/// Constructing a struct with new reports a diagnostic.
 #[test]
 fn test_struct_rejects_new_constructor_syntax() {
     let session = TestSession::single(
@@ -537,6 +547,7 @@ const point = new Point(1, 2);
     );
 }
 
+/// An exclusive struct method writes the fields of its receiver.
 #[test]
 fn test_struct_methods_mutate_fields() {
     let session = TestSession::single(
@@ -571,7 +582,7 @@ struct Counter {
 }
 
 let counter: Counter = Counter { value: 1 };
-const next: int32 = counter.increment();
+const next: int32 = counter.increment<"local">();
 next satisfies int32;
 
 === dir ===
@@ -579,37 +590,37 @@ struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive Counter) => int32
+/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">) => int32
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     increment(&exclusive this): int32 {
-    /// @generic.template symbol=Counter.increment parameters=('a)
-    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive Counter) => int32
-    /// @type.symbol symbol=Counter.increment.this source="&exclusive this" type=&Counter.increment.'a exclusive this
+    /// @generic.template symbol=Counter.increment parameters=('a, P1: Place)
+    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">) => int32
+    /// @type.symbol symbol=Counter.increment.this source="&exclusive this" type=Borrowed<this, Counter.increment.'a & Counter.increment.P1, "exclusive">
 
         this.value = this.value + 1;
-        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
-        /// @resolution.place source=this placement="local" lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">
+        /// @resolution.place source=this placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
-        /// @resolution.assignment source=this.value write="receiver=&Counter.increment.'a exclusive Counter, target=field(receiver=&Counter.increment.'a exclusive Counter, target=Counter.value, type=int32), type=int32" type=int32
-        /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter type=int32 kind=field target_receiver=&Counter.increment.'a exclusive Counter key=value target=Counter.value target_type=int32
+        /// @resolution.assignment source=this.value write="receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, \"exclusive\">, target=field(receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, \"exclusive\">, target=Counter.value, type=int32), type=int32" type=int32
+        /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive"> type=int32 kind=field target_receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive"> key=value target=Counter.value target_type=int32
         /// @resolution.operator source="this.value + 1" type=int32 operator="+" kind=builtin operands=[this.value as int32 families=(integer), 1 as int32 families=(integer)]
-        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
-        /// @resolution.place source=this placement="local" lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">
+        /// @resolution.place source=this placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement="local" lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.place source=this.value placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this.value root=this keys=[value]
 
         this.value
-        /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter type=int32 kind=field target_receiver=&Counter.increment.'a exclusive Counter key=value target=Counter.value target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
-        /// @resolution.place source=this placement="local" lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive"> type=int32 kind=field target_receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive"> key=value target=Counter.value target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">
+        /// @resolution.place source=this placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement="local" lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.place source=this.value placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this.value root=this keys=[value]
 
     }
@@ -624,19 +635,22 @@ const next = counter.increment();
 /// @type.symbol symbol=next source=next type=int32
 /// @resolution.pattern source=next kind=binding target=next
 /// @resolution.name source=counter target=counter
-/// @resolution.member source=counter.increment receiver=Counter type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive Counter) => int32 kind=symbol target_receiver=Counter target=Counter.increment
-/// @resolution.call source=counter.increment() parameters=() return=int32 kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow(&'static exclusive Counter))
+/// @resolution.member source=counter.increment receiver=Counter type=<Counter.increment.'a, Counter.increment.P1: Place>(this: Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">) => int32 kind=symbol target_receiver=Counter target=Counter.increment
+/// @resolution.call source=counter.increment() parameters=() return=int32 kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow(&'static exclusive Counter)) instance="Counter.increment<\"local\">"
 /// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counter root=counter
+/// @generic.instantiation id="Counter.increment<\"local\">" template=Counter.increment arguments=("local")
+/// @generic.instance id="Counter.increment<\"local\">" template=Counter.increment arguments=("local")
 
 next satisfies int32;
 /// @resolution.name source=next target=next
-/// @resolution.place source=next placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=next placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=next root=next
 "#,
     );
 }
 
+/// Assigning a bare object literal to a struct reports a diagnostic.
 #[test]
 fn test_object_literal_does_not_construct_struct() {
     let session = TestSession::single(
@@ -684,6 +698,7 @@ const counter: Counter = { value: 1 };
     );
 }
 
+/// A struct literal infers the borrow lifetime it omits from the return type.
 #[test]
 fn test_struct_literal_infers_omitted_borrow_lifetime_from_return() {
     let session = TestSession::single(
@@ -715,11 +730,11 @@ type Options = {
 };
 
 struct Entry<'a> {
-    logger?: &'a readonly string;
+    logger?: Borrowed<string, 'a, "readonly">;
     message?: string | undefined;
 }
 
-function make(options?: Options): Entry<"static"> {
+function make(options?: Options): Entry<"static" & "constant"> {
     const entry: Entry<"frame"> = Entry<"frame"> { message: options?.message };
 
     return entry;
@@ -751,7 +766,7 @@ struct Entry<'a> {
 }
 
 function make(options?: Options): Entry {
-/// @type.symbol symbol=make type=(Options | undefined?) => Entry<"static">
+/// @type.symbol symbol=make type=(Options | undefined?) => Entry<"static" & "constant">
 /// @type.symbol symbol=make.options source="options?: Options" type=Options | undefined
 /// @resolution.name source=Options target=Options
 /// @resolution.name source=Entry target=Entry
@@ -761,7 +776,7 @@ function make(options?: Options): Entry {
     /// @resolution.pattern source=entry kind=binding target=make.entry
     /// @resolution.name source=Entry target=Entry
     /// @resolution.name source=options target=make.options
-    /// @resolution.member source=options?.message receiver=Options | undefined type=string | undefined kind=field target_receiver=Options | undefined adjustments=(union.payload(Options | undefined, Options, Options)) key=message target_type=string | undefined
+    /// @resolution.member source=options?.message receiver=Options | undefined type=string | undefined kind=field target_receiver=Options | undefined adjustments=(union.payload(Options | undefined, { message?: string }, Options)) key=message target_type=string | undefined
     /// @resolution.place source=options placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=options root=make.options
     /// @resolution.place source=options?.message placement="local" lifetime="frame" access="exclusive"

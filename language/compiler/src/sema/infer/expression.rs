@@ -610,12 +610,12 @@ impl BodyState<'_, '_> {
             return Ok(());
         }
 
-        // read a const parameter as its carrier type
+        // read a const parameter as its representation type
         if let Some(parameter) = self.check.parameter_by_symbol(*symbol)
             && let Some(binding) = self.check.generic_parameter(parameter)
             && binding.is_const
             && binding.memory_parameter().is_none()
-            && let Some(carrier) = binding.constraint
+            && let Some(representation) = binding.constraint
         {
             // body reads consume the value the signature must fix
             if self.check.resolved_cardinality(parameter).is_none() {
@@ -624,8 +624,8 @@ impl BodyState<'_, '_> {
             }
             self.commit_access(site.node, dir::AccessPath::symbol(*symbol))?;
             self.commit_access_use(site.node, dir::BindingUse::READ);
-            let carrier = self.flow_type_at(site, carrier)?;
-            self.commit_node_type(site.node, carrier)?;
+            let representation = self.flow_type_at(site, representation)?;
+            self.commit_node_type(site.node, representation)?;
 
             return Ok(());
         }

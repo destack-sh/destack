@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::sema::{
-    Cause, CauseKind, Check, CheckState, Expectation, FlowSite, FlowState, NodeCheck, Origin,
-    Relation, RelationCheck, ValueUse, VariableRole,
+    Cause, CauseKind, Check, CheckState, Expectation, FlowSite, FlowState, InducedParameterOwner,
+    NodeCheck, Origin, Relation, RelationCheck, ValueUse, VariableRole,
 };
 use crate::{CheckError, CompilerError, CompilerResult};
 
@@ -15,27 +15,31 @@ pub(in crate::sema) struct WalkState<'check, 'state> {
     pub(in crate::sema) tree: dir::View<'check>,
     /// The module being walked.
     pub(in crate::sema) module: ModuleId,
-    /// How elided borrow lifetimes are handled in the active type position.
-    borrow_lifetime_elision: BorrowLifetimeElision,
-    /// Whether declared value reads pin parameters to one exact value.
-    pub(in crate::sema) imposes_requirements: bool,
-    /// Elided borrow lifetimes tracked by the active return type.
-    return_borrow_lifetimes: Vec<dir::TypeVariableId>,
+    /// The elision rule for borrow regions in the active type position.
+    region_elision: ElisionSite,
+    /// The declaration receiving the parameters induced by the active signature walk.
+    pub(in crate::sema) induced_owner: Option<InducedParameterOwner>,
+    /// Whether this walk runs inside a body, where value reads check fixed requirements.
+    pub(in crate::sema) is_body: bool,
+    /// Elided borrow regions tracked by the active return type.
+    elided_return_regions: Vec<dir::TypeVariableId>,
     /// Conditional extends clauses enclosing the active type position.
     pub(in crate::sema) extends_clauses: u32,
 }
 
-/// How elided borrow lifetimes are handled while walking types.
+/// The rule for elided borrow regions, one per walked type position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum BorrowLifetimeElision {
-    /// Elided borrow lifetimes generate hidden generic parameters.
-    Generate,
-    /// Elided borrow lifetimes are tracked for a return type rule.
-    TrackReturn,
-    /// Elided borrow lifetimes close to the current frame.
-    Frame,
-    /// Elided borrow lifetimes close to the static lifetime.
-    Static,
+pub(in crate::sema) enum ElisionSite {
+    /// Signature positions induce one hidden parameter per elided coordinate.
+    Signature,
+    /// Return positions track one placeholder for the return election rule.
+    Return,
+    /// Body positions close extents at the frame and leave spaces to inference.
+    Body,
+    /// Module binding positions read constant storage forever.
+    Module,
+    /// Member positions place elided components at the enclosing instance's own place.
+    Member,
 }
 
 impl<'state> std::ops::Deref for WalkState<'_, 'state> {
@@ -63,16 +67,17 @@ impl<'check, 'state> WalkState<'check, 'state> {
             check,
             tree,
             module,
-            borrow_lifetime_elision: BorrowLifetimeElision::Generate,
-            imposes_requirements: true,
-            return_borrow_lifetimes: Vec::new(),
+            region_elision: ElisionSite::Signature,
+            induced_owner: None,
+            is_body: false,
+            elided_return_regions: Vec::new(),
             extends_clauses: 0,
         }
     }
 
-    /// Walk body positions, which check requirements instead of imposing them.
+    /// Walk body positions, where declared value reads check requirements.
     pub(in crate::sema) fn for_body(mut self) -> Self {
-        self.imposes_requirements = false;
+        self.is_body = true;
 
         self
     }
@@ -97,8 +102,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
     /// Flush the cursor's durable points into the module flow table.
     ///
-    /// Sites mint directly into module state at their first visit, so
-    /// syncing the point log is all a flush commits.
+    /// Sites commit into module state at their first visit, so
+    /// syncing the point log is all a flush adds.
     pub(in crate::sema) fn flush_flows(&mut self) -> CompilerResult<()> {
         let module = self.module;
         let flow = std::mem::take(&mut self.check.flow);
@@ -122,7 +127,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         id: dir::LocalNodeId<T>,
     ) -> CompilerResult<FlowSite> {
-        // sites mint once and reuse at every later visit
+        // commit each site once and reuse it at every later visit
         self.check.visit_site(id.into_global_any(self.module))
     }
 
@@ -151,96 +156,220 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(())
     }
 
-    /// Walk one return type while tracking elided borrow lifetimes.
+    /// Walk one type expression under an explicit region elision rule.
+    pub(in crate::sema) fn walk_type_expression_in(
+        &mut self,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        elision: ElisionSite,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let previous = self.region_elision;
+        self.region_elision = elision;
+        let result = self.walk_type_expression(id);
+        self.region_elision = previous;
+
+        result
+    }
+
+    /// Walk one return type while tracking its elided borrow components.
     pub(in crate::sema) fn walk_return_type_expression(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<(dir::GlobalTypeId, Vec<dir::TypeVariableId>)> {
-        let previous = self.borrow_lifetime_elision;
-        let first_tracked = self.return_borrow_lifetimes.len();
-        self.borrow_lifetime_elision = BorrowLifetimeElision::TrackReturn;
+        let previous = self.region_elision;
+        let first_region = self.elided_return_regions.len();
+        self.region_elision = ElisionSite::Return;
         let result = self.walk_type_expression(id);
-        self.borrow_lifetime_elision = previous;
-        let tracked = self.return_borrow_lifetimes.split_off(first_tracked);
+        self.region_elision = previous;
+        let tracked = self.elided_return_regions.split_off(first_region);
 
         Ok((result?, tracked))
     }
 
-    /// Walk one type expression with elided borrow lifetimes closed to frame.
-    pub(in crate::sema) fn walk_frame_type_expression(
-        &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let previous = self.borrow_lifetime_elision;
-        self.borrow_lifetime_elision = BorrowLifetimeElision::Frame;
-        let result = self.walk_type_expression(id);
-        self.borrow_lifetime_elision = previous;
-
-        result
-    }
-
-    /// Walk one type expression with elided borrow lifetimes closed to static.
-    pub(in crate::sema) fn walk_static_type_expression(
-        &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let previous = self.borrow_lifetime_elision;
-        self.borrow_lifetime_elision = BorrowLifetimeElision::Static;
-        let result = self.walk_type_expression(id);
-        self.borrow_lifetime_elision = previous;
-
-        result
-    }
-
-    /// Return one induced lifetime for a synthesized receiver borrow.
-    pub(in crate::sema) fn generated_receiver_borrow_lifetime(
+    /// Induce one region for a synthesized receiver borrow.
+    pub(in crate::sema) fn induce_receiver_borrow_region(
         &mut self,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let previous = self.borrow_lifetime_elision;
-        self.borrow_lifetime_elision = BorrowLifetimeElision::Generate;
-        let result = self.elided_borrow_lifetime(source);
-        self.borrow_lifetime_elision = previous;
+        let previous = self.region_elision;
+        self.region_elision = ElisionSite::Signature;
+        let result = self.elided_borrow_region(source);
+        self.region_elision = previous;
 
         result
     }
 
-    /// Return the lifetime type for one elided borrow lifetime.
-    pub(in crate::sema) fn elided_borrow_lifetime(
+    /// Return the region one borrow with an elided region carries.
+    ///
+    /// Signature positions induce one hidden region parameter, return
+    /// positions track a placeholder for election, body positions close the
+    /// extent at the frame and leave the spaces to inference, and ambient
+    /// module bindings reference constant storage.
+    pub(in crate::sema) fn elided_borrow_region(
         &mut self,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // body positions close elided lifetimes at the enclosing frame
-        if self.borrow_lifetime_elision == BorrowLifetimeElision::Frame {
-            return self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(
-                dir::Lifetime::Frame,
-            )));
+        match self.region_elision {
+            // signature positions induce one hidden region parameter per coordinate
+            ElisionSite::Signature => {
+                let extent = self.induce_memory_parameter(source, dir::MemoryParameter::Region)?;
+                let spaces = self.induce_memory_parameter(source, dir::MemoryParameter::Place)?;
+
+                self.check.intern_region(extent, spaces)
+            }
+
+            // return positions track one placeholder replaced by the elected input
+            ElisionSite::Return => {
+                let region = self.open_memory_hole(source, dir::MemoryParameter::Region)?;
+                if let Some(variable) = self.check.root_variable(region)? {
+                    self.elided_return_regions.push(variable);
+                }
+
+                Ok(region)
+            }
+
+            // body positions close the extent at the frame, spaces stay open
+            ElisionSite::Body => {
+                let extent = self.lifetime_literal(dir::Lifetime::Frame)?;
+                let spaces = self.open_memory_hole(source, dir::MemoryParameter::Place)?;
+
+                self.check.intern_region(extent, spaces)
+            }
+
+            // module bindings reference constant storage forever
+            ElisionSite::Module => {
+                let extent = self.lifetime_literal(dir::Lifetime::Static)?;
+                let spaces = self.check.place_literal(dir::Space::Constant)?;
+
+                self.check.intern_region(extent, spaces)
+            }
+
+            // member positions pair an induced extent with the instance's own place
+            ElisionSite::Member => {
+                let extent = self.induce_memory_parameter(source, dir::MemoryParameter::Region)?;
+                let this = self.intern_type(dir::Type::This)?;
+                let spaces = self.language_type_reference(dir::LanguageItem::PlaceOf, &[this])?;
+
+                self.check.intern_region(extent, spaces)
+            }
         }
-
-        // ambient module bindings outlive every frame
-        if self.borrow_lifetime_elision == BorrowLifetimeElision::Static {
-            return self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(
-                dir::Lifetime::Static,
-            )));
-        }
-
-        // open one hidden lifetime parameter
-        let constraint = self.memory_parameter_constraint(dir::MemoryParameter::Lifetime)?;
-        let role = VariableRole::Memory {
-            kind: dir::MemoryParameter::Lifetime,
-            constraint,
-        };
-        let lifetime = self.open_type_hole(source, role)?;
-        let Some(variable) = self.check.root_variable(lifetime)? else {
-            return Ok(lifetime);
-        };
-
-        self.commit_borrow_lifetime_elision(variable)?;
-
-        Ok(lifetime)
     }
 
-    /// Open one hidden memory parameter hole.
+    /// Return the elided extent for one borrow region written spaces-only.
+    pub(in crate::sema) fn elided_borrow_extent(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        match self.region_elision {
+            // signature positions induce one hidden extent parameter
+            ElisionSite::Signature => {
+                self.induce_memory_parameter(source, dir::MemoryParameter::Region)
+            }
+
+            // return positions track one placeholder replaced by the elected input
+            ElisionSite::Return => {
+                let extent = self.open_memory_hole(source, dir::MemoryParameter::Region)?;
+                if let Some(variable) = self.check.root_variable(extent)? {
+                    self.elided_return_regions.push(variable);
+                }
+
+                Ok(extent)
+            }
+
+            // body positions close the extent at the frame
+            ElisionSite::Body => self.lifetime_literal(dir::Lifetime::Frame),
+
+            // module bindings hold their values forever
+            ElisionSite::Module => self.lifetime_literal(dir::Lifetime::Static),
+
+            // member positions induce their extent like signatures
+            ElisionSite::Member => {
+                self.induce_memory_parameter(source, dir::MemoryParameter::Region)
+            }
+        }
+    }
+
+    /// Lift one bare space term into the region holding that coordinate.
+    pub(in crate::sema) fn lift_place_to_region(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        place: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let extent = self.elided_borrow_extent(source)?;
+
+        self.check.intern_region(extent, place)
+    }
+
+    /// Return one elided memory component in a written application slot.
+    pub(in crate::sema) fn elided_memory_component(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        kind: dir::MemoryParameter,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // signature positions induce hidden parameters
+        if self.region_elision == ElisionSite::Signature {
+            return self.induce_memory_parameter(source, kind);
+        }
+
+        // module bindings reference constant storage
+        if kind == dir::MemoryParameter::Place && self.region_elision == ElisionSite::Module {
+            return self.check.place_literal(dir::Space::Constant);
+        }
+
+        // member positions project the enclosing instance's own place
+        if kind == dir::MemoryParameter::Place && self.region_elision == ElisionSite::Member {
+            let this = self.intern_type(dir::Type::This)?;
+
+            return self.language_type_reference(dir::LanguageItem::PlaceOf, &[this]);
+        }
+
+        // body and return positions leave the component to inference
+        self.open_memory_hole(source, kind)
+    }
+
+    /// Induce one memory parameter on the active owner's template.
+    ///
+    /// Signature elision writes the parameter at the elided position, so a
+    /// committed declaration type never carries an inference variable.
+    pub(in crate::sema) fn induce_memory_parameter(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        kind: dir::MemoryParameter,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // contextual signatures without a declaration leave the component to inference
+        let Some(owner) = self.induced_owner else {
+            return self.open_memory_hole(source, kind);
+        };
+
+        // type declarations write their lifetimes
+        let site = source.into_global(self.module);
+        let declaration_symbol = self
+            .check
+            .module(owner.declaration.module_id)
+            .declaration_symbol(owner.declaration.local_id);
+        let is_type_declaration = match declaration_symbol {
+            Some(symbol) => self.check.symbol_kind(symbol)?.is_type_definition(),
+            None => false,
+        };
+        if is_type_declaration && kind == dir::MemoryParameter::Region {
+            self.check
+                .report_elided_lifetime_in_named_declaration(owner.declaration, site)?;
+
+            return self.intern_type(dir::Type::Error);
+        }
+
+        // induce the parameter on the owner's template
+        let constraint = self.memory_parameter_constraint(kind)?;
+        let role = VariableRole::Memory { kind, constraint };
+        let template = self.check.open_generic_template(owner.declaration)?;
+
+        let parameter = self
+            .check
+            .push_induced_memory_parameter(template, site, role)?;
+
+        self.intern_type(dir::Type::Parameter(parameter))
+    }
+
+    /// Open one memory inference hole for a body position.
     pub(in crate::sema) fn open_memory_hole(
         &mut self,
         source: dir::LocalNodeIdAny,
@@ -272,26 +401,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }))?;
 
         Ok(Some(constraint))
-    }
-
-    /// Commit one elided borrow lifetime opened while walking a type.
-    fn commit_borrow_lifetime_elision(
-        &mut self,
-        variable: dir::TypeVariableId,
-    ) -> CompilerResult<()> {
-        match self.borrow_lifetime_elision {
-            BorrowLifetimeElision::Generate => {}
-            BorrowLifetimeElision::TrackReturn => {
-                self.return_borrow_lifetimes.push(variable);
-            }
-            BorrowLifetimeElision::Frame | BorrowLifetimeElision::Static => {
-                return Err(CompilerError::Internal {
-                    message: "closed lifetime elision cannot record a generated variable".into(),
-                });
-            }
-        }
-
-        Ok(())
     }
 
     /// Report one written `_` a declaration position cannot infer, returning the error type.
@@ -425,7 +534,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return Ok(ty);
         }
 
-        // infer declaration types when recursive and forward references need a slot
+        // infer declaration types when recursion and forward references need one
         let origin = Origin::Symbol(symbol);
         let variable = self.check.open_variable(origin, VariableRole::Regular);
         let ty = self.check.variable_type(variable)?;
@@ -443,32 +552,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return Ok(ty);
         }
 
+        // open one variable and commit it as the binding's type
         let origin = Origin::Symbol(symbol);
         let variable = self.check.open_variable(origin, VariableRole::Regular);
         let ty = self.check.variable_type(variable)?;
-        let space = {
-            let bindings = self.check.module(symbol.module_id).binding_table();
-
-            bindings.get_symbol(symbol.local_id).binding_space
-        };
-        let place = space
-            .map(|space| {
-                self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Place(
-                    dir::Place::Space(space),
-                )))
-            })
-            .transpose()?;
-
-        // keep declared storage outside the inferred payload
-        let ty = place
-            .map(|place| {
-                self.intern_type(dir::Type::Form(dir::FormType {
-                    form: dir::Form::Placed { place },
-                    value: ty,
-                }))
-            })
-            .transpose()?
-            .unwrap_or(ty);
         self.check.commit_binding_type(symbol, ty)?;
 
         Ok(ty)
@@ -485,10 +572,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
     /// Intern one borrow form into this module's working segment.
     pub(in crate::sema) fn intern_borrow(
         &mut self,
-        lifetime: dir::GlobalTypeId,
+        region: dir::GlobalTypeId,
         access: dir::GlobalTypeId,
     ) -> CompilerResult<dir::Form> {
-        self.check.intern_borrow(lifetime, access)
+        self.check.intern_borrow(region, access)
     }
 
     /// Intern one member projection into this module's working segment.

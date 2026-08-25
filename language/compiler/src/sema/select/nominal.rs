@@ -28,15 +28,15 @@ impl BodyState<'_, '_> {
             return Ok(());
         }
 
-        // resolve the written nominal tag like a construction head
-        let tag = self.written_construct_tag(origin, module, ty)?;
-        let Some(instance) = self.newtype_payload(origin, tag)? else {
-            return self.report_rejected_pattern(node, origin, tag);
+        // resolve the written nominal head like a construction head
+        let head = self.construct_head_type(origin, module, ty)?;
+        let Some(instance) = self.newtype_payload(origin, head)? else {
+            return self.report_rejected_pattern(node, origin, head);
         };
         let backing = instance.backing;
         let projection = instance.into_projection();
 
-        // flow the backing into the wrapped hole
+        // check the backing against the wrapped pattern
         let value = fields
             .first()
             .and_then(|field| match self.module(module).view().get(*field) {
@@ -65,7 +65,7 @@ impl BodyState<'_, '_> {
         owners: &[dir::GlobalTypeId],
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<()> {
-        // reject fields, enum members have no payload to destructure
+        // reject fields, an enum member matches by discriminant alone
         if !fields.is_empty() {
             return self.report_rejected_pattern(node, origin, owners[0]);
         }
@@ -103,9 +103,9 @@ impl BodyState<'_, '_> {
             narrowed.push(member);
         }
         let narrowed = self.normalized_union_type(narrowed)?;
-        let carrier = self.normalized_union_type(owners.iter().copied())?;
+        let owner_union = self.normalized_union_type(owners.iter().copied())?;
         let predicate = dir::Predicate::unary(
-            dir::PredicateOperand::direct(carrier),
+            dir::PredicateOperand::direct(owner_union),
             dir::PredicateCondition::Literal(discriminant),
         )
         .with_narrowed(narrowed);
@@ -132,6 +132,7 @@ impl BodyState<'_, '_> {
         let module = node.module_id;
         self.report_duplicate_pattern_bindings(module, fields)?;
 
+        // reject invalid rest fields
         if !self.report_pattern_rest_fields(module, fields) {
             return self.commit_rejected_pattern(node);
         }
@@ -141,11 +142,11 @@ impl BodyState<'_, '_> {
             return Ok(());
         }
 
-        // resolve the written nominal tag like a construction head
-        let tag = self.written_construct_tag(origin, module, ty)?;
-        let instance = match self.ty(tag)? {
+        // resolve the written nominal head like a construction head
+        let head = self.construct_head_type(origin, module, ty)?;
+        let instance = match self.ty(head)? {
             dir::Type::Application(instance) => instance,
-            _ => return self.report_rejected_pattern(node, origin, tag),
+            _ => return self.report_rejected_pattern(node, origin, head),
         };
 
         // bind the pattern instantiation from the matched input
@@ -162,19 +163,21 @@ impl BodyState<'_, '_> {
             }
             _ => SmallVec::from_slice(&[matched]),
         };
+
+        // equate the arm naming the written declaration with the written head
         for arm in arms {
             if let dir::Type::Application(arm_instance) = self.ty(arm)?
                 && arm_instance.symbol == instance.symbol
             {
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                self.constrain_type(origin, cause, Relation::Equal, arm, tag)?;
+                self.constrain_type(origin, cause, Relation::Equal, arm, head)?;
                 break;
             }
         }
 
         // project declared fields off the matched declaration
-        let (fields, rest) = self.project_named_fields(node, origin, flow, scope, tag, fields)?;
-        let arguments: SmallVec<[_; 8]> = self.type_ids(tag.module_id, instance.arguments)?.into();
+        let (fields, rest) = self.project_named_fields(node, origin, flow, scope, head, fields)?;
+        let arguments: SmallVec<[_; 8]> = self.type_ids(head.module_id, instance.arguments)?.into();
         let generic_arguments =
             self.symbol_generic_argument_bindings(instance.symbol, &arguments)?;
         self.commit_pattern(

@@ -20,7 +20,7 @@ impl BodyState<'_, '_> {
 
         // select declaration-backed variants from the matched input
         if let Some(case) = self.variant_expression_case(module, value)? {
-            // decide bound qualifier segments for their reference facts
+            // decide bound qualifier segments before reading their references
             if let dir::Expression::Member { left, .. } = self.module(module).view().get(value) {
                 let left = *left;
                 self.decide_qualifier_segments(module, left)?;

@@ -31,7 +31,7 @@ impl BodyState<'_, '_> {
         let target = expectation.map_or(callable, |expectation| expectation.target);
 
         // constrain the declared callable against its expected type
-        let carrier = if let Some(expectation) = expectation {
+        let value_type = if let Some(expectation) = expectation {
             // report either rejection as the callable missing its expected type
             let origin = site.origin();
             let rejection = ValueCheck {
@@ -84,11 +84,13 @@ impl BodyState<'_, '_> {
         let parent = expectation.map(|expectation| expectation.cause);
         let checked = body.check(self.check, output_mode, parent)?;
         let outcome = checked.map_or(CheckOutcome::Holds, |check| check.outcome);
-        self.check.commit_node_type(node, carrier)?;
+
+        // commit the function value's own type at its node
+        self.check.commit_node_type(node, value_type)?;
 
         Ok(ValueCheck {
-            source: carrier,
-            stored: carrier,
+            source: value_type,
+            stored: value_type,
             outcome,
             target,
         })
@@ -102,13 +104,15 @@ impl BodyState<'_, '_> {
         callable: dir::GlobalTypeId,
         construction: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        // read both signatures, keeping the callable's own parameter slots
+        // read both signatures
         let (Some((source_module, source)), Some((target_module, target))) = (
             self.callable_signature(callable)?,
             self.callable_signature(construction)?,
         ) else {
             return Ok(());
         };
+
+        // keep the callable's own parameter slots
         let source_parameters = self
             .check
             .signature_parameters(source_module, source.parameters)?
@@ -126,18 +130,22 @@ impl BodyState<'_, '_> {
                 packs.push(root);
             }
         }
+
         if !packs.is_empty() {
             self.check.resolve_variables(&packs)?;
         }
 
-        // an unannotated positional slot takes its contextual slot type
+        // give each unannotated positional slot its contextual slot type
         let target_slots = self
             .check
-            .parameter_slots(target_module, target.parameters)?;
+            .expand_parameters(target_module, target.parameters)?;
         for (index, slot) in source_parameters.iter().enumerate() {
+            // skip the annotated and rest slots
             if slot.is_rest || self.check.root_variable(slot.ty)?.is_none() {
                 continue;
             }
+
+            // read the contextual slot, spreading a trailing rest over the tail
             let contextual = match target_slots.get(index) {
                 Some(target) if target.is_rest => self.check.rest_element_type(target.ty)?,
                 Some(target) => target.ty,
@@ -146,11 +154,12 @@ impl BodyState<'_, '_> {
                     _ => continue,
                 },
             };
+
             self.check
                 .constrain_type(origin, cause, Relation::Equal, contextual, slot.ty)?;
         }
 
-        // an inferred return is the contextual return
+        // equate an inferred return with the contextual return
         if let (Some(hole), Some(contextual)) = (source.return_type, target.return_type)
             && self.check.root_variable(hole)?.is_some()
         {

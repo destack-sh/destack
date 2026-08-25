@@ -74,6 +74,8 @@ pub(in crate::sema) struct CheckModuleState {
     pub(in crate::sema) definitions_tail: dir::DefinitionSegment,
     /// The member subjects and bindings this pass selected.
     pub(in crate::sema) members_tail: dir::MemberSegment,
+    /// The committed base generic table.
+    pub(in crate::sema) generics: dir::GenericTable<'static>,
     /// The generic templates and parameters this pass induced.
     pub(in crate::sema) generics_tail: dir::GenericSegment,
     /// The decorators this pass checked.
@@ -274,6 +276,22 @@ impl CheckModuleState {
             };
         let bindings_tail = dir::BindingSegment::from_table(&bindings);
 
+        // stack the committed generic segments in stage order under one view
+        let mut generic_segments = Vec::new();
+        if let Some(declared) = &declared {
+            generic_segments.push(Arc::clone(&declared.generics));
+        }
+        if let Some(elaborated) = &elaborated {
+            generic_segments.push(Arc::clone(&elaborated.generics));
+        }
+        if let Some(checked) = &checked {
+            generic_segments.push(Arc::clone(&checked.generics));
+        }
+        if generic_segments.is_empty() {
+            generic_segments.push(Arc::new(dir::GenericSegment::new(module.id)));
+        }
+        let generics = dir::GenericTable::from_segments(generic_segments);
+
         // shadow the committed definitions and member entries, which key by symbol and site
         let mut definitions = Vec::new();
         let mut members = Vec::new();
@@ -332,6 +350,7 @@ impl CheckModuleState {
             statics_tail,
             definitions_tail,
             members_tail,
+            generics,
             generics_tail,
             decorators_tail,
             auto,
@@ -399,6 +418,97 @@ impl CheckModuleState {
     /// Return the cumulative binding table visible to check.
     pub(in crate::sema) fn binding_table(&self) -> dir::BindingTable<'_> {
         self.bindings.with_tail(&self.bindings_tail)
+    }
+
+    /// Return one generic template, reading the pass tail over the committed base.
+    pub(in crate::sema) fn generic_template(
+        &self,
+        id: dir::LocalGenericTemplateId,
+    ) -> Option<&dir::GenericTemplate> {
+        if let Some(template) = self.generics_tail.get_local_template(id) {
+            return Some(template);
+        }
+
+        self.generics.get_template_maybe(id)
+    }
+
+    /// Return one generic parameter, reading the pass tail over the committed base.
+    pub(in crate::sema) fn generic_parameter(
+        &self,
+        id: dir::LocalGenericParameterId,
+    ) -> Option<&dir::GenericParameterBinding> {
+        if let Some(parameter) = self.generics_tail.get_local_parameter(id) {
+            return Some(parameter);
+        }
+
+        self.generics.get_parameter_maybe(id)
+    }
+
+    /// Return the template written for one source node, reading the pass tail over the declared stage.
+    pub(in crate::sema) fn written_template_by_source(
+        &self,
+        source: dir::GlobalNodeIdAny,
+    ) -> Option<dir::LocalGenericTemplateId> {
+        self.generics_tail.template_by_source(source).or_else(|| {
+            self.declared
+                .as_ref()
+                .and_then(|declared| declared.generics.template_by_source(source))
+        })
+    }
+
+    /// Return the template written for one symbol, reading the pass tail over the declared stage.
+    pub(in crate::sema) fn written_template_by_symbol(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<dir::LocalGenericTemplateId> {
+        self.generics_tail.template_by_symbol(symbol).or_else(|| {
+            self.declared
+                .as_ref()
+                .and_then(|declared| declared.generics.template_by_symbol(symbol))
+        })
+    }
+
+    /// Return the parameter written for one symbol, reading the pass tail over the declared stage.
+    pub(in crate::sema) fn written_parameter_by_symbol(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<dir::LocalGenericParameterId> {
+        self.generics_tail.parameter_by_symbol(symbol).or_else(|| {
+            self.declared
+                .as_ref()
+                .and_then(|declared| declared.generics.parameter_by_symbol(symbol))
+        })
+    }
+
+    /// Return the template written for one scope, reading the pass tail over the declared stage.
+    pub(in crate::sema) fn written_template_by_scope(
+        &self,
+        scope: dir::LocalScopeId,
+    ) -> Option<dir::LocalGenericTemplateId> {
+        self.generics_tail.template_by_scope(scope).or_else(|| {
+            self.declared
+                .as_ref()
+                .and_then(|declared| declared.generics.template_by_scope(scope))
+        })
+    }
+
+    /// Return the cardinality one parameter records, reading the pass tail over its seed stages.
+    pub(in crate::sema) fn parameter_cardinality(
+        &self,
+        id: dir::LocalGenericParameterId,
+    ) -> Option<dir::Cardinality> {
+        self.generics_tail
+            .cardinality(id)
+            .or_else(|| {
+                self.elaborated
+                    .as_ref()
+                    .and_then(|elaborated| elaborated.generics.cardinality(id))
+            })
+            .or_else(|| {
+                self.declared
+                    .as_ref()
+                    .and_then(|declared| declared.generics.cardinality(id))
+            })
     }
 
     /// Return one symbol, reading the pass tail over the committed base.

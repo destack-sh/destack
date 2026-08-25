@@ -4,7 +4,7 @@ use std::ptr::NonNull;
 
 use crate::sema::{
     CauseKind, FlowState, GenericTemplateId, InducedParameterOwner, Origin, Receiver,
-    ReceiverBinding, Relation, ValueUse, WalkState,
+    ReceiverBinding, ElisionSite, Relation, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -211,19 +211,21 @@ impl WalkState<'_, '_> {
                     self.walk_where_clause(template, *where_clause)?;
                 }
 
-                // walk constraint and value
+                // walk constraint and value under the member's induced owner
+                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
+                let induction =
+                    symbol.map(|symbol| InducedParameterOwner::new(source, parent, Some(symbol)));
+                let previous = std::mem::replace(&mut self.induced_owner, induction);
                 let constraint = constraint
                     .map(|constraint| self.walk_type_expression(constraint))
                     .transpose()?;
                 let value = value
                     .map(|value| self.walk_type_expression(value))
                     .transpose()?;
+                self.induced_owner = previous;
 
                 // write the member symbol type
                 if let (Some(value), Some(symbol)) = (value, symbol) {
-                    let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
-                    let induction = InducedParameterOwner::new(source, parent, Some(symbol));
-                    self.push_induced_parameter_site(induction, value);
                     self.commit_symbol_type(symbol, value)?;
                 }
 
@@ -278,7 +280,9 @@ impl WalkState<'_, '_> {
                 // derive the field type
                 let field_type = match declared_type {
                     // take the written annotation
-                    Some(declared_type) => Some(self.walk_type_expression(declared_type)?),
+                    Some(declared_type) => {
+                        Some(self.walk_type_expression_in(declared_type, ElisionSite::Member)?)
+                    }
                     // take the error type for the reported field
                     None if is_uninferable => Some(self.intern_type(dir::Type::Error)?),
                     // infer the field from its default through the binding slot
@@ -289,13 +293,11 @@ impl WalkState<'_, '_> {
 
                 // commit the field type
                 if let (Some(field_type), Some(symbol)) = (field_type, symbol) {
-                    if let Some(induction) = induced_owner {
-                        self.push_induced_parameter_site(induction, field_type);
-                    }
                     self.commit_symbol_type(symbol, field_type)?;
                 }
 
-                // validate annotated defaults while checking, unannotated ones supply the type
+                // validate annotated defaults while checking
+                //  unannotated ones supply the type
                 let checks_default = declared_type.is_none() || !self.check.is_declaring();
                 if checks_default && let (Some(field_type), Some(default)) = (field_type, default) {
                     let before_default = self.fork_flow();
@@ -356,6 +358,11 @@ impl WalkState<'_, '_> {
                 let source = id.into_global_any(self.module);
                 let template = self.open_signature_template(source, signature)?;
 
+                // induce elided parameters on the method's template
+                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
+                let induction = InducedParameterOwner::new(source, parent, Some(symbol));
+                let previous = self.induced_owner.replace(induction);
+
                 // open signature parameters under the signature's own scope
                 let _scope = self.enter_template_scope(template);
                 let header = self.walk_function_signature(template, signature)?;
@@ -405,18 +412,16 @@ impl WalkState<'_, '_> {
                     }
                     _ => None,
                 };
-                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                 let method = self.walk_function_signature_type(
                     id.into_any(),
                     signature,
                     header,
-                    Some(InducedParameterOwner::new(source, parent, Some(symbol))),
+                    Some(induction),
                     receiver_type,
                     result,
                     tracked,
                 )?;
-                let induction = InducedParameterOwner::new(source, parent, Some(symbol));
-                self.push_induced_parameter_site(induction, method);
+                self.induced_owner = previous;
 
                 // write the method symbol type
                 self.commit_symbol_type(symbol, method)?;
@@ -669,6 +674,7 @@ impl WalkState<'_, '_> {
                 let template = self.open_signature_template(source, signature)?;
                 let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                 let induction = InducedParameterOwner::new(source, parent, Some(symbol));
+                let previous = self.induced_owner.replace(induction);
 
                 // interface members assume this satisfies their interface
                 let receiver_declaration = receiver_scope.and_then(|receiver| receiver.declaration);
@@ -695,7 +701,7 @@ impl WalkState<'_, '_> {
                     result,
                     tracked,
                 )?;
-                self.push_induced_parameter_site(induction, method);
+                self.induced_owner = previous;
 
                 // write the method symbol type
                 self.commit_symbol_type(symbol, method)?;
@@ -785,10 +791,13 @@ impl WalkState<'_, '_> {
                     Some(_) => self.walk_generic_template(source, generic_parameters)?,
                     None => None,
                 };
+
+                // walk where clauses
                 for where_clause in where_clauses {
                     self.walk_where_clause(template, *where_clause)?;
                 }
 
+                // walk the written constraint and value
                 let constraint = constraint
                     .map(|constraint| self.walk_type_expression(constraint))
                     .transpose()?;
@@ -847,7 +856,7 @@ impl WalkState<'_, '_> {
         let is_transcribable =
             value.is_some_and(|value| self.check.is_transcribable_literal(self.module, value));
 
-        // transcribe the member type from its annotation or literal value
+        // take the member type from its annotation or from its literal value
         let ty = match (declared, written) {
             (Some(declared), _) => declared,
             (None, Some(written)) if is_transcribable => written,
@@ -942,6 +951,15 @@ impl WalkState<'_, '_> {
 
         // value-family receivers borrow this under the synthesized form
         let receiver = match receiver_form {
+            Some(dir::Form::Managed { place }) => {
+                let origin = Origin::Node(
+                    id.into_global_any(self.module),
+                    self.flow().template_scope(),
+                );
+                let ty = self.check.with_referent_place(origin, scope.ty, place)?;
+
+                Receiver { ty, ..scope }
+            }
             Some(form) => Receiver {
                 ty: self.intern_type(dir::Type::Form(dir::FormType {
                     form,
@@ -956,9 +974,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Synthesize the implicit receiver form shared by signature and body.
-    ///
-    /// Getters and bare value receivers receive readonly views, while setters borrow exclusively.
-    /// Explicit receiver forms retain their declared form.
     fn implicit_receiver_form(
         &mut self,
         id: dir::LocalNodeId<dir::Member>,
@@ -983,18 +998,40 @@ impl WalkState<'_, '_> {
             return Ok(None);
         }
 
+        // fat pointer receivers carry their referent place in their own constructor
+        let normalized = self.check.normalize(origin, scope.ty)?;
+        let normalized = self.check.shallow_resolve(normalized)?;
+        if matches!(
+            self.check.ty(normalized)?,
+            dir::Type::Slice(_) | dir::Type::Dynamic(_) | dir::Type::Function(_)
+        ) {
+            return Ok(None);
+        }
+
         // readonly getters retain managed ownership or borrow value storage
         if signature.role == Some(dir::FunctionRole::Getter) {
             if scope.ownership == Some(dir::Ownership::Managed) {
                 return Ok(Some(dir::Form::Readonly));
             }
 
-            let lifetime = self.generated_receiver_borrow_lifetime(id.into_any())?;
-            let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
-                dir::Access::Readonly,
-            )))?;
+            let region = self.induce_receiver_borrow_region(id.into_any())?;
+            let access = self.access_literal(dir::Access::Readonly)?;
 
-            return Ok(Some(self.intern_borrow(lifetime, access)?));
+            return Ok(Some(self.intern_borrow(region, access)?));
+        }
+
+        // ambient class receivers take a hidden place parameter
+        if scope.ownership == Some(dir::Ownership::Managed) {
+            if let Some(declaration) = scope.declaration
+                && self.check.declared_space(declaration)?.is_none()
+            {
+                let place =
+                    self.elided_memory_component(id.into_any(), dir::MemoryParameter::Place)?;
+
+                return Ok(Some(dir::Form::Managed { place }));
+            }
+
+            return Ok(None);
         }
 
         // bare value methods borrow readonly, setters exclusively
@@ -1005,10 +1042,10 @@ impl WalkState<'_, '_> {
             Some(dir::FunctionRole::Setter) => dir::Access::Exclusive,
             _ => dir::Access::Readonly,
         };
-        let lifetime = self.generated_receiver_borrow_lifetime(id.into_any())?;
-        let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(requested)))?;
+        let region = self.induce_receiver_borrow_region(id.into_any())?;
+        let access = self.access_literal(requested)?;
 
-        Ok(Some(self.intern_borrow(lifetime, access)?))
+        Ok(Some(self.intern_borrow(region, access)?))
     }
 
     /// Return the name used to report one method body requirement.
@@ -1051,9 +1088,31 @@ impl WalkState<'_, '_> {
                     .report_constructor_result_annotation(self.module, return_type.into_any());
             }
 
-            let result = receiver
-                .map(|_| self.intern_type(dir::Type::This))
-                .transpose()?;
+            // reference nominals construct at the instantiated space
+            //  owners with a declared space use it, open owners take an induced place parameter
+            let result = match receiver {
+                Some(binding) if binding.receiver.ownership == Some(dir::Ownership::Managed) => {
+                    let owner_space = binding
+                        .receiver
+                        .declaration
+                        .map(|owner| self.check.nominal_space(owner))
+                        .transpose()?
+                        .flatten();
+                    let place = match owner_space {
+                        Some(space) => self.check.place_literal(space)?,
+                        None => self
+                            .induce_memory_parameter(id.into_any(), dir::MemoryParameter::Place)?,
+                    };
+                    let this = self.intern_type(dir::Type::This)?;
+
+                    Some(self.intern_type(dir::Type::Form(dir::FormType {
+                        form: dir::Form::Managed { place },
+                        value: this,
+                    }))?)
+                }
+                Some(_) => Some(self.intern_type(dir::Type::This)?),
+                None => None,
+            };
 
             return Ok((result, Vec::new()));
         }

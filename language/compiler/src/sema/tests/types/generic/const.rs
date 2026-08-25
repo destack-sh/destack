@@ -256,7 +256,7 @@ function put<T>(destination: &exclusive [T], value: T): void {
         DirRows::checked(),
         r#"
 === annotated ===
-function put<T, 'a>(destination: &'a exclusive [T], value: T): void {
+function put<T, 'a, P2: Place>(destination: Borrowed<[T], 'a & P2, "exclusive">, value: T): void {
     let lane: isize = 0;
 
     destination[lane] = value;
@@ -264,10 +264,10 @@ function put<T, 'a>(destination: &'a exclusive [T], value: T): void {
 
 === dir ===
 function put<T>(destination: &exclusive [T], value: T): void {
-/// @generic.template symbol=put parameters=(T, 'a)
-/// @type.symbol symbol=put type=<T, put.'a>(&put.'a exclusive Slice<T>, T) => void
+/// @generic.template symbol=put parameters=(T, 'a, P2: Place)
+/// @type.symbol symbol=put type=<T, put.'a, put.P2: Place>(Borrowed<Slice<T>, put.'a & put.P2, "exclusive">, T) => void
 /// @type.symbol symbol=put.T source=T type=T
-/// @type.symbol symbol=put.destination source="destination: &exclusive [T]" type=&put.'a exclusive Slice<T>
+/// @type.symbol symbol=put.destination source="destination: &exclusive [T]" type=Borrowed<Slice<T>, put.'a & put.P2, "exclusive">
 /// @resolution.name source=T target=put.T
 /// @type.symbol symbol=put.value source="value: T" type=T
 /// @resolution.name source=T target=put.T
@@ -278,11 +278,11 @@ function put<T>(destination: &exclusive [T], value: T): void {
 
     destination[lane] = value;
     /// @resolution.name source=destination target=put.destination
-    /// @resolution.place source=destination placement="local" lifetime=put.'a access="exclusive"
+    /// @resolution.place source=destination placement=put.P2 lifetime=put.'a access="exclusive"
     /// @resolution.access source=destination root=put.destination
     /// @resolution.pattern.assign source=destination[lane] kind=place
-    /// @resolution.assignment source=destination[lane] write="collections.slice.indexSet#1(parameters=(isize, T), arguments=(provided(lane) as isize, write as T), return=void)" type=T
-    /// @generic.instantiation id=collections.slice.indexSet#1<T> template=collections.slice.indexSet#1 arguments=(T) owner=put
+    /// @resolution.assignment source=destination[lane] write="indexSet#1(parameters=(isize, T), arguments=(provided(lane) as isize, write as T), return=void)" type=T
+    /// @generic.instantiation id=indexSet#1<T> template=indexSet#1 arguments=(T) owner=put
     /// @resolution.name source=lane target=put.lane
     /// @resolution.place source=lane placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=lane root=put.lane
@@ -312,7 +312,10 @@ function put(destination: &exclusive [int32], value: int32): void {
         DirRows::checked(),
         r#"
 === annotated ===
-function put<'a>(destination: &'a exclusive [int32], value: int32): void {
+function put<'a, P1: Place>(
+    destination: Borrowed<[int32], 'a & P1, "exclusive">,
+    value: int32,
+): void {
     let lane: isize = 0;
 
     destination[lane] = value;
@@ -320,9 +323,9 @@ function put<'a>(destination: &'a exclusive [int32], value: int32): void {
 
 === dir ===
 function put(destination: &exclusive [int32], value: int32): void {
-/// @generic.template symbol=put parameters=('a)
-/// @type.symbol symbol=put type=<put.'a>(&put.'a exclusive Slice<int32>, int32) => void
-/// @type.symbol symbol=put.destination source="destination: &exclusive [int32]" type=&put.'a exclusive Slice<int32>
+/// @generic.template symbol=put parameters=('a, P1: Place)
+/// @type.symbol symbol=put type=<put.'a, put.P1: Place>(Borrowed<Slice<int32>, put.'a & put.P1, "exclusive">, int32) => void
+/// @type.symbol symbol=put.destination source="destination: &exclusive [int32]" type=Borrowed<Slice<int32>, put.'a & put.P1, "exclusive">
 /// @type.symbol symbol=put.value source="value: int32" type=int32
 
     let lane: isize = 0;
@@ -331,12 +334,12 @@ function put(destination: &exclusive [int32], value: int32): void {
 
     destination[lane] = value;
     /// @resolution.name source=destination target=put.destination
-    /// @resolution.place source=destination placement="local" lifetime=put.'a access="exclusive"
+    /// @resolution.place source=destination placement=put.P1 lifetime=put.'a access="exclusive"
     /// @resolution.access source=destination root=put.destination
     /// @resolution.pattern.assign source=destination[lane] kind=place
-    /// @resolution.assignment source=destination[lane] write="collections.slice.indexSet#1(parameters=(isize, int32), arguments=(provided(lane) as isize, write as int32), return=void)" type=int32
-    /// @generic.instantiation id=collections.slice.indexSet#1<int32> template=collections.slice.indexSet#1 arguments=(int32)
-    /// @generic.instance id=collections.slice.indexSet#1<int32> template=collections.slice.indexSet#1 arguments=(int32)
+    /// @resolution.assignment source=destination[lane] write="indexSet#1(parameters=(isize, int32), arguments=(provided(lane) as isize, write as int32), return=void)" type=int32
+    /// @generic.instantiation id=indexSet#1<int32> template=indexSet#1 arguments=(int32)
+    /// @generic.instance id="indexSet#1<int32, \"local\">" template=indexSet#1 arguments=(int32, "local")
     /// @resolution.name source=lane target=put.lane
     /// @resolution.place source=lane placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=lane root=put.lane
@@ -363,6 +366,7 @@ const function double(value: usize): usize {
 }
 "#,
     );
+
     session.assert_dir_and_diagnostics(
         "main.ds",
         DirRows::none(),

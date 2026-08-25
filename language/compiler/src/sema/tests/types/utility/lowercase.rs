@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Lowercase lowercases a string literal.
 #[test]
 fn test_lowercase_converts_literal() {
     let session = TestSession::single(
@@ -23,7 +24,7 @@ const ok: "hello" = "hello";
 type Value = Lowercase<"HELLO">;
 /// @type.symbol symbol=Value source="type Value = Lowercase<\"HELLO\">" type="hello"
 /// @definition.type symbol=Value source="type Value = Lowercase<\"HELLO\">" value="hello"
-/// @resolution.name source=Lowercase target=types.string.Lowercase
+/// @resolution.name source=Lowercase target=Lowercase
 
 const ok: Value = "hello";
 /// @type.symbol symbol=ok source=ok type="hello"
@@ -33,6 +34,7 @@ const ok: Value = "hello";
     );
 }
 
+/// Lowercase distributes over each arm of a union.
 #[test]
 fn test_lowercase_distributes_over_union() {
     let session = TestSession::single(
@@ -60,7 +62,7 @@ method satisfies "get" | "post";
 type Method = Lowercase<"GET" | "POST">;
 /// @type.symbol symbol=Method source="type Method = Lowercase<\"GET\" | \"POST\">" type="get" | "post"
 /// @definition.type symbol=Method source="type Method = Lowercase<\"GET\" | \"POST\">" value="get" | "post"
-/// @resolution.name source=Lowercase target=types.string.Lowercase
+/// @resolution.name source=Lowercase target=Lowercase
 
 declare const method: Method;
 /// @type.symbol symbol=method source=method type="get" | "post"
@@ -69,12 +71,13 @@ declare const method: Method;
 
 method satisfies "get" | "post";
 /// @resolution.name source=method target=method
-/// @resolution.place source=method placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=method placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=method root=method
 "#,
     );
 }
 
+/// The original casing reports a diagnostic against a Lowercase type.
 #[test]
 fn test_lowercase_rejects_original_casing() {
     let session = TestSession::single(
@@ -98,7 +101,7 @@ const bad: "hello" = "HELLO";
 type Value = Lowercase<"HELLO">;
 /// @type.symbol symbol=Value source="type Value = Lowercase<\"HELLO\">" type="hello"
 /// @definition.type symbol=Value source="type Value = Lowercase<\"HELLO\">" value="hello"
-/// @resolution.name source=Lowercase target=types.string.Lowercase
+/// @resolution.name source=Lowercase target=Lowercase
 
 const bad: Value = "HELLO";
 /// @type.symbol symbol=bad source=bad type="hello"

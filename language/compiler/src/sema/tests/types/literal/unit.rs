@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// The unit value has the unit type and satisfies void.
 #[test]
 fn test_unit_value_has_unit_type() {
     let session = TestSession::single(
@@ -29,19 +30,20 @@ value satisfies ();
 /// @type.node source="value satisfies ()" type=()
 /// @type.node source=value type=()
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
 value satisfies void;
 /// @type.node source="value satisfies void" type=()
 /// @type.node source=value type=()
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
 }
 
+/// A void annotation accepts the unit value.
 #[test]
 fn test_void_annotation_accepts_unit_value() {
     let session = TestSession::single(
@@ -69,12 +71,13 @@ value satisfies ();
 /// @type.node source="value satisfies ()" type=void
 /// @type.node source=value type=void
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
 }
 
+/// String escapes decode into the literal type of the decoded text.
 #[test]
 fn test_decode_string_escapes_into_literal_types() {
     let session = TestSession::single(

@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A method of the owning union resolves on a narrowed variant.
 #[test]
 fn test_find_an_owner_member_on_a_narrowed_variant() {
     let session = TestSession::single(
@@ -27,7 +28,7 @@ import { Result } from "destack:error";
 declare const result: Result<int32, string>;
 
 function run(): int32 {
-    if (result.isOk<int32, string>()) {
+    if (result.isOk<int32, string, "constant">()) {
         return result.unwrap<int32, string>();
     }
     return result.unwrapOr<int32, string>(0);
@@ -37,37 +38,38 @@ function run(): int32 {
 import { Result } from "destack:error";
 
 declare const result: Result<int32, string>;
-/// @type.symbol symbol=result source=result type=error.result.Result<int32, string>
+/// @type.symbol symbol=result source=result type=Result<int32, string>
 /// @resolution.pattern source=result kind=binding target=result
-/// @resolution.name source=Result target=error.result.Result
+/// @resolution.name source=Result target=Result
 
 function run(): int32 {
 /// @type.symbol symbol=run type=() => int32
 
     if (result.isOk()) {
     /// @resolution.name source=result target=result
-    /// @resolution.member source=result.isOk receiver=error.result.Result<int32, string> type=<error.result.isOk.'a>(this: &error.result.isOk.'a readonly error.result.Result<int32, string>) => boolean kind=symbol target_receiver=error.result.Result<int32, string> target=error.result.isOk
-    /// @resolution.call source=result.isOk() parameters=() return=boolean kind=symbol target=error.result.isOk receiver=error.result.Result<int32, string> adjustments=(borrow(&'static readonly error.result.Result<int32, string>)) instance="error.result.Result<int32, string>.<extension#1>.isOk"
-    /// @resolution.place source=result placement="local" lifetime="static" access="readonly"
+    /// @resolution.member source=result.isOk receiver=Result<int32, string> type=<isOk.'a, isOk.P1: Place>(this: Borrowed<Result<int32, string>, isOk.'a & isOk.P1, "readonly">) => boolean kind=symbol target_receiver=Result<int32, string> target=isOk
+    /// @resolution.call source=result.isOk() parameters=() return=boolean kind=symbol target=isOk receiver=Result<int32, string> adjustments=(borrow(&'static readonly constant Result<int32, string>)) instance="Result<int32, string>.<extension#1>.isOk<\"constant\">"
+    /// @resolution.place source=result placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=result root=result
-    /// @generic.instantiation id="error.result.isOk<int32, string>" template=error.result.isOk arguments=(int32, string)
+    /// @generic.instantiation id="isOk<int32, string, \"constant\">" template=isOk arguments=(int32, string, "constant")
+    /// @generic.instantiation id="isOk<int32, string>" template=isOk arguments=(int32, string)
 
         return result.unwrap();
         /// @resolution.name source=result target=result
-        /// @resolution.member source=result.unwrap receiver=error.result.Result<int32, string> type=(this: error.result.Result<int32, string>) => int32 kind=symbol target_receiver=error.result.Result<int32, string> target=error.result.unwrap
-        /// @resolution.call source=result.unwrap() parameters=() return=int32 kind=symbol target=error.result.unwrap receiver=error.result.Result<int32, string> instance="error.result.Result<int32, string>.<extension#1>.unwrap"
-        /// @resolution.place source=result placement="local" lifetime="static" access="readonly"
+        /// @resolution.member source=result.unwrap receiver=Result<int32, string> type=(this: Result<int32, string>) => int32 kind=symbol target_receiver=Result<int32, string> target=unwrap
+        /// @resolution.call source=result.unwrap() parameters=() return=int32 kind=symbol target=unwrap receiver=Result<int32, string> instance="Result<int32, string>.<extension#1>.unwrap"
+        /// @resolution.place source=result placement="constant" lifetime="static" access="readonly"
         /// @resolution.access source=result root=result
-        /// @generic.instantiation id="error.result.unwrap<int32, string>" template=error.result.unwrap arguments=(int32, string)
+        /// @generic.instantiation id="unwrap<int32, string>" template=unwrap arguments=(int32, string)
 
     }
     return result.unwrapOr(0);
     /// @resolution.name source=result target=result
-    /// @resolution.member source=result.unwrapOr receiver=error.result.Result<int32, string> type=(this: error.result.Result<int32, string>, int32) => int32 kind=symbol target_receiver=error.result.Result<int32, string> target=error.result.unwrapOr
-    /// @resolution.call source=result.unwrapOr(0) parameters=(int32) arguments=(provided(0) as int32) return=int32 kind=symbol target=error.result.unwrapOr receiver=error.result.Result<int32, string> instance="error.result.Result<int32, string>.<extension#1>.unwrapOr"
-    /// @resolution.place source=result placement="local" lifetime="static" access="readonly"
+    /// @resolution.member source=result.unwrapOr receiver=Result<int32, string> type=(this: Result<int32, string>, int32) => int32 kind=symbol target_receiver=Result<int32, string> target=unwrapOr
+    /// @resolution.call source=result.unwrapOr(0) parameters=(int32) arguments=(provided(0) as int32) return=int32 kind=symbol target=unwrapOr receiver=Result<int32, string> instance="Result<int32, string>.<extension#1>.unwrapOr"
+    /// @resolution.place source=result placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=result root=result
-    /// @generic.instantiation id="error.result.unwrapOr<int32, string>" template=error.result.unwrapOr arguments=(int32, string)
+    /// @generic.instantiation id="unwrapOr<int32, string>" template=unwrapOr arguments=(int32, string)
 
 }
 "#,
@@ -76,6 +78,7 @@ function run(): int32 {
     );
 }
 
+/// A method declared on a subclass resolves on a binding narrowed by instanceof.
 #[test]
 fn test_find_a_declared_type_member_on_a_narrowed_binding() {
     let session = TestSession::single(
@@ -120,19 +123,20 @@ class Derived extends Base {
 
 function run(value: Base): int32 {
     if (value instanceof Derived) {
-        return value.extra() + value.shared();
+        return value.extra<"local">() + value.shared<"local">();
     }
-    return value.shared();
+    return value.shared<"local">();
 }
 
 === dir ===
 class Base {
 /// @type.symbol symbol=Base type=Base
 /// @definition.class symbol=Base
-/// @definition.method symbol=Base.shared slot=shared type=(this: this) => int32
+/// @definition.method symbol=Base.shared slot=shared type=<Base.shared.P0: Place>(this: Managed<this, Base.shared.P0>) => int32
 
     shared(): int32 {
-    /// @type.symbol symbol=Base.shared type=(this: this) => int32
+    /// @generic.template symbol=Base.shared parameters=(P0: Place)
+    /// @type.symbol symbol=Base.shared type=<Base.shared.P0: Place>(this: Managed<this, Base.shared.P0>) => int32
 
         return 1;
     }
@@ -142,11 +146,12 @@ class Derived extends Base {
 /// @type.symbol symbol=Derived type=Derived
 /// @definition.class symbol=Derived
 /// @definition.extends symbol=Derived source=Base target=Base
-/// @definition.method symbol=Derived.extra slot=extra type=(this: this) => int32
+/// @definition.method symbol=Derived.extra slot=extra type=<Derived.extra.P0: Place>(this: Managed<this, Derived.extra.P0>) => int32
 /// @resolution.name source=Base target=Base
 
     extra(): int32 {
-    /// @type.symbol symbol=Derived.extra type=(this: this) => int32
+    /// @generic.template symbol=Derived.extra parameters=(P0: Place)
+    /// @type.symbol symbol=Derived.extra type=<Derived.extra.P0: Place>(this: Managed<this, Derived.extra.P0>) => int32
 
         return 2;
     }
@@ -166,22 +171,24 @@ function run(value: Base): int32 {
 
         return value.extra() + value.shared();
         /// @resolution.name source=value target=run.value
-        /// @resolution.member source=value.extra receiver=Narrow<Base, Derived> type=(this: Derived) => int32 kind=symbol target_receiver=Narrow<Base, Derived> target=Derived.extra
-        /// @resolution.call source=value.extra() parameters=() return=int32 kind=symbol target=Derived.extra receiver=Narrow<Base, Derived>
+        /// @resolution.member source=value.extra receiver=Narrow<Base, Derived> type=<Derived.extra.P0: Place>(this: Managed<Derived, Derived.extra.P0>) => int32 kind=symbol target_receiver=Narrow<Base, Derived> target=Derived.extra
+        /// @resolution.call source=value.extra() parameters=() return=int32 kind=symbol target=Derived.extra receiver=Narrow<Base, Derived> instance="Derived.extra<\"local\">"
         /// @resolution.operator source="value.extra() + value.shared()" type=int32 operator="+" kind=builtin operands=[value.extra() as int32 families=(integer), value.shared() as int32 families=(integer)]
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=run.value
+        /// @generic.instantiation id="Derived.extra<\"local\">" template=Derived.extra arguments=("local")
         /// @resolution.name source=value target=run.value
-        /// @resolution.member source=value.shared receiver=Narrow<Base, Derived> type=(this: Derived) => int32 kind=symbol target_receiver=Narrow<Base, Derived> target=Base.shared
-        /// @resolution.call source=value.shared() parameters=() return=int32 kind=symbol target=Base.shared receiver=Narrow<Base, Derived>
+        /// @resolution.member source=value.shared receiver=Narrow<Base, Derived> type=<Base.shared.P0: Place>(this: Managed<Derived, Base.shared.P0>) => int32 kind=symbol target_receiver=Narrow<Base, Derived> target=Base.shared
+        /// @resolution.call source=value.shared() parameters=() return=int32 kind=symbol target=Base.shared receiver=Narrow<Base, Derived> instance="Base.shared<\"local\">"
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=run.value
+        /// @generic.instantiation id="Base.shared<\"local\">" template=Base.shared arguments=("local")
 
     }
     return value.shared();
     /// @resolution.name source=value target=run.value
-    /// @resolution.member source=value.shared receiver=Base type=(this: Base) => int32 kind=symbol target_receiver=Base target=Base.shared
-    /// @resolution.call source=value.shared() parameters=() return=int32 kind=symbol target=Base.shared receiver=Base
+    /// @resolution.member source=value.shared receiver=Base type=<Base.shared.P0: Place>(this: Managed<Base, Base.shared.P0>) => int32 kind=symbol target_receiver=Base target=Base.shared
+    /// @resolution.call source=value.shared() parameters=() return=int32 kind=symbol target=Base.shared receiver=Base instance="Base.shared<\"local\">"
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=run.value
 
@@ -192,6 +199,7 @@ function run(value: Base): int32 {
     );
 }
 
+/// A kind check narrows a result and exposes the payload field of its arm.
 #[test]
 fn test_read_the_narrowed_result_payload_after_a_kind_check() {
     let session = TestSession::single(
@@ -221,21 +229,21 @@ function value(result: Result<int32, string>): int32 {
 function value(result: Result<int32, string>): int32 {
 /// @type.symbol symbol=value type=(Result<int32, string>) => int32
 /// @type.symbol symbol=value.result source="result: Result<int32, string>" type=Result<int32, string>
-/// @resolution.name source=Result target=error.result.Result
+/// @resolution.name source=Result target=Result
 
     if (result.kind === "Ok") {
     /// @resolution.name source=result target=value.result
-    /// @resolution.member source=result.kind receiver=Result<int32, string> type="Ok" | "Err" kind=projection target="discriminant(error.result.Ok<int32> | error.result.Err<string>, kind, cases=[error.result.Ok<int32>: Ok, error.result.Err<string>: Err], \"Ok\" | \"Err\")" adjustments=(newtype.payload(error.result.Result, error.result.Ok<int32> | error.result.Err<string>))
+    /// @resolution.member source=result.kind receiver=Result<int32, string> type="Ok" | "Err" kind=projection target="discriminant(Ok<int32> | Err<string>, kind, cases=[Ok<int32>: Ok, Err<string>: Err], \"Ok\" | \"Err\")" adjustments=(newtype.payload(Result, Ok<int32> | Err<string>))
     /// @resolution.operator source="result.kind === \"Ok\"" type=boolean operator="===" kind=builtin operands=[result.kind as "Ok" | "Err" families=(string), "Ok" as "Ok" | "Err" families=(string)]
     /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=result root=value.result
     /// @resolution.place source=result.kind placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=result.kind root=value.result keys=[kind]
-    /// @generic.instantiation id="Result<int32, string>" template=error.result.Result arguments=(int32, string)
+    /// @generic.instantiation id="Result<int32, string>" template=Result arguments=(int32, string)
 
         return result.value;
         /// @resolution.name source=result target=value.result
-        /// @resolution.member source=result.value receiver=Result<int32, string> & error.result.Ok<int32> type=int32 kind=field target_receiver=Result<int32, string> & error.result.Ok<int32> adjustments=(newtype.payload(error.result.Result, error.result.Ok<int32> | error.result.Err<string>), union.payload(error.result.Ok<int32> | error.result.Err<string>, error.result.Ok<int32>, error.result.Ok<int32>)) key=value target=error.result.Ok.value target_type=int32
+        /// @resolution.member source=result.value receiver=Result<int32, string> & Ok<int32> type=int32 kind=field target_receiver=Result<int32, string> & Ok<int32> adjustments=(newtype.payload(Result, Ok<int32> | Err<string>), union.payload(Ok<int32> | Err<string>, Ok<int32>, Ok<int32>)) key=value target=Ok.value target_type=int32
         /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=result root=value.result
         /// @resolution.place source=result.value placement="local" lifetime="frame" access="exclusive"
@@ -244,11 +252,11 @@ function value(result: Result<int32, string>): int32 {
     }
     return result.unwrap();
     /// @resolution.name source=result target=value.result
-    /// @resolution.member source=result.unwrap receiver=Result<int32, string> & error.result.Err<string> type=(this: Result<int32, string>) => int32 kind=symbol target_receiver=Result<int32, string> & error.result.Err<string> target=error.result.unwrap
-    /// @resolution.call source=result.unwrap() parameters=() return=int32 kind=symbol target=error.result.unwrap receiver=Result<int32, string> & error.result.Err<string> instance="Result<int32, string>.<extension#1>.unwrap"
+    /// @resolution.member source=result.unwrap receiver=Result<int32, string> & Err<string> type=(this: Result<int32, string>) => int32 kind=symbol target_receiver=Result<int32, string> & Err<string> target=unwrap
+    /// @resolution.call source=result.unwrap() parameters=() return=int32 kind=symbol target=unwrap receiver=Result<int32, string> & Err<string> instance="Result<int32, string>.<extension#1>.unwrap"
     /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=result root=value.result
-    /// @generic.instantiation id="error.result.unwrap<int32, string>" template=error.result.unwrap arguments=(int32, string)
+    /// @generic.instantiation id="unwrap<int32, string>" template=unwrap arguments=(int32, string)
 
 }
 "#,
@@ -258,6 +266,7 @@ function value(result: Result<int32, string>): int32 {
     );
 }
 
+/// Methods of the union resolve on arms narrowed from bindings and from index reads.
 #[test]
 fn test_read_declared_union_methods_through_narrowed_arms_and_calls() {
     let session = TestSession::single(
@@ -303,31 +312,31 @@ function pick(values: Result<int32, string>[]): int32 {
 function describe(result: Result<int32, string>): int32 {
 /// @type.symbol symbol=describe type=(Result<int32, string>) => int32
 /// @type.symbol symbol=describe.result source="result: Result<int32, string>" type=Result<int32, string>
-/// @resolution.name source=Result target=error.result.Result
+/// @resolution.name source=Result target=Result
 
     if (result.kind === "Err") {
     /// @resolution.name source=result target=describe.result
-    /// @resolution.member source=result.kind receiver=Result<int32, string> type="Ok" | "Err" kind=projection target="discriminant(error.result.Ok<int32> | error.result.Err<string>, kind, cases=[error.result.Ok<int32>: Ok, error.result.Err<string>: Err], \"Ok\" | \"Err\")" adjustments=(newtype.payload(error.result.Result, error.result.Ok<int32> | error.result.Err<string>))
+    /// @resolution.member source=result.kind receiver=Result<int32, string> type="Ok" | "Err" kind=projection target="discriminant(Ok<int32> | Err<string>, kind, cases=[Ok<int32>: Ok, Err<string>: Err], \"Ok\" | \"Err\")" adjustments=(newtype.payload(Result, Ok<int32> | Err<string>))
     /// @resolution.operator source="result.kind === \"Err\"" type=boolean operator="===" kind=builtin operands=[result.kind as "Ok" | "Err" families=(string), "Err" as "Ok" | "Err" families=(string)]
     /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=result root=describe.result
     /// @resolution.place source=result.kind placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=result.kind root=describe.result keys=[kind]
-    /// @generic.instantiation id="Result<int32, string>" template=error.result.Result arguments=(int32, string)
+    /// @generic.instantiation id="Result<int32, string>" template=Result arguments=(int32, string)
 
         return result.unwrap();
         /// @resolution.name source=result target=describe.result
-        /// @resolution.member source=result.unwrap receiver=Result<int32, string> & error.result.Err<string> type=(this: Result<int32, string>) => int32 kind=symbol target_receiver=Result<int32, string> & error.result.Err<string> target=error.result.unwrap
-        /// @resolution.call source=result.unwrap() parameters=() return=int32 kind=symbol target=error.result.unwrap receiver=Result<int32, string> & error.result.Err<string> instance="Result<int32, string>.<extension#1>.unwrap"
+        /// @resolution.member source=result.unwrap receiver=Result<int32, string> & Err<string> type=(this: Result<int32, string>) => int32 kind=symbol target_receiver=Result<int32, string> & Err<string> target=unwrap
+        /// @resolution.call source=result.unwrap() parameters=() return=int32 kind=symbol target=unwrap receiver=Result<int32, string> & Err<string> instance="Result<int32, string>.<extension#1>.unwrap"
         /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=result root=describe.result
-        /// @generic.instantiation id="error.result.unwrap<int32, string>" template=error.result.unwrap arguments=(int32, string)
+        /// @generic.instantiation id="unwrap<int32, string>" template=unwrap arguments=(int32, string)
 
     }
     return result.unwrap() + 1;
     /// @resolution.name source=result target=describe.result
-    /// @resolution.member source=result.unwrap receiver=Result<int32, string> & error.result.Ok<int32> type=(this: Result<int32, string>) => int32 kind=symbol target_receiver=Result<int32, string> & error.result.Ok<int32> target=error.result.unwrap
-    /// @resolution.call source=result.unwrap() parameters=() return=int32 kind=symbol target=error.result.unwrap receiver=Result<int32, string> & error.result.Ok<int32> instance="Result<int32, string>.<extension#1>.unwrap"
+    /// @resolution.member source=result.unwrap receiver=Result<int32, string> & Ok<int32> type=(this: Result<int32, string>) => int32 kind=symbol target_receiver=Result<int32, string> & Ok<int32> target=unwrap
+    /// @resolution.call source=result.unwrap() parameters=() return=int32 kind=symbol target=unwrap receiver=Result<int32, string> & Ok<int32> instance="Result<int32, string>.<extension#1>.unwrap"
     /// @resolution.operator source="result.unwrap() + 1" type=int32 operator="+" kind=builtin operands=[result.unwrap() as int32 families=(integer), 1 as int32 families=(integer)]
     /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=result root=describe.result
@@ -337,8 +346,8 @@ function describe(result: Result<int32, string>): int32 {
 function pick(values: Array<Result<int32, string>>): int32 {
 /// @type.symbol symbol=pick type=(Result<int32, string>[]) => int32
 /// @type.symbol symbol=pick.values source="values: Array<Result<int32, string>>" type=Result<int32, string>[]
-/// @resolution.name source=Array target=collections.array.Array
-/// @resolution.name source=Result target=error.result.Result
+/// @resolution.name source=Array target=Array
+/// @resolution.name source=Result target=Result
 
     const first = values[0];
     /// @type.symbol symbol=pick.first source=first type=Result<int32, string>
@@ -347,12 +356,12 @@ function pick(values: Array<Result<int32, string>>): int32 {
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=pick.values
     /// @resolution.access source=values[0] root=pick.values keys=[0]
-    /// @resolution.subscript source=values[0] type=Result<int32, string> kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'frame Result<int32, string>, \"exclusive\">)"
-    /// @generic.instantiation id="collections.array.index#1<Result<int32, string>, \"exclusive\">" template=collections.array.index#1 arguments=(Result<int32, string>, "exclusive")
+    /// @resolution.subscript source=values[0] type=Result<int32, string> kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'frame Result<int32, string>, \"exclusive\">)"
+    /// @generic.instantiation id="index#1<Result<int32, string>, \"exclusive\", \"local\">" template=index#1 arguments=(Result<int32, string>, "exclusive", "local")
 
     if (first.kind === "Ok") {
     /// @resolution.name source=first target=pick.first
-    /// @resolution.member source=first.kind receiver=Result<int32, string> type="Ok" | "Err" kind=projection target="discriminant(error.result.Ok<int32> | error.result.Err<string>, kind, cases=[error.result.Ok<int32>: Ok, error.result.Err<string>: Err], \"Ok\" | \"Err\")" adjustments=(newtype.payload(error.result.Result, error.result.Ok<int32> | error.result.Err<string>))
+    /// @resolution.member source=first.kind receiver=Result<int32, string> type="Ok" | "Err" kind=projection target="discriminant(Ok<int32> | Err<string>, kind, cases=[Ok<int32>: Ok, Err<string>: Err], \"Ok\" | \"Err\")" adjustments=(newtype.payload(Result, Ok<int32> | Err<string>))
     /// @resolution.operator source="first.kind === \"Ok\"" type=boolean operator="===" kind=builtin operands=[first.kind as "Ok" | "Err" families=(string), "Ok" as "Ok" | "Err" families=(string)]
     /// @resolution.place source=first placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=first root=pick.first
@@ -361,8 +370,8 @@ function pick(values: Array<Result<int32, string>>): int32 {
 
         return first.unwrap();
         /// @resolution.name source=first target=pick.first
-        /// @resolution.member source=first.unwrap receiver=Result<int32, string> & error.result.Ok<int32> type=(this: Result<int32, string>) => int32 kind=symbol target_receiver=Result<int32, string> & error.result.Ok<int32> target=error.result.unwrap
-        /// @resolution.call source=first.unwrap() parameters=() return=int32 kind=symbol target=error.result.unwrap receiver=Result<int32, string> & error.result.Ok<int32> instance="Result<int32, string>.<extension#1>.unwrap"
+        /// @resolution.member source=first.unwrap receiver=Result<int32, string> & Ok<int32> type=(this: Result<int32, string>) => int32 kind=symbol target_receiver=Result<int32, string> & Ok<int32> target=unwrap
+        /// @resolution.call source=first.unwrap() parameters=() return=int32 kind=symbol target=unwrap receiver=Result<int32, string> & Ok<int32> instance="Result<int32, string>.<extension#1>.unwrap"
         /// @resolution.place source=first placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=first root=pick.first
 

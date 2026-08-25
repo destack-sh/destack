@@ -437,7 +437,7 @@ function decorated(): boolean {
 
 === dir ===
 @allow("constant-condition", {
-/// @resolution.name source=allow target=decorator.diagnostic.allow
+/// @resolution.name source=allow target=allow
 
     if: true,
     reason: "",
@@ -471,7 +471,7 @@ function classify(character: char): boolean {
         r#"
 === annotated ===
 function classify(character: char): boolean {
-    return character.isAsciiAlphabetic() || character.isAsciiDigit();
+    return character.isAsciiAlphabetic<"local">() || character.isAsciiDigit<"local">();
 }
 
 === dir ===
@@ -481,16 +481,18 @@ function classify(character: char): boolean {
 
     return character.isAsciiAlphabetic() || character.isAsciiDigit();
     /// @resolution.name source=character target=classify.character
-    /// @resolution.member source=character.isAsciiAlphabetic receiver=char type=<string.character.Character.isAsciiAlphabetic.'a>(this: &string.character.Character.isAsciiAlphabetic.'a readonly char) => boolean kind=symbol target_receiver=char target=string.character.Character.isAsciiAlphabetic
-    /// @resolution.call source=character.isAsciiAlphabetic() parameters=() return=boolean kind=symbol target=string.character.Character.isAsciiAlphabetic receiver=char adjustments=(borrow(&'frame readonly char))
+    /// @resolution.member source=character.isAsciiAlphabetic receiver=char type=<Character.isAsciiAlphabetic.'a, Character.isAsciiAlphabetic.P1: Place>(this: Borrowed<char, Character.isAsciiAlphabetic.'a & Character.isAsciiAlphabetic.P1, "readonly">) => boolean kind=symbol target_receiver=char target=Character.isAsciiAlphabetic
+    /// @resolution.call source=character.isAsciiAlphabetic() parameters=() return=boolean kind=symbol target=Character.isAsciiAlphabetic receiver=char adjustments=(borrow(&'frame readonly char)) instance="Character.isAsciiAlphabetic<\"local\">"
     /// @resolution.operator source="character.isAsciiAlphabetic() || character.isAsciiDigit()" type=boolean operator="||" kind=builtin operands=[character.isAsciiAlphabetic() as boolean families=(boolean), character.isAsciiDigit() as boolean families=(boolean)]
     /// @resolution.place source=character placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=character root=classify.character
+    /// @generic.instantiation id="Character.isAsciiAlphabetic<\"local\">" template=Character.isAsciiAlphabetic arguments=("local")
     /// @resolution.name source=character target=classify.character
-    /// @resolution.member source=character.isAsciiDigit receiver=char type=<string.character.Character.isAsciiDigit.'a>(this: &string.character.Character.isAsciiDigit.'a readonly char) => boolean kind=symbol target_receiver=char target=string.character.Character.isAsciiDigit
-    /// @resolution.call source=character.isAsciiDigit() parameters=() return=boolean kind=symbol target=string.character.Character.isAsciiDigit receiver=char adjustments=(borrow(&'frame readonly char))
+    /// @resolution.member source=character.isAsciiDigit receiver=char type=<Character.isAsciiDigit.'a, Character.isAsciiDigit.P1: Place>(this: Borrowed<char, Character.isAsciiDigit.'a & Character.isAsciiDigit.P1, "readonly">) => boolean kind=symbol target_receiver=char target=Character.isAsciiDigit
+    /// @resolution.call source=character.isAsciiDigit() parameters=() return=boolean kind=symbol target=Character.isAsciiDigit receiver=char adjustments=(borrow(&'frame readonly char)) instance="Character.isAsciiDigit<\"local\">"
     /// @resolution.place source=character placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=character root=classify.character
+    /// @generic.instantiation id="Character.isAsciiDigit<\"local\">" template=Character.isAsciiDigit arguments=("local")
 
 }
 "#,
@@ -597,12 +599,12 @@ function incrementCount(source: string): Result<int32, string> {
 declare function parseCount(source: string): Result<int32, string>;
 /// @type.symbol symbol=parseCount source="declare function parseCount(source: string): Result<int32, string>" type=(string) => Result<int32, string>
 /// @type.symbol symbol=parseCount.source source="source: string" type=string
-/// @resolution.name source=Result target=error.result.Result
+/// @resolution.name source=Result target=Result
 
 function incrementCount(source: string): Result<int32, string> {
 /// @type.symbol symbol=incrementCount type=(string) => Result<int32, string>
 /// @type.symbol symbol=incrementCount.source source="source: string" type=string
-/// @resolution.name source=Result target=error.result.Result
+/// @resolution.name source=Result target=Result
 
     const count = parseCount(source)?;
     /// @type.symbol symbol=incrementCount.count source=count type=int32
@@ -615,10 +617,10 @@ function incrementCount(source: string): Result<int32, string> {
     /// @resolution.access source=source root=incrementCount.source
 
     return Result.ok(count + 1);
-    /// @resolution.name source=Result target=error.result.Result
-    /// @resolution.member source=Result.ok receiver=Result type=(error.result.T#1) => Result<error.result.T#1, error.result.E#1> kind=symbol target_receiver=Result target=error.result.ok#1
-    /// @resolution.call source="Result.ok(count + 1)" parameters=(int32) arguments=(provided(count + 1) as int32) return=Result<int32, string> kind=symbol target=error.result.ok#1 instance="Result<int32, string>.<extension#1>.ok#1"
-    /// @generic.instantiation id="error.result.ok#1<int32, string>" template=error.result.ok#1 arguments=(int32, string)
+    /// @resolution.name source=Result target=Result
+    /// @resolution.member source=Result.ok receiver=Result type=(T#1) => Result<T#1, E#1> kind=symbol target_receiver=Result target=ok#1
+    /// @resolution.call source="Result.ok(count + 1)" parameters=(int32) arguments=(provided(count + 1) as int32) return=Result<int32, string> kind=symbol target=ok#1 instance="Result<int32, string>.<extension#1>.ok#1"
+    /// @generic.instantiation id="ok#1<int32, string>" template=ok#1 arguments=(int32, string)
     /// @resolution.name source=count target=incrementCount.count
     /// @resolution.operator source="count + 1" type=int32 operator="+" kind=builtin operands=[count as int32 families=(integer), 1 as int32 families=(integer)]
     /// @resolution.place source=count placement="local" lifetime="frame" access="readonly"
@@ -662,7 +664,7 @@ function unwrap(result: Result<int32, string>): int32 {
 function unwrap(result: Result<int32, string>): int32 {
 /// @type.symbol symbol=unwrap type=(Result<int32, string>) => int32
 /// @type.symbol symbol=unwrap.result source="result: Result<int32, string>" type=Result<int32, string>
-/// @resolution.name source=Result target=error.result.Result
+/// @resolution.name source=Result target=Result
 
     const value = match (result) {
     /// @type.symbol symbol=unwrap.value#2 source=value type=int32
@@ -673,15 +675,15 @@ function unwrap(result: Result<int32, string>): int32 {
     /// @resolution.access source=result root=unwrap.result
 
         Err { error: _ } => 0
-        /// @resolution.name source=Err target=error.result.Err
-        /// @resolution.pattern source="Err { error: _ }" kind=nominal_object target=error.result.Err instance=Err<string> fields={ error.result.Err.error: _ }
-        /// @generic.instantiation id=Err<string> template=error.result.Err arguments=(string)
+        /// @resolution.name source=Err target=Err
+        /// @resolution.pattern source="Err { error: _ }" kind=nominal_object target=Err instance=Err<string> fields={ Err.error: _ }
+        /// @generic.instantiation id=Err<string> template=Err arguments=(string)
         /// @resolution.pattern source=_ kind=wildcard
 
         Ok { value } => value
-        /// @resolution.name source=Ok target=error.result.Ok
-        /// @resolution.pattern source="Ok { value }" kind=nominal_object target=error.result.Ok instance=Ok<int32> fields={ error.result.Ok.value }
-        /// @generic.instantiation id=Ok<int32> template=error.result.Ok arguments=(int32)
+        /// @resolution.name source=Ok target=Ok
+        /// @resolution.pattern source="Ok { value }" kind=nominal_object target=Ok instance=Ok<int32> fields={ Ok.value }
+        /// @generic.instantiation id=Ok<int32> template=Ok arguments=(int32)
         /// @type.symbol symbol=unwrap.value#1 source=value type=int32
         /// @resolution.name source=value target=unwrap.value#1
         /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
@@ -717,18 +719,18 @@ function prepare(values: [int32]): void {
         DirRows::checked().with_flows(),
         r#"
 === annotated ===
-declare function fill<'a>(buffer: &'a exclusive [int32]): void;
+declare function fill<'a, P1: Place>(buffer: Borrowed<[int32], 'a & P1, "exclusive">): void;
 
 function prepare(values: [int32]): void {
-    fill(&exclusive values);
+    fill<"local">(&exclusive values);
 }
 
 === dir ===
 declare function fill(buffer: &exclusive [int32]): void;
-/// @generic.template symbol=fill parameters=('a)
-/// @type.symbol symbol=fill source="declare function fill(buffer: &exclusive [int32]): void" type=<fill.'a>(&fill.'a exclusive Slice<int32>) => void
+/// @generic.template symbol=fill parameters=('a, P1: Place)
+/// @type.symbol symbol=fill source="declare function fill(buffer: &exclusive [int32]): void" type=<fill.'a, fill.P1: Place>(Borrowed<Slice<int32>, fill.'a & fill.P1, "exclusive">) => void
 /// @flow.use symbol=fill uses=read
-/// @type.symbol symbol=fill.buffer source="buffer: &exclusive [int32]" type=&fill.'a exclusive Slice<int32>
+/// @type.symbol symbol=fill.buffer source="buffer: &exclusive [int32]" type=Borrowed<Slice<int32>, fill.'a & fill.P1, "exclusive">
 
 function prepare(values: [int32]): void {
 /// @type.symbol symbol=prepare type=(Slice<int32>) => void
@@ -737,7 +739,8 @@ function prepare(values: [int32]): void {
 
     fill(&exclusive values);
     /// @resolution.name source=fill target=fill
-    /// @resolution.call source="fill(&exclusive values)" parameters=(&'frame exclusive Slice<int32>) arguments=(provided(&exclusive values) as &'frame exclusive Slice<int32>) return=void kind=symbol target=fill
+    /// @resolution.call source="fill(&exclusive values)" parameters=(&'frame exclusive Slice<int32>) arguments=(provided(&exclusive values) as &'frame exclusive Slice<int32>) return=void kind=symbol target=fill instance="fill<\"local\">"
+    /// @generic.instantiation id="fill<\"local\">" template=fill arguments=("local")
     /// @resolution.name source=values target=prepare.values
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=prepare.values
@@ -771,7 +774,7 @@ function feed(output: Array<int32>, values: [int32]): void {
 declare function consume(values: Iterable<int32>): void;
 
 function feed(output: int32[], values: [int32]): void {
-    output.push<int32>(1, ...[2, 3], 4);
+    output.push<int32, "local">(1, ...[2, 3], 4);
     consume([...values]);
 }
 
@@ -779,28 +782,29 @@ function feed(output: int32[], values: [int32]): void {
 declare function consume(values: Iterable<int32>): void;
 /// @type.symbol symbol=consume source="declare function consume(values: Iterable<int32>): void" type=(Iterable<int32>) => void
 /// @type.symbol symbol=consume.values source="values: Iterable<int32>" type=Iterable<int32>
-/// @resolution.name source=Iterable target=iter.iterator.Iterable
+/// @resolution.name source=Iterable target=Iterable
 
 function feed(output: Array<int32>, values: [int32]): void {
 /// @type.symbol symbol=feed type=(int32[], Slice<int32>) => void
 /// @type.symbol symbol=feed.output source="output: Array<int32>" type=int32[]
-/// @resolution.name source=Array target=collections.array.Array
+/// @resolution.name source=Array target=Array
 /// @type.symbol symbol=feed.values source="values: [int32]" type=Slice<int32>
 
     output.push(1, ...[2, 3], 4);
     /// @resolution.name source=output target=feed.output
-    /// @resolution.member source=output.push receiver=int32[] type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=collections.array.push
-    /// @resolution.call source="output.push(1, ...[2, 3], 4)" parameters=(int32[]) arguments=(rest(1, ...[2, 3], 4) pack=collections.array.arrayFromSlice as int32) return=isize kind=symbol target=collections.array.push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance=Array<int32>.<extension#5>.push
+    /// @resolution.member source=output.push receiver=int32[] type=<push.'a, push.P1: Place>(this: Borrowed<int32[], push.'a & push.P1, "exclusive">, ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
+    /// @resolution.call source="output.push(1, ...[2, 3], 4)" parameters=(int32[]) arguments=(rest(1, ...[2, 3], 4) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance="Array<int32>.<extension#5>.push<\"local\">"
     /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=output root=feed.output
-    /// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)
-    /// @resolution.call source=[2, 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(2, 3) as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
-    /// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
+    /// @generic.instantiation id="push<int32, \"local\">" template=push arguments=(int32, "local")
+    /// @generic.instantiation id=push<int32> template=push arguments=(int32)
+    /// @resolution.call source=[2, 3] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(2, 3) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+    /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
 
     consume([...values]);
     /// @resolution.name source=consume target=consume
     /// @resolution.call source=consume([...values]) parameters=(Iterable<int32>) arguments=(provided([...values]) as Iterable<int32>) return=void kind=symbol target=consume
-    /// @resolution.call source=[...values] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
+    /// @resolution.call source=[...values] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
     /// @resolution.name source=values target=feed.values
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=feed.values

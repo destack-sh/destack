@@ -24,18 +24,18 @@ impl Variance {
     fn join(self, other: Variance) -> Variance {
         match (self, other) {
             (Variance::Bivariant, other) => other,
-            (own, Variance::Bivariant) => own,
-            (own, other) if own == other => own,
+            (variance, Variance::Bivariant) => variance,
+            (variance, other) if variance == other => variance,
             _ => Variance::Invariant,
         }
     }
 
-    /// Compose one occurrence position with an inner position.
-    pub(in crate::sema) fn compose(self, inner: Variance) -> Variance {
-        match (self, inner) {
+    /// Compose one occurrence position with the position beneath it.
+    pub(in crate::sema) fn compose(self, nested: Variance) -> Variance {
+        match (self, nested) {
             (Variance::Bivariant, _) | (_, Variance::Bivariant) => Variance::Bivariant,
             (Variance::Invariant, _) | (_, Variance::Invariant) => Variance::Invariant,
-            (own, other) if own == other => Variance::Covariant,
+            (variance, other) if variance == other => Variance::Covariant,
             _ => Variance::Contravariant,
         }
     }
@@ -50,7 +50,7 @@ impl Variance {
         matches!(derived, Variance::Bivariant) || self == Variance::Invariant || self == derived
     }
 
-    /// Return the written modifier this variance reifies as.
+    /// Return the written modifier for this variance.
     pub(in crate::sema) fn modifier(self) -> Option<dir::VarianceModifier> {
         match self {
             Variance::Bivariant => None,
@@ -236,7 +236,7 @@ impl CheckState<'_> {
         Ok(form)
     }
 
-    /// Return whether one parameter's declaration derives a variance.
+    /// Return whether one parameter belongs to a nominal declaration.
     pub(in crate::sema) fn parameter_owner_is_nominal(
         &mut self,
         parameter: dir::GlobalGenericParameterId,
@@ -408,7 +408,7 @@ impl CheckState<'_> {
             return Ok(positions);
         };
 
-        // statically dispatched calls type against the copy, not the origin
+        // read the parameters and return covariantly, static dispatch types against the copy
         let parameters: SmallVec<[_; 4]> = self
             .signature_parameters(ty.module_id, signature.parameters)?
             .into();
@@ -433,12 +433,8 @@ impl CheckState<'_> {
         borrow: dir::BorrowFormId,
     ) -> CompilerResult<bool> {
         let access = self.type_borrow(module, borrow)?.access;
-        let is_readonly = matches!(
-            self.ty(access)?,
-            dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly))
-        );
 
-        Ok(is_readonly)
+        Ok(self.access_of(access)? == Some(dir::Access::Readonly))
     }
 
     /// Measure one parameter's occurrences in one type graph.
@@ -449,7 +445,7 @@ impl CheckState<'_> {
         form: VarianceForm,
         parameter: dir::GlobalGenericParameterId,
     ) -> CompilerResult<Variance> {
-        // unused positions cannot contribute occurrences
+        // stop at unused positions, which carry no occurrences
         if position == Variance::Bivariant {
             return Ok(Variance::Bivariant);
         }
@@ -574,7 +570,7 @@ impl CheckState<'_> {
             // nested memory forms contribute their own access capability
             dir::Type::Form(type_form) => match type_form.form {
                 // transparent value forms keep the surrounding capability
-                dir::Form::Readonly | dir::Form::Owned | dir::Form::Placed { .. } => {
+                dir::Form::Readonly | dir::Form::Owned => {
                     self.measure_type(type_form.value, position, form, parameter)?
                 }
                 // readonly borrows view their pointee without write-back
@@ -582,7 +578,7 @@ impl CheckState<'_> {
                     self.measure_type(type_form.value, position, VarianceForm::Readonly, parameter)?
                 }
                 // independently writable references stay invariant unless deeply readonly
-                dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Raw => {
+                dir::Form::Managed { .. } | dir::Form::Borrowed(_) | dir::Form::Raw => {
                     self.measure_type(type_form.value, form.aliased(position), form, parameter)?
                 }
             },
@@ -600,7 +596,7 @@ impl CheckState<'_> {
                 measured
             }
 
-            // projections and operations are unmeasurable
+            // measure projections and operations invariantly
             dir::Type::Member(member) => {
                 let member = self.type_member(ty.module_id, member)?;
                 let mut measured =
@@ -652,11 +648,11 @@ impl CheckState<'_> {
         source: &[dir::GlobalTypeId],
         target: &[dir::GlobalTypeId],
     ) -> CompilerResult<Verdict> {
-        // pair the written arguments by kind, collecting elided lifetimes for proof only
-        let Some(slots) = self.slot_application_arguments(source, target)? else {
+        // pair the written arguments by kind, recording elided lifetimes for Verify
+        let Some(pairs) = self.pair_application_arguments(source, target)? else {
             return Ok(Verdict::Fails);
         };
-        let (source, target): (SmallVec<[_; 4]>, SmallVec<[_; 4]>) = slots.iter().copied().unzip();
+        let (source, target): (SmallVec<[_; 4]>, SmallVec<[_; 4]>) = pairs.iter().copied().unzip();
 
         self.relate_type_arguments(origin, cause, symbol, form, relation, &source, &target)
     }
@@ -676,6 +672,7 @@ impl CheckState<'_> {
             return Ok(Verdict::Fails);
         }
 
+        // relate each argument pair under its parameter's variance
         let relation = self.instance_argument_relation(symbol, relation)?;
         let mut verdict = Verdict::Holds;
         for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
@@ -691,11 +688,13 @@ impl CheckState<'_> {
             // skip closed lifetime slots for Verify, still linking open ones
             if !self.type_flags(source)?.has_variable()
                 && !self.type_flags(target)?.has_variable()
-                && self.is_lifetime_slot_type(source)?
-                && self.is_lifetime_slot_type(target)?
+                && self.memory_kind(source)? == Some(dir::MemoryParameter::Region)
+                && self.memory_kind(target)? == Some(dir::MemoryParameter::Region)
             {
                 continue;
             }
+
+            // name the argument slot so diagnostics point at it
             let variance = self.argument_variance(symbol, index, form)?;
             let slot = CauseKind::TypeArgument {
                 symbol,
@@ -720,6 +719,8 @@ impl CheckState<'_> {
                     self.constrain_type(origin, child, relation, source, target)?
                 }
             };
+
+            // stop at the first failing argument
             verdict = verdict.and(related);
             if verdict == Verdict::Fails {
                 return Ok(Verdict::Fails);
@@ -810,7 +811,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<()> {
-        // derive each declared definition parameter at its own context
+        // collect every declared definition's template parameters
         let symbols = self
             .module(module)
             .iter_definitions()
@@ -842,6 +843,8 @@ impl CheckState<'_> {
             if !self.parameter_owner_is_nominal(parameter)? {
                 continue;
             }
+
+            // keep the parameters whose derivation reifies as a modifier
             let Some(modifier) = derived.modifier() else {
                 continue;
             };
@@ -903,6 +906,8 @@ impl CheckState<'_> {
                 }
             }
         }
+
+        // record the cardinalities on the checked tail
         for (parameter, node) in native {
             self.module_mut(module).generics_tail.set_cardinality(
                 parameter,
@@ -934,28 +939,14 @@ impl CheckState<'_> {
         None
     }
 
-    /// Return the cardinality stored for one parameter's segments.
+    /// Return the cardinality one parameter's module records, through its generic view.
     fn parameter_cardinality(
         &self,
         parameter: dir::GlobalGenericParameterId,
     ) -> Option<dir::Cardinality> {
         let state = self.module_maybe(parameter.module_id)?;
 
-        if let Some(cardinality) = state.generics_tail.cardinality(parameter.local_id) {
-            return Some(cardinality);
-        }
-        if let Some(elaborated) = &state.elaborated
-            && let Some(cardinality) = elaborated.generics.cardinality(parameter.local_id)
-        {
-            return Some(cardinality);
-        }
-        if let Some(declared) = &state.declared
-            && let Some(cardinality) = declared.generics.cardinality(parameter.local_id)
-        {
-            return Some(cardinality);
-        }
-
-        None
+        state.parameter_cardinality(parameter.local_id)
     }
 
     /// Return whether one type carries One cardinality.
@@ -1004,4 +995,5 @@ impl CheckState<'_> {
 
         Ok(is_one)
     }
+
 }

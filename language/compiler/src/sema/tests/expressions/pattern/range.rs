@@ -116,7 +116,7 @@ const label = match (value) {
 /// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=value type=0..=2
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
     0..=1 => "low"
@@ -181,7 +181,7 @@ const isEarly = match (value) {
 /// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=value type='a'..='z'
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
     'a'..='m' => true
@@ -247,7 +247,7 @@ const label = match (value) {
 /// @resolution.coverage exhaustive=false disjoint=true
 /// @type.node source=value type=0..=3
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
     0..=1 => "low"

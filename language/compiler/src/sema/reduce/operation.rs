@@ -60,10 +60,10 @@ impl CheckState<'_> {
             // inference barriers erase only in the signature that owns inference
             dir::TypeOperation::NoInfer(_) => Ok(None),
 
-            // awaited types unwrap promise carriers recursively
+            // awaited types unwrap promise representations recursively
             dir::TypeOperation::Awaited(unary) => self.reduce_awaited(origin, unary.target),
 
-            // try projections split nullish values from carriers
+            // try projections split nullish values from representations
             dir::TypeOperation::TryOutput { value } => {
                 self.reduce_try_projection(origin, *value, TryProjection::Output)
             }

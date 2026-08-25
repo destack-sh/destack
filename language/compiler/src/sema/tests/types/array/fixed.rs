@@ -26,14 +26,14 @@ const byte = bytes[1];
 /// @type.symbol symbol=byte source=byte type=uint8
 /// @resolution.pattern source=byte kind=binding target=byte
 /// @resolution.name source=bytes target=bytes
-/// @resolution.place source=bytes placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=bytes placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=bytes root=bytes
 /// @resolution.access source=bytes[1] root=bytes keys=[1]
-/// @resolution.subscript source=bytes[1] type=uint8 kind=call target="collections.fixed-array.index#1(parameters=(isize), arguments=(provided(1) as isize), return=memory.type.WithAccess<&'static uint8, \"readonly\">)"
-/// @generic.instantiation id="collections.fixed-array.index#1<uint8, 4, \"readonly\">" template=collections.fixed-array.index#1 arguments=(uint8, 4, "readonly")
-/// @generic.instance id="collections.fixed-array.index#1<uint8, 4, \"readonly\">" template=collections.fixed-array.index#1 arguments=(uint8, 4, "readonly")
-/// @generic.instance id="memory.type.WithAccess<&'frame FixedArray<uint8, 4>, \"readonly\">" template=memory.type.WithAccess arguments=(&'frame FixedArray<uint8, 4>, "readonly")
-/// @generic.instance id="memory.type.WithAccess<&'frame uint8, \"readonly\">" template=memory.type.WithAccess arguments=(&'frame uint8, "readonly")
+/// @resolution.subscript source=bytes[1] type=uint8 kind=call target="index#1(parameters=(isize), arguments=(provided(1) as isize), return=WithAccess<&'static constant uint8, \"readonly\">)"
+/// @generic.instantiation id="index#1<uint8, 4, \"readonly\", \"constant\">" template=index#1 arguments=(uint8, 4, "readonly", "constant")
+/// @generic.instance id="WithAccess<&'frame FixedArray<uint8, 4>, \"readonly\">" template=WithAccess arguments=(&'frame FixedArray<uint8, 4>, "readonly")
+/// @generic.instance id="WithAccess<&'frame uint8, \"readonly\">" template=WithAccess arguments=(&'frame uint8, "readonly")
+/// @generic.instance id="index#1<uint8, 4, \"readonly\", \"constant\">" template=index#1 arguments=(uint8, 4, "readonly", "constant")
 "#,
     );
 }
@@ -66,16 +66,16 @@ const grown: int32[] = fixed;
 /// @type.symbol symbol=grown source=grown type=int32[]
 /// @resolution.pattern source=grown kind=binding target=grown
 /// @resolution.name source=fixed target=fixed
-/// @resolution.place source=fixed placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=fixed placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=fixed root=fixed
 
 const copied: int32[] = [...fixed];
 /// @type.symbol symbol=copied source=copied type=int32[]
 /// @resolution.pattern source=copied kind=binding target=copied
-/// @resolution.call source=[...fixed] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
-/// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
+/// @resolution.call source=[...fixed] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+/// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
 /// @resolution.name source=fixed target=fixed
-/// @resolution.place source=fixed placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=fixed placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=fixed root=fixed
 "#,
         r#"
@@ -114,11 +114,11 @@ const size = bytes.size;
 /// @type.node source=bytes type=FixedArray<uint8, 4>
 /// @type.node source=bytes.size type=isize
 /// @resolution.name source=bytes target=bytes
-/// @resolution.member source=bytes.size receiver=FixedArray<uint8, 4> type=isize kind=call target="collections.fixed-array.size(parameters=(), arguments=(), return=isize)"
-/// @resolution.place source=bytes placement="local" lifetime="static" access="readonly"
+/// @resolution.member source=bytes.size receiver=FixedArray<uint8, 4> type=isize kind=call target="size(parameters=(), arguments=(), return=isize)"
+/// @resolution.place source=bytes placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=bytes root=bytes
-/// @generic.instantiation id="collections.fixed-array.size<uint8, 4>" template=collections.fixed-array.size arguments=(uint8, 4)
-/// @generic.instance id="collections.fixed-array.size<uint8, 4>" template=collections.fixed-array.size arguments=(uint8, 4)
+/// @generic.instantiation id="size<uint8, 4, \"constant\">" template=size arguments=(uint8, 4, "constant")
+/// @generic.instance id="size<uint8, 4, \"constant\">" template=size arguments=(uint8, 4, "constant")
 "#,
     );
 }

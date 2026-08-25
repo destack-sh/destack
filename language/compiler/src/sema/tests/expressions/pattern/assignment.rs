@@ -104,10 +104,10 @@ declare const values: [int32; 3];
 /// @type.node source="[first, , last] = values" type=FixedArray<int32, 3>
 /// @resolution.pattern.assign source=[first, , last] kind=sequence element=int32 arity=3 fields=(first, last)
 /// @resolution.access source=[first, , last] root=values
-/// @generic.instantiation id="collections.fixed-array.index#1<int32, 3, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(int32, 3, "exclusive")
-/// @generic.instance id="collections.fixed-array.index#1<int32, 3, \"exclusive\">" template=collections.fixed-array.index#1 arguments=(int32, 3, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame FixedArray<int32, 3>, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame FixedArray<int32, 3>, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame int32, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int32, "exclusive")
+/// @generic.instantiation id="index#1<int32, 3, \"exclusive\", \"local\">" template=index#1 arguments=(int32, 3, "exclusive", "local")
+/// @generic.instance id="WithAccess<&'frame FixedArray<int32, 3>, \"exclusive\">" template=WithAccess arguments=(&'frame FixedArray<int32, 3>, "exclusive")
+/// @generic.instance id="WithAccess<&'frame int32, \"exclusive\">" template=WithAccess arguments=(&'frame int32, "exclusive")
+/// @generic.instance id="index#1<int32, 3, \"exclusive\", \"local\">" template=index#1 arguments=(int32, 3, "exclusive", "local")
 /// @type.node source=first type=int32
 /// @resolution.name source=first target=first
 /// @resolution.pattern.assign source=first kind=place
@@ -120,7 +120,7 @@ declare const values: [int32; 3];
 /// @resolution.assignment source=last write=binding(last) type=int32
 /// @type.node source=values type=FixedArray<int32, 3>
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=values placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 "#,
     );
@@ -221,13 +221,13 @@ let head: int32 = 0;
 let tail: int32[] = [];
 /// @type.symbol symbol=tail source=tail type=int32[]
 /// @resolution.pattern source=tail kind=binding target=tail
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @type.node source=[] type=int32[]
-/// @resolution.call source=[] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int32>
-/// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
-/// @generic.instance id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
+/// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+/// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
+/// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
 
 declare const values: int32[];
 /// @type.symbol symbol=values source=values type=int32[]
@@ -237,12 +237,12 @@ declare const values: int32[];
 /// @type.node source="[head, ...tail] = values" type=int32[]
 /// @resolution.pattern.assign source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
 /// @resolution.access source=[head, ...tail] root=values
-/// @generic.instantiation id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
-/// @generic.instantiation id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
-/// @generic.instance id="collections.array.index#1<int32, \"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame int32, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int32, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame int32[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame int32[], "exclusive")
-/// @generic.instance id=collections.array.rest#2<int32> template=collections.array.rest#2 arguments=(int32)
+/// @generic.instantiation id="index#1<int32, \"exclusive\", \"local\">" template=index#1 arguments=(int32, "exclusive", "local")
+/// @generic.instantiation id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
+/// @generic.instance id="WithAccess<&'frame int32, \"exclusive\">" template=WithAccess arguments=(&'frame int32, "exclusive")
+/// @generic.instance id="WithAccess<&'frame int32[], \"exclusive\">" template=WithAccess arguments=(&'frame int32[], "exclusive")
+/// @generic.instance id="index#1<int32, \"exclusive\", \"local\">" template=index#1 arguments=(int32, "exclusive", "local")
+/// @generic.instance id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
 /// @type.node source=head type=int32
 /// @resolution.name source=head target=head
 /// @resolution.pattern.assign source=head kind=place

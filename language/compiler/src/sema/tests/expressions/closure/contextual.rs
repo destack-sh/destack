@@ -31,14 +31,14 @@ function capture<T>(): void {
 type Consume<T> = (value: T) => void;
 
 class Cell<T> {
-    constructor(executor: (arg0: Consume<T>) => void): this {
+    constructor(executor: (arg0: Consume<T>) => void) {
         executor;
     }
 }
 
 function capture<T>(): void {
     let seen: Consume<T> | undefined = undefined as Consume<T> | undefined;
-    let cell: Cell<T> = new Cell<T>((inner: Consume<T>): void => {
+    let cell: local Cell<T> = new Cell<T>((inner: Consume<T>): void => {
         seen = inner as Consume<T> | undefined;
     });
     cell;
@@ -58,11 +58,12 @@ class Cell<T> {
 /// @generic.template symbol=Cell parameters=(T#2)
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.class symbol=Cell template=(T#2)
-/// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=(Function<(Consume<T#2>,), void>) => this
+/// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=<Cell.constructor.P0: Place>(Function<(Consume<T#2>,), void>) => Managed<this, Cell.constructor.P0>
 /// @type.symbol symbol=Cell.T source=T type=T#2
 
     constructor(executor: (consume: Consume<T>) => void) {
-    /// @type.symbol symbol=Cell.constructor type=(Function<(Consume<T#2>,), void>) => this
+    /// @generic.template symbol=Cell.constructor parent=template#1 parameters=(P0: Place)
+    /// @type.symbol symbol=Cell.constructor type=<Cell.constructor.P0: Place>(Function<(Consume<T#2>,), void>) => Managed<this, Cell.constructor.P0>
     /// @type.symbol symbol=Cell.constructor.executor source="executor: (consume: Consume<T>) => void" type=Function<(Consume<T#2>,), void>
     /// @type.symbol symbol=Cell.constructor.consume source="consume: Consume<T>" type=Consume<T#2>
     /// @resolution.name source=Consume target=Consume
@@ -90,12 +91,12 @@ function capture<T>(): void {
     /// @type.node source=undefined type=undefined
 
     let cell = new Cell<T>((inner) => {
-    /// @type.symbol symbol=capture.cell source=cell type=Cell<T#3>
+    /// @type.symbol symbol=capture.cell source=cell type=local Cell<T#3>
     /// @resolution.pattern source=cell kind=binding target=capture.cell
-    /// @type.node type=Cell<T#3>
-    /// @resolution.construct parameters=(Function<(Consume<T#3>,), void>) arguments=(provided(argument) as Function<(Consume<T#3>,), void>) return=Cell<T#3> kind=class target=Cell constructor=Cell.constructor instance=Cell<T#3>
-    /// @generic.instantiation id=Cell.constructor<T#3> template=Cell.constructor arguments=(T#3) owner=capture
-    /// @generic.instantiation id=Cell<T#3> template=Cell arguments=(T#3) owner=capture
+    /// @type.node type=local Cell<T#3>
+    /// @resolution.construct parameters=(Function<(Consume<T#3>,), void>) arguments=(provided(argument) as Function<(Consume<T#3>,), void>) return=local Cell<T#3> kind=class target=Cell constructor=Cell.constructor instance=Cell<T#3>
+    /// @generic.instantiation id="Cell.constructor<T#3, \"local\">" template=Cell.constructor arguments=(T#3, "local") owner=capture
+    /// @generic.instantiation id="Cell<T#3, \"local\">" template=Cell arguments=(T#3, "local") owner=capture
     /// @resolution.name source=Cell target=Cell
     /// @resolution.name source=T target=capture.T
     /// @type.symbol symbol=capture.symbol13 type=Function<(Consume<T#3>,), void>
@@ -116,7 +117,7 @@ function capture<T>(): void {
 
     });
     cell;
-    /// @type.node source=cell type=Cell<T#3>
+    /// @type.node source=cell type=local Cell<T#3>
     /// @resolution.name source=cell target=capture.cell
     /// @resolution.place source=cell placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=cell root=capture.cell
@@ -159,14 +160,14 @@ function capture(): void {
         r#"
 === annotated ===
 class Cell<out T> {
-    constructor(executor: (arg0: T) => void): this {
+    constructor(executor: (arg0: T) => void) {
         executor;
     }
 }
 
 function capture(): void {
     let seen: int32 | undefined = undefined as int32 | undefined;
-    let cell: Cell<int32> = new Cell<int32>((inner: int32): void => {
+    let cell: local Cell<int32> = new Cell<int32>((inner: int32): void => {
         seen = inner as int32 | undefined;
     });
     cell;
@@ -178,11 +179,12 @@ class Cell<T> {
 /// @generic.template symbol=Cell parameters=(out T)
 /// @type.symbol symbol=Cell type=Cell
 /// @definition.class symbol=Cell template=(out T)
-/// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=(Function<(T,), void>) => this
+/// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=<Cell.constructor.P0: Place>(Function<(T,), void>) => Managed<this, Cell.constructor.P0>
 /// @type.symbol symbol=Cell.T source=T type=T
 
     constructor(executor: (value: T) => void) {
-    /// @type.symbol symbol=Cell.constructor type=(Function<(T,), void>) => this
+    /// @generic.template symbol=Cell.constructor parent=template#0 parameters=(P0: Place)
+    /// @type.symbol symbol=Cell.constructor type=<Cell.constructor.P0: Place>(Function<(T,), void>) => Managed<this, Cell.constructor.P0>
     /// @type.symbol symbol=Cell.constructor.executor source="executor: (value: T) => void" type=Function<(T,), void>
     /// @type.symbol symbol=Cell.constructor.value source="value: T" type=T
     /// @resolution.name source=T target=Cell.T
@@ -205,14 +207,15 @@ function capture(): void {
     /// @type.node source=undefined type=undefined
 
     let cell = new Cell<int32>((inner) => {
-    /// @type.symbol symbol=capture.cell source=cell type=Cell<int32>
+    /// @type.symbol symbol=capture.cell source=cell type=local Cell<int32>
     /// @resolution.pattern source=cell kind=binding target=capture.cell
     /// @generic.instance id=Cell<int32> template=Cell arguments=(int32)
-    /// @type.node type=Cell<int32>
-    /// @resolution.construct parameters=(Function<(int32,), void>) arguments=(provided(argument) as Function<(int32,), void>) return=Cell<int32> kind=class target=Cell constructor=Cell.constructor instance=Cell<int32>
-    /// @generic.instantiation id=Cell.constructor<int32> template=Cell.constructor arguments=(int32)
-    /// @generic.instantiation id=Cell<int32> template=Cell arguments=(int32)
-    /// @generic.instance id=Cell.constructor<int32> template=Cell.constructor arguments=(int32)
+    /// @type.node type=local Cell<int32>
+    /// @resolution.construct parameters=(Function<(int32,), void>) arguments=(provided(argument) as Function<(int32,), void>) return=local Cell<int32> kind=class target=Cell constructor=Cell.constructor instance=Cell<int32>
+    /// @generic.instantiation id="Cell.constructor<int32, \"local\">" template=Cell.constructor arguments=(int32, "local")
+    /// @generic.instantiation id="Cell<int32, \"local\">" template=Cell arguments=(int32, "local")
+    /// @generic.instance id="Cell.constructor<int32, \"local\">" template=Cell.constructor arguments=(int32, "local")
+    /// @generic.instance id="Cell<int32, \"local\">" template=Cell arguments=(int32, "local")
     /// @resolution.name source=Cell target=Cell
     /// @type.symbol symbol=capture.symbol9 type=Function<(int32,), void>
     /// @type.node type=Function<(int32,), void>
@@ -232,7 +235,7 @@ function capture(): void {
 
     });
     cell;
-    /// @type.node source=cell type=Cell<int32>
+    /// @type.node source=cell type=local Cell<int32>
     /// @resolution.name source=cell target=capture.cell
     /// @resolution.place source=cell placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=cell root=capture.cell
@@ -524,7 +527,7 @@ const choose = () => {
     if (flag) {
     /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=flag
-    /// @resolution.place source=flag placement="local" lifetime="static" access="readonly"
+    /// @resolution.place source=flag placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=flag root=flag
 
         return "text";

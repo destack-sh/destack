@@ -27,7 +27,7 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
-        // recognize the two compiler-owned async result carriers
+        // recognize the two compiler-owned async result representations
         if let dir::Type::Application(instance) = self.ty(target)?
             && matches!(
                 self.language_item(instance.symbol)?,
@@ -67,7 +67,7 @@ impl CheckState<'_> {
         Ok(completed)
     }
 
-    /// Reduce one awaited type through nullish values, unions, and async carriers.
+    /// Reduce one awaited type through nullish values, unions, and async representations.
     pub(super) fn reduce_awaited(
         &mut self,
         origin: Origin,
@@ -78,7 +78,7 @@ impl CheckState<'_> {
         self.reduce_awaited_guarded(origin, target, &mut active)
     }
 
-    /// Reduce one awaited type with active carrier unwrapping tracked.
+    /// Reduce one awaited type with active representation unwrapping tracked.
     fn reduce_awaited_guarded(
         &mut self,
         origin: Origin,
@@ -136,7 +136,7 @@ impl CheckState<'_> {
             return Ok(Some(target));
         }
 
-        // unwrap compiler-recognized async result carriers
+        // unwrap compiler-recognized async result representations
         let instance = match self.ty(target)? {
             dir::Type::Application(instance) => Some(instance),
             _ => None,
@@ -153,7 +153,7 @@ impl CheckState<'_> {
             _ => None,
         };
         if let Some(inner) = inner {
-            // a carrier unwrap accepts its open payload as final
+            // a representation unwrap accepts its open payload as final
             let inner = self.shallow_resolve(inner)?;
             if matches!(
                 self.ty(inner)?,

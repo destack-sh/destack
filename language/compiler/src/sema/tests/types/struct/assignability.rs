@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A struct satisfies a structural interface matching its fields.
 #[test]
 fn test_struct_satisfies_structural_interface() {
     let session = TestSession::single(
@@ -71,6 +72,7 @@ value satisfies HasX;
     );
 }
 
+/// An interface inheriting a nominal interface requires a written implements clause.
 #[test]
 fn test_struct_requires_nominal_inherited_interface() {
     let session = TestSession::single(
@@ -158,7 +160,7 @@ declare const picture: Picture;
 
 picture satisfies Drawable;
 /// @resolution.name source=picture target=picture
-/// @resolution.place source=picture placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=picture placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=picture root=picture
 /// @resolution.name source=Drawable target=Drawable
 "#,
@@ -169,6 +171,7 @@ picture satisfies Drawable;
     );
 }
 
+/// A struct implementing the nominal parent satisfies the structural child.
 #[test]
 fn test_struct_satisfies_structural_interface_with_nominal_heritage() {
     let session = TestSession::single(
@@ -260,16 +263,17 @@ declare const picture: Picture;
 
 picture satisfies Drawable;
 /// @resolution.name source=picture target=picture
-/// @resolution.place source=picture placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=picture placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=picture root=picture
 /// @resolution.name source=Drawable target=Drawable
 "#,
     );
 }
 
+/// A struct satisfies an object type without assigning to one.
 #[test]
 fn test_struct_satisfies_but_does_not_store_as_object_type() {
-    // check-only satisfies keeps structural width, object-typed storage stays exact
+    // keep structural width for a satisfies check, object-typed storage stays exact
     let session = TestSession::single(
         r#"
 struct Point {
@@ -315,7 +319,7 @@ const value: { readonly x: int32 } = point;
 /// @type.symbol symbol=value source=value type={ readonly x: int32 }
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 
 value satisfies { readonly x: int32 };
@@ -332,6 +336,7 @@ value satisfies { readonly x: int32 };
     );
 }
 
+/// A struct satisfies an interface declaring the field as optional.
 #[test]
 fn test_struct_satisfies_optional_interface_fields() {
     let session = TestSession::single(
@@ -401,6 +406,7 @@ counter satisfies HasCount;
     );
 }
 
+/// An implements clause without the declared members reports a diagnostic.
 #[test]
 fn test_struct_implements_clause_requires_members() {
     let session = TestSession::single(
@@ -459,6 +465,7 @@ struct Point implements Drawable {
     );
 }
 
+/// Implementing two interfaces disagreeing on one generic parent reports a diagnostic.
 #[test]
 fn test_struct_implements_rejects_conflicting_generic_heritage() {
     let session = TestSession::single(
@@ -519,6 +526,7 @@ struct Point implements Left, Right {}
     );
 }
 
+/// Assigning a struct to a class of the same shape reports a diagnostic.
 #[test]
 fn test_struct_does_not_satisfy_class_by_shape() {
     let session = TestSession::single(
@@ -583,7 +591,7 @@ const value: PointClass = point;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=PointClass target=PointClass
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 "#,
         r#"
@@ -594,6 +602,7 @@ const value: PointClass = point;
     );
 }
 
+/// Assigning a class to a struct of the same shape reports a diagnostic.
 #[test]
 fn test_class_does_not_satisfy_struct_by_shape() {
     let session = TestSession::single(

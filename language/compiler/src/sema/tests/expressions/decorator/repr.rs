@@ -24,7 +24,7 @@ struct Header {
 
 === dir ===
 @repr("C")
-/// @decorator.node source="@repr(\"C\")" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("C") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"C\")"
+/// @decorator.node source="@repr(\"C\")" expression=repr target=decorator.repr type=repr kind=newtype parameters=(Representation) arguments=(provided("C") as Representation) newtype=repr backing=(Representation,) value="repr(\"C\")"
 
 struct Header {
 /// @definition.struct symbol=Header representation=C
@@ -56,7 +56,7 @@ newtype Handle = int32;
 
 === dir ===
 @repr("transparent")
-/// @decorator.node source="@repr(\"transparent\")" owner="newtype Handle = int32" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("transparent") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"transparent\")"
+/// @decorator.node source="@repr(\"transparent\")" owner="newtype Handle = int32" expression=repr target=decorator.repr type=repr kind=newtype parameters=(Representation) arguments=(provided("transparent") as Representation) newtype=repr backing=(Representation,) value="repr(\"transparent\")"
 
 newtype Handle = int32;
 /// @definition.newtype symbol=Handle source="newtype Handle = int32" backing=int32 representation=transparent constructors=[(int32) => Handle]
@@ -88,7 +88,7 @@ struct Handle {
 
 === dir ===
 @repr("transparent")
-/// @decorator.node source="@repr(\"transparent\")" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("transparent") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"transparent\")"
+/// @decorator.node source="@repr(\"transparent\")" expression=repr target=decorator.repr type=repr kind=newtype parameters=(Representation) arguments=(provided("transparent") as Representation) newtype=repr backing=(Representation,) value="repr(\"transparent\")"
 
 struct Handle {
 /// @definition.struct symbol=Handle representation=transparent
@@ -120,7 +120,7 @@ class Handle {}
 
 === dir ===
 @repr("C")
-/// @decorator.node source="@repr(\"C\")" owner="class Handle {}" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("C") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"C\")"
+/// @decorator.node source="@repr(\"C\")" owner="class Handle {}" expression=repr target=decorator.repr type=repr kind=newtype parameters=(Representation) arguments=(provided("C") as Representation) newtype=repr backing=(Representation,) value="repr(\"C\")"
 
 class Handle {}
 /// @definition.class symbol=Handle source="class Handle {}" representation=C
@@ -154,11 +154,11 @@ class Handle {
 
 === dir ===
 @repr("C")
-/// @decorator.node source="@repr(\"C\")" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("C") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"C\")"
+/// @decorator.node source="@repr(\"C\")" expression=repr target=decorator.repr type=repr kind=newtype parameters=(Representation) arguments=(provided("C") as Representation) newtype=repr backing=(Representation,) value="repr(\"C\")"
 
 class Handle {
 /// @definition.class symbol=Handle
-/// @definition.method symbol=Handle.read source="virtual read(): uint8 { return 0; }" slot=read abstraction=virtual type=(this: this) => uint8
+/// @definition.method symbol=Handle.read source="virtual read(): uint8 { return 0; }" slot=read abstraction=virtual type=<Handle.read.P0: Place>(this: Managed<this, Handle.read.P0>) => uint8
 
     virtual read(): uint8 { return 0; }
 }
@@ -199,13 +199,13 @@ abstract class Handle extends Base {}
 === dir ===
 abstract class Base {
 /// @definition.class symbol=Base abstract=true
-/// @definition.method symbol=Base.read source="abstract read(): uint8" slot=read abstraction=abstract type=(this: this) => uint8
+/// @definition.method symbol=Base.read source="abstract read(): uint8" slot=read abstraction=abstract type=<Base.read.P0: Place>(this: Managed<this, Base.read.P0>) => uint8
 
     abstract read(): uint8;
 }
 
 @repr("C")
-/// @decorator.node source="@repr(\"C\")" owner="abstract class Handle extends Base {}" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("C") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"C\")"
+/// @decorator.node source="@repr(\"C\")" owner="abstract class Handle extends Base {}" expression=repr target=decorator.repr type=repr kind=newtype parameters=(Representation) arguments=(provided("C") as Representation) newtype=repr backing=(Representation,) value="repr(\"C\")"
 
 abstract class Handle extends Base {}
 /// @definition.class symbol=Handle source="abstract class Handle extends Base {}" abstract=true
@@ -218,7 +218,7 @@ abstract class Handle extends Base {}
     );
 }
 
-/// Reject a representation family unsupported by the declaration.
+/// Reject a transparent representation on a struct with no fields.
 #[test]
 fn test_reject_transparent_struct_representation() {
     let session = TestSession::single(
@@ -238,7 +238,7 @@ struct Header {}
 
 === dir ===
 @repr("transparent")
-/// @decorator.node source="@repr(\"transparent\")" owner="struct Header {}" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("transparent") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"transparent\")"
+/// @decorator.node source="@repr(\"transparent\")" owner="struct Header {}" expression=repr target=decorator.repr type=repr kind=newtype parameters=(Representation) arguments=(provided("transparent") as Representation) newtype=repr backing=(Representation,) value="repr(\"transparent\")"
 
 struct Header {}
 /// @definition.struct symbol=Header source="struct Header {}"
@@ -272,10 +272,10 @@ struct Header {}
 
 === dir ===
 @repr("C")
-/// @decorator.node source="@repr(\"C\")" owner="struct Header {}" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("C") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"C\")"
+/// @decorator.node source="@repr(\"C\")" owner="struct Header {}" expression=repr target=decorator.repr type=repr kind=newtype parameters=(Representation) arguments=(provided("C") as Representation) newtype=repr backing=(Representation,) value="repr(\"C\")"
 
 @repr("C")
-/// @decorator.node source="@repr(\"C\")" owner="struct Header {}" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("C") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"C\")"
+/// @decorator.node source="@repr(\"C\")" owner="struct Header {}" expression=repr target=decorator.repr type=repr kind=newtype parameters=(Representation) arguments=(provided("C") as Representation) newtype=repr backing=(Representation,) value="repr(\"C\")"
 
 struct Header {}
 /// @definition.struct symbol=Header source="struct Header {}" representation=C
@@ -312,7 +312,7 @@ enum Mode {
 
 === dir ===
 @repr("C")
-/// @decorator.node source="@repr(\"C\")" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("C") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"C\")"
+/// @decorator.node source="@repr(\"C\")" expression=repr target=decorator.repr type=repr kind=newtype parameters=(Representation) arguments=(provided("C") as Representation) newtype=repr backing=(Representation,) value="repr(\"C\")"
 
 enum Mode {
 /// @definition.enum symbol=Mode backing=string
@@ -352,7 +352,7 @@ enum Mode {
 
 === dir ===
 @repr("uint8")
-/// @decorator.node source="@repr(\"uint8\")" expression=repr target=decorator.repr type=repr kind=newtype parameters=(decorator.representation.Representation) arguments=(provided("uint8") as decorator.representation.Representation) newtype=decorator.representation.repr backing=(decorator.representation.Representation,) value="repr(\"uint8\")"
+/// @decorator.node source="@repr(\"uint8\")" expression=repr target=decorator.repr type=repr kind=newtype parameters=(Representation) arguments=(provided("uint8") as Representation) newtype=repr backing=(Representation,) value="repr(\"uint8\")"
 
 enum Mode {
 /// @definition.enum symbol=Mode

@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A mutable array rejects an assignment that widens its element type.
 #[test]
 fn test_mutable_array_rejects_covariant_element_flow() {
     let session = TestSession::single(
@@ -56,6 +57,7 @@ const shapes: Shape[] = circles;
     );
 }
 
+/// A readonly array accepts an assignment that widens its element type.
 #[test]
 fn test_readonly_array_accepts_covariant_element_flow() {
     let session = TestSession::single(
@@ -93,17 +95,17 @@ class Circle extends Shape {}
 declare const circles: Circle[];
 /// @type.symbol symbol=circles source=circles type=Circle[]
 /// @resolution.pattern source=circles kind=binding target=circles
-/// @generic.instance id=Array<Circle> template=collections.array.Array arguments=(Circle)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<Circle>> template=collections.slice.new arguments=(memory.init.MaybeUninit<Circle>)
-/// @generic.instance id=memory.init.MaybeUninit<Circle> template=memory.init.MaybeUninit arguments=(Circle)
+/// @generic.instance id=Array<Circle> template=Array arguments=(Circle)
+/// @generic.instance id=MaybeUninit<Circle> template=MaybeUninit arguments=(Circle)
+/// @generic.instance id=new<MaybeUninit<Circle>> template=new arguments=(MaybeUninit<Circle>)
 /// @resolution.name source=Circle target=Circle
 
 const shapes: readonly Shape[] = circles;
 /// @type.symbol symbol=shapes source=shapes type=readonly Shape[]
 /// @resolution.pattern source=shapes kind=binding target=shapes
-/// @generic.instance id=Array<Shape> template=collections.array.Array arguments=(Shape)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<Shape>> template=collections.slice.new arguments=(memory.init.MaybeUninit<Shape>)
-/// @generic.instance id=memory.init.MaybeUninit<Shape> template=memory.init.MaybeUninit arguments=(Shape)
+/// @generic.instance id=Array<Shape> template=Array arguments=(Shape)
+/// @generic.instance id=MaybeUninit<Shape> template=MaybeUninit arguments=(Shape)
+/// @generic.instance id=new<MaybeUninit<Shape>> template=new arguments=(MaybeUninit<Shape>)
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
 /// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
@@ -112,6 +114,7 @@ const shapes: readonly Shape[] = circles;
     );
 }
 
+/// A readonly array rejects an element type widened into a union.
 #[test]
 fn test_readonly_array_rejects_element_injection() {
     let session = TestSession::single(
@@ -176,6 +179,7 @@ const widened: readonly (Circle | Square)[] = circles;
     );
 }
 
+/// A function type keeps its result exact under assignment.
 #[test]
 fn test_function_interior_conversions_do_not_flow() {
     let session = TestSession::single(
@@ -250,6 +254,7 @@ const either: () => Circle | Square = make;
     );
 }
 
+/// A parameter declared covariant reports a diagnostic at a mutable field.
 #[test]
 fn test_declared_covariance_rejects_invariant_use() {
     let session = TestSession::single(
@@ -290,6 +295,7 @@ declare class Evil<out T> {
     );
 }
 
+/// A parameter declared covariant reports a diagnostic at a callback parameter.
 #[test]
 fn test_declared_covariance_rejects_contravariant_use() {
     let session = TestSession::single(
@@ -331,6 +337,7 @@ struct Sink<out T> {
     );
 }
 
+/// A struct with a covariant parameter widens both as a value and behind a handle.
 #[test]
 fn test_widen_a_covariant_struct_as_a_value_and_as_a_handle() {
     let session = TestSession::single(
@@ -365,8 +372,8 @@ struct Box<out T> {
 declare const owned: Box<Circle>;
 const copy: Box<Shape> = owned;
 
-declare const aliased: Managed<Box<Circle>>;
-const widened: Managed<Box<Shape>> = aliased;
+declare const aliased: local Box<Circle>;
+const widened: local Box<Shape> = aliased;
 
 === dir ===
 class Shape {}
@@ -404,20 +411,20 @@ const copy: Box<Shape> = owned;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=owned target=owned
-/// @resolution.place source=owned placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
 
 declare const aliased: Managed<Box<Circle>>;
-/// @type.symbol symbol=aliased source=aliased type=Managed<Box<Circle>>
+/// @type.symbol symbol=aliased source=aliased type=local Box<Circle>
 /// @resolution.pattern source=aliased kind=binding target=aliased
-/// @resolution.name source=Managed target=memory.managed.Managed
+/// @resolution.name source=Managed target=Managed
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Circle target=Circle
 
 const widened: Managed<Box<Shape>> = aliased;
-/// @type.symbol symbol=widened source=widened type=Managed<Box<Shape>>
+/// @type.symbol symbol=widened source=widened type=local Box<Shape>
 /// @resolution.pattern source=widened kind=binding target=widened
-/// @resolution.name source=Managed target=memory.managed.Managed
+/// @resolution.name source=Managed target=Managed
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=aliased target=aliased
@@ -425,13 +432,14 @@ const widened: Managed<Box<Shape>> = aliased;
 /// @resolution.access source=aliased root=aliased
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'Box<Circle>' is not assignable to type 'Box<Shape>'"
+/// @diagnostic.error id=not-assignable message="type 'local Box<Circle>' is not assignable to type 'local Box<Shape>'"
 /// @diagnostic.label line=13 column=38 span="aliased" line_source="const widened: Managed<Box<Shape>> = aliased;"
 /// @diagnostic.related line=13 column=16 span="Managed" line_source="const widened: Managed<Box<Shape>> = aliased;" message="expected due to this annotation"
 "#,
     );
 }
 
+/// A parameter declared covariant accepts a readonly field.
 #[test]
 fn test_declared_covariance_accepts_readonly_surfaces() {
     let session = TestSession::single(
@@ -468,6 +476,7 @@ declare class Reader<out T> {
     );
 }
 
+/// A mutable object type rejects an assignment that widens a property.
 #[test]
 fn test_mutable_object_rejects_covariant_property_flow() {
     let session = TestSession::single(
@@ -506,9 +515,10 @@ const widened: { x: float64 } = point;
     );
 }
 
+/// An aliased object value rejects widening one of its fields.
 #[test]
 fn test_object_storage_rejects_aliased_field_widening() {
-    // aliased object values store exactly, field widening needs an interface contract
+    // keep aliased object values exact, widening a field requires an interface
     let session = TestSession::single(
         r#"
 class Shape {}
@@ -584,6 +594,7 @@ const converted: { readonly x: float64 } = scalar;
     );
 }
 
+/// A function type accepts a wider parameter and rejects a narrower one.
 #[test]
 fn test_function_parameters_flow_contravariantly() {
     let session = TestSession::single(
@@ -662,6 +673,7 @@ const useShape2: (shape: Shape) => void = useCircle2;
     );
 }
 
+/// An intrinsic newtype keeps its type arguments invariant.
 #[test]
 fn test_intrinsic_newtype_arguments_stay_invariant() {
     let session = TestSession::single(
@@ -701,7 +713,7 @@ const target: Handle<string> = source;
 /// @resolution.name source=Handle target=Handle
 /// @type.node source=source type=Handle<int32>
 /// @resolution.name source=source target=source
-/// @resolution.place source=source placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=source placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=source root=source
 "#,
         r#"
@@ -713,6 +725,7 @@ const target: Handle<string> = source;
     );
 }
 
+/// An intrinsic newtype infers its arguments from the expected instantiation.
 #[test]
 fn test_intrinsic_newtype_infers_from_the_expected_instantiation() {
     let session = TestSession::single(
@@ -763,7 +776,7 @@ newtype Handle<T> = intrinsic;
 
 @intrinsic("memory.unique.empty")
 /// @type.node source=intrinsic type=intrinsic
-/// @resolution.name source=intrinsic target=decorator.intrinsic.intrinsic
+/// @resolution.name source=intrinsic target=intrinsic
 /// @type.node source="\"memory.unique.empty\"" type="memory.unique.empty"
 
 declare function emptyHandle<T>(): Handle<[T]>;
@@ -820,6 +833,7 @@ class Holder {
     );
 }
 
+/// A callable with a narrower result assigns to a parameter expecting a wider one.
 #[test]
 fn test_assign_a_callable_with_a_narrower_result_to_a_wider_parameter() {
     let session = TestSession::single(
@@ -916,6 +930,7 @@ forEach(async (value) => value);
     );
 }
 
+/// An owned struct value widens its type argument covariantly.
 #[test]
 fn test_owned_struct_value_widens_covariantly() {
     let session = TestSession::single(
@@ -998,12 +1013,13 @@ const widened: Box<Shape> = exact;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=exact target=exact
-/// @resolution.place source=exact placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=exact placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=exact root=exact
 "#,
     );
 }
 
+/// A readonly borrow widens the type argument of the struct it lends.
 #[test]
 fn test_readonly_borrow_widens_the_struct_payload() {
     let session = TestSession::single(
@@ -1080,18 +1096,19 @@ const exact: Box<Circle> = Box { value: circle };
 /// @resolution.access source=circle root=circle
 
 const widened: &readonly Box<Shape> = &readonly exact;
-/// @type.symbol symbol=widened source=widened type=&'static readonly Box<Shape>
+/// @type.symbol symbol=widened source=widened type=&'static readonly constant Box<Shape>
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @generic.instance id=Box<Shape> template=Box arguments=(Shape)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=exact target=exact
-/// @resolution.place source=exact placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=exact placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=exact root=exact
 "#,
     );
 }
 
+/// An exclusive borrow rejects widening the type argument of the struct it lends.
 #[test]
 fn test_exclusive_borrow_rejects_struct_payload_widening() {
     let session = TestSession::single(
@@ -1167,7 +1184,7 @@ let exact: Box<Circle> = Box { value: circle };
 /// @resolution.access source=circle root=circle
 
 const widened: &exclusive Box<Shape> = &exclusive exact;
-/// @type.symbol symbol=widened source=widened type=&'static exclusive Box<Shape>
+/// @type.symbol symbol=widened source=widened type=&'static exclusive constant Box<Shape>
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
@@ -1176,13 +1193,14 @@ const widened: &exclusive Box<Shape> = &exclusive exact;
 /// @resolution.access source=exact root=exact
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '&'static exclusive Box<Circle>' is not assignable to type '&'static exclusive Box<Shape>'"
+/// @diagnostic.error id=not-assignable message="type '&'static exclusive local Box<Circle>' is not assignable to type '&'static exclusive constant Box<Shape>'"
 /// @diagnostic.label line=12 column=40 span="&exclusive exact" line_source="const widened: &exclusive Box<Shape> = &exclusive exact;"
 /// @diagnostic.related line=12 column=16 span="&" line_source="const widened: &exclusive Box<Shape> = &exclusive exact;" message="expected due to this annotation"
 "#,
     );
 }
 
+/// A managed handle rejects widening the type argument of the struct it holds.
 #[test]
 fn test_managed_handle_rejects_struct_payload_widening() {
     let session = TestSession::single(
@@ -1212,9 +1230,9 @@ struct Box<out Value> {
     value: Value;
 }
 
-declare const shared: Managed<Box<Circle>>;
+declare const shared: local Box<Circle>;
 
-const widened: Managed<Box<Shape>> = shared;
+const widened: local Box<Shape> = shared;
 
 === dir ===
 class Shape {}
@@ -1241,16 +1259,16 @@ struct Box<Value> {
 }
 
 declare const shared: Managed<Box<Circle>>;
-/// @type.symbol symbol=shared source=shared type=Managed<Box<Circle>>
+/// @type.symbol symbol=shared source=shared type=local Box<Circle>
 /// @resolution.pattern source=shared kind=binding target=shared
-/// @resolution.name source=Managed target=memory.managed.Managed
+/// @resolution.name source=Managed target=Managed
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Circle target=Circle
 
 const widened: Managed<Box<Shape>> = shared;
-/// @type.symbol symbol=widened source=widened type=Managed<Box<Shape>>
+/// @type.symbol symbol=widened source=widened type=local Box<Shape>
 /// @resolution.pattern source=widened kind=binding target=widened
-/// @resolution.name source=Managed target=memory.managed.Managed
+/// @resolution.name source=Managed target=Managed
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=shared target=shared
@@ -1258,7 +1276,7 @@ const widened: Managed<Box<Shape>> = shared;
 /// @resolution.access source=shared root=shared
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'Box<Circle>' is not assignable to type 'Box<Shape>'"
+/// @diagnostic.error id=not-assignable message="type 'local Box<Circle>' is not assignable to type 'local Box<Shape>'"
 /// @diagnostic.label line=11 column=38 span="shared" line_source="const widened: Managed<Box<Shape>> = shared;"
 /// @diagnostic.related line=11 column=16 span="Managed" line_source="const widened: Managed<Box<Shape>> = shared;" message="expected due to this annotation"
 "#,

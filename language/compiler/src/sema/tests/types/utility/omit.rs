@@ -55,7 +55,7 @@ interface Person {
 declare const person: Omit<Person, "age">;
 /// @type.symbol symbol=person source=person type={ name: string; active: boolean }
 /// @resolution.pattern source=person kind=binding target=person
-/// @resolution.name source=Omit target=types.object.Omit
+/// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
 
 person.name satisfies string;
@@ -128,7 +128,7 @@ interface Person {
 declare const person: Omit<Person, "age">;
 /// @type.symbol symbol=person source=person type={ name: string; active: boolean }
 /// @resolution.pattern source=person kind=binding target=person
-/// @resolution.name source=Omit target=types.object.Omit
+/// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
 
 const age = person.age;
@@ -195,7 +195,7 @@ interface Person {
 type WithoutAge = Omit<Person, "age">;
 /// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type={ name: string }
 /// @definition.type symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" value={ name: string }
-/// @resolution.name source=Omit target=types.object.Omit
+/// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
 
 const person: WithoutAge = { name: "Ada" };
@@ -259,7 +259,7 @@ interface Person {
 type WithoutAge = Omit<Person, "age">;
 /// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type={ name: string }
 /// @definition.type symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" value={ name: string }
-/// @resolution.name source=Omit target=types.object.Omit
+/// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
 
 const person: WithoutAge = { name: "Ada", age: 42 };
@@ -323,7 +323,7 @@ interface Person {
 type WithoutAll = Omit<Person, "name" | "age">;
 /// @type.symbol symbol=WithoutAll source="type WithoutAll = Omit<Person, \"name\" | \"age\">" type={}
 /// @definition.type symbol=WithoutAll source="type WithoutAll = Omit<Person, \"name\" | \"age\">" value={}
-/// @resolution.name source=Omit target=types.object.Omit
+/// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
 
 const person: WithoutAll = {};
@@ -383,7 +383,7 @@ interface Person {
 type Same = Omit<Person, "missing">;
 /// @type.symbol symbol=Same source="type Same = Omit<Person, \"missing\">" type={ name: string; age: int32 }
 /// @definition.type symbol=Same source="type Same = Omit<Person, \"missing\">" value={ name: string; age: int32 }
-/// @resolution.name source=Omit target=types.object.Omit
+/// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
 
 const person: Same = { name: "Ada", age: 42 };
@@ -449,7 +449,7 @@ interface Person {
 type NameOnly = Omit<Person, "age">;
 /// @type.symbol symbol=NameOnly source="type NameOnly = Omit<Person, \"age\">" type={ readonly name: string }
 /// @definition.type symbol=NameOnly source="type NameOnly = Omit<Person, \"age\">" value={ readonly name: string }
-/// @resolution.name source=Omit target=types.object.Omit
+/// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
 
 const person: NameOnly = { name: "Ada" };

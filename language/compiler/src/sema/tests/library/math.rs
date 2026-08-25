@@ -31,22 +31,22 @@ import { Unsigned } from "destack:math";
 type SignedFixed = Unsigned<int37>;
 /// @type.symbol symbol=SignedFixed source="type SignedFixed = Unsigned<int37>" type=uint37
 /// @definition.type symbol=SignedFixed source="type SignedFixed = Unsigned<int37>" value=uint37
-/// @resolution.name source=Unsigned target=math.integer.Unsigned
+/// @resolution.name source=Unsigned target=Unsigned
 
 type UnsignedFixed = Unsigned<uint37>;
 /// @type.symbol symbol=UnsignedFixed source="type UnsignedFixed = Unsigned<uint37>" type=uint37
 /// @definition.type symbol=UnsignedFixed source="type UnsignedFixed = Unsigned<uint37>" value=uint37
-/// @resolution.name source=Unsigned target=math.integer.Unsigned
+/// @resolution.name source=Unsigned target=Unsigned
 
 type SignedPointer = Unsigned<isize>;
 /// @type.symbol symbol=SignedPointer source="type SignedPointer = Unsigned<isize>" type=usize
 /// @definition.type symbol=SignedPointer source="type SignedPointer = Unsigned<isize>" value=usize
-/// @resolution.name source=Unsigned target=math.integer.Unsigned
+/// @resolution.name source=Unsigned target=Unsigned
 
 type UnsignedPointer = Unsigned<usize>;
 /// @type.symbol symbol=UnsignedPointer source="type UnsignedPointer = Unsigned<usize>" type=usize
 /// @definition.type symbol=UnsignedPointer source="type UnsignedPointer = Unsigned<usize>" value=usize
-/// @resolution.name source=Unsigned target=math.integer.Unsigned
+/// @resolution.name source=Unsigned target=Unsigned
 "#,
     );
 }

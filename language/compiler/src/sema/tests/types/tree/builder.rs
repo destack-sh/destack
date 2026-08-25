@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// An extension implements a generic static interface member.
 #[test]
 fn test_implement_generic_static_interface_members() {
     let session = TestSession::single(
@@ -80,6 +81,7 @@ extension of Panel implements Maker {
     );
 }
 
+/// An extension implements a static interface member with a const parameter.
 #[test]
 fn test_implement_const_static_interface_members() {
     let session = TestSession::single(
@@ -160,6 +162,7 @@ extension of Panel implements Tagger {
     );
 }
 
+/// An extension implements a static member bounded by keyof an associated type.
 #[test]
 fn test_implement_keyof_bounded_static_interface_members() {
     let session = TestSession::single(
@@ -257,6 +260,7 @@ extension of Panel implements Rowed {
     );
 }
 
+/// An extension implements a static member projecting the row its key selects.
 #[test]
 fn test_implement_row_projected_static_interface_members() {
     let session = TestSession::single(
@@ -358,6 +362,7 @@ extension of Panel implements Rowed {
     );
 }
 
+/// An extension implements a static member bounded by a variadic tuple.
 #[test]
 fn test_implement_tuple_bounded_static_interface_members() {
     let session = TestSession::single(
@@ -403,9 +408,9 @@ newtype interface Grouper {
     /// @generic.template symbol=Grouper.group parent=template#0 parameters=(Children#1: (...unknown[],))
     /// @type.symbol symbol=Grouper.group source="static group<Children: (...unknown[],)>(children: Children): this" type=<Children#1: (...unknown[],)>(Children#1) => this
     /// @type.symbol symbol=Grouper.group.Children source="Children: (...unknown[],)" type=Children#1
-    /// @generic.instance id=Array<unknown> template=collections.array.Array arguments=(unknown)
-    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<unknown>> template=collections.slice.new arguments=(memory.init.MaybeUninit<unknown>)
-    /// @generic.instance id=memory.init.MaybeUninit<unknown> template=memory.init.MaybeUninit arguments=(unknown)
+    /// @generic.instance id=Array<unknown> template=Array arguments=(unknown)
+    /// @generic.instance id=MaybeUninit<unknown> template=MaybeUninit arguments=(unknown)
+    /// @generic.instance id=new<MaybeUninit<unknown>> template=new arguments=(MaybeUninit<unknown>)
     /// @type.symbol symbol=Grouper.group.children source="children: Children" type=Children#1
     /// @resolution.name source=Children target=Grouper.group.Children
 
@@ -441,6 +446,7 @@ extension of Panel implements Grouper {
     );
 }
 
+/// An extension implements the tree builder interface with its declared statics.
 #[test]
 fn test_implement_tree_builder_with_declared_statics() {
     let session = TestSession::single(
@@ -517,15 +523,15 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
-/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
-/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
-/// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
+/// @resolution.name source=TreeBuilder target=TreeBuilder
 
     type Tags = {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; span: {} }
@@ -539,9 +545,9 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
     /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
-    /// @generic.instance id=Array<unknown> template=collections.array.Array arguments=(unknown)
-    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<unknown>> template=collections.slice.new arguments=(memory.init.MaybeUninit<unknown>)
-    /// @generic.instance id=memory.init.MaybeUninit<unknown> template=memory.init.MaybeUninit arguments=(unknown)
+    /// @generic.instance id=Array<unknown> template=Array arguments=(unknown)
+    /// @generic.instance id=MaybeUninit<unknown> template=MaybeUninit arguments=(unknown)
+    /// @generic.instance id=new<MaybeUninit<unknown>> template=new arguments=(MaybeUninit<unknown>)
 
         tag: Tag,
         /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
@@ -582,6 +588,7 @@ extension of Panel implements TreeBuilder {
     );
 }
 
+/// A tree element checks against the builder its expected type names.
 #[test]
 fn test_check_tree_element_against_the_contextual_builder() {
     let session = TestSession::single(
@@ -672,15 +679,15 @@ class Panel {
 
 extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
-/// @definition.implements symbol=<module>#2 source=TreeBuilder target=tree.builder.TreeBuilder
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; span: {} }
 /// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
-/// @definition.conformance symbol=<module>#2 member=Tags requirement=tree.builder.TreeBuilder.Tags
-/// @definition.conformance symbol=<module>#2 member=element requirement=tree.builder.TreeBuilder.element
-/// @definition.conformance symbol=<module>#2 member=fragment requirement=tree.builder.TreeBuilder.fragment
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
 /// @resolution.name source=Panel target=Panel
-/// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
+/// @resolution.name source=TreeBuilder target=TreeBuilder
 
     type Tags = {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; span: {} }
@@ -694,9 +701,9 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
     /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
-    /// @generic.instance id=Array<unknown> template=collections.array.Array arguments=(unknown)
-    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<unknown>> template=collections.slice.new arguments=(memory.init.MaybeUninit<unknown>)
-    /// @generic.instance id=memory.init.MaybeUninit<unknown> template=memory.init.MaybeUninit arguments=(unknown)
+    /// @generic.instance id=Array<unknown> template=Array arguments=(unknown)
+    /// @generic.instance id=MaybeUninit<unknown> template=MaybeUninit arguments=(unknown)
+    /// @generic.instance id=new<MaybeUninit<unknown>> template=new arguments=(MaybeUninit<unknown>)
 
         tag: Tag,
         /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
@@ -759,6 +766,7 @@ function render(): Panel {
     );
 }
 
+/// An object literal checks against the row a const key projects.
 #[test]
 fn test_check_object_literal_against_a_const_projected_parameter() {
     let session = TestSession::single(

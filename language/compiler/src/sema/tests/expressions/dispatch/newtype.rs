@@ -41,8 +41,8 @@ newtype Wrapper<T: Copy> = Promise<T>;
 /// @type.symbol symbol=Wrapper source="newtype Wrapper<T: Copy> = Promise<T>" type=Wrapper
 /// @definition.newtype symbol=Wrapper source="newtype Wrapper<T: Copy> = Promise<T>" template=(in out T#1: Copy) backing=Promise<T#1> constructors=[<T#1: Copy>(Promise<T#1>) => Wrapper<T#1>]
 /// @type.symbol symbol=Wrapper.T source="T: Copy" type=T#1
-/// @resolution.name source=Copy target=memory.capability.Copy
-/// @resolution.name source=Promise target=async.promise.Promise
+/// @resolution.name source=Copy target=Copy
+/// @resolution.name source=Promise target=Promise
 /// @resolution.name source=T target=Wrapper.T
 
 extension<T: Copy> of Wrapper<T> {
@@ -50,13 +50,13 @@ extension<T: Copy> of Wrapper<T> {
 /// @definition.extension symbol=<module>#2 form=local target=Wrapper<T#2>
 /// @definition.method symbol=take slot=take type=async (this: this) => Promise<T#2>
 /// @type.symbol symbol=T source="T: Copy" type=T#2
-/// @resolution.name source=Copy target=memory.capability.Copy
+/// @resolution.name source=Copy target=Copy
 /// @resolution.name source=Wrapper target=Wrapper
 /// @resolution.name source=T target=T
 
     async take(): Promise<T> {
     /// @type.symbol symbol=take type=async (this: this) => Promise<T#2>
-    /// @resolution.name source=Promise target=async.promise.Promise
+    /// @resolution.name source=Promise target=Promise
     /// @resolution.name source=T target=T
 
         const value = await this;

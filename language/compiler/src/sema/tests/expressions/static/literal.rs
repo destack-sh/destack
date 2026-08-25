@@ -21,12 +21,12 @@ const greatest = int32.maximum();
 /// @type.symbol symbol=greatest source=greatest type=int32
 /// @resolution.pattern source=greatest kind=binding target=greatest
 /// @resolution.name source=int32 target=int32 kind=type
-/// @resolution.member source=int32.maximum receiver=reflect.type.Type<int32> type=() => int32 kind=symbol target_receiver=reflect.type.Type<int32> adjustments=(newtype.payload(reflect.type.Type, intrinsic)) target=math.integer.maximum
-/// @resolution.call source=int32.maximum() parameters=() return=int32 kind=symbol target=math.integer.maximum instance=int32.<extension#1>.maximum
-/// @generic.instantiation id=math.integer.maximum<int32> template=math.integer.maximum arguments=(int32)
-/// @generic.instantiation id=reflect.type.Type<int32> template=reflect.type.Type arguments=(int32)
-/// @generic.instance id=math.integer.maximum<int32> template=math.integer.maximum arguments=(int32)
-/// @generic.instance id=reflect.type.Type<int32> template=reflect.type.Type arguments=(int32)
+/// @resolution.member source=int32.maximum receiver=Type<int32> type=() => int32 kind=symbol target_receiver=Type<int32> adjustments=(newtype.payload(Type, intrinsic)) target=maximum
+/// @resolution.call source=int32.maximum() parameters=() return=int32 kind=symbol target=maximum instance=int32.<extension#1>.maximum
+/// @generic.instantiation id=Type<int32> template=Type arguments=(int32)
+/// @generic.instantiation id=maximum<int32> template=maximum arguments=(int32)
+/// @generic.instance id=Type<int32> template=Type arguments=(int32)
+/// @generic.instance id=maximum<int32> template=maximum arguments=(int32)
 "#,
     );
 }
@@ -52,12 +52,12 @@ const least = uint8.minimum();
 /// @type.symbol symbol=least source=least type=uint8
 /// @resolution.pattern source=least kind=binding target=least
 /// @resolution.name source=uint8 target=uint8 kind=type
-/// @resolution.member source=uint8.minimum receiver=reflect.type.Type<uint8> type=() => uint8 kind=symbol target_receiver=reflect.type.Type<uint8> adjustments=(newtype.payload(reflect.type.Type, intrinsic)) target=math.integer.minimum
-/// @resolution.call source=uint8.minimum() parameters=() return=uint8 kind=symbol target=math.integer.minimum instance=uint8.<extension#1>.minimum
-/// @generic.instantiation id=math.integer.minimum<uint8> template=math.integer.minimum arguments=(uint8)
-/// @generic.instantiation id=reflect.type.Type<uint8> template=reflect.type.Type arguments=(uint8)
-/// @generic.instance id=math.integer.minimum<uint8> template=math.integer.minimum arguments=(uint8)
-/// @generic.instance id=reflect.type.Type<uint8> template=reflect.type.Type arguments=(uint8)
+/// @resolution.member source=uint8.minimum receiver=Type<uint8> type=() => uint8 kind=symbol target_receiver=Type<uint8> adjustments=(newtype.payload(Type, intrinsic)) target=minimum
+/// @resolution.call source=uint8.minimum() parameters=() return=uint8 kind=symbol target=minimum instance=uint8.<extension#1>.minimum
+/// @generic.instantiation id=Type<uint8> template=Type arguments=(uint8)
+/// @generic.instantiation id=minimum<uint8> template=minimum arguments=(uint8)
+/// @generic.instance id=Type<uint8> template=Type arguments=(uint8)
+/// @generic.instance id=minimum<uint8> template=minimum arguments=(uint8)
 "#,
     );
 }
@@ -83,17 +83,17 @@ const greatest = int.maximum();
 /// @type.symbol symbol=greatest source=greatest type=int64
 /// @resolution.pattern source=greatest kind=binding target=greatest
 /// @resolution.name source=int target=int64 kind=type
-/// @resolution.member source=int.maximum receiver=reflect.type.Type<int64> type=() => int64 kind=symbol target_receiver=reflect.type.Type<int64> adjustments=(newtype.payload(reflect.type.Type, intrinsic)) target=math.integer.maximum
-/// @resolution.call source=int.maximum() parameters=() return=int64 kind=symbol target=math.integer.maximum instance=int64.<extension#1>.maximum
-/// @generic.instantiation id=math.integer.maximum<int64> template=math.integer.maximum arguments=(int64)
-/// @generic.instantiation id=reflect.type.Type<int64> template=reflect.type.Type arguments=(int64)
-/// @generic.instance id=math.integer.maximum<int64> template=math.integer.maximum arguments=(int64)
-/// @generic.instance id=reflect.type.Type<int64> template=reflect.type.Type arguments=(int64)
+/// @resolution.member source=int.maximum receiver=Type<int64> type=() => int64 kind=symbol target_receiver=Type<int64> adjustments=(newtype.payload(Type, intrinsic)) target=maximum
+/// @resolution.call source=int.maximum() parameters=() return=int64 kind=symbol target=maximum instance=int64.<extension#1>.maximum
+/// @generic.instantiation id=Type<int64> template=Type arguments=(int64)
+/// @generic.instantiation id=maximum<int64> template=maximum arguments=(int64)
+/// @generic.instance id=Type<int64> template=Type arguments=(int64)
+/// @generic.instance id=maximum<int64> template=maximum arguments=(int64)
 "#,
     );
 }
 
-/// Prefer a lexical binding over the type literal a contextual name spells.
+/// Prefer a lexical binding over the type literal of the same name.
 #[test]
 fn test_prefers_lexical_binding_over_type_literal_name() {
     let session = TestSession::single(
@@ -120,9 +120,11 @@ const size = float.length;
 /// @type.symbol symbol=size source=size type=isize
 /// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=float target=float
-/// @resolution.member source=float.length receiver="measure" type=isize kind=call target="string.string.length(parameters=(), arguments=(), return=isize)"
+/// @resolution.member source=float.length receiver="measure" type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=float placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=float root=float
+/// @generic.instantiation id="length<\"local\">" template=length arguments=("local")
+/// @generic.instance id="length<\"local\">" template=length arguments=("local")
 "#,
     );
 }
@@ -176,9 +178,9 @@ const meta: Type<int64> = int;
 
 === dir ===
 const meta = int;
-/// @type.symbol symbol=meta source=meta type=reflect.type.Type<int64>
+/// @type.symbol symbol=meta source=meta type=Type<int64>
 /// @resolution.pattern source=meta kind=binding target=meta
-/// @generic.instance id=reflect.type.Type<int64> template=reflect.type.Type arguments=(int64)
+/// @generic.instance id=Type<int64> template=Type arguments=(int64)
 /// @resolution.name source=int target=int64 kind=type
 "#,
     );
@@ -236,19 +238,19 @@ const greatest: int32 = meta.maximum<int32>();
 const meta = int32;
 /// @type.symbol symbol=meta source=meta type=Type<int32>
 /// @resolution.pattern source=meta kind=binding target=meta
-/// @generic.instance id=Type<int32> template=reflect.type.Type arguments=(int32)
+/// @generic.instance id=Type<int32> template=Type arguments=(int32)
 
 const greatest = meta.maximum();
 /// @type.symbol symbol=greatest source=greatest type=int32
 /// @resolution.pattern source=greatest kind=binding target=greatest
 /// @resolution.name source=meta target=meta
-/// @resolution.member source=meta.maximum receiver=Type<int32> type=() => int32 kind=symbol target_receiver=Type<int32> adjustments=(newtype.payload(reflect.type.Type, intrinsic)) target=math.integer.maximum
-/// @resolution.call source=meta.maximum() parameters=() return=int32 kind=symbol target=math.integer.maximum instance=int32.<extension#1>.maximum
-/// @resolution.place source=meta placement="local" lifetime="static" access="readonly"
+/// @resolution.member source=meta.maximum receiver=Type<int32> type=() => int32 kind=symbol target_receiver=Type<int32> adjustments=(newtype.payload(Type, intrinsic)) target=maximum
+/// @resolution.call source=meta.maximum() parameters=() return=int32 kind=symbol target=maximum instance=int32.<extension#1>.maximum
+/// @resolution.place source=meta placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=meta root=meta
-/// @generic.instantiation id=Type<int32> template=reflect.type.Type arguments=(int32)
-/// @generic.instantiation id=math.integer.maximum<int32> template=math.integer.maximum arguments=(int32)
-/// @generic.instance id=math.integer.maximum<int32> template=math.integer.maximum arguments=(int32)
+/// @generic.instantiation id=Type<int32> template=Type arguments=(int32)
+/// @generic.instantiation id=maximum<int32> template=maximum arguments=(int32)
+/// @generic.instance id=maximum<int32> template=maximum arguments=(int32)
 "#,
     );
 }

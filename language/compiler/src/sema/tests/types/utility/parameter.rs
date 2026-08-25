@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Parameters extracts the argument tuple of a signature.
 #[test]
 fn test_parameters_extracts_argument_tuple() {
     let session = TestSession::single(
@@ -25,7 +26,7 @@ ok satisfies (string, number);
 type Args = Parameters<(name: string, count: number) => boolean>;
 /// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=(string, float64)
 /// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=(string, float64)
-/// @resolution.name source=Parameters target=types.function.Parameters
+/// @resolution.name source=Parameters target=Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
 /// @type.symbol symbol=Args.count source="count: number" type=float64
 
@@ -36,12 +37,13 @@ const ok: Args = ("Ada", 1);
 
 ok satisfies (string, number);
 /// @resolution.name source=ok target=ok
-/// @resolution.place source=ok placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=ok placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=ok root=ok
 "#,
     );
 }
 
+/// Parameters keeps the optional positions of a signature.
 #[test]
 fn test_parameters_preserves_optional_parameters() {
     let session = TestSession::single(
@@ -67,7 +69,7 @@ const full: (string, float64 | undefined?) = ("Ada", 1 as float64 | undefined);
 type Args = Parameters<(name: string, count?: number) => boolean>;
 /// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" type=(string, float64 | undefined?)
 /// @definition.type symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" value=(string, float64 | undefined?)
-/// @resolution.name source=Parameters target=types.function.Parameters
+/// @resolution.name source=Parameters target=Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
 /// @type.symbol symbol=Args.count source="count?: number" type=float64 | undefined
 
@@ -84,6 +86,7 @@ const full: Args = ("Ada", 1);
     );
 }
 
+/// Parameters keeps the rest position of a signature.
 #[test]
 fn test_parameters_preserves_rest_parameters() {
     let session = TestSession::single(
@@ -106,11 +109,11 @@ const ok: (string, ...boolean[]) = ("Ada", true, false) as (string, ...boolean[]
 === dir ===
 type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
 /// @type.symbol symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" type=(string, ...boolean[])
-/// @generic.instance id=Array<boolean> template=collections.array.Array arguments=(boolean)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<boolean>> template=collections.slice.new arguments=(memory.init.MaybeUninit<boolean>)
-/// @generic.instance id=memory.init.MaybeUninit<boolean> template=memory.init.MaybeUninit arguments=(boolean)
+/// @generic.instance id=Array<boolean> template=Array arguments=(boolean)
+/// @generic.instance id=MaybeUninit<boolean> template=MaybeUninit arguments=(boolean)
+/// @generic.instance id=new<MaybeUninit<boolean>> template=new arguments=(MaybeUninit<boolean>)
 /// @definition.type symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" value=(string, ...boolean[])
-/// @resolution.name source=Parameters target=types.function.Parameters
+/// @resolution.name source=Parameters target=Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
 /// @type.symbol symbol=Args.flags source="...flags: boolean[]" type=boolean[]
 
@@ -122,6 +125,7 @@ const ok: Args = ("Ada", true, false);
     );
 }
 
+/// An argument of another type reports a diagnostic against Parameters.
 #[test]
 fn test_parameters_rejects_wrong_argument_types() {
     let session = TestSession::single(
@@ -145,7 +149,7 @@ const bad: (string, float64) = ("Ada", "one");
 type Args = Parameters<(name: string, count: number) => boolean>;
 /// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=(string, float64)
 /// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=(string, float64)
-/// @resolution.name source=Parameters target=types.function.Parameters
+/// @resolution.name source=Parameters target=Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
 /// @type.symbol symbol=Args.count source="count: number" type=float64
 
@@ -238,7 +242,7 @@ declare const parser: Parser;
 
 parser satisfies ((value: int32) => int32) & ((value: string) => string);
 /// @resolution.name source=parser target=parser
-/// @resolution.place source=parser placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=parser placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=parser root=parser
 /// @type.symbol symbol=value#1 source="value: int32" type=int32
 /// @type.symbol symbol=value#2 source="value: string" type=string

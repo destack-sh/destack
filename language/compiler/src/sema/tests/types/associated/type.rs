@@ -231,7 +231,7 @@ class Factory implements Producing {
 /// @definition.where symbol=Factory source=Producing relation=satisfies left=this right=Producing
 /// @definition.implements symbol=Factory source=Producing target=Producing
 /// @definition.associated.type symbol=Factory.Output source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=Factory.produce slot=produce type=(this: Factory) => int32
+/// @definition.method symbol=Factory.produce slot=produce type=<Factory.produce.P0: Place>(this: Managed<Factory, Factory.produce.P0>) => int32
 /// @definition.conformance symbol=Factory member=Factory.Output requirement=Producing.Output
 /// @definition.conformance symbol=Factory member=Factory.produce requirement=Producing.produce
 /// @resolution.name source=Producing target=Producing
@@ -240,7 +240,8 @@ class Factory implements Producing {
     /// @type.symbol symbol=Factory.Output source="type Output = int32" type=int32
 
     produce(): this.Output {
-    /// @type.symbol symbol=Factory.produce type=(this: Factory) => int32
+    /// @generic.template symbol=Factory.produce parent=template#1 parameters=(P0: Place)
+    /// @type.symbol symbol=Factory.produce type=<Factory.produce.P0: Place>(this: Managed<Factory, Factory.produce.P0>) => int32
 
         return 7;
     }
@@ -266,8 +267,8 @@ declare const made: Made<Factory>;
 
 #[test]
 fn test_associated_type_default_stays_conformance_only() {
-    // a defaulted associated type fills conforming implementers, but an
-    // implementer may override it, so rigid bounds never observe the default
+    // a defaulted associated type fills conforming implementers, and a rigid
+    //  bound keeps the projection since an implementer may override the default
     let session = TestSession::single(
         r#"
 interface Iterator {

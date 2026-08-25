@@ -44,7 +44,7 @@ hasX satisfies boolean;
 /// @type.node source="hasX satisfies boolean" type=boolean
 /// @type.node source=hasX type=boolean
 /// @resolution.name source=hasX target=hasX
-/// @resolution.place source=hasX placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=hasX placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=hasX root=hasX
 "#,
     );
@@ -94,7 +94,7 @@ hasName satisfies boolean;
 /// @type.node source="hasName satisfies boolean" type=boolean
 /// @type.node source=hasName type=boolean
 /// @resolution.name source=hasName target=hasName
-/// @resolution.place source=hasName placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=hasName placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=hasName root=hasName
 "#,
     );
@@ -123,7 +123,7 @@ found satisfies boolean;
         r#"
 === annotated ===
 class Bag {
-    has(key: &'a readonly string): boolean {
+    has(key: Borrowed<string, 'a & P1, "readonly">): boolean {
         return true;
     }
 }
@@ -137,12 +137,12 @@ found satisfies boolean;
 class Bag {
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.class symbol=Bag
-/// @definition.method symbol=Bag.has slot=has type=<Bag.has.'a>(this: Bag, &Bag.has.'a readonly string) => boolean
+/// @definition.method symbol=Bag.has slot=has type=<Bag.has.'a, Bag.has.P1: Place, Bag.has.P2: Place>(this: Managed<Bag, Bag.has.P2>, Borrowed<string, Bag.has.'a & Bag.has.P1, "readonly">) => boolean
 
     has(key: &readonly string): boolean {
-    /// @generic.template symbol=Bag.has parameters=('a)
-    /// @type.symbol symbol=Bag.has type=<Bag.has.'a>(this: Bag, &Bag.has.'a readonly string) => boolean
-    /// @type.symbol symbol=Bag.has.key source="key: &readonly string" type=&Bag.has.'a readonly string
+    /// @generic.template symbol=Bag.has parameters=('a, P1: Place, P2: Place)
+    /// @type.symbol symbol=Bag.has type=<Bag.has.'a, Bag.has.P1: Place, Bag.has.P2: Place>(this: Managed<Bag, Bag.has.P2>, Borrowed<string, Bag.has.'a & Bag.has.P1, "readonly">) => boolean
+    /// @type.symbol symbol=Bag.has.key source="key: &readonly string" type=Borrowed<string, Bag.has.'a & Bag.has.P1, "readonly">
 
         return true;
         /// @type.node source=true type=true
@@ -170,7 +170,7 @@ found satisfies boolean;
 /// @type.node source="found satisfies boolean" type=boolean
 /// @type.node source=found type=boolean
 /// @resolution.name source=found target=found
-/// @resolution.place source=found placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=found placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=found root=found
 "#,
     );
@@ -281,7 +281,7 @@ if ("name" in value) {
 /// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=Named | Numbered predicate="membership(Named | Numbered, name)" narrowed={ name: string }
 /// @type.node source=value type=Named | Numbered
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
     value.name satisfies string;
@@ -352,7 +352,7 @@ if ("name" in value) {
 /// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=Named | Numbered predicate="membership(Named | Numbered, name)" narrowed={ name: string }
 /// @type.node source=value type=Named | Numbered
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
 } else {

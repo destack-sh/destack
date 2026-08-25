@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Returning an unbounded parameter as unknown reports a diagnostic.
 #[test]
 fn test_reject_an_unbounded_parameter_returned_as_unknown() {
     let session = TestSession::single(
@@ -42,6 +43,7 @@ function keep<T>(value: T): unknown {
     );
 }
 
+/// A DynamicSafe parameter returns as unknown.
 #[test]
 fn test_accept_a_dynamic_safe_parameter_returned_as_unknown() {
     let session = TestSession::single(
@@ -69,10 +71,10 @@ function keep<T: DynamicSafe>(value: T): unknown {
 import { DynamicSafe } from "destack:memory";
 
 function keep<T: DynamicSafe>(value: T): unknown {
-/// @generic.template symbol=keep parameters=(T: memory.capability.DynamicSafe)
-/// @type.symbol symbol=keep type=<T: memory.capability.DynamicSafe>(T) => unknown
+/// @generic.template symbol=keep parameters=(T: DynamicSafe)
+/// @type.symbol symbol=keep type=<T: DynamicSafe>(T) => unknown
 /// @type.symbol symbol=keep.T source="T: DynamicSafe" type=T
-/// @resolution.name source=DynamicSafe target=memory.capability.DynamicSafe
+/// @resolution.name source=DynamicSafe target=DynamicSafe
 /// @type.symbol symbol=keep.value source="value: T" type=T
 /// @resolution.name source=T target=keep.T
 
@@ -86,6 +88,7 @@ function keep<T: DynamicSafe>(value: T): unknown {
     );
 }
 
+/// A field annotated by a type alias keeps that alias in the checked type.
 #[test]
 fn test_type_alias_field_keeps_the_written_alias_face() {
     let session = TestSession::single(
@@ -160,26 +163,27 @@ const rectangle = Rectangle {
 rectangle.start satisfies Point;
 /// @resolution.name source=rectangle target=rectangle
 /// @resolution.member source=rectangle.start receiver=Rectangle type=Point kind=field target_receiver=Rectangle key=start target=Rectangle.start target_type=Point
-/// @resolution.place source=rectangle placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=rectangle placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle root=rectangle
-/// @resolution.place source=rectangle.start placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=rectangle.start placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle.start root=rectangle keys=[start]
 /// @resolution.name source=Point target=Point
 
 rectangle.start.x satisfies int32;
 /// @resolution.name source=rectangle target=rectangle
 /// @resolution.member source=rectangle.start receiver=Rectangle type=Point kind=field target_receiver=Rectangle key=start target=Rectangle.start target_type=Point
-/// @resolution.member source=rectangle.start.x receiver=Point type=int32 kind=field target_receiver=Point key=x target_type=int32
-/// @resolution.place source=rectangle placement="local" lifetime="static" access="readonly"
+/// @resolution.member source=rectangle.start.x receiver=constant Point type=int32 kind=field target_receiver=constant Point key=x target_type=int32
+/// @resolution.place source=rectangle placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle root=rectangle
-/// @resolution.place source=rectangle.start placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=rectangle.start placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle.start root=rectangle keys=[start]
-/// @resolution.place source=rectangle.start.x placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=rectangle.start.x placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle.start.x root=rectangle keys=[start, x]
 "#,
     );
 }
 
+/// An object literal with an extra property reports a diagnostic at an alias field.
 #[test]
 fn test_type_alias_field_rejects_extra_property() {
     let session = TestSession::single(
@@ -255,6 +259,7 @@ const rectangle = Rectangle {
     );
 }
 
+/// Fields annotated by an interface keep that interface in the checked type.
 #[test]
 fn test_interface_fields_keep_their_written_types() {
     let session = TestSession::single(
@@ -407,24 +412,25 @@ const rectangle = Rectangle {
 rectangle.start satisfies PointLike;
 /// @resolution.name source=rectangle target=rectangle
 /// @resolution.member source=rectangle.start receiver=Rectangle type=PointLike kind=field target_receiver=Rectangle key=start target=Rectangle.start target_type=PointLike
-/// @resolution.place source=rectangle placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=rectangle placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle root=rectangle
-/// @resolution.place source=rectangle.start placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=rectangle.start placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle.start root=rectangle keys=[start]
 /// @resolution.name source=PointLike target=PointLike
 
 rectangle.end satisfies PointLike;
 /// @resolution.name source=rectangle target=rectangle
 /// @resolution.member source=rectangle.end receiver=Rectangle type=PointLike kind=field target_receiver=Rectangle key=end target=Rectangle.end target_type=PointLike
-/// @resolution.place source=rectangle placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=rectangle placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle root=rectangle
-/// @resolution.place source=rectangle.end placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=rectangle.end placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle.end root=rectangle keys=[end]
 /// @resolution.name source=PointLike target=PointLike
 "#,
     );
 }
 
+/// An array keeps its written element alias when a member is read back.
 #[test]
 fn test_array_element_type_keeps_the_written_alias() {
     let session = TestSession::single(
@@ -471,7 +477,7 @@ const shapes: Shape[] = [
     Rectangle { width: 1.0, height: 1.0 } as Shape,
 ];
 
-const first: Shape = shapes[0];
+const first: Circle | Rectangle = shapes[0];
 first satisfies Shape;
 
 === dir ===
@@ -508,14 +514,14 @@ type Shape = Circle | Rectangle;
 const shapes: Array<Shape> = [
 /// @type.symbol symbol=shapes source=shapes type=Shape[]
 /// @resolution.pattern source=shapes kind=binding target=shapes
-/// @generic.instance id=Array<Shape> template=collections.array.Array arguments=(Shape)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<Shape>> template=collections.slice.new arguments=(memory.init.MaybeUninit<Shape>)
-/// @generic.instance id=memory.init.MaybeUninit<Shape> template=memory.init.MaybeUninit arguments=(Shape)
-/// @resolution.name source=Array target=collections.array.Array
+/// @generic.instance id=Array<Shape> template=Array arguments=(Shape)
+/// @generic.instance id=MaybeUninit<Shape> template=MaybeUninit arguments=(Shape)
+/// @generic.instance id=new<MaybeUninit<Shape>> template=new arguments=(MaybeUninit<Shape>)
+/// @resolution.name source=Array target=Array
 /// @resolution.name source=Shape target=Shape
-/// @resolution.call parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(Circle { radius: 1.0 }, Rectangle { width: 1.0, height: 1.0 }) as Shape) return=Shape[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<Shape>
-/// @generic.instantiation id=collections.array.arrayFromSlice<Shape> template=collections.array.arrayFromSlice arguments=(Shape)
-/// @generic.instance id=collections.array.arrayFromSlice<Shape> template=collections.array.arrayFromSlice arguments=(Shape)
+/// @resolution.call parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(Circle { radius: 1.0 }, Rectangle { width: 1.0, height: 1.0 }) as Shape) return=Shape[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<Shape>
+/// @generic.instantiation id=arrayFromSlice<Shape> template=arrayFromSlice arguments=(Shape)
+/// @generic.instance id="arrayFromSlice<Shape, \"local\">" template=arrayFromSlice arguments=(Shape, "local")
 
     Circle { radius: 1.0 },
     /// @resolution.name source=Circle target=Circle
@@ -526,27 +532,28 @@ const shapes: Array<Shape> = [
 ];
 
 const first = shapes[0];
-/// @type.symbol symbol=first source=first type=Shape
+/// @type.symbol symbol=first source=first type=Circle | Rectangle
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=shapes target=shapes
 /// @resolution.place source=shapes placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=shapes root=shapes
 /// @resolution.access source=shapes[0] root=shapes keys=[0]
-/// @resolution.subscript source=shapes[0] type=Shape kind=call target="collections.array.index#1(parameters=(isize), arguments=(provided(0) as isize), return=memory.type.WithAccess<&'static Shape, \"exclusive\">)"
-/// @generic.instantiation id="collections.array.index#1<Shape, \"exclusive\">" template=collections.array.index#1 arguments=(Shape, "exclusive")
-/// @generic.instance id="collections.array.index#1<Shape, \"exclusive\">" template=collections.array.index#1 arguments=(Shape, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame Shape, \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Shape, "exclusive")
-/// @generic.instance id="memory.type.WithAccess<&'frame Shape[], \"exclusive\">" template=memory.type.WithAccess arguments=(&'frame Shape[], "exclusive")
+/// @resolution.subscript source=shapes[0] type=Circle | Rectangle kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static Shape, \"exclusive\">)"
+/// @generic.instantiation id="index#1<Shape, \"exclusive\", \"local\">" template=index#1 arguments=(Shape, "exclusive", "local")
+/// @generic.instance id="WithAccess<&'frame Shape, \"exclusive\">" template=WithAccess arguments=(&'frame Shape, "exclusive")
+/// @generic.instance id="WithAccess<&'frame Shape[], \"exclusive\">" template=WithAccess arguments=(&'frame Shape[], "exclusive")
+/// @generic.instance id="index#1<Shape, \"exclusive\", \"local\">" template=index#1 arguments=(Shape, "exclusive", "local")
 
 first satisfies Shape;
 /// @resolution.name source=first target=first
-/// @resolution.place source=first placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=first placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=first root=first
 /// @resolution.name source=Shape target=Shape
 "#,
     );
 }
 
+/// A field annotated by a literal union alias keeps that alias.
 #[test]
 fn test_literal_union_field_keeps_the_written_alias() {
     let session = TestSession::single(
@@ -609,15 +616,16 @@ const player = Player {
 player.mode satisfies Mode;
 /// @resolution.name source=player target=player
 /// @resolution.member source=player.mode receiver=Player type=Mode kind=field target_receiver=Player key=mode target=Player.mode target_type=Mode
-/// @resolution.place source=player placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=player placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=player root=player
-/// @resolution.place source=player.mode placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=player.mode placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=player.mode root=player keys=[mode]
 /// @resolution.name source=Mode target=Mode
 "#,
     );
 }
 
+/// Struct and class fields keep the alias their annotations write.
 #[test]
 fn test_struct_and_class_fields_keep_the_written_alias_face() {
     let session = TestSession::single(
@@ -701,9 +709,9 @@ declare const marker: Marker;
 segment.start satisfies Point;
 /// @resolution.name source=segment target=segment
 /// @resolution.member source=segment.start receiver=Segment type=Point kind=field target_receiver=Segment key=start target=Segment.start target_type=Point
-/// @resolution.place source=segment placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=segment placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=segment root=segment
-/// @resolution.place source=segment.start placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=segment.start placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=segment.start root=segment keys=[start]
 /// @resolution.name source=Point target=Point
 

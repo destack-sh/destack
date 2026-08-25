@@ -142,7 +142,7 @@ type Getters<T> = {
     [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K];
     /// @type.symbol symbol=Getters.K source=[K in keyof T as `get${Capitalize<string & K>}`] type=K
     /// @resolution.name source=T target=Getters.T
-    /// @resolution.name source=Capitalize target=types.string.Capitalize
+    /// @resolution.name source=Capitalize target=Capitalize
     /// @resolution.name source=K target=Getters.K
     /// @resolution.name source=T target=Getters.T
     /// @resolution.name source=K target=Getters.K

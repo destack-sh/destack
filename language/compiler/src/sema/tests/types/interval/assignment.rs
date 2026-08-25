@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Assigning a plain scalar to an interval alias reports a diagnostic.
 #[test]
 fn test_interval_assignment_requires_interval_compatible_type() {
     let session = TestSession::single(
@@ -35,7 +36,7 @@ const digit: Digit = value;
 /// @resolution.pattern source=digit kind=binding target=digit
 /// @resolution.name source=Digit target=Digit
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
         r#"
@@ -46,6 +47,7 @@ const digit: Digit = value;
     );
 }
 
+/// Arithmetic on an interval widens past its bounds and reports a diagnostic.
 #[test]
 fn test_interval_assignment_does_not_prove_arithmetic_bounds() {
     let session = TestSession::single(
@@ -83,7 +85,7 @@ const next: Digit = digit + 1;
 /// @resolution.name source=Digit target=Digit
 /// @resolution.name source=digit target=digit
 /// @resolution.operator source="digit + 1" type=int64 operator="+" kind=builtin operands=[digit as int64 families=(integer), 1 as int64 families=(integer)]
-/// @resolution.place source=digit placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=digit placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=digit root=digit
 "#,
         r#"
@@ -94,6 +96,7 @@ const next: Digit = digit + 1;
     );
 }
 
+/// A union of intervals accepts values inside its arms and rejects values between them.
 #[test]
 fn test_interval_union_accepts_member_bounds() {
     let session = TestSession::single(
@@ -145,6 +148,7 @@ const bad: Edge = 128;
     );
 }
 
+/// A newtype over an interval requires a nominal construction.
 #[test]
 fn test_newtype_interval_requires_nominal_construction() {
     let session = TestSession::single(

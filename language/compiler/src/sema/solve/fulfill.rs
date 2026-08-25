@@ -23,8 +23,7 @@ pub(in crate::sema) enum Wake {
     Final,
 }
 
-/// One open speculative attempt: the checks queued before it, which the attempt cannot
-/// step, and the wakes held back from them until the attempt commits.
+/// One open speculative attempt.
 #[derive(Debug, Default)]
 struct Fence {
     /// The number of checks queued before the attempt.
@@ -33,7 +32,7 @@ struct Fence {
     wakes: Vec<Wake>,
 }
 
-/// The fulfillment queue driving pending checks to verdicts.
+/// The fulfillment queue stepping pending checks to verdicts.
 pub(in crate::sema) struct Fulfillment {
     /// Collected checks with their outcomes and scheduling state.
     pub(in crate::sema) checks: CheckTable,
@@ -115,7 +114,7 @@ impl Fulfillment {
         }
     }
 
-    /// Queue one check's work, keeping repeated queuing single while live.
+    /// Queue one check's work, queuing it once while it stays live.
     pub(in crate::sema) fn queue_work(
         &mut self,
         check: CheckId,
@@ -153,7 +152,7 @@ impl Fulfillment {
 
     /// Wait one check on the variables it watches, or on the next resolve stage.
     pub(in crate::sema) fn stall_work(&mut self, id: CheckId, watched: &[dir::TypeVariableId]) {
-        // wait for the next resolve stage without any watched variable
+        // wait for the next resolve stage when nothing is watched
         if watched.is_empty() {
             return self.wait(id, Wake::Stage);
         }
@@ -292,7 +291,7 @@ impl CheckState<'_> {
                     produces.push(hole);
                 }
             }
-            // overwrite the hole a reselection minted at its site
+            // overwrite the hole a reselection opened at its site
             Check::Selection(selection) => {
                 if let Some(ty) = self.committed_node_type(selection.site.node)
                     && let Some(root) = self.root_variable(ty)?
@@ -300,6 +299,7 @@ impl CheckState<'_> {
                     produces.push(root);
                 }
             }
+            // the remaining kinds complete without bounding a variable
             Check::Relation(_) | Check::Conversion(_) | Check::Declared(_) | Check::Equality(_) => {
             }
         }
@@ -364,8 +364,8 @@ impl CheckState<'_> {
 
     /// Step one pending check, dispatching by kind.
     ///
-    /// This is the one driver every kind of check steps through, resolving a check's
-    /// open blockers hard at the final resolve before re-evaluating.
+    /// Every kind of check steps through here, resolving a check's open blockers
+    /// hard at the final resolve before re-evaluating.
     fn step_check(&mut self, id: CheckId, resolve: Resolve) -> CompilerResult<bool> {
         let check = self.fulfill.checks.get(id)?.clone();
 
@@ -462,7 +462,7 @@ impl CheckState<'_> {
             verdict = Verdict::Fails;
         }
 
-        // undo whatever this attempt decided
+        // undo whatever an ambiguous attempt decided
         if was_ambiguous {
             let poison = self.intern_type(dir::Type::Error)?;
             self.infer.rollback(mark, poison, &mut self.fulfill)?;
@@ -472,8 +472,9 @@ impl CheckState<'_> {
 
                 return Ok(false);
             }
-        } else {
-            // keep whatever a decided attempt bound
+        }
+        // keep whatever a decided attempt bound
+        else {
             self.infer.commit(mark, &mut self.fulfill);
         }
 
@@ -607,7 +608,7 @@ impl CheckState<'_> {
         entry: ObligationEntry,
         resolve: Resolve,
     ) -> CompilerResult<bool> {
-        // complete obligations untouched outside checking
+        // complete obligations directly outside checking
         if !self.is_checking() {
             self.fulfill.finish_work(id);
 

@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A Record over a finite key union builds one field per key.
 #[test]
 fn test_record_finite_key_union_builds_exact_fields() {
     let session = TestSession::single(
@@ -29,7 +30,7 @@ flags.b satisfies boolean;
 type Flags = Record<"a" | "b", boolean>;
 /// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type={ a: boolean; b: boolean }
 /// @definition.type symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" value={ a: boolean; b: boolean }
-/// @resolution.name source=Record target=types.object.Record
+/// @resolution.name source=Record target=Record
 
 const flags: Flags = { a: true, b: false };
 /// @type.symbol symbol=flags source=flags type={ a: boolean; b: boolean }
@@ -55,6 +56,7 @@ flags.b satisfies boolean;
     );
 }
 
+/// A Record over usize literal keys builds one field per key.
 #[test]
 fn test_record_usize_literal_keys_build_exact_fields() {
     let session = TestSession::single(
@@ -84,7 +86,7 @@ flags[2] satisfies string;
 type Flags = Record<1 | 2, string>;
 /// @type.symbol symbol=Flags source="type Flags = Record<1 | 2, string>" type={ 1: string; 2: string }
 /// @definition.type symbol=Flags source="type Flags = Record<1 | 2, string>" value={ 1: string; 2: string }
-/// @resolution.name source=Record target=types.object.Record
+/// @resolution.name source=Record target=Record
 
 const flags: Flags = { 1: "one", 2: "two" };
 /// @type.symbol symbol=flags source=flags type={ 1: string; 2: string }
@@ -110,6 +112,7 @@ flags[2] satisfies string;
     );
 }
 
+/// A literal missing one Record key reports a diagnostic.
 #[test]
 fn test_record_finite_key_union_rejects_missing_key() {
     let session = TestSession::single(
@@ -133,7 +136,7 @@ const flags: { a: boolean; b: boolean } = { a: true };
 type Flags = Record<"a" | "b", boolean>;
 /// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type={ a: boolean; b: boolean }
 /// @definition.type symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" value={ a: boolean; b: boolean }
-/// @resolution.name source=Record target=types.object.Record
+/// @resolution.name source=Record target=Record
 
 const flags: Flags = { a: true };
 /// @type.symbol symbol=flags source=flags type={ a: boolean; b: boolean }
@@ -148,6 +151,7 @@ const flags: Flags = { a: true };
     );
 }
 
+/// A literal missing one usize Record key reports a diagnostic.
 #[test]
 fn test_record_usize_literal_keys_reject_missing_key() {
     let session = TestSession::single(
@@ -171,7 +175,7 @@ const flags: { 1: string; 2: string } = { 1: "one" };
 type Flags = Record<1 | 2, string>;
 /// @type.symbol symbol=Flags source="type Flags = Record<1 | 2, string>" type={ 1: string; 2: string }
 /// @definition.type symbol=Flags source="type Flags = Record<1 | 2, string>" value={ 1: string; 2: string }
-/// @resolution.name source=Record target=types.object.Record
+/// @resolution.name source=Record target=Record
 
 const flags: Flags = { 1: "one" };
 /// @type.symbol symbol=flags source=flags type={ 1: string; 2: string }
@@ -186,6 +190,7 @@ const flags: Flags = { 1: "one" };
     );
 }
 
+/// A literal with a key outside the Record union reports a diagnostic.
 #[test]
 fn test_record_finite_key_union_rejects_extra_key() {
     let session = TestSession::single(
@@ -209,7 +214,7 @@ const flags: { a: boolean; b: boolean } = { a: true, b: false, c: true };
 type Flags = Record<"a" | "b", boolean>;
 /// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type={ a: boolean; b: boolean }
 /// @definition.type symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" value={ a: boolean; b: boolean }
-/// @resolution.name source=Record target=types.object.Record
+/// @resolution.name source=Record target=Record
 
 const flags: Flags = { a: true, b: false, c: true };
 /// @type.symbol symbol=flags source=flags type={ a: boolean; b: boolean }
@@ -225,6 +230,7 @@ const flags: Flags = { a: true, b: false, c: true };
     );
 }
 
+/// A Record over an object key type reports a diagnostic.
 #[test]
 fn test_record_rejects_invalid_key_type() {
     let session = TestSession::single(
@@ -244,7 +250,7 @@ type Bad = Record<{ name: string }, boolean>;
 type Bad = Record<{ name: string }, boolean>;
 /// @type.symbol symbol=Bad source="type Bad = Record<{ name: string }, boolean>" type={ [P in { name: string }]: boolean }
 /// @definition.type symbol=Bad source="type Bad = Record<{ name: string }, boolean>" value={ [P in { name: string }]: boolean }
-/// @resolution.name source=Record target=types.object.Record
+/// @resolution.name source=Record target=Record
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type '{ name: string }' does not satisfy 'PropertyKey'"
@@ -255,6 +261,7 @@ type Bad = Record<{ name: string }, boolean>;
     );
 }
 
+/// A Record over string keys accepts a finite object and widens misses to undefined.
 #[test]
 fn test_record_string_key_constraint_accepts_finite_object() {
     let session = TestSession::single(
@@ -278,13 +285,13 @@ type Bag = Record<string, int32>;
 declare function read(bag: Bag): int32 | undefined;
 
 const point: { x: int32 } = { x: 1 };
-const value: int32 | undefined = read(point);
+const value: int32 | undefined = read(point as Bag);
 
 === dir ===
 type Bag = Record<string, int32>;
 /// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value={ [P: string]: int32 }
-/// @resolution.name source=Record target=types.object.Record
+/// @resolution.name source=Record target=Record
 
 declare function read(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
@@ -305,10 +312,12 @@ const value = read(point);
 /// @resolution.access source=point root=point
 "#,
         r#"
+
 "#,
     );
 }
 
+/// A Record over string keys accepts an object literal argument.
 #[test]
 fn test_record_string_key_constraint_accepts_object_literal() {
     let session = TestSession::single(
@@ -330,13 +339,13 @@ type Bag = Record<string, int32>;
 
 declare function read(bag: Bag): int32 | undefined;
 
-const value: int32 | undefined = read({ x: 1, y: 2 });
+const value: int32 | undefined = read({ x: 1, y: 2 } as Bag);
 
 === dir ===
 type Bag = Record<string, int32>;
 /// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value={ [P: string]: int32 }
-/// @resolution.name source=Record target=types.object.Record
+/// @resolution.name source=Record target=Record
 
 declare function read(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
@@ -352,6 +361,7 @@ const value = read({ x: 1, y: 2 });
     );
 }
 
+/// A Record over string keys reads through bracket access and widens misses to undefined.
 #[test]
 fn test_record_string_key_constraint_is_indexed() {
     let session = TestSession::single(
@@ -379,7 +389,7 @@ bag["missing"] satisfies int32 | undefined;
 type Bag = Record<string, int32>;
 /// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value={ [P: string]: int32 }
-/// @resolution.name source=Record target=types.object.Record
+/// @resolution.name source=Record target=Record
 
 declare const bag: Bag;
 /// @type.symbol symbol=bag source=bag type={ [P: string]: int32 }
@@ -397,6 +407,7 @@ bag["missing"] satisfies int32 | undefined;
     );
 }
 
+/// A Record over string keys accepts a Map.
 #[test]
 fn test_record_string_key_constraint_accepts_map() {
     let session = TestSession::single(
@@ -428,18 +439,18 @@ value satisfies int32 | undefined;
 type Bag = Record<string, int32>;
 /// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value={ [P: string]: int32 }
-/// @resolution.name source=Record target=types.object.Record
+/// @resolution.name source=Record target=Record
 
 declare const map: Map<string, int32>;
 /// @type.symbol symbol=map source=map type=Map<string, int32>
 /// @resolution.pattern source=map kind=binding target=map
-/// @generic.instance id="Map<string, int32>" template=collections.map.Map arguments=(string, int32)
-/// @generic.instance id="collections.map.MapEntry<string, int32>" template=collections.map.MapEntry arguments=(string, int32)
-/// @generic.instance id="collections.map.MapSlot<string, int32>" template=collections.map.MapSlot arguments=(string, int32)
-/// @generic.instance id="collections.slice.new<memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>>" template=collections.slice.new arguments=(memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>)
-/// @generic.instance id="memory.init.MaybeUninit<collections.map.MapSlot<string, int32>>" template=memory.init.MaybeUninit arguments=(collections.map.MapSlot<string, int32>)
-/// @generic.instance id=collections.slice.new<uint32> template=collections.slice.new arguments=(uint32)
-/// @resolution.name source=Map target=collections.map.Map
+/// @generic.instance id="Map<string, int32>" template=Map arguments=(string, int32)
+/// @generic.instance id="MapEntry<string, int32>" template=MapEntry arguments=(string, int32)
+/// @generic.instance id="MapSlot<string, int32>" template=MapSlot arguments=(string, int32)
+/// @generic.instance id="MaybeUninit<MapSlot<string, int32>>" template=MaybeUninit arguments=(MapSlot<string, int32>)
+/// @generic.instance id="new<MaybeUninit<MapSlot<string, int32>>>" template=new arguments=(MaybeUninit<MapSlot<string, int32>>)
+/// @generic.instance id=new<uint32> template=new arguments=(uint32)
+/// @resolution.name source=Map target=Map
 
 const bag: Bag = map;
 /// @type.symbol symbol=bag source=bag type={ [P: string]: int32 }
@@ -460,12 +471,13 @@ const value = bag["missing"];
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
 }
 
+/// A Record over never keys reduces to the empty object type.
 #[test]
 fn test_record_never_key_yields_empty_object() {
     let session = TestSession::single(
@@ -491,7 +503,7 @@ empty satisfies Empty;
 type Empty = Record<never, boolean>;
 /// @type.symbol symbol=Empty source="type Empty = Record<never, boolean>" type={}
 /// @definition.type symbol=Empty source="type Empty = Record<never, boolean>" value={}
-/// @resolution.name source=Record target=types.object.Record
+/// @resolution.name source=Record target=Record
 
 const empty: Empty = {};
 /// @type.symbol symbol=empty source=empty type={}
@@ -507,6 +519,7 @@ empty satisfies Empty;
     );
 }
 
+/// A field on a Record over never keys reports a diagnostic.
 #[test]
 fn test_record_never_key_rejects_extra_field() {
     let session = TestSession::single(
@@ -530,7 +543,7 @@ const empty: {} = { value: true };
 type Empty = Record<never, boolean>;
 /// @type.symbol symbol=Empty source="type Empty = Record<never, boolean>" type={}
 /// @definition.type symbol=Empty source="type Empty = Record<never, boolean>" value={}
-/// @resolution.name source=Record target=types.object.Record
+/// @resolution.name source=Record target=Record
 
 const empty: Empty = { value: true };
 /// @type.symbol symbol=empty source=empty type={}

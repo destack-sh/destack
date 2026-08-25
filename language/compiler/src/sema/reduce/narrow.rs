@@ -28,7 +28,7 @@ impl CheckState<'_> {
             return self.normalized_union_type(narrowed);
         }
 
-        // declared members preserve the receiver exactly
+        // preserve the receiver exactly for declared members
         let lookup = self.body().lookup_inherent_member(
             origin,
             origin.module(),
@@ -40,14 +40,14 @@ impl CheckState<'_> {
             return Ok(receiver);
         }
 
-        // closed member sets prove that the successful branch is unreachable
+        // make the successful branch unreachable for closed member sets
         if !self.may_have_additional_member(origin, receiver, key)? {
             let never = self.intern_type(dir::Type::Never)?;
 
             return Ok(never);
         }
 
-        // open member sets retain the receiver and the property established at runtime
+        // retain the receiver alongside the property established at runtime
         let unknown = self.intern_type(dir::Type::Unknown)?;
         let member = self.field_shape_type(key, unknown)?;
         let member_is_narrower = self
@@ -73,21 +73,32 @@ impl CheckState<'_> {
     ) -> CompilerResult<Result<Option<dir::GlobalTypeId>, dir::TypeVariableId>> {
         let source = self.normalize(origin, source)?;
 
+        // read the cases beneath one managed form, rewrapping it after the filter
+        let mut managed = None;
+        let mut subject = source;
+        if let dir::Type::Form(form) = self.ty(subject)?
+            && matches!(form.form, dir::Form::Managed { .. })
+        {
+            managed = Some(source);
+            subject = self.normalize(origin, form.value)?;
+        }
+
         // enumerate the cases an enum owner names
-        let mut carrier = None;
-        let arms = if let Some(variants) = self.variant_types(source)? {
+        let mut newtype = None;
+        let arms = if let Some(variants) = self.variant_types(subject)? {
             variants
         }
         // enumerate the physical arms every other source carries
         else {
-            let (payload, steps) = self.body().project_newtype_receiver(origin, source)?;
+            let (payload, steps) = self.body().project_newtype_receiver(origin, subject)?;
             let Some(arms) = self.union_arms(origin, payload)? else {
                 return Ok(Ok(None));
             };
-            carrier = (!steps.is_empty()).then_some(source);
+            newtype = (!steps.is_empty()).then_some(subject);
 
             arms.into_vec()
         };
+
         let arm_count = arms.len();
 
         // keep original arms whose tested member remains inhabited
@@ -104,22 +115,32 @@ impl CheckState<'_> {
         }
 
         // join the surviving arms back into one type
-        let narrowed = match (kept.as_slice(), carrier) {
+        let kept_count = kept.len();
+        let narrowed = match (kept.as_slice(), newtype) {
             ([], _) => self.intern_type(dir::Type::Never)?,
-            (_, Some(carrier)) if kept.len() == arm_count => carrier,
-            // the carrier's memory form wraps the intersection of its payload with the arms
-            (_, Some(carrier)) => {
+            (_, Some(newtype)) if kept.len() == arm_count => newtype,
+            // the newtype's memory form wraps the intersection of its payload with the arms
+            (_, Some(newtype)) => {
                 let mut bases = Vec::with_capacity(kept.len());
                 for arm in kept {
                     bases.push(self.form_chain(origin, arm)?.base());
                 }
                 let arms = self.normalized_union_type(bases)?;
-                let base = self.form_chain(origin, carrier)?.base();
+                let base = self.form_chain(origin, newtype)?.base();
                 let narrowed = self.normalized_intersection_type([base, arms])?;
-                self.replace_form_value(origin, carrier, narrowed)?
+
+                self.replace_form_value(origin, newtype, narrowed)?
             }
             ([single], None) => *single,
             (_, None) => self.normalized_union_type(kept)?,
+        };
+
+        // rewrap the surviving cases in the managed form they came from
+        let narrowed = match managed {
+            Some(placed) if kept_count == arm_count => placed,
+            Some(_) if matches!(self.ty(narrowed)?, dir::Type::Never) => narrowed,
+            Some(placed) => self.replace_form_value(origin, placed, narrowed)?,
+            None => narrowed,
         };
 
         Ok(Ok(Some(narrowed)))
@@ -142,6 +163,7 @@ impl CheckState<'_> {
                 break;
             }
         }
+
         let Some(enumerated) = enumerated else {
             return Ok(None);
         };
@@ -185,7 +207,7 @@ impl CheckState<'_> {
         // preserve precise case identity for enum owners
         let variants = self.variant_types(source)?;
 
-        // newtypes narrow through their substituted runtime backing
+        // narrow newtypes through their substituted runtime backing
         if variants.is_none()
             && let Some(instance) = self.decompose_newtype(origin, source)?
         {
@@ -217,6 +239,7 @@ impl CheckState<'_> {
             if matches!(self.ty(narrowed)?, dir::Type::Never) {
                 return Ok(Some(narrowed));
             }
+
             let rebuilt = self.replace_form_value(origin, source, narrowed)?;
 
             return Ok(Some(rebuilt));
@@ -230,11 +253,11 @@ impl CheckState<'_> {
                     SmallVec::<[_; 4]>::from_slice(self.type_ids(source.module_id, union.elements)?)
                 }
                 dir::Type::Variable(_) | dir::Type::Parameter(_) => SmallVec::from_slice(&[source]),
-                // open operations cannot be distributed over
+                // expand or defer operations before distributing
                 dir::Type::Operation(operation) => {
                     let variables = self.type_variables(source)?;
                     if variables.is_empty() {
-                        // closed operations expand before narrowing distributes
+                        // expand closed operations before distributing
                         let expanded = self.deeply_resolve(origin, source)?;
                         if expanded != source {
                             return self.reduce_narrowing(
@@ -247,7 +270,7 @@ impl CheckState<'_> {
                             );
                         }
 
-                        // irreducible template patterns narrow like single arms
+                        // narrow irreducible template patterns as single arms
                         if matches!(
                             self.type_operation(source.module_id, operation)?,
                             dir::TypeOperation::TemplateLiteral(_)
@@ -268,9 +291,8 @@ impl CheckState<'_> {
             },
         };
 
-        let mut kept = Vec::with_capacity(elements.len());
-
         // filter each arm through the guard relation
+        let mut kept = Vec::with_capacity(elements.len());
         for element in elements {
             // defer the whole operation on an undecided arm
             let narrowed = match self.narrow_arm(origin, element, target, narrow.is_positive)? {
@@ -354,7 +376,7 @@ impl CheckState<'_> {
             return Ok(Ok(narrowed));
         }
 
-        // closed member sets fail the positive test and pass every negative test
+        // fail the positive test for closed member sets and pass every negative one
         if !self.may_have_additional_member(origin, source, *key)? {
             let narrowed = if is_positive {
                 self.intern_type(dir::Type::Never)?
@@ -365,7 +387,7 @@ impl CheckState<'_> {
             return Ok(Ok(narrowed));
         }
 
-        // open member sets stay undecided by the test
+        // leave open member sets undecided
         Ok(Ok(source))
     }
 
@@ -396,7 +418,7 @@ impl CheckState<'_> {
             return Ok(Ok(narrowed));
         }
 
-        // disjoint arms can be decided without assignability
+        // decide disjoint arms without assignability
         if !self.types_may_overlap(origin, source, target)? {
             let narrowed = if is_positive {
                 self.intern_type(dir::Type::Never)?

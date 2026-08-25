@@ -261,14 +261,14 @@ function run(): void {
 newtype mark = (string,);
 
 class Sink {
-    constructor(value: int32): this {}
+    constructor(value: int32) {}
 }
 
 declare function consume(value: int32): void;
 
 function run(): void {
     consume(@mark("call") 1);
-    const sink: Sink = new Sink(@mark("construct") 2);
+    const sink: local Sink = new Sink<"local">(@mark("construct") 2);
     const array: int64[] = [@mark("array") 3,];
 }
 
@@ -280,10 +280,11 @@ newtype mark = (string,);
 class Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.class symbol=Sink
-/// @definition.method symbol=Sink.constructor source="constructor(value: int32) {}" slot=constructor role=constructor type=(int32) => Sink
+/// @definition.method symbol=Sink.constructor source="constructor(value: int32) {}" slot=constructor role=constructor type=<Sink.constructor.P0: Place>(int32) => Managed<Sink, Sink.constructor.P0>
 
     constructor(value: int32) {}
-    /// @type.symbol symbol=Sink.constructor source="constructor(value: int32) {}" type=(int32) => Sink
+    /// @generic.template symbol=Sink.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=Sink.constructor source="constructor(value: int32) {}" type=<Sink.constructor.P0: Place>(int32) => Managed<Sink, Sink.constructor.P0>
     /// @type.symbol symbol=Sink.constructor.value source="value: int32" type=int32
 
 }
@@ -307,10 +308,14 @@ function run(): void {
     /// @type.node source=1 type=1
 
     const sink = new Sink(@mark("construct") 2);
-    /// @type.symbol symbol=run.sink source=sink type=Sink
+    /// @type.symbol symbol=run.sink source=sink type=local Sink
     /// @resolution.pattern source=sink kind=binding target=run.sink
-    /// @type.node source="new Sink(@mark(\"construct\") 2)" type=Sink
-    /// @resolution.construct source="new Sink(@mark(\"construct\") 2)" parameters=(int32) arguments=(provided(@mark("construct") 2) as int32) return=Sink kind=class target=Sink constructor=Sink.constructor
+    /// @type.node source="new Sink(@mark(\"construct\") 2)" type=local Sink
+    /// @resolution.construct source="new Sink(@mark(\"construct\") 2)" parameters=(int32) arguments=(provided(@mark("construct") 2) as int32) return=local Sink kind=class target=Sink constructor=Sink.constructor
+    /// @generic.instantiation id="Sink.constructor<\"local\">" template=Sink.constructor arguments=("local")
+    /// @generic.instantiation id="Sink<\"local\">" template=Sink arguments=("local")
+    /// @generic.instance id="Sink.constructor<\"local\">" template=Sink.constructor arguments=("local")
+    /// @generic.instance id="Sink<\"local\">" template=Sink arguments=("local")
     /// @resolution.name source=Sink target=Sink
     /// @decorator.node source="@mark(\"construct\")" owner="@mark(\"construct\") 2" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("construct") as string) newtype=mark backing=(string,) value="mark(\"construct\")"
     /// @type.node source=mark type=mark
@@ -321,13 +326,13 @@ function run(): void {
     const array = [@mark("array") 3];
     /// @type.symbol symbol=run.array source=array type=int64[]
     /// @resolution.pattern source=array kind=binding target=run.array
-    /// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
-    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
-    /// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
+    /// @generic.instance id=Array<int64> template=Array arguments=(int64)
+    /// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
+    /// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
     /// @type.node source=[@mark("array") 3] type=int64[]
-    /// @resolution.call source=[@mark("array") 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(3) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
-    /// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
-    /// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
+    /// @resolution.call source=[@mark("array") 3] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(3) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+    /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
+    /// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
     /// @decorator.node source="@mark(\"array\")" owner="@mark(\"array\") 3" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("array") as string) newtype=mark backing=(string,) value="mark(\"array\")"
     /// @type.node source=mark type=mark
     /// @resolution.name source=mark target=mark

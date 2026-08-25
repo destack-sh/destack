@@ -8,15 +8,17 @@ use crate::sema::CheckState;
 impl CheckState<'_> {
     /// Run the check pass: infer the module's bodies against the elaborated entries.
     pub(in crate::sema) fn run_check(&mut self) -> CompilerResult<()> {
+        // walk the bodies, apply captures, then run decorators
         let recorder = self.recorder;
         self.with_scope(|state| {
             ArtifactAttemptRecorder::breakdown_maybe(recorder, "walk", || state.walk_bodies())?;
-            state.induce_signature_lifetimes()?;
             state.apply_capture_directives()?;
             ArtifactAttemptRecorder::breakdown_maybe(recorder, "decorators", || {
                 state.apply_decorators()
             })
         })?;
+
+        // report what the walk exposed, then commit the exports
         self.report_constant_conditions()?;
         self.report_member_conflicts()?;
         self.commit_underivable_exports()?;
@@ -31,6 +33,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<(DirChecked, Vec<DiagnosticRecord>)> {
         self.write_back()?;
 
+        // commit conformances and the module, then collect its diagnostics
         let recorder = self.recorder;
         ArtifactAttemptRecorder::breakdown_maybe(recorder, "write", || {
             self.commit_conformances(module)?;

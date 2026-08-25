@@ -55,7 +55,7 @@ interface Person {
 declare const person: Pick<Person, "name" | "active">;
 /// @type.symbol symbol=person source=person type={ name: string; active: boolean }
 /// @resolution.pattern source=person kind=binding target=person
-/// @resolution.name source=Pick target=types.object.Pick
+/// @resolution.name source=Pick target=Pick
 /// @resolution.name source=Person target=Person
 
 person.name satisfies string;
@@ -128,7 +128,7 @@ interface Person {
 declare const person: Pick<Person, "name" | "active">;
 /// @type.symbol symbol=person source=person type={ name: string; active: boolean }
 /// @resolution.pattern source=person kind=binding target=person
-/// @resolution.name source=Pick target=types.object.Pick
+/// @resolution.name source=Pick target=Pick
 /// @resolution.name source=Person target=Person
 
 const age = person.age;
@@ -201,7 +201,7 @@ interface Person {
 type AgeOnly = Pick<Person, "age">;
 /// @type.symbol symbol=AgeOnly source="type AgeOnly = Pick<Person, \"age\">" type={ age?: int32 }
 /// @definition.type symbol=AgeOnly source="type AgeOnly = Pick<Person, \"age\">" value={ age?: int32 }
-/// @resolution.name source=Pick target=types.object.Pick
+/// @resolution.name source=Pick target=Pick
 /// @resolution.name source=Person target=Person
 
 const empty: AgeOnly = {};
@@ -276,7 +276,7 @@ interface Person {
 type AgeOnly = Pick<Person, "age">;
 /// @type.symbol symbol=AgeOnly source="type AgeOnly = Pick<Person, \"age\">" type={ age?: int32 }
 /// @definition.type symbol=AgeOnly source="type AgeOnly = Pick<Person, \"age\">" value={ age?: int32 }
-/// @resolution.name source=Pick target=types.object.Pick
+/// @resolution.name source=Pick target=Pick
 /// @resolution.name source=Person target=Person
 
 const person: AgeOnly = { name: "Ada" };
@@ -342,7 +342,7 @@ interface Person {
 type NameOnly = Pick<Person, "name">;
 /// @type.symbol symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" type={ name: string }
 /// @definition.type symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" value={ name: string }
-/// @resolution.name source=Pick target=types.object.Pick
+/// @resolution.name source=Pick target=Pick
 /// @resolution.name source=Person target=Person
 
 const person: NameOnly = { name: "Ada" };
@@ -406,7 +406,7 @@ interface Person {
 type NameOnly = Pick<Person, "name">;
 /// @type.symbol symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" type={ name: string }
 /// @definition.type symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" value={ name: string }
-/// @resolution.name source=Pick target=types.object.Pick
+/// @resolution.name source=Pick target=Pick
 /// @resolution.name source=Person target=Person
 
 const person: NameOnly = {};
@@ -469,7 +469,7 @@ interface Person {
 type NameOnly = Pick<Person, "name">;
 /// @type.symbol symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" type={ name: string }
 /// @definition.type symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" value={ name: string }
-/// @resolution.name source=Pick target=types.object.Pick
+/// @resolution.name source=Pick target=Pick
 /// @resolution.name source=Person target=Person
 
 const person: NameOnly = { name: "Ada", age: 42 };
@@ -535,7 +535,7 @@ interface Person {
 type NameOnly = Pick<Person, "name">;
 /// @type.symbol symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" type={ readonly name: string }
 /// @definition.type symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" value={ readonly name: string }
-/// @resolution.name source=Pick target=types.object.Pick
+/// @resolution.name source=Pick target=Pick
 /// @resolution.name source=Person target=Person
 
 const person: NameOnly = { name: "Ada" };

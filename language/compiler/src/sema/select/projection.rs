@@ -18,10 +18,12 @@ impl BodyState<'_, '_> {
         role: MemberRole,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // project field types alone
         if role != MemberRole::Field {
             return Ok(ty);
         }
 
+        // keep the declared type where the site names no receiver
         let Some(receiver) = receiver else {
             return Ok(ty);
         };
@@ -204,7 +206,7 @@ impl BodyState<'_, '_> {
 
                 Ok(match matched {
                     ExtensionMatch::Matched(..) => CandidateOutcome::Accepted(()),
-                    // unproven bounds leave the candidate unselected at this ask
+                    // unsatisfied bounds leave the candidate unselected here
                     ExtensionMatch::Unmatched | ExtensionMatch::Unproven => {
                         CandidateOutcome::Rejected(())
                     }
@@ -438,7 +440,7 @@ impl BodyState<'_, '_> {
 
                     candidate.read_type(self)
                 }
-                // several candidates project no single type
+                // zero or several candidates project no single type
                 [] | [_, _, ..] => Ok(None),
             },
             MemberLookup::Union(lookups) => {
@@ -560,6 +562,7 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let mut interfaces = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        let owner = self.check.shallow_resolve(owner)?;
 
         // parameter projections select from their declared bounds
         if let dir::Type::Parameter(parameter) = self.ty(owner)? {
@@ -711,9 +714,7 @@ impl BodyState<'_, '_> {
                 if let dir::Type::Application(instance) = self.ty(current)?
                     && let Some(space) = self.check.nominal_space(instance.symbol)?
                 {
-                    let place = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Place(
-                        dir::Place::Space(space),
-                    )))?;
+                    let place = self.check.place_literal(space)?;
 
                     return Ok(Some(place));
                 }
@@ -722,8 +723,11 @@ impl BodyState<'_, '_> {
             };
 
             match form.form {
-                dir::Form::Placed { place } => return Ok(Some(place)),
-                _ => current = form.value,
+                dir::Form::Managed { place } => return Ok(Some(place)),
+                dir::Form::Borrowed(_)
+                | dir::Form::Owned
+                | dir::Form::Readonly
+                | dir::Form::Raw => current = form.value,
             }
         }
     }
@@ -734,12 +738,12 @@ impl BodyState<'_, '_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        // keep readonly access over every safe reference carrier
+        // keep readonly access over every safe reference type
         if self.type_is_reference(origin, ty)? {
             return Ok(true);
         }
 
-        // project no view from a copied value, keeping the view while the copy is undecided
+        // skip the view for a copied value, keeping it while the copy is undecided
         if self
             .decide_auto_interface(origin, ty, dir::AutoInterface::Copy)?
             .holds()
@@ -772,9 +776,9 @@ impl BodyState<'_, '_> {
             | dir::Type::Primitive(_)
             | dir::Type::Literal(_)
             | dir::Type::Key(_)
+            | dir::Type::Region(_)
             | dir::Type::Intrinsic
             | dir::Type::This
-            | dir::Type::Memory(_)
             | dir::Type::Static(_) => false,
             dir::Type::Union(_)
             | dir::Type::Refined(_)
@@ -807,10 +811,7 @@ impl BodyState<'_, '_> {
         &self,
         access: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let is_readonly = matches!(
-            self.ty(access)?,
-            dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly))
-        );
+        let is_readonly = self.access_of(access)? == Some(dir::Access::Readonly);
 
         Ok(is_readonly)
     }

@@ -25,7 +25,7 @@ ok satisfies string;
 type Value = ReturnType<() => string>;
 /// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=string
 /// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=string
-/// @resolution.name source=ReturnType target=types.function.ReturnType
+/// @resolution.name source=ReturnType target=ReturnType
 
 const ok: Value = "ready";
 /// @type.symbol symbol=ok source=ok type=string
@@ -65,7 +65,7 @@ const second: "a" | "b" = "b" as "a" | "b";
 type Value = ReturnType<() => "a" | "b">;
 /// @type.symbol symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" type="a" | "b"
 /// @definition.type symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" value="a" | "b"
-/// @resolution.name source=ReturnType target=types.function.ReturnType
+/// @resolution.name source=ReturnType target=ReturnType
 
 const first: Value = "a";
 /// @type.symbol symbol=first source=first type="a" | "b"
@@ -103,7 +103,7 @@ const bad: string = 1;
 type Value = ReturnType<() => string>;
 /// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=string
 /// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=string
-/// @resolution.name source=ReturnType target=types.function.ReturnType
+/// @resolution.name source=ReturnType target=ReturnType
 
 const bad: Value = 1;
 /// @type.symbol symbol=bad source=bad type=string

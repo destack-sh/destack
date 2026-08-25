@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A literal expectation survives ternaries, returns, and block tails.
 #[test]
 fn test_keep_a_literal_expectation_through_a_block_tail() {
     let session = TestSession::single(
@@ -51,7 +52,7 @@ const ternary: Mode = quick ? "fast" : "slow";
 /// @resolution.pattern source=ternary kind=binding target=ternary
 /// @resolution.name source=Mode target=Mode
 /// @resolution.name source=quick target=quick
-/// @resolution.place source=quick placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=quick placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=quick root=quick
 
 const closure: () => Mode = () => {
@@ -62,7 +63,7 @@ const closure: () => Mode = () => {
 
     if (quick) {
     /// @resolution.name source=quick target=quick
-    /// @resolution.place source=quick placement="local" lifetime="static" access="readonly"
+    /// @resolution.place source=quick placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=quick root=quick
 
         return "fast";
@@ -81,6 +82,7 @@ const tail: () => Mode = () => "fast";
     );
 }
 
+/// An integer binding solves from a statement that assigns it later.
 #[test]
 fn test_solve_an_integer_binding_from_a_later_statement() {
     let session = TestSession::single(
@@ -108,7 +110,7 @@ function fallback(result: Result<int32, string>): int32 {
         DirRows::checked(),
         r#"
 === annotated ===
-function count<'a>(values: &'a readonly int32[]): int32 {
+function count<'a, P1: Place>(values: Borrowed<int32[], 'a & P1, "readonly">): int32 {
     let total: int32 = 0;
     for (const value of values) {
         total += value;
@@ -118,7 +120,7 @@ function count<'a>(values: &'a readonly int32[]): int32 {
 
 function fallback(result: Result<int32, string>): int32 {
     let value: int32 = 0;
-    if (result.isOk<int32, string>()) {
+    if (result.isOk<int32, string, "local">()) {
         value = result.unwrap<int32, string>();
     }
     return value;
@@ -126,9 +128,9 @@ function fallback(result: Result<int32, string>): int32 {
 
 === dir ===
 function count(values: &readonly int32[]): int32 {
-/// @generic.template symbol=count parameters=('a)
-/// @type.symbol symbol=count type=<count.'a>(&count.'a readonly int32[]) => int32
-/// @type.symbol symbol=count.values source="values: &readonly int32[]" type=&count.'a readonly int32[]
+/// @generic.template symbol=count parameters=('a, P1: Place)
+/// @type.symbol symbol=count type=<count.'a, count.P1: Place>(Borrowed<int32[], count.'a & count.P1, "readonly">) => int32
+/// @type.symbol symbol=count.values source="values: &readonly int32[]" type=Borrowed<int32[], count.'a & count.P1, "readonly">
 
     let total = 0;
     /// @type.symbol symbol=count.total source=total type=int32
@@ -162,7 +164,7 @@ function count(values: &readonly int32[]): int32 {
 function fallback(result: Result<int32, string>): int32 {
 /// @type.symbol symbol=fallback type=(Result<int32, string>) => int32
 /// @type.symbol symbol=fallback.result source="result: Result<int32, string>" type=Result<int32, string>
-/// @resolution.name source=Result target=error.result.Result
+/// @resolution.name source=Result target=Result
 
     let value = 0;
     /// @type.symbol symbol=fallback.value source=value type=int32
@@ -170,11 +172,12 @@ function fallback(result: Result<int32, string>): int32 {
 
     if (result.isOk()) {
     /// @resolution.name source=result target=fallback.result
-    /// @resolution.member source=result.isOk receiver=Result<int32, string> type=<error.result.isOk.'a>(this: &error.result.isOk.'a readonly Result<int32, string>) => boolean kind=symbol target_receiver=Result<int32, string> target=error.result.isOk
-    /// @resolution.call source=result.isOk() parameters=() return=boolean kind=symbol target=error.result.isOk receiver=Result<int32, string> adjustments=(borrow(&'frame readonly Result<int32, string>)) instance="Result<int32, string>.<extension#1>.isOk"
+    /// @resolution.member source=result.isOk receiver=Result<int32, string> type=<isOk.'a, isOk.P1: Place>(this: Borrowed<Result<int32, string>, isOk.'a & isOk.P1, "readonly">) => boolean kind=symbol target_receiver=Result<int32, string> target=isOk
+    /// @resolution.call source=result.isOk() parameters=() return=boolean kind=symbol target=isOk receiver=Result<int32, string> adjustments=(borrow(&'frame readonly Result<int32, string>)) instance="Result<int32, string>.<extension#1>.isOk<\"local\">"
     /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=result root=fallback.result
-    /// @generic.instantiation id="error.result.isOk<int32, string>" template=error.result.isOk arguments=(int32, string)
+    /// @generic.instantiation id="isOk<int32, string, \"local\">" template=isOk arguments=(int32, string, "local")
+    /// @generic.instantiation id="isOk<int32, string>" template=isOk arguments=(int32, string)
 
         value = result.unwrap();
         /// @resolution.name source=value target=fallback.value
@@ -182,11 +185,11 @@ function fallback(result: Result<int32, string>): int32 {
         /// @resolution.access source=value root=fallback.value
         /// @resolution.assignment source=value write=binding(fallback.value) type=int32
         /// @resolution.name source=result target=fallback.result
-        /// @resolution.member source=result.unwrap receiver=Result<int32, string> type=(this: Result<int32, string>) => int32 kind=symbol target_receiver=Result<int32, string> target=error.result.unwrap
-        /// @resolution.call source=result.unwrap() parameters=() return=int32 kind=symbol target=error.result.unwrap receiver=Result<int32, string> instance="Result<int32, string>.<extension#1>.unwrap"
+        /// @resolution.member source=result.unwrap receiver=Result<int32, string> type=(this: Result<int32, string>) => int32 kind=symbol target_receiver=Result<int32, string> target=unwrap
+        /// @resolution.call source=result.unwrap() parameters=() return=int32 kind=symbol target=unwrap receiver=Result<int32, string> instance="Result<int32, string>.<extension#1>.unwrap"
         /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=result root=fallback.result
-        /// @generic.instantiation id="error.result.unwrap<int32, string>" template=error.result.unwrap arguments=(int32, string)
+        /// @generic.instantiation id="unwrap<int32, string>" template=unwrap arguments=(int32, string)
 
     }
     return value;
@@ -201,6 +204,7 @@ function fallback(result: Result<int32, string>): int32 {
     );
 }
 
+/// An integer binding solves from an expression use and from an operator.
 #[test]
 fn test_solve_an_integer_binding_from_an_expression_use_and_an_operator() {
     let session = TestSession::single(
@@ -254,18 +258,18 @@ function count(): int32 {
 import { Result, Ok } from "destack:error";
 
 function value(result: Result<int32, string>): int32 {
-/// @type.symbol symbol=value type=(error.result.Result<int32, string>) => int32
-/// @type.symbol symbol=value.result source="result: Result<int32, string>" type=error.result.Result<int32, string>
-/// @resolution.name source=Result target=error.result.Result
+/// @type.symbol symbol=value type=(Result<int32, string>) => int32
+/// @type.symbol symbol=value.result source="result: Result<int32, string>" type=Result<int32, string>
+/// @resolution.name source=Result target=Result
 
     let fallback = 0;
     /// @type.symbol symbol=value.fallback source=fallback type=int32
     /// @resolution.pattern source=fallback kind=binding target=value.fallback
 
     return if (let Ok { value } = result) {
-    /// @resolution.name source=Ok target=error.result.Ok
-    /// @resolution.pattern source="Ok { value }" kind=nominal_object target=error.result.Ok instance=error.result.Ok<int32> fields={ error.result.Ok.value }
-    /// @generic.instantiation id=error.result.Ok<int32> template=error.result.Ok arguments=(int32)
+    /// @resolution.name source=Ok target=Ok
+    /// @resolution.pattern source="Ok { value }" kind=nominal_object target=Ok instance=Ok<int32> fields={ Ok.value }
+    /// @generic.instantiation id=Ok<int32> template=Ok arguments=(int32)
     /// @type.symbol symbol=value.value source=value type=int32
     /// @resolution.name source=result target=value.result
     /// @resolution.access source=result root=value.result
@@ -330,8 +334,9 @@ function count(): int32 {
     );
 }
 
+/// A match arm block tail types at the expected result type.
 #[test]
-fn test_type_a_match_arm_block_tail_at_the_expected_carrier() {
+fn test_type_a_match_arm_block_tail_at_the_expected_representation() {
     let session = TestSession::single(
         r#"
 import { Result } from "destack:error";
@@ -376,9 +381,9 @@ declare function observe(): void;
 /// @type.symbol symbol=observe source="declare function observe(): void" type=() => void
 
 function value(result: Result<int32, string>): int32 {
-/// @type.symbol symbol=value type=(error.result.Result<int32, string>) => int32
-/// @type.symbol symbol=value.result source="result: Result<int32, string>" type=error.result.Result<int32, string>
-/// @resolution.name source=Result target=error.result.Result
+/// @type.symbol symbol=value type=(Result<int32, string>) => int32
+/// @type.symbol symbol=value.result source="result: Result<int32, string>" type=Result<int32, string>
+/// @resolution.name source=Result target=Result
 
     return match (result) {
     /// @resolution.coverage exhaustive=true disjoint=true
@@ -387,18 +392,18 @@ function value(result: Result<int32, string>): int32 {
     /// @resolution.access source=result root=value.result
 
         Ok { value } => value
-        /// @resolution.name source=Ok target=error.result.Ok
-        /// @resolution.pattern source="Ok { value }" kind=nominal_object target=error.result.Ok instance=Ok<int32> fields={ error.result.Ok.value }
-        /// @generic.instantiation id=Ok<int32> template=error.result.Ok arguments=(int32)
+        /// @resolution.name source=Ok target=Ok
+        /// @resolution.pattern source="Ok { value }" kind=nominal_object target=Ok instance=Ok<int32> fields={ Ok.value }
+        /// @generic.instantiation id=Ok<int32> template=Ok arguments=(int32)
         /// @type.symbol symbol=value.value source=value type=int32
         /// @resolution.name source=value target=value.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=value root=value.value
 
         Err { error: _ } => {
-        /// @resolution.name source=Err target=error.result.Err
-        /// @resolution.pattern source="Err { error: _ }" kind=nominal_object target=error.result.Err instance=Err<string> fields={ error.result.Err.error: _ }
-        /// @generic.instantiation id=Err<string> template=error.result.Err arguments=(string)
+        /// @resolution.name source=Err target=Err
+        /// @resolution.pattern source="Err { error: _ }" kind=nominal_object target=Err instance=Err<string> fields={ Err.error: _ }
+        /// @generic.instantiation id=Err<string> template=Err arguments=(string)
         /// @resolution.pattern source=_ kind=wildcard
 
             observe();
@@ -415,6 +420,7 @@ function value(result: Result<int32, string>): int32 {
     );
 }
 
+/// A compound assignment keeps the literal union a conditional produces.
 #[test]
 fn test_keep_a_conditional_literal_union_under_a_compound_assignment() {
     let session = TestSession::single(
@@ -460,11 +466,12 @@ function sequence(depth: isize): string {
 
         output += index == 0 ? "a" : "b";
         /// @resolution.name source=output target=sequence.output
-        /// @resolution.operator source="output += index == 0 ? \"a\" : \"b\"" type=Owned<string> operator="+" kind=call parameters=(string) arguments=(provided(index == 0 ? "a" : "b") as string) return=Owned<string> kind=symbol target=string.string.add receiver=string adjustments=(borrow(&'frame readonly string))
+        /// @resolution.operator source="output += index == 0 ? \"a\" : \"b\"" type=Owned<string> operator="+" kind=call parameters=(string) arguments=(provided(index == 0 ? "a" : "b") as string) return=Owned<string> kind=symbol target=add receiver=string adjustments=(borrow(&'frame readonly string)) instance="string.<extension#2>.add<\"local\">"
         /// @resolution.pattern.assign source=output kind=place
         /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
         /// @resolution.assignment source=output read=binding(sequence.output) write=binding(sequence.output) type=string
         /// @resolution.access source=output root=sequence.output
+        /// @generic.instantiation id="add<\"local\">" template=add arguments=("local")
         /// @resolution.name source=index target=sequence.index
         /// @resolution.operator source="index == 0" type=boolean operator="==" kind=builtin operands=[index as isize families=(integer), 0 as isize families=(integer)]
         /// @resolution.place source=index placement="local" lifetime="frame" access="readonly"
@@ -483,6 +490,7 @@ function sequence(depth: isize): string {
     );
 }
 
+/// A closure block tail types at the expected return type.
 #[test]
 fn test_type_a_closure_block_tail_at_the_expected_return() {
     let session = TestSession::single(
@@ -538,6 +546,7 @@ const taken = take(() => {
     );
 }
 
+/// Integer literals default to int64 across operators, members, and arrays.
 #[test]
 fn test_default_integer_literals_to_int64_across_operators_and_members() {
     let session = TestSession::single(
@@ -557,7 +566,7 @@ const compared = counter < 10;
         r#"
 === annotated ===
 const sum: 2 = 1 + 1;
-const text: MaybeOwned<string> = (1).toString();
+const text: MaybeOwned<string> = (1).toString<"local">();
 const mixed: float64[] = [1, 2.5];
 let counter: int64 = 1;
 counter += 2;
@@ -570,16 +579,17 @@ const sum = 1 + 1;
 /// @resolution.operator source="1 + 1" type=2 operator="+" kind=builtin operands=[1 as 1 families=(integer), 1 as 1 families=(integer)]
 
 const text = (1).toString();
-/// @type.symbol symbol=text source=text type=memory.cow.cow.MaybeOwned<string>
+/// @type.symbol symbol=text source=text type=MaybeOwned<string>
 /// @resolution.pattern source=text kind=binding target=text
-/// @resolution.member source=(1).toString receiver=1 type=<math.number.Number.toString.'a>(this: &math.number.Number.toString.'a readonly 1, float64 | undefined?) => memory.cow.cow.MaybeOwned<string> kind=symbol target_receiver=1 target=math.number.Number.toString
-/// @resolution.call source=(1).toString() parameters=(float64 | undefined) arguments=(omitted as float64 | undefined) return=memory.cow.cow.MaybeOwned<string> kind=symbol target=math.number.Number.toString receiver=1 adjustments=(borrow(&'frame readonly 1))
+/// @resolution.member source=(1).toString receiver=1 type=<Number.toString.'a, Number.toString.P1: Place>(this: Borrowed<1, Number.toString.'a & Number.toString.P1, "readonly">, float64 | undefined?) => MaybeOwned<string> kind=symbol target_receiver=1 target=Number.toString
+/// @resolution.call source=(1).toString() parameters=(float64 | undefined) arguments=(omitted as float64 | undefined) return=MaybeOwned<string> kind=symbol target=Number.toString receiver=1 adjustments=(borrow(&'frame readonly 1)) instance="Number.toString<\"local\">"
+/// @generic.instantiation id="Number.toString<\"local\">" template=Number.toString arguments=("local")
 
 const mixed = [1, 2.5];
 /// @type.symbol symbol=mixed source=mixed type=float64[]
 /// @resolution.pattern source=mixed kind=binding target=mixed
-/// @resolution.call source=[1, 2.5] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2.5) as float64) return=float64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<float64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<float64> template=collections.array.arrayFromSlice arguments=(float64)
+/// @resolution.call source=[1, 2.5] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2.5) as float64) return=float64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<float64>
+/// @generic.instantiation id=arrayFromSlice<float64> template=arrayFromSlice arguments=(float64)
 
 let counter = 1;
 /// @type.symbol symbol=counter source=counter type=int64

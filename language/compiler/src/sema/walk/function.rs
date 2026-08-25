@@ -36,10 +36,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         return_type: Option<dir::GlobalTypeId>,
         tracked: Vec<dir::TypeVariableId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // elide the result region from the walked header
         let parameters = header.parameters;
 
-        // elide the result lifetime from the annotated or synthesized receiver
-        let (return_type, synthesized_this) = self.apply_result_lifetime_elision(
+        // elide the result components from the annotated or synthesized receiver
+        let (return_type, synthesized_this) = self.apply_result_elision(
             source,
             header.this_parameter,
             receiver_type,
@@ -48,14 +49,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
             tracked,
         )?;
         let this_parameter = header.this_parameter.or(synthesized_this).or(receiver_type);
-        let template = self.signature_template(
-            header.template,
-            owner,
-            this_parameter,
-            &parameters,
-            return_type,
-        )?;
+        let template = self.signature_template(header.template, owner)?;
 
+        // intern the signature the walked header describes
         let parameters = self.intern_parameters(&parameters)?;
         let function = dir::FunctionSignatureType {
             asynchrony: signature.asynchrony,
@@ -70,9 +66,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.intern_signature(function)
     }
 
-    /// Apply elided result lifetimes: the receiver's lifetime, the unique
-    /// input, the union of several inputs, or static storage.
-    pub(in crate::sema) fn apply_result_lifetime_elision(
+    /// Elide the result region from the receiver, one input, a union of inputs, or the default.
+    pub(in crate::sema) fn apply_result_elision(
         &mut self,
         source: dir::LocalNodeIdAny,
         this_parameter: Option<dir::GlobalTypeId>,
@@ -85,84 +80,59 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return Ok((None, None));
         };
 
-        // collect the input lifetimes, the receiver's winning over the value parameters'
+        // collect the input regions, the receiver's winning over the value parameters'
         let mut seen = FxIndexSet::default();
         let mut input_lifetimes = Vec::new();
         if let Some(this_parameter) = this_parameter {
-            input_lifetimes.extend(self.input_lifetime_types(this_parameter)?);
-            input_lifetimes.retain(|(variable, ty)| seen.insert((*variable, *ty)));
+            input_lifetimes.extend(self.input_region_terms(this_parameter)?);
+            input_lifetimes.retain(|lifetime| seen.insert(*lifetime));
         }
         if input_lifetimes.is_empty() {
             for parameter in parameters {
-                input_lifetimes.extend(self.input_lifetime_types(parameter.ty)?);
+                input_lifetimes.extend(self.input_region_terms(parameter.ty)?);
             }
-            input_lifetimes.retain(|(variable, ty)| seen.insert((*variable, *ty)));
+            input_lifetimes.retain(|lifetime| seen.insert(*lifetime));
         }
 
-        // synthesize a readonly receiver borrow for an elided result lifetime
+        // synthesize a readonly receiver borrow for an elided result region
         let mut synthesized_this = None;
         if input_lifetimes.is_empty()
             && this_parameter.is_none()
             && let Some(receiver) = receiver_type
+            && !tracked.is_empty()
         {
-            let has_elided_result =
-                !tracked.is_empty() || !self.induced_lifetime_types(return_type)?.is_empty();
-            if has_elided_result {
-                let lifetime = self.generated_receiver_borrow_lifetime(source)?;
-                let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
-                    dir::Access::Readonly,
-                )))?;
-                let form = self.intern_borrow(lifetime, access)?;
-                let borrowed = self.intern_type(dir::Type::Form(dir::FormType {
-                    form,
-                    value: receiver,
-                }))?;
-                synthesized_this = Some(borrowed);
-                input_lifetimes.extend(self.input_lifetime_types(borrowed)?);
-                input_lifetimes.retain(|(variable, ty)| seen.insert((*variable, *ty)));
-            }
+            let region = self.induce_receiver_borrow_region(source)?;
+            let access = self.access_literal(dir::Access::Readonly)?;
+            let form = self.intern_borrow(region, access)?;
+            let borrowed = self.intern_type(dir::Type::Form(dir::FormType {
+                form,
+                value: receiver,
+            }))?;
+            synthesized_this = Some(borrowed);
+            input_lifetimes.extend(self.input_region_terms(borrowed)?);
+            input_lifetimes.retain(|lifetime| seen.insert(*lifetime));
         }
 
-        // collect the elided result lifetimes
-        let mut return_lifetimes = self
-            .induced_lifetime_types(return_type)?
-            .into_iter()
-            .map(|(variable, _)| variable)
-            .collect::<Vec<_>>();
-        return_lifetimes.extend(tracked);
-        if return_lifetimes.is_empty() {
-            return Ok((Some(return_type), synthesized_this));
-        }
+        // replace each tracked return region with the elected input
+        if !tracked.is_empty() {
+            // pick the result region: the unique input, the union of several, or constant storage
+            let input_region = match input_lifetimes.as_slice() {
+                [] => {
+                    let extent = self.lifetime_literal(dir::Lifetime::Static)?;
+                    let spaces = self.check.place_literal(dir::Space::Constant)?;
 
-        // pick the result lifetime: the unique input, the union of several, or static storage
-        let input_variable = match input_lifetimes.as_slice() {
-            [(variable, _)] => *variable,
-            _ => None,
-        };
-        let input_lifetime = match input_lifetimes.as_slice() {
-            [] => self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(
-                dir::Lifetime::Static,
-            )))?,
-            [(_, lifetime)] => *lifetime,
-            _ => {
-                let elements = input_lifetimes
-                    .iter()
-                    .map(|(_, lifetime)| *lifetime)
-                    .collect::<Vec<_>>();
-
-                self.check.normalized_union_type(elements)?
-            }
-        };
-
-        // replace each elided result lifetime with the elected input
-        for return_variable in return_lifetimes {
-            if Some(return_variable) != input_variable {
-                let return_lifetime = self.check.variable_type(return_variable)?;
+                    self.check.intern_region(extent, spaces)?
+                }
+                [region] => *region,
+                _ => self.check.normalized_union_type(input_lifetimes.clone())?,
+            };
+            for return_variable in tracked {
+                let return_region = self.check.variable_type(return_variable)?;
                 return_type = self.check.replace_type(
                     self.module,
                     return_type,
-                    return_lifetime,
-                    input_lifetime,
+                    return_region,
+                    input_region,
                 )?;
             }
         }
@@ -170,18 +140,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok((Some(return_type), synthesized_this))
     }
 
-    /// Collect input lifetime terms: open elided holes and written lifetimes.
-    fn input_lifetime_types(
+    /// Collect input region terms: open elided holes, written regions, and pairs.
+    fn input_region_terms(
         &mut self,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Vec<(Option<dir::TypeVariableId>, dir::GlobalTypeId)>> {
-        // collect open elided lifetime holes across the type graph
+    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
+        // collect written region terms whole, without walking inside
         let mut terms = Vec::new();
-        for (variable, lifetime) in self.induced_lifetime_types(ty)? {
-            terms.push((Some(variable), lifetime));
-        }
-
-        // collect written lifetime terms whole, without walking inside
         let mut pending = vec![ty];
         let mut visited = FxIndexSet::default();
         while let Some(id) = pending.pop() {
@@ -190,7 +155,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             }
             let node = self.check.ty_raw(id)?;
 
-            // follow solved variables toward their lifetime terms
+            // follow solved variables toward their region terms
             if let dir::Type::Variable(variable) = node {
                 if let Some(solution) = self.check.infer.solution(variable)? {
                     pending.push(solution);
@@ -199,9 +164,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 continue;
             }
 
-            // collect closed lifetime terms and walk everything else
-            if self.check.is_lifetime_term(id)? {
-                terms.push((None, id));
+            // collect closed region terms and pairs whole, walking everything else
+            if self.check.memory_kind(id)? == Some(dir::MemoryParameter::Region) {
+                terms.push(id);
             } else {
                 self.check
                     .for_each_type_child(id.module_id, &node, |child| pending.push(child))?;
@@ -211,38 +176,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(terms)
     }
 
-    /// Return induced lifetime variables inside one type graph.
-    fn induced_lifetime_types(
-        &mut self,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Vec<(dir::TypeVariableId, dir::GlobalTypeId)>> {
-        let mut lifetimes = Vec::new();
-
-        // collect open lifetime variables from the type graph
-        for (variable, role) in self.check.induced_memory_variables(ty)? {
-            let VariableRole::Memory {
-                kind: dir::MemoryParameter::Lifetime,
-                ..
-            } = role
-            else {
-                continue;
-            };
-
-            let ty = self.check.variable_type(variable)?;
-            lifetimes.push((variable, ty));
-        }
-
-        Ok(lifetimes)
-    }
-
     /// Return the template owned by one callable signature.
     fn signature_template(
         &mut self,
         template: Option<GenericTemplateId>,
         owner: Option<InducedParameterOwner>,
-        this_parameter: Option<dir::GlobalTypeId>,
-        parameters: &[dir::FunctionParameterType],
-        return_type: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<GenericTemplateId>> {
         if template.is_some() {
             return Ok(template);
@@ -251,35 +189,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return Ok(None);
         };
 
-        // open the enclosing template only when this signature has induced parameters
-        if !self.has_induced_parameter(this_parameter, parameters, return_type)? {
-            return Ok(None);
-        }
-
-        self.check
-            .open_generic_template(owner.declaration)
-            .map(Some)
-    }
-
-    /// Return whether one signature contains an induced memory parameter.
-    fn has_induced_parameter(
-        &mut self,
-        this_parameter: Option<dir::GlobalTypeId>,
-        parameters: &[dir::FunctionParameterType],
-        return_type: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<bool> {
-        let mut types = Vec::new();
-        types.extend(this_parameter);
-        types.extend(parameters.iter().map(|parameter| parameter.ty));
-        types.extend(return_type);
-
-        for ty in types {
-            if !self.check.induced_memory_variables(ty)?.is_empty() {
-                return Ok(true);
-            }
-        }
-
-        Ok(false)
+        Ok(self.check.template_by_source(owner.declaration))
     }
 
     /// Walk one function type expression.
@@ -300,6 +210,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
             &declaration.generic_parameters,
             &declaration.where_clauses,
         )?;
+
+        // induce elided parameters on this function type's own template
+        let owner = InducedParameterOwner::new(source.into_global(self.module), None, None);
+        let previous = self.induced_owner.replace(owner);
+
+        // take the expected result, or walk the written one
         let (return_type, tracked) = match (return_type, declaration.return_type) {
             (Some(return_type), _) => (Some(return_type), Vec::new()),
             (None, Some(return_type)) => {
@@ -310,6 +226,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             (None, None) => (None, Vec::new()),
         };
 
+        // walk the written receiver parameter
         let this_parameter = if let Some(parameter) = declaration.this_parameter {
             self.walk_parameter_type(parameter)?
         } else {
@@ -324,7 +241,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
             }
         }
 
-        let (return_type, _) = self.apply_result_lifetime_elision(
+        // elide the result region and close the induced template
+        let (return_type, _) = self.apply_result_elision(
             source,
             this_parameter,
             None,
@@ -332,18 +250,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return_type,
             tracked,
         )?;
-
-        // register signature positions whose elided borrows induce lifetime parameters
-        let owner = InducedParameterOwner::new(source.into_global(self.module), None, None);
-        for parameter in &parameters {
-            self.push_induced_parameter_site(owner, parameter.ty);
-        }
-        if let Some(this_parameter) = this_parameter {
-            self.push_induced_parameter_site(owner, this_parameter);
-        }
-        if let Some(return_type) = return_type {
-            self.push_induced_parameter_site(owner, return_type);
-        }
+        self.induced_owner = previous;
         let template = self.induced_owner_template(owner, template)?;
 
         let parameters = self.intern_parameters(&parameters)?;
@@ -379,6 +286,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             &declaration.generic_parameters,
             &declaration.where_clauses,
         )?;
+        // take the expected result, or walk the written one
         let (return_type, tracked) = match (return_type, declaration.return_type) {
             (Some(return_type), _) => (Some(return_type), Vec::new()),
             (None, Some(return_type)) => {
@@ -397,14 +305,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
             }
         }
 
-        let (return_type, _) = self.apply_result_lifetime_elision(
-            source,
-            None,
-            None,
-            &parameters,
-            return_type,
-            tracked,
-        )?;
+        // elide the result region and intern the construct signature
+        let (return_type, _) =
+            self.apply_result_elision(source, None, None, &parameters, return_type, tracked)?;
         let parameters = self.intern_parameters(&parameters)?;
         let function = dir::FunctionSignatureType {
             asynchrony: dir::Asynchrony::Sync,
@@ -424,9 +327,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         signature: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        let place = self.check.local_place()?;
         let function = dir::FunctionType {
             signature,
             multiplicity: dir::Multiplicity::Repeatable,
+            place,
         };
 
         self.intern_type(dir::Type::Function(function))
@@ -479,6 +384,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         result: dir::GlobalTypeId,
         receiver: Option<ReceiverBinding>,
     ) -> CompilerResult<()> {
+        // open the body scope and its result targets
         let source = body.into_any();
         let origin = Origin::Node(
             body.into_global_any(self.module),
@@ -586,6 +492,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
                     yielded,
                     resumed,
                 });
+
         // bind constructor initialization to its exact declaration
         let initializes = if signature.is_constructor() {
             let owner = receiver
@@ -623,7 +530,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::FunctionParameterType>> {
+    ) -> CompilerResult<dir::FunctionParameterType> {
         let parameter = self.tree.get(id);
         let is_rest = matches!(
             parameter,
@@ -633,12 +540,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
         // defaulted parameters may be omitted at the call site
         let is_optional = parameter.is_optional() || parameter.default_value().is_some();
 
-        Ok(Some(dir::FunctionParameterType {
+        Ok(dir::FunctionParameterType {
             name: parameter.name(),
             ty,
             is_optional,
             is_rest,
-        }))
+        })
     }
 
     /// Walk one callable type parameter and return its signature slot.
@@ -646,11 +553,14 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
     ) -> CompilerResult<Option<dir::FunctionParameterType>> {
+        // require a written annotation on every callable type parameter
         let parameter = self.tree.get(id);
         if parameter.declared_type().is_none() {
             self.check
                 .report_missing_type_annotation(self.module, id.into_any());
         }
+
+        // read the slot shape the parameter declares
         let is_rest = matches!(
             parameter,
             dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. }

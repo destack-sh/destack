@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A nullish guard keeps the template literal type of the narrowed value.
 #[test]
 fn test_preserve_a_template_literal_constraint_through_a_nullish_guard() {
     let session = TestSession::single(
@@ -40,12 +41,12 @@ declare const route: Route | undefined;
 if (route != undefined) {
 /// @resolution.name source=route target=route
 /// @resolution.operator source="route != undefined" type=boolean operator="!=" kind=builtin operands=[route as `api:${string}` | undefined families=(string | undefined), undefined as undefined families=(undefined)]
-/// @resolution.place source=route placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=route placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=route root=route
 
     route satisfies Route;
     /// @resolution.name source=route target=route
-    /// @resolution.place source=route placement="local" lifetime="static" access="readonly"
+    /// @resolution.place source=route placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=route root=route
     /// @resolution.name source=Route target=Route
 
@@ -54,6 +55,7 @@ if (route != undefined) {
     );
 }
 
+/// An equality guard keeps the template literal type on both branches.
 #[test]
 fn test_keep_a_template_literal_constraint_through_an_equality_guard() {
     let session = TestSession::single(
@@ -98,19 +100,19 @@ declare const route: Route;
 if (route == "api:users") {
 /// @resolution.name source=route target=route
 /// @resolution.operator source="route == \"api:users\"" type=boolean operator="==" kind=builtin operands=[route as `api:${string}` families=(string), "api:users" as "api:users" families=(string)]
-/// @resolution.place source=route placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=route placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=route root=route
 
     route satisfies Route;
     /// @resolution.name source=route target=route
-    /// @resolution.place source=route placement="local" lifetime="static" access="readonly"
+    /// @resolution.place source=route placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=route root=route
     /// @resolution.name source=Route target=Route
 
 } else {
     route satisfies Route;
     /// @resolution.name source=route target=route
-    /// @resolution.place source=route placement="local" lifetime="static" access="readonly"
+    /// @resolution.place source=route placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=route root=route
     /// @resolution.name source=Route target=Route
 
@@ -119,6 +121,7 @@ if (route == "api:users") {
     );
 }
 
+/// A match over a template of a literal union covers every value it admits.
 #[test]
 fn test_treat_a_match_over_a_template_literal_type_union_as_exhaustive() {
     let session = TestSession::single(
@@ -167,7 +170,7 @@ const section = match (route) {
 /// @resolution.pattern source=section kind=binding target=section
 /// @resolution.coverage exhaustive=true disjoint=true
 /// @resolution.name source=route target=route
-/// @resolution.place source=route placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=route placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=route root=route
 
     "api:users" => "users"
@@ -180,7 +183,7 @@ const section = match (route) {
 
 section satisfies "users" | "posts";
 /// @resolution.name source=section target=section
-/// @resolution.place source=section placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=section placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=section root=section
 "#,
     );

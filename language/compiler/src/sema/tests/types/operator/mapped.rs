@@ -273,7 +273,7 @@ type Caps = { [K in "name" | "age" as Uppercase<K>]: boolean };
 /// @definition.type symbol=Caps source="type Caps = { [K in \"name\" | \"age\" as Uppercase<K>]: boolean }" value={ [K in "name" | "age" as Uppercase<K>]: boolean }
 /// @generic.template source=type_expression parameters=(K: "name" | "age")
 /// @type.symbol symbol=Caps.K source=[K in "name" | "age" as Uppercase<K>] type=K
-/// @resolution.name source=Uppercase target=types.string.Uppercase
+/// @resolution.name source=Uppercase target=Uppercase
 /// @resolution.name source=K target=Caps.K
 "#,
     );

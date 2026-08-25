@@ -59,9 +59,6 @@ impl Verdict {
     }
 
     /// Join one disjunct reached only while this one leaves the outcome open.
-    ///
-    /// Every disjunct passed here relates types and binds inference, so a holding left side
-    /// keeps it from running at all.
     pub(in crate::sema) fn or_else(
         self,
         other: impl FnOnce() -> CompilerResult<Self>,
@@ -105,7 +102,7 @@ impl CheckState<'_> {
             return Ok(Verdict::Holds);
         }
 
-        // retry a stuck decision once over reduced heads
+        // reduce stuck heads once and decide the reduced pair
         let reduced_source = self.structurally_normalize(origin, source)?;
         let reduced_target = self.structurally_normalize(origin, target)?;
         if reduced_source == source && reduced_target == target {
@@ -139,6 +136,7 @@ impl CheckState<'_> {
         if self.root_variable(ty)?.is_some() {
             return Ok(true);
         }
+
         // template literal verdicts decide through matching
         let projects = match self.ty(ty)? {
             dir::Type::Member(_) => true,
@@ -252,6 +250,24 @@ impl CheckState<'_> {
             }
         }
 
+        // stuck narrows decide relations through their source, positive ones
+        //  through the narrowing target as well
+        if let Some(dir::TypeOperation::Narrow(narrow)) = self.operation_head(source)? {
+            let through_source =
+                self.constrain_type(origin, cause, relation, narrow.source, target)?;
+            if through_source == Verdict::Holds {
+                return Ok(Verdict::Holds);
+            }
+
+            if narrow.is_positive {
+                let through_target =
+                    self.constrain_type(origin, cause, relation, narrow.target, target)?;
+                if through_target == Verdict::Holds {
+                    return Ok(Verdict::Holds);
+                }
+            }
+        }
+
         // irreducible conditionals relate through both branches
         if matches!(relation, Relation::Assignable | Relation::Widens)
             && let Some(dir::TypeOperation::Conditional(conditional)) =
@@ -262,6 +278,7 @@ impl CheckState<'_> {
             if then_branch == Verdict::Fails {
                 return Ok(Verdict::Fails);
             }
+
             let else_branch =
                 self.constrain_type(origin, cause, relation, conditional.else_type, target)?;
 
@@ -276,8 +293,24 @@ impl CheckState<'_> {
             return Ok(Verdict::decided(source_key == target_key));
         }
 
-        // accept lifetime pairs here, MIR Verify enforces outlives
-        if self.is_lifetime_slot_type(source)? && self.is_lifetime_slot_type(target)? {
+        // relate region terms by their own rule
+        if let Some(verdict) = self.relate_region_terms(origin, cause, relation, source, target)? {
+            return Ok(verdict);
+        }
+
+        // decide region kind inhabitants before canonicalization erases parameter kinds
+        if let Some(symbol) = self.type_symbol(target)?
+            && matches!(
+                self.language_item(symbol)?,
+                Some(
+                    dir::LanguageItem::Lifetime
+                        | dir::LanguageItem::Region
+                        | dir::LanguageItem::Place
+                        | dir::LanguageItem::Space
+                )
+            )
+            && self.memory_kind(source)? == Some(dir::MemoryParameter::Region)
+        {
             return Ok(Verdict::Holds);
         }
 
@@ -285,7 +318,7 @@ impl CheckState<'_> {
         let Some((question, canonical)) =
             self.canonicalize_goal(origin, Goal::Relation(relation), &[source, target], true)?
         else {
-            return self.relate_matrix(origin, cause, relation, source, target);
+            return self.evaluate_relation(origin, cause, relation, source, target);
         };
         let flags =
             self.type_flags(canonical.operands[0])? | self.type_flags(canonical.operands[1])?;
@@ -303,7 +336,7 @@ impl CheckState<'_> {
 
         // decide holed pairs outside the in-flight stack
         if has_holes {
-            let decision = self.relate_matrix(origin, cause, relation, source, target)?;
+            let decision = self.evaluate_relation(origin, cause, relation, source, target)?;
             if decision == Verdict::Fails && self.infer.relations.is_idle() {
                 self.answers.insert(question, Answer::Fails);
             }
@@ -328,7 +361,8 @@ impl CheckState<'_> {
         self.counters.relation_decisions += 1;
         let attempt = self.infer.relations.enter(key);
 
-        let decision = self.relate_matrix(origin, cause, relation, source, target);
+        // decide the pair through its own rule
+        let decision = self.evaluate_relation(origin, cause, relation, source, target);
 
         // memoize resolved decisions, forget failed and undecided attempts
         match &decision {
@@ -365,8 +399,8 @@ impl CheckState<'_> {
         ))
     }
 
-    /// Dispatch one relation over its constructor matrix.
-    fn relate_matrix(
+    /// Evaluate one relation through its own rule.
+    fn evaluate_relation(
         &mut self,
         origin: Origin,
         cause: CauseId,
@@ -374,7 +408,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        // prove equality on closed pairs before the broader relation
+        // decide equality on closed pairs before the broader relation
         let closed = !(self.type_flags(source)? | self.type_flags(target)?).has_variable();
         let equal = match relation {
             Relation::Equal => false,
@@ -461,6 +495,7 @@ impl CheckState<'_> {
         relation: Relation,
         pairs: &[(dir::GlobalTypeId, dir::GlobalTypeId)],
     ) -> CompilerResult<Verdict> {
+        // stop at the first decided failure
         let mut verdict = Verdict::Holds;
         for (source, target) in pairs.iter().copied() {
             verdict = verdict.and(self.constrain_type(origin, cause, relation, source, target)?);
@@ -605,6 +640,7 @@ impl CheckState<'_> {
             {
                 Verdict::Holds
             }
+
             // scalar sources decide interface targets before literal widening
             (dir::Type::Literal(_) | dir::Type::Range(_), dir::Type::Application(instance))
                 if self.symbol_kind(instance.symbol)?.is_interface() =>

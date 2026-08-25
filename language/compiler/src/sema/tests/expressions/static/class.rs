@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Read a class member kept by a true `@if` guard.
 #[test]
 fn test_static_true_class_member_is_available() {
     let session = TestSession::single(
@@ -94,6 +95,7 @@ const narrowMeta = segment.narrow;
     );
 }
 
+/// Reject a read of a class member dropped by a false `@if` guard.
 #[test]
 fn test_static_false_class_member_is_unavailable() {
     let session = TestSession::single(
@@ -189,6 +191,7 @@ segment.wide;
     );
 }
 
+/// Reject an `@if` guard that depends on a class type parameter.
 #[test]
 fn test_static_if_rejects_generic_dependent_class_member_guard() {
     let session = TestSession::single(
@@ -221,7 +224,7 @@ class Packet<in out T> {
 
     value: T;
 
-    constructor(value: T): this {
+    constructor(value: T) {
         this.value = value;
     }
 }
@@ -237,7 +240,7 @@ class Packet<T> {
 /// @static.symbol symbol=Packet value=Packet
 /// @definition.class symbol=Packet template=(in out T)
 /// @definition.field symbol=Packet.value source="value: T" key=value type=T
-/// @definition.method symbol=Packet.constructor slot=constructor role=constructor type=(T) => this
+/// @definition.method symbol=Packet.constructor slot=constructor role=constructor type=<Packet.constructor.P0: Place>(T) => Managed<this, Packet.constructor.P0>
 /// @type.symbol symbol=Packet.T source=T type=T
 
     @if(T extends string)
@@ -248,7 +251,8 @@ class Packet<T> {
     /// @resolution.name source=T target=Packet.T
 
     constructor(value: T) {
-    /// @type.symbol symbol=Packet.constructor type=(T) => this
+    /// @generic.template symbol=Packet.constructor parent=template#0 parameters=(P0: Place)
+    /// @type.symbol symbol=Packet.constructor type=<Packet.constructor.P0: Place>(T) => Managed<this, Packet.constructor.P0>
     /// @type.symbol symbol=Packet.constructor.value source="value: T" type=T
     /// @resolution.name source=T target=Packet.T
 

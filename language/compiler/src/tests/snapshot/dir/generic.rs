@@ -226,13 +226,13 @@ impl DirSnapshotBuilder<'_> {
         format!("({arguments})")
     }
 
-    /// Return whether one parameter spells as its bare tick name.
+    /// Return whether one parameter prints as its bare tick name.
     pub(super) fn is_tick_parameter(
         &self,
         parameter: &dir::GenericParameterBinding,
         label: &str,
     ) -> bool {
-        parameter.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+        parameter.memory_parameter() == Some(dir::MemoryParameter::Region)
             && label
                 .rsplit('.')
                 .next()

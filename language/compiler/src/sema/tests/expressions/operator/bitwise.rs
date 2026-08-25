@@ -29,7 +29,7 @@ const shifted = flags << 5;
 /// @resolution.pattern source=shifted kind=binding target=shifted
 /// @resolution.name source=flags target=flags
 /// @resolution.operator source="flags << 5" type=int32 operator="<<" kind=builtin operands=[flags as int32 families=(integer), 5 as int32 families=(integer)]
-/// @resolution.place source=flags placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=flags placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=flags root=flags
 
 const literal = 1 << 5;
@@ -73,10 +73,10 @@ const masked = mask & bits;
 /// @resolution.pattern source=masked kind=binding target=masked
 /// @resolution.name source=mask target=mask
 /// @resolution.operator source="mask & bits" type=int32 operator="&" kind=builtin operands=[mask as int32 families=(integer), bits as int32 families=(integer)]
-/// @resolution.place source=mask placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=mask placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=mask root=mask
 /// @resolution.name source=bits target=bits
-/// @resolution.place source=bits placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=bits placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=bits root=bits
 "#,
     );
@@ -109,7 +109,7 @@ const bad = scale & 2;
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=scale target=scale
 /// @resolution.rejected source="scale & 2"
-/// @resolution.place source=scale placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=scale placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=scale root=scale
 "#,
         r#"
@@ -180,15 +180,15 @@ struct Flags {
 }
 
 extension of Flags implements And<Flags> {
-/// @generic.instance id=And<Flags> template=ops.bitwise.And arguments=(Flags)
+/// @generic.instance id=And<Flags> template=And arguments=(Flags)
 /// @definition.extension symbol=<module>#2 form=local target=Flags
 /// @definition.implements symbol=<module>#2 source=And<Flags> target=And<Flags>
 /// @definition.associated.type symbol=Output source="type Output = Flags" key=Output value=Flags
-/// @definition.method symbol=and slot=and type=<and.'a>(this: &and.'a readonly Flags, Flags) => Flags
-/// @definition.conformance symbol=<module>#2 member=Output requirement=ops.bitwise.And.Output
-/// @definition.conformance symbol=<module>#2 member=and requirement=ops.bitwise.And.and
+/// @definition.method symbol=and slot=and type=<and.'a, and.P1: Place>(this: Borrowed<Flags, and.'a & and.P1, "readonly">, Flags) => Flags
+/// @definition.conformance symbol=<module>#2 member=Output requirement=And.Output
+/// @definition.conformance symbol=<module>#2 member=and requirement=And.and
 /// @resolution.name source=Flags target=Flags
-/// @resolution.name source=And target=ops.bitwise.And
+/// @resolution.name source=And target=And
 /// @resolution.name source=Flags target=Flags
 
     type Output = Flags;
@@ -196,21 +196,21 @@ extension of Flags implements And<Flags> {
     /// @resolution.name source=Flags target=Flags
 
     and(&readonly this, other: Flags): Flags {
-    /// @generic.template symbol=and parent=template#0 parameters=('a)
-    /// @type.symbol symbol=and type=<and.'a>(this: &and.'a readonly Flags, Flags) => Flags
-    /// @type.symbol symbol=and.this source="&readonly this" type=&and.'a readonly this
+    /// @generic.template symbol=and parent=template#0 parameters=('a, P1: Place)
+    /// @type.symbol symbol=and type=<and.'a, and.P1: Place>(this: Borrowed<Flags, and.'a & and.P1, "readonly">, Flags) => Flags
+    /// @type.symbol symbol=and.this source="&readonly this" type=Borrowed<this, and.'a & and.P1, "readonly">
     /// @type.symbol symbol=and.other source="other: Flags" type=Flags
     /// @resolution.name source=Flags target=Flags
     /// @resolution.name source=Flags target=Flags
 
         Flags { bits: this.bits & other.bits }
         /// @resolution.name source=Flags target=Flags
-        /// @resolution.member source=this.bits receiver=&and.'a readonly Flags type=int32 kind=field target_receiver=&and.'a readonly Flags key=bits target=Flags.bits target_type=int32
+        /// @resolution.member source=this.bits receiver=Borrowed<Flags, and.'a & and.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Flags, and.'a & and.P1, "readonly"> key=bits target=Flags.bits target_type=int32
         /// @resolution.operator source="this.bits & other.bits" type=int32 operator="&" kind=builtin operands=[this.bits as int32 families=(integer), other.bits as int32 families=(integer)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&and.'a readonly Flags
-        /// @resolution.place source=this placement="local" lifetime=and.'a access="readonly"
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Flags, and.'a & and.P1, "readonly">
+        /// @resolution.place source=this placement=and.P1 lifetime=and.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.bits placement="local" lifetime=and.'a access="readonly"
+        /// @resolution.place source=this.bits placement=and.P1 lifetime=and.'a access="readonly"
         /// @resolution.access source=this.bits root=this keys=[bits]
         /// @resolution.name source=other target=and.other
         /// @resolution.member source=other.bits receiver=Flags type=int32 kind=field target_receiver=Flags key=bits target=Flags.bits target_type=int32
@@ -236,11 +236,13 @@ const both = left & right;
 /// @type.symbol symbol=both source=both type=Flags
 /// @resolution.pattern source=both kind=binding target=both
 /// @resolution.name source=left target=left
-/// @resolution.operator source="left & right" type=Flags operator="&" kind=call parameters=(Flags) arguments=(provided(right) as Flags) return=Flags kind=symbol target=and receiver=Flags adjustments=(borrow(&'static readonly Flags))
-/// @resolution.place source=left placement="local" lifetime="static" access="readonly"
+/// @resolution.operator source="left & right" type=Flags operator="&" kind=call parameters=(Flags) arguments=(provided(right) as Flags) return=Flags kind=symbol target=and receiver=Flags adjustments=(borrow(&'static readonly constant Flags)) instance="Flags.<extension#1>.and<\"constant\">"
+/// @resolution.place source=left placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=left root=left
+/// @generic.instantiation id="and<\"constant\">" template=and arguments=("constant")
+/// @generic.instance id="and<\"constant\">" template=and arguments=("constant")
 /// @resolution.name source=right target=right
-/// @resolution.place source=right placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=right placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=right root=right
 "#,
     );

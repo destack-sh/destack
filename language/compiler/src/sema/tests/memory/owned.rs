@@ -60,7 +60,7 @@ consume(payload);
 /// @resolution.call source=consume(payload) parameters=(Payload) arguments=(provided(payload) as Payload) return=void kind=symbol target=consume
 /// @type.node source=payload type=Payload
 /// @resolution.name source=payload target=payload
-/// @resolution.place source=payload placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=payload placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=payload root=payload
 "#,
         r#"
@@ -160,9 +160,9 @@ struct Buffer {
 
     values: int32[];
     /// @type.symbol symbol=Buffer.values source="values: int32[]" type=int32[]
-    /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
-    /// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+    /// @generic.instance id=Array<int32> template=Array arguments=(int32)
+    /// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+    /// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 
 }
 
@@ -303,9 +303,9 @@ container.data satisfies ^Data;
 /// @type.node source=container.data type=Data
 /// @resolution.name source=container target=container
 /// @resolution.member source=container.data receiver=Container type=Data kind=field target_receiver=Container key=data target=Container.data target_type=Data
-/// @resolution.place source=container placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=container placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=container root=container
-/// @resolution.place source=container.data placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=container.data placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=container.data root=container keys=[data]
 /// @resolution.name source=Data target=Data
 "#,
@@ -569,10 +569,10 @@ class Named {
 }
 
 function witness<T: Copy>(value: T): T {
-/// @generic.template symbol=witness parameters=(T: memory.capability.Copy)
-/// @type.symbol symbol=witness type=<T: memory.capability.Copy>(T) => T
+/// @generic.template symbol=witness parameters=(T: Copy)
+/// @type.symbol symbol=witness type=<T: Copy>(T) => T
 /// @type.symbol symbol=witness.T source="T: Copy" type=T
-/// @resolution.name source=Copy target=memory.capability.Copy
+/// @resolution.name source=Copy target=Copy
 /// @type.symbol symbol=witness.value source="value: T" type=T
 /// @resolution.name source=T target=witness.T
 /// @resolution.name source=T target=witness.T
@@ -594,7 +594,7 @@ witness(point);
 /// @resolution.call source=witness(point) parameters=(Point) arguments=(provided(point) as Point) return=Point kind=symbol target=witness instance=witness<Point>
 /// @generic.instantiation id=witness<Point> template=witness arguments=(Point)
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 
 declare const pair: ^Pair;
@@ -607,7 +607,7 @@ witness(pair);
 /// @resolution.call source=witness(pair) parameters=(<error>) arguments=(provided(pair) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
 /// @generic.instantiation id=witness<<error>> template=witness arguments=(<error>)
 /// @resolution.name source=pair target=pair
-/// @resolution.place source=pair placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=pair placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=pair root=pair
 
 declare const object: ^{ value: int32 };
@@ -619,7 +619,7 @@ witness(object);
 /// @resolution.call source=witness(object) parameters=(Owned<{ value: int32 }>) arguments=(provided(object) as Owned<{ value: int32 }>) return=Owned<{ value: int32 }> kind=symbol target=witness instance="witness<Owned<{ value: int32 }>>"
 /// @generic.instantiation id="witness<Owned<{ value: int32 }>>" template=witness arguments=(Owned<{ value: int32 }>)
 /// @resolution.name source=object target=object
-/// @resolution.place source=object placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=object placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=object root=object
 
 declare const named: ^Named;
@@ -631,19 +631,19 @@ witness(named);
 /// @resolution.name source=witness target=witness
 /// @resolution.call source=witness(named) parameters=(<error>) arguments=(provided(named) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
 /// @resolution.name source=named target=named
-/// @resolution.place source=named placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=named placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=named root=named
 
 declare const values: ^Array<int32>;
 /// @type.symbol symbol=values source=values type=Owned<Array<int32>>
 /// @resolution.pattern source=values kind=binding target=values
-/// @resolution.name source=Array target=collections.array.Array
+/// @resolution.name source=Array target=Array
 
 witness(values);
 /// @resolution.name source=witness target=witness
 /// @resolution.call source=witness(values) parameters=(<error>) arguments=(provided(values) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=values placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 
 declare const slice: ^[int32];
@@ -671,7 +671,7 @@ witness(callable);
 declare const dynamic: ^Dynamic<unknown>;
 /// @type.symbol symbol=dynamic source=dynamic type=Owned<Dynamic<unknown>>
 /// @resolution.pattern source=dynamic kind=binding target=dynamic
-/// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
+/// @resolution.name source=Dynamic target=Dynamic
 
 witness(dynamic);
 /// @resolution.name source=witness target=witness
@@ -688,7 +688,7 @@ witness(buffer);
 /// @resolution.name source=witness target=witness
 /// @resolution.call source=witness(buffer) parameters=(<error>) arguments=(provided(buffer) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
 /// @resolution.name source=buffer target=buffer
-/// @resolution.place source=buffer placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=buffer placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=buffer root=buffer
 
 declare const text: ^string;
@@ -699,7 +699,7 @@ witness(text);
 /// @resolution.name source=witness target=witness
 /// @resolution.call source=witness(text) parameters=(<error>) arguments=(provided(text) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
 /// @resolution.name source=text target=text
-/// @resolution.place source=text placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=text placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=text root=text
 
 declare const big: ^bigint;
@@ -710,7 +710,7 @@ witness(big);
 /// @resolution.name source=witness target=witness
 /// @resolution.call source=witness(big) parameters=(<error>) arguments=(provided(big) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
 /// @resolution.name source=big target=big
-/// @resolution.place source=big placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=big placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=big root=big
 "#,
         r#"
@@ -783,7 +783,7 @@ newtype interface Collect<in T> {
 class Bag<in out T> {
     last: T | undefined;
 
-    constructor(): this {
+    constructor() {
         this.last = undefined as T | undefined;
     }
 }
@@ -817,7 +817,7 @@ class Bag<T> {
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.class symbol=Bag template=(in out T#2)
 /// @definition.field symbol=Bag.last source="last: T | undefined" key=last type=T#2 | undefined
-/// @definition.method symbol=Bag.constructor slot=constructor role=constructor type=() => this
+/// @definition.method symbol=Bag.constructor slot=constructor role=constructor type=<Bag.constructor.P0: Place>() => Managed<this, Bag.constructor.P0>
 /// @type.symbol symbol=Bag.T source=T type=T#2
 
     last: T | undefined;
@@ -825,7 +825,8 @@ class Bag<T> {
     /// @resolution.name source=T target=Bag.T
 
     constructor() {
-    /// @type.symbol symbol=Bag.constructor type=() => this
+    /// @generic.template symbol=Bag.constructor parent=template#1 parameters=(P0: Place)
+    /// @type.symbol symbol=Bag.constructor type=<Bag.constructor.P0: Place>() => Managed<this, Bag.constructor.P0>
 
         this.last = undefined;
         /// @type.node source="this.last = undefined" type=undefined
@@ -964,14 +965,14 @@ extension of Point implements Collect<int32> {
 /// @generic.instance id=Collect<int32> template=Collect arguments=(int32)
 /// @definition.extension symbol=<module>#2 form=local target=Point
 /// @definition.implements symbol=<module>#2 source=Collect<int32> target=Collect<int32>
-/// @definition.method symbol=add source="add(value: int32): void {}" slot=add type=<add.'a>(this: &add.'a readonly Point, int32) => void
+/// @definition.method symbol=add source="add(value: int32): void {}" slot=add type=<add.'a, add.P1: Place>(this: Borrowed<Point, add.'a & add.P1, "readonly">, int32) => void
 /// @definition.conformance symbol=<module>#2 member=add requirement=Collect.add
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=Collect target=Collect
 
     add(value: int32): void {}
-    /// @generic.template symbol=add parent=template#1 parameters=('a)
-    /// @type.symbol symbol=add source="add(value: int32): void {}" type=<add.'a>(this: &add.'a readonly Point, int32) => void
+    /// @generic.template symbol=add parent=template#1 parameters=('a, P1: Place)
+    /// @type.symbol symbol=add source="add(value: int32): void {}" type=<add.'a, add.P1: Place>(this: Borrowed<Point, add.'a & add.P1, "readonly">, int32) => void
     /// @type.symbol symbol=add.value source="value: int32" type=int32
 
 }
@@ -1020,40 +1021,44 @@ const values: Deque<int64> = Deque.from<int64>([1, 2, 3]) as Deque<int64>;
 import { Deque } from "destack:collections";
 
 const values = Deque.from([1, 2, 3]);
-/// @type.symbol symbol=values source=values type=collections.deque.Deque<int64>
+/// @type.symbol symbol=values source=values type=Deque<int64>
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=collections.deque.Deque<int64> template=collections.deque.Deque arguments=(int64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int64>)
-/// @generic.instance id=memory.init.MaybeUninit<int64> template=memory.init.MaybeUninit arguments=(int64)
-/// @resolution.name source=Deque target=collections.deque.Deque
-/// @resolution.member source=Deque.from receiver=collections.deque.Deque type=(iter.iterator.Iterable<collections.deque.T#4>) => Owned<collections.deque.Deque<collections.deque.T#4>> kind=symbol target_receiver=collections.deque.Deque target=collections.deque.from#1
-/// @resolution.call source="Deque.from([1, 2, 3])" parameters=(iter.iterator.Iterable<int64>) arguments=(provided([1, 2, 3]) as iter.iterator.Iterable<int64>) return=Owned<collections.deque.Deque<int64>> kind=symbol target=collections.deque.from#1 instance=collections.deque.Deque<int64>.<extension#4>.from#1
-/// @generic.instantiation id=collections.deque.from#1<int64> template=collections.deque.from#1 arguments=(int64)
-/// @generic.instance id=collections.deque.from#1<int64> template=collections.deque.from#1 arguments=(int64)
-/// @resolution.call source=[1, 2, 3] parameters=(&collections.array.arrayFromSlice.'a readonly Slice<collections.array.arrayFromSlice.T>) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=collections.array.arrayFromSlice instance=collections.array.arrayFromSlice<int64>
-/// @generic.instantiation id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
-/// @generic.instance id="iter.iterator.DropIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.DropIterator arguments=(iter.iterator.Iterator<int64>, int64)
-/// @generic.instance id="iter.iterator.DropWhileIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.DropWhileIterator arguments=(iter.iterator.Iterator<int64>, int64)
-/// @generic.instance id="iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.EnumeratedIterator arguments=(iter.iterator.Iterator<int64>, int64)
-/// @generic.instance id="iter.iterator.FilterIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.FilterIterator arguments=(iter.iterator.Iterator<int64>, int64)
-/// @generic.instance id="iter.iterator.InspectIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.InspectIterator arguments=(iter.iterator.Iterator<int64>, int64)
-/// @generic.instance id="iter.iterator.IteratorResult<int64, iter.iterator.Iterator<int64>.Return>" template=iter.iterator.IteratorResult arguments=(int64, iter.iterator.Iterator<int64>.Return)
-/// @generic.instance id="iter.iterator.IteratorResult<int64, void>" template=iter.iterator.IteratorResult arguments=(int64, void)
-/// @generic.instance id="iter.iterator.PeekableIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.PeekableIterator arguments=(iter.iterator.Iterator<int64>, int64)
-/// @generic.instance id="iter.iterator.TakeIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.TakeIterator arguments=(iter.iterator.Iterator<int64>, int64)
-/// @generic.instance id="iter.iterator.TakeWhileIterator<iter.iterator.Iterator<int64>, int64>" template=iter.iterator.TakeWhileIterator arguments=(iter.iterator.Iterator<int64>, int64)
-/// @generic.instance id=Array<int64> template=collections.array.Array arguments=(int64)
-/// @generic.instance id=collections.array.arrayFromSlice<int64> template=collections.array.arrayFromSlice arguments=(int64)
-/// @generic.instance id=iter.iterator.Iterable<int64> template=iter.iterator.Iterable arguments=(int64)
-/// @generic.instance id=iter.iterator.Iterator<int64> template=iter.iterator.Iterator arguments=(int64)
-/// @generic.instance id=iter.iterator.IteratorReturn<iter.iterator.Iterator<int64>.Return> template=iter.iterator.IteratorReturn arguments=(iter.iterator.Iterator<int64>.Return)
-/// @generic.instance id=iter.iterator.IteratorReturn<void> template=iter.iterator.IteratorReturn arguments=(void)
-/// @generic.instance id=iter.iterator.IteratorYield<int64> template=iter.iterator.IteratorYield arguments=(int64)
+/// @generic.instance id=Deque<int64> template=Deque arguments=(int64)
+/// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
+/// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
+/// @resolution.name source=Deque target=Deque
+/// @resolution.member source=Deque.from receiver=Deque type=(Iterable<T#4>) => Owned<Deque<T#4>> kind=symbol target_receiver=Deque target=from#1
+/// @resolution.call source="Deque.from([1, 2, 3])" parameters=(Iterable<int64>) arguments=(provided([1, 2, 3]) as Iterable<int64>) return=Owned<Deque<int64>> kind=symbol target=from#1 instance=Deque<int64>.<extension#4>.from#1
+/// @generic.instantiation id=from#1<int64> template=from#1 arguments=(int64)
+/// @generic.instance id=from#1<int64> template=from#1 arguments=(int64)
+/// @resolution.call source=[1, 2, 3] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+/// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
+/// @generic.instance id="DropIterator<Iterator<int64>, int64>" template=DropIterator arguments=(Iterator<int64>, int64)
+/// @generic.instance id="DropWhileIterator<Iterator<int64>, int64>" template=DropWhileIterator arguments=(Iterator<int64>, int64)
+/// @generic.instance id="EnumeratedIterator<Iterator<int64>, int64>" template=EnumeratedIterator arguments=(Iterator<int64>, int64)
+/// @generic.instance id="FilterIterator<Iterator<int64>, int64>" template=FilterIterator arguments=(Iterator<int64>, int64)
+/// @generic.instance id="InspectIterator<Iterator<int64>, int64>" template=InspectIterator arguments=(Iterator<int64>, int64)
+/// @generic.instance id="IteratorResult<int64, Iterator<int64>.Return>" template=IteratorResult arguments=(int64, Iterator<int64>.Return)
+/// @generic.instance id="IteratorResult<int64, void>" template=IteratorResult arguments=(int64, void)
+/// @generic.instance id="PeekableIterator<Iterator<int64>, int64>" template=PeekableIterator arguments=(Iterator<int64>, int64)
+/// @generic.instance id="PlaceOf<DropWhileIterator<Iterator<int64>, int64>>" template=PlaceOf arguments=(DropWhileIterator<Iterator<int64>, int64>)
+/// @generic.instance id="PlaceOf<FilterIterator<Iterator<int64>, int64>>" template=PlaceOf arguments=(FilterIterator<Iterator<int64>, int64>)
+/// @generic.instance id="PlaceOf<InspectIterator<Iterator<int64>, int64>>" template=PlaceOf arguments=(InspectIterator<Iterator<int64>, int64>)
+/// @generic.instance id="PlaceOf<TakeWhileIterator<Iterator<int64>, int64>>" template=PlaceOf arguments=(TakeWhileIterator<Iterator<int64>, int64>)
+/// @generic.instance id="TakeIterator<Iterator<int64>, int64>" template=TakeIterator arguments=(Iterator<int64>, int64)
+/// @generic.instance id="TakeWhileIterator<Iterator<int64>, int64>" template=TakeWhileIterator arguments=(Iterator<int64>, int64)
+/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
+/// @generic.instance id=Array<int64> template=Array arguments=(int64)
+/// @generic.instance id=Iterable<int64> template=Iterable arguments=(int64)
+/// @generic.instance id=Iterator<int64> template=Iterator arguments=(int64)
+/// @generic.instance id=IteratorReturn<Iterator<int64>.Return> template=IteratorReturn arguments=(Iterator<int64>.Return)
+/// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
+/// @generic.instance id=IteratorYield<int64> template=IteratorYield arguments=(int64)
 "#,
     );
 }
 
-/// Compare a readonly view of an owned union field arm-wise.
+/// Compare a readonly view of an owned union field arm by arm.
 #[test]
 fn test_compare_readonly_owned_union_field() {
     let session = TestSession::single(
@@ -1087,7 +1092,7 @@ struct Holder<T> {
 /// @type.symbol symbol=Holder type=Holder
 /// @definition.struct symbol=Holder template=(in out T)
 /// @definition.field symbol=Holder.storage source="private storage: ^[T] | undefined = undefined" key=storage type=Owned<Slice<T>> | undefined
-/// @definition.method symbol=Holder.isInline slot=isInline role=getter type=<Holder.isInline.'a>(this: &Holder.isInline.'a readonly this) => boolean
+/// @definition.method symbol=Holder.isInline slot=isInline role=getter type=<Holder.isInline.'a, Holder.isInline.P1: Place>(this: Borrowed<this, Holder.isInline.'a & Holder.isInline.P1, "readonly">) => boolean
 /// @type.symbol symbol=Holder.T source=T type=T
 
     private storage: ^[T] | undefined = undefined;
@@ -1095,16 +1100,16 @@ struct Holder<T> {
     /// @resolution.name source=T target=Holder.T
 
     get isInline(): boolean {
-    /// @generic.template symbol=Holder.isInline parent=template#0 parameters=('a)
-    /// @type.symbol symbol=Holder.isInline type=<Holder.isInline.'a>(this: &Holder.isInline.'a readonly this) => boolean
+    /// @generic.template symbol=Holder.isInline parent=template#0 parameters=('a, P1: Place)
+    /// @type.symbol symbol=Holder.isInline type=<Holder.isInline.'a, Holder.isInline.P1: Place>(this: Borrowed<this, Holder.isInline.'a & Holder.isInline.P1, "readonly">) => boolean
 
         this.storage == undefined
-        /// @resolution.member source=this.storage receiver=&Holder.isInline.'a readonly Holder<T> type=Readonly<Owned<Slice<T>> | undefined> kind=field target_receiver=&Holder.isInline.'a readonly Holder<T> key=storage target=Holder.storage target_type=Readonly<Owned<Slice<T>> | undefined>
+        /// @resolution.member source=this.storage receiver=Borrowed<Holder<T>, Holder.isInline.'a & Holder.isInline.P1, "readonly"> type=Readonly<Owned<Slice<T>> | undefined> kind=field target_receiver=Borrowed<Holder<T>, Holder.isInline.'a & Holder.isInline.P1, "readonly"> key=storage target=Holder.storage target_type=Readonly<Owned<Slice<T>> | undefined>
         /// @resolution.operator source="this.storage == undefined" type=boolean operator="==" kind=builtin operands=[this.storage as Owned<Slice<T>> | undefined, undefined as undefined families=(undefined)]
-        /// @resolution.receiver source=this kind=this declaration=Holder type=&Holder.isInline.'a readonly Holder<T>
-        /// @resolution.place source=this placement="local" lifetime=Holder.isInline.'a access="readonly"
+        /// @resolution.receiver source=this kind=this declaration=Holder type=Borrowed<Holder<T>, Holder.isInline.'a & Holder.isInline.P1, "readonly">
+        /// @resolution.place source=this placement=Holder.isInline.P1 lifetime=Holder.isInline.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.storage placement="local" lifetime=Holder.isInline.'a access="readonly"
+        /// @resolution.place source=this.storage placement=Holder.isInline.P1 lifetime=Holder.isInline.'a access="readonly"
         /// @resolution.access source=this.storage root=this keys=[storage]
 
     }
@@ -1149,11 +1154,12 @@ function build(): string {
 
     output += "x";
     /// @resolution.name source=output target=build.output
-    /// @resolution.operator source="output += \"x\"" type=Owned<string> operator="+" kind=call parameters=(string) arguments=(provided("x") as string) return=Owned<string> kind=symbol target=string.string.add receiver=string adjustments=(borrow(&'frame readonly string))
+    /// @resolution.operator source="output += \"x\"" type=Owned<string> operator="+" kind=call parameters=(string) arguments=(provided("x") as string) return=Owned<string> kind=symbol target=add receiver=string adjustments=(borrow(&'frame readonly string)) instance="string.<extension#2>.add<\"local\">"
     /// @resolution.pattern.assign source=output kind=place
     /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
     /// @resolution.assignment source=output read=binding(build.output) write=binding(build.output) type=string
     /// @resolution.access source=output root=build.output
+    /// @generic.instantiation id="add<\"local\">" template=add arguments=("local")
 
     return output;
     /// @resolution.name source=output target=build.output

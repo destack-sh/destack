@@ -203,7 +203,7 @@ impl BodyState<'_, '_> {
                 target_value,
                 dir::MemberSpace::Instance,
             )?
-            .with_key_type(key_type);
+            .with_key_source(key_type);
         self.module_mut(node.module_id)
             .members_tail
             .commit_subject(dir::MemberSite::Node(node.into_any()), subject);
@@ -557,7 +557,7 @@ impl BodyState<'_, '_> {
         let key_type = self.intern_object(spread_fields)?;
         let subject = self
             .member_subject(site.origin(), spread, spread, dir::MemberSpace::Instance)?
-            .with_key_type(key_type);
+            .with_key_source(key_type);
         self.module_mut(property.module_id)
             .members_tail
             .commit_subject(dir::MemberSite::Node(property), subject);

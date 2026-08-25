@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 
 use crate::sema::{
     CheckState, ExpectedType, FlowPredicate, Obligation, PatternCoverage,
-    PatternCoverageObligation, WalkState,
+    PatternCoverageObligation, ElisionSite, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -25,6 +25,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
+        // walk the pattern and its annotation
         let matched = self.walk_declarator_pattern(declarator, binding_kind, is_ambient)?;
 
         // walk matched value
@@ -75,12 +76,14 @@ impl WalkState<'_, '_> {
             });
         };
 
+        // walk each declarator that carries a declared type
         for id in declarators {
             let declarator = self.tree.get(id).clone();
             if !self.declare_decorators(id.into_any())? {
                 continue;
             }
 
+            // read whether the binding leaves this module
             let exported = self
                 .declared_symbol(declarator.pattern.into_any())
                 .is_some_and(|symbol| {
@@ -102,9 +105,11 @@ impl WalkState<'_, '_> {
             if infers {
                 self.check
                     .report_missing_export_binding_type(self.module, declarator.pattern.into_any());
+
                 continue;
             }
 
+            // walk the pattern and its annotation
             self.walk_declarator_pattern(&declarator, Some(kind), is_ambient)?;
 
             // exported bindings without annotations keep literal values only
@@ -150,8 +155,8 @@ impl WalkState<'_, '_> {
         // walk the declared pattern type
         let matched = match declarator.ty {
             Some(_) if declared_row && !self.check.is_declaring() => None,
-            Some(annotation) => Some(match is_ambient {
-                true => self.walk_static_type_expression(annotation)?,
+            Some(annotation) => Some(match is_ambient || self.check.is_declaring() {
+                true => self.walk_type_expression_in(annotation, ElisionSite::Module)?,
                 false => self.walk_type_expression(annotation)?,
             }),
             None => None,
@@ -395,6 +400,7 @@ impl CheckState<'_> {
         match tree.get(expression) {
             // 1, "text", true
             dir::Expression::Literal(_) => true,
+            // `text`
             dir::Expression::TemplateExpression {
                 value: dir::TemplateLiteral::String { .. },
             } => true,
@@ -434,7 +440,7 @@ impl CheckState<'_> {
                     _ => false,
                 })
             }
-            // Position { x: 1, y: 2 }, the head names the transcribed type
+            // Position { x: 1, y: 2 }, the head names the type
             dir::Expression::StructExpression { properties, .. } => {
                 properties.iter().all(|property| match tree.get(*property) {
                     dir::Property::Field { value, .. } => {

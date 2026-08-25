@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A Concrete bound allows a layout query on the bounded parameter.
 #[test]
 fn test_concrete_bound_enables_layout_query() {
     let session = TestSession::single(
@@ -32,14 +33,14 @@ function storageSize<T: Concrete>(): usize {
 /// @generic.template symbol=storageSize parameters=(T: Concrete)
 /// @type.symbol symbol=storageSize type=<T: Concrete>() => usize
 /// @type.symbol symbol=storageSize.T source="T: Concrete" type=T
-/// @resolution.name source=Concrete target=memory.capability.Concrete
+/// @resolution.name source=Concrete target=Concrete
 
     const size = const sizeOf<T>();
     /// @type.symbol symbol=storageSize.size source=size type=usize
     /// @resolution.pattern source=size kind=binding target=storageSize.size
-    /// @resolution.name source=sizeOf target=reflect.type.sizeOf
-    /// @resolution.call source=sizeOf<T>() parameters=() return=usize kind=symbol target=reflect.type.sizeOf instance=sizeOf<T>
-    /// @generic.instantiation id=sizeOf<T> template=reflect.type.sizeOf arguments=(T) owner=storageSize
+    /// @resolution.name source=sizeOf target=sizeOf
+    /// @resolution.call source=sizeOf<T>() parameters=() return=usize kind=symbol target=sizeOf instance=sizeOf<T>
+    /// @generic.instantiation id=sizeOf<T> template=sizeOf arguments=(T) owner=storageSize
     /// @resolution.name source=T target=storageSize.T
 
     return size;
@@ -55,17 +56,18 @@ const size = storageSize<int32>();
 /// @resolution.name source=storageSize target=storageSize
 /// @resolution.call source=storageSize<int32>() parameters=() return=usize kind=symbol target=storageSize instance=storageSize<int32>
 /// @generic.instantiation id=storageSize<int32> template=storageSize arguments=(int32)
-/// @generic.instance id=sizeOf<int32> template=reflect.type.sizeOf arguments=(int32)
+/// @generic.instance id=sizeOf<int32> template=sizeOf arguments=(int32)
 /// @generic.instance id=storageSize<int32> template=storageSize arguments=(int32)
 
 size satisfies usize;
 /// @resolution.name source=size target=size
-/// @resolution.place source=size placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=size placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=size root=size
 "#,
     );
 }
 
+/// A newtype over a union of structs has a concrete layout.
 #[test]
 fn test_newtype_union_has_concrete_layout() {
     let session = TestSession::single(
@@ -139,22 +141,23 @@ newtype Shape = Circle | Rectangle;
 const size = const sizeOf<Shape>();
 /// @type.symbol symbol=size source=size type=usize
 /// @resolution.pattern source=size kind=binding target=size
-/// @resolution.name source=sizeOf target=reflect.type.sizeOf
-/// @resolution.call source=sizeOf<Shape>() parameters=() return=usize kind=symbol target=reflect.type.sizeOf instance=sizeOf<Shape>
-/// @generic.instantiation id=sizeOf<Shape> template=reflect.type.sizeOf arguments=(Shape)
-/// @generic.instance id=sizeOf<Shape> template=reflect.type.sizeOf arguments=(Shape)
+/// @resolution.name source=sizeOf target=sizeOf
+/// @resolution.call source=sizeOf<Shape>() parameters=() return=usize kind=symbol target=sizeOf instance=sizeOf<Shape>
+/// @generic.instantiation id=sizeOf<Shape> template=sizeOf arguments=(Shape)
+/// @generic.instance id=sizeOf<Shape> template=sizeOf arguments=(Shape)
 /// @resolution.name source=Shape target=Shape
 
 size satisfies usize;
 /// @resolution.name source=size target=size
-/// @resolution.place source=size placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=size placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=size root=size
 "#,
     );
 }
 
+/// A Dynamic over an interface has a concrete layout.
 #[test]
-fn test_dynamic_wrapper_has_concrete_layout() {
+fn test_dynamic_has_concrete_layout() {
     let session = TestSession::single(
         r#"
 interface Writer {
@@ -187,33 +190,34 @@ interface Writer {
     write(bytes: readonly uint8[]): uint;
     /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): uint" type=(this: Writer, readonly uint8[]) => uint64
     /// @type.symbol symbol=Writer.write.bytes source="bytes: readonly uint8[]" type=readonly uint8[]
-    /// @generic.instance id=Array<uint8> template=collections.array.Array arguments=(uint8)
-    /// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<uint8>> template=collections.slice.new arguments=(memory.init.MaybeUninit<uint8>)
-    /// @generic.instance id=memory.init.MaybeUninit<uint8> template=memory.init.MaybeUninit arguments=(uint8)
+    /// @generic.instance id=Array<uint8> template=Array arguments=(uint8)
+    /// @generic.instance id=MaybeUninit<uint8> template=MaybeUninit arguments=(uint8)
+    /// @generic.instance id=new<MaybeUninit<uint8>> template=new arguments=(MaybeUninit<uint8>)
 
 }
 
 const size = const sizeOf<Dynamic<Writer>>();
 /// @type.symbol symbol=size source=size type=usize
 /// @resolution.pattern source=size kind=binding target=size
-/// @resolution.name source=sizeOf target=reflect.type.sizeOf
-/// @resolution.call source=sizeOf<Dynamic<Writer>>() parameters=() return=usize kind=symbol target=reflect.type.sizeOf instance=sizeOf<Dynamic<Writer>>
-/// @generic.instantiation id=sizeOf<Dynamic<Writer>> template=reflect.type.sizeOf arguments=(Dynamic<Writer>)
-/// @generic.instance id=sizeOf<Dynamic<Writer>> template=reflect.type.sizeOf arguments=(Dynamic<Writer>)
-/// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
-/// @generic.instance id=Dynamic<Writer> template=memory.dynamic.Dynamic arguments=(Writer)
+/// @resolution.name source=sizeOf target=sizeOf
+/// @resolution.call source=sizeOf<Dynamic<Writer>>() parameters=() return=usize kind=symbol target=sizeOf instance=sizeOf<Dynamic<Writer>>
+/// @generic.instantiation id=sizeOf<Dynamic<Writer>> template=sizeOf arguments=(Dynamic<Writer>)
+/// @generic.instance id=sizeOf<Dynamic<Writer>> template=sizeOf arguments=(Dynamic<Writer>)
+/// @resolution.name source=Dynamic target=Dynamic
+/// @generic.instance id=Dynamic<Writer> template=Dynamic arguments=(Writer)
 /// @resolution.name source=Writer target=Writer
 
 size satisfies usize;
 /// @resolution.name source=size target=size
-/// @resolution.place source=size placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=size placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=size root=size
 "#,
     );
 }
 
+/// A Dynamic accepts an anonymous object type as its constraint.
 #[test]
-fn test_dynamic_wrapper_accepts_anonymous_constraint() {
+fn test_dynamic_accepts_anonymous_constraint() {
     let session = TestSession::single(
         r#"
 type Writer = {
@@ -240,9 +244,9 @@ size satisfies usize;
 === dir ===
 type Writer = {
 /// @type.symbol symbol=Writer type={ write(readonly uint8[]): uint64 }
-/// @generic.instance id=Array<uint8> template=collections.array.Array arguments=(uint8)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<uint8>> template=collections.slice.new arguments=(memory.init.MaybeUninit<uint8>)
-/// @generic.instance id=memory.init.MaybeUninit<uint8> template=memory.init.MaybeUninit arguments=(uint8)
+/// @generic.instance id=Array<uint8> template=Array arguments=(uint8)
+/// @generic.instance id=MaybeUninit<uint8> template=MaybeUninit arguments=(uint8)
+/// @generic.instance id=new<MaybeUninit<uint8>> template=new arguments=(MaybeUninit<uint8>)
 /// @definition.type symbol=Writer value={ write(readonly uint8[]): uint64 }
 
     write(bytes: readonly uint8[]): uint;
@@ -253,24 +257,25 @@ type Writer = {
 const size = const sizeOf<Dynamic<Writer>>();
 /// @type.symbol symbol=size source=size type=usize
 /// @resolution.pattern source=size kind=binding target=size
-/// @resolution.name source=sizeOf target=reflect.type.sizeOf
-/// @resolution.call source=sizeOf<Dynamic<Writer>>() parameters=() return=usize kind=symbol target=reflect.type.sizeOf instance=sizeOf<Dynamic<Writer>>
-/// @generic.instantiation id=sizeOf<Dynamic<Writer>> template=reflect.type.sizeOf arguments=(Dynamic<Writer>)
-/// @generic.instance id=sizeOf<Dynamic<Writer>> template=reflect.type.sizeOf arguments=(Dynamic<Writer>)
-/// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
-/// @generic.instance id=Dynamic<Writer> template=memory.dynamic.Dynamic arguments=(Writer)
+/// @resolution.name source=sizeOf target=sizeOf
+/// @resolution.call source=sizeOf<Dynamic<Writer>>() parameters=() return=usize kind=symbol target=sizeOf instance=sizeOf<Dynamic<Writer>>
+/// @generic.instantiation id=sizeOf<Dynamic<Writer>> template=sizeOf arguments=(Dynamic<Writer>)
+/// @generic.instance id=sizeOf<Dynamic<Writer>> template=sizeOf arguments=(Dynamic<Writer>)
+/// @resolution.name source=Dynamic target=Dynamic
+/// @generic.instance id=Dynamic<Writer> template=Dynamic arguments=(Writer)
 /// @resolution.name source=Writer target=Writer
 
 size satisfies usize;
 /// @resolution.name source=size target=size
-/// @resolution.place source=size placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=size placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=size root=size
 "#,
     );
 }
 
+/// A Dynamic over a generic signature reports a diagnostic.
 #[test]
-fn test_dynamic_wrapper_requires_dynamic_safe_constraint() {
+fn test_dynamic_requires_dynamic_safe_constraint() {
     let session = TestSession::single(
         r#"
 declare const value: Dynamic<<T>(input: T) => T>;
@@ -288,7 +293,7 @@ declare const value: Dynamic<<T>(input: T) => T>;
 declare const value: Dynamic<<T>(input: T) => T>;
 /// @type.symbol symbol=value source=value type=Dynamic<Function<(T,), T>>
 /// @resolution.pattern source=value kind=binding target=value
-/// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
+/// @resolution.name source=Dynamic target=Dynamic
 /// @generic.template source=type_expression parameters=(T)
 /// @type.symbol symbol=T source=T type=T
 /// @type.symbol symbol=input source="input: T" type=T
@@ -304,6 +309,7 @@ declare const value: Dynamic<<T>(input: T) => T>;
     );
 }
 
+/// A function returning a union alias keeps the declared alias.
 #[test]
 fn test_alias_return_preserves_declared_union_type() {
     let session = TestSession::single(
@@ -402,6 +408,7 @@ makeCircle() satisfies Shape;
     );
 }
 
+/// A function returning a newtype over a union constructs it from either variant.
 #[test]
 fn test_newtype_return_allows_multiple_variants() {
     let session = TestSession::single(
@@ -538,6 +545,7 @@ makeShape(true) satisfies Shape;
     );
 }
 
+/// A function returning a union alias accepts a value of each member.
 #[test]
 fn test_alias_return_accepts_each_union_member() {
     let session = TestSession::single(

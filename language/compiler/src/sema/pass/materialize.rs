@@ -10,6 +10,7 @@ use crate::sema::{CheckState, Origin};
 impl CheckState<'_> {
     /// Run the materialize pass: evaluate open computations and close instances.
     pub(in crate::sema) fn run_materialize(&mut self) -> CompilerResult<()> {
+        // load the external modules this module reads
         self.import_external_modules()?;
 
         // materialize the module's own types, then the instances they reach
@@ -35,6 +36,7 @@ impl CheckState<'_> {
             let Some(source) = self.module.definition_source_maybe(symbol) else {
                 continue;
             };
+
             let origin = Origin::Node(source, None);
             let mut resolved = definition.clone();
             dir::TypeFold::map_types(&mut resolved, &mut |ty| -> CompilerResult<_> {
@@ -44,15 +46,19 @@ impl CheckState<'_> {
                     return Ok(ty);
                 }
 
-                // evaluate only computation results, keeping written alias spellings
+                // evaluate only computation results, keeping written aliases as written
                 let resolved = match self.has_reachable_computation(ty)? {
                     true => self.evaluate_type(origin, ty)?,
                     false => ty,
                 };
+
+                // intern the concrete applications the evaluated type reaches
                 self.intern_applications(resolved, source, 0, worklist)?;
 
                 Ok(resolved)
             })?;
+
+            // override only the definitions evaluation moves
             if resolved != definition {
                 self.module
                     .definitions_tail
@@ -85,7 +91,7 @@ impl CheckState<'_> {
                 continue;
             };
 
-            // evaluate only computation results, keeping written alias spellings
+            // evaluate only computation results, keeping written aliases as written
             let mut resolved = ty;
             if self.has_reachable_computation(ty)? {
                 let origin = Origin::Node(source, None);
@@ -115,7 +121,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // evaluate only computation results, keeping written alias spellings
+            // evaluate only computation results, keeping written aliases as written
             let mut resolved = ty;
             if self.has_reachable_computation(ty)? {
                 let origin = Origin::Node(node, None);
@@ -164,15 +170,21 @@ impl CheckState<'_> {
         let Some(template_id) = self.symbol_template(symbol)? else {
             return Ok(false);
         };
+
         let Some(template) = self.generic_template(template_id) else {
             return Ok(false);
         };
+
         let parameters = template.parameters.clone();
 
-        // any parameter beyond a lifetime makes the symbol generic
+        // any parameter beyond the memory kinds makes the symbol generic,
+        //  since semantic identity is region and space free
         for parameter in parameters {
             let parameter = parameter.into_global(template_id.module_id);
-            if !self.is_lifetime_parameter(parameter) {
+            let is_memory = self
+                .generic_parameter(parameter)
+                .is_some_and(|binding| binding.memory_parameter().is_some());
+            if !is_memory {
                 return Ok(true);
             }
         }

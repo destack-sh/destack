@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// An indexed access projects the type of an object property.
 #[test]
 fn test_indexed_access_projects_object_property_type() {
     let session = TestSession::single(
@@ -39,6 +40,7 @@ declare const name: Name;
     );
 }
 
+/// An indexed access projects an object property named by a usize key.
 #[test]
 fn test_indexed_access_projects_usize_object_key() {
     let session = TestSession::single(
@@ -78,6 +80,7 @@ declare const value: Right;
     );
 }
 
+/// An indexed access with a missing usize key reports a diagnostic.
 #[test]
 fn test_indexed_access_rejects_missing_usize_object_key() {
     let session = TestSession::single(
@@ -112,6 +115,7 @@ type Missing = ObjectLike[5];
     );
 }
 
+/// An indexed access on a scalar receiver reports a diagnostic.
 #[test]
 fn test_indexed_access_rejects_non_indexable_receiver() {
     let session = TestSession::single(
@@ -139,6 +143,7 @@ type Missing = int32["name"];
     );
 }
 
+/// An indexed access over a union of keys projects the union of their values.
 #[test]
 fn test_indexed_access_projects_key_union() {
     let session = TestSession::single(
@@ -178,6 +183,7 @@ declare const value: Value;
     );
 }
 
+/// A value outside the projected key union reports a diagnostic.
 #[test]
 fn test_indexed_access_key_union_rejects_unselected_value() {
     let session = TestSession::single(
@@ -222,6 +228,7 @@ const bad: Value = true;
     );
 }
 
+/// An indexed access distributes over each arm of a union receiver.
 #[test]
 fn test_indexed_access_distributes_over_union_values() {
     let session = TestSession::single(
@@ -275,6 +282,7 @@ const text: Value = "hello";
     );
 }
 
+/// An indexed access over an optional union member includes undefined.
 #[test]
 fn test_indexed_access_optional_union_member_includes_undefined() {
     let session = TestSession::single(
@@ -328,6 +336,7 @@ const text: Value = "hello";
     );
 }
 
+/// An unrelated value reports a diagnostic at an optional union member projection.
 #[test]
 fn test_indexed_access_optional_union_member_rejects_unrelated_value() {
     let session = TestSession::single(
@@ -372,6 +381,7 @@ const bad: Value = true;
     );
 }
 
+/// An indexed access with a missing object key reports a diagnostic.
 #[test]
 fn test_indexed_access_rejects_missing_object_key() {
     let session = TestSession::single(
@@ -406,6 +416,7 @@ type Missing = User["missing"];
     );
 }
 
+/// An indexed access projects the type at a tuple position.
 #[test]
 fn test_indexed_access_projects_tuple_position() {
     let session = TestSession::single(
@@ -445,6 +456,7 @@ declare const first: First;
     );
 }
 
+/// An indexed access with a usize key projects the element of an array.
 #[test]
 fn test_indexed_access_projects_dynamic_array_element() {
     let session = TestSession::single(
@@ -472,9 +484,9 @@ type Element<T: string[]> = T[usize];
 /// @type.symbol symbol=Element source="type Element<T: string[]> = T[usize]" type=T[usize]
 /// @definition.type symbol=Element source="type Element<T: string[]> = T[usize]" template=(T: string[]) value=T[usize]
 /// @type.symbol symbol=Element.T source="T: string[]" type=T
-/// @generic.instance id=Array<string> template=collections.array.Array arguments=(string)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<string>> template=collections.slice.new arguments=(memory.init.MaybeUninit<string>)
-/// @generic.instance id=memory.init.MaybeUninit<string> template=memory.init.MaybeUninit arguments=(string)
+/// @generic.instance id=Array<string> template=Array arguments=(string)
+/// @generic.instance id=MaybeUninit<string> template=MaybeUninit arguments=(string)
+/// @generic.instance id=new<MaybeUninit<string>> template=new arguments=(MaybeUninit<string>)
 /// @resolution.name source=T target=Element.T
 
 type Value = Element<string[]>;
@@ -490,6 +502,7 @@ declare const value: Value;
     );
 }
 
+/// A generic indexed access projects through a key bounded by keyof.
 #[test]
 fn test_generic_indexed_access_projects_key_constraint() {
     let session = TestSession::single(
@@ -542,6 +555,7 @@ declare const name: Name;
     );
 }
 
+/// A generic indexed access with an unbounded key reports a diagnostic.
 #[test]
 fn test_generic_indexed_access_rejects_unconstrained_key() {
     let session = TestSession::single(
@@ -574,6 +588,7 @@ type ValueAt<T, K> = T[K];
     );
 }
 
+/// A keyof-bounded parameter indexes an object and keeps each value type.
 #[test]
 fn test_generic_keyof_parameter_indexes_object_value() {
     let session = TestSession::single(
@@ -692,19 +707,20 @@ name satisfies string;
 /// @type.node source="name satisfies string" type=string
 /// @type.node source=name type=string
 /// @resolution.name source=name target=name
-/// @resolution.place source=name placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=name placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=name root=name
 
 age satisfies int32;
 /// @type.node source="age satisfies int32" type=int32
 /// @type.node source=age type=int32
 /// @resolution.name source=age target=age
-/// @resolution.place source=age placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=age placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=age root=age
 "#,
     );
 }
 
+/// An indexed access on an optional field includes undefined.
 #[test]
 fn test_indexed_access_optional_field_includes_undefined() {
     let session = TestSession::single(
@@ -744,6 +760,7 @@ declare const name: Name;
     );
 }
 
+/// An indexed access projects the value type of an index signature.
 #[test]
 fn test_indexed_access_projects_index_signature_value() {
     let session = TestSession::single(
@@ -783,6 +800,7 @@ declare const value: Value;
     );
 }
 
+/// A keyof over tuples and arrays reduces to their position keys.
 #[test]
 fn test_keyof_reduces_tuple_and_array_keys() {
     let session = TestSession::single(

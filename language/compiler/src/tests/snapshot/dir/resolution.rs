@@ -285,6 +285,7 @@ fn builtin_operand_label(
     format!("{source} as {ty} families=({families})")
 }
 
+/// Add one name resolution row.
 fn add_name_resolution_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
@@ -627,6 +628,7 @@ fn add_function_decision_row(
     }
 }
 
+/// Add one call decision row.
 fn add_call_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
@@ -939,14 +941,14 @@ fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projecti
         }
         dir::Projection::Borrow { access, ty } => {
             let access = access
-                .map(|access| dir::MemoryLiteral::Access(access).text().to_string())
+                .map(|access| access.text().to_string())
                 .unwrap_or_else(|| "inferred".to_string());
 
             format!("borrow({access}, {})", builder.global_type_label(*ty))
         }
         dir::Projection::Move { access, ty } => {
             let access = access
-                .map(|access| dir::MemoryLiteral::Access(access).text().to_string())
+                .map(|access| access.text().to_string())
                 .unwrap_or_else(|| "inferred".to_string());
 
             format!("move({access}, {})", builder.global_type_label(*ty))

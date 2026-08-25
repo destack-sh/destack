@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Lifetimes write through a generic bound that names a type declared later.
 #[test]
 fn test_write_lifetimes_through_a_forward_generic_bound() {
     let session = TestSession::single(
@@ -26,7 +27,7 @@ interface Holder<'a, in out T: View<'a>> {
 }
 
 struct View<'a> {
-    user: &'a readonly User;
+    user: Borrowed<User, 'a, "readonly">;
 }
 
 struct User {}
@@ -70,6 +71,7 @@ struct User {}
     );
 }
 
+/// Lifetimes write through a declaration cycle that spans modules.
 #[test]
 fn test_write_lifetimes_through_a_cross_module_declaration_cycle() {
     let compiler = TestSession::builder()
@@ -141,7 +143,7 @@ export struct Bar<'a> {
 }
 
 export struct Baz<'a> {
-    user: &'a readonly User;
+    user: Borrowed<User, 'a, "readonly">;
 }
 
 export struct User {}
@@ -184,6 +186,7 @@ export struct User {}
     );
 }
 
+/// An imported generic type accepts a locally declared type argument.
 #[test]
 fn test_imported_generic_type_accepts_local_type_argument() {
     let compiler = TestSession::builder()
@@ -252,6 +255,7 @@ type Wrapped<T> = Box<T>;
     );
 }
 
+/// A generic newtype interface extends another generic interface.
 #[test]
 fn test_generic_newtype_interface_extends_generic_interface() {
     let compiler = TestSession::builder()
@@ -334,6 +338,7 @@ type Used = Equal<string>;
     );
 }
 
+/// An imported generic function instantiates in the calling module.
 #[test]
 fn test_imported_generic_function_instantiates_in_calling_module() {
     let compiler = TestSession::builder()
@@ -420,6 +425,7 @@ const text = identity("x");
     );
 }
 
+/// An imported generic function without a result annotation reports a diagnostic.
 #[test]
 fn test_reject_imported_generic_function_without_result_type() {
     let compiler = TestSession::builder()
@@ -480,6 +486,7 @@ const text = identity("x");
     );
 }
 
+/// A defaulted parameter fills the argument an annotation omits.
 #[test]
 fn test_defaulted_parameter_fills_omitted_annotation_argument() {
     let session = TestSession::single(
@@ -531,13 +538,14 @@ const value = probe(todo("iter"));
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=probe target=probe
 /// @resolution.call source="probe(todo(\"iter\"))" parameters=(Iter<int32, unknown>) arguments=(provided(todo("iter")) as Iter<int32, unknown>) return=boolean kind=symbol target=probe
-/// @resolution.name source=todo target=error.panic.todo
-/// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
+/// @resolution.name source=todo target=todo
+/// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=todo
 "#,
         "",
     );
 }
 
+/// A defaulted parameter fills through a chain of reexports.
 #[test]
 fn test_defaulted_parameter_fills_through_reexport_chain() {
     let session = TestSession::builder()
@@ -623,12 +631,13 @@ const value = probe(todo("iter"));
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=probe target=probe
 /// @resolution.call source="probe(todo(\"iter\"))" parameters=(inner.Iter<int32>) arguments=(provided(todo("iter")) as inner.Iter<int32>) return=boolean kind=symbol target=probe
-/// @resolution.name source=todo target=error.panic.todo
-/// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
+/// @resolution.name source=todo target=todo
+/// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=todo
 "#,
     );
 }
 
+/// A defaulted parameter fills inside an import cycle.
 #[test]
 fn test_defaulted_parameter_fills_inside_import_cycle() {
     let session = TestSession::builder()
@@ -698,8 +707,8 @@ const value = probe(todo("iter"));
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=probe target=probe
 /// @resolution.call source="probe(todo(\"iter\"))" parameters=(b.Iter<int32>) arguments=(provided(todo("iter")) as b.Iter<int32>) return=boolean kind=symbol target=probe
-/// @resolution.name source=todo target=error.panic.todo
-/// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
+/// @resolution.name source=todo target=todo
+/// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=todo
 
 === b.ds ===
 
@@ -737,6 +746,7 @@ export interface Iter<T, in out R = unknown> {
     );
 }
 
+/// A generic struct pattern infers the arguments it omits.
 #[test]
 fn test_generic_struct_pattern_infers_omitted_arguments() {
     let session = TestSession::single(
@@ -822,13 +832,14 @@ const out = unwrap(built);
 /// @resolution.name source=unwrap target=unwrap
 /// @resolution.call source=unwrap(built) parameters=(Wrap<int64>) arguments=(provided(built) as Wrap<int64>) return=int64 kind=symbol target=unwrap
 /// @resolution.name source=built target=built
-/// @resolution.place source=built placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=built placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=built root=built
 "#,
         "",
     );
 }
 
+/// An imported struct holds a field typed by an imported function type alias.
 #[test]
 fn test_imported_struct_carries_a_function_type_alias() {
     let compiler = TestSession::builder()
@@ -873,7 +884,7 @@ export struct Attempt {
     module: string;
 }
 
-export type Predicate = (attempt: &'a readonly Attempt) => boolean;
+export type Predicate = (attempt: Borrowed<Attempt, 'a & P1, "readonly">) => boolean;
 
 export struct Trigger {
     predicate?: Predicate;
@@ -891,10 +902,10 @@ export struct Attempt {
 }
 
 export type Predicate = (attempt: &readonly Attempt) => boolean;
-/// @type.symbol symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" type=Function<(&type_expression.'a readonly Attempt,), boolean>
-/// @definition.type symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" value=Function<(&type_expression.'a readonly Attempt,), boolean>
-/// @generic.template source=type_expression parent=template#1 parameters=('a)
-/// @type.symbol symbol=Predicate.attempt source="attempt: &readonly Attempt" type=&type_expression.'a readonly Attempt
+/// @type.symbol symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" type=Function<(Borrowed<Attempt, type_expression.'a & type_expression.P1, "readonly">,), boolean>
+/// @definition.type symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" value=Function<(Borrowed<Attempt, type_expression.'a & type_expression.P1, "readonly">,), boolean>
+/// @generic.template source=type_expression parameters=('a, P1: Place)
+/// @type.symbol symbol=Predicate.attempt source="attempt: &readonly Attempt" type=Borrowed<Attempt, type_expression.'a & type_expression.P1, "readonly">
 /// @resolution.name source=Attempt target=Attempt
 
 export struct Trigger {
@@ -952,6 +963,7 @@ scenario.trigger satisfies Trigger;
     );
 }
 
+/// Alias defaults fill through reexported imports.
 #[test]
 fn test_fill_alias_defaults_through_reexported_imports() {
     let compiler = TestSession::builder()
@@ -1050,6 +1062,7 @@ const value = boxed.value;
     );
 }
 
+/// An unannotated exported function reports a diagnostic at its declaration.
 #[test]
 fn test_reject_unannotated_exported_function_at_its_declaration() {
     let session = TestSession::builder()

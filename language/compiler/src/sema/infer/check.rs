@@ -315,14 +315,14 @@ impl BodyState<'_, '_> {
             dir::Expression::StructExpression { ty, properties } => {
                 let contextual = self.construction_value(origin, target)?;
                 let construct_target = self.select_construct_target(site, ty, contextual)?;
-                let carrier = match (expectation.relation, contextual) {
+                let representation = match (expectation.relation, contextual) {
                     (Relation::Satisfies, _) | (_, None) => construct_target,
                     (_, Some(_)) => self.replace_form_value(origin, target, construct_target)?,
                 };
                 let check = self.select_property_merge(
                     site,
                     &properties.into_iter().collect::<SmallVec<[_; 4]>>(),
-                    Some(carrier),
+                    Some(representation),
                 )?;
 
                 Ok(CheckAttempt::Checked(ValueCheck {

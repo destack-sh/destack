@@ -51,9 +51,10 @@ const managedLeft = text + fresh();
 /// @type.symbol symbol=managedLeft source=managedLeft type=string
 /// @resolution.pattern source=managedLeft kind=binding target=managedLeft
 /// @resolution.name source=text target=text
-/// @resolution.operator source="text + fresh()" type=Owned<string> operator="+" kind=call parameters=(string) arguments=(provided(fresh()) as string) return=Owned<string> kind=symbol target=string.string.add receiver=string adjustments=(borrow(&'static readonly string))
+/// @resolution.operator source="text + fresh()" type=Owned<string> operator="+" kind=call parameters=(string) arguments=(provided(fresh()) as string) return=Owned<string> kind=symbol target=add receiver=string adjustments=(borrow(&'static readonly string)) instance="string.<extension#2>.add<\"local\">"
 /// @resolution.place source=text placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=text root=text
+/// @generic.instantiation id="add<\"local\">" template=add arguments=("local")
 /// @coercion.node source="text + fresh()" from=Owned<string> adjustments=[{ kind: manage, target: string }] origin=implicit
 /// @resolution.name source=fresh target=fresh
 /// @resolution.call source=fresh() parameters=() return=Owned<string> kind=symbol target=fresh
@@ -63,7 +64,7 @@ const ownedLeft = fresh() + text;
 /// @resolution.pattern source=ownedLeft kind=binding target=ownedLeft
 /// @resolution.name source=fresh target=fresh
 /// @resolution.call source=fresh() parameters=() return=Owned<string> kind=symbol target=fresh
-/// @resolution.operator source="fresh() + text" type=Owned<string> operator="+" kind=call parameters=(string) arguments=(provided(text) as string) return=Owned<string> kind=symbol target=string.string.add receiver=Owned<string> adjustments=(borrow(&'frame readonly Owned<string>))
+/// @resolution.operator source="fresh() + text" type=Owned<string> operator="+" kind=call parameters=(string) arguments=(provided(text) as string) return=Owned<string> kind=symbol target=add receiver=Owned<string> adjustments=(borrow(&'frame readonly Owned<string>)) instance="string.<extension#2>.add<\"local\">"
 /// @coercion.node source="fresh() + text" from=Owned<string> adjustments=[{ kind: manage, target: string }] origin=implicit
 /// @resolution.name source=text target=text
 /// @resolution.place source=text placement="local" lifetime="static" access="exclusive"
@@ -74,7 +75,7 @@ const bothOwned = fresh() + fresh();
 /// @resolution.pattern source=bothOwned kind=binding target=bothOwned
 /// @resolution.name source=fresh target=fresh
 /// @resolution.call source=fresh() parameters=() return=Owned<string> kind=symbol target=fresh
-/// @resolution.operator source="fresh() + fresh()" type=Owned<string> operator="+" kind=call parameters=(string) arguments=(provided(fresh()) as string) return=Owned<string> kind=symbol target=string.string.add receiver=Owned<string> adjustments=(borrow(&'frame readonly Owned<string>))
+/// @resolution.operator source="fresh() + fresh()" type=Owned<string> operator="+" kind=call parameters=(string) arguments=(provided(fresh()) as string) return=Owned<string> kind=symbol target=add receiver=Owned<string> adjustments=(borrow(&'frame readonly Owned<string>)) instance="string.<extension#2>.add<\"local\">"
 /// @coercion.node source="fresh() + fresh()" from=Owned<string> adjustments=[{ kind: manage, target: string }] origin=implicit
 /// @resolution.name source=fresh target=fresh
 /// @resolution.call source=fresh() parameters=() return=Owned<string> kind=symbol target=fresh
@@ -102,7 +103,7 @@ function append(target: string): string {
 
     result += fresh();
     /// @resolution.name source=result target=append.result
-    /// @resolution.operator source="result += fresh()" type=Owned<string> operator="+" kind=call parameters=(string) arguments=(provided(fresh()) as string) return=Owned<string> kind=symbol target=string.string.add receiver=string adjustments=(borrow(&'frame readonly string))
+    /// @resolution.operator source="result += fresh()" type=Owned<string> operator="+" kind=call parameters=(string) arguments=(provided(fresh()) as string) return=Owned<string> kind=symbol target=add receiver=string adjustments=(borrow(&'frame readonly string)) instance="string.<extension#2>.add<\"local\">"
     /// @resolution.pattern.assign source=result kind=place
     /// @resolution.assignment source=result read=binding(append.result) write=binding(append.result) type=string
     /// @resolution.access source=result root=append.result

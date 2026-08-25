@@ -241,7 +241,7 @@ impl MemberLookup {
         }
     }
 
-    /// Consume declaration candidates from a lookup without runtime alternatives.
+    /// Consume the declaration candidates from a lookup over declaration shapes alone.
     pub(in crate::sema) fn into_candidates(self) -> Option<Vec<MemberCandidate>> {
         match self {
             Self::Found(candidates) => Some(candidates),
@@ -447,7 +447,7 @@ impl MemberLookup {
         &mut self,
         constraint: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        // a compiler-defined field projection reads its union carrier directly
+        // a compiler-defined field projection reads its union representation directly
         if self.has_projection() {
             return Err(CompilerError::Internal {
                 message: "compiler-defined field projection selected dynamic dispatch".to_string(),
@@ -616,6 +616,11 @@ impl LookupReceiver {
 }
 
 impl MemberCandidate {
+    /// Return the declaration block this candidate answers for: its requirement or its owner.
+    pub(in crate::sema) fn declaring_block(&self) -> dir::GlobalSymbolId {
+        self.requirement.unwrap_or(self.owner)
+    }
+
     /// Return this candidate's selection precedence.
     pub(in crate::sema) fn precedence(&self) -> (bool, dir::MemberOrigin, bool) {
         let is_adjusted = match &self.receiver {
@@ -734,7 +739,7 @@ impl BodyState<'_, '_> {
         self.collect_subject_keys(
             origin,
             module,
-            subject.key_type,
+            subject.key_source,
             subject.space,
             &mut keys,
             &mut visited,
@@ -773,7 +778,7 @@ impl BodyState<'_, '_> {
                 .instantiate_response(origin, canonical, &response);
         }
 
-        // count each underived goal once, refusals apart from derivations
+        // count each derived goal, and each goal canonicalization refused
         if canonicalized.is_some() {
             self.check.counters.member_derivations += 1;
         } else {
@@ -793,7 +798,7 @@ impl BodyState<'_, '_> {
             &mut active_queries,
         )?;
 
-        // commit the decision folded canonical over its goal
+        // commit the decision under its canonical goal
         if let Some((goal, canonical)) = &canonicalized
             && lookup.is_canonical()
         {
@@ -810,7 +815,7 @@ impl BodyState<'_, '_> {
         Ok(lookup)
     }
 
-    /// Look up one non-extension member on a receiver type.
+    /// Look up one inherent member on a receiver type.
     pub(in crate::sema) fn lookup_inherent_member(
         &mut self,
         origin: Origin,
@@ -916,7 +921,6 @@ impl BodyState<'_, '_> {
             origin, module, receiver, subject, space, key, extensions, active,
         );
         active.swap_remove(&query);
-
         lookup
     }
 
@@ -988,7 +992,7 @@ impl BodyState<'_, '_> {
             | dir::Type::FixedArray(_)
             | dir::Type::Function(_)
             | dir::Type::FunctionSignature(_) => {
-                // widen literal subjects to their carrier before lookup
+                // widen literal subjects to their representation before lookup
                 let subject = match self.ty(subject)? {
                     dir::Type::Literal(literal) => self.intern_type(literal.widen())?,
                     _ => subject,
@@ -1232,24 +1236,28 @@ impl BodyState<'_, '_> {
                         lookup => lookup,
                     };
 
-                    // read a member of a kept union arm through the carrier beside it
+                    // read a member of a kept union arm through the representation beside it
                     let arm = self.replace_form_value(origin, receiver, element)?;
-                    for carrier in elements.iter().copied() {
-                        if carrier == element {
+                    for representation in elements.iter().copied() {
+                        if representation == element {
                             continue;
                         }
-                        let carrier = self.replace_form_value(origin, receiver, carrier)?;
-                        if let Some(steps) = self.project_carried_arm(origin, carrier, arm)? {
+                        let representation =
+                            self.replace_form_value(origin, receiver, representation)?;
+                        if let Some(steps) =
+                            self.project_carried_arm(origin, representation, arm)?
+                        {
                             for adjustment in steps.into_iter().rev() {
                                 lookup.prepend_adjustment(adjustment);
                             }
                             break;
                         }
                     }
+
                     lookups.push(lookup);
                 }
 
-                // answer directly from a sole element's lookup
+                // answer from a sole element, or intersect every element's lookup
                 let lookup = if lookups.is_empty() {
                     MemberLookup::Missing
                 } else if lookups.len() == 1 {
@@ -1301,7 +1309,7 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         extensions: ExtensionFilter,
     ) -> CompilerResult<MemberLookup> {
-        // consult the extensions of a structural subject without an owner
+        // consult the extensions rooted at a structural subject's constructor
         let Some(instance) = self.apparent_instance(lookup_type)? else {
             let value = self.strip_form(origin, lookup_type)?;
             if extensions == ExtensionFilter::Include
@@ -1363,6 +1371,7 @@ impl BodyState<'_, '_> {
             }
         }
 
+        // load the declaration's module before reading its members
         if !self.is_own_module(symbol.module_id) {
             self.import_external_module(symbol.module_id)?;
         }
@@ -1384,6 +1393,8 @@ impl BodyState<'_, '_> {
             }
             ExtensionFilter::Exclude => MemberLookup::Missing,
         };
+
+        // search the declaration's own interfaces when no extension matched
         if !lookup.is_found() && !is_alias {
             // search associated members through their declaring interface last
             let associated = self.lookup_associated_member(origin, receiver, space, key)?;
@@ -1400,7 +1411,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // aliased bodies answer whatever the root declaration lacks
+        // look the key up in the alias body when the root declaration missed it
         if !lookup.is_found()
             && let Some(body) = alias_body
         {
@@ -1494,15 +1505,15 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         lookups: &[MemberArmLookup],
     ) -> CompilerResult<Option<dir::Projection>> {
-        // require every selected element to belong to one physical union carrier
-        let (carrier, _) = self.project_newtype_receiver(origin, receiver)?;
-        let carrier = self.form_chain(origin, carrier)?.base();
-        let Some(carrier_arms) = self.union_arms(origin, carrier)? else {
+        // require every selected element to belong to one physical union representation
+        let (representation, _) = self.project_newtype_receiver(origin, receiver)?;
+        let representation = self.form_chain(origin, representation)?.base();
+        let Some(representation_arms) = self.union_arms(origin, representation)? else {
             return Ok(None);
         };
         if !elements
             .iter()
-            .all(|element| carrier_arms.contains(element))
+            .all(|element| representation_arms.contains(element))
         {
             return Ok(None);
         }
@@ -1524,7 +1535,7 @@ impl BodyState<'_, '_> {
                 return Ok(None);
             };
 
-            // reject a repeated value, which selects no single arm
+            // reject a repeated value, which matches several arms
             if cases
                 .iter()
                 .any(|case: &dir::DiscriminantCase| case.value == value)
@@ -1539,10 +1550,10 @@ impl BodyState<'_, '_> {
             types.push(ty);
         }
 
-        // preserve the semantic field type while keeping the physical mapping
+        // keep the declared field type beside the physical mapping
         let ty = self.normalized_union_type(types)?;
         let projection = dir::Projection::Discriminant {
-            union: carrier,
+            union: representation,
             key,
             cases,
             ty,
@@ -1608,6 +1619,8 @@ impl BodyState<'_, '_> {
                 }
             }
         }
+
+        // answer with the matched extension member
         if lookup.is_found() {
             return Ok(lookup);
         }
@@ -1630,7 +1643,7 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<MemberLookup> {
-        // the interfaces the compiler implements with members, in declaration order
+        // walk the interfaces the compiler implements with members, in declaration order
         let derived = dir::AutoInterface::all()
             .filter(|interface| interface.has_builtin_implementation() && !interface.is_marker());
         for interface in derived {
@@ -1656,6 +1669,8 @@ impl BodyState<'_, '_> {
             if !lookup.is_found() {
                 continue;
             }
+
+            // admit the member once the subject satisfies the interface
             match self.decide_auto_interface(origin, subject, interface)? {
                 Verdict::Holds => return Ok(lookup),
                 Verdict::Ambiguous => return Ok(MemberLookup::Ambiguous),
@@ -1778,6 +1793,7 @@ impl BodyState<'_, '_> {
                 None => continue,
             };
 
+            // read the member's written static value and the applied arguments
             let mut written = self.static_value(member.symbol);
             let mut generic_arguments = applied.bindings.to_vec();
 
@@ -1856,11 +1872,12 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<MemberLookup> {
-        // collect own members and heritage applications
+        // require the declaration's definition
         let Some(definition) = self.definition(instance.symbol)? else {
             return Ok(MemberLookup::Missing);
         };
 
+        // collect own members and heritage applications
         let members = definition
             .members_with_key(space, key)
             .cloned()
@@ -2042,12 +2059,13 @@ impl BodyState<'_, '_> {
                     ),
                 });
             }
-            // fail loudly on a canonical hole or rigid type outside the solver
+            // fail loudly on a canonical hole outside the solver
             dir::Type::Hole(hole) => {
                 return Err(CompilerError::Internal {
                     message: format!("member keys contain canonical hole ?{hole}"),
                 });
             }
+            // fail loudly on a canonical rigid type outside the solver
             dir::Type::Rigid(rigid) => {
                 return Err(CompilerError::Internal {
                     message: format!("member keys contain canonical rigid type ^{rigid}"),
@@ -2160,7 +2178,7 @@ impl BodyState<'_, '_> {
             | dir::Type::Null
             | dir::Type::Undefined
             | dir::Type::Key(_)
-            | dir::Type::Memory(_)
+            | dir::Type::Region(_)
             | dir::Type::Static(_)
             | dir::Type::Intrinsic
             | dir::Type::Erased(_)
@@ -2245,7 +2263,7 @@ impl BodyState<'_, '_> {
                 .extension_subject_candidates(
                     origin, module, subject, subject, extension, space, None,
                 )?
-                // a re-entered extension adds no keys at its own fixed point
+                // treat a re-entered extension as an empty key set at its fixed point
                 .unwrap_or_default();
             keys.extend(matched.iter().map(|(key, _)| *key));
         }
@@ -2265,7 +2283,7 @@ impl BodyState<'_, '_> {
         // collect the declaration's own member keys
         self.collect_definition_keys(symbol, space, keys)?;
 
-        // collect inherited keys through base declarations and interfaces
+        // read the base declarations and interfaces this declaration inherits
         let heritages = match self.definition(symbol)? {
             Some(definition) => {
                 let mut heritages = definition
@@ -2285,6 +2303,7 @@ impl BodyState<'_, '_> {
             None => SmallVec::new(),
         };
 
+        // collect the keys each heritage exposes
         for heritage in heritages {
             self.collect_subject_keys(
                 Origin::Symbol(symbol),

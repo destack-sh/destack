@@ -40,18 +40,21 @@ declare const right: Point;
 
 assert(true);
 assert(true, ((): string => "lazy assertion failure") as AssertionMessage | undefined);
-assertEqual<Point, Point>(left as &'static readonly Point, right as &'static readonly Point);
-assertEqual<Point, Point>(
+assertEqual<Point, Point, "constant", "constant">(
+    left as &'static readonly Point,
+    right as &'static readonly Point,
+);
+assertEqual<Point, Point, "constant", "constant">(
     left as &'static readonly Point,
     right as &'static readonly Point,
     ((): string => "lazy equality failure") as AssertionMessage | undefined,
 );
-assertNotEqual<Point, Point>(
+assertNotEqual<Point, Point, "constant", "constant">(
     left as &'static readonly Point,
     right as &'static readonly Point,
     "points must differ" as AssertionMessage | undefined,
 );
-assertNotEqual<Point, Point>(
+assertNotEqual<Point, Point, "constant", "constant">(
     left as &'static readonly Point,
     right as &'static readonly Point,
     ((): string => "lazy inequality failure") as AssertionMessage | undefined,

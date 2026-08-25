@@ -49,7 +49,7 @@ interface Person {
 let person: MutableFields<Person> = { name: "Ada", age: 42 };
 /// @type.symbol symbol=person source=person type={ name: string; age: int32 }
 /// @resolution.pattern source=person kind=binding target=person
-/// @resolution.name source=MutableFields target=types.object.MutableFields
+/// @resolution.name source=MutableFields target=MutableFields
 /// @resolution.name source=Person target=Person
 
 person.name = "Grace";
@@ -116,27 +116,27 @@ interface Person {
 const empty: MutableFields<Person> = {};
 /// @type.symbol symbol=empty source=empty type={ name?: string }
 /// @resolution.pattern source=empty kind=binding target=empty
-/// @resolution.name source=MutableFields target=types.object.MutableFields
+/// @resolution.name source=MutableFields target=MutableFields
 /// @resolution.name source=Person target=Person
 
 const named: MutableFields<Person> = { name: "Ada" };
 /// @type.symbol symbol=named source=named type={ name?: string }
 /// @resolution.pattern source=named kind=binding target=named
-/// @resolution.name source=MutableFields target=types.object.MutableFields
+/// @resolution.name source=MutableFields target=MutableFields
 /// @resolution.name source=Person target=Person
 
 empty satisfies MutableFields<Person>;
 /// @resolution.name source=empty target=empty
 /// @resolution.place source=empty placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=empty root=empty
-/// @resolution.name source=MutableFields target=types.object.MutableFields
+/// @resolution.name source=MutableFields target=MutableFields
 /// @resolution.name source=Person target=Person
 
 named satisfies MutableFields<Person>;
 /// @resolution.name source=named target=named
 /// @resolution.place source=named placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=named root=named
-/// @resolution.name source=MutableFields target=types.object.MutableFields
+/// @resolution.name source=MutableFields target=MutableFields
 /// @resolution.name source=Person target=Person
 "#,
     );
@@ -189,7 +189,7 @@ interface Person {
 let person: MutableFields<Person> = { profile: { name: "Ada" } };
 /// @type.symbol symbol=person source=person type={ profile: Readonly<{ name: string }> }
 /// @resolution.pattern source=person kind=binding target=person
-/// @resolution.name source=MutableFields target=types.object.MutableFields
+/// @resolution.name source=MutableFields target=MutableFields
 /// @resolution.name source=Person target=Person
 
 person.profile.name = "Grace";

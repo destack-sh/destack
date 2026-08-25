@@ -1296,6 +1296,9 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Render one foreign symbol label.
     fn foreign_symbol_label(&self, symbol_id: dir::GlobalSymbolId) -> String {
+        let is_library = self
+            .module_path(symbol_id.module_id)
+            .starts_with("destack://");
         let module = self.module_label(symbol_id.module_id);
         let symbol = if let Some(symbol) = self.cached_foreign_symbol_label(symbol_id) {
             symbol
@@ -1314,6 +1317,11 @@ impl<'a> DirSnapshotBuilder<'a> {
         } else {
             BindingSnapshotName::local_symbol(symbol_id.local_id)
         };
+
+        // library names stay bare: the library owns their uniqueness
+        if is_library {
+            return symbol;
+        }
 
         format!("{module}.{symbol}")
     }

@@ -25,7 +25,7 @@ const text: string = transform(1);
 declare const transform: Function<(int32,), string>;
 /// @type.symbol symbol=transform source=transform type=Function<(int32,), string>
 /// @resolution.pattern source=transform kind=binding target=transform
-/// @resolution.name source=Function target=types.function.Function
+/// @resolution.name source=Function target=Function
 
 const text = transform(1);
 /// @type.symbol symbol=text source=text type=string
@@ -67,14 +67,14 @@ const result: "left" | "right" = transform("value");
 declare const transform:
 /// @type.symbol symbol=transform source=transform type=Function<(string,), "left"> | Function<(string,), "right">
 /// @resolution.pattern source=transform kind=binding target=transform
-/// @generic.instance id="Function<(string,), \"left\", \"repeatable\">" template=types.function.Function arguments=((string,), "left", "repeatable")
-/// @generic.instance id="Function<(string,), \"right\", \"repeatable\">" template=types.function.Function arguments=((string,), "right", "repeatable")
+/// @generic.instance id="Function<(string,), \"left\", \"repeatable\">" template=Function arguments=((string,), "left", "repeatable")
+/// @generic.instance id="Function<(string,), \"right\", \"repeatable\">" template=Function arguments=((string,), "right", "repeatable")
 
     Function<(string,), "left"> |
-    /// @resolution.name source=Function target=types.function.Function
+    /// @resolution.name source=Function target=Function
 
     Function<(string,), "right">;
-    /// @resolution.name source=Function target=types.function.Function
+    /// @resolution.name source=Function target=Function
 
 const result = transform("value");
 /// @type.symbol symbol=result source=result type="left" | "right"
@@ -82,7 +82,7 @@ const result = transform("value");
 /// @type.node source="transform(\"value\")" type="left" | "right"
 /// @resolution.name source=transform target=transform
 /// @resolution.call source="transform(\"value\")" return="left" | "right" kind=union arms=[expression(parameters=(string), arguments=(provided("value") as string), return="left"), expression(parameters=(string), arguments=(provided("value") as string), return="right")]
-/// @resolution.place source=transform placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=transform placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=transform root=transform
 /// @type.node source="\"value\"" type="value"
 "#,
@@ -120,12 +120,12 @@ declare const transform:
 /// @resolution.pattern source=transform kind=binding target=transform
 
     (Function<(int32,), "common"> & Function<(int32,), "left">) |
-    /// @resolution.name source=Function target=types.function.Function
-    /// @resolution.name source=Function target=types.function.Function
+    /// @resolution.name source=Function target=Function
+    /// @resolution.name source=Function target=Function
 
     (Function<(int32,), "common"> & Function<(int32,), "right">);
-    /// @resolution.name source=Function target=types.function.Function
-    /// @resolution.name source=Function target=types.function.Function
+    /// @resolution.name source=Function target=Function
+    /// @resolution.name source=Function target=Function
 
 const result: "left" | "right" = transform(1);
 /// @type.symbol symbol=result source=result type="left" | "right"
@@ -133,7 +133,7 @@ const result: "left" | "right" = transform(1);
 /// @type.node source=transform(1) type="common"
 /// @resolution.name source=transform target=transform
 /// @resolution.call source=transform(1) return="common" kind=union arms=[expression(parameters=(int32), arguments=(provided(1) as int32), return="common"), expression(parameters=(int32), arguments=(provided(1) as int32), return="common")]
-/// @resolution.place source=transform placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=transform placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=transform root=transform
 /// @type.node source=1 type=1
 "#,
@@ -173,7 +173,7 @@ const value = 1;
 value();
 /// @type.node source=value() type=<error>
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 /// @resolution.rejected source=value()
 "#,

@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A number template span accepts decimal, exponent, and hexadecimal text.
 #[test]
 fn test_accept_numeric_string_forms_in_a_number_template_span() {
     let session = TestSession::single(
@@ -46,6 +47,7 @@ const hexadecimal: Numeric = "0x1";
     );
 }
 
+/// A text that names no number reports a diagnostic at a number span.
 #[test]
 fn test_reject_invalid_number_strings_in_a_number_template_span() {
     let session = TestSession::single(
@@ -83,6 +85,7 @@ const bad: Numeric = "NaN";
     );
 }
 
+/// A bigint template span accepts decimal, negative, and hexadecimal text.
 #[test]
 fn test_match_bigint_literals_in_a_bigint_template_span() {
     let session = TestSession::single(
@@ -129,6 +132,7 @@ const hexadecimal: Big = "0x1";
     );
 }
 
+/// A text outside the width reports a diagnostic at an int template span.
 #[test]
 fn test_reject_out_of_range_strings_in_an_int_template_span() {
     let session = TestSession::single(
@@ -166,6 +170,7 @@ const bad: Small = "128";
     );
 }
 
+/// A call through a number template span infers a number written in exponent form.
 #[test]
 fn test_infer_a_non_canonical_number_through_a_number_template_call() {
     let session = TestSession::single(
@@ -206,12 +211,13 @@ const value = parse("1e3");
 
 value satisfies number;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );
 }
 
+/// A text outside the width reports a diagnostic at an int template call.
 #[test]
 fn test_reject_an_out_of_range_span_in_an_int_template_call() {
     let session = TestSession::single(
@@ -253,6 +259,7 @@ parse("128");
     );
 }
 
+/// A call through a bigint template span infers the bigint literal.
 #[test]
 fn test_infer_a_bigint_literal_through_a_bigint_template_call() {
     let session = TestSession::single(
@@ -299,9 +306,9 @@ value satisfies -1n;
     );
 }
 
+/// A closed number span accepts every text naming its value.
 #[test]
-fn test_accept_an_equivalent_spelling_for_a_number_template_typed_binding() {
-    // a closed numeric span admits every spelling of its value
+fn test_accept_an_equivalent_written_form_for_a_number_template_typed_binding() {
     let session = TestSession::single(
         r#"
 const canonical: `${1000}` = "1000";
@@ -329,6 +336,7 @@ const exponent: `${1000}` = "1e3";
     );
 }
 
+/// A text naming another value reports a diagnostic at a closed number span.
 #[test]
 fn test_reject_another_value_for_a_number_template_typed_binding() {
     let session = TestSession::single(
@@ -357,7 +365,7 @@ const wrong: `${1000}` = "1001";
     );
 }
 
-/// Keep integer spans matching every integer spelling in the domain.
+/// Keep integer spans matching every written form of an integer in the domain.
 #[test]
 fn test_keep_integer_domain_spans_for_prefixed_numeric_strings() {
     let session = TestSession::single(

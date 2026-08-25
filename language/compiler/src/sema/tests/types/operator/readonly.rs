@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A readonly object rejects a write to a nested field.
 #[test]
 fn test_readonly_object_rejects_nested_field_writes() {
     let session = TestSession::single(
@@ -62,6 +63,7 @@ user.profile.name = "Grace";
     );
 }
 
+/// A readonly array binding accepts a mutable array.
 #[test]
 fn test_readonly_arrays_accept_mutable_arrays() {
     let session = TestSession::single(
@@ -87,9 +89,9 @@ frozen satisfies readonly number[];
 declare let values: number[];
 /// @type.symbol symbol=values source=values type=float64[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<float64> template=collections.array.Array arguments=(float64)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<float64>> template=collections.slice.new arguments=(memory.init.MaybeUninit<float64>)
-/// @generic.instance id=memory.init.MaybeUninit<float64> template=memory.init.MaybeUninit arguments=(float64)
+/// @generic.instance id=Array<float64> template=Array arguments=(float64)
+/// @generic.instance id=MaybeUninit<float64> template=MaybeUninit arguments=(float64)
+/// @generic.instance id=new<MaybeUninit<float64>> template=new arguments=(MaybeUninit<float64>)
 
 let frozen: readonly number[] = values;
 /// @type.symbol symbol=frozen source=frozen type=readonly float64[]
@@ -106,6 +108,7 @@ frozen satisfies readonly number[];
     );
 }
 
+/// A mutable array binding rejects a readonly array.
 #[test]
 fn test_readonly_arrays_reject_mutable_assignment() {
     let session = TestSession::single(
@@ -143,6 +146,7 @@ let bad: number[] = frozen;
     );
 }
 
+/// A readonly struct rejects a write to a nested field.
 #[test]
 fn test_readonly_struct_rejects_nested_field_writes() {
     let session = TestSession::single(
@@ -206,9 +210,9 @@ declare const user: readonly User;
 user.profile.name = "Grace";
 /// @resolution.name source=user target=user
 /// @resolution.member source=user.profile receiver=Readonly<User> type=Profile kind=field target_receiver=Readonly<User> key=profile target=User.profile target_type=Profile
-/// @resolution.place source=user placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=user placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=user root=user
-/// @resolution.place source=user.profile placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=user.profile placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=user.profile root=user keys=[profile]
 /// @resolution.pattern.assign source=user.profile.name kind=place
 /// @resolution.access source=user.profile.name root=user keys=[profile, name]

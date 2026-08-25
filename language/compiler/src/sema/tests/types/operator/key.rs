@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A keyof projects the keys an object type declares.
 #[test]
 fn test_keyof_projects_object_keys() {
     let session = TestSession::single(
@@ -39,6 +40,7 @@ declare const key: Keys;
     );
 }
 
+/// A keyof over a union projects the keys every arm declares.
 #[test]
 fn test_keyof_union_uses_shared_keys() {
     let session = TestSession::single(
@@ -85,6 +87,7 @@ declare const key: Keys;
     );
 }
 
+/// A key of one union arm reports a diagnostic against the shared keyof.
 #[test]
 fn test_keyof_union_rejects_arm_specific_key() {
     let session = TestSession::single(
@@ -136,6 +139,7 @@ const bad: Keys = "left";
     );
 }
 
+/// A keyof over an intersection projects the keys of both arms.
 #[test]
 fn test_keyof_intersection_includes_each_key() {
     let session = TestSession::single(
@@ -182,6 +186,7 @@ declare const key: Keys;
     );
 }
 
+/// A keyof over a generic alias projects the keys of its instantiated argument.
 #[test]
 fn test_keyof_generic_alias_uses_instantiated_keys() {
     let session = TestSession::single(
@@ -224,6 +229,7 @@ declare const key: Actual;
     );
 }
 
+/// A keyof includes optional and readonly field names.
 #[test]
 fn test_keyof_includes_optional_and_readonly_fields() {
     let session = TestSession::single(
@@ -263,6 +269,7 @@ declare const key: Keys;
     );
 }
 
+/// A keyof projects the field names a struct declares.
 #[test]
 fn test_keyof_projects_struct_fields() {
     let session = TestSession::single(
@@ -311,6 +318,7 @@ type Keys = keyof Point;
     );
 }
 
+/// A keyof projects the field and method names a class declares.
 #[test]
 fn test_keyof_projects_class_fields() {
     let session = TestSession::single(
@@ -347,23 +355,24 @@ class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string = \"\"" key=name type=string
-/// @definition.method symbol=User.print slot=print type=(this: User) => string
+/// @definition.method symbol=User.print slot=print type=<User.print.P0: Place>(this: Managed<User, User.print.P0>) => string
 
     name: string = "";
     /// @type.symbol symbol=User.name source="name: string = \"\"" type=string
     /// @type.node source="\"\"" type=""
 
     print(): string {
-    /// @type.symbol symbol=User.print type=(this: User) => string
+    /// @generic.template symbol=User.print parameters=(P0: Place)
+    /// @type.symbol symbol=User.print type=<User.print.P0: Place>(this: Managed<User, User.print.P0>) => string
 
         return this.name;
-        /// @type.node source=this type=User
-        /// @type.node source=this.name type=string
-        /// @resolution.member source=this.name receiver=User type=string kind=field target_receiver=User key=name target=User.name target_type=string
-        /// @resolution.receiver source=this kind=this declaration=User type=User
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @type.node source=this type=Managed<User, User.print.P0>
+        /// @type.node source=this.name type=Managed<string, User.print.P0>
+        /// @resolution.member source=this.name receiver=Managed<User, User.print.P0> type=Managed<string, User.print.P0> kind=field target_receiver=Managed<User, User.print.P0> key=name target=User.name target_type=Managed<string, User.print.P0>
+        /// @resolution.receiver source=this kind=this declaration=User type=Managed<User, User.print.P0>
+        /// @resolution.place source=this placement=User.print.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.name placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.name placement=User.print.P0 lifetime="frame" access="mutable"
         /// @resolution.access source=this.name root=this keys=[name]
 
     }
@@ -377,6 +386,7 @@ type Keys = keyof User;
     );
 }
 
+/// A keyof over a string index signature accepts string and usize keys.
 #[test]
 fn test_keyof_string_index_signature_includes_string_and_usize_keys() {
     let session = TestSession::single(
@@ -423,6 +433,7 @@ const index: Keys = 1;
     );
 }
 
+/// A boolean key reports a diagnostic against a string index signature keyof.
 #[test]
 fn test_keyof_string_index_signature_rejects_boolean_key() {
     let session = TestSession::single(
@@ -467,6 +478,7 @@ const bad: Keys = true;
     );
 }
 
+/// A keyof over a usize index signature accepts usize keys.
 #[test]
 fn test_keyof_usize_index_signature_uses_usize_keys() {
     let session = TestSession::single(
@@ -506,6 +518,7 @@ const key: Keys = 1;
     );
 }
 
+/// A string key reports a diagnostic against a usize index signature keyof.
 #[test]
 fn test_keyof_usize_index_signature_rejects_string_key() {
     let session = TestSession::single(
@@ -550,6 +563,7 @@ const bad: Keys = "name";
     );
 }
 
+/// A conditional extending keyof answers whether an object declares a key.
 #[test]
 fn test_key_membership_conditionals_answer_object_keys() {
     let session = TestSession::single(
@@ -603,6 +617,7 @@ const title: HasTitle = false;
     );
 }
 
+/// A key membership conditional follows the keyof of unions and intersections.
 #[test]
 fn test_key_membership_conditionals_follow_union_and_intersection_keys() {
     let session = TestSession::single(

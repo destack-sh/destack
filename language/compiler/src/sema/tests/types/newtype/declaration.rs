@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A newtype over an interface accepts only types that implement it by name.
 #[test]
 fn test_newtype_over_interface_requires_explicit_implements() {
     let session = TestSession::single(
@@ -59,19 +60,19 @@ newtype NamedWriter = Writer;
 struct Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
 /// @definition.struct symbol=Buffer
-/// @definition.method symbol=Buffer.write slot=write type=<Buffer.write.'a>(this: &Buffer.write.'a readonly this, readonly uint8[]) => usize
+/// @definition.method symbol=Buffer.write slot=write type=<Buffer.write.'a, Buffer.write.P1: Place>(this: Borrowed<this, Buffer.write.'a & Buffer.write.P1, "readonly">, readonly uint8[]) => usize
 
     write(bytes: readonly uint8[]): usize {
-    /// @generic.template symbol=Buffer.write parameters=('a)
-    /// @type.symbol symbol=Buffer.write type=<Buffer.write.'a>(this: &Buffer.write.'a readonly this, readonly uint8[]) => usize
+    /// @generic.template symbol=Buffer.write parameters=('a, P1: Place)
+    /// @type.symbol symbol=Buffer.write type=<Buffer.write.'a, Buffer.write.P1: Place>(this: Borrowed<this, Buffer.write.'a & Buffer.write.P1, "readonly">, readonly uint8[]) => usize
     /// @type.symbol symbol=Buffer.write.bytes source="bytes: readonly uint8[]" type=readonly uint8[]
 
         bytes.length
         /// @resolution.name source=bytes target=Buffer.write.bytes
-        /// @resolution.member source=bytes.length receiver=readonly uint8[] type=isize kind=call target="collections.array.length(parameters=(), arguments=(), return=isize)"
+        /// @resolution.member source=bytes.length receiver=readonly uint8[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
         /// @resolution.place source=bytes placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=bytes root=Buffer.write.bytes
-        /// @generic.instantiation id=collections.array.length<uint8> template=collections.array.length arguments=(uint8)
+        /// @generic.instantiation id="length<uint8, \"local\">" template=length arguments=(uint8, "local")
 
     }
 }
@@ -92,6 +93,7 @@ const writer: NamedWriter = Buffer {};
     );
 }
 
+/// A newtype constructor accepts a shifted literal argument.
 #[test]
 fn test_construct_newtype_constant_from_shifted_literal() {
     // a newtype constructor call over a const shift adopts its annotation

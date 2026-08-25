@@ -26,6 +26,7 @@ impl CheckState<'_> {
         if diagnostics.contains(&diagnostic) {
             return;
         }
+
         diagnostics.push(diagnostic);
     }
 
@@ -37,6 +38,18 @@ impl CheckState<'_> {
     ) {
         let anchor = self.diagnostic_anchor(module, source);
         let diagnostic = CheckError::UnboundedIntervalType { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
+    /// Report one placement qualifier written over an owned value.
+    pub(in crate::sema) fn report_placement_on_owned(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::PlacementOnOwned { anchor, module };
 
         self.report(module, diagnostic);
     }
@@ -337,6 +350,7 @@ impl CheckState<'_> {
             argument: self.format_type(argument),
             parameter: self.parameter_label(parameter),
         };
+
         self.report(module, error);
 
         Ok(())
@@ -354,6 +368,7 @@ impl CheckState<'_> {
             module,
             parameter: self.parameter_label(parameter),
         };
+
         self.report(module, error);
 
         Ok(())
@@ -371,6 +386,7 @@ impl CheckState<'_> {
             module,
             name: self.format_symbol(symbol),
         };
+
         self.report(module, error);
 
         Ok(())
@@ -507,6 +523,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
         let error = CheckError::NoMatchingDecorator { anchor, module };
+        // note why each candidate refused
         let mut diagnostic = DiagnosticBuilder::new(error);
         for rejection in rejections {
             diagnostic = diagnostic.note(rejection.clone());
@@ -655,6 +672,7 @@ impl CheckState<'_> {
             amount,
             ty: self.format_type_at(module, ty),
         };
+
         self.module_mut(module).warnings.push(warning.into());
 
         Ok(())
@@ -829,6 +847,7 @@ impl CheckState<'_> {
         if !self.is_own_module(module) || !reported.insert((module, anchor.clone())) {
             return Ok(());
         }
+
         let error = CheckError::CannotInferType {
             anchor: anchor.clone(),
             module,
@@ -843,6 +862,7 @@ impl CheckState<'_> {
                 if bound_anchor == anchor {
                     continue;
                 }
+
                 let ty = self.format_type_at(module, bound.ty);
                 let message = match (side, bound.relation) {
                     (_, Relation::Equal) => format!("it must equal '{ty}' here"),
@@ -852,6 +872,7 @@ impl CheckState<'_> {
                 diagnostic = diagnostic.label(bound_anchor, message);
             }
         }
+
         self.report(module, diagnostic);
 
         Ok(())
@@ -862,6 +883,7 @@ impl CheckState<'_> {
         &self,
         variable: dir::TypeVariableId,
     ) -> CompilerResult<Vec<(BoundSide, TypeBound)>> {
+        // collect both sides, then cap the list for display
         let mut bounds = Vec::new();
         for side in [BoundSide::Lower, BoundSide::Upper] {
             bounds.extend(
@@ -883,6 +905,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let (module, anchor) = self.source_anchor(source);
         let error = CheckError::CannotInferType { anchor, module };
+
         self.report(module, error);
 
         Ok(())
@@ -903,6 +926,7 @@ impl CheckState<'_> {
             access: access.text().to_string(),
             source: self.format_type_at(module, source),
         };
+        // name the access the source does grant
         let mut diagnostic = DiagnosticBuilder::new(error);
         if let Some(granted) = granted {
             diagnostic = diagnostic.note(format!(
@@ -910,8 +934,10 @@ impl CheckState<'_> {
                 granted.text()
             ));
         }
+
         let diagnostic =
             diagnostic.help("request the granted access or use a source that grants more");
+
         self.report(module, diagnostic);
 
         Ok(())
@@ -942,6 +968,7 @@ impl CheckState<'_> {
             suggestion: best.as_ref().map(|best| best.candidate.clone()),
         };
 
+        // offer the closest visible name when the access spans an exact key
         let mut diagnostic = DiagnosticBuilder::new(error);
         if key_span.is_some()
             && let Some(best) = best
@@ -949,6 +976,7 @@ impl CheckState<'_> {
         {
             diagnostic = diagnostic.suggestion(suggestion);
         }
+
         self.report(module, diagnostic);
 
         Ok(())
@@ -966,6 +994,7 @@ impl CheckState<'_> {
             module,
             key,
         };
+
         self.report(module, error);
 
         Ok(())
@@ -983,6 +1012,7 @@ impl CheckState<'_> {
             module,
             member,
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1002,6 +1032,7 @@ impl CheckState<'_> {
         };
         let diagnostic = DiagnosticBuilder::new(error)
             .help("wrap the read in a closure to make its receiver capture explicit");
+
         self.report(module, diagnostic);
 
         Ok(())
@@ -1019,6 +1050,7 @@ impl CheckState<'_> {
             module,
             member,
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1036,6 +1068,7 @@ impl CheckState<'_> {
             module,
             ty: self.format_type(ty),
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1054,10 +1087,12 @@ impl CheckState<'_> {
             module,
             arguments: self.format_types(arguments),
         };
+        // note why each candidate refused
         let mut diagnostic = DiagnosticBuilder::new(error);
         for rejection in rejections {
             diagnostic = diagnostic.note(rejection.clone());
         }
+
         self.report(module, diagnostic);
 
         Ok(())
@@ -1130,10 +1165,12 @@ impl CheckState<'_> {
             module,
             arguments: self.format_types(arguments),
         };
+        // note why each candidate refused
         let mut diagnostic = DiagnosticBuilder::new(error);
         for rejection in rejections {
             diagnostic = diagnostic.note(rejection.clone());
         }
+
         self.report(module, diagnostic);
 
         Ok(())
@@ -1146,6 +1183,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
         let error = CheckError::InvalidDeriveInterface { anchor, module };
+
         self.report(module, error);
 
         Ok(())
@@ -1163,6 +1201,7 @@ impl CheckState<'_> {
             module,
             interface: self.format_symbol(interface),
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1176,6 +1215,7 @@ impl CheckState<'_> {
         let module = source.module_id;
         let anchor = self.node_anchor(module, source.local_id.into_any())?;
         let error = CheckError::InvalidCaptureTarget { anchor, module };
+
         self.report(module, error);
 
         Ok(())
@@ -1193,6 +1233,7 @@ impl CheckState<'_> {
         let previous = self.node_anchor(module, previous.local_id.into_any())?;
         let diagnostic =
             DiagnosticBuilder::new(error).label(previous, "first capture directive here");
+
         self.report(module, diagnostic);
 
         Ok(())
@@ -1263,6 +1304,7 @@ impl CheckState<'_> {
             expected,
             supplied,
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1319,6 +1361,7 @@ impl CheckState<'_> {
                     source: self.format_type_at(module, source),
                     target: self.format_type_at(module, target),
                 };
+
                 self.report(module, error);
             }
         }
@@ -1333,6 +1376,8 @@ impl CheckState<'_> {
             (false, true) => format!("{total}"),
             (false, false) => format!("{required} to {total}"),
         };
+
+        // agree the noun with the count the phrase ends on
         let noun = if phrase.ends_with('1') && !phrase.ends_with("11") {
             "argument"
         } else {
@@ -1356,6 +1401,7 @@ impl CheckState<'_> {
         };
         let diagnostic =
             DiagnosticBuilder::new(error).help("construct a concrete subclass instead");
+
         self.report(module, diagnostic);
 
         Ok(())
@@ -1375,6 +1421,7 @@ impl CheckState<'_> {
             ty: self.format_type(target),
             hint: hint.to_string(),
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1392,6 +1439,7 @@ impl CheckState<'_> {
             module,
             ty: self.format_type(target),
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1409,6 +1457,7 @@ impl CheckState<'_> {
             module,
             nullish,
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1429,6 +1478,7 @@ impl CheckState<'_> {
             member,
             target: Some(target),
         };
+
         self.report(module, error);
     }
 
@@ -1447,6 +1497,7 @@ impl CheckState<'_> {
             member,
             target,
         };
+
         self.report(module, error);
     }
 
@@ -1465,6 +1516,7 @@ impl CheckState<'_> {
             operator,
             operands,
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1494,6 +1546,7 @@ impl CheckState<'_> {
             module,
             source: self.format_type(spread),
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1511,6 +1564,7 @@ impl CheckState<'_> {
             module,
             source: self.format_type(source),
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1552,6 +1606,7 @@ impl CheckState<'_> {
             module,
             source: self.format_type(source),
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1569,6 +1624,7 @@ impl CheckState<'_> {
             module,
             source: self.format_type(source),
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1586,6 +1642,7 @@ impl CheckState<'_> {
             module,
             name,
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1605,6 +1662,7 @@ impl CheckState<'_> {
             key,
             receiver: self.format_type(receiver),
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1624,6 +1682,7 @@ impl CheckState<'_> {
             key,
             receiver: self.format_type(receiver),
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1709,6 +1768,7 @@ impl CheckState<'_> {
             module,
             ty: self.format_type(tag),
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1729,6 +1789,7 @@ impl CheckState<'_> {
             variant,
             source,
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1749,6 +1810,7 @@ impl CheckState<'_> {
             variant,
             owner,
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1763,6 +1825,7 @@ impl CheckState<'_> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
         let ty = self.format_type(ty);
         let error = CheckError::NoStrictIdentity { anchor, module, ty };
+
         self.report(module, error);
 
         Ok(())
@@ -1784,6 +1847,7 @@ impl CheckState<'_> {
             left,
             right,
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1797,6 +1861,7 @@ impl CheckState<'_> {
         let module = target.module_id;
         let anchor = self.diagnostic_anchor(module, target.local_id);
         let error = CheckError::InstanceOfTargetNotClass { anchor, module };
+
         self.report(module, error);
 
         Ok(())
@@ -1816,6 +1881,7 @@ impl CheckState<'_> {
             module,
             target,
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1959,12 +2025,13 @@ impl CheckState<'_> {
 
                 DiagnosticBuilder::new(error)
             }
-            // the inner site reported the failure
+            // the nested check already reported the failure
             CheckFailure::Reported => return Ok(false),
         };
 
         // explain the cause chain and report the failure once
         let diagnostic = self.format_cause(diagnostic, cause, &anchor, blame.as_ref())?;
+
         self.report(module, diagnostic);
 
         Ok(true)
@@ -1998,6 +2065,7 @@ impl CheckState<'_> {
                     missing,
                 };
                 let diagnostic = error.help("cover the remaining values or add a wildcard '_' arm");
+
                 self.report(module, diagnostic);
             }
             ObligationFailure::RefutablePattern { source, missing } => {
@@ -2009,6 +2077,7 @@ impl CheckState<'_> {
                     missing,
                 };
                 let diagnostic = error.help("handle the uncovered values with 'if let' or 'match'");
+
                 self.report(module, diagnostic);
             }
             ObligationFailure::RefutableCatchPattern { source, missing } => {
@@ -2020,11 +2089,13 @@ impl CheckState<'_> {
                     missing,
                 };
                 let diagnostic = error.help("catch bindings must handle every failure value");
+
                 self.report(module, diagnostic);
             }
             ObligationFailure::ForInSourceNotObjectShaped { source } => {
                 let (module, anchor) = self.source_anchor(source);
                 let error = CheckError::ForInSourceNotObjectShaped { anchor, module };
+
                 self.report(module, error);
             }
             ObligationFailure::IncompatibleRangeEndpoints { source, element } => {
@@ -2034,6 +2105,7 @@ impl CheckState<'_> {
                     module,
                     element: self.format_type(element),
                 };
+
                 self.report(module, error);
             }
             ObligationFailure::ImpossibleIs {
@@ -2048,6 +2120,7 @@ impl CheckState<'_> {
                     source: self.format_type(value),
                     target: self.format_type(target),
                 };
+
                 self.report(module, error);
             }
             ObligationFailure::ImpossibleInstanceOf {
@@ -2062,6 +2135,7 @@ impl CheckState<'_> {
                     source: self.format_type(value),
                     target: self.format_symbol(target),
                 };
+
                 self.report(module, error);
             }
             ObligationFailure::InvalidInPredicate {
@@ -2078,6 +2152,7 @@ impl CheckState<'_> {
                     operator: "in".to_string(),
                     operands: format!("'{key}' and '{receiver}'"),
                 };
+
                 self.report(module, error);
             }
             ObligationFailure::CannotAssignImportedBinding { source, symbol } => {
@@ -2090,6 +2165,7 @@ impl CheckState<'_> {
                 };
                 let diagnostic =
                     self.label_binding_declaration(DiagnosticBuilder::new(error), symbol);
+
                 self.report(module, diagnostic);
             }
             ObligationFailure::CannotAssignImmutableBinding { source, symbol } => {
@@ -2102,6 +2178,7 @@ impl CheckState<'_> {
                 };
                 let diagnostic =
                     self.label_binding_declaration(DiagnosticBuilder::new(error), symbol);
+
                 self.report(module, diagnostic);
             }
             ObligationFailure::CannotAssignReadonlyMember { source, member } => {
@@ -2112,6 +2189,7 @@ impl CheckState<'_> {
                     module,
                     member,
                 };
+
                 self.report(module, error);
             }
             ObligationFailure::CannotAssignStructuralIndex { source, receiver } => {
@@ -2122,16 +2200,19 @@ impl CheckState<'_> {
                     module,
                     receiver,
                 };
+
                 self.report(module, error);
             }
             ObligationFailure::OverwriteStabilityNotSatisfied { source, ty } => {
                 let (module, anchor) = self.source_anchor(source);
                 let ty = self.format_type(ty);
                 let diagnostic = Self::overwrite_stability_diagnostic(anchor, module, ty);
+
                 self.report(module, diagnostic);
             }
             ObligationFailure::CircularType { source } => {
                 let error = self.circular_type_error(Origin::Node(source, None))?;
+
                 self.report(source.module_id, error);
             }
             ObligationFailure::LocalReferenceInSharedStorage { source } => {
@@ -2142,6 +2223,7 @@ impl CheckState<'_> {
                     .help(
                         "place the referenced value in shared space or keep the destination local",
                     );
+
                 self.report(module, diagnostic);
             }
             ObligationFailure::InvalidIndexReceiver { source, receiver } => {
@@ -2152,6 +2234,7 @@ impl CheckState<'_> {
                     module,
                     receiver,
                 };
+
                 self.report(module, error);
             }
             ObligationFailure::InvalidIndexKey {
@@ -2168,16 +2251,16 @@ impl CheckState<'_> {
                     receiver,
                     key,
                 };
+
                 self.report(module, error);
             }
-            ObligationFailure::ConflictingDeclarationPlacement {
+            ObligationFailure::ConflictingPlacement {
                 source,
-                symbol,
                 written,
                 declared,
+                declaration,
             } => {
                 let (module, anchor) = self.source_anchor(source);
-                let (_, declaration_anchor) = self.source_anchor(self.symbol_source(symbol)?);
                 let error = CheckError::PlacementConflict {
                     anchor,
                     module,
@@ -2187,13 +2270,19 @@ impl CheckState<'_> {
                 let help = match written {
                     dir::Space::Local => "remove 'local' or use a local type",
                     dir::Space::Shared => "remove 'shared' or use a shared type",
+                    dir::Space::Constant => "remove the placement or use a constant value",
                 };
-                let diagnostic = DiagnosticBuilder::new(error)
-                    .label(
+                let mut diagnostic = DiagnosticBuilder::new(error).help(help);
+
+                // point at the declaration when it carries the conflicting space
+                if let Some(symbol) = declaration {
+                    let (_, declaration_anchor) = self.source_anchor(self.symbol_source(symbol)?);
+                    diagnostic = diagnostic.label(
                         declaration_anchor,
                         format!("'{}' is {}", self.format_symbol(symbol), declared.text()),
-                    )
-                    .help(help);
+                    );
+                }
+
                 self.report(module, diagnostic);
             }
             ObligationFailure::AutoInterfaceNotSatisfied {
@@ -2215,6 +2304,7 @@ impl CheckState<'_> {
                     source: self.format_type(ty),
                     target: self.format_type(interface),
                 };
+
                 self.report(module, error);
             }
             ObligationFailure::NonLocalImplementation {
@@ -2270,6 +2360,7 @@ impl CheckState<'_> {
                     source: self.format_symbol(symbol),
                     target: self.format_symbol(target),
                 };
+
                 self.report(module, error);
             }
             ObligationFailure::CircularHeritage { source, symbol } => {
@@ -2279,6 +2370,7 @@ impl CheckState<'_> {
                     module,
                     source: self.format_symbol(symbol),
                 };
+
                 self.report(module, error);
             }
             ObligationFailure::ConflictingHeritagePlacement {
@@ -2304,6 +2396,7 @@ impl CheckState<'_> {
                         format!("'{}' is declared here", self.format_symbol(conflict)),
                     )
                     .help("make every base and implemented interface use the same placement");
+
                 self.report(module, diagnostic);
             }
             ObligationFailure::InvalidOverride { source, member } => {
@@ -2313,6 +2406,7 @@ impl CheckState<'_> {
                     module,
                     member: self.format_static_key(&member),
                 };
+
                 self.report(module, error);
             }
             ObligationFailure::OverrideNotVirtual { source, member } => {
@@ -2323,6 +2417,7 @@ impl CheckState<'_> {
                     member: self.format_static_key(&member),
                 };
                 let diagnostic = error.help("declare the inherited member 'virtual' or 'abstract'");
+
                 self.report(module, diagnostic);
             }
             ObligationFailure::IncompatibleOverride {
@@ -2339,6 +2434,7 @@ impl CheckState<'_> {
                     source: self.format_type(source_ty),
                     target: self.format_type(target_ty),
                 };
+
                 self.report(module, error);
             }
             ObligationFailure::MissingOverride { source, member } => {
@@ -2349,6 +2445,7 @@ impl CheckState<'_> {
                     member: self.format_static_key(&member),
                 };
                 let diagnostic = error.help("add the 'override' modifier");
+
                 self.report(module, diagnostic);
             }
             ObligationFailure::AbstractMemberInConcreteClass { source, member } => {
@@ -2358,6 +2455,7 @@ impl CheckState<'_> {
                     module,
                     member: self.format_static_key(&member),
                 };
+
                 self.report(module, error);
             }
             ObligationFailure::UnimplementedAbstractMember { source, member } => {
@@ -2368,6 +2466,7 @@ impl CheckState<'_> {
                     member: self.format_static_key(&member),
                 };
                 let diagnostic = error.help("implement the member or declare the class 'abstract'");
+
                 self.report(module, diagnostic);
             }
             ObligationFailure::FinalClassExtended { source, base } => {
@@ -2377,6 +2476,7 @@ impl CheckState<'_> {
                     module,
                     ty: self.format_symbol(base),
                 };
+
                 self.report(module, error);
             }
             ObligationFailure::UnusedGenericParameter { source, parameter } => {
@@ -2388,6 +2488,7 @@ impl CheckState<'_> {
                 };
                 let diagnostic =
                     error.help("declare explicit variance like 'out T' to keep a marker parameter");
+
                 self.report(module, diagnostic);
             }
             ObligationFailure::VarianceConflict {
@@ -2409,6 +2510,7 @@ impl CheckState<'_> {
                     usage: usage.to_string(),
                     declared: declared.as_str().to_string(),
                 };
+
                 self.report(module, error);
             }
             ObligationFailure::FieldNotDefinitelyInitialized { source, field } => {
@@ -2418,6 +2520,7 @@ impl CheckState<'_> {
                     module,
                     field: self.format_symbol(field),
                 };
+
                 self.report(module, error);
             }
             ObligationFailure::StaticFieldMissingInitializer { source, field } => {
@@ -2427,6 +2530,7 @@ impl CheckState<'_> {
                     module,
                     field: self.format_symbol(field),
                 };
+
                 self.report(module, error);
             }
         }
@@ -2472,6 +2576,7 @@ impl CheckState<'_> {
             | dir::AutoInterface::Serialize
             | dir::AutoInterface::Deserialize
             | dir::AutoInterface::SharedSafe
+            | dir::AutoInterface::SuspendSafe
             | dir::AutoInterface::StrictEqual
             | dir::AutoInterface::Unpin
             | dir::AutoInterface::Zeroable => {
@@ -2624,6 +2729,7 @@ impl CheckState<'_> {
             module,
             message: message.to_string(),
         };
+
         self.report(module, error);
 
         Ok(())
@@ -2672,6 +2778,7 @@ impl CheckState<'_> {
             module,
             source,
         };
+
         self.report(module, error);
 
         Ok(())
@@ -2732,6 +2839,7 @@ impl CheckState<'_> {
             "an extension targets a declaration, a primitive, a tuple, array, slice, or function \
              type, or a bounded type parameter",
         );
+
         self.report(module, diagnostic);
 
         Ok(())
@@ -2822,6 +2930,7 @@ impl CheckState<'_> {
             module,
             name: member,
         };
+
         self.report(module, error);
     }
 
@@ -2839,6 +2948,7 @@ impl CheckState<'_> {
             source: self.format_symbol(symbol),
             target: self.format_symbol(target),
         };
+
         self.report(module, error);
     }
 
@@ -2856,6 +2966,7 @@ impl CheckState<'_> {
             source: self.format_symbol(symbol),
             target: self.format_type(target),
         };
+
         self.report(module, error);
     }
 
@@ -2873,6 +2984,7 @@ impl CheckState<'_> {
             source,
             target: self.format_symbol(target),
         };
+
         self.report(module, error);
     }
 
@@ -2890,6 +3002,7 @@ impl CheckState<'_> {
             source,
             target: self.format_type(target),
         };
+
         self.report(module, error);
     }
 
@@ -2907,6 +3020,7 @@ impl CheckState<'_> {
             source: self.format_type(source),
             target: self.format_symbol(target),
         };
+
         self.report(module, error);
     }
 
@@ -2924,6 +3038,7 @@ impl CheckState<'_> {
             source: self.format_type(source),
             target: self.format_type(target),
         };
+
         self.report(module, error);
     }
 
@@ -2937,6 +3052,7 @@ impl CheckState<'_> {
             anchor,
             module: source.module_id,
         };
+
         self.report(source.module_id, error);
 
         Ok(())
@@ -2952,6 +3068,7 @@ impl CheckState<'_> {
             anchor,
             module: source.module_id,
         };
+
         self.report(source.module_id, error);
 
         Ok(())

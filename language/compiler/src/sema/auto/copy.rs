@@ -31,17 +31,18 @@ impl CheckState<'_> {
     ) -> CompilerResult<Verdict> {
         let kind = self.ty(ty)?;
 
-        // decide explicit memory carriers before their payload types
+        // decide explicit memory representations before their payload types
         if let dir::Type::Form(form) = kind {
             return match form.form {
-                dir::Form::Managed | dir::Form::Raw | dir::Form::Readonly => Ok(Verdict::Holds),
+                dir::Form::Managed { .. } | dir::Form::Raw | dir::Form::Readonly => {
+                    Ok(Verdict::Holds)
+                }
                 dir::Form::Owned => self.decide_owned_copy(origin, form.value, active),
                 dir::Form::Borrowed(borrow) => {
                     let access = self.type_borrow(ty.module_id, borrow)?.access;
 
                     Ok(Verdict::decided(self.body().is_readonly_access(access)?))
                 }
-                dir::Form::Placed { .. } => self.decide_copy(origin, form.value, active),
             };
         }
 
@@ -64,6 +65,8 @@ impl CheckState<'_> {
         match kind {
             // leave an open variable or canonical hole undecided
             dir::Type::Variable(_) | dir::Type::Hole(_) => Ok(Verdict::Ambiguous),
+            // accept region terms outright, they carry no runtime values
+            dir::Type::Region(_) => Ok(Verdict::Holds),
             // look through the refinement to its base
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(ty.module_id, refined)?;
@@ -77,7 +80,6 @@ impl CheckState<'_> {
             | dir::Type::Null
             | dir::Type::Undefined
             | dir::Type::Key(_)
-            | dir::Type::Memory(_)
             | dir::Type::Static(_)
             | dir::Type::FunctionPointer(_)
             | dir::Type::Primitive(_)
@@ -194,9 +196,9 @@ impl CheckState<'_> {
 
         // decide owned payloads by their stored representation
         match kind {
-            // decide explicit memory carriers through the carrier rules
+            // decide explicit memory representations through the representation rules
             dir::Type::Form(_) => self.decide_copy(origin, ty, active),
-            // refuse carriers whose descriptor uniquely owns indirect storage
+            // refuse representations whose descriptor uniquely owns indirect storage
             dir::Type::Dynamic(_) | dir::Type::Function(_) | dir::Type::Slice(_) => {
                 Ok(Verdict::Fails)
             }
@@ -231,6 +233,7 @@ impl CheckState<'_> {
             return Ok(Verdict::Holds);
         }
 
+        // move an instance whose symbol declares no definition
         let Some(definition) = self.definition(instance.symbol)?.cloned() else {
             return Ok(Verdict::Fails);
         };

@@ -29,9 +29,9 @@ for (const { name, value } of items) {
 declare const items: { name: string; value: int32 }[];
 /// @type.symbol symbol=items source=items type={ name: string; value: int32 }[]
 /// @resolution.pattern source=items kind=binding target=items
-/// @generic.instance id="Array<{ name: string; value: int32 }>" template=collections.array.Array arguments=({ name: string; value: int32 })
-/// @generic.instance id="collections.slice.new<memory.init.MaybeUninit<{ name: string; value: int32 }>>" template=collections.slice.new arguments=(memory.init.MaybeUninit<{ name: string; value: int32 }>)
-/// @generic.instance id="memory.init.MaybeUninit<{ name: string; value: int32 }>" template=memory.init.MaybeUninit arguments=({ name: string; value: int32 })
+/// @generic.instance id="Array<{ name: string; value: int32 }>" template=Array arguments=({ name: string; value: int32 })
+/// @generic.instance id="MaybeUninit<{ name: string; value: int32 }>" template=MaybeUninit arguments=({ name: string; value: int32 })
+/// @generic.instance id="new<MaybeUninit<{ name: string; value: int32 }>>" template=new arguments=(MaybeUninit<{ name: string; value: int32 }>)
 
 for (const { name, value } of items) {
 /// @resolution.pattern source={ name, value } kind=object fields={ name, value }

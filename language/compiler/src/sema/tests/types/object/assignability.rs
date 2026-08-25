@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// An object literal binding assigns to a matching structural type.
 #[test]
 fn test_finite_object_assigns_to_structural_shape() {
     let session = TestSession::single(
@@ -59,6 +60,7 @@ person.name satisfies string;
     );
 }
 
+/// An optional property rejects an undefined union unless it names undefined.
 #[test]
 fn test_reject_undefined_union_at_exact_optional_property() {
     let session = TestSession::single(
@@ -110,7 +112,7 @@ const undecided: Options = { retries: maybe };
 /// @resolution.pattern source=undecided kind=binding target=undecided
 /// @resolution.name source=Options target=Options
 /// @resolution.name source=maybe target=maybe
-/// @resolution.place source=maybe placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=maybe placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=maybe root=maybe
 "#,
         r#"
@@ -122,6 +124,7 @@ const undecided: Options = { retries: maybe };
     );
 }
 
+/// An optional property naming undefined accepts an undefined union.
 #[test]
 fn test_accept_undefined_union_at_spelled_optional_property() {
     let session = TestSession::single(
@@ -161,7 +164,7 @@ const undecided: Options = { retries: maybe };
 /// @resolution.pattern source=undecided kind=binding target=undecided
 /// @resolution.name source=Options target=Options
 /// @resolution.name source=maybe target=maybe
-/// @resolution.place source=maybe placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=maybe placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=maybe root=maybe
 
 const cleared: Options = { retries: undefined };
@@ -174,6 +177,7 @@ const cleared: Options = { retries: undefined };
     );
 }
 
+/// An accessor pair reads at the getter type and writes at the setter type.
 #[test]
 fn test_asymmetric_accessor_splits_read_and_write_types() {
     let session = TestSession::single(
@@ -245,9 +249,10 @@ meter.reading = 5;
     );
 }
 
+/// A readonly object type and a writable one reject each other.
 #[test]
 fn test_readonly_and_writable_object_types_store_exactly() {
-    // readonly access divides object classes, aliased storage rejects in both directions
+    // divide object types by readonly access, aliased storage rejects both directions
     let session = TestSession::single(
         r#"
 declare let mutable: { tag: string };

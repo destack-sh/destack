@@ -251,20 +251,20 @@ struct Buffer {
 
 extension of Buffer {
 /// @definition.extension symbol=<module>#2 form=local target=Buffer
-/// @definition.method symbol=capacity source="get capacity(): usize" slot=capacity role=getter type=<capacity.'a>(this: &capacity.'a readonly this) => usize
-/// @definition.method symbol=trailing source="trailing(): usize" slot=trailing type=<trailing.'a>(this: &trailing.'a readonly this) => usize
+/// @definition.method symbol=capacity source="get capacity(): usize" slot=capacity role=getter type=<capacity.'a, capacity.P1: Place>(this: Borrowed<this, capacity.'a & capacity.P1, "readonly">) => usize
+/// @definition.method symbol=trailing source="trailing(): usize" slot=trailing type=<trailing.'a, trailing.P1: Place>(this: Borrowed<this, trailing.'a & trailing.P1, "readonly">) => usize
 /// @resolution.name source=Buffer target=Buffer
 
     @intrinsic("buffer.capacity")
-    /// @resolution.name source=intrinsic target=decorator.intrinsic.intrinsic
+    /// @resolution.name source=intrinsic target=intrinsic
 
     get capacity(): usize;
-    /// @generic.template symbol=capacity parameters=('a)
-    /// @type.symbol symbol=capacity source="get capacity(): usize" type=<capacity.'a>(this: &capacity.'a readonly this) => usize
+    /// @generic.template symbol=capacity parameters=('a, P1: Place)
+    /// @type.symbol symbol=capacity source="get capacity(): usize" type=<capacity.'a, capacity.P1: Place>(this: Borrowed<this, capacity.'a & capacity.P1, "readonly">) => usize
 
     trailing(): usize;
-    /// @generic.template symbol=trailing parameters=('a)
-    /// @type.symbol symbol=trailing source="trailing(): usize" type=<trailing.'a>(this: &trailing.'a readonly this) => usize
+    /// @generic.template symbol=trailing parameters=('a, P1: Place)
+    /// @type.symbol symbol=trailing source="trailing(): usize" type=<trailing.'a, trailing.P1: Place>(this: Borrowed<this, trailing.'a & trailing.P1, "readonly">) => usize
 
 }
 "#,
@@ -562,45 +562,49 @@ import { Iterator } from "destack:iter";
 import { Result } from "destack:error";
 
 function sum(values: Iterator<int32>): Result<int32, string> {
-/// @type.symbol symbol=sum type=(iter.iterator.Iterator<int32>) => error.result.Result<int32, string>
-/// @generic.instance id="error.result.Result<int32, string>" template=error.result.Result arguments=(int32, string)
-/// @generic.instance id="iter.iterator.DropIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.DropIterator arguments=(iter.iterator.Iterator<int32>, int32)
-/// @generic.instance id="iter.iterator.DropWhileIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.DropWhileIterator arguments=(iter.iterator.Iterator<int32>, int32)
-/// @generic.instance id="iter.iterator.EnumeratedIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.EnumeratedIterator arguments=(iter.iterator.Iterator<int32>, int32)
-/// @generic.instance id="iter.iterator.FilterIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.FilterIterator arguments=(iter.iterator.Iterator<int32>, int32)
-/// @generic.instance id="iter.iterator.InspectIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.InspectIterator arguments=(iter.iterator.Iterator<int32>, int32)
-/// @generic.instance id="iter.iterator.IteratorResult<int32, iter.iterator.Iterator<int32>.Return>" template=iter.iterator.IteratorResult arguments=(int32, iter.iterator.Iterator<int32>.Return)
-/// @generic.instance id="iter.iterator.IteratorResult<int32, void>" template=iter.iterator.IteratorResult arguments=(int32, void)
-/// @generic.instance id="iter.iterator.PeekableIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.PeekableIterator arguments=(iter.iterator.Iterator<int32>, int32)
-/// @generic.instance id="iter.iterator.TakeIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.TakeIterator arguments=(iter.iterator.Iterator<int32>, int32)
-/// @generic.instance id="iter.iterator.TakeWhileIterator<iter.iterator.Iterator<int32>, int32>" template=iter.iterator.TakeWhileIterator arguments=(iter.iterator.Iterator<int32>, int32)
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=error.result.Err<string> template=error.result.Err arguments=(string)
-/// @generic.instance id=error.result.Ok<int32> template=error.result.Ok arguments=(int32)
-/// @generic.instance id=iter.iterator.Iterator<int32> template=iter.iterator.Iterator arguments=(int32)
-/// @generic.instance id=iter.iterator.IteratorReturn<iter.iterator.Iterator<int32>.Return> template=iter.iterator.IteratorReturn arguments=(iter.iterator.Iterator<int32>.Return)
-/// @generic.instance id=iter.iterator.IteratorReturn<void> template=iter.iterator.IteratorReturn arguments=(void)
-/// @generic.instance id=iter.iterator.IteratorYield<int32> template=iter.iterator.IteratorYield arguments=(int32)
-/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
-/// @type.symbol symbol=sum.values source="values: Iterator<int32>" type=iter.iterator.Iterator<int32>
-/// @resolution.name source=Iterator target=iter.iterator.Iterator
-/// @resolution.name source=Result target=error.result.Result
+/// @type.symbol symbol=sum type=(Iterator<int32>) => Result<int32, string>
+/// @generic.instance id="DropIterator<Iterator<int32>, int32>" template=DropIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="DropWhileIterator<Iterator<int32>, int32>" template=DropWhileIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="EnumeratedIterator<Iterator<int32>, int32>" template=EnumeratedIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="FilterIterator<Iterator<int32>, int32>" template=FilterIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="InspectIterator<Iterator<int32>, int32>" template=InspectIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="IteratorResult<int32, Iterator<int32>.Return>" template=IteratorResult arguments=(int32, Iterator<int32>.Return)
+/// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
+/// @generic.instance id="PeekableIterator<Iterator<int32>, int32>" template=PeekableIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="PlaceOf<DropWhileIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(DropWhileIterator<Iterator<int32>, int32>)
+/// @generic.instance id="PlaceOf<FilterIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(FilterIterator<Iterator<int32>, int32>)
+/// @generic.instance id="PlaceOf<InspectIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(InspectIterator<Iterator<int32>, int32>)
+/// @generic.instance id="PlaceOf<TakeWhileIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(TakeWhileIterator<Iterator<int32>, int32>)
+/// @generic.instance id="Result<int32, string>" template=Result arguments=(int32, string)
+/// @generic.instance id="TakeIterator<Iterator<int32>, int32>" template=TakeIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="TakeWhileIterator<Iterator<int32>, int32>" template=TakeWhileIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=Err<string> template=Err arguments=(string)
+/// @generic.instance id=Iterator<int32> template=Iterator arguments=(int32)
+/// @generic.instance id=IteratorReturn<Iterator<int32>.Return> template=IteratorReturn arguments=(Iterator<int32>.Return)
+/// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
+/// @generic.instance id=IteratorYield<int32> template=IteratorYield arguments=(int32)
+/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=Ok<int32> template=Ok arguments=(int32)
+/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
+/// @type.symbol symbol=sum.values source="values: Iterator<int32>" type=Iterator<int32>
+/// @resolution.name source=Iterator target=Iterator
+/// @resolution.name source=Result target=Result
 
     return values.reduce((result, value, index) => {
-    /// @type.node source=values.reduce type=(this: iter.iterator.Iterator<int32>, Function<(int32, int32, isize), int32>) => int32 & <iter.iterator.Iterator.reduce.U>(this: iter.iterator.Iterator<int32>, Function<(iter.iterator.Iterator.reduce.U, int32, isize), iter.iterator.Iterator.reduce.U>, iter.iterator.Iterator.reduce.U) => iter.iterator.Iterator.reduce.U
-    /// @type.node type=error.result.Result<int32, string>
+    /// @type.node source=values.reduce type=(this: Iterator<int32>, Function<(int32, int32, isize), int32>) => int32 & <Iterator.reduce.U>(this: Iterator<int32>, Function<(Iterator.reduce.U, int32, isize), Iterator.reduce.U>, Iterator.reduce.U) => Iterator.reduce.U
+    /// @type.node type=Result<int32, string>
     /// @resolution.name source=values target=sum.values
-    /// @resolution.member source=values.reduce receiver=iter.iterator.Iterator<int32> type=(this: iter.iterator.Iterator<int32>, Function<(int32, int32, isize), int32>) => int32 & <iter.iterator.Iterator.reduce.U>(this: iter.iterator.Iterator<int32>, Function<(iter.iterator.Iterator.reduce.U, int32, isize), iter.iterator.Iterator.reduce.U>, iter.iterator.Iterator.reduce.U) => iter.iterator.Iterator.reduce.U kind=overload-set targets=[iter.iterator.Iterator.reduce#1, iter.iterator.Iterator.reduce#2]
-    /// @resolution.call parameters=(Function<(error.result.Result<int32, string>, int32, isize), error.result.Result<int32, string>>, error.result.Result<int32, string>) arguments=(provided(argument) as Function<(error.result.Result<int32, string>, int32, isize), error.result.Result<int32, string>>, provided(Result.ok(0)) as error.result.Result<int32, string>) return=error.result.Result<int32, string> kind=dynamic target=iter.iterator.Iterator.reduce#2 receiver=iter.iterator.Iterator<int32> constraint=iter.iterator.Iterator<int32> generic_arguments=(int32, error.result.Result<int32, string>)
+    /// @resolution.member source=values.reduce receiver=Iterator<int32> type=(this: Iterator<int32>, Function<(int32, int32, isize), int32>) => int32 & <Iterator.reduce.U>(this: Iterator<int32>, Function<(Iterator.reduce.U, int32, isize), Iterator.reduce.U>, Iterator.reduce.U) => Iterator.reduce.U kind=overload-set targets=[Iterator.reduce#1, Iterator.reduce#2]
+    /// @resolution.call parameters=(Function<(Result<int32, string>, int32, isize), Result<int32, string>>, Result<int32, string>) arguments=(provided(argument) as Function<(Result<int32, string>, int32, isize), Result<int32, string>>, provided(Result.ok(0)) as Result<int32, string>) return=Result<int32, string> kind=dynamic target=Iterator.reduce#2 receiver=Iterator<int32> constraint=Iterator<int32> generic_arguments=(int32, Result<int32, string>)
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=sum.values
-    /// @generic.instantiation id=iter.iterator.Iterator.reduce#1<int32> template=iter.iterator.Iterator.reduce#1 arguments=(int32)
-    /// @generic.instantiation id=iter.iterator.Iterator.reduce#2<int32> template=iter.iterator.Iterator.reduce#2 arguments=(int32)
-    /// @generic.instance id=iter.iterator.Iterator.reduce#1<int32> template=iter.iterator.Iterator.reduce#1 arguments=(int32)
-    /// @type.symbol symbol=sum.symbol5 type=Function<(error.result.Result<int32, string>, int32, isize), error.result.Result<int32, string>>
-    /// @type.node type=Function<(error.result.Result<int32, string>, int32, isize), error.result.Result<int32, string>>
-    /// @type.symbol symbol=sum.symbol5.result source=result type=error.result.Result<int32, string>
+    /// @generic.instantiation id=Iterator.reduce#1<int32> template=Iterator.reduce#1 arguments=(int32)
+    /// @generic.instantiation id=Iterator.reduce#2<int32> template=Iterator.reduce#2 arguments=(int32)
+    /// @generic.instance id=Iterator.reduce#1<int32> template=Iterator.reduce#1 arguments=(int32)
+    /// @type.symbol symbol=sum.symbol5 type=Function<(Result<int32, string>, int32, isize), Result<int32, string>>
+    /// @type.node type=Function<(Result<int32, string>, int32, isize), Result<int32, string>>
+    /// @type.symbol symbol=sum.symbol5.result source=result type=Result<int32, string>
     /// @type.symbol symbol=sum.symbol5.value source=value type=int32
     /// @type.symbol symbol=sum.symbol5.index source=index type=isize
 
@@ -611,14 +615,14 @@ function sum(values: Iterator<int32>): Result<int32, string> {
         /// @resolution.name source=result target=sum.symbol5.result
         /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=result root=sum.symbol5.result
-        /// @resolution.residual source=result? target=callable residual=TryResidual<error.result.Result<int32, string>>
+        /// @resolution.residual source=result? target=callable residual=TryResidual<Result<int32, string>>
 
         Result.ok(total + value + (index as int32))
-        /// @type.node source="Result.ok(total + value + (index as int32))" type=error.result.Result<int32, string>
-        /// @type.node source=Result.ok type=(error.result.T#1) => error.result.Result<error.result.T#1, error.result.E#1>
-        /// @resolution.name source=Result target=error.result.Result
-        /// @resolution.member source=Result.ok receiver=error.result.Result type=(error.result.T#1) => error.result.Result<error.result.T#1, error.result.E#1> kind=symbol target_receiver=error.result.Result target=error.result.ok#1
-        /// @resolution.call source="Result.ok(total + value + (index as int32))" parameters=(int32) arguments=(provided(total + value + (index as int32)) as int32) return=error.result.Result<int32, string> kind=symbol target=error.result.ok#1 instance="error.result.Result<int32, string>.<extension#1>.ok#1"
+        /// @type.node source="Result.ok(total + value + (index as int32))" type=Result<int32, string>
+        /// @type.node source=Result.ok type=(T#1) => Result<T#1, E#1>
+        /// @resolution.name source=Result target=Result
+        /// @resolution.member source=Result.ok receiver=Result type=(T#1) => Result<T#1, E#1> kind=symbol target_receiver=Result target=ok#1
+        /// @resolution.call source="Result.ok(total + value + (index as int32))" parameters=(int32) arguments=(provided(total + value + (index as int32)) as int32) return=Result<int32, string> kind=symbol target=ok#1 instance="Result<int32, string>.<extension#1>.ok#1"
         /// @type.node source="total + value + (index as int32)" type=int32
         /// @type.node source="total + value" type=int32
         /// @resolution.name source=total target=sum.symbol5.total
@@ -635,13 +639,13 @@ function sum(values: Iterator<int32>): Result<int32, string> {
         /// @resolution.access source=index root=sum.symbol5.index
 
     }, Result.ok(0));
-    /// @type.node source=Result.ok type=(error.result.T#1) => error.result.Result<error.result.T#1, error.result.E#1>
-    /// @type.node source=Result.ok(0) type=error.result.Result<int32, string>
-    /// @resolution.name source=Result target=error.result.Result
-    /// @resolution.member source=Result.ok receiver=error.result.Result type=(error.result.T#1) => error.result.Result<error.result.T#1, error.result.E#1> kind=symbol target_receiver=error.result.Result target=error.result.ok#1
-    /// @resolution.call source=Result.ok(0) parameters=(int32) arguments=(provided(0) as int32) return=error.result.Result<int32, string> kind=symbol target=error.result.ok#1 instance="error.result.Result<int32, string>.<extension#1>.ok#1"
-    /// @generic.instantiation id="error.result.ok#1<int32, string>" template=error.result.ok#1 arguments=(int32, string)
-    /// @generic.instance id="error.result.ok#1<int32, string>" template=error.result.ok#1 arguments=(int32, string)
+    /// @type.node source=Result.ok type=(T#1) => Result<T#1, E#1>
+    /// @type.node source=Result.ok(0) type=Result<int32, string>
+    /// @resolution.name source=Result target=Result
+    /// @resolution.member source=Result.ok receiver=Result type=(T#1) => Result<T#1, E#1> kind=symbol target_receiver=Result target=ok#1
+    /// @resolution.call source=Result.ok(0) parameters=(int32) arguments=(provided(0) as int32) return=Result<int32, string> kind=symbol target=ok#1 instance="Result<int32, string>.<extension#1>.ok#1"
+    /// @generic.instantiation id="ok#1<int32, string>" template=ok#1 arguments=(int32, string)
+    /// @generic.instance id="ok#1<int32, string>" template=ok#1 arguments=(int32, string)
     /// @type.node source=0 type=0
 
 }
@@ -868,9 +872,9 @@ function total(...values: int32[]): int32 {
 }
 
 function append(values: int32[], more: ^int32[]): int32 {
-    values.push<int32>(1, 2);
-    values.push<int32>(...more);
-    values.push<int32>(1, ...more, 3);
+    values.push<int32, "local">(1, 2);
+    values.push<int32, "local">(...more);
+    values.push<int32, "local">(1, ...more, 3);
 
     return total(1, ...more, 3);
 }
@@ -878,9 +882,9 @@ function append(values: int32[], more: ^int32[]): int32 {
 === dir ===
 function total(...values: int32[]): int32 {
 /// @type.symbol symbol=total type=(...int32[]) => int32
-/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
-/// @generic.instance id=collections.slice.new<memory.init.MaybeUninit<int32>> template=collections.slice.new arguments=(memory.init.MaybeUninit<int32>)
-/// @generic.instance id=memory.init.MaybeUninit<int32> template=memory.init.MaybeUninit arguments=(int32)
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @type.symbol symbol=total.values source="...values: int32[]" type=int32[]
 
     return 0;
@@ -895,25 +899,26 @@ function append(values: int32[], more: ^int32[]): int32 {
 
     values.push(1, 2);
     /// @type.node source="values.push(1, 2)" type=isize
-    /// @type.node source=values.push type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive int32[], ...int32[]) => isize
+    /// @type.node source=values.push type=<push.'a, push.P1: Place>(this: Borrowed<int32[], push.'a & push.P1, "exclusive">, ...int32[]) => isize
     /// @resolution.name source=values target=append.values
-    /// @resolution.member source=values.push receiver=int32[] type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=collections.array.push
-    /// @resolution.call source="values.push(1, 2)" parameters=(int32[]) arguments=(rest(1, 2) pack=collections.array.arrayFromSlice as int32) return=isize kind=symbol target=collections.array.push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance=Array<int32>.<extension#5>.push
+    /// @resolution.member source=values.push receiver=int32[] type=<push.'a, push.P1: Place>(this: Borrowed<int32[], push.'a & push.P1, "exclusive">, ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
+    /// @resolution.call source="values.push(1, 2)" parameters=(int32[]) arguments=(rest(1, 2) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance="Array<int32>.<extension#5>.push<\"local\">"
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=append.values
-    /// @generic.instantiation id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
-    /// @generic.instantiation id=collections.array.push<int32> template=collections.array.push arguments=(int32)
-    /// @generic.instance id=collections.array.arrayFromSlice<int32> template=collections.array.arrayFromSlice arguments=(int32)
-    /// @generic.instance id=collections.array.push<int32> template=collections.array.push arguments=(int32)
+    /// @generic.instantiation id="push<int32, \"local\">" template=push arguments=(int32, "local")
+    /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
+    /// @generic.instantiation id=push<int32> template=push arguments=(int32)
+    /// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
+    /// @generic.instance id="push<int32, \"local\">" template=push arguments=(int32, "local")
     /// @type.node source=1 type=1
     /// @type.node source=2 type=2
 
     values.push(...more);
-    /// @type.node source=values.push type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive int32[], ...int32[]) => isize
+    /// @type.node source=values.push type=<push.'a, push.P1: Place>(this: Borrowed<int32[], push.'a & push.P1, "exclusive">, ...int32[]) => isize
     /// @type.node source=values.push(...more) type=isize
     /// @resolution.name source=values target=append.values
-    /// @resolution.member source=values.push receiver=int32[] type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=collections.array.push
-    /// @resolution.call source=values.push(...more) parameters=(int32[]) arguments=(rest(...more) pack=collections.array.arrayFromSlice as int32) return=isize kind=symbol target=collections.array.push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance=Array<int32>.<extension#5>.push
+    /// @resolution.member source=values.push receiver=int32[] type=<push.'a, push.P1: Place>(this: Borrowed<int32[], push.'a & push.P1, "exclusive">, ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
+    /// @resolution.call source=values.push(...more) parameters=(int32[]) arguments=(rest(...more) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance="Array<int32>.<extension#5>.push<\"local\">"
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=append.values
     /// @resolution.name source=more target=append.more
@@ -922,10 +927,10 @@ function append(values: int32[], more: ^int32[]): int32 {
 
     values.push(1, ...more, 3);
     /// @type.node source="values.push(1, ...more, 3)" type=isize
-    /// @type.node source=values.push type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive int32[], ...int32[]) => isize
+    /// @type.node source=values.push type=<push.'a, push.P1: Place>(this: Borrowed<int32[], push.'a & push.P1, "exclusive">, ...int32[]) => isize
     /// @resolution.name source=values target=append.values
-    /// @resolution.member source=values.push receiver=int32[] type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=collections.array.push
-    /// @resolution.call source="values.push(1, ...more, 3)" parameters=(int32[]) arguments=(rest(1, ...more, 3) pack=collections.array.arrayFromSlice as int32) return=isize kind=symbol target=collections.array.push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance=Array<int32>.<extension#5>.push
+    /// @resolution.member source=values.push receiver=int32[] type=<push.'a, push.P1: Place>(this: Borrowed<int32[], push.'a & push.P1, "exclusive">, ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
+    /// @resolution.call source="values.push(1, ...more, 3)" parameters=(int32[]) arguments=(rest(1, ...more, 3) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance="Array<int32>.<extension#5>.push<\"local\">"
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=append.values
     /// @type.node source=1 type=1
@@ -937,7 +942,7 @@ function append(values: int32[], more: ^int32[]): int32 {
     return total(1, ...more, 3);
     /// @type.node source="total(1, ...more, 3)" type=int32
     /// @resolution.name source=total target=total
-    /// @resolution.call source="total(1, ...more, 3)" parameters=(int32[]) arguments=(rest(1, ...more, 3) pack=collections.array.arrayFromSlice as int32) return=int32 kind=symbol target=total
+    /// @resolution.call source="total(1, ...more, 3)" parameters=(int32[]) arguments=(rest(1, ...more, 3) pack=arrayFromSlice as int32) return=int32 kind=symbol target=total
     /// @type.node source=1 type=1
     /// @resolution.name source=more target=append.more
     /// @resolution.place source=more placement="local" lifetime="frame" access="exclusive"
@@ -1085,7 +1090,7 @@ extension of Counter implements It<int32> {
 }
 
 function finish(wrapped: Wrap<Counter>): boolean {
-    return wrapped.next<int32, Counter>();
+    return wrapped.next<int32, Counter, "local">();
 }
 
 === dir ===
@@ -1127,7 +1132,7 @@ extension<T, I: It<T>> of Wrap<I> implements It<T> {
 /// @definition.extension symbol=<module>#2 form=local target=Wrap<I#2>
 /// @definition.implements symbol=<module>#2 source=It<T> target=It<T#2>
 /// @definition.associated.type symbol=Return#1 source="type Return = I.Return" key=Return value=I#2.Return
-/// @definition.method symbol=next#1 slot=next type=<next#1.'a>(this: &next#1.'a readonly this) => I#2.Return
+/// @definition.method symbol=next#1 slot=next type=<next#1.'a, next#1.P1: Place>(this: Borrowed<this, next#1.'a & next#1.P1, "readonly">) => I#2.Return
 /// @definition.conformance symbol=<module>#2 member=Return#1 requirement=It.Return
 /// @definition.conformance symbol=<module>#2 member=next#1 requirement=It.next
 /// @type.symbol symbol=T source=T type=T#2
@@ -1145,15 +1150,15 @@ extension<T, I: It<T>> of Wrap<I> implements It<T> {
     /// @resolution.path source=I.Return index=1 target=It.Return
 
     next(): I.Return {
-    /// @generic.template symbol=next#1 parent=template#2 parameters=('a)
-    /// @type.symbol symbol=next#1 type=<next#1.'a>(this: &next#1.'a readonly this) => I#2.Return
+    /// @generic.template symbol=next#1 parent=template#2 parameters=('a, P1: Place)
+    /// @type.symbol symbol=next#1 type=<next#1.'a, next#1.P1: Place>(this: Borrowed<this, next#1.'a & next#1.P1, "readonly">) => I#2.Return
     /// @resolution.name source=I.Return target=I
     /// @resolution.path source=I.Return index=1 target=It.Return
 
         todo("next")
         /// @type.node source="todo(\"next\")" type=never
-        /// @resolution.name source=todo target=error.panic.todo
-        /// @resolution.call source="todo(\"next\")" parameters=(string | undefined) arguments=(provided("next") as string | undefined) return=never kind=symbol target=error.panic.todo
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"next\")" parameters=(string | undefined) arguments=(provided("next") as string | undefined) return=never kind=symbol target=todo
         /// @type.node source="\"next\"" type="next"
 
     }
@@ -1174,7 +1179,7 @@ extension of Counter implements It<int32> {
 /// @definition.extension symbol=<module>#3 form=local target=Counter
 /// @definition.implements symbol=<module>#3 source=It<int32> target=It<int32>
 /// @definition.associated.type symbol=Return#2 source="type Return = boolean" key=Return value=boolean
-/// @definition.method symbol=next#2 slot=next type=<next#2.'a>(this: &next#2.'a readonly Counter) => boolean
+/// @definition.method symbol=next#2 slot=next type=<next#2.'a, next#2.P1: Place>(this: Borrowed<Counter, next#2.'a & next#2.P1, "readonly">) => boolean
 /// @definition.conformance symbol=<module>#3 member=Return#2 requirement=It.Return
 /// @definition.conformance symbol=<module>#3 member=next#2 requirement=It.next
 /// @resolution.name source=Counter target=Counter
@@ -1184,13 +1189,13 @@ extension of Counter implements It<int32> {
     /// @type.symbol symbol=Return#2 source="type Return = boolean" type=boolean
 
     next(): boolean {
-    /// @generic.template symbol=next#2 parent=template#3 parameters=('a)
-    /// @type.symbol symbol=next#2 type=<next#2.'a>(this: &next#2.'a readonly Counter) => boolean
+    /// @generic.template symbol=next#2 parent=template#3 parameters=('a, P1: Place)
+    /// @type.symbol symbol=next#2 type=<next#2.'a, next#2.P1: Place>(this: Borrowed<Counter, next#2.'a & next#2.P1, "readonly">) => boolean
 
         todo("next")
         /// @type.node source="todo(\"next\")" type=never
-        /// @resolution.name source=todo target=error.panic.todo
-        /// @resolution.call source="todo(\"next\")" parameters=(string | undefined) arguments=(provided("next") as string | undefined) return=never kind=symbol target=error.panic.todo
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"next\")" parameters=(string | undefined) arguments=(provided("next") as string | undefined) return=never kind=symbol target=todo
         /// @type.node source="\"next\"" type="next"
 
     }
@@ -1204,15 +1209,16 @@ function finish(wrapped: Wrap<Counter>): boolean {
 /// @resolution.name source=Counter target=Counter
 
     return wrapped.next();
-    /// @type.node source=wrapped.next type=<next#1.'a>(this: &next#1.'a readonly Wrap<Counter>) => boolean
+    /// @type.node source=wrapped.next type=<next#1.'a, next#1.P1: Place>(this: Borrowed<Wrap<Counter>, next#1.'a & next#1.P1, "readonly">) => boolean
     /// @type.node source=wrapped.next() type=boolean
     /// @resolution.name source=wrapped target=finish.wrapped
-    /// @resolution.member source=wrapped.next receiver=Wrap<Counter> type=<next#1.'a>(this: &next#1.'a readonly Wrap<Counter>) => boolean kind=symbol target_receiver=Wrap<Counter> target=next#1
-    /// @resolution.call source=wrapped.next() parameters=() return=boolean kind=symbol target=next#1 receiver=Wrap<Counter> adjustments=(borrow(&'frame readonly Wrap<Counter>)) instance=Wrap<Counter>.<extension#1>.next#1
+    /// @resolution.member source=wrapped.next receiver=Wrap<Counter> type=<next#1.'a, next#1.P1: Place>(this: Borrowed<Wrap<Counter>, next#1.'a & next#1.P1, "readonly">) => boolean kind=symbol target_receiver=Wrap<Counter> target=next#1
+    /// @resolution.call source=wrapped.next() parameters=() return=boolean kind=symbol target=next#1 receiver=Wrap<Counter> adjustments=(borrow(&'frame readonly Wrap<Counter>)) instance="Wrap<Counter>.<extension#1>.next#1<\"local\">"
     /// @resolution.place source=wrapped placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=wrapped root=finish.wrapped
+    /// @generic.instantiation id="next#1<int32, Counter, \"local\">" template=next#1 arguments=(int32, Counter, "local")
     /// @generic.instantiation id="next#1<int32, Counter>" template=next#1 arguments=(int32, Counter)
-    /// @generic.instance id="next#1<int32, Counter>" template=next#1 arguments=(int32, Counter)
+    /// @generic.instance id="next#1<int32, Counter, \"local\">" template=next#1 arguments=(int32, Counter, "local")
 
 }
 "#);

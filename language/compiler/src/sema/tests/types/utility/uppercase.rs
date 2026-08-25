@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Uppercase uppercases a string literal.
 #[test]
 fn test_uppercase_a_string_literal() {
     let session = TestSession::single(
@@ -23,7 +24,7 @@ const ok: "HELLO" = "HELLO";
 type Value = Uppercase<"hello">;
 /// @type.symbol symbol=Value source="type Value = Uppercase<\"hello\">" type="HELLO"
 /// @definition.type symbol=Value source="type Value = Uppercase<\"hello\">" value="HELLO"
-/// @resolution.name source=Uppercase target=types.string.Uppercase
+/// @resolution.name source=Uppercase target=Uppercase
 
 const ok: Value = "HELLO";
 /// @type.symbol symbol=ok source=ok type="HELLO"
@@ -33,6 +34,7 @@ const ok: Value = "HELLO";
     );
 }
 
+/// Uppercase distributes over each arm of a union.
 #[test]
 fn test_distribute_uppercase_over_a_union() {
     let session = TestSession::single(
@@ -60,7 +62,7 @@ method satisfies "GET" | "POST";
 type Method = Uppercase<"get" | "post">;
 /// @type.symbol symbol=Method source="type Method = Uppercase<\"get\" | \"post\">" type="GET" | "POST"
 /// @definition.type symbol=Method source="type Method = Uppercase<\"get\" | \"post\">" value="GET" | "POST"
-/// @resolution.name source=Uppercase target=types.string.Uppercase
+/// @resolution.name source=Uppercase target=Uppercase
 
 declare const method: Method;
 /// @type.symbol symbol=method source=method type="GET" | "POST"
@@ -69,12 +71,13 @@ declare const method: Method;
 
 method satisfies "GET" | "POST";
 /// @resolution.name source=method target=method
-/// @resolution.place source=method placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=method placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=method root=method
 "#,
     );
 }
 
+/// The original casing reports a diagnostic against an Uppercase type.
 #[test]
 fn test_reject_the_original_casing_for_an_uppercase_literal_type() {
     let session = TestSession::single(
@@ -98,7 +101,7 @@ const bad: "HELLO" = "hello";
 type Value = Uppercase<"hello">;
 /// @type.symbol symbol=Value source="type Value = Uppercase<\"hello\">" type="HELLO"
 /// @definition.type symbol=Value source="type Value = Uppercase<\"hello\">" value="HELLO"
-/// @resolution.name source=Uppercase target=types.string.Uppercase
+/// @resolution.name source=Uppercase target=Uppercase
 
 const bad: Value = "hello";
 /// @type.symbol symbol=bad source=bad type="HELLO"
@@ -137,7 +140,7 @@ declare const shout: Shout;
 type Shout = Uppercase<`a${string}`>;
 /// @type.symbol symbol=Shout source="type Shout = Uppercase<`a${string}`>" type=`A${Uppercase<string>}`
 /// @definition.type symbol=Shout source="type Shout = Uppercase<`a${string}`>" value=`A${Uppercase<string>}`
-/// @resolution.name source=Uppercase target=types.string.Uppercase
+/// @resolution.name source=Uppercase target=Uppercase
 
 declare const shout: Shout;
 /// @type.symbol symbol=shout source=shout type=`A${Uppercase<string>}`

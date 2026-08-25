@@ -27,7 +27,7 @@ present satisfies string;
 type Present = NonNullable<string | null | undefined>;
 /// @type.symbol symbol=Present source="type Present = NonNullable<string | null | undefined>" type=string
 /// @definition.type symbol=Present source="type Present = NonNullable<string | null | undefined>" value=string
-/// @resolution.name source=NonNullable target=types.object.NonNullable
+/// @resolution.name source=NonNullable target=NonNullable
 
 declare const present: Present;
 /// @type.symbol symbol=present source=present type=string
@@ -65,7 +65,7 @@ const bad: string = null;
 type Present = NonNullable<string | null | undefined>;
 /// @type.symbol symbol=Present source="type Present = NonNullable<string | null | undefined>" type=string
 /// @definition.type symbol=Present source="type Present = NonNullable<string | null | undefined>" value=string
-/// @resolution.name source=NonNullable target=types.object.NonNullable
+/// @resolution.name source=NonNullable target=NonNullable
 
 const bad: Present = null;
 /// @type.symbol symbol=bad source=bad type=string
@@ -103,7 +103,7 @@ let bad: never = "no";
 type Present = NonNullable<never>;
 /// @type.symbol symbol=Present source="type Present = NonNullable<never>" type=never
 /// @definition.type symbol=Present source="type Present = NonNullable<never>" value=never
-/// @resolution.name source=NonNullable target=types.object.NonNullable
+/// @resolution.name source=NonNullable target=NonNullable
 
 let bad: Present = "no";
 /// @type.symbol symbol=bad source=bad type=never

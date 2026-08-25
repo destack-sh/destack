@@ -73,8 +73,6 @@ impl CheckState<'_> {
         let mut walk = WalkState::new(module, tree, self);
         for root in &expanded.roots {
             walk.with_body_scope(|walk| {
-                walk.check.induce_signature_lifetimes()?;
-
                 // register root decorators and gate absent roots
                 if !walk.walk_decorators(root.into_any())? {
                     return Ok(());
@@ -170,7 +168,7 @@ impl CheckState<'_> {
             ) || matches!(
                 self.ty(resolved)?,
                 dir::Type::Form(dir::FormType {
-                    form: dir::Form::Placed { .. },
+                    form: dir::Form::Managed { .. },
                     ..
                 })
             );
@@ -185,7 +183,7 @@ impl CheckState<'_> {
             )?;
         }
 
-        // declared symbol entries carry alias and annotation values
+        // oblige the alias and annotation values declared symbols carry
         for (symbol, ty) in symbols {
             if let dir::Type::Application(instance) = self.ty(ty)? {
                 // commit written symbol values so bound failures close them
@@ -375,6 +373,7 @@ impl CheckState<'_> {
         // walk module roots in source order
         let mut walk = WalkState::new(module, tree, self);
         for root in &expanded.roots {
+            walk.induced_owner = None;
             walk.with_scope(|walk| {
                 match tree.get(*root) {
                     dir::Expression::Declaration(declaration) => {
@@ -396,7 +395,6 @@ impl CheckState<'_> {
                     _ => return Ok(()),
                 }
 
-                walk.check.induce_signature_lifetimes()?;
                 walk.flush_flows()?;
 
                 walk.type_body_root(module, *root)
@@ -412,8 +410,8 @@ impl CheckState<'_> {
 impl WalkState<'_, '_> {
     /// Type one walked body root, recursing into block members.
     ///
-    /// Global and module blocks nest statement roots; roots the walk
-    /// never entered carry no flow and stay untyped.
+    /// Global and module blocks nest statement roots.
+    /// A root the walk never entered stays untyped.
     fn type_body_root(
         &mut self,
         module: ModuleId,
@@ -435,6 +433,7 @@ impl WalkState<'_, '_> {
             }
         }
 
+        // type the root itself through the body visitor
         let root_node = node.into_global_any(module);
         let site = self.check.visit_site(root_node)?;
         let mut body = self.check.body();

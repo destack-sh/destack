@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// An intersection merges the members of both object types.
 #[test]
 fn test_intersection_merges_object_shape_members() {
     let session = TestSession::single(
@@ -68,6 +69,7 @@ const age = person.age;
     );
 }
 
+/// An intersection of interfaces keeps the member both declare.
 #[test]
 fn test_intersection_member_preserves_each_interface_requirement() {
     let session = TestSession::single(
@@ -133,13 +135,14 @@ const value = both.value;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=both target=both
 /// @resolution.member source=both.value receiver=Left & Right type=string kind=intersection targets=[field(receiver=Left & Right, target=Left.value, type=string), field(receiver=Left & Right, target=Right.value, type=string)]
-/// @resolution.place source=both placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=both placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=both root=both
 /// @resolution.access source=both.value root=both keys=[value]
 "#,
     );
 }
 
+/// An object literal missing a field of one arm reports a diagnostic.
 #[test]
 fn test_intersection_rejects_missing_field() {
     let session = TestSession::single(
@@ -191,6 +194,7 @@ const person: Person = { name: "Ada" };
     );
 }
 
+/// An intersection of two object types disagreeing on a field rejects every value.
 #[test]
 fn test_intersection_rejects_incompatible_overlap() {
     let session = TestSession::single(
@@ -243,6 +247,7 @@ const value: Value = { value: "ok" };
     );
 }
 
+/// An intersection narrows an overlapping field to the type both arms allow.
 #[test]
 fn test_intersection_preserves_compatible_overlap() {
     let session = TestSession::single(
@@ -309,6 +314,7 @@ value.extra satisfies string;
     );
 }
 
+/// An intersection of disjoint primitives reduces to never.
 #[test]
 fn test_intersection_of_disjoint_primitives_yields_never() {
     let session = TestSession::single(
@@ -346,6 +352,7 @@ let value: Both = "ok";
     );
 }
 
+/// An intersection of void and never reduces to never.
 #[test]
 fn test_void_intersection_with_never_is_never() {
     let session = TestSession::single(

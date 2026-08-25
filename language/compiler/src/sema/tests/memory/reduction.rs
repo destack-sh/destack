@@ -172,7 +172,7 @@ declare const bag: ^Bag;
     );
 }
 
-/// Keep a substitution-created owned form beneath an imported borrow constructor.
+/// Keep an owned form created by substitution beneath an imported borrow constructor.
 #[test]
 fn test_keep_substituted_owned_form_beneath_borrow() {
     let session = TestSession::builder()
@@ -194,7 +194,7 @@ import { Point, share } from "./dep.ds";
 declare const point: Point;
 const borrowed = share(point);
 
-borrowed satisfies &'static Point;
+borrowed satisfies Borrowed<Point, "static" & "local", "mutable">;
 "#,
         )
         .build();
@@ -207,9 +207,9 @@ borrowed satisfies &'static Point;
 import { Point, share } from "./dep.ds";
 
 declare const point: Point;
-const borrowed: &'static ^Point = share<Point>(point);
+const borrowed: Borrowed<^Point, "static", "mutable"> = share<Point>(point);
 
-borrowed satisfies &'static Point;
+borrowed satisfies Borrowed<Point, "static" & "local", "mutable">;
 
 === dir ===
 import { Point, share } from "./dep.ds";
@@ -227,13 +227,14 @@ const borrowed = share(point);
 /// @generic.instantiation id=dep.share<dep.Point> template=dep.share arguments=(dep.Point)
 /// @generic.instance id=dep.share<dep.Point> template=dep.share arguments=(dep.Point)
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 
-borrowed satisfies &'static Point;
+borrowed satisfies Borrowed<Point, "static" & "local", "mutable">;
 /// @resolution.name source=borrowed target=borrowed
-/// @resolution.place source=borrowed placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=borrowed placement="static" lifetime="static" access="mutable"
 /// @resolution.access source=borrowed root=borrowed
+/// @resolution.name source=Borrowed target=Borrowed
 /// @resolution.name source=Point target=dep.Point
 "#,
     );
@@ -244,13 +245,11 @@ borrowed satisfies &'static Point;
 fn test_reduce_managed_constructor_on_class_payload() {
     let session = TestSession::single(
         r#"
-import { WithOwnership } from "destack:memory";
-
 class Bag {
     size: int32 = 0;
 }
 
-type Boxed = WithOwnership<Bag, "managed", "static">;
+type Boxed = Managed<Bag>;
 
 declare const boxed: Boxed;
 "#,
@@ -261,19 +260,15 @@ declare const boxed: Boxed;
         DirRows::checked(),
         r#"
 === annotated ===
-import { WithOwnership } from "destack:memory";
-
 class Bag {
     size: int32 = 0;
 }
 
-type Boxed = WithOwnership<Bag, "managed", "static">;
+type Boxed = Managed<Bag>;
 
-declare const boxed: Bag;
+declare const boxed: local Bag;
 
 === dir ===
-import { WithOwnership } from "destack:memory";
-
 class Bag {
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.class symbol=Bag
@@ -284,14 +279,14 @@ class Bag {
 
 }
 
-type Boxed = WithOwnership<Bag, "managed", "static">;
-/// @type.symbol symbol=Boxed source="type Boxed = WithOwnership<Bag, \"managed\", \"static\">" type=Bag
-/// @definition.type symbol=Boxed source="type Boxed = WithOwnership<Bag, \"managed\", \"static\">" value=Bag
-/// @resolution.name source=WithOwnership target=memory.type.WithOwnership
+type Boxed = Managed<Bag>;
+/// @type.symbol symbol=Boxed source="type Boxed = Managed<Bag>" type=local Bag
+/// @definition.type symbol=Boxed source="type Boxed = Managed<Bag>" value=local Bag
+/// @resolution.name source=Managed target=Managed
 /// @resolution.name source=Bag target=Bag
 
 declare const boxed: Boxed;
-/// @type.symbol symbol=boxed source=boxed type=Bag
+/// @type.symbol symbol=boxed source=boxed type=local Bag
 /// @resolution.pattern source=boxed kind=binding target=boxed
 /// @resolution.name source=Boxed target=Boxed
 "#,
@@ -324,7 +319,7 @@ class Bag {
     size: int32 = 0;
 }
 
-declare const boxed: Managed<^Bag>;
+declare const boxed: local ^Bag;
 
 === dir ===
 import { Managed, Owned } from "destack:memory";
@@ -340,10 +335,10 @@ class Bag {
 }
 
 declare const boxed: Managed<Owned<Bag>>;
-/// @type.symbol symbol=boxed source=boxed type=Managed<Owned<Bag>>
+/// @type.symbol symbol=boxed source=boxed type=local Owned<Bag>
 /// @resolution.pattern source=boxed kind=binding target=boxed
-/// @resolution.name source=Managed target=memory.managed.Managed
-/// @resolution.name source=Owned target=memory.owned.Owned
+/// @resolution.name source=Managed target=Managed
+/// @resolution.name source=Owned target=Owned
 /// @resolution.name source=Bag target=Bag
 "#,
     );
@@ -388,8 +383,8 @@ struct Point {
 
 type Slot<T> = Managed<T>;
 
-declare const shared: Bag;
-declare const boxed: Managed<Point>;
+declare const shared: local Bag;
+declare const boxed: local Point;
 
 === dir ===
 import { Managed } from "destack:memory";
@@ -416,20 +411,20 @@ struct Point {
 
 type Slot<T> = Managed<T>;
 /// @generic.template symbol=Slot parameters=(T)
-/// @type.symbol symbol=Slot source="type Slot<T> = Managed<T>" type=Managed<T>
-/// @definition.type symbol=Slot source="type Slot<T> = Managed<T>" template=(T) value=Managed<T>
+/// @type.symbol symbol=Slot source="type Slot<T> = Managed<T>" type=local T
+/// @definition.type symbol=Slot source="type Slot<T> = Managed<T>" template=(T) value=local T
 /// @type.symbol symbol=Slot.T source=T type=T
-/// @resolution.name source=Managed target=memory.managed.Managed
+/// @resolution.name source=Managed target=Managed
 /// @resolution.name source=T target=Slot.T
 
 declare const shared: Slot<Bag>;
-/// @type.symbol symbol=shared source=shared type=Bag
+/// @type.symbol symbol=shared source=shared type=local Bag
 /// @resolution.pattern source=shared kind=binding target=shared
 /// @resolution.name source=Slot target=Slot
 /// @resolution.name source=Bag target=Bag
 
 declare const boxed: Slot<Point>;
-/// @type.symbol symbol=boxed source=boxed type=Managed<Point>
+/// @type.symbol symbol=boxed source=boxed type=local Point
 /// @resolution.pattern source=boxed kind=binding target=boxed
 /// @resolution.name source=Slot target=Slot
 /// @resolution.name source=Point target=Point
@@ -463,16 +458,16 @@ declare const doubled: **int32;
 import { Borrowed, Raw } from "destack:memory";
 
 declare const nested: Borrowed<Borrowed<int32>>;
-/// @type.symbol symbol=nested source=nested type=&'static int32
+/// @type.symbol symbol=nested source=nested type=&'static constant int32
 /// @resolution.pattern source=nested kind=binding target=nested
-/// @resolution.name source=Borrowed target=memory.borrow.Borrowed
-/// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+/// @resolution.name source=Borrowed target=Borrowed
+/// @resolution.name source=Borrowed target=Borrowed
 
 declare const doubled: Raw<Raw<int32>>;
 /// @type.symbol symbol=doubled source=doubled type=Raw<Raw<int32>>
 /// @resolution.pattern source=doubled kind=binding target=doubled
-/// @resolution.name source=Raw target=memory.raw.Raw
-/// @resolution.name source=Raw target=memory.raw.Raw
+/// @resolution.name source=Raw target=Raw
+/// @resolution.name source=Raw target=Raw
 "#,
     );
 }
@@ -503,7 +498,7 @@ struct Point {
     x: int32;
 }
 
-declare const boxed: Managed<Point>;
+declare const boxed: local Point;
 
 === dir ===
 import { Managed } from "destack:memory";
@@ -519,10 +514,10 @@ struct Point {
 }
 
 declare const boxed: Managed<Managed<Point>>;
-/// @type.symbol symbol=boxed source=boxed type=Managed<Point>
+/// @type.symbol symbol=boxed source=boxed type=local Point
 /// @resolution.pattern source=boxed kind=binding target=boxed
-/// @resolution.name source=Managed target=memory.managed.Managed
-/// @resolution.name source=Managed target=memory.managed.Managed
+/// @resolution.name source=Managed target=Managed
+/// @resolution.name source=Managed target=Managed
 /// @resolution.name source=Point target=Point
 "#,
     );

@@ -1,5 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Match every member of an enum through member patterns.
 #[test]
 fn test_enum_member_patterns_match_exhaustively() {
     let session = TestSession::single(
@@ -77,6 +78,7 @@ function describe(mode: Mode): int32 {
     );
 }
 
+/// Report the enum member that a match leaves uncovered.
 #[test]
 fn test_enum_member_match_reports_the_uncovered_member() {
     let session = TestSession::single(
@@ -222,7 +224,7 @@ declare const status: Status;
 
 match (status) {
 /// @resolution.name source=status target=status
-/// @resolution.place source=status placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=status placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=status root=status
 
     Other.Ready => 0
@@ -236,7 +238,7 @@ match (status) {
 "#);
 }
 
-/// Reject an enum member pattern absent from its written enum.
+/// Reject an enum member pattern naming an unknown member.
 #[test]
 fn test_reject_missing_enum_member_pattern() {
     let session = TestSession::single(
@@ -293,7 +295,7 @@ declare const status: Status;
 match (status) {
 /// @resolution.coverage exhaustive=true disjoint=true
 /// @resolution.name source=status target=status
-/// @resolution.place source=status placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=status placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=status root=status
 
     Status.Done => 0
@@ -362,7 +364,7 @@ enum Mode {
 }
 
 declare const mode: &readonly Mode;
-/// @type.symbol symbol=mode source=mode type=&'static readonly Mode
+/// @type.symbol symbol=mode source=mode type=&'static readonly constant Mode
 /// @resolution.pattern source=mode kind=binding target=mode
 /// @resolution.name source=Mode target=Mode
 
@@ -371,7 +373,7 @@ const value = match (mode) {
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.coverage exhaustive=true disjoint=true
 /// @resolution.name source=mode target=mode
-/// @resolution.place source=mode placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=mode placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=mode root=mode
 
     Mode.Read => 10

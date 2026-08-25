@@ -260,19 +260,19 @@ declare class Box<out T> {
 }
 
 declare const box: Box<int32>;
-const mapped: Box<int32> = box.map<int32, int32>((value: int32): int32 => value);
+const mapped: Box<int32> = box.map<int32, int32, "local">((value: int32): int32 => value);
 
 === dir ===
 declare class Box<T> {
 /// @generic.template symbol=Box parameters=(out T)
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(out T)
-/// @definition.method symbol=Box.map source="map<U>(callback: (value: T) => U): Box<U>" slot=map type=<U>(this: this, Function<(T,), U>) => Box<U>
+/// @definition.method symbol=Box.map source="map<U>(callback: (value: T) => U): Box<U>" slot=map type=<U, Box.map.P1: Place>(this: Managed<this, Box.map.P1>, Function<(T,), U>) => Box<U>
 /// @type.symbol symbol=Box.T source=T type=T
 
     map<U>(callback: (value: T) => U): Box<U>;
-    /// @generic.template symbol=Box.map parent=template#0 parameters=(U)
-    /// @type.symbol symbol=Box.map source="map<U>(callback: (value: T) => U): Box<U>" type=<U>(this: this, Function<(T,), U>) => Box<U>
+    /// @generic.template symbol=Box.map parent=template#0 parameters=(U, P1: Place)
+    /// @type.symbol symbol=Box.map source="map<U>(callback: (value: T) => U): Box<U>" type=<U, Box.map.P1: Place>(this: Managed<this, Box.map.P1>, Function<(T,), U>) => Box<U>
     /// @type.symbol symbol=Box.map.U source=U type=U
     /// @type.symbol symbol=Box.map.callback source="callback: (value: T) => U" type=Function<(T,), U>
     /// @type.symbol symbol=Box.map.value source="value: T" type=T
@@ -294,15 +294,15 @@ const mapped = box.map((value) => value);
 /// @resolution.pattern source=mapped kind=binding target=mapped
 /// @type.node source="box.map((value) => value)" type=Box<int32>
 /// @type.node source=box type=Box<int32>
-/// @type.node source=box.map type=<U>(this: Box<int32>, Function<(int32,), U>) => Box<U>
+/// @type.node source=box.map type=<U, Box.map.P1: Place>(this: Managed<Box<int32>, Box.map.P1>, Function<(int32,), U>) => Box<U>
 /// @resolution.name source=box target=box
-/// @resolution.member source=box.map receiver=Box<int32> type=<U>(this: Box<int32>, Function<(int32,), U>) => Box<U> kind=symbol target_receiver=Box<int32> target=Box.map
-/// @resolution.call source="box.map((value) => value)" parameters=(Function<(int32,), int32>) arguments=(provided((value) => value) as Function<(int32,), int32>) return=Box<int32> kind=symbol target=Box.map receiver=Box<int32> instance=Box<int32>.map<int32>
+/// @resolution.member source=box.map receiver=Box<int32> type=<U, Box.map.P1: Place>(this: Managed<Box<int32>, Box.map.P1>, Function<(int32,), U>) => Box<U> kind=symbol target_receiver=Box<int32> target=Box.map
+/// @resolution.call source="box.map((value) => value)" parameters=(Function<(int32,), int32>) arguments=(provided((value) => value) as Function<(int32,), int32>) return=Box<int32> kind=symbol target=Box.map receiver=Box<int32> instance="Box<int32>.map<int32, \"local\">"
 /// @resolution.place source=box placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=box root=box
-/// @generic.instantiation id="Box.map<int32, int32>" template=Box.map arguments=(int32, int32)
+/// @generic.instantiation id="Box.map<int32, int32, \"local\">" template=Box.map arguments=(int32, int32, "local")
 /// @generic.instantiation id=Box.map<int32> template=Box.map arguments=(int32)
-/// @generic.instance id="Box.map<int32, int32>" template=Box.map arguments=(int32, int32)
+/// @generic.instance id="Box.map<int32, int32, \"local\">" template=Box.map arguments=(int32, int32, "local")
 /// @type.symbol symbol=symbol9 source="(value) => value" type=Function<(int32,), int32>
 /// @type.node source="(value) => value" type=Function<(int32,), int32>
 /// @type.symbol symbol=symbol9.value source=value type=int32
@@ -405,7 +405,7 @@ declare class Box<out T> {
 }
 
 declare const box: Box<int32>;
-const value: int32 = box.map<int32, int32>(
+const value: int32 = box.map<int32, int32, "local">(
     (item: int32): int32 | Box<int32> => item as int32 | Box<int32>,
 );
 
@@ -414,12 +414,12 @@ declare class Box<T> {
 /// @generic.template symbol=Box parameters=(out T)
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(out T)
-/// @definition.method symbol=Box.map source="map<U>(callback: (value: T) => U | Box<U>): U" slot=map type=<U>(this: this, Function<(T,), U | Box<U>>) => U
+/// @definition.method symbol=Box.map source="map<U>(callback: (value: T) => U | Box<U>): U" slot=map type=<U, Box.map.P1: Place>(this: Managed<this, Box.map.P1>, Function<(T,), U | Box<U>>) => U
 /// @type.symbol symbol=Box.T source=T type=T
 
     map<U>(callback: (value: T) => U | Box<U>): U;
-    /// @generic.template symbol=Box.map parent=template#0 parameters=(U)
-    /// @type.symbol symbol=Box.map source="map<U>(callback: (value: T) => U | Box<U>): U" type=<U>(this: this, Function<(T,), U | Box<U>>) => U
+    /// @generic.template symbol=Box.map parent=template#0 parameters=(U, P1: Place)
+    /// @type.symbol symbol=Box.map source="map<U>(callback: (value: T) => U | Box<U>): U" type=<U, Box.map.P1: Place>(this: Managed<this, Box.map.P1>, Function<(T,), U | Box<U>>) => U
     /// @type.symbol symbol=Box.map.U source=U type=U
     /// @type.symbol symbol=Box.map.callback source="callback: (value: T) => U | Box<U>" type=Function<(T,), U | Box<U>>
     /// @type.symbol symbol=Box.map.value source="value: T" type=T
@@ -442,15 +442,15 @@ const value = box.map((item) => item);
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="box.map((item) => item)" type=int32
 /// @type.node source=box type=Box<int32>
-/// @type.node source=box.map type=<U>(this: Box<int32>, Function<(int32,), U | Box<U>>) => U
+/// @type.node source=box.map type=<U, Box.map.P1: Place>(this: Managed<Box<int32>, Box.map.P1>, Function<(int32,), U | Box<U>>) => U
 /// @resolution.name source=box target=box
-/// @resolution.member source=box.map receiver=Box<int32> type=<U>(this: Box<int32>, Function<(int32,), U | Box<U>>) => U kind=symbol target_receiver=Box<int32> target=Box.map
-/// @resolution.call source="box.map((item) => item)" parameters=(Function<(int32,), int32 | Box<int32>>) arguments=(provided((item) => item) as Function<(int32,), int32 | Box<int32>>) return=int32 kind=symbol target=Box.map receiver=Box<int32> instance=Box<int32>.map<int32>
+/// @resolution.member source=box.map receiver=Box<int32> type=<U, Box.map.P1: Place>(this: Managed<Box<int32>, Box.map.P1>, Function<(int32,), U | Box<U>>) => U kind=symbol target_receiver=Box<int32> target=Box.map
+/// @resolution.call source="box.map((item) => item)" parameters=(Function<(int32,), int32 | Box<int32>>) arguments=(provided((item) => item) as Function<(int32,), int32 | Box<int32>>) return=int32 kind=symbol target=Box.map receiver=Box<int32> instance="Box<int32>.map<int32, \"local\">"
 /// @resolution.place source=box placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=box root=box
-/// @generic.instantiation id="Box.map<int32, int32>" template=Box.map arguments=(int32, int32)
+/// @generic.instantiation id="Box.map<int32, int32, \"local\">" template=Box.map arguments=(int32, int32, "local")
 /// @generic.instantiation id=Box.map<int32> template=Box.map arguments=(int32)
-/// @generic.instance id="Box.map<int32, int32>" template=Box.map arguments=(int32, int32)
+/// @generic.instance id="Box.map<int32, int32, \"local\">" template=Box.map arguments=(int32, int32, "local")
 /// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(int32,), int32 | Box<int32>>
 /// @type.node source="(item) => item" type=Function<(int32,), int32 | Box<int32>>
 /// @type.symbol symbol=symbol9.item source=item type=int32
@@ -478,7 +478,10 @@ function call(): void {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 export type Message = string | Function<(), string, "once">;
 
@@ -493,7 +496,7 @@ function call(): void {
 export type Message = string | Function<(), string, "once">;
 /// @type.symbol symbol=Message source="export type Message = string | Function<(), string, \"once\">" type=string | Function<(), string, "once">
 /// @definition.type symbol=Message source="export type Message = string | Function<(), string, \"once\">" value=string | Function<(), string, "once">
-/// @resolution.name source=Function target=types.function.Function
+/// @resolution.name source=Function target=Function
 
 export function check(condition: boolean, message?: Message): void {}
 /// @type.symbol symbol=check source="export function check(condition: boolean, message?: Message): void {}" type=(boolean, Message | undefined?) => void
@@ -514,7 +517,9 @@ function call(): void {
     /// @resolution.call source="check(true, \"eager\")" parameters=(boolean, Message | undefined) arguments=(provided(true) as boolean, provided("eager") as Message | undefined) return=void kind=symbol target=check
 
 }
-"#, r#""#);
+"#,
+        r#""#,
+    );
 }
 
 /// Leave a function value uncontextualized under a union with two callable members.
@@ -532,7 +537,10 @@ function call(): void {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 export type Handler = ((value: int32) => void) | ((value: string) => void);
 
@@ -564,9 +572,11 @@ function call(): void {
     /// @type.symbol symbol=call.symbol7.value source=value type=<error>
 
 }
-"#, r#"
+"#,
+        r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '(value: _) => _' is not assignable to parameter of type 'Handler'"
 /// @diagnostic.label line=7 column=9 span="(value) => {}" line_source="run((value) => {});"
 /// @diagnostic.related line=7 column=5 span="run((value) => {})" line_source="run((value) => {});" message="in this call"
-"#);
+"#,
+    );
 }

@@ -47,18 +47,18 @@ impl ParameterSelection {
     }
 }
 
-/// One signature decision folded canonical, instantiated across call sites.
+/// One canonical signature decision instantiated across call sites.
 #[derive(Debug, Clone)]
 pub(in crate::sema) struct SignatureInstance {
     /// The selected overload position within the callee's candidates.
     pub(in crate::sema) overload: usize,
-    /// The instantiated selection without per-site coercions.
+    /// The instantiated selection, leaving coercions to each call site.
     pub(in crate::sema) selection: SignatureSelection,
 }
 
 /// One invocation constrained against a candidate signature.
 struct Invocation {
-    /// The rejection the constraints produced, absent on acceptance.
+    /// The rejection the constraints produced, set when the candidate fails.
     rejection: Option<SignatureRejection>,
     /// Whether the expected result refused the substituted return.
     is_return_mismatch: bool,
@@ -81,7 +81,7 @@ pub(in crate::sema) enum SignatureMatch {
     },
     /// The selected signature accepts the arguments and fails the expected result.
     ReturnMismatch(SignatureSelection),
-    /// The invocation has no instantiable signature.
+    /// The signature refuses instantiation for this invocation.
     Inapplicable(SignatureRejection),
 }
 
@@ -106,7 +106,7 @@ impl SignatureMatch {
 pub(in crate::sema) struct CallableArgument {
     /// Source node used for origins and diagnostics.
     pub(in crate::sema) source: dir::GlobalNodeIdAny,
-    /// Known argument type, or none when the source expression must be checked.
+    /// Known argument type, left open while the source expression still needs checking.
     pub(in crate::sema) ty: Option<dir::GlobalTypeId>,
     /// Relation selected from the authored argument expression.
     pub(in crate::sema) relation: Relation,
@@ -134,7 +134,7 @@ pub(in crate::sema) enum SignatureRejection {
     },
     /// One invocation type relation failed.
     Mismatch {
-        /// The judged verdict: ambiguity retries once variables solve.
+        /// The decided verdict: ambiguity retries once variables solve.
         verdict: Verdict,
         /// Why the rejected relation exists.
         cause: CauseId,
@@ -229,7 +229,7 @@ impl BodyState<'_, '_> {
             dir::Type::FunctionPointer(function) => {
                 return self.callable_signature_type(origin, function.signature);
             }
-            // every other type carries no callable signature
+            // treat every other type as uncallable
             _ => None,
         };
 
@@ -324,7 +324,7 @@ impl BodyState<'_, '_> {
         let parameter_type = self.receiver_relative_type(origin, receiver, parameter_type)?;
         let parameter_type = self.shallow_resolve(parameter_type)?;
 
-        // rest parameters keep their collection type and take its element per source
+        // keep the collection type on a rest parameter and take its element per source
         let argument_type = if parameter.is_rest {
             self.rest_element_type(origin, parameter_type)?
                 .unwrap_or(parameter_type)
@@ -411,7 +411,7 @@ impl BodyState<'_, '_> {
         rest: dir::GlobalTypeId,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::Selection>> {
-        // slice parameters pack in place without a constructor
+        // slice parameters pack in place
         let reduced = self.check.deeply_resolve(origin, rest)?;
         if matches!(self.ty(reduced)?, dir::Type::Slice(_)) {
             return Ok(None);
@@ -425,6 +425,7 @@ impl BodyState<'_, '_> {
         &mut self,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<dir::Selection> {
+        // read the element parameter of the array pack constructor
         let symbol = self
             .check
             .language_symbol(dir::LanguageItem::ArrayFromSlice)?;
@@ -452,9 +453,9 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let reduced = self.check.deeply_resolve(origin, rest)?;
 
-        // placed collections accept their element in the collection's place
+        // resolve the element of a placed collection in the collection's place
         if let dir::Type::Form(form) = self.check.ty(reduced)?
-            && let dir::Form::Placed { place } = form.form
+            && let dir::Form::Managed { place } = form.form
         {
             let Some(element) = self.rest_element_type(origin, form.value)? else {
                 return Ok(None);
@@ -487,7 +488,7 @@ impl BodyState<'_, '_> {
         }
     }
 
-    /// Probe one callable candidate without committing a decision.
+    /// Probe one callable candidate against the supplied arguments.
     pub(in crate::sema) fn probe_callable(
         &mut self,
         origin: Origin,
@@ -593,7 +594,7 @@ impl BodyState<'_, '_> {
         )
     }
 
-    /// Constrain one function signature candidate without fulfilling residual constraints.
+    /// Constrain one function signature candidate, leaving residual constraints to fulfillment.
     fn constrain_signature(
         &mut self,
         origin: Origin,
@@ -607,7 +608,7 @@ impl BodyState<'_, '_> {
         arguments: &[CallableArgument],
         expectation: Option<Expectation>,
     ) -> CompilerResult<SignatureMatch> {
-        // reject arities the signature cannot accept
+        // reject argument counts outside the accepted arity
         let signature_parameters = self
             .signature_parameters(signature_module, function.parameters)?
             .to_vec();
@@ -639,8 +640,10 @@ impl BodyState<'_, '_> {
         // preserve generic bindings already selected by the callee
         let substitution = substitution.with_carried(carried)?;
 
-        // const arguments pin their parameters to exact literals
+        // read the parameters the signature declares
         let parameters = self.signature_generic_parameters(function)?;
+
+        // fix the parameters to exact literals for a const call
         let is_const_call = arguments
             .iter()
             .all(|argument| argument.use_ == ValueUse::Const);
@@ -763,15 +766,6 @@ impl BodyState<'_, '_> {
         let mut is_return_mismatch = false;
         let mut receiver_steps = None;
         let mut coercions = SmallVec::new();
-        let constrained = |rejection, is_return_mismatch, receiver_steps, coercions| {
-            Some(Invocation {
-                rejection,
-                is_return_mismatch,
-                receiver_steps,
-                coercions,
-            })
-        };
-
         // relate the implicit receiver before explicit arguments
         if let (Some(receiver), Some(this_parameter)) = (receiver, function.this_parameter) {
             let receiver_substitution = substitution.clone().with_receiver(receiver.ty);
@@ -784,12 +778,12 @@ impl BodyState<'_, '_> {
                         target: this_parameter,
                     };
 
-                    return Ok(constrained(
-                        Some(rejection),
+                    return Ok(Some(Invocation {
+                        rejection: Some(rejection),
                         is_return_mismatch,
                         receiver_steps,
                         coercions,
-                    ));
+                    }));
                 }
             }
         }
@@ -819,7 +813,7 @@ impl BodyState<'_, '_> {
                 expectation.mode,
             )?;
 
-            // leave a pending expectation to the queue after commitment
+            // record a failed expectation as a return mismatch
             if matches!(converted.outcome, CheckOutcome::Fails(_)) {
                 is_return_mismatch = true;
             }
@@ -829,7 +823,7 @@ impl BodyState<'_, '_> {
         let signature_parameters =
             self.spread_tuple_rest_parameters(origin, signature_parameters.to_vec(), substitution)?;
 
-        // reject argument tails a spread signature cannot take
+        // reject argument tails past a fixed parameter count
         let has_rest = signature_parameters
             .iter()
             .any(|parameter| parameter.is_rest);
@@ -848,7 +842,7 @@ impl BodyState<'_, '_> {
                 return Ok(None);
             };
 
-            // a spread supplies elements only through a rest window
+            // reject a spread outside a rest parameter
             if argument.is_spread && !parameter.is_rest {
                 return Ok(None);
             }
@@ -872,6 +866,7 @@ impl BodyState<'_, '_> {
             )?);
         }
 
+        // add the constraints the owner template declares
         if let Some(owner) = owner
             && let Some(template) = self.symbol_template(owner)?
         {
@@ -900,12 +895,12 @@ impl BodyState<'_, '_> {
                     failure,
                 )?;
 
-                return Ok(constrained(
-                    Some(rejection),
+                return Ok(Some(Invocation {
+                    rejection: Some(rejection),
                     is_return_mismatch,
                     receiver_steps,
                     coercions,
-                ));
+                }));
             }
         }
 
@@ -944,12 +939,12 @@ impl BodyState<'_, '_> {
             if let Some(rejection) =
                 self.constrain_argument(origin, entry, &const_variables, &mut coercions)?
             {
-                return Ok(constrained(
-                    Some(rejection),
+                return Ok(Some(Invocation {
+                    rejection: Some(rejection),
                     is_return_mismatch,
                     receiver_steps,
                     coercions,
-                ));
+                }));
             }
         }
 
@@ -964,25 +959,27 @@ impl BodyState<'_, '_> {
                 self.check.resolve_variables(&roots)?;
             }
         }
+
+        // match the contextual closure arguments
         for entry in contextual {
             if let Some(rejection) =
                 self.constrain_argument(origin, entry, &const_variables, &mut coercions)?
             {
-                return Ok(constrained(
-                    Some(rejection),
+                return Ok(Some(Invocation {
+                    rejection: Some(rejection),
                     is_return_mismatch,
                     receiver_steps,
                     coercions,
-                ));
+                }));
             }
         }
 
-        Ok(constrained(
-            None,
+        Ok(Some(Invocation {
+            rejection: None,
             is_return_mismatch,
             receiver_steps,
             coercions,
-        ))
+        }))
     }
 
     /// Build one mismatch rejection over a failed relation.
@@ -1126,7 +1123,7 @@ impl BodyState<'_, '_> {
             },
         ));
 
-        // a spread argument constrains its element against the rest slot
+        // constrain a spread element against the rest parameter
         if argument.is_spread {
             let site = self.visit_site(source)?;
             let ty = self.infer_node_type(site, PlaceUse::Read)?;
@@ -1150,7 +1147,7 @@ impl BodyState<'_, '_> {
             return Ok(Ok(None));
         }
 
-        // a const parameter reads its argument as const, any other argument widens mutably
+        // read a const parameter's argument as const, widening every other argument mutably
         let mut mode = InferMode::Regular;
         for variable in self.type_variables(parameter_type)? {
             if let VariableRole::Instantiation { parameter } = self.infer.variable_role(variable)?
@@ -1160,7 +1157,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // apply target-directed syntax before converting the resulting value
+        // check the written argument against its target before converting the resulting value
         let ty = match argument.ty {
             Some(ty) => ty,
             None => {
