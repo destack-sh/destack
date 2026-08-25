@@ -289,6 +289,27 @@ function invoke(callback: (() => int32) | undefined): int32 | undefined {
         );
     }
 
+    /// Replace an indexed access guarded by an undefined test.
+    #[test]
+    fn test_replaces_index_access() {
+        let session = TestSession::dir(
+            &PREFER_OPTIONAL_CHAIN,
+            r#"
+function first(values: string[] | undefined): string | undefined {
+    return values === undefined ? undefined : values[0];
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function first(values: string[] | undefined): string | undefined {
+    return values?.[0];
+}
+"#,
+        );
+    }
+
     /// Accept a nullish branch whose value optional chaining would change.
     #[test]
     fn test_accepts_null_result_branch() {

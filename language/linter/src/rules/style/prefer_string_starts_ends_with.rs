@@ -249,6 +249,27 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
+    /// Replace a negated zero index search with a direct prefix test.
+    #[test]
+    fn test_replaces_negated_index_search() {
+        let session = TestSession::dir(
+            &PREFER_STRING_STARTS_ENDS_WITH,
+            r#"
+function lacksPrefix(text: string, prefix: string): boolean {
+    return text.indexOf(prefix) !== 0;
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function lacksPrefix(text: string, prefix: string): boolean {
+    return !text.startsWith(prefix);
+}
+"#,
+        );
+    }
+
     /// Accept a last-index comparison that differs for longer search strings.
     #[test]
     fn test_accepts_last_index() {

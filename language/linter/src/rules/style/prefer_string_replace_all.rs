@@ -206,6 +206,27 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
+    /// Replace a global regular-expression replacement directly.
+    #[test]
+    fn test_replaces_global_replacement() {
+        let session = TestSession::dir(
+            &PREFER_STRING_REPLACE_ALL,
+            r#"
+function redact(text: string): string {
+    return text.replace(/secret/g, "***");
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function redact(text: string): string {
+    return text.replaceAll(/secret/g, "***");
+}
+"#,
+        );
+    }
+
     /// Replace a split-and-join chain over a nonempty string separator.
     #[test]
     fn test_replaces_split_join() {

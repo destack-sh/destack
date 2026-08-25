@@ -170,6 +170,28 @@ extension of Panel implements TreeBuilder {
 }
 "#;
 
+    /// Replace a paired element with no children.
+    #[test]
+    fn test_replaces_empty_element() {
+        let source = format!(
+            r#"{BUILDER}
+function render(): Panel {{
+    return <hr></hr>;
+}}
+"#,
+        );
+        let session = TestSession::dir(&PREFER_SELF_CLOSING_TREE, &source);
+        let expected = format!(
+            r#"{BUILDER}
+function render(): Panel {{
+    return <hr />;
+}}
+"#,
+        );
+
+        session.assert_fixes(&expected);
+    }
+
     /// Accept an element with one text child.
     #[test]
     fn test_accepts_element_with_child() {

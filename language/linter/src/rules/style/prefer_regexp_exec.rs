@@ -149,6 +149,27 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
+    /// Replace a consumed non-global match with direct regular-expression execution.
+    #[test]
+    fn test_replaces_non_global_match() {
+        let session = TestSession::dir(
+            &PREFER_REGEXP_EXEC,
+            r#"
+function firstMatch(text: string): unknown {
+    return text.match(/[a-z]+/i);
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function firstMatch(text: string): unknown {
+    return /[a-z]+/i.exec(text);
+}
+"#,
+        );
+    }
+
     /// Accept a global pattern that collects all matches.
     #[test]
     fn test_accepts_global_match() {
