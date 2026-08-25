@@ -74,7 +74,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Report one annotation when its initializer selects the same scalar carrier.
+/// Report one annotation when its initializer selects the same scalar representation.
 fn report_redundant_annotation(
     module: &DirModule<'_>,
     lint: &Lint,
@@ -87,7 +87,7 @@ fn report_redundant_annotation(
         return Ok(());
     }
     let annotation_type = module.node_type(annotation.into_any())?;
-    let Some(inferred_type) = module.node_type(value.into_any())?.scalar_carrier() else {
+    let Some(inferred_type) = module.node_type(value.into_any())?.scalar_representation() else {
         return Ok(());
     };
     if annotation_type != inferred_type {

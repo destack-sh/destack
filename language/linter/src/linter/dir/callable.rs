@@ -473,7 +473,7 @@ impl DirModule<'_> {
                 continue;
             };
             let returned_target = self.dir.strip_form(returned_type)?;
-            if borrow.lifetime == returned_borrow.lifetime && target == returned_target {
+            if borrow.region == returned_borrow.region && target == returned_target {
                 return Ok(true);
             }
         }

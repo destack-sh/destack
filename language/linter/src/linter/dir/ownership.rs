@@ -73,16 +73,16 @@ impl Dir<'_> {
             | dir::Type::Void
             | dir::Type::Undefined
             | dir::Type::Null
-            | dir::Type::Memory(_)
             | dir::Type::Static(_)
             | dir::Type::Intrinsic
             | dir::Type::Key(_)
+            | dir::Type::Region(_)
             | dir::Type::Range(_)
             | dir::Type::Tuple(_)
             | dir::Type::FixedArray(_)
             | dir::Type::FunctionPointer(_) => Some(dir::Ownership::Owned),
             dir::Type::Primitive(primitive) => Some(primitive.ownership()),
-            // literals share the ownership of their runtime scalar carrier
+            // take a literal's ownership from its widened runtime scalar
             dir::Type::Literal(literal) => match literal.widen() {
                 dir::Type::Primitive(primitive) => Some(primitive.ownership()),
                 _ => Some(dir::Ownership::Owned),
@@ -105,13 +105,14 @@ impl Dir<'_> {
                 return self.default_ownership(variant.owner);
             }
             dir::Type::Form(form) => match form.form {
-                dir::Form::Readonly | dir::Form::Placed { .. } => {
+                dir::Form::Readonly => {
                     return self.default_ownership(form.value);
                 }
                 // take an explicit form as the value's own ownership
-                dir::Form::Managed | dir::Form::Owned | dir::Form::Borrowed(_) | dir::Form::Raw => {
-                    form.form.ownership()
-                }
+                dir::Form::Managed { .. }
+                | dir::Form::Owned
+                | dir::Form::Borrowed(_)
+                | dir::Form::Raw => form.form.ownership(),
             },
             dir::Type::Reference(_)
             | dir::Type::Parameter(_)
@@ -149,7 +150,7 @@ impl Dir<'_> {
             Some(dir::Definition::Struct(_) | dir::Definition::Enum(_)) => {
                 Ok(Some(dir::Ownership::Owned))
             }
-            // newtypes share their backing representation's ownership
+            // take a newtype's ownership from its backing representation
             Some(dir::Definition::Newtype(definition)) => {
                 self.default_ownership(definition.backing)
             }

@@ -54,7 +54,7 @@ impl Dir<'_> {
         type_id: dir::GlobalTypeId,
         item: dir::LanguageItem,
     ) -> Result<bool, ProviderError> {
-        // narrowing keeps the carrier beside the surviving arm, so inspect every element
+        // narrowing keeps the representation beside the surviving arm, so inspect every element
         let type_id = self.strip_form(type_id)?;
         for element in self.intersection_elements(type_id)? {
             if self.representation_item(element)? == Some(item) {

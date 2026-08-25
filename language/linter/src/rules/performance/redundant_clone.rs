@@ -126,14 +126,14 @@ fn is_redundant_clone(
 
     // require the complete storage root to be dead after this call
     let root = moves.get(moves.root(path)).place.origin;
-    if live.find_carrier(root, places).is_some() {
+    if live.find_representation(root, places).is_some() {
         return false;
     }
 
     // reject moves blocked by any other live loan
     let mut active = state.active_loans(
         |value| live.contains_value(value),
-        |place| live.find_carrier(place.origin, places).is_some(),
+        |place| live.find_representation(place.origin, places).is_some(),
     );
     active.retain(|loan| *loan != receiver_loan);
 

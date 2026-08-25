@@ -371,7 +371,11 @@ impl<'a> Dir<'a> {
         type_id: dir::GlobalTypeId,
     ) -> Result<dir::Access, ProviderError> {
         let ty = self.get_type(type_id)?;
-        let dir::Type::Memory(dir::MemoryLiteral::Access(access)) = ty else {
+        let access = match ty {
+            dir::Type::Literal(dir::Literal::String(value)) => dir::Access::from_text(value),
+            _ => None,
+        };
+        let Some(access) = access else {
             return Err(ProviderError::internal(format!(
                 "checked memory access {type_id:?} has non-access type {ty:?}"
             )));

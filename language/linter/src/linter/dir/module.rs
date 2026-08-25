@@ -207,7 +207,7 @@ impl<'a> DirModule<'a> {
             return true;
         };
 
-        // widening settles a fresh numeric literal at its carrier and leaves the value alone
+        // widening settles a fresh numeric literal at its representation and leaves the value alone
         coercion
             .adjustments
             .iter()
