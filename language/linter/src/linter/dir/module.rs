@@ -152,7 +152,7 @@ impl<'a> DirModule<'a> {
         self.dir.get_type(type_id)
     }
 
-    /// Return whether the value one checked node carries copies by value.
+    /// Return whether the value one node carries copies by value.
     pub(crate) fn satisfies_copy(
         &self,
         node: dir::LocalNodeIdAny,
@@ -178,7 +178,7 @@ impl<'a> DirModule<'a> {
             .map(|template| template.into_global(self.id))
     }
 
-    /// Return whether one checked node cannot complete normally.
+    /// Return whether one node cannot complete normally.
     pub(crate) fn is_diverging(&self, node: dir::LocalNodeIdAny) -> Result<bool, ProviderError> {
         Ok(matches!(self.node_type(node)?, dir::Type::Never))
     }
@@ -189,19 +189,19 @@ impl<'a> DirModule<'a> {
         node: dir::LocalNodeIdAny,
     ) -> Result<dir::GlobalTypeId, ProviderError> {
         let node = node.into_global(self.id);
-        self.types.get_node_type_id(node).ok_or_else(|| {
-            ProviderError::internal(format!("checked DIR node {node:?} has no reduced type"))
-        })
+        self.types
+            .get_node_type_id(node)
+            .ok_or_else(|| ProviderError::internal(format!("node {node:?} has no reduced type")))
     }
 
-    /// Return one checked node's type after its selected adjustments.
+    /// Return one node's type after its selected adjustments.
     pub fn adjusted_type(&self, node: dir::LocalNodeIdAny) -> Result<dir::Type, ProviderError> {
         let type_id = self.adjusted_type_id(node)?;
 
         self.dir.get_type(type_id)
     }
 
-    /// Return whether one checked node passes its value on unchanged.
+    /// Return whether one node passes its value on unchanged.
     pub(crate) fn is_unadjusted(&self, node: dir::LocalNodeIdAny) -> bool {
         let Some(coercion) = self.coercions.coercion(node.into_global(self.id)) else {
             return true;
@@ -214,7 +214,7 @@ impl<'a> DirModule<'a> {
             .all(|adjustment| matches!(adjustment, dir::CoercionAdjustment::Widen { .. }))
     }
 
-    /// Return one checked node's type id after its selected adjustments.
+    /// Return one node's type id after its selected adjustments.
     pub fn adjusted_type_id(
         &self,
         node: dir::LocalNodeIdAny,
@@ -258,7 +258,7 @@ impl<'a> DirModule<'a> {
         node: dir::LocalNodeIdAny,
     ) -> Result<dir::CodeFingerprint, ProviderError> {
         self.code()?.fingerprint(node.id).ok_or_else(|| {
-            ProviderError::internal(format!("visible DIR node {node:?} has no code fingerprint"))
+            ProviderError::internal(format!("visible node {node:?} has no code fingerprint"))
         })
     }
 }

@@ -568,7 +568,7 @@ impl DirModule<'_> {
             })
     }
 
-    /// Return the operator decision selected for one checked node.
+    /// Return the operator decision selected for one node.
     pub fn operator_decision(
         &self,
         node: dir::LocalNodeIdAny,
@@ -581,8 +581,7 @@ impl DirModule<'_> {
             }
 
             return Err(ProviderError::internal(format!(
-                "checked operator node {} in module {:?} has no operator resolution",
-                node.id, self.id
+                "node {global:?} has no operator resolution"
             )));
         };
 
@@ -625,6 +624,7 @@ impl DirModule<'_> {
         application: dir::LocalNodeIdAny,
         source: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<&dir::BuiltinOperand>, ProviderError> {
+        let global = application.into_global(self.id);
         let source = source.into_global(self.id);
         let Some(resolution) = self.operator_decision(application)? else {
             return Ok(None);
@@ -633,10 +633,7 @@ impl DirModule<'_> {
             return Ok(None);
         }
         let operand = resolution.builtin_operand(source).ok_or_else(|| {
-            ProviderError::internal(format!(
-                "checked builtin operator node {} in module {:?} has no operand {source:?}",
-                application.id, self.id
-            ))
+            ProviderError::internal(format!("node {global:?} has no operand {source:?}"))
         })?;
 
         Ok(Some(operand))

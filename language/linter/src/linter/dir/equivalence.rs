@@ -55,7 +55,7 @@ impl<'a> AlphaComparison<'a> {
         Some(comparison)
     }
 
-    /// Compare two checked DIR node sequences under the active correspondence.
+    /// Compare two node sequences under the active correspondence.
     pub(crate) fn compare_nodes(
         &mut self,
         left: &[dir::GlobalNodeIdAny],
@@ -150,11 +150,12 @@ impl<'a> AlphaComparison<'a> {
         }
 
         // compare structural children in their declared order
-        let left_children = self.left.view().direct_children(left).ok_or_else(|| {
-            ProviderError::internal(format!("left DIR node {left:?} is not visible"))
-        })?;
+        let left_children =
+            self.left.view().direct_children(left).ok_or_else(|| {
+                ProviderError::internal(format!("left node {left:?} is not visible"))
+            })?;
         let right_children = self.right.view().direct_children(right).ok_or_else(|| {
-            ProviderError::internal(format!("right DIR node {right:?} is not visible"))
+            ProviderError::internal(format!("right node {right:?} is not visible"))
         })?;
         if left_children.len() != right_children.len() {
             return Ok(false);
@@ -526,7 +527,7 @@ impl<T: Copy + Eq + Hash> Bijection<T> {
 }
 
 impl Dir<'_> {
-    /// Create an alpha comparison scoped by two checked DIR node sequences.
+    /// Create an alpha comparison scoped by two node sequences.
     pub(crate) fn alpha_comparison(
         &self,
         left: &[dir::GlobalNodeIdAny],
@@ -548,7 +549,7 @@ impl Dir<'_> {
         Ok(AlphaComparison::new(left_module, right_module, &symbols))
     }
 
-    /// Return whether two checked DIR node sequences are alpha-equivalent.
+    /// Return whether two node sequences are alpha-equivalent.
     fn is_alpha_equivalent(
         &self,
         left: &[dir::GlobalNodeIdAny],
@@ -567,7 +568,7 @@ impl Dir<'_> {
         comparison.compare_nodes(left, right)
     }
 
-    /// Return the common alpha-equivalent prefix length of two checked DIR node sequences.
+    /// Return the common alpha-equivalent prefix length of two node sequences.
     pub(crate) fn alpha_prefix_len(
         &self,
         left: &[dir::GlobalNodeIdAny],
@@ -594,7 +595,7 @@ impl Dir<'_> {
         Ok(matched)
     }
 
-    /// Return the common alpha-equivalent prefix length across checked DIR node sequences.
+    /// Return the common alpha-equivalent prefix length across node sequences.
     pub(crate) fn alpha_common_prefix_len(
         &self,
         sequences: &[&[dir::GlobalNodeIdAny]],
@@ -625,7 +626,7 @@ impl Dir<'_> {
         Ok(common)
     }
 
-    /// Return the common alpha-equivalent suffix length across checked DIR node sequences.
+    /// Return the common alpha-equivalent suffix length across node sequences.
     pub(crate) fn alpha_common_suffix_len(
         &self,
         sequences: &[&[dir::GlobalNodeIdAny]],
@@ -661,7 +662,7 @@ impl Dir<'_> {
         Ok(0)
     }
 
-    /// Return the name-insensitive structural fingerprint of one nonempty DIR node sequence.
+    /// Return the name-insensitive structural fingerprint of one nonempty node sequence.
     pub(crate) fn code_fingerprint(
         &self,
         nodes: &[dir::GlobalNodeIdAny],
@@ -679,9 +680,7 @@ impl Dir<'_> {
             let next = match combined {
                 Some(current) => {
                     dir::CodeFingerprint::concatenate([current, next]).ok_or_else(|| {
-                        ProviderError::internal(
-                            "DIR node sequence exceeds code fingerprint capacity",
-                        )
+                        ProviderError::internal("node sequence exceeds code fingerprint capacity")
                     })?
                 }
                 None => next,
@@ -704,7 +703,7 @@ impl Dir<'_> {
         };
         if nodes.iter().any(|node| node.module_id != first.module_id) {
             return Err(ProviderError::internal(
-                "DIR node sequence spans multiple modules",
+                "node sequence spans multiple modules",
             ));
         }
 
@@ -720,7 +719,7 @@ impl DirModule<'_> {
     ) -> Result<Vec<dir::GlobalSymbolId>, ProviderError> {
         if nodes.iter().any(|node| node.module_id != self.id) {
             return Err(ProviderError::internal(
-                "DIR node sequence spans multiple modules",
+                "node sequence spans multiple modules",
             ));
         }
         let mut symbols = Vec::new();
@@ -748,7 +747,7 @@ impl DirModule<'_> {
         let children = self
             .view()
             .direct_children(node)
-            .ok_or_else(|| ProviderError::internal(format!("DIR node {node:?} is not visible")))?;
+            .ok_or_else(|| ProviderError::internal(format!("node {node:?} is not visible")))?;
         for child in children {
             self.collect_declarations(child, symbols)?;
         }

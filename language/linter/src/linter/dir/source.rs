@@ -9,49 +9,49 @@ use destack_source::{File, FileId, NodeSpanBoundary, NodeSpanRegion, NodeSpanTyp
 use super::DirModule;
 
 impl DirModule<'_> {
-    /// Return the required source span for one DIR node.
+    /// Return the required source span for one node.
     pub fn span(&self, node: dir::LocalNodeIdAny) -> Result<Span, ProviderError> {
         self.view()
             .get_span_by_id(node.id)
             .ok_or_else(|| ProviderError::Internal {
                 message: format!(
-                    "DIR node {} in module {:?} has no source span",
+                    "node {} in module {:?} has no source span",
                     node.id, self.id
                 ),
             })
     }
 
-    /// Return the main source span for one DIR node.
+    /// Return the main source span for one node.
     pub fn main_span(&self, node: dir::LocalNodeIdAny) -> Result<Span, ProviderError> {
         self.view()
             .get_side_span_by_id(node.id, NodeSpanType::Main)
             .ok_or_else(|| ProviderError::Internal {
                 message: format!(
-                    "DIR node {} in module {:?} has no main source span",
+                    "node {} in module {:?} has no main source span",
                     node.id, self.id
                 ),
             })
     }
 
-    /// Return the complete authored source span for one DIR node.
+    /// Return the complete authored source span for one node.
     pub fn source_extent(&self, node: dir::LocalNodeIdAny) -> Result<Span, ProviderError> {
         self.view()
             .get_source_extent_by_id(node.id)
             .ok_or_else(|| ProviderError::Internal {
                 message: format!(
-                    "DIR node {} in module {:?} has no source extent",
+                    "node {} in module {:?} has no source extent",
                     node.id, self.id
                 ),
             })
     }
 
-    /// Return the authored parentheses around one DIR node.
+    /// Return the authored parentheses around one node.
     pub fn source_parentheses(&self, node: dir::LocalNodeIdAny) -> Option<Span> {
         self.view()
             .get_side_span_by_id(node.id, NodeSpanType::Region(NodeSpanRegion::Parentheses))
     }
 
-    /// Return one required named source region for a DIR node.
+    /// Return one required named source region for a node.
     pub fn source_region(
         &self,
         node: dir::LocalNodeIdAny,
@@ -61,7 +61,7 @@ impl DirModule<'_> {
             .get_side_span_by_id(node.id, NodeSpanType::Region(region))
             .ok_or_else(|| ProviderError::Internal {
                 message: format!(
-                    "DIR node {} in module {:?} has no {region:?} source region",
+                    "node {} in module {:?} has no {region:?} source region",
                     node.id, self.id
                 ),
             })
@@ -309,7 +309,7 @@ impl DirModule<'_> {
         Ok(patch)
     }
 
-    /// Return a source anchor for one DIR node.
+    /// Return a source anchor for one node.
     pub fn anchor(&self, node: dir::LocalNodeIdAny) -> Result<DiagnosticAnchor, ProviderError> {
         let span = self.span(node)?;
 

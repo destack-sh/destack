@@ -43,10 +43,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(value) = power_of_two_value(module, expression)? else {
             continue;
         };
-        if !matches!(
-            module.primitive_type(value.into_any())?,
-            Some(dir::PrimitiveType::Integer(integer)) if !integer.is_signed()
-        ) {
+        if !module
+            .primitive_type(value.into_any())?
+            .is_some_and(dir::PrimitiveType::is_unsigned_integer)
+        {
             continue;
         }
 

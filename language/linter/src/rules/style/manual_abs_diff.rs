@@ -106,10 +106,9 @@ fn absolute_difference(
         || !module.is_same_operand(lesser, then_right)?
         || !module.is_same_operand(lesser, else_left)?
         || !module.is_same_operand(greater, else_right)?
-        || !matches!(
-            module.primitive_type(left.source.local_id.into_any())?,
-            Some(dir::PrimitiveType::Integer(integer)) if !integer.is_signed()
-        )
+        || !module
+            .primitive_type(left.source.local_id.into_any())?
+            .is_some_and(dir::PrimitiveType::is_unsigned_integer)
     {
         return Ok(None);
     }

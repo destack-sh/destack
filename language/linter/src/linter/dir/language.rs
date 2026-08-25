@@ -205,7 +205,7 @@ impl DirModule<'_> {
         Ok(Some(*collection))
     }
 
-    /// Return the canonical language item represented by one checked node.
+    /// Return the canonical language item represented by one node.
     pub fn representation_item(
         &self,
         node: dir::LocalNodeIdAny,

@@ -53,10 +53,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         else {
             continue;
         };
-        let is_unsigned = matches!(
-            module.primitive_type(expression.into_any())?,
-            Some(dir::PrimitiveType::Integer(integer)) if !integer.is_signed()
-        );
+        let is_unsigned = module
+            .primitive_type(expression.into_any())?
+            .is_some_and(dir::PrimitiveType::is_unsigned_integer);
         if !operands.iter().all(dir::BuiltinOperand::is_integral) || !is_unsigned {
             continue;
         }

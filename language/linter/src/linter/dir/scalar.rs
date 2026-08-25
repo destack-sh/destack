@@ -90,7 +90,7 @@ impl DirModule<'_> {
         Ok(Some((number, value)))
     }
 
-    /// Return the concrete primitive type selected for one checked node.
+    /// Return the concrete primitive type selected for one node.
     pub fn primitive_type(
         &self,
         node: dir::LocalNodeIdAny,

@@ -101,10 +101,9 @@ impl Midpoint {
 
         // require logical right-shift behavior
         if operator == dir::BinaryOperator::ShiftRight
-            && !matches!(
-                module.primitive_type(sum.into_any())?,
-                Some(dir::PrimitiveType::Integer(integer)) if !integer.is_signed()
-            )
+            && !module
+                .primitive_type(sum.into_any())?
+                .is_some_and(dir::PrimitiveType::is_unsigned_integer)
         {
             return Ok(None);
         }

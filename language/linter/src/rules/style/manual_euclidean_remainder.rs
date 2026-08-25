@@ -80,10 +80,9 @@ fn euclidean_remainder(
     }
 
     // require signed arithmetic and an exact positive divisor
-    let is_signed = matches!(
-        module.primitive_type(expression.into_any())?,
-        Some(dir::PrimitiveType::Integer(integer)) if integer.is_signed()
-    );
+    let is_signed = module
+        .primitive_type(expression.into_any())?
+        .is_some_and(dir::PrimitiveType::is_signed_integer);
     let is_positive = module
         .integral_constant(outer_divisor.source.local_id)?
         .is_some_and(|value| value > 0);
