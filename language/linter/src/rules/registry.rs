@@ -249,7 +249,6 @@ static LINTS: &[&Lint] = &[
     &suspicious::NO_SINGLE_PROMISE_RACE,
     &suspicious::NO_SKIPPED_TEST,
     &suspicious::NO_TEMPLATE_CURLY_IN_STRING,
-    &suspicious::NO_TEMPORARY_ASSIGNMENT,
     &suspicious::NO_TODO,
     &suspicious::NO_USELESS_CONCAT,
     &suspicious::NO_USELESS_CONSTRUCTOR,
@@ -266,6 +265,7 @@ static LINTS: &[&Lint] = &[
     &suspicious::REDUNDANT_PATTERN_MATCHING,
     &suspicious::SUSPICIOUS_OPERAND_GROUPING,
     &suspicious::SUSPICIOUS_OPERATOR_IMPLEMENTATION,
+    &suspicious::TEMPORARY_ASSIGNMENT,
     &suspicious::WILDCARD_ENUM_MATCH_ARM,
 ];
 

@@ -4,8 +4,8 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
-    /// Return the receiver whose stored member or element one checked assignment writes.
-    pub(crate) fn stored_write_receiver(
+    /// Return the root expression beneath one stored assignment target.
+    pub(crate) fn stored_write_root(
         &self,
         target: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<dir::LocalNodeId<dir::Expression>>, ProviderError> {
@@ -17,12 +17,13 @@ impl DirModule<'_> {
         })?;
 
         // require a member or element backed by stored state
-        if !resolution.write.stores() {
+        if !resolution.write.is_stored() {
             return Ok(None);
         }
 
-        // return the receiver that carries the selected state
-        let receiver = match self.view().get(target) {
+        // select the receiver that carries the written state
+        let view = self.view();
+        let mut receiver = match view.get(target) {
             dir::Expression::Member { left, .. } | dir::Expression::Index { left, .. } => *left,
             _ => {
                 return Err(ProviderError::internal(format!(
@@ -31,7 +32,45 @@ impl DirModule<'_> {
             }
         };
 
-        Ok(Some(receiver))
+        // follow stored projections to their root expression
+        loop {
+            let global = receiver.into_global_any(self.id);
+            let left = match view.get(receiver) {
+                dir::Expression::Member { left, .. } => {
+                    let decision = self.decisions.member_decision(global).ok_or_else(|| {
+                        ProviderError::internal(format!(
+                            "checked stored projection {global:?} has no member decision"
+                        ))
+                    })?;
+                    if !decision.is_stored() {
+                        return Ok(Some(receiver));
+                    }
+
+                    *left
+                }
+                dir::Expression::Index { left, .. } => {
+                    let decision = self.decisions.subscript_decision(global).ok_or_else(|| {
+                        ProviderError::internal(format!(
+                            "checked stored projection {global:?} has no subscript decision"
+                        ))
+                    })?;
+                    if !decision.is_stored() {
+                        return Ok(Some(receiver));
+                    }
+
+                    *left
+                }
+                _ => return Ok(Some(receiver)),
+            };
+
+            // stop where the selected state can remain visible through another reference
+            let type_id = self.node_type_id(receiver.into_any())?;
+            if self.dir.default_ownership(type_id)? != Some(dir::Ownership::Owned) {
+                return Ok(Some(receiver));
+            }
+
+            receiver = left;
+        }
     }
 
     /// Return whether retained uses of one binding accept a readonly borrowed value.
