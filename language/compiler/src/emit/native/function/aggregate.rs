@@ -313,7 +313,8 @@ impl<'a> FunctionEmitter<'a> {
                 self.reference(aggregate, builder)?,
             ),
 
-            // project inline aggregates through canonical frame storage
+            // owned aggregates live inline, so a field address offsets the
+            //  container's own storage
             _ => {
                 self.require_frame_reference(destination)?;
 

@@ -48,7 +48,7 @@ function u0:0(i64, i64, i32) -> i32 native {
     sig1 = (i64, i32, i64, i64, i64) native
 
 block0(v0: i64, v1: i64, v2: i32):
-    v3 = load.i64 notrap aligned v0+112
+    v3 = load.i64 notrap aligned v0+96
     v4 = iconst.i32 0
     v5 = symbol_value.i64 gv0
     v6 = load.i32 notrap aligned v5
@@ -69,8 +69,8 @@ block0(v0: i64, v1: i64, v2: i32):
     v18 = load.i64 notrap aligned v0+8
     v19 = load.i64 notrap aligned v18+48
     call_indirect sig1, v19(v0, v15, v10, v16, v17)  ; v15 = 0, v16 = 0, v17 = 24
-    v20 = load.i64 notrap aligned v0+112
-    store notrap aligned v10, v0+112
+    v20 = load.i64 notrap aligned v0+96
+    store notrap aligned v10, v0+96
     v21 = load.i64 notrap aligned v0+40
     jump block1(v10)
 
@@ -99,8 +99,8 @@ block3:
     jump block6(v2)
 
 block6(v23: i32):
-    v33 = load.i64 notrap aligned v0+112
-    store.i64 notrap aligned v20, v0+112
+    v33 = load.i64 notrap aligned v0+96
+    store.i64 notrap aligned v20, v0+96
     return v23
 }
 
@@ -119,7 +119,7 @@ block0(v0: i64, v1: i64, v2: i64):
     );
 }
 
-/// Load the activation-owned execution context.
+/// Load the execution context owned by the activation.
 #[test]
 fn test_emit_context_current() {
     let program = TestProgram::mir(
@@ -147,7 +147,7 @@ function current {
         r#"
 function u0:0(i64) -> i64 native {
 block0(v0: i64):
-    v1 = load.i64 notrap aligned v0+112
+    v1 = load.i64 notrap aligned v0+96
     return v1
 }
 
@@ -164,7 +164,7 @@ block0(v0: i64, v1: i64, v2: i64):
     );
 }
 
-/// Replace the activation-owned execution context.
+/// Replace the execution context owned by the activation.
 #[test]
 fn test_emit_context_replace() {
     let program = TestProgram::mir(
@@ -194,8 +194,8 @@ function replace {
         r#"
 function u0:0(i64, i64) -> i64 native {
 block0(v0: i64, v1: i64):
-    v2 = load.i64 notrap aligned v0+112
-    store notrap aligned v1, v0+112
+    v2 = load.i64 notrap aligned v0+96
+    store notrap aligned v1, v0+96
     return v2
 }
 

@@ -19,6 +19,7 @@ impl<'a> FunctionEmitter<'a> {
             return slot;
         }
 
+        // allocate one pointer-sized slot on first use
         let slot = builder.create_sized_stack_slot(cir::StackSlotData::new(
             cir::StackSlotKind::ExplicitSlot,
             self.types.pointer().bytes(),
@@ -41,6 +42,7 @@ impl<'a> FunctionEmitter<'a> {
         point: Point,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // read the pending request out of this activation
         let activation = self.activation()?;
         let flags = cir::MemFlagsData::trusted();
         let poll_request = builder.ins().load(
@@ -52,6 +54,8 @@ impl<'a> FunctionEmitter<'a> {
         let poll_request = builder
             .ins()
             .atomic_load(cir::types::I32, flags, poll_request);
+
+        // branch to the cold block only when a request is set
         let slow = builder.create_block();
         let continuation = builder.create_block();
         builder
@@ -74,7 +78,7 @@ impl<'a> FunctionEmitter<'a> {
         Ok(())
     }
 
-    /// Return the heap space carried by one reference-like type.
+    /// Return the heap space addressed by one reference-like type.
     pub(super) fn heap_space(&self, ty: mir::TypeId) -> Result<native::abi::Space, EmitError> {
         let ty = self.optimized.tree.storage_type(ty);
         let definition = self.optimized.tree.get(ty);
@@ -87,6 +91,9 @@ impl<'a> FunctionEmitter<'a> {
         Ok(match space {
             mir::Space::Local => native::abi::Space::Local,
             mir::Space::Shared => native::abi::Space::Shared,
+            mir::Space::Constant => {
+                return Err(self.invalid("native allocation never targets constant space"));
+            }
         })
     }
 
@@ -127,7 +134,8 @@ impl<'a> FunctionEmitter<'a> {
         alignment: u64,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        let data = self
+        // declare the index symbol in the output object
+        let symbol = self
             .symbols
             .declare(index, byte_len, alignment, self.output)
             .map_err(|error| Self::internal(self.module, error.to_string()))?;
@@ -136,7 +144,7 @@ impl<'a> FunctionEmitter<'a> {
         let reference = if let Some(reference) = self.indices.get(&index).copied() {
             reference
         } else {
-            let reference = self.output.declare_data_in_func(data, builder.func);
+            let reference = self.output.declare_data_in_func(symbol, builder.func);
             self.indices.insert(index, reference);
 
             reference
@@ -164,6 +172,7 @@ impl<'a> FunctionEmitter<'a> {
         arguments: &[cir::Value],
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<Call, EmitError> {
+        // take the activation pointer ahead of every declared argument
         let mut signature = cir::Signature::new(self.types.call_conv());
         signature
             .params
@@ -173,6 +182,8 @@ impl<'a> FunctionEmitter<'a> {
 
             cir::AbiParam::new(ty)
         }));
+
+        // return the operation's result type where it has one
         let result = match operation.result() {
             native::abi::OperationResult::Void | native::abi::OperationResult::Never => None,
             native::abi::OperationResult::Pointer => Some(self.types.pointer()),
@@ -182,6 +193,7 @@ impl<'a> FunctionEmitter<'a> {
         if let Some(result) = result {
             signature.returns.push(cir::AbiParam::new(result));
         }
+        // pass the activation through as the first argument
         let signature = builder.import_signature(signature);
         let mut parameters = vec![self.activation()?];
         parameters.extend_from_slice(arguments);
@@ -201,6 +213,7 @@ impl<'a> FunctionEmitter<'a> {
             runtime,
             operation.offset() as i32,
         );
+
         Ok(Call::pointer(function, signature, parameters))
     }
 }

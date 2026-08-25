@@ -18,13 +18,17 @@ impl<'a> FunctionEmitter<'a> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         match intrinsic {
+            // transfer a byte range between two pointers
             mir::Intrinsic::Memcpy | mir::Intrinsic::Memmove => {
                 let [destination, source, byte_len] = arguments else {
                     return Err(self.invalid("native memory transfer requires three arguments"));
                 };
+
                 let destination = self.materialize_pointer(*destination, builder)?;
                 let source = self.materialize_pointer(*source, builder)?;
                 let byte_len = self.scalar(*byte_len)?;
+
+                // copy a disjoint range
                 if intrinsic == mir::Intrinsic::Memcpy {
                     builder.call_memcpy(
                         self.types.frontend_config(),
@@ -32,7 +36,9 @@ impl<'a> FunctionEmitter<'a> {
                         source,
                         byte_len,
                     );
-                } else {
+                }
+                // move a range that may overlap
+                else {
                     builder.call_memmove(
                         self.types.frontend_config(),
                         destination,
@@ -41,78 +47,99 @@ impl<'a> FunctionEmitter<'a> {
                     );
                 }
             }
+            // fill a byte range with one byte
             mir::Intrinsic::Memset => {
                 let [destination, byte, byte_len] = arguments else {
                     return Err(self.invalid("native memory fill requires three arguments"));
                 };
+
                 let destination = self.materialize_pointer(*destination, builder)?;
                 let byte = self.scalar(*byte)?;
                 let byte_len = self.scalar(*byte_len)?;
+
                 builder.call_memset(self.types.frontend_config(), destination, byte, byte_len);
             }
+            // order two byte ranges
             mir::Intrinsic::Memcmp => {
                 let [left, right, byte_len] = arguments else {
                     return Err(self.invalid("native memory comparison requires three arguments"));
                 };
                 let destination = destination
                     .ok_or_else(|| self.invalid("native memory comparison has no destination"))?;
+
                 let left = self.materialize_pointer(*left, builder)?;
                 let right = self.materialize_pointer(*right, builder)?;
                 let byte_len = self.scalar(*byte_len)?;
+
                 let value =
                     builder.call_memcmp(self.types.frontend_config(), left, right, byte_len);
                 self.set(destination, Value::Direct(value))?;
             }
+            // check the argument count, the machine prefetch hint carries no effect
             mir::Intrinsic::PrefetchRead | mir::Intrinsic::PrefetchWrite => {
                 let [_pointer] = arguments else {
                     return Err(self.invalid("native prefetch requires one argument"));
                 };
             }
+            // subtract two pointers into a byte distance
             mir::Intrinsic::PointerByteOffsetFrom => {
                 let [pointer, origin] = arguments else {
                     return Err(self.invalid("native pointer difference requires two arguments"));
                 };
                 let destination = destination
                     .ok_or_else(|| self.invalid("native pointer difference has no destination"))?;
+
                 let pointer = self.materialize_pointer(*pointer, builder)?;
                 let origin = self.materialize_pointer(*origin, builder)?;
+
                 let offset = builder.ins().isub(pointer, origin);
                 self.set(destination, Value::Direct(offset))?;
             }
+            // read through a volatile pointer
             mir::Intrinsic::VolatileLoad => {
                 let [pointer] = arguments else {
                     return Err(self.invalid("native volatile load requires one argument"));
                 };
                 let destination = destination
                     .ok_or_else(|| self.invalid("native volatile load has no destination"))?;
+
                 let pointer = self.materialize_pointer(*pointer, builder)?;
                 let value_type = self.types.value(self.value_type(destination)?)?;
+
                 let value = self.load_volatile(pointer, value_type, builder)?;
                 self.set(destination, value)?;
             }
+            // write through a volatile pointer
             mir::Intrinsic::VolatileStore => {
                 let [pointer, source] = arguments else {
                     return Err(self.invalid("native volatile store requires two arguments"));
                 };
+
                 let pointer = self.materialize_pointer(*pointer, builder)?;
                 let value_type = self.types.value(self.value_type(*source)?)?;
                 let source = self.value(*source)?;
+
                 self.store_volatile(pointer, source, value_type, builder)?;
             }
+            // compare two values byte for byte
             mir::Intrinsic::RawEq => {
                 let [left, right] = arguments else {
                     return Err(self.invalid("native raw equality requires two arguments"));
                 };
                 let destination = destination
                     .ok_or_else(|| self.invalid("native raw equality has no destination"))?;
+
                 let value_type = self.types.value(self.value_type(*left)?)?;
                 let left = self.value(*left)?;
                 let left = self.materialize(left, value_type, builder)?;
                 let right = self.value(*right)?;
                 let right = self.materialize(right, value_type, builder)?;
+
+                // clamp the alignment into the byte width the comparison takes
                 let alignment = value_type.alignment().min(u32::from(u8::MAX)) as u8;
                 let alignment = std::num::NonZeroU8::new(alignment)
                     .ok_or_else(|| self.invalid("native raw equality has zero alignment"))?;
+
                 let value = builder.emit_small_memory_compare(
                     self.types.frontend_config(),
                     IntCC::Equal,
@@ -125,6 +152,7 @@ impl<'a> FunctionEmitter<'a> {
                 );
                 self.set(destination, Value::Direct(value))?;
             }
+            // reject every intrinsic outside memory
             _ => return Err(self.invalid("native intrinsic is not a memory operation")),
         }
 
@@ -140,8 +168,10 @@ impl<'a> FunctionEmitter<'a> {
     ) -> Result<(), EmitError> {
         let definition = self.optimized.tree.get(global);
         let offset = self.index_pointer(native::Index::Global { global: global.id }, builder)?;
-        let reference = match definition.storage {
-            mir::GlobalStorage::Constant => {
+
+        // offset the global from the base of the static space it lives in
+        let reference = match definition.space {
+            mir::Space::Constant => {
                 let base = self.static_offset(
                     std::mem::offset_of!(native::abi::Activation, constants),
                     builder,
@@ -149,15 +179,7 @@ impl<'a> FunctionEmitter<'a> {
 
                 builder.ins().iadd(base, offset)
             }
-            mir::GlobalStorage::Immortal => {
-                let base = self.static_offset(
-                    std::mem::offset_of!(native::abi::Activation, immortals),
-                    builder,
-                )?;
-
-                builder.ins().iadd(base, offset)
-            }
-            mir::GlobalStorage::Local => {
+            mir::Space::Local => {
                 let base = self.static_offset(
                     std::mem::offset_of!(native::abi::Activation, local_statics),
                     builder,
@@ -165,7 +187,7 @@ impl<'a> FunctionEmitter<'a> {
 
                 builder.ins().iadd(base, offset)
             }
-            mir::GlobalStorage::Shared => {
+            mir::Space::Shared => {
                 let base = self.static_offset(
                     std::mem::offset_of!(native::abi::Activation, shared_statics),
                     builder,
@@ -204,7 +226,6 @@ impl<'a> FunctionEmitter<'a> {
     ) -> Result<(), EmitError> {
         let pointer = self.materialize_pointer(reference, builder)?;
         let value_type = self.types.value(self.value_type(value)?)?;
-
         let value = self.value(value)?;
 
         self.store(pointer, value, value_type, builder)
@@ -221,8 +242,11 @@ impl<'a> FunctionEmitter<'a> {
             .tree
             .storage_type(self.value_type(reference)?);
         let reference = self.reference(reference, builder)?;
+
+        // take a pointer as it stands
         match self.optimized.tree.get(ty) {
             mir::Type::Pointer { .. } => Ok(reference),
+            // rebase reference bits on the storage they name
             ty => {
                 let storage = ty.reference_storage().ok_or_else(|| {
                     self.invalid("native memory access requires a reference or pointer")
@@ -240,9 +264,10 @@ impl<'a> FunctionEmitter<'a> {
         storage: mir::Storage,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
+        // pass frame stack addresses through, rebase every other storage on the memory base
         let base = match storage {
             mir::Storage::Frame => return Ok(reference),
-            mir::Storage::Heap(_) | mir::Storage::Global(_) => self.activation_pointer(
+            _ => self.activation_pointer(
                 std::mem::offset_of!(native::abi::Activation, memory_base),
                 builder,
             )?,

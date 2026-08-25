@@ -70,7 +70,7 @@ impl SiteEmitter {
         let point = points.instruction(instruction_id);
         let instruction = optimized.tree.get(instruction_id);
 
-        // record allocation metadata
+        // record allocation sites
         match instruction {
             mir::Instruction::NewZeroed {
                 storage_type,
@@ -193,7 +193,7 @@ impl SiteEmitter {
         let terminator = optimized.tree.get(block.terminator);
         let point = points.terminator(block_id);
 
-        // record fallible allocation metadata
+        // record fallible allocation sites
         match terminator {
             mir::Terminator::NewZeroedTry {
                 storage_type,
@@ -331,7 +331,7 @@ impl SiteEmitter {
                 let global = optimized.tree.get(global);
 
                 (
-                    Some(mir::Storage::Global(global.storage)),
+                    Some(mir::Storage::global(global.space)),
                     optimized.tree.storage_type(global.ty),
                 )
             }
@@ -440,7 +440,7 @@ impl SiteEmitter {
             .ok_or_else(|| ObjectEmitter::internal(module, "missing successor result type"))
     }
 
-    /// Return the storage carried by one reference-like MIR type.
+    /// Return the storage of one reference-like MIR type.
     fn reference_storage(optimized: &MirOptimized, ty: mir::TypeId) -> Option<mir::Storage> {
         match optimized.tree.get(optimized.tree.storage_type(ty)) {
             mir::Type::Reference { storage, .. }

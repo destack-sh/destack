@@ -50,6 +50,7 @@ impl FunctionEmitter<'_> {
         is_weak: bool,
         access: mir::CompareExchangeAccess,
     ) -> Result<(), EmitError> {
+        // select the opcode for the requested exchange strength
         let scalar = self.scalar_type(expected)?;
         let operation = if is_weak {
             bytecode::AtomicOperation::CompareExchangeWeak
@@ -57,8 +58,12 @@ impl FunctionEmitter<'_> {
             bytecode::AtomicOperation::CompareExchange
         };
         let opcode = self.atomic_opcode(operation, pointer, scalar)?;
+
+        // take a scratch register for each half of the result
         let old = self.scratch(bytecode::ValueType::scalar(scalar))?;
         let success = self.scratch(bytecode::ValueType::scalar(bytecode::Scalar::Boolean))?;
+
+        // encode the exchange into both scratch registers
         let mut instruction = bytecode::InstructionBuilder::new(opcode);
         instruction.register(self.word(pointer)?);
         instruction.register(self.word(expected)?);
@@ -78,6 +83,7 @@ impl FunctionEmitter<'_> {
         value: mir::Value,
         access: mir::AtomicAccess,
     ) -> Result<(), EmitError> {
+        // select the opcode for the requested operator
         let scalar = self.scalar_type(value)?;
         let operation = match operator {
             mir::AtomicRmwOperator::Exchange => bytecode::AtomicOperation::Exchange,
@@ -89,6 +95,8 @@ impl FunctionEmitter<'_> {
             mir::AtomicRmwOperator::Min => bytecode::AtomicOperation::FetchMinimum,
             mir::AtomicRmwOperator::Max => bytecode::AtomicOperation::FetchMaximum,
         };
+
+        // encode the operands and the access into one instruction
         let opcode = self.atomic_opcode(operation, pointer, scalar)?;
         let mut instruction = bytecode::InstructionBuilder::new(opcode);
         instruction.register(self.word(pointer)?);
@@ -112,7 +120,7 @@ impl FunctionEmitter<'_> {
         self.encode(instruction, &[])
     }
 
-    /// Return one scalar atomic opcode for a reference operand.
+    /// Return one scalar atomic opcode for an address operand.
     fn atomic_opcode(
         &self,
         operation: bytecode::AtomicOperation,
@@ -177,14 +185,13 @@ impl FunctionEmitter<'_> {
 
     /// Return one bytecode storage set.
     fn storage_set(storage: mir::StorageSet) -> bytecode::StorageSet {
+        // carry each storage flag across to its bytecode counterpart
         let mut result = bytecode::StorageSet::NONE;
         for (source, target) in [
             (mir::StorageSet::LOCAL, bytecode::StorageSet::LOCAL),
             (mir::StorageSet::SHARED, bytecode::StorageSet::SHARED),
             (mir::StorageSet::FRAME, bytecode::StorageSet::FRAME),
             (mir::StorageSet::GLOBAL, bytecode::StorageSet::GLOBAL),
-            (mir::StorageSet::DEVICE, bytecode::StorageSet::DEVICE),
-            (mir::StorageSet::WORKGROUP, bytecode::StorageSet::WORKGROUP),
         ] {
             if storage.contains(source) {
                 result.0 |= target.0;

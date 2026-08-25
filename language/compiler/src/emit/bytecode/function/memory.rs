@@ -66,8 +66,10 @@ impl<'a> FunctionEmitter<'a> {
             // direct references and pointers already contain address bits
             mir::Type::Reference { .. } | mir::Type::Pointer { .. } => self.word(value)?,
 
-            // indexed fat pointers keep their backing reference in one carrier word
-            mir::Type::Slice { .. } => self.carrier_register(self.register(value)?, value)?,
+            // indexed fat pointers keep their backing reference in one representation word
+            mir::Type::Slice { .. } => {
+                self.representation_register(self.register(value)?, value)?
+            }
 
             // inline aggregates occupy stable bytecode frame registers
             mir::Type::FixedArray { .. }
@@ -90,16 +92,16 @@ impl<'a> FunctionEmitter<'a> {
         self.encode(instruction, &[destination])
     }
 
-    /// Release one unique carrier's backing allocation.
+    /// Release one unique representation's backing allocation.
     pub(super) fn emit_free(&mut self, value: mir::Value) -> Result<(), EmitError> {
-        let owner = self.carrier_register(self.register(value)?, value)?;
+        let owner = self.representation_register(self.register(value)?, value)?;
         let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::FREE);
         instruction.register(owner);
 
         self.encode(instruction, &[])
     }
 
-    /// Stabilize one managed carrier and preserve its value.
+    /// Stabilize one managed representation and preserve its value.
     pub(super) fn emit_pin(
         &mut self,
         destination: mir::Value,
@@ -110,15 +112,15 @@ impl<'a> FunctionEmitter<'a> {
         let destination = self.register(destination)?;
         self.emit_move(source, destination, ty)?;
 
-        let reference = self.carrier_reference(value)?;
+        let reference = self.representation_reference(value)?;
         let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::PIN);
-        instruction.register(self.carrier_register(destination, value)?);
+        instruction.register(self.representation_register(destination, value)?);
         instruction.reference(reference.kind(), reference.storage());
 
         self.encode(instruction, &[])
     }
 
-    /// Release one managed carrier pin.
+    /// Release one managed representation pin.
     pub(super) fn emit_unpin(&mut self, value: mir::Value) -> Result<(), EmitError> {
         self.emit_ownership(bytecode::Opcode::UNPIN, value)
     }
@@ -130,9 +132,9 @@ impl<'a> FunctionEmitter<'a> {
         offset: mir::Value,
         byte_len: mir::Value,
     ) -> Result<(), EmitError> {
-        let reference = self.carrier_reference(object)?;
+        let reference = self.representation_reference(object)?;
         let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::BARRIER);
-        instruction.register(self.carrier_register(self.register(object)?, object)?);
+        instruction.register(self.representation_register(self.register(object)?, object)?);
         instruction.reference(reference.kind(), reference.storage());
         instruction.register(self.word(offset)?);
         instruction.register(self.word(byte_len)?);
@@ -461,22 +463,22 @@ impl<'a> FunctionEmitter<'a> {
         self.encode(instruction, &[destination])
     }
 
-    /// Emit one ownership operation over a reference-like carrier.
+    /// Emit one ownership operation over a reference-like representation.
     fn emit_ownership(
         &mut self,
         opcode: bytecode::Opcode,
         value: mir::Value,
     ) -> Result<(), EmitError> {
-        let reference = self.carrier_reference(value)?;
+        let reference = self.representation_reference(value)?;
         let mut instruction = bytecode::InstructionBuilder::new(opcode);
-        instruction.register(self.carrier_register(self.register(value)?, value)?);
+        instruction.register(self.representation_register(self.register(value)?, value)?);
         instruction.reference(reference.kind(), reference.storage());
 
         self.encode(instruction, &[])
     }
 
     /// Return the reference carried by one reference-like MIR value.
-    pub(super) fn carrier_reference(
+    pub(super) fn representation_reference(
         &self,
         value: mir::Value,
     ) -> Result<bytecode::ReferenceType, EmitError> {
@@ -485,11 +487,11 @@ impl<'a> FunctionEmitter<'a> {
             .or_else(|| ty.slice_reference())
             .or_else(|| ty.dynamic_reference())
             .or_else(|| ty.function_reference())
-            .ok_or_else(|| self.internal("ownership operation requires a reference carrier"))
+            .ok_or_else(|| self.internal("ownership operation requires a reference representation"))
     }
 
     /// Return the register carrying one reference-like value's backing reference.
-    pub(super) fn carrier_register(
+    pub(super) fn representation_register(
         &self,
         value: bytecode::RegisterSpan,
         source: mir::Value,
@@ -500,7 +502,7 @@ impl<'a> FunctionEmitter<'a> {
             mir::Type::Function { .. }
         ));
         if offset >= usize::from(value.word_count) {
-            return Err(self.internal("reference carrier has no backing reference word"));
+            return Err(self.internal("reference representation has no backing reference word"));
         }
 
         Ok(bytecode::RegisterId(value.start.0 + offset as u16))

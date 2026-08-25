@@ -402,7 +402,9 @@ impl<'a> FunctionEmitter<'a> {
 
         match self.value(value)? {
             Value::Direct(reference) if offset == 0 => Ok(reference),
-            Value::Direct(_) => Err(self.invalid("direct carrier has a nonzero reference offset")),
+            Value::Direct(_) => {
+                Err(self.invalid("direct representation has a nonzero reference offset"))
+            }
             Value::ScalarPair(fields) => {
                 let index = usize::from(offset != 0);
 
@@ -431,7 +433,7 @@ impl<'a> FunctionEmitter<'a> {
         let value = match self.value(source)? {
             Value::Direct(_) if offset == 0 => Value::Direct(reference),
             Value::Direct(_) => {
-                return Err(self.invalid("direct carrier has a nonzero reference offset"));
+                return Err(self.invalid("direct representation has a nonzero reference offset"));
             }
             Value::ScalarPair(mut fields) => {
                 let index = usize::from(offset != 0);
@@ -460,8 +462,8 @@ impl<'a> FunctionEmitter<'a> {
         let ty = self.optimized.tree.storage_type(self.value_type(value)?);
         let offset = match self.optimized.tree.get(ty) {
             mir::Type::Function { .. } => self.types.pointer().bytes(),
-            ty if ty.is_reference_carrier() => 0,
-            _ => return Err(self.invalid("value is not a reference carrier")),
+            ty if ty.is_reference_representation() => 0,
+            _ => return Err(self.invalid("value is not a reference representation")),
         };
 
         Ok(offset)

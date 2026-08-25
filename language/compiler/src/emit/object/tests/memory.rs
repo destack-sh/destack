@@ -66,14 +66,14 @@ fn test_emit_global_memory() {
     let program = TestProgram::mir(
         r#"
 constant constantValue: int32 = 1
-global localValue: int32 = zeroInit
-shared global sharedValue: int32 = zeroInit
+global localValue: int32 = zeroinit
+shared global sharedValue: int32 = zeroinit
 
 export function globals(v0: int32): int32 {
 entry(v0: int32):
     v1: ref<int32, borrowed, readonly, constant> = global.address constantValue
-    v2: ref<int32, borrowed, mutable, global> = global.address localValue
-    v3: ref<int32, borrowed, mutable, shared global> = global.address sharedValue
+    v2: ref<int32, borrowed, mutable, static> = global.address localValue
+    v3: ref<int32, borrowed, mutable, shared static> = global.address sharedValue
     v4: int32 = load v1
     store v2, v0
     store v3, v4
@@ -110,11 +110,11 @@ block0(v0: i64, v1: i32):
     v5 = iadd v4, v3
     v6 = symbol_value.i64 gv1
     v7 = load.i64 notrap aligned v6
-    v8 = load.i64 notrap aligned v0+96
+    v8 = load.i64 notrap aligned v0+80
     v9 = iadd v8, v7
     v10 = symbol_value.i64 gv2
     v11 = load.i64 notrap aligned v10
-    v12 = load.i64 notrap aligned v0+80
+    v12 = load.i64 notrap aligned v0+64
     v13 = iadd v12, v11
     v14 = load.i64 notrap aligned v0+40
     v15 = iadd v14, v5
@@ -357,7 +357,7 @@ block0(v0: i64, v1: i64, v2: i64):
     );
 }
 
-/// Address one runtime-selected fixed-array element in inline and referenced storage.
+/// Address one fixed array element chosen at runtime, in inline and referenced storage.
 #[test]
 fn test_emit_fixed_array_address() {
     let program = TestProgram::mir(

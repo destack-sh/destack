@@ -35,7 +35,7 @@ impl FunctionEmitter<'_> {
             return Ok(());
         }
 
-        // require one erased unique carrier for allocation-selected destruction
+        // require one erased unique representation for allocation-selected destruction
         let storage_type = self.optimized.tree.storage_type(ty);
         if !matches!(
             self.optimized.tree.get(storage_type),

@@ -36,7 +36,7 @@ impl<'a> FunctionEmitter<'a> {
             {
                 let mut instruction =
                     bytecode::InstructionBuilder::new(bytecode::Opcode::DROP_INDIRECT);
-                instruction.register(self.carrier_register(self.register(value)?, value)?);
+                instruction.register(self.representation_register(self.register(value)?, value)?);
 
                 instruction
             }

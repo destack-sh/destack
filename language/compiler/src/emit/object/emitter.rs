@@ -1,5 +1,6 @@
 use destack_artifact::{MirLowered, MirOptimized};
 use destack_bytecode as bytecode;
+use destack_core::StringId;
 use destack_mir as mir;
 use destack_native as native;
 use destack_program::object::{FrameState, Function, Global, Point, Type};
@@ -50,10 +51,30 @@ impl ObjectEmitter {
         let mut type_ids = Vec::new();
         for (id, definition) in optimized.tree.iter_nodes::<mir::Type>() {
             type_ids.push(id);
-            let name = optimized
-                .tree
-                .type_declaration(id)
-                .map(|declaration| optimized.tree.get(declaration).name);
+
+            // read the name and language item off the declaration
+            let declaration = optimized.tree.type_declaration(id);
+            let name = declaration.map(|declaration| optimized.tree.get(declaration).name);
+            let tag = mir::AttributeIdentifier::Identifier(StringId::for_text("languageItem"));
+            let language_item = declaration.and_then(|declaration| {
+                optimized
+                    .tree
+                    .attributes(declaration)
+                    .iter()
+                    .find_map(|attribute| {
+                        if attribute.name != tag {
+                            return None;
+                        }
+
+                        let mir::AttributeArgs::Value(mir::AttributeValue::String(key)) =
+                            &attribute.args
+                        else {
+                            return None;
+                        };
+
+                        Some(*key)
+                    })
+            });
             types.push(Type {
                 id,
                 fingerprint: optimized.tree.type_fingerprint(id),
@@ -65,6 +86,7 @@ impl ObjectEmitter {
                     .type_heritage(id)
                     .filter(|heritage| !heritage.is_empty())
                     .cloned(),
+                language_item,
             });
         }
 
@@ -101,7 +123,7 @@ impl ObjectEmitter {
                 symbol: global.symbol,
                 ty: global.ty,
                 mutability: global.mutability,
-                storage: global.storage,
+                space: global.space,
                 linkage: global.linkage,
                 initializer: global.initializer.clone(),
             });
@@ -116,13 +138,13 @@ impl ObjectEmitter {
             .collect::<Vec<_>>();
         dynamics.sort_unstable_by_key(|(concrete, constraint, _)| (*concrete, *constraint));
 
-        // collect execution metadata under object-local identities
+        // collect the execution sites and frames under object-local identities
         let points = PointMap::build(optimized);
         let sites = SiteEmitter::emit(module, optimized, &points)?;
         let frames = FrameEmitter::new(module, optimized, &points, &sites).emit()?;
         let allocation_points = sites.allocations.iter().map(|site| site.point).collect();
 
-        // build code-independent object state
+        // build the object state shared by every execution form
         let object = ObjectBuilder::new(lowered.target)
             .dependencies(dependencies)
             .types(types)
@@ -217,7 +239,7 @@ impl ObjectEmitter {
             .and_then(|index| self.frames.get(index))
     }
 
-    /// Return the object-local logical frame-state index at one point.
+    /// Return the object-local logical frame state index at one point.
     #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
     pub(crate) fn frame_index(&self, point: FramePoint) -> Option<u32> {
         self.frames

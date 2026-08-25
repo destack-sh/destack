@@ -8,9 +8,12 @@ use super::TypeEmitter;
 impl TypeEmitter<'_> {
     /// Return the bytecode register representation for one MIR type.
     pub(crate) fn register_type(&self, ty: mir::TypeId) -> Result<bytecode::ValueType, EmitError> {
+        // resolve the storage type behind the MIR type and its layout
         let representation = self.optimized.tree.storage_type(ty);
         let definition = self.optimized.tree.get(representation);
         let layout = self.layout(representation)?;
+
+        // map each MIR type onto its bytecode register representation
         let value_type = match definition {
             mir::Type::Never | mir::Type::Void => return Err(self.unsupported_type()),
             mir::Type::Boolean => bytecode::ValueType::scalar(bytecode::Scalar::Boolean),
@@ -90,12 +93,15 @@ impl TypeEmitter<'_> {
 
     /// Return the scalar bytecode representation for one MIR type.
     pub(crate) fn scalar(&self, ty: mir::TypeId) -> Result<bytecode::Scalar, EmitError> {
+        // require the storage type to be laid out as a scalar
         let storage = self.optimized.tree.storage_type(ty);
         let layout = self.layout(storage)?;
         let scalar = match layout.representation {
             mir::Representation::Scalar(scalar) => scalar,
             _ => return Err(self.unsupported_type()),
         };
+
+        // pick the signedness and width from the MIR type
         match self.optimized.tree.get(storage) {
             mir::Type::Boolean => Ok(bytecode::Scalar::Boolean),
             mir::Type::Character => Ok(bytecode::Scalar::Uint32),
@@ -146,12 +152,19 @@ impl TypeEmitter<'_> {
         let mir::Representation::Scalar(scalar) = layout.representation else {
             return Err(self.unsupported_type());
         };
+
         let width = scalar.bit_width();
+
+        // widest integers get their own bytecode representations
         if width == 128 && is_signed {
             Ok(bytecode::ValueType::int128())
-        } else if width == 128 {
+        }
+        // unsigned counterpart
+        else if width == 128 {
             Ok(bytecode::ValueType::uint128())
-        } else {
+        }
+        // everything narrower fits one scalar
+        else {
             Ok(bytecode::ValueType::scalar(
                 self.integer_scalar(width, is_signed)?,
             ))
@@ -197,13 +210,12 @@ impl TypeEmitter<'_> {
     /// Return one bytecode reference storage.
     fn storage(&self, storage: mir::Storage) -> bytecode::Storage {
         match storage {
-            mir::Storage::Heap(mir::Space::Local) => bytecode::Storage::LOCAL,
-            mir::Storage::Heap(mir::Space::Shared) => bytecode::Storage::SHARED,
+            mir::Storage::LocalHeap => bytecode::Storage::LOCAL,
+            mir::Storage::SharedHeap => bytecode::Storage::SHARED,
+            mir::Storage::Constant => bytecode::Storage::CONSTANT,
             mir::Storage::Frame => bytecode::Storage::FRAME,
-            mir::Storage::Global(mir::GlobalStorage::Constant) => bytecode::Storage::CONSTANT,
-            mir::Storage::Global(mir::GlobalStorage::Immortal) => bytecode::Storage::IMMORTAL,
-            mir::Storage::Global(mir::GlobalStorage::Local) => bytecode::Storage::LOCAL_GLOBAL,
-            mir::Storage::Global(mir::GlobalStorage::Shared) => bytecode::Storage::SHARED_GLOBAL,
+            mir::Storage::LocalStatic => bytecode::Storage::LOCAL_GLOBAL,
+            mir::Storage::SharedStatic => bytecode::Storage::SHARED_GLOBAL,
         }
     }
 }

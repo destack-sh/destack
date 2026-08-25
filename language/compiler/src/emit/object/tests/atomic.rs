@@ -12,7 +12,7 @@ entry(v0: ref<atomic<uint32>, borrowed, mutable, frame>):
     v2: uint32 = 2
     v3: (uint32, boolean) = atomic.cas v0, v1, v2, acquireRelease, failure(acquire)
     v4: uint32 = atomic.rmw.min v0, v2, relaxed
-    atomic.fence sequentiallyConsistent, scope(device), storage(device)
+    atomic.fence sequentiallyConsistent, scope(device), storage(shared)
     return v4
 }
 "#,
@@ -27,7 +27,7 @@ function atomics {
     atomic.cas.uint32 r4, r5, r0, r1, r2, acquireRelease, failure(acquire)
     aggregate r3, [r4 @ 0:4, r5 @ 4:1]
     atomic.rmw.min.uint32 r1, r0, r2, relaxed
-    atomic.fence sequentiallyConsistent, scope(device), storage(device)
+    atomic.fence sequentiallyConsistent, scope(device), storage(shared)
     return r1
 }
 "#,

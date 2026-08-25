@@ -47,7 +47,7 @@ function u0:0(i64, i32) -> i32 native {
 
 block0(v0: i64, v1: i32):
     v2 = iadd v1, v1
-    v3 = load.i64 notrap aligned v0+120
+    v3 = load.i64 notrap aligned v0+104
     v4 = atomic_load.i32 notrap aligned v3
     brif v4, block1, block2
 
@@ -78,6 +78,8 @@ block0(v0: i64, v1: i64, v2: i64):
 }
 "#,
     );
+
+    // walk the emitted frame map down to the single live stack location
     let sections = object.sections();
     let map = object.map();
     let [frame] = map.frames(sections) else {
@@ -89,6 +91,8 @@ block0(v0: i64, v1: i64, v2: i64):
     let [location] = map.locations(sections, *value) else {
         panic!("native value should occupy one stack location");
     };
+
+    // recover the emitted body block the frame should point at
     let definition = object.definitions()[0]
         .get()
         .expect("native function should retain one definition");
