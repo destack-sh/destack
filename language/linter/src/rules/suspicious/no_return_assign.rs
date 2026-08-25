@@ -63,6 +63,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Accept an assignment followed by a separate return.
     #[test]
     fn test_accepts_separate_assignment() {

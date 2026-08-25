@@ -137,6 +137,7 @@ fn mutation_span(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Report mutation of a captured range end.
     #[test]
     fn test_reports_mutated_end() {
@@ -286,6 +287,26 @@ function visit(limit: int32): void {
         change;
         value;
     }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept a bound mutation when control leaves the loop before another iteration.
+    #[test]
+    fn test_accepts_mutation_before_loop_exit() {
+        let session = TestSession::dir(
+            &NO_MUTATED_RANGE_BOUND,
+            r#"
+function consume(limit: int32): int32 {
+    let end = limit;
+    for (const value of 0..end) {
+        end -= value;
+        break;
+    }
+    return end;
 }
 "#,
         );

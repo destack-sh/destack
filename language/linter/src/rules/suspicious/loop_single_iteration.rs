@@ -69,6 +69,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Report a while loop that always breaks.
     #[test]
     fn test_reports_breaking_while() {
