@@ -161,8 +161,8 @@ struct Word {
 }
 
 @unsafe
-/// @decorator.node source=@unsafe owner="extension of Word implements AtomicSafe {}" expression=unsafe target=decorator.unsafe type=unsafe kind=newtype parameters=() newtype=decorator.taint.unsafe backing=() value=unsafe()
-/// @resolution.name source=unsafe target=decorator.taint.unsafe
+/// @decorator.node source=@unsafe owner="extension of Word implements AtomicSafe {}" expression=unsafe target=decorator.unsafe type=unsafe kind=newtype parameters=() newtype=decorator.safety.unsafe backing=() value=unsafe()
+/// @resolution.name source=unsafe target=decorator.safety.unsafe
 
 extension of Word implements AtomicSafe {}
 /// @definition.extension symbol=<module>#2 source="extension of Word implements AtomicSafe {}" form=local target=Word

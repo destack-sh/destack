@@ -1025,12 +1025,9 @@ Like in other languages, (some of) Destack's diagnostics can be tuned with scope
 module {}
 ```
 
-### Taint
+### Unsafe
 
-Destack systematizes the idea of "taints", "source", and "unsafe" modifiers on expressions and declarations using its taint system:
- - `@taint("tag")` marks a value as carrying some domain, `@untaint("tag")` unmarks it as no longer carrying that domain.
- - `@source("domain")` marks an operation that produces some domain, `@sink("domain")` marks an operation that receives some domain.
- - `@unsafe` marks an operation that is unsafe to call, `@safe` marks an operation that is safe to call.
+`@unsafe` marks an operation that is unsafe to call. `@safe` marks an operation that contains unsafe implementation details behind a safe API.
 
 ```ds
 @unsafe

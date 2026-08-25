@@ -566,7 +566,7 @@ Unsafe begins when code relies on a memory invariant the compiler cannot prove:
 | build typed views from raw storage | `Slice.fromRaw(pointer, length)` | no | claims a valid region of `T` |
 | raw bytes and layout tricks | `raw.copyBytes(dst, src, n)`, `raw.readVolatile(pointer)`, `raw.transmute<T, U>(value)` | no | touches or reinterprets unchecked memory |
 
-The compiler rejects unsafe operations, like raw pointer dereferencing, outside explicit [`@unsafe` / `@safe`](./expressions.md#taint) contexts.
+The compiler rejects unsafe operations, like raw pointer dereferencing, outside explicit [`@unsafe` / `@safe`](./expressions.md#unsafe) contexts.
 
 ## Algebra
 

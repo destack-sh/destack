@@ -906,8 +906,8 @@ local class Handle {}
 /// @definition.class symbol=Handle source="local class Handle {}"
 
 @unsafe
-/// @decorator.node source=@unsafe owner="extension of Handle implements SharedSafe {}" expression=unsafe target=decorator.unsafe type=unsafe kind=newtype parameters=() newtype=decorator.taint.unsafe backing=() value=unsafe()
-/// @resolution.name source=unsafe target=decorator.taint.unsafe
+/// @decorator.node source=@unsafe owner="extension of Handle implements SharedSafe {}" expression=unsafe target=decorator.unsafe type=unsafe kind=newtype parameters=() newtype=decorator.safety.unsafe backing=() value=unsafe()
+/// @resolution.name source=unsafe target=decorator.safety.unsafe
 
 extension of Handle implements SharedSafe {}
 /// @definition.extension symbol=<module>#2 source="extension of Handle implements SharedSafe {}" form=local target=Handle

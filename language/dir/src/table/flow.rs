@@ -6,7 +6,7 @@ use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{AccessPath, GlobalSymbolId, LocalNodeIdAny, LocalSymbolId, SegmentView, StringId};
+use crate::{AccessPath, GlobalSymbolId, LocalNodeIdAny, LocalSymbolId, SegmentView};
 
 /// One binding's recorded uses inside a DIR module.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -141,13 +141,6 @@ impl<'a> FlowTable<'a> {
             .map(|((node, path), uses)| AccessOccurrence { node, path, uses })
     }
 
-    /// Iterate the recorded taint domains by occurrence node.
-    pub fn taints(&self) -> impl Iterator<Item = TaintOccurrence> + '_ {
-        self.segments
-            .iter()
-            .flat_map(|segment| segment.taints.iter().copied())
-    }
-
     /// Return whether flow proves one node unreachable.
     pub fn is_unreachable(&self, node: LocalNodeIdAny) -> bool {
         self.segments
@@ -242,8 +235,6 @@ pub struct FlowSegment {
     binding_occurrences: FxIndexSet<BindingOccurrence>,
     /// Proved stable access uses.
     access_occurrences: FxIndexSet<AccessOccurrence>,
-    /// Proved taint domains.
-    taints: FxIndexSet<TaintOccurrence>,
 }
 
 /// One binding use at its occurrence node.
@@ -268,20 +259,11 @@ pub struct AccessOccurrence {
     pub uses: BindingUse,
 }
 
-/// One taint domain carried at its occurrence node.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct TaintOccurrence {
-    /// The occurrence node.
-    pub node: LocalNodeIdAny,
-    /// The carried taint domain.
-    pub tag: StringId,
-}
-
 /// One rollback position in a flow segment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FlowMark {
     /// The per-collection lengths at the mark.
-    lengths: [usize; 5],
+    lengths: [usize; 4],
 }
 
 impl FlowSegment {
@@ -293,7 +275,6 @@ impl FlowSegment {
             diverging: FxIndexSet::default(),
             binding_occurrences: FxIndexSet::default(),
             access_occurrences: FxIndexSet::default(),
-            taints: FxIndexSet::default(),
         }
     }
 
@@ -329,11 +310,6 @@ impl FlowSegment {
             .insert(AccessOccurrence { node, path, uses });
     }
 
-    /// Commit one proved taint domain.
-    pub fn commit_taint(&mut self, node: LocalNodeIdAny, tag: StringId) {
-        self.taints.insert(TaintOccurrence { node, tag });
-    }
-
     /// Return a rollback position for this segment.
     pub fn mark(&self) -> FlowMark {
         FlowMark {
@@ -342,7 +318,6 @@ impl FlowSegment {
                 self.diverging.len(),
                 self.binding_occurrences.len(),
                 self.access_occurrences.len(),
-                self.taints.len(),
             ],
         }
     }
@@ -354,12 +329,10 @@ impl FlowSegment {
             diverging,
             binding_occurrences,
             access_occurrences,
-            taints,
         ] = mark.lengths;
         self.unreachable.truncate(unreachable);
         self.diverging.truncate(diverging);
         self.binding_occurrences.truncate(binding_occurrences);
         self.access_occurrences.truncate(access_occurrences);
-        self.taints.truncate(taints);
     }
 }

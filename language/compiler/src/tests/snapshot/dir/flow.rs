@@ -48,16 +48,6 @@ impl SnapshotTable for dir::FlowTable<'_> {
             builder.push(row);
         }
 
-        // render the recorded taint domains
-        for taint in self.taints() {
-            let node = taint.node.into_global(self.module_id);
-            let row = SnapshotRow::new(builder.anchor_node(node), "flow", "taint")
-                .optional_field("source", builder.node_source(node))
-                .field("tag", builder.strings.get(taint.tag).to_string());
-
-            builder.push(row);
-        }
-
         // render the recorded foreign symbol uses
         for (symbol, binding_use) in self.foreign_uses() {
             let row = SnapshotRow::new(SnapshotAnchor::End, "flow", "foreign")

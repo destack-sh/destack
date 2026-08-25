@@ -5,6 +5,6 @@ export * from "./extern.ds";
 export * from "./intrinsic.ds";
 export * from "./representation.ds";
 export * from "./restriction.ds";
+export * from "./safety.ds";
 export * from "./stability.ds";
 export * from "./system.ds";
-export * from "./taint.ds";

@@ -228,7 +228,7 @@ function run(): () => int32 {
               (property_identifier))))))))
 
 ============================================================================
-Diagnostic restriction taint and derive decorators
+Diagnostic restriction, safety, and derive decorators
 :language(destack)
 ============================================================================
 

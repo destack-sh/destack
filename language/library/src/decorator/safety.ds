@@ -1,0 +1,7 @@
+/// Marks an API, expression, or block as crossing an unsafe boundary.
+@languageItem("decorator.unsafe")
+export newtype unsafe = (string,) | ();
+
+/// Marks a declaration as containing unsafe implementation details behind a safe API.
+@languageItem("decorator.safe")
+export newtype safe = (string,) | ();

@@ -26,10 +26,3 @@ function readPointer(pointer: *uint8): uint8 {
 @safe
 // <~---- entity.name.function.decorator.ds
 function checked(): void {}
-
-// expressions / annotations / taint source and sink
-@taint("html")
-// <~----- entity.name.function.decorator.ds
-@source("network")
-@sink("log")
-function tagged(input: string): void {}

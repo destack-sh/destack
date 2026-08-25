@@ -911,25 +911,13 @@ define_language_items! {
             Unroll => (Newtype, "decorator/system", "unroll"),
         }
 
-        /// `destack:decorator/taint`.
-        taint {
+        /// `destack:decorator/safety`.
+        safety {
             /// `@safe` marker.
-            Safe => (Newtype, "decorator/taint", "safe"),
-
-            /// `@sink` marker.
-            Sink => (Newtype, "decorator/taint", "sink"),
-
-            /// `@source` marker.
-            Source => (Newtype, "decorator/taint", "source"),
-
-            /// `@taint` marker.
-            Taint => (Newtype, "decorator/taint", "taint"),
+            Safe => (Newtype, "decorator/safety", "safe"),
 
             /// `@unsafe` marker.
-            Unsafe => (Newtype, "decorator/taint", "unsafe"),
-
-            /// `@untaint` marker.
-            Untaint => (Newtype, "decorator/taint", "untaint"),
+            Unsafe => (Newtype, "decorator/safety", "unsafe"),
         }
     }
 

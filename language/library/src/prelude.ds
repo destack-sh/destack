@@ -375,14 +375,10 @@ global {
         pure,
         repr,
         safe,
-        sink,
-        source,
         tailcall,
-        taint,
         unlikely,
         unroll,
         unsafe,
-        untaint,
         warn,
     } from "destack:decorator";
 
