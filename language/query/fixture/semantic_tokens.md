@@ -1095,6 +1095,26 @@ true;
 
 ## Source changes
 
+### Classify documentation while typing
+
+Request semantic tokens after every inserted documentation character.
+
+```ds main.ds
+struct Position {}
+```
+
+```ds main.ds type
+/// A simple position.
+^^^^^^^^^^^^^^^^^^^^^^ documentation
+struct Position {}
+       ^^^^^^^^ position
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#documentation type=comment modifiers=documentation
+@semantic_tokens.token range=main.ds#position type=struct modifiers=declaration
+```
+
 ### Classify a declaration while typing
 
 Request semantic tokens after every inserted scalar.
