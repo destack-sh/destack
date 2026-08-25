@@ -53,7 +53,7 @@ impl Compiler {
         // walk the import closure read by lowering, requiring the root
         //  edges first so a blocked read schedules the graph
         let graph_key = ArtifactKey::module_graph(profile);
-        dependencies.require_projection(graph_key, ArtifactProjectionKey::ModuleEdges(module));
+        dependencies.require_projection(graph_key, ArtifactProjectionKey::ModuleGraphEdges(module));
         let artifacts = self.artifact_reader(context);
         let graph = match artifacts.module_graph_reader(profile) {
             Ok(graph) => graph,
@@ -66,7 +66,8 @@ impl Compiler {
         };
         let reachable = graph.reachable(&[module])?;
         for current in reachable.iter().copied() {
-            dependencies.require_projection(graph_key, ArtifactProjectionKey::ModuleEdges(current));
+            dependencies
+                .require_projection(graph_key, ArtifactProjectionKey::ModuleGraphEdges(current));
         }
 
         // collect every reachable module other than this one

@@ -210,7 +210,7 @@ impl ExportResolver {
         self.table_loads += 1;
 
         let exported = artifacts
-            .read_content::<DirExported>((module, self.profile))
+            .read::<DirExported>((module, self.profile))
             .map_err(CompilerError::from)?;
         self.modules.insert(module, exported.clone());
 

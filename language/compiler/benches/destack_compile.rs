@@ -143,7 +143,7 @@ fn build_workspace(
     for source in sources {
         let logical_path = repository.logical_path(&source.path);
         let blob = repository
-            .put_blob(source.content.as_bytes())
+            .retain_blob(source.content.as_bytes())
             .expect("benchmark source Blob should store");
         edits.push(Edit::set_file(logical_path, blob));
     }

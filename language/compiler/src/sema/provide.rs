@@ -1,10 +1,10 @@
-use destack_core::FxIndexSet;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey, DirDeclared,
-    DirResolved, EnvironmentBound, EnvironmentDeclared,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirDeclared, DirResolved,
+    EnvironmentBound, EnvironmentDeclared,
 };
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_repository::{ArtifactAttemptRecorder, ProfileId, ProviderContext, ProviderError};
 use destack_source::ModuleId;
@@ -52,10 +52,7 @@ impl Compiler {
         dependencies.require(ArtifactKey::dir_bound(module, profile));
         dependencies.require(ArtifactKey::dir_resolved(module, profile));
         dependencies.require(ArtifactKey::dir_expanded(module, profile));
-        dependencies.require_projection(
-            ArtifactKey::environment_bound(profile),
-            ArtifactProjectionKey::Content,
-        );
+        dependencies.require_payload(ArtifactKey::environment_bound(profile));
 
         // require the stage contents of resolution targets
         let artifacts = self.artifact_reader(context);
@@ -66,18 +63,9 @@ impl Compiler {
         };
 
         for reference in references.targets {
-            dependencies.require_projection(
-                ArtifactKey::dir_bound(reference, profile),
-                ArtifactProjectionKey::Content,
-            );
-            dependencies.require_projection(
-                ArtifactKey::dir_expanded(reference, profile),
-                ArtifactProjectionKey::Content,
-            );
-            dependencies.require_projection(
-                ArtifactKey::dir_resolved(reference, profile),
-                ArtifactProjectionKey::Content,
-            );
+            dependencies.require_payload(ArtifactKey::dir_bound(reference, profile));
+            dependencies.require_payload(ArtifactKey::dir_expanded(reference, profile));
+            dependencies.require_payload(ArtifactKey::dir_resolved(reference, profile));
         }
 
         Ok(dependencies)
@@ -93,7 +81,7 @@ impl Compiler {
         // read the profile's environment
         let artifacts = self.artifact_reader(context);
         let global = artifacts
-            .read_content::<EnvironmentBound>(profile)
+            .read::<EnvironmentBound>(profile)
             .map_err(CompilerError::from)?;
         let environment = self.environment(context.revision())?;
         // declare the module without walking callable bodies
@@ -157,14 +145,8 @@ impl Compiler {
         dependencies.require(ArtifactKey::dir_resolved(module, profile));
         dependencies.require(ArtifactKey::dir_expanded(module, profile));
         dependencies.require(ArtifactKey::dir_declared(module, profile));
-        dependencies.require_projection(
-            ArtifactKey::environment_bound(profile),
-            ArtifactProjectionKey::Content,
-        );
-        dependencies.require_projection(
-            ArtifactKey::environment_declared(profile),
-            ArtifactProjectionKey::Content,
-        );
+        dependencies.require_payload(ArtifactKey::environment_bound(profile));
+        dependencies.require_payload(ArtifactKey::environment_declared(profile));
 
         // require declared artifacts of direct imports and implicit globals
         let artifacts = self.artifact_reader(context);
@@ -175,22 +157,10 @@ impl Compiler {
         };
 
         for import in references.targets {
-            dependencies.require_projection(
-                ArtifactKey::dir_declared(import, profile),
-                ArtifactProjectionKey::Declared,
-            );
-            dependencies.require_projection(
-                ArtifactKey::dir_bound(import, profile),
-                ArtifactProjectionKey::Content,
-            );
-            dependencies.require_projection(
-                ArtifactKey::dir_expanded(import, profile),
-                ArtifactProjectionKey::Content,
-            );
-            dependencies.require_projection(
-                ArtifactKey::dir_resolved(import, profile),
-                ArtifactProjectionKey::Content,
-            );
+            dependencies.require_payload(ArtifactKey::dir_declared(import, profile));
+            dependencies.require_payload(ArtifactKey::dir_bound(import, profile));
+            dependencies.require_payload(ArtifactKey::dir_expanded(import, profile));
+            dependencies.require_payload(ArtifactKey::dir_resolved(import, profile));
         }
 
         Ok(dependencies)
@@ -272,16 +242,10 @@ impl Compiler {
         dependencies.require(ArtifactKey::dir_bound(module, profile));
         dependencies.require(ArtifactKey::dir_resolved(module, profile));
         dependencies.require(ArtifactKey::dir_expanded(module, profile));
-        dependencies.require_projection(
-            ArtifactKey::environment_bound(profile),
-            ArtifactProjectionKey::Content,
-        );
+        dependencies.require_payload(ArtifactKey::environment_bound(profile));
 
         // require the aggregate implicit declarations
-        dependencies.require_projection(
-            ArtifactKey::environment_declared(profile),
-            ArtifactProjectionKey::Content,
-        );
+        dependencies.require_payload(ArtifactKey::environment_declared(profile));
 
         // seed the checking pass from the module's own committed artifacts
         dependencies.require(ArtifactKey::dir_declared(module, profile));
@@ -296,26 +260,11 @@ impl Compiler {
         };
 
         for import in references.targets {
-            dependencies.require_projection(
-                ArtifactKey::dir_declared(import, profile),
-                ArtifactProjectionKey::Declared,
-            );
-            dependencies.require_projection(
-                ArtifactKey::dir_elaborated(import, profile),
-                ArtifactProjectionKey::Elaborated,
-            );
-            dependencies.require_projection(
-                ArtifactKey::dir_bound(import, profile),
-                ArtifactProjectionKey::Content,
-            );
-            dependencies.require_projection(
-                ArtifactKey::dir_expanded(import, profile),
-                ArtifactProjectionKey::Content,
-            );
-            dependencies.require_projection(
-                ArtifactKey::dir_resolved(import, profile),
-                ArtifactProjectionKey::Content,
-            );
+            dependencies.require_payload(ArtifactKey::dir_declared(import, profile));
+            dependencies.require_payload(ArtifactKey::dir_elaborated(import, profile));
+            dependencies.require_payload(ArtifactKey::dir_bound(import, profile));
+            dependencies.require_payload(ArtifactKey::dir_expanded(import, profile));
+            dependencies.require_payload(ArtifactKey::dir_resolved(import, profile));
         }
 
         Ok(dependencies)
@@ -331,7 +280,7 @@ impl Compiler {
         // read the profile's environment
         let artifacts = self.artifact_reader(context);
         let global = artifacts
-            .read_content::<EnvironmentBound>(profile)
+            .read::<EnvironmentBound>(profile)
             .map_err(CompilerError::from)?;
         let declared_environment = artifacts
             .read::<EnvironmentDeclared>(profile)
@@ -389,24 +338,18 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
         let mut dependencies = ArtifactDependencySet::default();
-        dependencies.require_projection(
-            ArtifactKey::environment_bound(profile),
-            ArtifactProjectionKey::Content,
-        );
+        dependencies.require_payload(ArtifactKey::environment_bound(profile));
 
         // implicit module declarations back every index
         let artifacts = self.artifact_reader(context);
-        let environment = match artifacts.read_content::<EnvironmentBound>(profile) {
+        let environment = match artifacts.read::<EnvironmentBound>(profile) {
             Ok(environment) => environment,
             Err(destack_repository::ProviderError::Blocked { .. }) => return Ok(dependencies),
             Err(error) => return Err(error.into()),
         };
 
         for module in environment.implicit_modules() {
-            dependencies.require_projection(
-                ArtifactKey::dir_declared(module, profile),
-                ArtifactProjectionKey::Declared,
-            );
+            dependencies.require_payload(ArtifactKey::dir_declared(module, profile));
         }
 
         Ok(dependencies)
@@ -421,7 +364,7 @@ impl Compiler {
         // read the profile's bound environment
         let artifacts = self.artifact_reader(context);
         let bound = artifacts
-            .read_content::<EnvironmentBound>(profile)
+            .read::<EnvironmentBound>(profile)
             .map_err(CompilerError::from)?;
 
         // union each implicit module's declared indexes

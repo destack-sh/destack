@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload,
-    ArtifactProjectionFingerprint, ArtifactProjectionKey, DirResolved, Implementation, ModuleGraph,
+    ArtifactProjectionFingerprint, ArtifactProjectionKey, Implementation, ModuleGraph,
     SourceDependencyKey,
 };
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext};
@@ -97,7 +97,7 @@ impl ModuleGraphDependencies {
                 ArtifactDependency::Projection(dependency) => {
                     let projection = dependency.projection();
                     let module = projection.artifact.module_id()?;
-                    if projection.key != ArtifactProjectionKey::ImportEdges {
+                    if projection.key != ArtifactProjectionKey::DirResolvedComponentRelations {
                         return None;
                     }
                     if modules.insert(module, dependency.fingerprint()).is_some() {
@@ -143,7 +143,7 @@ impl Compiler {
         for module in modules {
             dependencies.require_projection(
                 ArtifactKey::dir_resolved(module, profile),
-                ArtifactProjectionKey::ImportEdges,
+                ArtifactProjectionKey::DirResolvedComponentRelations,
             );
         }
 
@@ -159,12 +159,10 @@ impl Compiler {
             return Ok(None);
         };
 
-        let graph = self
-            .repository
-            .artifact_table()
-            .artifact::<ModuleGraph>(&base.version)
+        let graph = base
+            .artifact::<ModuleGraph>()
             .ok_or_else(|| CompilerError::Internal {
-                message: format!("module graph base is missing: {:?}", base.version),
+                message: format!("module graph base is missing: {:?}", base.version()),
             })?;
 
         let dependencies =
@@ -173,7 +171,7 @@ impl Compiler {
                 .ok_or_else(|| CompilerError::Internal {
                     message: "module graph provider has no frozen dependencies".to_string(),
                 })?;
-        let base = ModuleGraphBase::new(graph, &base.dependencies, dependencies)?;
+        let base = ModuleGraphBase::new(graph, base.dependencies(), dependencies)?;
 
         Ok(Some(base))
     }
@@ -317,11 +315,11 @@ impl Compiler {
         module: ModuleId,
         implementations: &mut Vec<Implementation>,
     ) -> CompilerResult<()> {
-        let resolved = artifacts
-            .read_projection::<DirResolved>((module, profile), ArtifactProjectionKey::ImportEdges)
+        let relations = artifacts
+            .component_relations(module, profile)
             .map_err(CompilerError::from)?;
 
-        for (symbol, root, interface) in resolved.extensions.implementations() {
+        for (symbol, root, interface) in relations.implementations() {
             implementations.push(Implementation {
                 interface,
                 symbol,
@@ -340,13 +338,13 @@ impl Compiler {
         module: ModuleId,
         modules: &FxHashSet<ModuleId>,
     ) -> CompilerResult<Arc<[ModuleId]>> {
-        let resolved = artifacts
-            .read_projection::<DirResolved>((module, profile), ArtifactProjectionKey::ImportEdges)
+        let relations = artifacts
+            .component_relations(module, profile)
             .map_err(CompilerError::from)?;
 
         // collect the defining modules of resolved targets
         let mut edges = IndexSet::new();
-        for target in resolved.target_modules() {
+        for target in relations.target_modules() {
             if modules.contains(&target) && target != module {
                 edges.insert(target);
             }

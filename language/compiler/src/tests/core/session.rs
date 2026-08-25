@@ -6,12 +6,12 @@ use std::{env, thread};
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, BuildId, DirBound, DirChecked,
     DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed,
-    DirResolved, EnvironmentBound, MirLowered, ModuleGraph, NullArtifactStore,
+    DirResolved, EnvironmentBound, MirLowered, ModuleGraph,
 };
 use destack_dir as dir;
 use destack_mir::{FormatOptions, Formatter};
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, MemoryBlobStore,
+    BlobStore, DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host,
     Repository, Revision, RevisionPin, Settings, Trace, TraceAggregate, TraceLevel, TraceReport,
     TraceSnapshot, TraceView,
 };
@@ -146,7 +146,7 @@ impl TestSession {
             .iter()
             .map(|(path, source)| {
                 let blob = repository
-                    .put_blob(source.as_bytes())
+                    .retain_blob(source.as_bytes())
                     .expect("test source Blob should store");
 
                 Edit::set_file(path, blob)
@@ -1572,7 +1572,7 @@ impl TestSession {
 
         // include modules named by the bound environment
         let reader = self.repository.artifact_reader(self.revision());
-        if let Ok(environment) = reader.read_content::<EnvironmentBound>(entry.profile) {
+        if let Ok(environment) = reader.read::<EnvironmentBound>(entry.profile) {
             let language = environment.language.items_by_symbol.keys().copied();
             let builtins = environment.language.symbols.values().copied();
             for symbol in language.chain(builtins) {
@@ -1744,7 +1744,7 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, RevisionPin) {
 
         // store the empty warmup anchor
         let blob = repository
-            .put_blob(b"")
+            .retain_blob(b"")
             .expect("warm anchor Blob should store");
 
         // anchor the anonymous workspace package so its profile exists
@@ -1839,12 +1839,11 @@ fn cold_repository_revision() -> (Arc<Repository>, Revision) {
     .with_blob_store(shared_blob_store())
     .with_execution(execution);
     let (repository, revision) = Repository::new(root, host, Settings::default(), layout);
-    let repository = repository.with_artifact_store(Arc::new(NullArtifactStore::new()));
     let repository = Arc::new(repository);
 
     // store the default compiler test configuration
     let blob = repository
-        .put_blob(DEFAULT_DESTACK_JSON.as_bytes())
+        .retain_blob(DEFAULT_DESTACK_JSON.as_bytes())
         .expect("test configuration Blob should store");
 
     // commit the default compiler test configuration
@@ -1889,8 +1888,8 @@ fn mir_type_name(ty: destack_mir::LocalNodeId<destack_mir::Type>) -> String {
 }
 
 /// Return the blob store shared by every test session in this process.
-fn shared_blob_store() -> Arc<MemoryBlobStore> {
-    static STORE: OnceLock<Arc<MemoryBlobStore>> = OnceLock::new();
+fn shared_blob_store() -> Arc<BlobStore> {
+    static STORE: OnceLock<Arc<BlobStore>> = OnceLock::new();
 
-    Arc::clone(STORE.get_or_init(|| Arc::new(MemoryBlobStore::new())))
+    STORE.get_or_init(|| Arc::new(BlobStore::new())).clone()
 }

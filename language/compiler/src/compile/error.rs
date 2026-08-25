@@ -15,7 +15,7 @@ pub(crate) enum CompilerError {
     Blocked { keys: Vec<ArtifactKey> },
     /// One required artifact failed upstream.
     RequirementFailed { key: ArtifactKey },
-    /// The artifact store has a ready version without the expected payload.
+    /// The artifact table has a ready version without the expected payload.
     Corrupt { version: ArtifactVersion },
     /// The compiler produced diagnostics without a payload.
     Diagnostic(Box<dyn DiagnosticLike>),

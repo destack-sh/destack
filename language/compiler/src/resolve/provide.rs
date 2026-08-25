@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey, DirBound,
-    DirExpanded, DirExported, DirImported, DirParsed, EnvironmentBound,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirBound, DirExpanded, DirExported,
+    DirImported, DirParsed, EnvironmentBound,
 };
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderContext, ProviderError};
@@ -121,13 +121,10 @@ impl Compiler {
                 continue;
             }
 
-            dependencies.require_projection(
-                ArtifactKey::dir_exported(module, profile),
-                ArtifactProjectionKey::Content,
-            );
+            dependencies.require_payload(ArtifactKey::dir_exported(module, profile));
 
             // follow re-export edges through exports that are already built
-            match artifacts.read_content::<DirExported>((module, profile)) {
+            match artifacts.read::<DirExported>((module, profile)) {
                 Ok(exported) => frontier.extend(exported.reexport_modules()),
                 Err(ProviderError::Blocked { .. }) => dependencies.mark_partial(),
                 Err(error) => return Err(CompilerError::from(error)),

@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactProjectionKey, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded,
-    DirParsed, DirResolved,
+    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirParsed, DirResolved,
 };
 use destack_core::FxIndexSet;
 use destack_dir as dir;
@@ -319,15 +318,15 @@ impl CheckState<'_> {
         // read the stages every pass reaches
         let bound = self
             .artifacts
-            .read_content::<DirBound>((module, self.profile))
+            .read::<DirBound>((module, self.profile))
             .map_err(CompilerError::from)?;
         let expanded = self
             .artifacts
-            .read_content::<DirExpanded>((module, self.profile))
+            .read::<DirExpanded>((module, self.profile))
             .map_err(CompilerError::from)?;
         let resolved = self
             .artifacts
-            .read_content::<DirResolved>((module, self.profile))
+            .read::<DirResolved>((module, self.profile))
             .map_err(CompilerError::from)?;
 
         // read the parsed tree and the module's declared artifact
@@ -337,7 +336,7 @@ impl CheckState<'_> {
             .map_err(CompilerError::from)?;
         let declared = self
             .artifacts
-            .read_projection::<DirDeclared>((module, self.profile), ArtifactProjectionKey::Declared)
+            .read::<DirDeclared>((module, self.profile))
             .map_err(CompilerError::from)?;
 
         // each pass loads external modules up to the stage its reads may reach

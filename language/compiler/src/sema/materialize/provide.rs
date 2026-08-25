@@ -1,10 +1,10 @@
+use std::sync::Arc;
+
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey, EnvironmentBound,
-    EnvironmentDeclared,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, EnvironmentBound, EnvironmentDeclared,
 };
 use destack_repository::{ArtifactAttemptRecorder, ProfileId, ProviderContext};
 use destack_source::ModuleId;
-use std::sync::Arc;
 
 use crate::sema::{CheckModuleState, CheckState, Pass};
 use crate::{Compiler, CompilerError, CompilerResult};
@@ -28,14 +28,8 @@ impl Compiler {
         dependencies.require(ArtifactKey::dir_checked(module, profile));
 
         // require the aggregate implicit declarations
-        dependencies.require_projection(
-            ArtifactKey::environment_bound(profile),
-            ArtifactProjectionKey::Content,
-        );
-        dependencies.require_projection(
-            ArtifactKey::environment_declared(profile),
-            ArtifactProjectionKey::Content,
-        );
+        dependencies.require_payload(ArtifactKey::environment_bound(profile));
+        dependencies.require_payload(ArtifactKey::environment_declared(profile));
 
         Ok(dependencies)
     }
@@ -50,7 +44,7 @@ impl Compiler {
         // read the profile's environment
         let artifacts = self.artifact_reader(context);
         let global = artifacts
-            .read_content::<EnvironmentBound>(profile)
+            .read::<EnvironmentBound>(profile)
             .map_err(CompilerError::from)?;
         let declared_environment = artifacts
             .read::<EnvironmentDeclared>(profile)

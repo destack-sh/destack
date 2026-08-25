@@ -97,7 +97,7 @@ impl Compiler {
         let context = SourceRenderContext { revision, artifact };
         let artifacts = self.repository.artifact_reader(revision);
         let environment_bound = artifacts
-            .read_content::<EnvironmentBound>(profile)
+            .read::<EnvironmentBound>(profile)
             .map_err(CompilerError::from)?;
         let environment_declared = artifacts
             .read::<EnvironmentDeclared>(profile)

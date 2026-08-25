@@ -98,7 +98,7 @@ impl Compiler {
         bytes: &[u8],
         source: Option<Uri>,
     ) -> Result<BundleFile, RepositoryError> {
-        let blob = self.repository.put_blob(bytes)?;
+        let blob = self.repository.retain_blob(bytes)?;
 
         Ok(BundleFile::new(section, uri, file_type, blob, source))
     }
