@@ -49,8 +49,6 @@ pub(in crate::resolve) struct ResolveState<'a> {
     pub(in crate::resolve) function_stack: Vec<FunctionContext>,
     /// The memoized export lookups shared by this provider run.
     pub(in crate::resolve) exports: ExportResolver,
-    /// The DIR visitor options.
-    pub(in crate::resolve) options: dir::NodeVisitorOptions,
 }
 
 /// One namespace path reference to resolve after imports are known.
@@ -101,7 +99,6 @@ impl<'a> ResolveState<'a> {
             language_items: IndexSet::new(),
             function_stack: Vec::new(),
             exports: ExportResolver::new(profile),
-            options: dir::NodeVisitorOptions::default(),
         }
     }
 

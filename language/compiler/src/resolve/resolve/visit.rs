@@ -63,11 +63,6 @@ impl ResolveState<'_> {
 }
 
 impl dir::NodeVisitor for ResolveState<'_> {
-    /// Return resolve visitor options.
-    fn options(&self) -> &dir::NodeVisitorOptions {
-        &self.options
-    }
-
     /// Visit one expression.
     ///
     /// Example:
