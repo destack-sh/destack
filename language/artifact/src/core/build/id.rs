@@ -1,12 +1,17 @@
 use std::sync::OnceLock;
 use std::{fmt, io};
 
+use destack_serde::Reflect;
+use serde::{Deserialize, Serialize};
+
 const BUILD_ID_BYTES: usize = 16;
 
 pub(super) static CURRENT_BUILD_ID: OnceLock<BuildId> = OnceLock::new();
 
 /// The Destack build that produces derived artifacts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
 #[repr(transparent)]
 pub struct BuildId([u8; BUILD_ID_BYTES]);
 

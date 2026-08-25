@@ -3,7 +3,8 @@ use std::sync::Arc;
 use destack_source::DiagnosticSeverity;
 
 use crate::{
-    ArtifactDependency, ArtifactFailure, ArtifactPayload, ArtifactVersion, DiagnosticRecord,
+    ArtifactDependency, ArtifactFailure, ArtifactPackRecord, ArtifactPayload, ArtifactVersion,
+    DiagnosticRecord,
 };
 
 /// One reusable artifact result entry.
@@ -62,14 +63,29 @@ impl ArtifactEntry {
         }
     }
 
+    /// Create one successful artifact entry whose payload remains encoded.
+    pub(crate) fn cached(
+        version: ArtifactVersion,
+        dependencies: impl Into<Arc<[ArtifactDependency]>>,
+        record: ArtifactPackRecord,
+        diagnostics: impl Into<Arc<[DiagnosticRecord]>>,
+    ) -> Self {
+        let diagnostics = diagnostics.into();
+
+        Self {
+            version,
+            dependencies: dependencies.into(),
+            result: ArtifactResult::Cached(record),
+            has_errors: diagnostics
+                .iter()
+                .any(|record| record.diagnostic.severity == DiagnosticSeverity::Error),
+            diagnostics,
+        }
+    }
+
     /// Return the exact terminal outcome.
     pub fn outcome(&self) -> ArtifactOutcome {
         self.result.outcome()
-    }
-
-    /// Return the successful payload when present.
-    pub fn payload(&self) -> Option<ArtifactPayload> {
-        self.result.payload()
     }
 
     /// Return the diagnostics for this artifact version.
@@ -84,10 +100,12 @@ impl ArtifactEntry {
 }
 
 /// Exact terminal result for one artifact version entry.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) enum ArtifactResult {
     /// The exact payload was produced.
     Ok(ArtifactPayload),
+    /// The exact payload remains encoded in its artifact pack.
+    Cached(ArtifactPackRecord),
     /// The exact artifact attempt failed without a payload.
     Failed(ArtifactFailure),
 }
@@ -97,15 +115,8 @@ impl ArtifactResult {
     pub(crate) fn outcome(&self) -> ArtifactOutcome {
         match self {
             Self::Ok(_payload) => ArtifactOutcome::Ok,
+            Self::Cached(_record) => ArtifactOutcome::Ok,
             Self::Failed(failure) => ArtifactOutcome::Failed(failure.clone()),
-        }
-    }
-
-    /// Return the successful payload when present.
-    pub(crate) fn payload(&self) -> Option<ArtifactPayload> {
-        match self {
-            Self::Ok(payload) => Some(payload.clone()),
-            Self::Failed(_failure) => None,
         }
     }
 }

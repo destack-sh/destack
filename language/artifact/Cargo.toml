@@ -26,6 +26,7 @@ destack_source = { workspace = true }
 
 # general
 blake3 = { workspace = true }
+crc32fast = { workspace = true }
 dashmap = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 rustc-hash = { workspace = true }

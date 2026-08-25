@@ -4,16 +4,17 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::{env, thread};
 
 use destack_artifact::{
-    ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, BuildId, DirBound, DirChecked,
-    DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed,
-    DirResolved, EnvironmentBound, MirLowered, ModuleGraph,
+    Artifact, ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, BuildId, DirBound,
+    DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized,
+    DirParsed, DirResolved, EnvironmentBound, MirLowered, ModuleGraph,
 };
+use destack_core::BlobStore;
 use destack_dir as dir;
 use destack_mir::{FormatOptions, Formatter};
 use destack_repository::{
-    BlobStore, DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host,
-    Repository, Revision, RevisionPin, Settings, Trace, TraceAggregate, TraceLevel, TraceReport,
-    TraceSnapshot, TraceView,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Repository, Revision,
+    RevisionPin, Settings, Trace, TraceAggregate, TraceLevel, TraceReport, TraceSnapshot,
+    TraceView,
 };
 use destack_session::{ArtifactPriority, Executor, Session, SessionError};
 use destack_source::{MemoryFileSystem, ModuleId, ProfileId, TargetId};
@@ -432,9 +433,7 @@ impl TestSession {
             .require_artifact_result(key)
             .unwrap_or_else(|error| panic!("test MIR artifact failed: {error}"));
 
-        self.artifacts()
-            .artifact::<MirLowered>(&version)
-            .unwrap_or_else(|| panic!("test MIR artifact should exist"))
+        self.artifact(version)
     }
 
     /// Assert one rendered MIR snapshot.
@@ -457,12 +456,7 @@ impl TestSession {
                 self.diagnostic_snapshot(key)
             ),
         };
-        let Some(lowered) = self.artifacts().artifact::<MirLowered>(&version) else {
-            panic!(
-                "test MIR artifact should exist\n{}",
-                self.diagnostic_snapshot(key)
-            )
-        };
+        let lowered: Arc<MirLowered> = self.artifact(version);
 
         // format the MIR tree against the repository names
         let strings = self.repository.string_pool();
@@ -1034,10 +1028,7 @@ impl TestSession {
         let declared = self.dir_declared_module(entry.module.id, entry.profile);
         let elaborated_version =
             self.require_artifact(ArtifactKey::dir_elaborated(entry.module.id, entry.profile));
-        let elaborated = self
-            .artifacts()
-            .artifact::<DirElaborated>(&elaborated_version)
-            .expect("test elaborated artifact should exist");
+        let elaborated = self.artifact(elaborated_version);
         let checked = self.dir_checked(entry);
         let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
         let foreign_artifacts = self.foreign_artifacts_for(entry, true);
@@ -1078,10 +1069,7 @@ impl TestSession {
 
         let elaborated_version =
             self.require_artifact(ArtifactKey::dir_elaborated(entry.module.id, entry.profile));
-        let elaborated = self
-            .artifacts()
-            .artifact::<DirElaborated>(&elaborated_version)
-            .expect("test elaborated artifact should exist");
+        let elaborated = self.artifact(elaborated_version);
 
         // install the final cumulative table so stage rows dedup against overrides
         if materialized {
@@ -1151,9 +1139,7 @@ impl TestSession {
         let key = ArtifactKey::dir_parsed(module_id);
         let version = self.require_artifact(key);
 
-        self.artifacts()
-            .artifact::<DirParsed>(&version)
-            .expect("test parsed artifact should exist")
+        self.artifact(version)
     }
 
     /// Return bound DIR for one module entry.
@@ -1161,9 +1147,7 @@ impl TestSession {
         let key = ArtifactKey::dir_bound(entry.module.id, entry.profile);
         let version = self.require_artifact(key);
 
-        self.artifacts()
-            .artifact::<DirBound>(&version)
-            .expect("test bound artifact should exist")
+        self.artifact(version)
     }
 
     /// Return imported DIR for one module entry.
@@ -1171,9 +1155,7 @@ impl TestSession {
         let key = ArtifactKey::dir_imported(entry.module.id, entry.profile);
         let version = self.require_artifact(key);
 
-        self.artifacts()
-            .artifact::<DirImported>(&version)
-            .expect("test imported artifact should exist")
+        self.artifact(version)
     }
 
     /// Return expanded DIR for one module entry.
@@ -1181,9 +1163,7 @@ impl TestSession {
         let key = ArtifactKey::dir_expanded(entry.module.id, entry.profile);
         let version = self.require_artifact(key);
 
-        self.artifacts()
-            .artifact::<DirExpanded>(&version)
-            .expect("test expanded artifact should exist")
+        self.artifact(version)
     }
 
     /// Return exported DIR for one module entry.
@@ -1191,9 +1171,7 @@ impl TestSession {
         let key = ArtifactKey::dir_exported(entry.module.id, entry.profile);
         let version = self.require_artifact(key);
 
-        self.artifacts()
-            .artifact::<DirExported>(&version)
-            .expect("test exported artifact should exist")
+        self.artifact(version)
     }
 
     /// Return resolved DIR for one module entry.
@@ -1201,9 +1179,7 @@ impl TestSession {
         let key = ArtifactKey::dir_resolved(entry.module.id, entry.profile);
         let version = self.require_artifact(key);
 
-        self.artifacts()
-            .artifact::<DirResolved>(&version)
-            .expect("test resolved artifact should exist")
+        self.artifact(version)
     }
 
     /// Return checked DIR for one module entry.
@@ -1220,9 +1196,7 @@ impl TestSession {
         let key = ArtifactKey::dir_checked(module_id, profile);
         let version = self.require_artifact(key);
 
-        self.artifacts()
-            .artifact::<DirChecked>(&version)
-            .expect("test checked module should exist")
+        self.artifact(version)
     }
 
     /// Return elaborated DIR for one module entry.
@@ -1230,9 +1204,7 @@ impl TestSession {
         let key = ArtifactKey::dir_elaborated(entry.module.id, entry.profile);
         let version = self.require_artifact(key);
 
-        self.artifacts()
-            .artifact::<DirElaborated>(&version)
-            .expect("test elaborated artifact should exist")
+        self.artifact(version)
     }
 
     /// Return materialized DIR for one module entry.
@@ -1240,9 +1212,7 @@ impl TestSession {
         let key = ArtifactKey::dir_materialized(entry.module.id, entry.profile);
         let version = self.require_artifact(key);
 
-        self.artifacts()
-            .artifact::<DirMaterialized>(&version)
-            .expect("test materialized artifact should exist")
+        self.artifact(version)
     }
 
     /// Return declared DIR for one module id.
@@ -1250,9 +1220,7 @@ impl TestSession {
         let key = ArtifactKey::dir_declared(module_id, profile);
         let version = self.require_artifact(key);
 
-        self.artifacts()
-            .artifact::<DirDeclared>(&version)
-            .expect("test declared module should exist")
+        self.artifact(version)
     }
 
     /// Require one artifact through the production session.
@@ -1452,6 +1420,14 @@ impl TestSession {
         self.repository.artifact_table().clone()
     }
 
+    /// Return one exact typed test artifact.
+    fn artifact<A: Artifact>(&self, version: ArtifactVersion) -> Arc<A> {
+        self.artifacts()
+            .artifact::<A>(&version)
+            .expect("decode test artifact")
+            .expect("test artifact should exist")
+    }
+
     /// Return foreign bound and expanded artifacts needed for labels.
     fn foreign_artifacts_for(
         &self,
@@ -1521,23 +1497,14 @@ impl TestSession {
             .map(|module_id| {
                 let bound_version =
                     self.require_artifact(ArtifactKey::dir_bound(module_id, entry.profile));
-                let bound = self
-                    .artifacts()
-                    .artifact::<DirBound>(&bound_version)
-                    .expect("test external bound artifact should exist");
+                let bound = self.artifact(bound_version);
                 let expanded_version =
                     self.require_artifact(ArtifactKey::dir_expanded(module_id, entry.profile));
-                let expanded = self
-                    .artifacts()
-                    .artifact::<DirExpanded>(&expanded_version)
-                    .expect("test external expanded artifact should exist");
+                let expanded = self.artifact(expanded_version);
                 let declared = self.dir_declared_module(module_id, entry.profile);
                 let elaborated_version =
                     self.require_artifact(ArtifactKey::dir_elaborated(module_id, entry.profile));
-                let elaborated = self
-                    .artifacts()
-                    .artifact::<DirElaborated>(&elaborated_version)
-                    .expect("test external elaborated artifact should exist");
+                let elaborated = self.artifact(elaborated_version);
                 let checked = self.dir_checked_module(module_id, entry.profile);
                 let generics = checked.generic_table(&declared, &elaborated);
                 let definitions = checked.definition_table(&declared, &elaborated);
@@ -1620,9 +1587,7 @@ impl TestSession {
     /// Read the module graph for one profile.
     pub(crate) fn module_graph(&self, profile: ProfileId) -> Arc<ModuleGraph> {
         let version = self.require_artifact(ArtifactKey::module_graph(profile));
-        self.artifacts()
-            .artifact::<ModuleGraph>(&version)
-            .expect("test module graph should exist")
+        self.artifact(version)
     }
 
     /// Assert the component graph induced by selected source modules.

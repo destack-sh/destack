@@ -846,6 +846,7 @@ name = "destack_artifact"
 version = "0.55.4"
 dependencies = [
  "blake3",
+ "crc32fast",
  "dashmap",
  "destack_core",
  "destack_dir",

@@ -546,6 +546,7 @@ impl Indexer {
                 repository
                     .artifact_table()
                     .artifact::<ModuleIndex>(&version)
+                    .map_err(|error| ProviderError::internal(error.to_string()))?
                     .ok_or(ProviderError::Corrupt { version })?
             }
             key => {

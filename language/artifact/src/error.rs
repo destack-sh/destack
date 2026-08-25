@@ -3,7 +3,7 @@ use std::{error, fmt};
 use destack_serde as serde;
 
 /// An invalid artifact result or payload representation.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ArtifactError {
     /// Artifact state is malformed or internally inconsistent.
     Invalid(&'static str),

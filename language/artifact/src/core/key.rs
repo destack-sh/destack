@@ -273,13 +273,37 @@ impl ArtifactKey {
     /// Return the package referenced by this artifact key when one exists.
     pub fn package_id(&self) -> Option<PackageId> {
         match self {
+            Self::DirParsed { module }
+            | Self::Data { module }
+            | Self::DirBound { module, .. }
+            | Self::DirImported { module, .. }
+            | Self::DirExpanded { module, .. }
+            | Self::DirExported { module, .. }
+            | Self::DirResolved { module, .. }
+            | Self::DirDeclared { module, .. }
+            | Self::DirElaborated { module, .. }
+            | Self::DirChecked { module, .. }
+            | Self::DirMaterialized { module, .. }
+            | Self::MirLowered { module, .. }
+            | Self::MirVerified { module, .. }
+            | Self::MirElaborated { module, .. }
+            | Self::MirAnalyzed { module, .. }
+            | Self::MirOptimized { module, .. }
+            | Self::ModuleIndex { module, .. }
+            | Self::ModuleLinted { module, .. }
+            | Self::Script { module, .. }
+            | Self::Object { module, .. }
+            | Self::Asset { module, .. } => Some(module.package_id),
             Self::Build { target }
             | Self::ProgramAnalysis { target, .. }
             | Self::ProgramLinted { target, .. } => Some(target.package_id()),
             Self::Bundle { package, .. }
             | Self::Program { package, .. }
             | Self::Product { package, .. } => Some(*package),
-            _ => None,
+            Self::EnvironmentBound { .. }
+            | Self::ModuleGraph { .. }
+            | Self::EnvironmentDeclared { .. }
+            | Self::ProgramIndex { .. } => None,
         }
     }
 

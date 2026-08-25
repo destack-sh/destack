@@ -7,8 +7,9 @@ use rustc_hash::FxBuildHasher;
 
 use crate::{
     Artifact, ArtifactDependency, ArtifactEntry, ArtifactError, ArtifactFailure,
-    ArtifactInvalidation, ArtifactKey, ArtifactOutcome, ArtifactPayload, ArtifactProjection,
-    ArtifactProjectionFingerprint, ArtifactProjectionKey, ArtifactVersion, DiagnosticRecord,
+    ArtifactInvalidation, ArtifactKey, ArtifactOutcome, ArtifactPackRecord, ArtifactPayload,
+    ArtifactProjection, ArtifactProjectionFingerprint, ArtifactProjectionKey, ArtifactResult,
+    ArtifactVersion, DiagnosticRecord,
 };
 
 /// Shared immutable artifact results indexed by exact version.
@@ -145,15 +146,37 @@ impl ArtifactTable {
     }
 
     /// Return the successful payload for one artifact version.
-    pub fn payload(&self, version: &ArtifactVersion) -> Option<ArtifactPayload> {
-        self.entry(version)?.payload()
+    pub fn payload(
+        &self,
+        version: &ArtifactVersion,
+    ) -> Result<Option<ArtifactPayload>, ArtifactError> {
+        let Some(entry) = self.entry(version) else {
+            return Ok(None);
+        };
+        let payload = match &entry.result {
+            ArtifactResult::Ok(payload) => payload.clone(),
+            ArtifactResult::Cached(record) => record.payload()?,
+            ArtifactResult::Failed(_failure) => return Ok(None),
+        };
+        if !payload.matches_key(&version.key) {
+            return Err(ArtifactError::Invalid(
+                "artifact payload does not match its result key",
+            ));
+        }
+
+        Ok(Some(payload))
     }
 
     /// Return one typed artifact payload.
-    pub fn artifact<A: Artifact>(&self, version: &ArtifactVersion) -> Option<Arc<A>> {
-        let payload = self.payload(version)?;
+    pub fn artifact<A: Artifact>(
+        &self,
+        version: &ArtifactVersion,
+    ) -> Result<Option<Arc<A>>, ArtifactError> {
+        let Some(payload) = self.payload(version)? else {
+            return Ok(None);
+        };
 
-        A::from_payload(payload)
+        Ok(A::from_payload(payload))
     }
 
     /// Return the stable fingerprint of one projected artifact value.
@@ -166,16 +189,16 @@ impl ArtifactTable {
             return Ok(None);
         }
 
-        let Some(entry) = self.entry(version) else {
+        if self.entry(version).is_none() {
             return Ok(None);
-        };
+        }
         let projection_key = (*version, projection.key);
         if let Some(fingerprint) = self.projections.get(&projection_key) {
             return Ok(Some(*fingerprint));
         }
 
         // calculate each requested projection at most once
-        let Some(payload) = entry.payload() else {
+        let Some(payload) = self.payload(version)? else {
             return Ok(None);
         };
         let Some(fingerprint) = payload.as_ref().fingerprint_projection(projection.key)? else {
@@ -187,6 +210,24 @@ impl ArtifactTable {
             .or_insert(fingerprint);
 
         Ok(Some(fingerprint))
+    }
+
+    /// Restore one encoded successful artifact record.
+    pub(crate) fn restore(
+        &self,
+        version: ArtifactVersion,
+        dependencies: impl Into<Arc<[ArtifactDependency]>>,
+        record: ArtifactPackRecord,
+        diagnostics: impl Into<Arc<[DiagnosticRecord]>>,
+    ) -> Arc<ArtifactEntry> {
+        let entry = Arc::new(ArtifactEntry::cached(
+            version,
+            dependencies,
+            record,
+            diagnostics,
+        ));
+
+        self.insert(entry)
     }
 
     /// Intern one exact immutable artifact result.
