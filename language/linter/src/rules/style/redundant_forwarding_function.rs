@@ -47,8 +47,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
         if function.export.is_some()
             || function.is_ambient
+            || function.signature.form != dir::FunctionForm::Function
             || view.has_decorators_any(node.into_any())
-            || !is_forwarding_signature(&function.signature, module)
+            || function.signature.is_override
+            || function.signature.role.is_some()
         {
             continue;
         }
@@ -60,7 +62,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             lint,
             node.into_any(),
             module.declaration_symbol(node)?,
-            &function.signature.parameters,
+            &function.signature,
             body,
             &mut output,
         )?;
@@ -78,7 +80,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         else {
             continue;
         };
-        if view.has_decorators_any(node.into_any()) || !is_forwarding_signature(signature, module) {
+        if view.has_decorators_any(node.into_any())
+            || signature.is_override
+            || signature.role.is_some()
+        {
             continue;
         }
         report_forwarding(
@@ -86,7 +91,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             lint,
             node.into_any(),
             module.declaration_symbol(node)?,
-            &signature.parameters,
+            signature,
             *body,
             &mut output,
         )?;
@@ -101,37 +106,13 @@ fn report_forwarding(
     lint: &Lint,
     callable: dir::LocalNodeIdAny,
     callable_symbol: dir::GlobalSymbolId,
-    parameters: &[dir::LocalNodeId<dir::Parameter>],
+    signature: &dir::FunctionSignature,
     body: dir::LocalNodeId<dir::Expression>,
     output: &mut LintOutput,
 ) -> Result<(), destack_repository::ProviderError> {
-    let Some(call) = forwarded_call(body, module) else {
+    let Some(call) = module.parameter_forwarding_call(signature, body)? else {
         return Ok(());
     };
-    let dir::Expression::Call {
-        arguments,
-        is_optional: false,
-        ..
-    } = module.view().get(call)
-    else {
-        return Ok(());
-    };
-    if arguments.len() != parameters.len() {
-        return Ok(());
-    }
-
-    // require every argument to be its corresponding unadjusted parameter
-    for (parameter, argument) in parameters.iter().zip(arguments) {
-        let dir::Argument::Positional { value } = module.view().get(*argument) else {
-            return Ok(());
-        };
-        let parameter = module.declaration_symbol(*parameter)?;
-        if module.selected_symbol(*value)? != Some(parameter)
-            || !module.is_unadjusted(value.into_any())
-        {
-            return Ok(());
-        }
-    }
 
     // reject direct recursion and report the forwarding declaration
     if module.call_symbol(call)? == Some(callable_symbol) {
@@ -141,42 +122,6 @@ fn report_forwarding(
     output.report(lint.diagnostic("callable only forwards its parameters", span));
 
     Ok(())
-}
-
-/// Return whether one signature adds no call-entry behavior.
-fn is_forwarding_signature(signature: &dir::FunctionSignature, module: &DirModule<'_>) -> bool {
-    signature.asynchrony == dir::Asynchrony::Sync
-        && !signature.is_generator
-        && !signature.is_override
-        && signature.role.is_none()
-        && signature.parameters.iter().all(|parameter| {
-            matches!(
-                module.view().get(*parameter),
-                dir::Parameter::Named {
-                    default: None,
-                    is_optional: false,
-                    ..
-                }
-            )
-        })
-}
-
-/// Return the sole call completed by one callable body.
-fn forwarded_call(
-    body: dir::LocalNodeId<dir::Expression>,
-    module: &DirModule<'_>,
-) -> Option<dir::LocalNodeId<dir::Expression>> {
-    let view = module.view();
-    let expression = match view.get(body) {
-        dir::Expression::Block(block) => view.get(*block).only_expression()?,
-        _ => body,
-    };
-    let expression = match view.get(expression) {
-        dir::Expression::Return { value: Some(value) } => *value,
-        _ => expression,
-    };
-
-    matches!(view.get(expression), dir::Expression::Call { .. }).then_some(expression)
 }
 
 #[cfg(test)]
@@ -231,6 +176,23 @@ function parseValue(source: string): int32 {
         session.assert_no_diagnostics();
     }
 
+    /// Accept a function that discards the forwarded call's result.
+    #[test]
+    fn test_accepts_discarded_result() {
+        let session = TestSession::dir(
+            &REDUNDANT_FORWARDING_FUNCTION,
+            r#"
+declare function inspect(value: int32): int32;
+
+function inspectValue(value: int32): void {
+    inspect(value);
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
     /// Accept a forwarding function that supplies a default argument.
     #[test]
     fn test_accepts_defaulted_parameter() {
@@ -259,6 +221,43 @@ declare function parse(source: string): int32;
 export function parseValue(source: string): int32 {
     return parse(source);
 }
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept forwarding that applies a return adjustment or generic arguments.
+    #[test]
+    fn test_accepts_adjusted_forwarding() {
+        let session = TestSession::dir(
+            &REDUNDANT_FORWARDING_FUNCTION,
+            r#"
+declare function read(): int32;
+declare function identity<T>(value: T): T;
+
+function readValue(): int32 | string {
+    return read();
+}
+
+function text(value: string): string {
+    return identity<string>(value);
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept lambdas because redundant closures govern callable values.
+    #[test]
+    fn test_accepts_lambda() {
+        let session = TestSession::dir(
+            &REDUNDANT_FORWARDING_FUNCTION,
+            r#"
+newtype EntityRef = int32;
+
+const wrap = (id: int32) => EntityRef(id);
 "#,
         );
 

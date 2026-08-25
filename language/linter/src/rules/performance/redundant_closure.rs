@@ -67,74 +67,15 @@ fn select_forwarded_callee(
     let Some(lambda) = module.lambda(expression) else {
         return Ok(None);
     };
-    if lambda.signature.asynchrony != dir::Asynchrony::Sync || lambda.signature.is_generator {
-        return Ok(None);
-    }
-    let Some(body) = lambda
-        .body
-        .and_then(|body| module.sole_value_expression(body))
-    else {
+    let Some(body) = lambda.body else {
         return Ok(None);
     };
-    let dir::Expression::Call {
-        left: callee,
-        generic_arguments,
-        arguments,
-        is_optional: false,
-        ..
-    } = module.view().get(body)
-    else {
+    let Some(call) = module.parameter_forwarding_call(&lambda.signature, body)? else {
         return Ok(None);
     };
-    if !generic_arguments.is_empty() || arguments.len() != lambda.signature.parameters.len() {
-        return Ok(None);
-    }
-    if lambda.signature.parameters.iter().any(|parameter| {
-        !matches!(
-            module.view().get(*parameter),
-            dir::Parameter::Named { default: None, .. }
-        )
-    }) {
-        return Ok(None);
-    }
-
-    // require the selected function to accept exactly the forwarded arity
-    let Some(parameters) = module.call_parameters(body)? else {
+    let dir::Expression::Call { left: callee, .. } = module.view().get(call) else {
         return Ok(None);
     };
-    if parameters.len() != arguments.len() || parameters.iter().any(|parameter| parameter.is_rest) {
-        return Ok(None);
-    }
-    if !module.is_unadjusted(body.into_any()) {
-        return Ok(None);
-    }
-
-    // require a stable declaration function rather than a callable value or method
-    if !matches!(
-        module.view().get(*callee),
-        dir::Expression::Identifier { .. }
-    ) {
-        return Ok(None);
-    }
-    let Some(function) = module.call_symbol(body)? else {
-        return Ok(None);
-    };
-    if module.dir.has_decorators(function)? {
-        return Ok(None);
-    }
-
-    // require every positional argument to be its corresponding unadjusted parameter
-    for (parameter, argument) in lambda.signature.parameters.iter().zip(arguments) {
-        let dir::Argument::Positional { value } = module.view().get(*argument) else {
-            return Ok(None);
-        };
-        let parameter = module.declaration_symbol(*parameter)?;
-        if module.selected_symbol(*value)? != Some(parameter)
-            || !module.is_unadjusted(value.into_any())
-        {
-            return Ok(None);
-        }
-    }
 
     Ok(Some(*callee))
 }
@@ -293,6 +234,40 @@ const operation = (value: int32) => {
 
     return square(value);
 };
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept a closure that discards the forwarded call's result.
+    #[test]
+    fn test_accepts_discarded_result() {
+        let session = TestSession::dir(
+            &REDUNDANT_CLOSURE,
+            r#"
+declare function inspect(value: int32): int32;
+
+const inspectValue: (value: int32) => void = (value) => {
+    inspect(value);
+};
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept a closure that constructs a newtype from its parameter.
+    #[test]
+    fn test_accepts_newtype_construction() {
+        let session = TestSession::dir(
+            &REDUNDANT_CLOSURE,
+            r#"
+newtype EntityRef = int32;
+
+function wrap(result: Result<int32, string>): Result<EntityRef, string> {
+    return result.map((id) => EntityRef(id));
+}
 "#,
         );
 

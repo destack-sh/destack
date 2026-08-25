@@ -336,6 +336,99 @@ impl DirModule<'_> {
         Some(values)
     }
 
+    /// Return the sole value call when a body passes each parameter directly and in order.
+    pub(crate) fn parameter_forwarding_call(
+        &self,
+        signature: &dir::FunctionSignature,
+        body: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<dir::LocalNodeId<dir::Expression>>, ProviderError> {
+        // require a synchronous signature without parameter entry behavior
+        if signature.asynchrony != dir::Asynchrony::Sync || signature.is_generator {
+            return Ok(None);
+        }
+        if signature.parameters.iter().any(|parameter| {
+            !matches!(
+                self.view().get(*parameter),
+                dir::Parameter::Named {
+                    default: None,
+                    is_optional: false,
+                    ..
+                }
+            )
+        }) {
+            return Ok(None);
+        }
+
+        // select one direct or explicitly returned call
+        let Some(expression) = self.sole_expression(body) else {
+            return Ok(None);
+        };
+        let expression = match self.view().get(expression) {
+            dir::Expression::Return { value: Some(value) } => *value,
+            _ if self.sole_value_expression(body) == Some(expression) => expression,
+            _ => return Ok(None),
+        };
+        let dir::Expression::Call {
+            left: callee,
+            generic_arguments,
+            arguments,
+            is_optional: false,
+            ..
+        } = self.view().get(expression)
+        else {
+            return Ok(None);
+        };
+        if !generic_arguments.is_empty() || arguments.len() != signature.parameters.len() {
+            return Ok(None);
+        }
+
+        // require the call and every argument to pass their values unchanged
+        if !self.is_unadjusted(expression.into_any()) {
+            return Ok(None);
+        }
+        if !matches!(self.view().get(*callee), dir::Expression::Identifier { .. }) {
+            return Ok(None);
+        }
+
+        // exclude nominal construction before requiring ordinary call resolution
+        if let Some(symbol) = self.selected_symbol(*callee)?
+            && self.dir.is_nominal_symbol(symbol)?
+        {
+            return Ok(None);
+        }
+        for (parameter, argument) in signature.parameters.iter().zip(arguments) {
+            let dir::Argument::Positional { value } = self.view().get(*argument) else {
+                return Ok(None);
+            };
+            let parameter = self.declaration_symbol(*parameter)?;
+            if self.selected_symbol(*value)? != Some(parameter)
+                || !self.is_unadjusted(value.into_any())
+            {
+                return Ok(None);
+            }
+        }
+
+        // require the selected function to accept exactly the forwarded arity
+        let Some(parameters) = self.call_parameters(expression)? else {
+            return Ok(None);
+        };
+        if parameters.len() != arguments.len()
+            || parameters.iter().any(|parameter| parameter.is_rest)
+        {
+            return Ok(None);
+        }
+
+        // require a stable undecorated function declaration
+        let Some(function) = self.call_symbol(expression)? else {
+            return Ok(None);
+        };
+        if self.dir.has_decorators(function)? {
+            return Ok(None);
+        }
+
+        Ok(Some(expression))
+    }
+
     /// Return whether one callable return type borrows a parameter's value type.
     pub(crate) fn return_type_borrows_parameter(
         &self,
