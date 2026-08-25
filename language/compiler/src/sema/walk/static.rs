@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::sema::{CheckState, DecoratorExpression, VariableRole, WalkState};
+use crate::sema::{CheckState, DecoratorExpression, Origin, VariableRole, WalkState};
 use crate::r#static::{StaticError, StaticEvaluator, StaticGuard};
 
 pub(in crate::sema) use dir::StaticPresence;
@@ -444,6 +444,84 @@ impl WalkState<'_, '_> {
                     construct_signatures: dir::TypeListId::EMPTY,
                     index_signatures: dir::TypeListId::EMPTY,
                 }))?;
+
+                self.commit_node_type(expression, ty)
+            }
+            // SocketFlags(1) commits a nominal newtype constant
+            dir::Expression::Call {
+                position: dir::PostfixPosition::Direct,
+                left,
+                generic_arguments,
+                arguments,
+                is_optional: false,
+            } if generic_arguments.is_empty() => {
+                let left = *left;
+                let arguments = arguments.clone();
+
+                // require a resolved newtype head
+                let Some(symbol) = self.check.written_newtype_head(self.module, left) else {
+                    self.check
+                        .report_undecidable_static_value(self.module, source);
+                    let ty = self.intern_type(dir::Type::Error)?;
+
+                    return self.commit_node_type(expression, ty);
+                };
+
+                // record the head's name edge for checked output
+                let head_source = left.into_global_any(self.module);
+                self.capture_symbol_reference(head_source, symbol);
+                self.check
+                    .commit_name(head_source, dir::NameResolution::new(symbol))?;
+
+                // evaluate each positional argument to a static term
+                let mut elements = Vec::with_capacity(arguments.len());
+                for argument in &arguments {
+                    let dir::Argument::Positional { value } = self.tree.get(*argument) else {
+                        self.check
+                            .report_undecidable_static_value(self.module, source);
+                        let ty = self.intern_type(dir::Type::Error)?;
+
+                        return self.commit_node_type(expression, ty);
+                    };
+                    let ty = self.walk_static_term(*value)?;
+                    let origin = Origin::Node(
+                        (*value).into_global_any(self.module),
+                        self.flow().template_scope(),
+                    );
+                    let ty = self.check.normalize_computation(origin, ty)?;
+                    let term = match self.check.ty(ty)? {
+                        dir::Type::Literal(value) => dir::StaticTerm::Literal { value },
+                        dir::Type::Static(value) => self.check.r#static(value).clone(),
+                        _ => {
+                            self.check
+                                .report_undecidable_static_value(self.module, source);
+                            let ty = self.intern_type(dir::Type::Error)?;
+
+                            return self.commit_node_type(expression, ty);
+                        }
+                    };
+                    elements.push(term);
+                }
+
+                // wrap the values as the nominal newtype term
+                let value = match <[dir::StaticTerm; 1]>::try_from(elements) {
+                    Ok([value]) => value,
+                    Err(elements) => dir::StaticTerm::Tuple { elements },
+                };
+                let head = self.intern_type(dir::Type::Application(dir::GenericApplication {
+                    symbol,
+                    arguments: dir::TypeListId::EMPTY,
+                }))?;
+                let term = dir::StaticTerm::Newtype {
+                    ty: head,
+                    value: Box::new(value),
+                };
+                let id = self
+                    .check
+                    .module_mut(self.module)
+                    .statics_tail
+                    .push_static(term);
+                let ty = self.intern_type(dir::Type::Static(id.into_global(self.module)))?;
 
                 self.commit_node_type(expression, ty)
             }

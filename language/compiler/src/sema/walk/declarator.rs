@@ -390,6 +390,31 @@ impl CheckState<'_> {
         false
     }
 
+    /// Return the newtype declaration one call head names, when one does.
+    pub(in crate::sema) fn written_newtype_head(
+        &self,
+        module: ModuleId,
+        callee: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::GlobalSymbolId> {
+        // resolve the head to one bound declaration
+        let state = self.module(module);
+        let reference = state
+            .resolved
+            .references
+            .get(callee.into_global_any(module))?;
+        let dir::Reference::Bound(symbols) = reference else {
+            return None;
+        };
+        let symbols = self.present_symbols(symbols);
+        let [symbol] = symbols.as_slice() else {
+            return None;
+        };
+
+        // require a newtype declaration in the walked module
+        let definition = self.module(symbol.module_id).definition(*symbol)?;
+        matches!(definition, dir::Definition::Newtype(_)).then_some(*symbol)
+    }
+
     /// Return whether an initializer's type transcribes without inference.
     pub(in crate::sema) fn is_transcribable_literal(
         &self,
@@ -409,6 +434,16 @@ impl CheckState<'_> {
                 operator: dir::UnaryOperator::Negate | dir::UnaryOperator::Plus,
                 right,
             } => matches!(tree.get(*right), dir::Expression::Literal(_)),
+            // 1 << 2, "a" + "b"
+            dir::Expression::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                dir::StaticBinaryOperator::try_from(*operator).is_ok()
+                    && self.is_transcribable_literal(module, *left)
+                    && self.is_transcribable_literal(module, *right)
+            }
             // value as const
             dir::Expression::As {
                 expression,
@@ -439,6 +474,22 @@ impl CheckState<'_> {
                     }
                     _ => false,
                 })
+            }
+            // SocketFlags(1), the head names a newtype over transcribable values
+            dir::Expression::Call {
+                position: dir::PostfixPosition::Direct,
+                left,
+                generic_arguments,
+                arguments,
+                is_optional: false,
+            } if generic_arguments.is_empty() => {
+                self.written_newtype_head(module, *left).is_some()
+                    && arguments.iter().all(|argument| match tree.get(*argument) {
+                        dir::Argument::Positional { value } => {
+                            self.is_transcribable_literal(module, *value)
+                        }
+                        _ => false,
+                    })
             }
             // Position { x: 1, y: 2 }, the head names the type
             dir::Expression::StructExpression { properties, .. } => {
