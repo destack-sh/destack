@@ -6,10 +6,10 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Disallow map callbacks used only for their effects.
-    pub NO_SIDE_EFFECTING_MAP {
-        id: "no-side-effecting-map",
-        summary: "Disallow map callbacks used only for their effects",
+    /// Disallow unused Array.map and Iterator.map results.
+    pub NO_UNUSED_MAP_RESULT {
+        id: "no-unused-map-result",
+        summary: "Disallow unused Array.map and Iterator.map results",
         explanation: r#"
 Discarding an Array map wastes its allocated result, while discarding an Iterator map leaves its lazy callback unconsumed.
 Instead, you SHOULD call `forEach` when the callback work is intended or remove the unused map operation.
@@ -96,14 +96,14 @@ mod tests {
     /// Replace a discarded Array map call.
     #[test]
     fn test_replaces_discarded_array_map() {
-        TestSession::assert_example(&NO_SIDE_EFFECTING_MAP);
+        TestSession::assert_example(&NO_UNUSED_MAP_RESULT);
     }
 
     /// Report a discarded lazy Iterator map without changing its evaluation.
     #[test]
     fn test_reports_discarded_iterator_map() {
         let session = TestSession::dir(
-            &NO_SIDE_EFFECTING_MAP,
+            &NO_UNUSED_MAP_RESULT,
             r#"
 import { Iterator } from "destack:iter";
 
@@ -114,7 +114,7 @@ function append(values: Iterator<int32>, output: int32[]): void {
         );
 
         session.assert_diagnostics(
-            r#"warning[no-side-effecting-map]: mapped result is discarded
+            r#"warning[no-unused-map-result]: mapped result is discarded
  ──▶ main.ds:4:5
   │
 2 │
@@ -133,7 +133,7 @@ function append(values: Iterator<int32>, output: int32[]): void {
     #[test]
     fn test_accepts_returned_array_map() {
         let session = TestSession::dir(
-            &NO_SIDE_EFFECTING_MAP,
+            &NO_UNUSED_MAP_RESULT,
             r#"
 function double(values: int32[]): int32[] {
     return values.map((value) => value * 2);
@@ -148,7 +148,7 @@ function double(values: int32[]): int32[] {
     #[test]
     fn test_accepts_returned_iterator_map() {
         let session = TestSession::dir(
-            &NO_SIDE_EFFECTING_MAP,
+            &NO_UNUSED_MAP_RESULT,
             r#"
 import { Iterator } from "destack:iter";
 
