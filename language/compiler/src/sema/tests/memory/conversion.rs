@@ -28,7 +28,7 @@ selected satisfies "borrowed";
 === annotated ===
 class User {}
 
-function select<'a, P1: Place>(value: &'a readonly User): "borrowed" {
+function select<'a>(value: &'a readonly User): "borrowed" {
     return "borrowed";
 }
 
@@ -117,11 +117,11 @@ selected satisfies "readonly";
 === annotated ===
 class User {}
 
-function select<'a, P1: Place>(value: &'a readonly User): "readonly" {
+function select<'a>(value: &'a readonly User): "readonly" {
     return "readonly";
 }
 
-function select<'a, P1: Place>(value: &'a User): "mutable" {
+function select<'a>(value: &'a User): "mutable" {
     return "mutable";
 }
 
@@ -207,11 +207,11 @@ selected satisfies "readonly";
 === annotated ===
 class User {}
 
-function select<'a, P1: Place>(value: &'a readonly User): "readonly" {
+function select<'a>(value: &'a readonly User): "readonly" {
     return "readonly";
 }
 
-function select<'a, P1: Place>(value: &'a User): "mutable" {
+function select<'a>(value: &'a User): "mutable" {
     return "mutable";
 }
 
@@ -293,9 +293,9 @@ replace(user);
 === annotated ===
 class User {}
 
-declare function inspect<'a, P1: Place>(value: &'a readonly User): void;
-declare function modify<'a, P1: Place>(value: &'a User): void;
-declare function replace<'a, P1: Place>(value: &'a exclusive User): void;
+declare function inspect<'a>(value: &'a readonly User): void;
+declare function modify<'a>(value: &'a User): void;
+declare function replace<'a>(value: &'a exclusive User): void;
 
 const user: User = new User();
 
@@ -391,9 +391,9 @@ replace(user);
 === annotated ===
 class User {}
 
-declare function inspect<'a, P1: Place>(value: &'a readonly User): void;
-declare function modify<'a, P1: Place>(value: &'a User): void;
-declare function replace<'a, P1: Place>(value: &'a exclusive User): void;
+declare function inspect<'a>(value: &'a readonly User): void;
+declare function modify<'a>(value: &'a User): void;
+declare function replace<'a>(value: &'a exclusive User): void;
 
 declare let user: ^User;
 
@@ -482,7 +482,7 @@ inspect(user);
 === annotated ===
 class User {}
 
-declare function inspect<'a, P1: Place>(value: &'a readonly User): void;
+declare function inspect<'a>(value: &'a readonly User): void;
 declare const user: readonly local User;
 
 inspect<"local">(user as &'static readonly User);
@@ -538,8 +538,8 @@ replace(user);
 === annotated ===
 class User {}
 
-declare function modify<'a, P1: Place>(value: &'a User): void;
-declare function replace<'a, P1: Place>(value: &'a exclusive User): void;
+declare function modify<'a>(value: &'a User): void;
+declare function replace<'a>(value: &'a exclusive User): void;
 declare const user: readonly local User;
 
 modify<"local">(user);
@@ -620,7 +620,7 @@ struct Cell {}
 
 type ManagedCell = Managed<Cell>;
 
-declare function inspect<'a, P1: Place>(value: &'a readonly Cell): void;
+declare function inspect<'a>(value: &'a readonly Cell): void;
 declare const explicit: local Cell;
 declare const alias: local Cell;
 
@@ -702,7 +702,7 @@ struct Cell {}
 
 newtype ManagedCellId = Managed<Cell>;
 
-declare function inspect<'a, P1: Place>(value: &'a readonly ManagedCellId): void;
+declare function inspect<'a>(value: &'a readonly ManagedCellId): void;
 declare const cell: ManagedCellId;
 
 inspect<"local">(cell as &'static readonly ManagedCellId);
@@ -766,7 +766,7 @@ inspect(readonlyCell);
 === annotated ===
 struct Cell {}
 
-declare function inspect<'a, P1: Place>(value: &'a readonly Cell): void;
+declare function inspect<'a>(value: &'a readonly Cell): void;
 declare const localCell: local Cell;
 declare const readonlyCell: readonly local Cell;
 
@@ -861,7 +861,7 @@ class State {
     users: User[] = [];
 }
 
-declare function inspect<'a, P1: Place>(value: &'a readonly User): void;
+declare function inspect<'a>(value: &'a readonly User): void;
 declare const state: State;
 
 inspect<"local">(state.user as &'static readonly User);
@@ -1227,7 +1227,7 @@ inspect("message");
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
-declare function inspect<'a, P1: Place>(value: &'a readonly string): void;
+declare function inspect<'a>(value: &'a readonly string): void;
 
 inspect<"local">("message" as &'frame readonly string);
 
@@ -1270,8 +1270,8 @@ modify(user);
 class User {}
 
 declare const user: shared User;
-declare function inspect<'a, P1: Place>(value: &'a readonly shared User): void;
-declare function modify<'a, P1: Place>(value: &'a shared User): void;
+declare function inspect<'a>(value: &'a readonly shared User): void;
+declare function modify<'a>(value: &'a shared User): void;
 
 inspect<"local">(user as &'static readonly shared User);
 modify<"local">(user as &'static shared User);
@@ -1342,7 +1342,7 @@ replace(user);
 class User {}
 
 declare const user: shared User;
-declare function replace<'a, P1: Place>(value: &'a exclusive shared User): void;
+declare function replace<'a>(value: &'a exclusive shared User): void;
 
 replace<"local">(user);
 
@@ -1403,9 +1403,9 @@ replace(user);
 class User {}
 
 declare shared let user: ^User;
-declare function inspect<'a, P1: Place>(value: &'a readonly shared User): void;
-declare function modify<'a, P1: Place>(value: &'a shared User): void;
-declare function replace<'a, P1: Place>(value: &'a exclusive shared User): void;
+declare function inspect<'a>(value: &'a readonly shared User): void;
+declare function modify<'a>(value: &'a shared User): void;
+declare function replace<'a>(value: &'a exclusive shared User): void;
 
 inspect<"local">(user as &'static readonly shared User);
 modify<"local">(user as &'static shared User);
@@ -1499,8 +1499,8 @@ struct Point {
     x: int32;
 }
 
-declare function inspectPoint<'a, P1: Place>(value: &'a readonly Point): void;
-declare function inspectValues<'a, P1: Place>(value: &'a readonly int32[]): void;
+declare function inspectPoint<'a>(value: &'a readonly Point): void;
+declare function inspectValues<'a>(value: &'a readonly int32[]): void;
 declare const point: Point;
 declare const values: int32[];
 
@@ -1585,9 +1585,9 @@ replace(value);
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
-declare function inspect<'a, P1: Place>(value: &'a readonly int32): void;
-declare function modify<'a, P1: Place>(value: &'a int32): void;
-declare function replace<'a, P1: Place>(value: &'a exclusive int32): void;
+declare function inspect<'a>(value: &'a readonly int32): void;
+declare function modify<'a>(value: &'a int32): void;
+declare function replace<'a>(value: &'a exclusive int32): void;
 
 declare const value: int32;
 

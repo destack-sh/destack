@@ -110,7 +110,7 @@ function fallback(result: Result<int32, string>): int32 {
         DirRows::checked(),
         r#"
 === annotated ===
-function count<'a, P1: Place>(values: &'a readonly int32[]): int32 {
+function count<'a>(values: &'a readonly int32[]): int32 {
     let total: int32 = 0;
     for (const value of values) {
         total += value;

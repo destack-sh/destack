@@ -90,14 +90,14 @@ class Class {
 /// @type.symbol symbol=Class type=Class
 /// @static.symbol symbol=Class value=Class
 /// @definition.class symbol=Class
-/// @definition.associated.const symbol=Class.Computed source="const Computed = 1 + 2" key=Computed type=<error>
+/// @definition.associated.const symbol=Class.Computed source="const Computed = 1 + 2" key=Computed type=3
 /// @definition.associated.const symbol=Class.Value source="const Value" key=Value type=<error>
 
     const Value;
     /// @type.symbol symbol=Class.Value source="const Value" type=<error>
 
     const Computed = 1 + 2;
-    /// @type.symbol symbol=Class.Computed source="const Computed = 1 + 2" type=<error>
+    /// @type.symbol symbol=Class.Computed source="const Computed = 1 + 2" type=3
     /// @static.symbol symbol=Class.Computed source="const Computed = 1 + 2" value="1 + 2"
 
 }
@@ -115,8 +115,6 @@ interface Interface {
         r#"
 /// @diagnostic.error id=missing-type-annotation message="missing type annotation"
 /// @diagnostic.label line=3 column=11 span="Value" line_source="const Value;"
-/// @diagnostic.error id=missing-type-annotation message="missing type annotation"
-/// @diagnostic.label line=4 column=11 span="Computed" line_source="const Computed = 1 + 2;"
 /// @diagnostic.error id=missing-type-annotation message="missing type annotation"
 /// @diagnostic.label line=8 column=11 span="Value" line_source="const Value;"
 "#,

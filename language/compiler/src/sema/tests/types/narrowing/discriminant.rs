@@ -1674,7 +1674,7 @@ struct Ready {
 
 newtype State = Pending | Ready;
 
-function read<'a, P1: Place>(state: &'a readonly State): int32 {
+function read<'a>(state: &'a readonly State): int32 {
     if (
         (state.kind as readonly "pending" | readonly "ready" | "ready")
             === ("ready" as readonly "pending" | readonly "ready" | "ready")
@@ -2325,7 +2325,7 @@ struct Ready {
 
 type State = Pending | Ready;
 
-function read<'a, P1: Place>(state: &'a readonly State): int32 {
+function read<'a>(state: &'a readonly State): int32 {
     if (
         (state.kind as readonly "pending" | readonly "ready" | "ready")
             === ("ready" as readonly "pending" | readonly "ready" | "ready")
@@ -2588,7 +2588,7 @@ struct Square {
 
 newtype Shape = Circle | Square;
 
-function radius<'a, P1: Place>(shape: &'a readonly Shape): float64 {
+function radius<'a>(shape: &'a readonly Shape): float64 {
     if (
         (shape.kind as readonly "circle" | readonly "square" | "circle")
             !== ("circle" as readonly "circle" | readonly "square" | "circle")

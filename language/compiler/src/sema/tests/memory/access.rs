@@ -30,7 +30,7 @@ struct State {
     user: User;
 }
 
-function update<'a, P1: Place>(state: &'a State): void {
+function update<'a>(state: &'a State): void {
     state.count = 1;
     state.user = state.user;
 }
@@ -118,7 +118,7 @@ shared struct State {
     user: User;
 }
 
-function update<'a, P1: Place>(state: &'a State): void {
+function update<'a>(state: &'a State): void {
     state.count = 1;
     state.user = state.user;
 }
@@ -204,7 +204,7 @@ struct State {
     status: Status;
 }
 
-function update<'a, P1: Place>(state: &'a State): void {
+function update<'a>(state: &'a State): void {
     state.status = Status.Busy;
 }
 
@@ -279,7 +279,7 @@ struct State {
     status: Status;
 }
 
-function update<'a, P1: Place>(state: &'a exclusive State): void {
+function update<'a>(state: &'a exclusive State): void {
     state.status = Status.Busy;
 }
 
@@ -335,7 +335,7 @@ function update(value: &int32): void {
         DirRows::checked(),
         r#"
 === annotated ===
-function update<'a, P1: Place>(value: &'a int32): void {
+function update<'a>(value: &'a int32): void {
     *value = 1;
 }
 
@@ -379,7 +379,7 @@ enum Status {
     Busy,
 }
 
-function update<'a, P1: Place>(value: &'a Status): void {
+function update<'a>(value: &'a Status): void {
     *value = Status.Busy;
 }
 
@@ -433,7 +433,7 @@ function update(value: &readonly int32): void {
         DirRows::checked(),
         r#"
 === annotated ===
-function update<'a, P1: Place>(value: &'a readonly int32): void {
+function update<'a>(value: &'a readonly int32): void {
     *value = 1;
 }
 
@@ -486,11 +486,11 @@ enum Status {
     Busy,
 }
 
-function updateNumbers<'a, P1: Place>(values: &'a [int32; 2]): void {
+function updateNumbers<'a>(values: &'a [int32; 2]): void {
     values[0] = 1;
 }
 
-function updateStatuses<'a, P1: Place>(values: &'a [Status; 2]): void {
+function updateStatuses<'a>(values: &'a [Status; 2]): void {
     values[0] = Status.Busy;
 }
 
@@ -849,7 +849,7 @@ enum Status {
     Busy,
 }
 
-function update<T: { status: Status }, 'a, P2: Place>(state: &'a T): void {
+function update<T: { status: Status }, 'a>(state: &'a T): void {
     state.status = Status.Busy;
 }
 

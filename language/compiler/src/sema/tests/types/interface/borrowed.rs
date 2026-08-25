@@ -58,7 +58,7 @@ import { Add, Hash } from "destack:ops";
 
 class Foo {}
 
-extension<'a, P1: Place> of Foo implements Add<&readonly Foo>, Hash {
+extension<'a> of Foo implements Add<&readonly Foo>, Hash {
     type Output = Foo;
 
     add(&readonly this, other: &'b readonly Foo): Foo {
@@ -72,7 +72,7 @@ extension<'a, P1: Place> of Foo implements Add<&readonly Foo>, Hash {
 
 newtype Name = string;
 
-extension<'a, P1: Place> of Name implements Add<&readonly Name>, Hash {
+extension<'a> of Name implements Add<&readonly Name>, Hash {
     type Output = Name;
 
     add(&readonly this, other: &'b readonly Name): Name {

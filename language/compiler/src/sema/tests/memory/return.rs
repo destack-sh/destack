@@ -16,11 +16,11 @@ function inspect(values: &readonly [int32]): void {
 
     session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
-function first<'a, P1: Place>(values: &'a readonly [int32]): &'a readonly int32 {
+function first<'a>(values: &'a readonly [int32]): &'a readonly int32 {
     return &readonly values[0];
 }
 
-function inspect<'a, P1: Place>(values: &'a readonly [int32]): void {
+function inspect<'a>(values: &'a readonly [int32]): void {
     first<P1>(values) satisfies &readonly int32;
 }
 
@@ -71,7 +71,7 @@ function pick(left: &readonly int32, right: &readonly int32, takeLeft: boolean):
 
     session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
-function pick<'a, P1: Place, 'b, P3: Place>(
+function pick<'a, 'b>(
     left: &'a readonly int32,
     right: &'b readonly int32,
     takeLeft: boolean,
@@ -213,7 +213,7 @@ function escape(): &readonly int32 {
 
     session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
-function first<'a, P1: Place>(values: &'a readonly [int32]): &'a readonly int32 {
+function first<'a>(values: &'a readonly [int32]): &'a readonly int32 {
     return &readonly values[0];
 }
 

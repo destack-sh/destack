@@ -115,10 +115,7 @@ struct Node {
     id: int32;
 }
 
-function first<'a, P1: Place, 'b, P3: Place>(
-    a: &'a Node,
-    b: &'b Node,
-): Borrowed<Node, 'a & P1 | 'b & P3, "mutable"> {
+function first<'a, 'b>(a: &'a Node, b: &'b Node): Borrowed<Node, 'a & P1 | 'b & P3, "mutable"> {
     return a;
 }
 
@@ -172,7 +169,7 @@ struct Node {
     id: int32;
 }
 
-function choose<'a, P1: Place, 'b, P3: Place>(
+function choose<'a, 'b>(
     a: &'a Node,
     b: &'b Node,
     flag: boolean,
@@ -496,7 +493,7 @@ type Options<'a> = {
     error?: unknown;
 };
 
-function log<'a, P1: Place>(options?: Options<'a & P1>): void {}
+function log<'a>(options?: Options<'a & P1>): void {}
 
 function warn(count?: int32, cause?: unknown): void {
     log<"local">({ count, error: cause as unknown } as Options<"frame" & "local"> | undefined);
@@ -701,7 +698,7 @@ struct View<'a> {
     user: Borrowed<User, 'a, "readonly">;
 }
 
-function inspect<'a, P1: Place>(user: &'a readonly User): int32 {
+function inspect<'a>(user: &'a readonly User): int32 {
     const view: View<'a & P1> = View<'a & P1> { user };
 
     return view.user.id;
@@ -784,7 +781,7 @@ struct Node {
     id: int32;
 }
 
-function first<'a, 'b, P2: Place>(
+function first<'a, 'b>(
     a: Borrowed<Node, 'a, "mutable">,
     b: &'b Node,
 ): Borrowed<Node, 'a, "mutable"> {
@@ -1112,7 +1109,7 @@ interface Source<out T> {
     read(): T;
 }
 
-declare class Reader<P0: Place> implements Source<Borrowed<Buffer, "readonly">> {
+declare class Reader implements Source<Borrowed<Buffer, "readonly">> {
     read(): Borrowed<Buffer, "readonly">;
 }
 
@@ -1184,7 +1181,7 @@ struct Buffer {
     size: int32;
 }
 
-declare function read<'a, P1: Place>(borrow: &'a readonly Buffer): int32;
+declare function read<'a>(borrow: &'a readonly Buffer): int32;
 
 === dir ===
 struct Buffer { size: int32; }
@@ -1228,7 +1225,7 @@ struct Pair<const R: Region, const A: Access = "mutable"> {
     size: int32;
 }
 
-declare function read<'a, P1: Place>(pair: Pair<'a & P1, "readonly">): int32;
+declare function read<'a>(pair: Pair<'a & P1, "readonly">): int32;
 
 === dir ===
 import { Region, Access } from "destack:memory";

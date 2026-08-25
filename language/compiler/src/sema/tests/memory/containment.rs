@@ -33,7 +33,7 @@ struct Cache {
 declare const localUser: local User;
 declare const sharedUser: shared User;
 
-const cache: local Cache = local Cache { localUser, sharedUser };
+const cache: Cache = Cache { localUser, sharedUser };
 
 === dir ===
 class User {}
@@ -43,31 +43,31 @@ class User {}
 struct Cache {
 /// @type.symbol symbol=Cache type=Cache
 /// @definition.struct symbol=Cache
-/// @definition.field symbol=Cache.localUser source="localUser: local User" key=localUser type=Placed<User, "local">
-/// @definition.field symbol=Cache.sharedUser source="sharedUser: shared User" key=sharedUser type=Placed<User, "shared">
+/// @definition.field symbol=Cache.localUser source="localUser: local User" key=localUser type=local User
+/// @definition.field symbol=Cache.sharedUser source="sharedUser: shared User" key=sharedUser type=shared User
 
     localUser: local User;
-    /// @type.symbol symbol=Cache.localUser source="localUser: local User" type=Placed<User, "local">
+    /// @type.symbol symbol=Cache.localUser source="localUser: local User" type=local User
     /// @resolution.name source=User target=User
 
     sharedUser: shared User;
-    /// @type.symbol symbol=Cache.sharedUser source="sharedUser: shared User" type=Placed<User, "shared">
+    /// @type.symbol symbol=Cache.sharedUser source="sharedUser: shared User" type=shared User
     /// @resolution.name source=User target=User
 
 }
 
 declare const localUser: local User;
-/// @type.symbol symbol=localUser source=localUser type=Placed<User, "local">
+/// @type.symbol symbol=localUser source=localUser type=local User
 /// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=User target=User
 
 declare const sharedUser: shared User;
-/// @type.symbol symbol=sharedUser source=sharedUser type=Placed<User, "shared">
+/// @type.symbol symbol=sharedUser source=sharedUser type=shared User
 /// @resolution.pattern source=sharedUser kind=binding target=sharedUser
 /// @resolution.name source=User target=User
 
 const cache: local Cache = Cache { localUser, sharedUser };
-/// @type.symbol symbol=cache source=cache type=Placed<Cache, "local">
+/// @type.symbol symbol=cache source=cache type=Cache
 /// @resolution.pattern source=cache kind=binding target=cache
 /// @resolution.name source=Cache target=Cache
 /// @resolution.name source=Cache target=Cache
@@ -112,7 +112,7 @@ shared struct Cache {
 }
 
 declare const user: shared User;
-const cache: shared Cache = shared Cache { user, count: 1 };
+const cache: Cache = Cache { user, count: 1 };
 
 === dir ===
 class User {}
@@ -123,10 +123,10 @@ shared struct Cache {
 /// @type.symbol symbol=Cache type=Cache
 /// @definition.struct symbol=Cache
 /// @definition.field symbol=Cache.count source="count: int32" key=count type=int32
-/// @definition.field symbol=Cache.user source="user: shared User" key=user type=Placed<User, "shared">
+/// @definition.field symbol=Cache.user source="user: shared User" key=user type=shared User
 
     user: shared User;
-    /// @type.symbol symbol=Cache.user source="user: shared User" type=Placed<User, "shared">
+    /// @type.symbol symbol=Cache.user source="user: shared User" type=shared User
     /// @resolution.name source=User target=User
 
     count: int32;
@@ -135,12 +135,12 @@ shared struct Cache {
 }
 
 declare const user: shared User;
-/// @type.symbol symbol=user source=user type=Placed<User, "shared">
+/// @type.symbol symbol=user source=user type=shared User
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 const cache: shared Cache = Cache { user, count: 1 };
-/// @type.symbol symbol=cache source=cache type=Placed<Cache, "shared">
+/// @type.symbol symbol=cache source=cache type=Cache
 /// @resolution.pattern source=cache kind=binding target=cache
 /// @resolution.name source=Cache target=Cache
 /// @resolution.name source=Cache target=Cache
@@ -184,9 +184,9 @@ struct BoxedUser {
 
 declare const user: local User;
 
-const field: shared BoxedUser = shared BoxedUser { user };
-const tuple: shared (local User, int32) = (user, 1);
-const union: shared (local User | undefined) = user as shared (local User | undefined);
+const field: BoxedUser = BoxedUser { user };
+const tuple: (local User, int32) = (user, 1);
+const union: local User | undefined = user as local User | undefined;
 
 === dir ===
 class User {}
@@ -196,21 +196,21 @@ class User {}
 struct BoxedUser {
 /// @type.symbol symbol=BoxedUser type=BoxedUser
 /// @definition.struct symbol=BoxedUser
-/// @definition.field symbol=BoxedUser.user source="user: local User" key=user type=Placed<User, "local">
+/// @definition.field symbol=BoxedUser.user source="user: local User" key=user type=local User
 
     user: local User;
-    /// @type.symbol symbol=BoxedUser.user source="user: local User" type=Placed<User, "local">
+    /// @type.symbol symbol=BoxedUser.user source="user: local User" type=local User
     /// @resolution.name source=User target=User
 
 }
 
 declare const user: local User;
-/// @type.symbol symbol=user source=user type=Placed<User, "local">
+/// @type.symbol symbol=user source=user type=local User
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 const field: shared BoxedUser = BoxedUser { user };
-/// @type.symbol symbol=field source=field type=Placed<BoxedUser, "shared">
+/// @type.symbol symbol=field source=field type=BoxedUser
 /// @resolution.pattern source=field kind=binding target=field
 /// @resolution.name source=BoxedUser target=BoxedUser
 /// @resolution.name source=BoxedUser target=BoxedUser
@@ -219,7 +219,7 @@ const field: shared BoxedUser = BoxedUser { user };
 /// @resolution.access source=user root=user
 
 const tuple: shared (local User, int32) = (user, 1);
-/// @type.symbol symbol=tuple source=tuple type=Placed<(Placed<User, "local">, int32), "shared">
+/// @type.symbol symbol=tuple source=tuple type=(local User, int32)
 /// @resolution.pattern source=tuple kind=binding target=tuple
 /// @resolution.name source=User target=User
 /// @resolution.name source=user target=user
@@ -227,7 +227,7 @@ const tuple: shared (local User, int32) = (user, 1);
 /// @resolution.access source=user root=user
 
 const union: shared (local User | undefined) = user;
-/// @type.symbol symbol=union source=union type=Placed<Placed<User, "local"> | undefined, "shared">
+/// @type.symbol symbol=union source=union type=local User | undefined
 /// @resolution.pattern source=union kind=binding target=union
 /// @resolution.name source=User target=User
 /// @resolution.name source=user target=user
@@ -235,18 +235,7 @@ const union: shared (local User | undefined) = user;
 /// @resolution.access source=user root=user
 "#,
         r#"
-/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
-/// @diagnostic.label line=10 column=14 span="shared" line_source="const field: shared BoxedUser = BoxedUser { user };"
-/// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
-/// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
-/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
-/// @diagnostic.label line=11 column=14 span="shared" line_source="const tuple: shared (local User, int32) = (user, 1);"
-/// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
-/// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
-/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
-/// @diagnostic.label line=12 column=14 span="shared" line_source="const union: shared (local User | undefined) = user;"
-/// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
-/// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
+
 "#,
     );
 }
@@ -282,10 +271,10 @@ class User {}
 shared struct State {
 /// @type.symbol symbol=State type=State
 /// @definition.struct symbol=State
-/// @definition.field symbol=State.user source="user: local User" key=user type=Placed<User, "local">
+/// @definition.field symbol=State.user source="user: local User" key=user type=local User
 
     user: local User;
-    /// @type.symbol symbol=State.user source="user: local User" type=Placed<User, "local">
+    /// @type.symbol symbol=State.user source="user: local User" type=local User
     /// @resolution.name source=User target=User
 
 }
@@ -341,7 +330,7 @@ shared class Service {
 /// @type.symbol symbol=Service type=Service
 /// @definition.class symbol=Service
 /// @definition.field symbol=Service.user source="user: User = new User()" key=user type=User
-/// @definition.method symbol=Service.accept source="accept(user: local User): void {}" slot=accept type=(this: Service, Placed<User, "local">) => void
+/// @definition.method symbol=Service.accept source="accept(user: local User): void {}" slot=accept type=(this: Service, local User) => void
 
     user: User = new User();
     /// @type.symbol symbol=Service.user source="user: User = new User()" type=User
@@ -350,8 +339,8 @@ shared class Service {
     /// @resolution.name source=User target=User
 
     accept(user: local User): void {}
-    /// @type.symbol symbol=Service.accept source="accept(user: local User): void {}" type=(this: Service, Placed<User, "local">) => void
-    /// @type.symbol symbol=Service.accept.user source="user: local User" type=Placed<User, "local">
+    /// @type.symbol symbol=Service.accept source="accept(user: local User): void {}" type=(this: Service, local User) => void
+    /// @type.symbol symbol=Service.accept.user source="user: local User" type=local User
     /// @resolution.name source=User target=User
 
 }
@@ -363,7 +352,7 @@ declare const service: Service;
 
 service.user satisfies shared User;
 /// @resolution.name source=service target=service
-/// @resolution.member source=service.user receiver=Service type=Placed<User, "shared"> kind=field target_receiver=Service key=user target=Service.user target_type=Placed<User, "shared">
+/// @resolution.member source=service.user receiver=Service type=shared User kind=field target_receiver=Service key=user target=Service.user target_type=shared User
 /// @resolution.place source=service placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=service root=service
 /// @resolution.place source=service.user placement="shared" lifetime="static" access="mutable"
@@ -405,8 +394,8 @@ struct Box<out T> {
 declare const localUser: local User;
 declare const sharedUser: shared User;
 
-const rejected: shared Box<local User> = shared Box<local User> { value: localUser };
-const accepted: shared Box<shared User> = shared Box<shared User> { value: sharedUser };
+const rejected: Box<local User> = Box<local User> { value: localUser };
+const accepted: Box<shared User> = Box<shared User> { value: sharedUser };
 
 === dir ===
 class User {}
@@ -427,17 +416,17 @@ struct Box<T> {
 }
 
 declare const localUser: local User;
-/// @type.symbol symbol=localUser source=localUser type=Placed<User, "local">
+/// @type.symbol symbol=localUser source=localUser type=local User
 /// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=User target=User
 
 declare const sharedUser: shared User;
-/// @type.symbol symbol=sharedUser source=sharedUser type=Placed<User, "shared">
+/// @type.symbol symbol=sharedUser source=sharedUser type=shared User
 /// @resolution.pattern source=sharedUser kind=binding target=sharedUser
 /// @resolution.name source=User target=User
 
 const rejected: shared Box<local User> = Box { value: localUser };
-/// @type.symbol symbol=rejected source=rejected type=Placed<Box<Placed<User, "local">>, "shared">
+/// @type.symbol symbol=rejected source=rejected type=Box<local User>
 /// @resolution.pattern source=rejected kind=binding target=rejected
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
@@ -447,7 +436,7 @@ const rejected: shared Box<local User> = Box { value: localUser };
 /// @resolution.access source=localUser root=localUser
 
 const accepted: shared Box<shared User> = Box { value: sharedUser };
-/// @type.symbol symbol=accepted source=accepted type=Placed<Box<Placed<User, "shared">>, "shared">
+/// @type.symbol symbol=accepted source=accepted type=Box<shared User>
 /// @resolution.pattern source=accepted kind=binding target=accepted
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=User target=User
@@ -457,10 +446,7 @@ const accepted: shared Box<shared User> = Box { value: sharedUser };
 /// @resolution.access source=sharedUser root=sharedUser
 "#,
         r#"
-/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
-/// @diagnostic.label line=11 column=17 span="shared" line_source="const rejected: shared Box<local User> = Box { value: localUser };"
-/// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
-/// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
+
 "#,
     );
 }
@@ -485,7 +471,7 @@ shared struct EscapeHatch {
 class User {}
 
 shared struct EscapeHatch {
-    pointer: local *User;
+    pointer: *User;
 }
 
 === dir ===
@@ -496,10 +482,10 @@ class User {}
 shared struct EscapeHatch {
 /// @type.symbol symbol=EscapeHatch type=EscapeHatch
 /// @definition.struct symbol=EscapeHatch
-/// @definition.field symbol=EscapeHatch.pointer source="pointer: local *User" key=pointer type=Placed<Raw<User>, "local">
+/// @definition.field symbol=EscapeHatch.pointer source="pointer: local *User" key=pointer type=Raw<User>
 
     pointer: local *User;
-    /// @type.symbol symbol=EscapeHatch.pointer source="pointer: local *User" type=Placed<Raw<User>, "local">
+    /// @type.symbol symbol=EscapeHatch.pointer source="pointer: local *User" type=Raw<User>
     /// @resolution.name source=User target=User
 
 }
@@ -533,17 +519,17 @@ const borrowedBox: shared BorrowedBox = BorrowedBox { value: borrowed };
 class User {}
 
 struct OwnedBox {
-    value: local ^User;
+    value: ^User;
 }
 struct BorrowedBox {
-    value: local &'static User;
+    value: &'static User;
 }
 
-declare const owned: local ^User;
-declare const borrowed: local &'static User;
+declare const owned: ^User;
+declare const borrowed: &'static User;
 
-const ownedBox: shared OwnedBox = shared OwnedBox { value: owned };
-const borrowedBox: shared BorrowedBox = shared BorrowedBox { value: borrowed };
+const ownedBox: OwnedBox = OwnedBox { value: owned };
+const borrowedBox: BorrowedBox = BorrowedBox { value: borrowed };
 
 === dir ===
 class User {}
@@ -553,40 +539,40 @@ class User {}
 struct OwnedBox { value: local ^User; }
 /// @type.symbol symbol=OwnedBox source="struct OwnedBox { value: local ^User; }" type=OwnedBox
 /// @definition.struct symbol=OwnedBox source="struct OwnedBox { value: local ^User; }"
-/// @definition.field symbol=OwnedBox.value source="value: local ^User" key=value type=Placed<Owned<User>, "local">
-/// @type.symbol symbol=OwnedBox.value source="value: local ^User" type=Placed<Owned<User>, "local">
+/// @definition.field symbol=OwnedBox.value source="value: local ^User" key=value type=Owned<User>
+/// @type.symbol symbol=OwnedBox.value source="value: local ^User" type=Owned<User>
 /// @resolution.name source=User target=User
 
 struct BorrowedBox { value: local Borrowed<User, "static">; }
 /// @type.symbol symbol=BorrowedBox source="struct BorrowedBox { value: local Borrowed<User, \"static\">; }" type=BorrowedBox
 /// @definition.struct symbol=BorrowedBox source="struct BorrowedBox { value: local Borrowed<User, \"static\">; }"
-/// @definition.field symbol=BorrowedBox.value source="value: local Borrowed<User, \"static\">" key=value type=Placed<&'static User, "local">
-/// @type.symbol symbol=BorrowedBox.value source="value: local Borrowed<User, \"static\">" type=Placed<&'static User, "local">
-/// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+/// @definition.field symbol=BorrowedBox.value source="value: local Borrowed<User, \"static\">" key=value type=&'static User
+/// @type.symbol symbol=BorrowedBox.value source="value: local Borrowed<User, \"static\">" type=&'static User
+/// @resolution.name source=Borrowed target=Borrowed
 /// @resolution.name source=User target=User
 
 declare const owned: local ^User;
-/// @type.symbol symbol=owned source=owned type=Placed<Owned<User>, "local">
+/// @type.symbol symbol=owned source=owned type=Owned<User>
 /// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=User target=User
 
 declare const borrowed: local Borrowed<User, "static">;
-/// @type.symbol symbol=borrowed source=borrowed type=Placed<&'static User, "local">
+/// @type.symbol symbol=borrowed source=borrowed type=&'static User
 /// @resolution.pattern source=borrowed kind=binding target=borrowed
-/// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+/// @resolution.name source=Borrowed target=Borrowed
 /// @resolution.name source=User target=User
 
 const ownedBox: shared OwnedBox = OwnedBox { value: owned };
-/// @type.symbol symbol=ownedBox source=ownedBox type=Placed<OwnedBox, "shared">
+/// @type.symbol symbol=ownedBox source=ownedBox type=OwnedBox
 /// @resolution.pattern source=ownedBox kind=binding target=ownedBox
 /// @resolution.name source=OwnedBox target=OwnedBox
 /// @resolution.name source=OwnedBox target=OwnedBox
 /// @resolution.name source=owned target=owned
-/// @resolution.place source=owned placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
 
 const borrowedBox: shared BorrowedBox = BorrowedBox { value: borrowed };
-/// @type.symbol symbol=borrowedBox source=borrowedBox type=Placed<BorrowedBox, "shared">
+/// @type.symbol symbol=borrowedBox source=borrowedBox type=BorrowedBox
 /// @resolution.pattern source=borrowedBox kind=binding target=borrowedBox
 /// @resolution.name source=BorrowedBox target=BorrowedBox
 /// @resolution.name source=BorrowedBox target=BorrowedBox
@@ -595,14 +581,10 @@ const borrowedBox: shared BorrowedBox = BorrowedBox { value: borrowed };
 /// @resolution.access source=borrowed root=borrowed
 "#,
         r#"
-/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
-/// @diagnostic.label line=10 column=17 span="shared" line_source="const ownedBox: shared OwnedBox = OwnedBox { value: owned };"
-/// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
-/// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
-/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
-/// @diagnostic.label line=11 column=20 span="shared" line_source="const borrowedBox: shared BorrowedBox = BorrowedBox { value: borrowed };"
-/// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
-/// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
+/// @diagnostic.error id=placement-on-owned message="an owned value lives in its container's space and takes no placement"
+/// @diagnostic.label line=4 column=26 span="local" line_source="struct OwnedBox { value: local ^User; }"
+/// @diagnostic.error id=placement-on-owned message="an owned value lives in its container's space and takes no placement"
+/// @diagnostic.label line=7 column=22 span="local" line_source="declare const owned: local ^User;"
 "#,
     );
 }
@@ -632,13 +614,13 @@ class User {}
 
 class Box {
     user: User;
-    constructor(user: User): this {
+    constructor(user: User) {
         this.user = user;
     }
 }
 
 declare const user: local User;
-const box: shared Box = new Box(user);
+const box: shared Box = new Box<"shared">(user);
 
 === dir ===
 class User {}
@@ -649,14 +631,15 @@ class Box {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box
 /// @definition.field symbol=Box.user source="user: User" key=user type=User
-/// @definition.method symbol=Box.constructor source="constructor(user: User) { this.user = user; }" slot=constructor role=constructor type=(User) => this
+/// @definition.method symbol=Box.constructor source="constructor(user: User) { this.user = user; }" slot=constructor role=constructor type=<Box.constructor.P0: Place>(User) => Managed<this, Box.constructor.P0>
 
     user: User;
     /// @type.symbol symbol=Box.user source="user: User" type=User
     /// @resolution.name source=User target=User
 
     constructor(user: User) { this.user = user; }
-    /// @type.symbol symbol=Box.constructor source="constructor(user: User) { this.user = user; }" type=(User) => this
+    /// @generic.template symbol=Box.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=Box.constructor source="constructor(user: User) { this.user = user; }" type=<Box.constructor.P0: Place>(User) => Managed<this, Box.constructor.P0>
     /// @type.symbol symbol=Box.constructor.user source="user: User" type=User
     /// @resolution.name source=User target=User
     /// @resolution.receiver source=this kind=this declaration=Box type=Box
@@ -672,15 +655,17 @@ class Box {
 }
 
 declare const user: local User;
-/// @type.symbol symbol=user source=user type=Placed<User, "local">
+/// @type.symbol symbol=user source=user type=local User
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 const box: shared Box = new Box(user);
-/// @type.symbol symbol=box source=box type=Placed<Box, "shared">
+/// @type.symbol symbol=box source=box type=shared Box
 /// @resolution.pattern source=box kind=binding target=box
 /// @resolution.name source=Box target=Box
-/// @resolution.construct source="new Box(user)" parameters=(Placed<User, "shared">) arguments=(provided(user) as Placed<User, "shared">) return=Placed<Box, "shared"> kind=class target=Box constructor=Box.constructor
+/// @resolution.construct source="new Box(user)" parameters=(shared User) arguments=(provided(user) as shared User) return=shared Box kind=class target=Box constructor=Box.constructor
+/// @generic.instantiation id="Box.constructor<\"shared\">" template=Box.constructor arguments=("shared")
+/// @generic.instantiation id="Box<\"shared\">" template=Box arguments=("shared")
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
@@ -774,10 +759,10 @@ struct CleanEnvelope {
 /// @type.symbol symbol=CleanEnvelope type=CleanEnvelope
 /// @definition.struct symbol=CleanEnvelope
 /// @definition.field symbol=CleanEnvelope.count source="count: int32" key=count type=int32
-/// @definition.field symbol=CleanEnvelope.message source="message: shared Message" key=message type=Placed<Message, "shared">
+/// @definition.field symbol=CleanEnvelope.message source="message: shared Message" key=message type=shared Message
 
     message: shared Message;
-    /// @type.symbol symbol=CleanEnvelope.message source="message: shared Message" type=Placed<Message, "shared">
+    /// @type.symbol symbol=CleanEnvelope.message source="message: shared Message" type=shared Message
     /// @resolution.name source=Message target=Message
 
     count: int32;
@@ -797,10 +782,10 @@ struct LocalEnvelope {
 }
 
 declare function publish<T: SharedSafe>(value: T): void;
-/// @generic.template symbol=publish parameters=(T: memory.capability.SharedSafe)
-/// @type.symbol symbol=publish source="declare function publish<T: SharedSafe>(value: T): void" type=<T: memory.capability.SharedSafe>(T) => void
+/// @generic.template symbol=publish parameters=(T: SharedSafe)
+/// @type.symbol symbol=publish source="declare function publish<T: SharedSafe>(value: T): void" type=<T: SharedSafe>(T) => void
 /// @type.symbol symbol=publish.T source="T: SharedSafe" type=T
-/// @resolution.name source=SharedSafe target=memory.capability.SharedSafe
+/// @resolution.name source=SharedSafe target=SharedSafe
 /// @type.symbol symbol=publish.value source="value: T" type=T
 /// @resolution.name source=T target=publish.T
 
@@ -825,7 +810,7 @@ publish<CleanEnvelope>(cleanEnvelope);
 /// @generic.instantiation id=publish<CleanEnvelope> template=publish arguments=(CleanEnvelope)
 /// @resolution.name source=CleanEnvelope target=CleanEnvelope
 /// @resolution.name source=cleanEnvelope target=cleanEnvelope
-/// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=cleanEnvelope placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=cleanEnvelope root=cleanEnvelope
 
 publish<LocalEnvelope>(localEnvelope);
@@ -839,7 +824,7 @@ publish(cleanEnvelope);
 /// @resolution.name source=publish target=publish
 /// @resolution.call source=publish(cleanEnvelope) parameters=(CleanEnvelope) arguments=(provided(cleanEnvelope) as CleanEnvelope) return=void kind=symbol target=publish instance=publish<CleanEnvelope>
 /// @resolution.name source=cleanEnvelope target=cleanEnvelope
-/// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=cleanEnvelope placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=cleanEnvelope root=cleanEnvelope
 
 publish(handle);
@@ -852,9 +837,9 @@ publish(handle);
 
 cleanEnvelope satisfies SharedSafe;
 /// @resolution.name source=cleanEnvelope target=cleanEnvelope
-/// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=cleanEnvelope placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=cleanEnvelope root=cleanEnvelope
-/// @resolution.name source=SharedSafe target=memory.capability.SharedSafe
+/// @resolution.name source=SharedSafe target=SharedSafe
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'LocalEnvelope' does not satisfy 'SharedSafe'"
@@ -906,14 +891,14 @@ local class Handle {}
 /// @definition.class symbol=Handle source="local class Handle {}"
 
 @unsafe
-/// @decorator.node source=@unsafe owner="extension of Handle implements SharedSafe {}" expression=unsafe target=decorator.unsafe type=unsafe kind=newtype parameters=() newtype=decorator.safety.unsafe backing=() value=unsafe()
-/// @resolution.name source=unsafe target=decorator.safety.unsafe
+/// @decorator.node source=@unsafe owner="extension of Handle implements SharedSafe {}" expression=unsafe target=decorator.unsafe type=unsafe kind=newtype parameters=() newtype=unsafe backing=() value=unsafe()
+/// @resolution.name source=unsafe target=unsafe
 
 extension of Handle implements SharedSafe {}
 /// @definition.extension symbol=<module>#2 source="extension of Handle implements SharedSafe {}" form=local target=Handle
-/// @definition.implements symbol=<module>#2 source=SharedSafe target=memory.capability.SharedSafe
+/// @definition.implements symbol=<module>#2 source=SharedSafe target=SharedSafe
 /// @resolution.name source=Handle target=Handle
-/// @resolution.name source=SharedSafe target=memory.capability.SharedSafe
+/// @resolution.name source=SharedSafe target=SharedSafe
 
 declare const handle: Handle;
 /// @type.symbol symbol=handle source=handle type=Handle
@@ -924,7 +909,7 @@ handle satisfies SharedSafe;
 /// @resolution.name source=handle target=handle
 /// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=handle root=handle
-/// @resolution.name source=SharedSafe target=memory.capability.SharedSafe
+/// @resolution.name source=SharedSafe target=SharedSafe
 "#,
     );
 }

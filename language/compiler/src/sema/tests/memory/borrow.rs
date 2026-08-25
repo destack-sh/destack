@@ -305,8 +305,8 @@ modify(&exclusive user);
 class User {}
 
 declare const user: local User;
-declare function inspect<'a, P1: Place>(value: &'a readonly User): void;
-declare function modify<'a, P1: Place>(value: &'a User): void;
+declare function inspect<'a>(value: &'a readonly User): void;
+declare function modify<'a>(value: &'a User): void;
 
 inspect<"local">(&user);
 modify<"local">(&user);
@@ -404,8 +404,8 @@ class User {}
 
 declare const readonlyView: &'static readonly User;
 declare const mutableView: &'static User;
-declare function modify<'a, P1: Place>(value: &'a User): void;
-declare function replace<'a, P1: Place>(value: &'a exclusive User): void;
+declare function modify<'a>(value: &'a User): void;
+declare function replace<'a>(value: &'a exclusive User): void;
 
 modify<"local">(readonlyView);
 replace<"local">(readonlyView);
@@ -500,7 +500,7 @@ struct Node {
     id: int32;
 }
 
-function access<'a, P1: Place, 'b, P3: Place, 'c, P5: Place>(
+function access<'a, 'b, 'c>(
     read: &'a readonly Node,
     write: &'b Node,
     exclusive: &'c exclusive Node,

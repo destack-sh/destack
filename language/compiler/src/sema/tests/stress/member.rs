@@ -17,10 +17,10 @@ fn test_repeated_extension_method_calls_reuse_one_member_decision() {
     assert_check_counters(
         &source,
         r#"
-check.solve.variables=10
+check.solve.variables=14
 check.solve.constraints=0
 check.solve.obligations=1000
-check.solve.solutions=10
+check.solve.solutions=14
 check.solve.bounds=0
 check.solve.decisions=3003
 check.relations.decided=5
@@ -34,8 +34,8 @@ check.probes.total=2036
 check.probes.selections=0
 check.probes.extensions=0
 check.instantiations=22
-check.interns=15127
-check.reduces=28063
+check.interns=21139
+check.reduces=34116
 "#,
     );
 }

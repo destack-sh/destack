@@ -719,7 +719,7 @@ function prepare(values: [int32]): void {
         DirRows::checked().with_flows(),
         r#"
 === annotated ===
-declare function fill<'a, P1: Place>(buffer: &'a exclusive [int32]): void;
+declare function fill<'a>(buffer: &'a exclusive [int32]): void;
 
 function prepare(values: [int32]): void {
     fill<"local">(&exclusive values);

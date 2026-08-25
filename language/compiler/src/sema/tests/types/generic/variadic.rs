@@ -35,9 +35,7 @@ newtype Sharding<in out ...Axes: Axis[]> = intrinsic;
 
 newtype Grid<in out T, in out P> = intrinsic;
 
-declare function mesh<T, ...Axes: Axis[], 'a, P3: Place>(
-    grid: &'a readonly Grid<T, Sharding<Axes>>,
-): int32;
+declare function mesh<T, ...Axes: Axis[], 'a>(grid: &'a readonly Grid<T, Sharding<Axes>>): int32;
 
 export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
     /// Return the mesh id.
@@ -163,7 +161,7 @@ extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
 === annotated ===
 import { Axis, Grid, Marker, Wrap } from "./sharding.ds";
 
-declare function mesh<T, ...Xs: Axis[], 'a, P3: Place>(grid: &'a readonly Grid<T, Wrap<Xs>>): int32;
+declare function mesh<T, ...Xs: Axis[], 'a>(grid: &'a readonly Grid<T, Wrap<Xs>>): int32;
 
 extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
     /// Return the mesh id.

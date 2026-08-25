@@ -74,6 +74,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         ty: dir::LocalNodeId<dir::TypeExpression>,
         bindings: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<()> {
+        // fill only a reference or member that still carries an empty argument list
         match self.tree.get(ty) {
             dir::TypeExpression::Reference {
                 generic_arguments, ..
@@ -88,6 +89,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             return Ok(());
         };
 
+        // write the reified arguments back onto the node
         match self.tree.get_mut(ty) {
             dir::TypeExpression::Reference {
                 generic_arguments: target,
@@ -115,7 +117,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         };
 
         // reify tick names as bare lifetime parameters
-        if binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+        if binding.memory_parameter() == Some(dir::MemoryParameter::Region)
             && self.check.strings().get(name).starts_with('\'')
         {
             let parameter = self.insert(dir::GenericParameter::Lifetime { name });
@@ -123,6 +125,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             return Ok(Some(parameter));
         }
 
+        // reify the type parameter and stamp a side span over its constraint
         let parameter = self.reify_type_parameter(binding, name)?;
         let parameter = self.insert(parameter);
         if binding.constraint.is_some() {
@@ -144,10 +147,11 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         target_type: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<Option<dir::TypeExpression>> {
         // require a closed access literal for the borrow modifier
-        let access = match self.check.ty(self.check.shallow_resolve(access)?)? {
-            dir::Type::Memory(dir::MemoryLiteral::Access(access)) => access,
-            _ => return Ok(None),
+        let Some(access) = self.check.access_of(access)? else {
+            return Ok(None);
         };
+
+        // read the borrow modifier off the access literal
         let mutability = match access {
             dir::Access::Mutable => dir::Mutability::Mutable,
             dir::Access::Readonly => dir::Mutability::Immutable,
@@ -156,10 +160,12 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
         // name the tick parameter or reserved lifetime literal
         let name = match self.check.ty(self.check.shallow_resolve(lifetime)?)? {
+            // read a tick parameter back through its binding
             dir::Type::Parameter(parameter) => {
                 let Some(binding) = self.check.generic_parameter(parameter) else {
                     return Ok(None);
                 };
+
                 let name = match binding.key {
                     dir::GenericParameterKey::Symbol(symbol) => {
                         let Some(name) = self.symbol_name(symbol) else {
@@ -176,14 +182,20 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 name
             }
-            dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Static)) => {
-                self.check.strings().intern("'static")
+            // write a reserved lifetime literal back with its tick
+            dir::Type::Literal(dir::Literal::String(value)) => {
+                let Some(lifetime) = dir::Lifetime::from_text(value) else {
+                    return Ok(None);
+                };
+
+                self.check
+                    .strings()
+                    .intern(&format!("'{}", lifetime.text()))
             }
-            dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)) => {
-                self.check.strings().intern("'frame")
-            }
+            // skip every other region head
             _ => return Ok(None),
         };
+
         let lifetime = self.insert(dir::TypeExpression::Lifetime { name });
 
         Ok(Some(dir::TypeExpression::BorrowedOf {
@@ -200,6 +212,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         binding: &dir::GenericParameterBinding,
         name: dir::StringId,
     ) -> CompilerResult<dir::GenericParameter> {
+        // reify the written constraint and default, when each reifies
         let constraint = binding
             .constraint
             .map(|constraint| self.reify(constraint))
@@ -211,6 +224,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             .transpose()?
             .flatten();
 
+        // a variadic binding reifies in its pack form
         let parameter = if binding.is_variadic {
             dir::GenericParameter::VariadicType {
                 name,
@@ -219,7 +233,9 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 default,
                 is_const: binding.is_const,
             }
-        } else {
+        }
+        // otherwise reify a single type parameter
+        else {
             dir::GenericParameter::Type {
                 name,
                 variance: binding.variance,
@@ -249,6 +265,8 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         if depth == 0 {
             return Ok(None);
         }
+
+        // read the solved head and the budget its children reify under
         let id = self.check.shallow_resolve(id)?;
         let ty = self.check.ty(id)?;
         let next = depth - 1;
@@ -269,6 +287,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 return self.reify_depth(refined.base, depth);
             }
 
+            // keyword heads reify as their own keywords
             dir::Type::Never => Self::literal(dir::TypeLiteral::Never),
             dir::Type::Unknown => Self::literal(dir::TypeLiteral::Unknown),
             dir::Type::Void => Self::literal(dir::TypeLiteral::Void),
@@ -277,8 +296,19 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             dir::Type::Intrinsic => dir::TypeExpression::Intrinsic,
             dir::Type::This => dir::TypeExpression::This,
 
+            // scalar domains and their exact values reify by value
             dir::Type::Primitive(primitive) => Self::literal(dir::TypeLiteral::from(primitive)),
             dir::Type::Literal(literal) => dir::TypeExpression::Literal { value: literal },
+            // regions read back as the extent and spaces intersection they parse from
+            dir::Type::Region(region) => {
+                let Some(elements) = self.reify_elements(&[region.extent, region.space], next)?
+                else {
+                    return Ok(None);
+                };
+
+                dir::TypeExpression::Intersection { elements }
+            }
+            // exact property keys reify as their scalar literal
             dir::Type::Key(key) => {
                 let Some(value) = Self::static_key_literal(&key) else {
                     return Ok(None);
@@ -286,15 +316,14 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 dir::TypeExpression::Literal { value }
             }
-            dir::Type::Memory(literal) => dir::TypeExpression::Literal {
-                value: dir::Literal::String(self.strings.intern(literal.text())),
-            },
+            // a static singleton reifies through its literal term
             dir::Type::Static(value) => match self.check.r#static(value) {
                 dir::StaticTerm::Literal { value } => {
                     dir::TypeExpression::Literal { value: *value }
                 }
                 _ => return Ok(None),
             },
+            // intervals reify with their written end form
             dir::Type::Range(range) => {
                 let start = range
                     .start
@@ -315,6 +344,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 }
             }
 
+            // parameters and declaration references reify by their source name
             dir::Type::Parameter(parameter) => {
                 let Some(name) = self.generic_parameter_name_by_id(parameter) else {
                     return Ok(None);
@@ -337,10 +367,12 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 return Ok(Some(self.insert(dir::TypeExpression::Array { element })));
             }
+            // every other nominal instance reifies as a named reference with arguments
             dir::Type::Application(instance) => {
                 let Some(name) = self.symbol_name(instance.symbol) else {
                     return Ok(None);
                 };
+
                 let arguments = self
                     .check
                     .type_ids(id.module_id, instance.arguments)?
@@ -356,11 +388,13 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     generic_arguments: arguments,
                 }
             }
+            // member projections reify as a qualified member access
             dir::Type::Member(member) => {
                 let member = self.check.type_member(id.module_id, member)?;
                 let dir::StaticKey::Name(key) = member.key else {
                     return Ok(None);
                 };
+
                 let Some(left) = self.reify_depth(member.owner, next)? else {
                     return Ok(None);
                 };
@@ -380,8 +414,10 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     generic_arguments: arguments,
                 }
             }
+            // skip precise variants, which have no written annotation form
             dir::Type::Variant(_) => return Ok(None),
 
+            // slices reify over their element
             dir::Type::Slice(slice) => {
                 let Some(element) = self.reify_depth(slice.element, next)? else {
                     return Ok(None);
@@ -389,10 +425,12 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 dir::TypeExpression::Slice { element }
             }
+            // fixed arrays reify over their element and closed length
             dir::Type::FixedArray(array) => {
                 let Some(element) = self.reify_depth(array.element, next)? else {
                     return Ok(None);
                 };
+
                 let count = self.check.shallow_resolve(array.count)?;
                 let dir::Type::Literal(value) = self.check.ty(count)? else {
                     return Ok(None);
@@ -401,6 +439,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 dir::TypeExpression::FixedArray { element, length }
             }
+            // tuples reify element by element, keeping labels and modifiers
             dir::Type::Tuple(tuple) => {
                 let tuple_elements = self
                     .check
@@ -411,12 +450,16 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     let Some(value) = self.reify_depth(element.ty, next)? else {
                         return Ok(None);
                     };
+
+                    // a rest element reifies in its spread form
                     let element = if element.is_rest {
                         dir::TupleElement::Spread {
                             label: element.label,
                             value,
                         }
-                    } else {
+                    }
+                    // otherwise reify a positional element
+                    else {
                         dir::TupleElement::Element {
                             label: element.label,
                             value,
@@ -433,6 +476,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     elements,
                 }
             }
+            // object types reify as their written field set
             dir::Type::Object(shape) => {
                 // FUGU #Incomplete: reify index and call signatures as object members
                 if shape.declares_signatures() {
@@ -452,6 +496,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     let Some(declared_type) = self.reify_depth(field.access.store(), next)? else {
                         return Ok(None);
                     };
+
                     let member = dir::TypeMember::Field {
                         name,
                         declared_type: Some(declared_type),
@@ -465,6 +510,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 dir::TypeExpression::Object { members }
             }
+            // signatures reify as a function or constructor type expression
             dir::Type::FunctionSignature(function) => {
                 let signature = self.check.type_signature(id.module_id, function)?;
                 let Some(function) = self.reify_function(id.module_id, &signature, next)? else {
@@ -483,9 +529,11 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     false => dir::TypeExpression::Function(function),
                 }
             }
+            // a closure type reifies through its signature
             dir::Type::Function(function) => {
                 return self.reify_depth(function.signature, next);
             }
+            // a function pointer reifies through its intrinsic reference
             dir::Type::FunctionPointer(function) => {
                 let Some(expression) = self.reify_function_pointer(&function, next)? else {
                     return Ok(None);
@@ -494,6 +542,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 expression
             }
 
+            // set constructors reify over their elements
             dir::Type::Union(union) => {
                 let union_elements = self.check.type_ids(id.module_id, union.elements)?.to_vec();
                 let Some(elements) = self.reify_elements(&union_elements, next)? else {
@@ -514,25 +563,58 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 dir::TypeExpression::Intersection { elements }
             }
 
+            // memory forms reify through their written modifier
             dir::Type::Form(form) => {
                 let Some(target_type) = self.reify_depth(form.value, next)? else {
                     return Ok(None);
                 };
 
                 match &form.form {
-                    // reduction leaves only meaningful boxes, spell them
-                    dir::Form::Managed => {
-                        let target_type =
-                            self.insert(dir::GenericArgument::Type { value: target_type });
-                        let name = self.language_item_name(dir::LanguageItem::Managed);
+                    // print managed layers through their referent place
+                    dir::Form::Managed { place } => {
+                        let place = self.check.shallow_resolve(*place)?;
+                        let space = self.check.place_space(place)?;
 
-                        dir::TypeExpression::Reference {
-                            path: dir::Path {
-                                segments: [name].into_iter().collect(),
-                            },
-                            generic_arguments: vec![target_type],
+                        // the local space has its own keyword
+                        if space == Some(dir::Space::Local) {
+                            dir::TypeExpression::Local { target_type }
+                        }
+                        // so does the shared space
+                        else if space == Some(dir::Space::Shared) {
+                            dir::TypeExpression::Shared { target_type }
+                        }
+                        // an open or constant place reifies through `Placed`
+                        else if space.is_none() || space == Some(dir::Space::Constant) {
+                            let Some(place) = self.reify_depth(place, next)? else {
+                                return Ok(None);
+                            };
+                            let target =
+                                self.insert(dir::GenericArgument::Type { value: target_type });
+                            let place = self.insert(dir::GenericArgument::Type { value: place });
+                            let name = self.language_item_name(dir::LanguageItem::Placed);
+
+                            dir::TypeExpression::Reference {
+                                path: dir::Path {
+                                    segments: [name].into_iter().collect(),
+                                },
+                                generic_arguments: vec![target, place],
+                            }
+                        }
+                        // every other place reifies through `Managed`
+                        else {
+                            let target_type =
+                                self.insert(dir::GenericArgument::Type { value: target_type });
+                            let name = self.language_item_name(dir::LanguageItem::Managed);
+
+                            dir::TypeExpression::Reference {
+                                path: dir::Path {
+                                    segments: [name].into_iter().collect(),
+                                },
+                                generic_arguments: vec![target_type],
+                            }
                         }
                     }
+                    // the remaining bare forms each have their own modifier
                     dir::Form::Owned => dir::TypeExpression::OwnedOf {
                         mutability: None,
                         variance: None,
@@ -543,6 +625,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                         target_type,
                     },
                     dir::Form::Readonly => dir::TypeExpression::Readonly { target_type },
+                    // borrows reify through their region and access
                     dir::Form::Borrowed(borrow) => {
                         let borrow = self.check.type_borrow(id.module_id, *borrow)?;
                         let (region, access) = (borrow.region, borrow.access);
@@ -582,14 +665,15 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                         };
 
                         // reify closed borrows through the borrow form
-                        if let Some(borrowed) =
-                            self.reify_borrowed_of(lifetime, access, target_type)?
+                        if let Some(sugared) = sugared
+                            && let Some(borrowed) =
+                                self.reify_borrowed_of(lifetime, access, sugared)?
                         {
                             borrowed
                         }
-                        // reify parametric slots through the full algebra
+                        // reify parametric borrows through the full form algebra
                         else {
-                            let Some(lifetime) = self.reify_depth(lifetime, next)? else {
+                            let Some(region) = self.reify_depth(region, next)? else {
                                 return Ok(None);
                             };
                             let Some(access) = self.reify_depth(access, next)? else {
@@ -597,8 +681,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                             };
                             let target_type =
                                 self.insert(dir::GenericArgument::Type { value: target_type });
-                            let lifetime =
-                                self.insert(dir::GenericArgument::Type { value: lifetime });
+                            let region = self.insert(dir::GenericArgument::Type { value: region });
                             let access = self.insert(dir::GenericArgument::Type { value: access });
                             let name = self.language_item_name(dir::LanguageItem::Borrowed);
 
@@ -606,47 +689,18 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                                 path: dir::Path {
                                     segments: [name].into_iter().collect(),
                                 },
-                                generic_arguments: vec![target_type, lifetime, access],
-                            }
-                        }
-                    }
-                    dir::Form::Placed { place } => {
-                        let place = self.check.shallow_resolve(*place)?;
-                        let concrete = match self.check.ty(place)? {
-                            dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(
-                                space,
-                            ))) => Some(space),
-                            _ => None,
-                        };
-
-                        match concrete {
-                            Some(dir::Space::Local) => dir::TypeExpression::Local { target_type },
-                            Some(dir::Space::Shared) => dir::TypeExpression::Shared { target_type },
-                            None => {
-                                let Some(place) = self.reify_depth(place, next)? else {
-                                    return Ok(None);
-                                };
-                                let target =
-                                    self.insert(dir::GenericArgument::Type { value: target_type });
-                                let place =
-                                    self.insert(dir::GenericArgument::Type { value: place });
-                                let name = self.language_item_name(dir::LanguageItem::Placed);
-
-                                dir::TypeExpression::Reference {
-                                    path: dir::Path {
-                                        segments: [name].into_iter().collect(),
-                                    },
-                                    generic_arguments: vec![target, place],
-                                }
+                                generic_arguments: vec![target_type, region, access],
                             }
                         }
                     }
                 }
             }
+            // erased values reify through `Dynamic` over their constraint
             dir::Type::Dynamic(dynamic) => {
                 let Some(constraint) = self.reify_depth(dynamic.constraint, next)? else {
                     return Ok(None);
                 };
+
                 let argument = self.insert(dir::GenericArgument::Type { value: constraint });
 
                 dir::TypeExpression::Reference {
@@ -659,6 +713,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 }
             }
 
+            // type operations reify through their own annotation forms
             dir::Type::Operation(operation) => {
                 let operation = self.check.type_operation(id.module_id, operation)?;
                 let Some(expression) = self.reify_operation(id.module_id, &operation, next)? else {
@@ -682,22 +737,26 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         if !is_optional {
             return self.reify_depth(id, depth);
         }
+
         if depth == 0 {
             return Ok(None);
         }
 
+        // only a union carries the undefined arm the `?` already implies
         let id = self.check.shallow_resolve(id)?;
         let dir::Type::Union(union) = self.check.ty(id)? else {
             return self.reify_depth(id, depth);
         };
         let union_elements = self.check.type_ids(id.module_id, union.elements)?.to_vec();
 
+        // reify every arm apart from undefined
         let mut elements = Vec::new();
         for element in &union_elements {
             let element = self.check.shallow_resolve(*element)?;
             if self.check.ty(element)?.is_undefined() {
                 continue;
             }
+
             let Some(element) = self.reify_depth(element, depth - 1)? else {
                 return Ok(None);
             };
@@ -706,8 +765,11 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         }
 
         match elements.as_slice() {
+            // a bare undefined keeps its full annotation
             [] => self.reify_depth(id, depth),
+            // one remaining arm annotates on its own
             [single] => Ok(Some(*single)),
+            // several arms annotate as a narrower union
             _ => Ok(Some(self.insert(dir::TypeExpression::Union { elements }))),
         }
     }
@@ -720,6 +782,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         depth: usize,
     ) -> CompilerResult<Option<dir::TypeExpression>> {
         let expression = match operation {
+            // conditionals reify operands and both branches
             dir::TypeOperation::Conditional(conditional) => {
                 let Some(left) = self.reify_depth(conditional.left, depth)? else {
                     return Ok(None);
@@ -741,6 +804,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     else_type,
                 }
             }
+            // keyof has its own keyword
             dir::TypeOperation::KeyOf(unary) => {
                 let Some(target_type) = self.reify_depth(unary.target, depth)? else {
                     return Ok(None);
@@ -748,10 +812,12 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 dir::TypeExpression::KeyOf { target_type }
             }
+            // inference barriers reify through `NoInfer`
             dir::TypeOperation::NoInfer(unary) => {
                 let Some(target) = self.reify_depth(unary.target, depth)? else {
                     return Ok(None);
                 };
+
                 let argument = self.insert(dir::GenericArgument::Type { value: target });
 
                 dir::TypeExpression::Reference {
@@ -763,10 +829,12 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     generic_arguments: vec![argument],
                 }
             }
+            // awaited projections reify through `Awaited`
             dir::TypeOperation::Awaited(unary) => {
                 let Some(target) = self.reify_depth(unary.target, depth)? else {
                     return Ok(None);
                 };
+
                 let argument = self.insert(dir::GenericArgument::Type { value: target });
 
                 dir::TypeExpression::Reference {
@@ -778,6 +846,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     generic_arguments: vec![argument],
                 }
             }
+            // indexed accesses reify receiver and index
             dir::TypeOperation::Index(index) => {
                 let Some(left) = self.reify_depth(index.left, depth)? else {
                     return Ok(None);
@@ -788,22 +857,26 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 dir::TypeExpression::Index { left, index }
             }
+            // infer binders reify by name alone
             dir::TypeOperation::Infer(infer) => dir::TypeExpression::Infer {
                 form: dir::InferForm::Infer,
                 name: infer.name,
                 constraint: None,
             },
+            // template literals reify their strings and spans
             dir::TypeOperation::TemplateLiteral(template) => {
                 let strings = self
                     .check
                     .template_strings(module, template.strings)?
                     .to_vec();
                 let span_types = self.check.type_ids(module, template.spans)?.to_vec();
+
                 let mut spans = Vec::with_capacity(span_types.len());
                 for span in span_types {
                     let Some(span) = self.reify_depth(span, depth)? else {
                         return Ok(None);
                     };
+
                     spans.push(span);
                 }
 
@@ -830,7 +903,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         function: &dir::FunctionSignatureType,
         depth: usize,
     ) -> CompilerResult<Option<dir::FunctionTypeExpression>> {
-        // async, generator, and generic signatures have no annotation form
+        // reject async, generator, and generic signatures, which have no annotation form
         if function.asynchrony != dir::Asynchrony::Sync
             || function.is_generator
             || !self
@@ -841,11 +914,13 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             return Ok(None);
         }
 
+        // reify the explicit receiver parameter, when one stands there
         let this_parameter = match function.this_parameter {
             Some(this) => {
                 let Some(declared_type) = self.reify_depth(this, depth)? else {
                     return Ok(None);
                 };
+
                 let parameter = dir::Parameter::Named {
                     name: self.strings.intern("this"),
                     declared_type: Some(declared_type),
@@ -858,6 +933,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             None => None,
         };
 
+        // reify each value parameter under a positional name
         let function_parameters = self
             .check
             .signature_parameters(module, function.parameters)?
@@ -869,6 +945,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             else {
                 return Ok(None);
             };
+
             let name = self.strings.intern(&format!("arg{index}"));
             let parameter = if parameter.is_rest {
                 dir::Parameter::VariadicNamed {
@@ -887,6 +964,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             parameters.push(self.insert(parameter));
         }
 
+        // an absent result annotates as void
         let return_type = match function.return_type {
             Some(return_type) => match self.reify_depth(return_type, depth)? {
                 Some(return_type) => return_type,
@@ -915,6 +993,8 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         let Some(signature) = self.check.signature_head(signature_id)? else {
             return Ok(None);
         };
+
+        // reify the parameters as one tuple
         let signature_parameters = self
             .check
             .signature_parameters(signature_id.module_id, signature.parameters)?
@@ -924,6 +1004,8 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         else {
             return Ok(None);
         };
+
+        // an absent result annotates as void
         let return_type = match signature.return_type {
             Some(return_type) => match self.reify_depth(return_type, depth)? {
                 Some(return_type) => return_type,
@@ -931,6 +1013,8 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             },
             None => self.insert(Self::literal(dir::TypeLiteral::Void)),
         };
+
+        // carry both sides as generic arguments of the intrinsic reference
         let parameters = self.insert(dir::GenericArgument::Type { value: parameters });
         let return_type = self.insert(dir::GenericArgument::Type { value: return_type });
 
@@ -957,6 +1041,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             else {
                 return Ok(None);
             };
+
             let element = if parameter.is_rest {
                 dir::TupleElement::Spread { label: None, value }
             } else {
@@ -970,6 +1055,8 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
             elements.push(self.insert(element));
         }
+
+        // gather the parameters into one tuple annotation
         let expression = dir::TypeExpression::Tuple {
             form: dir::TupleForm::Tuple,
             elements,
@@ -1007,9 +1094,11 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         if depth == 0 {
             return Ok(None);
         }
+
         let id = self.check.shallow_resolve(id)?;
 
         let expression = match self.check.ty(id)? {
+            // exact values reify as their own literal
             dir::Type::Literal(value) => dir::Expression::Literal(value),
             dir::Type::Key(key) => {
                 let Some(value) = Self::static_key_literal(&key) else {
@@ -1018,13 +1107,11 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 dir::Expression::Literal(value)
             }
-            dir::Type::Memory(literal) => {
-                dir::Expression::Literal(dir::Literal::String(self.strings.intern(literal.text())))
-            }
             dir::Type::Static(value) => match self.check.r#static(value) {
                 dir::StaticTerm::Literal { value } => dir::Expression::Literal(*value),
                 _ => return Ok(None),
             },
+            // a static union folds into an elementwise-or chain
             dir::Type::Union(union) => {
                 let elements = self.check.type_ids(id.module_id, union.elements)?.to_vec();
                 let Some(expression) = self.reify_static_union(&elements, depth - 1)? else {
@@ -1033,6 +1120,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 return Ok(Some(expression));
             }
+            // a const parameter reifies as its own identifier
             dir::Type::Parameter(parameter) => {
                 let Some(name) = self.generic_parameter_name_by_id(parameter) else {
                     return Ok(None);
@@ -1040,6 +1128,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 dir::Expression::Identifier { name }
             }
+            // skip every other head, which has no value form
             _ => return Ok(None),
         };
 
@@ -1065,6 +1154,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             let Some(right) = self.reify_static_depth(element, depth)? else {
                 return Ok(None);
             };
+
             expression = self.insert(dir::Expression::Binary {
                 left: expression,
                 operator: dir::BinaryOperator::ElementwiseOr,
@@ -1152,10 +1242,11 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         symbol: dir::GlobalSymbolId,
     ) -> Option<dir::LocalNodeId<dir::Expression>> {
         let name = self.symbol_name(symbol)?;
+
         Some(self.insert(dir::Expression::Identifier { name }))
     }
 
-    /// Write one symbol name into the shared string pool.
+    /// Return the source name of one symbol.
     fn symbol_name(&self, symbol: dir::GlobalSymbolId) -> Option<dir::StringId> {
         if let Some(item) = self.check.environment_bound.language.item(symbol) {
             return Some(self.language_item_name(item));
@@ -1169,7 +1260,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         }
     }
 
-    /// Write one language item by its source export name.
+    /// Return the interned source export name of one language item.
     fn language_item_name(&self, item: dir::LanguageItem) -> dir::StringId {
         self.strings.intern(item.export_name())
     }
@@ -1190,7 +1281,11 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
     }
 
     /// Return whether one signature's return annotation may be filled.
+    ///
+    /// Constructors reject written result annotations, so they stay bare.
     pub(super) fn returns_fillable(signature: &dir::FunctionSignature) -> bool {
-        signature.asynchrony == dir::Asynchrony::Sync && !signature.is_generator
+        signature.asynchrony == dir::Asynchrony::Sync
+            && !signature.is_generator
+            && !signature.is_constructor()
     }
 }

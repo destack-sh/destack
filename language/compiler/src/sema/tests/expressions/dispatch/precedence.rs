@@ -676,7 +676,7 @@ struct Pack<out T> {
     value: T;
 }
 
-function read<T, 'a, P2: Place>(pack: &'a readonly Pack<T>): readonly T {
+function read<T, 'a>(pack: &'a readonly Pack<T>): readonly T {
     pack.value
 }
 
@@ -751,7 +751,7 @@ function same<T>(actual: readonly T | T, expected: T): void {
     todo("same" as string | undefined);
 }
 
-function check<T, 'a, P2: Place>(pack: &'a readonly Pack<T>, expected: T): void {
+function check<T, 'a>(pack: &'a readonly Pack<T>, expected: T): void {
     same<T>(pack.value as readonly T | T, expected);
 }
 

@@ -700,7 +700,7 @@ const managedTotal: int32 = managed.total;
 const borrowedTotal: int32 = borrowed.total;
 const viewTotal: int32 = view.total;
 
-function mutate<'a, P1: Place, 'b, P3: Place>(
+function mutate<'a, 'b>(
     owned: ^Counter,
     managed: Counter,
     borrowed: &'a Counter,
@@ -885,8 +885,8 @@ takeText("a");
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
-declare function take<'a, P1: Place>(value: &'a readonly int32): void;
-declare function takeText<'a, P1: Place>(value: &'a readonly string): void;
+declare function take<'a>(value: &'a readonly int32): void;
+declare function takeText<'a>(value: &'a readonly string): void;
 declare function make(): int32;
 
 const stored: int32 = 1;

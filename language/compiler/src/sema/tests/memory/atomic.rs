@@ -30,53 +30,54 @@ declare const index: Atomic<usize>;
 declare const ratio: Atomic<float64>;
 
 function read<T: AtomicSafe, 'a>(value: &'a readonly Atomic<T>): T {
-    return value.load<T>();
+    return value.load<T, P2>();
 }
 
 === dir ===
 import { Atomic, AtomicSafe } from "destack:sync";
 
 declare const ready: Atomic<boolean>;
-/// @type.symbol symbol=ready source=ready type=sync.atomic.Atomic<boolean>
+/// @type.symbol symbol=ready source=ready type=Atomic<boolean>
 /// @resolution.pattern source=ready kind=binding target=ready
-/// @generic.instance id=sync.atomic.Atomic<boolean> template=sync.atomic.Atomic arguments=(boolean)
-/// @resolution.name source=Atomic target=sync.atomic.Atomic
+/// @generic.instance id=Atomic<boolean> template=Atomic arguments=(boolean)
+/// @resolution.name source=Atomic target=Atomic
 
 declare const count: Atomic<uint32>;
-/// @type.symbol symbol=count source=count type=sync.atomic.Atomic<uint32>
+/// @type.symbol symbol=count source=count type=Atomic<uint32>
 /// @resolution.pattern source=count kind=binding target=count
-/// @generic.instance id=sync.atomic.Atomic<uint32> template=sync.atomic.Atomic arguments=(uint32)
-/// @resolution.name source=Atomic target=sync.atomic.Atomic
+/// @generic.instance id=Atomic<uint32> template=Atomic arguments=(uint32)
+/// @resolution.name source=Atomic target=Atomic
 
 declare const index: Atomic<usize>;
-/// @type.symbol symbol=index source=index type=sync.atomic.Atomic<usize>
+/// @type.symbol symbol=index source=index type=Atomic<usize>
 /// @resolution.pattern source=index kind=binding target=index
-/// @generic.instance id=sync.atomic.Atomic<usize> template=sync.atomic.Atomic arguments=(usize)
-/// @resolution.name source=Atomic target=sync.atomic.Atomic
+/// @generic.instance id=Atomic<usize> template=Atomic arguments=(usize)
+/// @resolution.name source=Atomic target=Atomic
 
 declare const ratio: Atomic<float64>;
-/// @type.symbol symbol=ratio source=ratio type=sync.atomic.Atomic<float64>
+/// @type.symbol symbol=ratio source=ratio type=Atomic<float64>
 /// @resolution.pattern source=ratio kind=binding target=ratio
-/// @generic.instance id=sync.atomic.Atomic<float64> template=sync.atomic.Atomic arguments=(float64)
-/// @resolution.name source=Atomic target=sync.atomic.Atomic
+/// @generic.instance id=Atomic<float64> template=Atomic arguments=(float64)
+/// @resolution.name source=Atomic target=Atomic
 
 function read<T: AtomicSafe>(value: &readonly Atomic<T>): T {
-/// @generic.template symbol=read parameters=(T: sync.atomic.AtomicSafe, 'a)
-/// @type.symbol symbol=read type=<T: sync.atomic.AtomicSafe, read.'a>(&read.'a readonly sync.atomic.Atomic<T>) => T
+/// @generic.template symbol=read parameters=(T: AtomicSafe, 'a, P2: Place)
+/// @type.symbol symbol=read type=<T: AtomicSafe, read.'a, read.P2: Place>(&read.'a readonly Atomic<T>) => T
 /// @type.symbol symbol=read.T source="T: AtomicSafe" type=T
-/// @resolution.name source=AtomicSafe target=sync.atomic.AtomicSafe
-/// @type.symbol symbol=read.value source="value: &readonly Atomic<T>" type=&read.'a readonly sync.atomic.Atomic<T>
-/// @resolution.name source=Atomic target=sync.atomic.Atomic
+/// @resolution.name source=AtomicSafe target=AtomicSafe
+/// @type.symbol symbol=read.value source="value: &readonly Atomic<T>" type=&read.'a readonly Atomic<T>
+/// @resolution.name source=Atomic target=Atomic
 /// @resolution.name source=T target=read.T
 /// @resolution.name source=T target=read.T
 
     return value.load();
     /// @resolution.name source=value target=read.value
-    /// @resolution.member source=value.load receiver=&read.'a readonly sync.atomic.Atomic<T> type=<sync.atomic.load.'a>(this: &sync.atomic.load.'a readonly sync.atomic.Atomic<T>, sync.atomic.MemoryOrdering?) => T kind=symbol target_receiver=&read.'a readonly sync.atomic.Atomic<T> target=sync.atomic.load
-    /// @resolution.call source=value.load() parameters=(sync.atomic.MemoryOrdering) arguments=(omitted as sync.atomic.MemoryOrdering) return=T kind=symbol target=sync.atomic.load receiver=&read.'a readonly sync.atomic.Atomic<T> instance=sync.atomic.Atomic<T>.<extension#1>.load
-    /// @resolution.place source=value placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.member source=value.load receiver=&read.'a readonly Atomic<T> type=<load.'a, load.P1: Place>(this: Borrowed<Atomic<T>, load.'a & load.P1, "readonly">, MemoryOrdering?) => T kind=symbol target_receiver=&read.'a readonly Atomic<T> target=load
+    /// @resolution.call source=value.load() parameters=(MemoryOrdering) arguments=(omitted as MemoryOrdering) return=T kind=symbol target=load receiver=&read.'a readonly Atomic<T> instance=Atomic<T>.<extension#1>.load<read.P2>
+    /// @resolution.place source=value placement=read.P2 lifetime=read.'a access="readonly"
     /// @resolution.access source=value root=read.value
-    /// @generic.instantiation id=sync.atomic.load<T> template=sync.atomic.load arguments=(T) owner=read
+    /// @generic.instantiation id="load<T, read.P2>" template=load arguments=(T, read.P2) owner=read
+    /// @generic.instantiation id=load<T> template=load arguments=(T) owner=read
 
 }
 "#,
@@ -106,9 +107,9 @@ declare const wide: Atomic<uint128>;
 import { Atomic } from "destack:sync";
 
 declare const wide: Atomic<uint128>;
-/// @type.symbol symbol=wide source=wide type=sync.atomic.Atomic<uint128>
+/// @type.symbol symbol=wide source=wide type=Atomic<uint128>
 /// @resolution.pattern source=wide kind=binding target=wide
-/// @resolution.name source=Atomic target=sync.atomic.Atomic
+/// @resolution.name source=Atomic target=Atomic
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'uint128' does not satisfy 'AtomicSafe'"
@@ -161,14 +162,14 @@ struct Word {
 }
 
 @unsafe
-/// @decorator.node source=@unsafe owner="extension of Word implements AtomicSafe {}" expression=unsafe target=decorator.unsafe type=unsafe kind=newtype parameters=() newtype=decorator.safety.unsafe backing=() value=unsafe()
-/// @resolution.name source=unsafe target=decorator.safety.unsafe
+/// @decorator.node source=@unsafe owner="extension of Word implements AtomicSafe {}" expression=unsafe target=decorator.unsafe type=unsafe kind=newtype parameters=() newtype=unsafe backing=() value=unsafe()
+/// @resolution.name source=unsafe target=unsafe
 
 extension of Word implements AtomicSafe {}
 /// @definition.extension symbol=<module>#2 source="extension of Word implements AtomicSafe {}" form=local target=Word
-/// @definition.implements symbol=<module>#2 source=AtomicSafe target=sync.atomic.AtomicSafe
+/// @definition.implements symbol=<module>#2 source=AtomicSafe target=AtomicSafe
 /// @resolution.name source=Word target=Word
-/// @resolution.name source=AtomicSafe target=sync.atomic.AtomicSafe
+/// @resolution.name source=AtomicSafe target=AtomicSafe
 "#,
         r#"
 /// @diagnostic.error id=interface-not-implemented message="type 'Word' does not implement interface 'AtomicSafe'"

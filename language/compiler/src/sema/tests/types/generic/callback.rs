@@ -376,7 +376,7 @@ test.each<{}, {}, {}, (int32,)>([(1,)]).only(
 );
 test.for<{}, {}, {}, int64>([1]).only(
     "table case",
-    <'a, P1: Place>(value: &'a readonly int64): BodyResult => {},
+    <'a,>(value: &'a readonly int64): BodyResult => {},
 );
 describe.each<(int32,)>([(1,)])("parameterized suite", ((value: int32): void => {}) as | ((
       arg0: int32,
@@ -652,10 +652,10 @@ declare function contextTable<T>(
 run<(int32,)>([(1,)])("optional", ((value: int32): void => {}) as | ((arg0: int32) => void)
 | undefined);
 plain<(int32,)>([(1,)])("plain", (value: int32): void => {});
-table<int64>([1])("table", <'a, P1: Place>(value: &'a readonly int32): void => {});
-optionalTable<int64>([1])("optional table", <'a, P1: Place>(value: &'a readonly int32): void => {});
-contextTable<int64>([1])("context table", <'a, P1: Place>(value: &'a readonly int32): void => {});
-iterTable<int64>([1])("iter table", <'a, P1: Place>(value: &'a readonly int32): void => {});
+table<int64>([1])("table", <'a,>(value: &'a readonly int32): void => {});
+optionalTable<int64>([1])("optional table", <'a,>(value: &'a readonly int32): void => {});
+contextTable<int64>([1])("context table", <'a,>(value: &'a readonly int32): void => {});
+iterTable<int64>([1])("iter table", <'a,>(value: &'a readonly int32): void => {});
 
 === dir ===
 declare function run<P: (...unknown[],)>(cases: P[]): (name: string, body?: Function<P, void>) => void;

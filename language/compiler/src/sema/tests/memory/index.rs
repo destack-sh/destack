@@ -31,7 +31,7 @@ struct Point {
     x: int32;
 }
 
-function run<'a, P1: Place>(values: int32[], points: Point[], view: &'a readonly int32[]): int32 {
+function run<'a>(values: int32[], points: Point[], view: &'a readonly int32[]): int32 {
     const read: int32 = values[0];
     values[0] = 1;
     values[1] += 2;
@@ -176,10 +176,7 @@ function copyManaged(target: int32[], source: int32[]): void {
         DirRows::checked(),
         r#"
 === annotated ===
-function copy<'a, P1: Place, 'b, P3: Place>(
-    source: &'a readonly int32[],
-    target: &'b exclusive int32[],
-): void {
+function copy<'a, 'b>(source: &'a readonly int32[], target: &'b exclusive int32[]): void {
     for (let index: isize = 0; index < source.length; index += 1) {
         target[index] = source[index];
     }

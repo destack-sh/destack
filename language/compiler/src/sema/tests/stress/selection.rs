@@ -34,7 +34,7 @@ check.probes.selections=0
 check.probes.extensions=0
 check.instantiations=1000
 check.interns=18012
-check.reduces=45008
+check.reduces=96014
 "#,
     );
 }
@@ -71,7 +71,7 @@ check.probes.selections=0
 check.probes.extensions=0
 check.instantiations=1000
 check.interns=18012
-check.reduces=45008
+check.reduces=96014
 "#,
     );
 }

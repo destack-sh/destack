@@ -144,11 +144,11 @@ export extension<const A: Access = "readonly"> of Grid {
     }
 }
 
-function read<'a, P1: Place>(grid: &'a readonly Grid): int32 {
+function read<'a>(grid: &'a readonly Grid): int32 {
     grid.view<"readonly", P1>()
 }
 
-function write<'a, P1: Place>(grid: &'a exclusive Grid): int32 {
+function write<'a>(grid: &'a exclusive Grid): int32 {
     grid.view<"exclusive", P1>()
 }
 

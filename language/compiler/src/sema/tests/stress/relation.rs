@@ -32,7 +32,7 @@ check.probes.selections=0
 check.probes.extensions=0
 check.instantiations=0
 check.interns=8009
-check.reduces=16018
+check.reduces=23031
 "#,
     );
 }

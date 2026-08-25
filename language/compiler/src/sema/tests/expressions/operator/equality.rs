@@ -15,7 +15,7 @@ function positive(value: &readonly (int32 | undefined)): boolean {
         DirRows::checked(),
         r#"
 === annotated ===
-function positive<'a, P1: Place>(value: &'a readonly (int32 | undefined)): boolean {
+function positive<'a>(value: &'a readonly (int32 | undefined)): boolean {
     value !== (undefined as int32 | undefined) && (value as int32) > 0
 }
 
@@ -56,7 +56,7 @@ function positive(value: &readonly (int32 | undefined)): boolean {
         DirRows::checked(),
         r#"
 === annotated ===
-function positive<'a, P1: Place>(value: &'a readonly (int32 | undefined)): boolean {
+function positive<'a>(value: &'a readonly (int32 | undefined)): boolean {
     value === (undefined as int32 | undefined) || (value as int32) > 0
 }
 
@@ -322,14 +322,11 @@ const usersDiffer = different(firstUser, secondUser);
 === annotated ===
 import { StrictEqual } from "destack:ops";
 
-function same<R, L: StrictEqual<R>, 'a, P3: Place, 'b, P5: Place>(
-    left: &'a readonly L,
-    right: &'b readonly R,
-): boolean {
+function same<R, L: StrictEqual<R>, 'a, 'b>(left: &'a readonly L, right: &'b readonly R): boolean {
     *left === *right
 }
 
-function different<T: StrictEqual<T>, 'a, P2: Place, 'b, P4: Place>(
+function different<T: StrictEqual<T>, 'a, 'b>(
     left: &'a readonly T,
     right: &'b readonly T,
 ): boolean {
@@ -1069,7 +1066,7 @@ function positive(value: &readonly int32): boolean {
         DirRows::checked(),
         r#"
 === annotated ===
-function positive<'a, P1: Place>(value: &'a readonly int32): boolean {
+function positive<'a>(value: &'a readonly int32): boolean {
     return (value as int32) > 0;
 }
 

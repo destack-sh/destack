@@ -128,7 +128,7 @@ function replace(user: User): void {
 === annotated ===
 class User {}
 
-declare function consume<'a, P1: Place>(value: &'a exclusive User): void;
+declare function consume<'a>(value: &'a exclusive User): void;
 
 function replace(user: User): void {
     consume<"local">(user as &'frame exclusive User);
@@ -549,7 +549,7 @@ function inspect(value: &readonly User): &readonly User {
 === annotated ===
 class User {}
 
-function inspect<'a, P1: Place>(value: &'a readonly User): &'a readonly User {
+function inspect<'a>(value: &'a readonly User): &'a readonly User {
     return value;
 }
 
@@ -601,10 +601,8 @@ struct Holder<out T> {
     value: T;
 }
 
-declare function maybe<'a, P1: Place>(
-    value: &'a readonly User | undefined,
-): &readonly User | undefined;
-declare function inspect<'a, P1: Place>(holder: Holder<&'a readonly User>): void;
+declare function maybe<'a>(value: &'a readonly User | undefined): &readonly User | undefined;
+declare function inspect<'a>(holder: Holder<&'a readonly User>): void;
 
 === dir ===
 class User {}

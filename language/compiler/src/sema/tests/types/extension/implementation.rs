@@ -1742,7 +1742,7 @@ export class Bag<in out K, in out V> {
     values: V[] = [];
 }
 
-export extension<K, V, 'a, P3: Place, 'b, P5: Place> of Bag<K, V>
+export extension<K, V, 'a, 'b> of Bag<K, V>
     implements Iterable<(K, V)>, Iterable<Entry<&readonly K, &V>>
 {
     iterator(): Iterator<(K, V)> {

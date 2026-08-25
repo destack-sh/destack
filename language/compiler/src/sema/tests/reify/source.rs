@@ -306,7 +306,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         let mut induced = Vec::new();
         for parameter in &parameters {
             let binding = self.generics.get_parameter(*parameter).clone();
-            if !binding.is_induced_lifetime_parameter() {
+            if !binding.is_induced_region_parameter() {
                 continue;
             }
 

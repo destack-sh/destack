@@ -39,7 +39,7 @@ extension of int32 implements Show {
     }
 }
 
-function describe<T: Show, 'a, P2: Place>(value: &'a readonly T): string {
+function describe<T: Show, 'a>(value: &'a readonly T): string {
     return value.show<P2>();
 }
 

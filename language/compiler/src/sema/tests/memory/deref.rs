@@ -34,7 +34,7 @@ struct Point {
     y: int32;
 }
 
-function run<'a, P1: Place>(boxed: Box<Point>, readonlyBoxed: &'a readonly Box<Point>): int32 {
+function run<'a>(boxed: Box<Point>, readonlyBoxed: &'a readonly Box<Point>): int32 {
     const read: int32 = boxed.x;
     boxed.x = 2;
     (*boxed).y = 3;
@@ -448,7 +448,7 @@ extension of Point {
     }
 }
 
-function run<'a, P1: Place>(
+function run<'a>(
     boxed: Box<Point>,
     nested: Box<Box<Point>>,
     viewed: &'a readonly Box<Point>,

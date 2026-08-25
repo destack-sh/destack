@@ -232,7 +232,7 @@ declare class Box<out T> {
     get(&readonly this): &readonly T;
 }
 
-function read<T, 'a, P2: Place>(source: &'a readonly Box<T>): &'a readonly T {
+function read<T, 'a>(source: &'a readonly Box<T>): &'a readonly T {
     return source.get<T, P2>();
 }
 

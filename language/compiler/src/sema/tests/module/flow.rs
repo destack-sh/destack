@@ -99,7 +99,7 @@ struct Point {
     y: int32;
 }
 
-function shift<'a, P1: Place>(point: &'a Point): int32 {
+function shift<'a>(point: &'a Point): int32 {
     point.x = point.x + 1;
 
     return max(point.x, point.y);
@@ -204,7 +204,7 @@ class Service {
     }
 }
 
-declare function modify<'a, P1: Place>(value: &'a int32): void;
+declare function modify<'a>(value: &'a int32): void;
 
 let borrowed: int32 = 0;
 &borrowed;

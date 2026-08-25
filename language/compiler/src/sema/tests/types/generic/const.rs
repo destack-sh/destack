@@ -256,7 +256,7 @@ function put<T>(destination: &exclusive [T], value: T): void {
         DirRows::checked(),
         r#"
 === annotated ===
-function put<T, 'a, P2: Place>(destination: &'a exclusive [T], value: T): void {
+function put<T, 'a>(destination: &'a exclusive [T], value: T): void {
     let lane: isize = 0;
 
     destination[lane] = value;
@@ -312,7 +312,7 @@ function put(destination: &exclusive [int32], value: int32): void {
         DirRows::checked(),
         r#"
 === annotated ===
-function put<'a, P1: Place>(destination: &'a exclusive [int32], value: int32): void {
+function put<'a>(destination: &'a exclusive [int32], value: int32): void {
     let lane: isize = 0;
 
     destination[lane] = value;
