@@ -67,14 +67,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(condition) = condition.as_expression() else {
             continue;
         };
-        let dir::Expression::Block(then_block) = view.get(*then_expression) else {
+        if !matches!(view.get(*then_expression), dir::Expression::Block(_)) {
             continue;
-        };
-        let Some(break_) = view.get(*then_block).only_expression() else {
-            continue;
-        };
-        if !matches!(view.get(break_), dir::Expression::Break { value: None, .. })
-            || module.transfer_target(break_)? != iteration
+        }
+        if module.plain_break_target(*then_expression)? != Some(iteration)
             || module.has_valued_break(iteration)?
         {
             continue;
@@ -141,6 +137,7 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Remove an existing negation when forming the continuation condition.
     #[test]
     fn test_replaces_negated_break_condition() {

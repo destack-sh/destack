@@ -4,6 +4,27 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
+    /// Return whether declarations in nested subtrees shadow bindings in enclosing subtrees.
+    pub(crate) fn shadows_bindings(
+        &self,
+        nested: impl IntoIterator<Item = dir::LocalNodeIdAny>,
+        enclosing: impl IntoIterator<Item = dir::LocalNodeIdAny>,
+    ) -> bool {
+        // collect the names introduced by the enclosing subtrees
+        let enclosing_names = enclosing
+            .into_iter()
+            .flat_map(|node| self.symbols_declared_within(node))
+            .filter_map(|symbol| self.bindings.get_symbol(symbol.local_id).name())
+            .collect::<Vec<_>>();
+
+        // find a nested declaration with one of the same names
+        nested
+            .into_iter()
+            .flat_map(|node| self.symbols_declared_within(node))
+            .filter_map(|symbol| self.bindings.get_symbol(symbol.local_id).name())
+            .any(|name| enclosing_names.contains(&name))
+    }
+
     /// Iterate checked name references to one binding.
     pub(crate) fn symbol_references(
         &self,
@@ -119,6 +140,30 @@ impl DirModule<'_> {
         }
 
         uses
+    }
+
+    /// Return the recorded uses of one binding after a source node.
+    pub(crate) fn binding_uses_after(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        node: dir::LocalNodeIdAny,
+        occurrences: &[dir::BindingOccurrence],
+    ) -> Result<dir::BindingUse, ProviderError> {
+        let extent = self.source_extent(node)?;
+        let mut uses = dir::BindingUse::default();
+
+        // merge later occurrences in the same authored file
+        for occurrence in occurrences {
+            if occurrence.symbol != symbol {
+                continue;
+            }
+            let occurrence_extent = self.source_extent(occurrence.node)?;
+            if occurrence_extent.file == extent.file && occurrence_extent.start >= extent.end {
+                uses |= occurrence.uses;
+            }
+        }
+
+        Ok(uses)
     }
 
     /// Return the declaration node that introduced one checked symbol.

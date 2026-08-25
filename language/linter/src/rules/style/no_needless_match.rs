@@ -47,12 +47,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let dir::Expression::Match { value, arms } = node else {
             continue;
         };
-        if arms.len() < 2
-            || !module.dir.types_match(
-                module.adjusted_type_id(expression.into_any())?,
-                module.adjusted_type_id(value.into_any())?,
-            )?
-        {
+        if arms.len() < 2 {
             continue;
         }
 
@@ -74,6 +69,14 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             }
         }
         if !is_identity {
+            continue;
+        }
+
+        // require the preserved value to have the match result type
+        if !module.dir.types_match(
+            module.adjusted_type_id(expression.into_any())?,
+            module.adjusted_type_id(value.into_any())?,
+        )? {
             continue;
         }
 
@@ -103,15 +106,8 @@ fn arm_preserves_value(
             (Some(symbol), None) => module.selected_symbol(body)? == Some(symbol),
             _ => false,
         },
-        dir::PatternDecision::Test(test) => {
-            let dir::PredicateTest::Unary(test) = &test.predicate.test else {
-                return Ok(false);
-            };
-            let dir::PredicateCondition::Literal(pattern_value) = &test.condition else {
-                return Ok(false);
-            };
-            matches!(test.input, dir::PredicateOperand::Direct(_))
-                && module.scalar_constant(body)?.as_ref() == Some(pattern_value)
+        dir::PatternDecision::Test(_) => {
+            module.pattern_literal(pattern)? == module.scalar_constant(body)?
         }
         dir::PatternDecision::Variant(variant) => {
             module.selected_symbol(body)? == Some(variant.case.variant)
@@ -241,6 +237,48 @@ function preserve(value: int32): int32 {
         matched if (matched > 0) => matched
         matched => matched
     };
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept bound matches whose generic comparison arms produce different values.
+    #[test]
+    fn test_accepts_generic_bound_comparison() {
+        let session = TestSession::dir(
+            &NO_NEEDLESS_MATCH,
+            r#"
+import { PartialCompare } from "destack:ops";
+
+newtype Bound<T> =
+    | { kind: "included"; value: T }
+    | { kind: "excluded"; value: T }
+    | { kind: "unbounded" };
+
+newtype interface RangeBounds<T> {
+    startBound(&readonly this): Bound<&readonly T>;
+
+    endBound(&readonly this): Bound<&readonly T>;
+
+    contains<U: PartialCompare<T>>(
+        &readonly this,
+        value: &readonly U,
+    ): boolean where T: PartialCompare<U> {
+        let isAfterStart = match (this.startBound()) {
+            { kind: "included", value: bound } => *bound <= *value
+            { kind: "excluded", value: bound } => *bound < *value
+            { kind: "unbounded" } => true
+        };
+
+        isAfterStart
+            && (match (this.endBound()) {
+                { kind: "included", value: bound } => *value <= *bound
+                { kind: "excluded", value: bound } => *value < *bound
+                { kind: "unbounded" } => true
+            })
+    }
 }
 "#,
         );

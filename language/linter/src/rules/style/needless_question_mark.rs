@@ -111,6 +111,7 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Accept construction that changes the Result error type.
     #[test]
     fn test_accepts_residual_widening() {

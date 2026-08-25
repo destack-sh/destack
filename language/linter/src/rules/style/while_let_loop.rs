@@ -93,13 +93,13 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         // select a sole control expression or one leading binding
         let block = view.get(*body);
         let retained = if let Some(expression) = block.only_expression() {
-            WhileLet::from_control(module, iteration, expression)?
+            WhileLet::select_control(module, iteration, expression)?
         } else if let Some(declaration) = block.leading_expressions.first() {
-            let let_else = WhileLet::from_let_else(module, iteration, *declaration)?;
+            let let_else = WhileLet::select_let_else(module, iteration, *declaration)?;
             if let_else.is_some() {
                 let_else
             } else {
-                WhileLet::from_binding(module, iteration, *declaration)?
+                WhileLet::select_binding(module, iteration, *declaration)?
             }
         } else {
             None
@@ -122,7 +122,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
 impl WhileLet {
     /// Return a while-let rewrite from one complete match or if-let loop body.
-    fn from_control(
+    fn select_control(
         module: &DirModule<'_>,
         iteration: dir::LocalNodeId<dir::Expression>,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -137,9 +137,9 @@ impl WhileLet {
                 };
 
                 // reorder a leading break arm only where the arms accept disjoint values
-                let retained = if is_break_arm(module, iteration, *second)? {
+                let retained = if module.break_arm_target(*second)? == Some(iteration) {
                     first
-                } else if is_break_arm(module, iteration, *first)?
+                } else if module.break_arm_target(*first)? == Some(iteration)
                     && module
                         .match_coverage(expression)
                         .is_some_and(|coverage| coverage.is_disjoint)
@@ -175,7 +175,7 @@ impl WhileLet {
                 };
                 let declarator = view.get(declarator);
                 if declarator.ty.is_some()
-                    || !is_break_expression(module, iteration, *else_expression)?
+                    || module.plain_break_target(*else_expression)? != Some(iteration)
                 {
                     return Ok(None);
                 }
@@ -204,7 +204,7 @@ impl WhileLet {
     }
 
     /// Return a while-let rewrite from one leading let-else binding.
-    fn from_let_else(
+    fn select_let_else(
         module: &DirModule<'_>,
         iteration: dir::LocalNodeId<dir::Expression>,
         declaration: dir::LocalNodeId<dir::Expression>,
@@ -219,7 +219,7 @@ impl WhileLet {
             return Ok(None);
         };
         let declarator = view.get(*declarator);
-        if declarator.ty.is_some() || !is_break_expression(module, iteration, *else_branch)? {
+        if declarator.ty.is_some() || module.plain_break_target(*else_branch)? != Some(iteration) {
             return Ok(None);
         }
         let Some(value) = declarator.value else {
@@ -235,7 +235,7 @@ impl WhileLet {
     }
 
     /// Return a while-let rewrite from one leading value-or-break binding.
-    fn from_binding(
+    fn select_binding(
         module: &DirModule<'_>,
         iteration: dir::LocalNodeId<dir::Expression>,
         declaration: dir::LocalNodeId<dir::Expression>,
@@ -261,12 +261,20 @@ impl WhileLet {
         // select one pattern value and one direct loop break
         let (pattern, value, body) = match view.get(initializer) {
             dir::Expression::Match { value, arms } => {
-                let [retained, breaking] = arms.as_slice() else {
+                let [first, second] = arms.as_slice() else {
                     return Ok(None);
                 };
-                if !is_break_arm(module, iteration, *breaking)? {
+                let retained = if module.break_arm_target(*second)? == Some(iteration) {
+                    first
+                } else if module.break_arm_target(*first)? == Some(iteration)
+                    && module
+                        .match_coverage(initializer)
+                        .is_some_and(|coverage| coverage.is_disjoint)
+                {
+                    second
+                } else {
                     return Ok(None);
-                }
+                };
                 let Some((pattern, body)) = module.match_arm_value(*retained) else {
                     return Ok(None);
                 };
@@ -279,27 +287,28 @@ impl WhileLet {
                 then_expression,
                 else_expression: Some(else_expression),
             } => {
-                let Some((_, _, inner)) = condition.as_binding() else {
+                let Some((_, _, declarator)) = condition.as_binding() else {
                     return Ok(None);
                 };
-                let inner = view.get(inner);
-                if inner.ty.is_some() || !is_break_expression(module, iteration, *else_expression)?
+                let declarator = view.get(declarator);
+                if declarator.ty.is_some()
+                    || module.plain_break_target(*else_expression)? != Some(iteration)
                 {
                     return Ok(None);
                 }
-                let Some(value) = inner.value else {
+                let Some(value) = declarator.value else {
                     return Ok(None);
                 };
                 let Some(body) = module.sole_value_expression(*then_expression) else {
                     return Ok(None);
                 };
 
-                (inner.pattern, value, body)
+                (declarator.pattern, value, body)
             }
             _ => return Ok(None),
         };
 
-        // require the successful branch to return the outer binding
+        // require the successful branch to return the declared binding
         let dir::Expression::Identifier { name } = view.get(body) else {
             return Ok(None);
         };
@@ -314,38 +323,6 @@ impl WhileLet {
             body: WhileLetBody::Remainder { declaration },
         }))
     }
-}
-
-/// Return whether one unguarded arm contains only a break targeting the loop.
-fn is_break_arm(
-    module: &DirModule<'_>,
-    iteration: dir::LocalNodeId<dir::Expression>,
-    arm: dir::LocalNodeId<dir::MatchArm>,
-) -> Result<bool, ProviderError> {
-    let Some((_, body)) = module.match_arm_expression(arm) else {
-        return Ok(false);
-    };
-
-    is_break_expression(module, iteration, body)
-}
-
-/// Return whether one expression contains only a break targeting the loop.
-fn is_break_expression(
-    module: &DirModule<'_>,
-    iteration: dir::LocalNodeId<dir::Expression>,
-    expression: dir::LocalNodeId<dir::Expression>,
-) -> Result<bool, ProviderError> {
-    let Some(expression) = module.sole_expression(expression) else {
-        return Ok(false);
-    };
-    if !matches!(
-        module.view().get(expression),
-        dir::Expression::Break { value: None, .. }
-    ) {
-        return Ok(false);
-    }
-
-    Ok(module.transfer_target(expression)? == iteration)
 }
 
 /// Build one while-let loop rewrite.
@@ -532,6 +509,39 @@ function consume(): void {
         const value = match (next()) {
             Ok { value } => value
             Err { error: _ } => break
+        };
+        value;
+    }
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+declare function next(): Result<int32, void>;
+
+function consume(): void {
+    while (let Ok { value } = next()) {
+        value;
+    }
+}
+"#,
+        );
+    }
+
+    /// Move a reversed leading match binding into the loop condition.
+    #[test]
+    fn test_replaces_reversed_leading_match_binding() {
+        let session = TestSession::dir(
+            &WHILE_LET_LOOP,
+            r#"
+declare function next(): Result<int32, void>;
+
+function consume(): void {
+    loop {
+        const value = match (next()) {
+            Err { error: _ } => break
+            Ok { value } => value
         };
         value;
     }

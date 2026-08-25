@@ -274,6 +274,19 @@ impl DirModule<'_> {
         block.value_expression()
     }
 
+    /// Return the value returned by one direct or single-expression block.
+    pub(crate) fn sole_return_value(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::LocalNodeId<dir::Expression>> {
+        let expression = self.sole_expression(expression)?;
+        let dir::Expression::Return { value: Some(value) } = self.view().get(expression) else {
+            return None;
+        };
+
+        Some(*value)
+    }
+
     /// Return the nearest expression that contains one expression in value position.
     pub(crate) fn enclosing_value_expression(
         &self,

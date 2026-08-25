@@ -5,10 +5,10 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Prefer match over complex if-else-if or switch statements.
+    /// Prefer match over switch statements and repeated equality chains.
     pub PREFER_MATCH {
         id: "prefer-match",
-        summary: "Prefer match over complex if-else-if or switch statements",
+        summary: "Prefer match over switch statements and repeated equality chains",
         explanation: r#"
 Repeated equality branches and switch cases encode selection as independent statements.
 Instead, you SHOULD use `match` to bind the selected value and its cases in one expression.
@@ -112,10 +112,7 @@ fn equality_subject(
     let Some((operator, [left, right])) = module.builtin_binary(expression)? else {
         return Ok(None);
     };
-    if !matches!(
-        operator,
-        dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict
-    ) {
+    if operator != dir::BinaryOperator::EqualStrict {
         return Ok(None);
     }
     let left = left.source.local_id;
@@ -184,6 +181,29 @@ function sign(value: int32): string {
     }
 
     return "zero";
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept a chain whose equality protocol need not match pattern selection.
+    #[test]
+    fn test_accepts_value_equality_chain() {
+        let session = TestSession::dir(
+            &PREFER_MATCH,
+            r#"
+function describe(value: int32): string {
+    if (value == 0) {
+        return "zero";
+    } else if (value == 1) {
+        return "one";
+    } else if (value == 2) {
+        return "two";
+    }
+
+    return "many";
 }
 "#,
         );

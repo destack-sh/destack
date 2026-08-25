@@ -6,13 +6,13 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Disallow branches that only return boolean literals.
+    /// Disallow conditionals that only produce opposite boolean literals.
     pub NO_NEEDLESS_BOOLEAN_BRANCH {
         id: "no-needless-boolean-branch",
-        summary: "Disallow branches that only return boolean literals",
+        summary: "Disallow conditionals that only produce opposite boolean literals",
         explanation: r#"
-An `if` whose two branches return opposite boolean literals has the same result as its condition or its negation.
-Instead, you SHOULD return the condition directly or negate it when the branches reverse the result.
+An `if` or ternary whose branches produce opposite boolean literals has the same result as its condition or its negation.
+Instead, you SHOULD use the condition directly or negate it when the branches reverse the result.
 "#,
         example: {
             reported: r#"
@@ -37,15 +37,15 @@ function active(condition: boolean): boolean {
     }
 }
 
-/// Report if statements whose only branches return opposite boolean literals.
+/// Report conditionals whose only branches produce opposite boolean literals.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect regular if statements with one expression condition
+    // inspect complete conditionals with one expression condition
     for (expression, node) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::If {
-            form: dir::IfForm::If,
+            form,
             condition,
             then_expression,
             else_expression: Some(else_expression),
@@ -56,25 +56,42 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(condition) = condition.as_expression() else {
             continue;
         };
-        let Some(then_value) = returned_boolean(view, *then_expression) else {
+
+        // read the direct ternary values or the values returned by statement branches
+        let (then_value, else_value) = match form {
+            dir::IfForm::If => (
+                module
+                    .sole_return_value(*then_expression)
+                    .and_then(|value| view.get(value).as_boolean()),
+                module
+                    .sole_return_value(*else_expression)
+                    .and_then(|value| view.get(value).as_boolean()),
+            ),
+            dir::IfForm::Ternary => (
+                view.get(*then_expression).as_boolean(),
+                view.get(*else_expression).as_boolean(),
+            ),
+        };
+        let Some(then_value) = then_value else {
             continue;
         };
-        let Some(else_value) = returned_boolean(view, *else_expression) else {
+        let Some(else_value) = else_value else {
             continue;
         };
         if then_value == else_value {
             continue;
         }
 
-        // report and replace both branches with one return
+        // report and replace both branches with the retained condition
         let span = module.source_extent(expression.into_any())?;
-        let mut diagnostic = lint.diagnostic("boolean branches only restate the condition", span);
+        let mut diagnostic = lint.diagnostic("conditional only restates its condition", span);
         if let Some(suggestion) = suggestion(
             module,
             lint,
             expression,
             condition,
             !then_value && else_value,
+            *form,
         )? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
@@ -84,29 +101,14 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Return the boolean literal returned by one single-statement branch.
-fn returned_boolean(
-    view: dir::View<'_>,
-    expression: dir::LocalNodeId<dir::Expression>,
-) -> Option<bool> {
-    let dir::Expression::Block(block) = view.get(expression) else {
-        return None;
-    };
-    let expression = view.get(*block).only_expression()?;
-    let dir::Expression::Return { value: Some(value) } = view.get(expression) else {
-        return None;
-    };
-
-    view.get(*value).as_boolean()
-}
-
-/// Build an automatic return of the retained condition.
+/// Build an automatic replacement from the retained condition.
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
     expression: dir::LocalNodeId<dir::Expression>,
     condition: dir::LocalNodeId<dir::Expression>,
     is_negated: bool,
+    form: dir::IfForm,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let extent = module.source_extent(expression.into_any())?;
     let condition_span = module.source_extent(condition.into_any())?;
@@ -124,9 +126,12 @@ fn suggestion(
 
         format!("!{condition}")
     };
-    let replacement = format!("return {condition};");
+    let replacement = match form {
+        dir::IfForm::If => format!("return {condition};"),
+        dir::IfForm::Ternary => condition,
+    };
     let patch = Patch::replace(extent, replacement);
-    let suggestion = lint.fix("return the boolean condition directly", patch)?;
+    let suggestion = lint.fix("use the boolean condition directly", patch)?;
 
     Ok(Some(suggestion))
 }
@@ -154,7 +159,7 @@ function inactive(condition: boolean): boolean {
 
         session.assert_diagnostics(
             r#"
-warning[no-needless-boolean-branch]: boolean branches only restate the condition
+warning[no-needless-boolean-branch]: conditional only restates its condition
  ──▶ main.ds:2:5
   │
 1 │ function inactive(condition: boolean): boolean {
@@ -171,7 +176,7 @@ warning[no-needless-boolean-branch]: boolean branches only restate the condition
 7 │ }
   │
 
- = fix: return the boolean condition directly
+ = fix: use the boolean condition directly
 --- a/main.ds
 +++ b/main.ds
 
@@ -226,6 +231,83 @@ function active(condition: boolean): boolean {
     } else {
         return true;
     }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Replace reversed ternary branches with a negated condition.
+    #[test]
+    fn test_replaces_reversed_boolean_ternary() {
+        let session = TestSession::dir(
+            &NO_NEEDLESS_BOOLEAN_BRANCH,
+            r#"
+function inactive(condition: boolean): boolean {
+    return condition ? false : true;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-needless-boolean-branch]: conditional only restates its condition
+ ──▶ main.ds:2:12
+  │
+1 │ function inactive(condition: boolean): boolean {
+2 │     return condition ? false : true;
+  │            ^^^^^^^^^^^^^^^^^^^^^^^^
+3 │ }
+  │
+
+ = fix: use the boolean condition directly
+--- a/main.ds
++++ b/main.ds
+
+    1│ function inactive(condition: boolean): boolean {
+-   2│     return condition ? false : true;
++   2│     return !condition;
+"#,
+        );
+        session.assert_fixes(
+            r#"
+function inactive(condition: boolean): boolean {
+    return !condition;
+}
+"#,
+        );
+    }
+
+    /// Preserve precedence when negating a compound ternary condition.
+    #[test]
+    fn test_parenthesizes_negated_compound_ternary_condition() {
+        let session = TestSession::dir(
+            &NO_NEEDLESS_BOOLEAN_BRANCH,
+            r#"
+function inactive(left: boolean, right: boolean): boolean {
+    return left && right ? false : true;
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function inactive(left: boolean, right: boolean): boolean {
+    return !(left && right);
+}
+"#,
+        );
+    }
+
+    /// Accept ternaries that select non-boolean values.
+    #[test]
+    fn test_accepts_value_ternary() {
+        let session = TestSession::dir(
+            &NO_NEEDLESS_BOOLEAN_BRANCH,
+            r#"
+function select(condition: boolean): int32 {
+    return condition ? 1 : 0;
 }
 "#,
         );

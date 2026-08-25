@@ -51,20 +51,17 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(body) = function.body else {
             continue;
         };
-        let dir::Expression::Block(block) = view.get(body) else {
+        if !matches!(view.get(body), dir::Expression::Block(_)) {
             continue;
-        };
-        let Some(return_) = view.get(*block).only_expression() else {
-            continue;
-        };
-        let dir::Expression::Return { value: Some(value) } = view.get(return_) else {
+        }
+        let Some(value) = module.sole_return_value(body) else {
             continue;
         };
 
         // replace the complete block body when every comment is retained
         let span = module.source_extent(body.into_any())?;
         let mut diagnostic = lint.diagnostic("lambda only returns one expression", span);
-        if let Some(suggestion) = suggestion(module, lint, declaration, body, *value)? {
+        if let Some(suggestion) = suggestion(module, lint, declaration, body, value)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
         output.report(diagnostic);
@@ -108,6 +105,7 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Parenthesize an object literal used as the expression body.
     #[test]
     fn test_parenthesizes_object_literal() {

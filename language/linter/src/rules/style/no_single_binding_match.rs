@@ -6,10 +6,10 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Prefer a scoped binding over a match with one irrefutable arm.
+    /// Prefer direct evaluation over a match with one irrefutable arm.
     pub NO_SINGLE_BINDING_MATCH {
         id: "no-single-binding-match",
-        summary: "Prefer a scoped binding over a match with one irrefutable arm",
+        summary: "Prefer direct evaluation over a match with one irrefutable arm",
         explanation: r#"
 A match with one unguarded binding arm accepts every value and performs no selection.
 Instead, you SHOULD bind the value directly in a `do` expression.
@@ -56,11 +56,18 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
         let pattern = arm_node.pattern();
-        if !matches!(
+        let is_wildcard = matches!(
             module.pattern_decision(pattern)?,
             dir::PatternDecision::Ignore
-                | dir::PatternDecision::Bind(dir::PatternBindingResolution { pattern: None, .. })
-        ) {
+        );
+        let has_binding = module
+            .symbols_declared_within(pattern.into_any())
+            .next()
+            .is_some();
+        let is_irrefutable = module
+            .match_coverage(expression)
+            .is_some_and(|coverage| coverage.is_exhaustive);
+        if (!is_wildcard && !has_binding) || !is_irrefutable {
             continue;
         }
 
@@ -106,14 +113,14 @@ fn suggestion(
         dir::Expression::ObjectExpression { .. }
     );
     let value = module.source(value_extent)?;
-    let pattern_source = module.source(pattern_extent)?;
     let binding = match module.pattern_decision(pattern)? {
-        dir::PatternDecision::Ignore if is_object => {
-            format!("({value});")
-        }
+        dir::PatternDecision::Ignore if is_object => format!("({value});"),
         dir::PatternDecision::Ignore => format!("{value};"),
-        dir::PatternDecision::Bind(_) => format!("const {pattern_source} = {value};"),
-        _ => return Ok(None),
+        _ => {
+            let pattern = module.source(pattern_extent)?;
+
+            format!("const {pattern} = {value};")
+        }
     };
 
     // indent the block relative to its containing source line
@@ -132,6 +139,7 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Retain evaluation when replacing a wildcard arm.
     #[test]
     fn test_replaces_wildcard_arm() {
@@ -182,6 +190,32 @@ function answer(): int32 {
     return do {
         ({ value: 1 });
         42
+    };
+}
+"#,
+        );
+    }
+
+    /// Replace an irrefutable tuple destructuring arm.
+    #[test]
+    fn test_replaces_tuple_binding() {
+        let session = TestSession::dir(
+            &NO_SINGLE_BINDING_MATCH,
+            r#"
+function sum(value: (int32, int32)): int32 {
+    return match (value) {
+        (left, right) => left + right
+    };
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function sum(value: (int32, int32)): int32 {
+    return do {
+        const (left, right) = value;
+        left + right
     };
 }
 "#,

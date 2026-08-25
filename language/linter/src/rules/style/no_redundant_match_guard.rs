@@ -18,7 +18,7 @@ Instead, you SHOULD match the compared literal in the arm pattern.
             reported: r#"
 function classify(value: int32): string {
     return match (value) {
-        matched if (matched == 0) => "zero"
+        matched if (matched === 0) => "zero"
         _ => "other"
     };
 }
@@ -66,7 +66,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some((operator, operands)) = module.builtin_binary(guard)? else {
             continue;
         };
-        if !operator.is_equality() || operator.is_negative_equality() {
+        if operator != dir::BinaryOperator::EqualStrict {
             continue;
         }
         let literal = if module.selected_symbol(operands[0].source.local_id)? == Some(symbol)
@@ -215,6 +215,24 @@ function equals(value: int32, expected: int32): boolean {
     return match (value) {
         matched if (matched == expected) => true
         _ => false
+    };
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept loose equality whose matching behavior can differ from a literal pattern.
+    #[test]
+    fn test_accepts_loose_equality() {
+        let session = TestSession::dir(
+            &NO_REDUNDANT_MATCH_GUARD,
+            r#"
+function classify(value: int32 | null | undefined): string {
+    return match (value) {
+        matched if (matched == null) => "missing"
+        _ => "present"
     };
 }
 "#,

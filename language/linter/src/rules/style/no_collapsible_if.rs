@@ -52,9 +52,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     for (expression, node) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::If {
             form: dir::IfForm::If,
+            condition: enclosing_condition,
             then_expression,
             else_expression: None,
-            ..
         } = node
         else {
             continue;
@@ -67,13 +67,22 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
         let dir::Expression::If {
             form: dir::IfForm::If,
+            condition: nested_condition,
             then_expression: nested_body,
             else_expression: None,
-            ..
         } = view.get(nested)
         else {
             continue;
         };
+        let nested_declarators = nested_condition
+            .declarators()
+            .map(dir::LocalNodeId::into_any);
+        let enclosing_declarators = enclosing_condition
+            .declarators()
+            .map(dir::LocalNodeId::into_any);
+        if module.shadows_bindings(nested_declarators, enclosing_declarators) {
+            continue;
+        }
 
         // report the nested conditional and offer one combined statement
         let span = module.source_extent(expression.into_any())?;
@@ -100,45 +109,46 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
-    outer: dir::LocalNodeId<dir::Expression>,
-    outer_body: dir::LocalNodeId<dir::Expression>,
+    enclosing: dir::LocalNodeId<dir::Expression>,
+    enclosing_body: dir::LocalNodeId<dir::Expression>,
     nested: dir::LocalNodeId<dir::Expression>,
     nested_body: dir::LocalNodeId<dir::Expression>,
     extent: Span,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let nested_extent = module.source_extent(nested.into_any())?;
-    let outer_body_extent = module.source_extent(outer_body.into_any())?;
-    if module.has_unretained_comment(outer_body_extent, &[nested_extent])? {
+    let enclosing_body_extent = module.source_extent(enclosing_body.into_any())?;
+    if module.has_unretained_comment(enclosing_body_extent, &[nested_extent])? {
         return Ok(None);
     }
 
     // retain both authored conditions
-    let Some(outer_condition) = condition_source(module, outer, outer_body)? else {
+    let Some(enclosing_condition) = condition_source(module, enclosing, enclosing_body)? else {
         return Ok(None);
     };
     let Some(nested_condition) = condition_source(module, nested, nested_body)? else {
         return Ok(None);
     };
 
-    // dedent the surviving body to the outer statement column
-    let outer_position = module.file(extent.file)?.get_position(extent.start);
+    // dedent the surviving body to the enclosing statement column
+    let enclosing_position = module.file(extent.file)?.get_position(extent.start);
     let nested_body_extent = module.source_extent(nested_body.into_any())?;
     let nested_position = module.file(extent.file)?.get_position(nested_extent.start);
-    let (Some((_, outer_column)), Some((_, nested_column))) = (outer_position, nested_position)
+    let (Some((_, enclosing_column)), Some((_, nested_column))) =
+        (enclosing_position, nested_position)
     else {
         return Err(ProviderError::internal(
             "collapsible if extent is outside its authored source file",
         ));
     };
     let indentation = nested_column
-        .checked_sub(outer_column)
-        .ok_or_else(|| ProviderError::internal("nested if begins before the outer if"))?;
+        .checked_sub(enclosing_column)
+        .ok_or_else(|| ProviderError::internal("nested if begins before its enclosing if"))?;
     let Some(body) = module.dedent_source(nested_body_extent, indentation)? else {
         return Ok(None);
     };
 
     // replace both conditionals with one statement
-    let replacement = format!("if ({outer_condition} && {nested_condition}) {body}");
+    let replacement = format!("if ({enclosing_condition} && {nested_condition}) {body}");
     let patch = Patch::replace(extent, replacement);
     let suggestion = lint.suggestion("join the nested conditions", patch)?;
 
@@ -192,6 +202,7 @@ fn condition_source(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
     /// Accept a nested if with an alternative branch.
     #[test]
     fn test_accepts_nested_alternative() {
@@ -256,7 +267,7 @@ function runWhen(
         );
     }
 
-    /// Preserve a condition binding across the joined inner condition.
+    /// Preserve a condition binding across the joined nested condition.
     #[test]
     fn test_preserves_condition_binding_scope() {
         let session = TestSession::dir(
@@ -287,9 +298,31 @@ function runWhen(user: { enabled: boolean } | null, ready: boolean): void {
         );
     }
 
-    /// Report without a suggestion when the outer block owns a comment.
+    /// Accept nested conditions that shadow one binding name.
     #[test]
-    fn test_preserves_outer_comment() {
+    fn test_accepts_shadowed_condition_binding() {
+        let session = TestSession::dir(
+            &NO_COLLAPSIBLE_IF,
+            r#"
+function runWhen(
+    first: { ready: boolean } | null,
+    second: { ready: boolean } | null,
+): void {
+    if (let { ready } = first) {
+        if (let { ready } = second) {
+            ready;
+        }
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Report without a suggestion when the enclosing block owns a comment.
+    #[test]
+    fn test_preserves_enclosing_comment() {
         let session = TestSession::dir(
             &NO_COLLAPSIBLE_IF,
             r#"

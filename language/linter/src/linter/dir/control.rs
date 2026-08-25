@@ -144,6 +144,42 @@ impl DirModule<'_> {
         }
     }
 
+    /// Return the try expression that catches propagation from one node.
+    pub(crate) fn catching_try(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Option<dir::LocalNodeId<dir::Expression>> {
+        let view = self.view();
+        let mut current = node;
+
+        // climb through the current callable to the nearest catching try body
+        while let Some(parent) = view.get_parent_any(current) {
+            if self.callable_body(parent).is_some_and(|body| {
+                current
+                    .try_into_typed::<dir::Expression>()
+                    .is_ok_and(|current| current == body)
+            }) {
+                return None;
+            }
+
+            // select try bodies with an active catch target
+            if let Ok(expression) = parent.try_into_typed::<dir::Expression>()
+                && let dir::Expression::Try {
+                    body,
+                    catch: Some(_),
+                    ..
+                } = view.get(expression)
+                && current == body.into_any()
+            {
+                return Some(expression);
+            }
+
+            current = parent;
+        }
+
+        None
+    }
+
     /// Return one unguarded match arm that contains exactly one expression.
     pub(crate) fn match_arm_expression(
         &self,
@@ -165,6 +201,18 @@ impl DirModule<'_> {
         }?;
 
         Some((arm.pattern(), body))
+    }
+
+    /// Return the target of one unguarded arm containing only a valueless break.
+    pub(crate) fn break_arm_target(
+        &self,
+        arm: dir::LocalNodeId<dir::MatchArm>,
+    ) -> Result<Option<dir::LocalNodeId<dir::Expression>>, ProviderError> {
+        let Some((_, body)) = self.match_arm_expression(arm) else {
+            return Ok(None);
+        };
+
+        self.plain_break_target(body)
     }
 
     /// Return one unguarded match arm that consists only of a value.
@@ -464,6 +512,24 @@ impl DirModule<'_> {
         }
 
         Ok(target.local_id)
+    }
+
+    /// Return the target of one sole valueless break expression.
+    pub(crate) fn plain_break_target(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<dir::LocalNodeId<dir::Expression>>, ProviderError> {
+        let Some(expression) = self.sole_expression(expression) else {
+            return Ok(None);
+        };
+        if !matches!(
+            self.view().get(expression),
+            dir::Expression::Break { value: None, .. }
+        ) {
+            return Ok(None);
+        }
+
+        self.transfer_target(expression).map(Some)
     }
 
     /// Return whether one reachable continue selects an iteration expression.

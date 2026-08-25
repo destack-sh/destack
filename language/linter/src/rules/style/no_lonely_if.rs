@@ -80,11 +80,11 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // replace the complete else clause when its nested if retains every comment
         let keyword = module.source_region(expression.into_any(), NodeSpanRegion::Else)?;
-        let outer = module.source_extent(expression.into_any())?;
+        let enclosing = module.source_extent(expression.into_any())?;
         let extent = module.source_extent((*else_expression).into_any())?;
         let extent = keyword.merge(extent);
         let mut diagnostic = lint.diagnostic("else block contains only another if", keyword);
-        if let Some(suggestion) = suggestion(module, lint, outer, extent, nested)? {
+        if let Some(suggestion) = suggestion(module, lint, enclosing, extent, nested)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
 
@@ -98,7 +98,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
-    outer: destack_source::Span,
+    enclosing: destack_source::Span,
     extent: destack_source::Span,
     nested: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
@@ -109,14 +109,14 @@ fn suggestion(
 
     // measure the indentation removed with the else block
     let file = module.file(extent.file)?;
-    let (_, outer_column) = file.get_position(outer.start).ok_or_else(|| {
-        ProviderError::internal("outer if extent is outside its authored source file")
+    let (_, enclosing_column) = file.get_position(enclosing.start).ok_or_else(|| {
+        ProviderError::internal("enclosing if extent is outside its authored source file")
     })?;
     let (_, nested_column) = file.get_position(nested.start).ok_or_else(|| {
         ProviderError::internal("nested if extent is outside its authored source file")
     })?;
     let indentation = nested_column
-        .checked_sub(outer_column)
+        .checked_sub(enclosing_column)
         .ok_or_else(|| ProviderError::internal("nested if begins before its enclosing if"))?;
 
     // retain and dedent the complete nested if expression

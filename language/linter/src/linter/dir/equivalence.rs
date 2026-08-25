@@ -712,6 +712,18 @@ impl Dir<'_> {
 }
 
 impl DirModule<'_> {
+    /// Return whether two local subtrees are alpha-equivalent.
+    pub(crate) fn is_alpha_equivalent(
+        &self,
+        left: dir::LocalNodeIdAny,
+        right: dir::LocalNodeIdAny,
+    ) -> Result<bool, ProviderError> {
+        let left = left.into_global(self.id);
+        let right = right.into_global(self.id);
+
+        self.dir.is_alpha_equivalent(&[left], &[right])
+    }
+
     /// Return declarations inside one node sequence in binding order.
     fn declarations_within(
         &self,

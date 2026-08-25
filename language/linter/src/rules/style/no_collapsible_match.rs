@@ -6,13 +6,13 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Merge nested matches whose inner pattern fits the outer arm.
+    /// Merge nested matches whose nested pattern fits the enclosing arm.
     pub NO_COLLAPSIBLE_MATCH {
         id: "no-collapsible-match",
-        summary: "Merge nested matches whose inner pattern fits the outer arm",
+        summary: "Merge nested matches whose nested pattern fits the enclosing arm",
         explanation: r#"
-A nested match on a value bound by its outer arm repeats the same selection in two places.
-Instead, you SHOULD place the inner pattern at the binding site when both fallback arms have the same result.
+A nested match on a value bound by its enclosing arm repeats the same selection in two places.
+Instead, you SHOULD place the nested pattern at the binding site when both fallback arms have the same result.
 "#,
         example: {
             reported: r#"
@@ -38,6 +38,7 @@ function describe(result: Result<int32, string>): string {
         category: Style,
         level: Warning,
         fixable: Suggestion,
+        indexes: [Code],
         check: DirModule(check),
     }
 }
@@ -55,24 +56,16 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let [selected, fallback] = arms.as_slice() else {
             continue;
         };
-        let dir::MatchArm::Expression {
-            pattern: outer_pattern,
-            guard: None,
-            body: inner,
-        } = view.get(*selected)
-        else {
+        let Some((enclosing_pattern, nested)) = module.match_arm_expression(*selected) else {
             continue;
         };
-        let dir::MatchArm::Expression {
-            pattern: outer_fallback,
-            guard: None,
-            body: outer_fallback_body,
-        } = view.get(*fallback)
+        let Some((enclosing_fallback, enclosing_fallback_body)) =
+            module.match_arm_expression(*fallback)
         else {
             continue;
         };
         if !matches!(
-            module.pattern_decision(*outer_fallback)?,
+            module.pattern_decision(enclosing_fallback)?,
             dir::PatternDecision::Ignore
         ) {
             continue;
@@ -81,70 +74,74 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         // select a nested two arm match with the same wildcard result
         let dir::Expression::Match {
             value,
-            arms: inner_arms,
-        } = view.get(*inner)
+            arms: nested_arms,
+        } = view.get(nested)
         else {
             continue;
         };
-        let [inner_selected, inner_fallback] = inner_arms.as_slice() else {
+        let [nested_selected, nested_fallback] = nested_arms.as_slice() else {
             continue;
         };
-        let dir::MatchArm::Expression {
-            pattern: inner_pattern,
-            guard: None,
-            body: inner_body,
-        } = view.get(*inner_selected)
+        let Some((nested_pattern, nested_body)) = module.match_arm_expression(*nested_selected)
         else {
             continue;
         };
-        let dir::MatchArm::Expression {
-            pattern: inner_fallback_pattern,
-            guard: None,
-            body: inner_fallback_body,
-        } = view.get(*inner_fallback)
+        let Some((nested_fallback_pattern, nested_fallback_body)) =
+            module.match_arm_expression(*nested_fallback)
         else {
             continue;
         };
         if !matches!(
-            module.pattern_decision(*inner_fallback_pattern)?,
+            module.pattern_decision(nested_fallback_pattern)?,
             dir::PatternDecision::Ignore
         ) || matches!(
-            module.pattern_decision(*inner_pattern)?,
+            module.pattern_decision(nested_pattern)?,
             dir::PatternDecision::Ignore | dir::PatternDecision::Bind(_)
         ) {
             continue;
         }
-        let inner_fallback_source =
-            module.source(module.source_extent(inner_fallback_body.into_any())?)?;
-        let outer_fallback_source =
-            module.source(module.source_extent(outer_fallback_body.into_any())?)?;
-        if inner_fallback_source != outer_fallback_source {
+
+        // require checked equivalent fallback behavior
+        if !module.is_alpha_equivalent(
+            nested_fallback_body.into_any(),
+            enclosing_fallback_body.into_any(),
+        )? {
             continue;
         }
 
-        // require the inner value to be one binding from the outer pattern
+        // require the nested value to be one binding from the enclosing pattern
         let Some(symbol) = module.selected_symbol(*value)? else {
             continue;
         };
-        let Some(binding) = authored_binding(module, *outer_pattern, symbol)? else {
+        let Some((binding_extent, is_shorthand)) =
+            binding_declaration(module, enclosing_pattern, symbol)?
+        else {
             continue;
         };
         let has_other_use = module.flows.binding_occurrences().any(|occurrence| {
             occurrence.symbol == symbol
-                && view.is_inside(occurrence.node, inner.into_any())
+                && view.is_inside(occurrence.node, nested.into_any())
                 && occurrence.node != value.into_any()
         });
         if has_other_use {
             continue;
         }
 
-        // compose the outer and inner patterns without discarding comments
-        let extent = module.source_extent(inner.into_any())?;
-        let mut diagnostic =
-            lint.diagnostic("nested match can be folded into its outer pattern", extent);
-        if let Some(suggestion) =
-            suggestion(module, lint, extent, binding, *inner_pattern, *inner_body)?
-        {
+        // compose the enclosing and nested patterns without discarding comments
+        let extent = module.source_extent(nested.into_any())?;
+        let mut diagnostic = lint.diagnostic(
+            "nested match can be folded into its enclosing pattern",
+            extent,
+        );
+        if let Some(suggestion) = suggestion(
+            module,
+            lint,
+            extent,
+            binding_extent,
+            is_shorthand,
+            nested_pattern,
+            nested_body,
+        )? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
         output.report(diagnostic);
@@ -153,24 +150,15 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// One authored declaration for a pattern binding.
-#[derive(Debug, Clone, Copy)]
-struct AuthoredBinding {
-    /// The complete authored declaration extent.
-    extent: Span,
-    /// Whether the declaration is a shorthand named field.
-    is_shorthand: bool,
-}
-
-/// Return one binding declaration owned uniquely by a pattern.
-fn authored_binding(
+/// Return the unique authored declaration of one pattern symbol.
+fn binding_declaration(
     module: &DirModule<'_>,
     pattern: dir::LocalNodeId<dir::Pattern>,
     symbol: dir::GlobalSymbolId,
-) -> Result<Option<AuthoredBinding>, ProviderError> {
+) -> Result<Option<(Span, bool)>, ProviderError> {
     let view = module.view();
 
-    // require exactly one declaration of the binding within the outer pattern
+    // require exactly one declaration of the binding within the enclosing pattern
     let declaration_count = module
         .symbols_declared_within(pattern.into_any())
         .filter(|declared| *declared == symbol)
@@ -211,18 +199,16 @@ fn authored_binding(
     };
     let extent = module.source_extent(declaration.local_id)?;
 
-    Ok(Some(AuthoredBinding {
-        extent,
-        is_shorthand,
-    }))
+    Ok(Some((extent, is_shorthand)))
 }
 
-/// Build one composed outer arm.
+/// Build one composed enclosing arm.
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
     extent: Span,
-    binding: AuthoredBinding,
+    binding_extent: Span,
+    is_shorthand: bool,
     pattern: dir::LocalNodeId<dir::Pattern>,
     body: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
@@ -234,15 +220,15 @@ fn suggestion(
 
     // replace the binding and nested match body independently
     let pattern_source = module.source(pattern)?;
-    let binding_source = module.source(binding.extent)?;
-    let replacement = if binding.is_shorthand {
+    let binding_source = module.source(binding_extent)?;
+    let replacement = if is_shorthand {
         format!("{binding_source}: {pattern_source}")
     } else {
         pattern_source.to_string()
     };
     let body_source = module.source(body)?;
     let mut patch = FilePatch::new(extent.file);
-    patch.replace(binding.extent, replacement);
+    patch.replace(binding_extent, replacement);
     patch.replace(extent, body_source);
     let suggestion = lint.suggestion("merge the nested pattern", patch)?;
 
@@ -253,6 +239,77 @@ fn suggestion(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
+
+    /// Merge nested matches written with single-expression block arms.
+    #[test]
+    fn test_replaces_block_arms() {
+        let session = TestSession::dir(
+            &NO_COLLAPSIBLE_MATCH,
+            r#"
+function describe(result: Result<int32, string>): string {
+    return match (result) {
+        Ok { value } => {
+            match (value) {
+                0 => { "zero" }
+                _ => { "other" }
+            }
+        }
+        _ => { "other" }
+    };
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+function describe(result: Result<int32, string>): string {
+    return match (result) {
+        Ok { value: 0 } => {
+            "zero"
+        }
+        _ => { "other" }
+    };
+}
+"#,
+        );
+    }
+
+    /// Merge fallbacks whose local binding names differ.
+    #[test]
+    fn test_replaces_alpha_equivalent_fallbacks() {
+        let session = TestSession::dir(
+            &NO_COLLAPSIBLE_MATCH,
+            r#"
+function describe(result: Result<int32, string>): string {
+    return match (result) {
+        Ok { value } => match (value) {
+            0 => "zero"
+            _ => match ((1, "other")) {
+                (nested, value) => value
+            }
+        }
+        _ => match ((1, "other")) {
+            (enclosing, value) => value
+        }
+    };
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+function describe(result: Result<int32, string>): string {
+    return match (result) {
+        Ok { value: 0 } => "zero"
+        _ => match ((1, "other")) {
+            (enclosing, value) => value
+        }
+    };
+}
+"#,
+        );
+    }
+
     /// Accept nested matches with distinct fallback results.
     #[test]
     fn test_accepts_distinct_fallbacks() {
@@ -274,7 +331,7 @@ function describe(result: Result<int32, string>): string {
         session.assert_no_diagnostics();
     }
 
-    /// Accept a nested match that reads the outer binding in its selected body.
+    /// Accept a nested match that reads the enclosing binding in its selected body.
     #[test]
     fn test_accepts_reused_binding() {
         let session = TestSession::dir(

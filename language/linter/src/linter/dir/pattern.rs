@@ -46,6 +46,27 @@ impl DirModule<'_> {
         Ok(self.dir.environment.language.item(symbol))
     }
 
+    /// Return the scalar literal tested directly by one pattern.
+    pub(crate) fn pattern_literal(
+        &self,
+        pattern: dir::LocalNodeId<dir::Pattern>,
+    ) -> Result<Option<dir::Literal>, ProviderError> {
+        let dir::PatternDecision::Test(test) = self.pattern_decision(pattern)? else {
+            return Ok(None);
+        };
+        let dir::PredicateTest::Unary(test) = &test.predicate.test else {
+            return Ok(None);
+        };
+        let dir::PredicateCondition::Literal(literal) = &test.condition else {
+            return Ok(None);
+        };
+        if !matches!(test.input, dir::PredicateOperand::Direct(_)) {
+            return Ok(None);
+        }
+
+        Ok(Some(*literal))
+    }
+
     /// Return the sole pattern binding selected directly by one expression.
     pub(crate) fn selected_pattern_binding(
         &self,

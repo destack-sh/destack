@@ -1197,6 +1197,14 @@ impl Condition {
         })
     }
 
+    /// Iterate over the binding declarators.
+    pub fn declarators(&self) -> impl Iterator<Item = LocalNodeId<Declarator>> + '_ {
+        self.operands.iter().filter_map(|operand| match operand {
+            ConditionOperand::Expression { .. } => None,
+            ConditionOperand::Binding { declarator, .. } => Some(*declarator),
+        })
+    }
+
     /// Return true when this condition contains a binding operand.
     pub fn has_binding(&self) -> bool {
         self.operands
