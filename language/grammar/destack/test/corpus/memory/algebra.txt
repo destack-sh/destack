@@ -6,11 +6,11 @@ Memory algebra syntax
 let view: shared (&readonly Packet) = packet;
 let owner: shared ^Packet = ^Packet.create();
 
-type Base = BaseOf<shared ^Packet>;
+type Place = PlaceOf<shared ^Packet>;
 type Reborrowed = WithAccess<&Packet, "exclusive">;
 
-SpaceOf<shared Packet> satisfies "shared";
-PlaceOf<Packet | local Packet | shared Packet> satisfies "ambient" | "local" | "shared";
+PlaceOf<shared Packet> satisfies "shared";
+PlaceOf<local Packet | shared Packet> satisfies "local" | "shared";
 WithAccess<&Packet, "exclusive"> satisfies &exclusive Packet;
 
 --------------------------------------------------------------------------------
@@ -70,20 +70,14 @@ WithAccess<&Packet, "exclusive"> satisfies &exclusive Packet;
       (type_identifier)
       (type_arguments
         (union_type
-          (union_type
-            (type_identifier)
-            (placement_type
-              (type_identifier)))
+          (placement_type
+            (type_identifier))
           (placement_type
             (type_identifier)))))
     (union_type
-      (union_type
-        (literal_type
-          (string
-            (string_fragment)))
-        (literal_type
-          (string
-            (string_fragment))))
+      (literal_type
+        (string
+          (string_fragment)))
       (literal_type
         (string
           (string_fragment)))))
