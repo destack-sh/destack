@@ -15,7 +15,7 @@ use crate::{
 
 impl FormatNode for Type {
     fn format_node<'a>(&self, id: LocalNodeId<Type>, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-        format_type_inner(f, id, self, true)
+        format_type_maybe_named(f, id, self, true)
     }
 }
 
@@ -44,14 +44,16 @@ impl Formatter<'_> {
     }
 }
 
+/// Format one type in its expanded form, ignoring any named declaration.
 pub(super) fn format_type_expanded<'a>(
     f: &mut Writer<'a, '_>,
     id: LocalNodeId<Type>,
     ty: &Type,
 ) -> FormatResult<()> {
-    format_type_inner(f, id, ty, false)
+    format_type_maybe_named(f, id, ty, false)
 }
 
+/// Format one named type declaration with its attributes and body.
 pub(super) fn format_type_declaration<'a>(
     name: &str,
     attributes: &[Attribute],
@@ -287,7 +289,8 @@ fn format_struct_field_entry<'a>(
     format_struct_field(field, f)
 }
 
-fn format_type_inner<'a>(
+/// Format one type, printing its declared name when one is available.
+fn format_type_maybe_named<'a>(
     f: &mut Writer<'a, '_>,
     id: LocalNodeId<Type>,
     ty: &Type,
@@ -529,6 +532,7 @@ fn format_type_inner<'a>(
     }
 }
 
+/// Format one fat descriptor's element followed by its reference qualifiers.
 fn format_view_header<'a>(
     kind: ReferenceKind,
     lifetime: &Lifetime,
@@ -542,6 +546,7 @@ fn format_view_header<'a>(
     format_reference_qualifiers(kind, lifetime, storage, access, nullability, f)
 }
 
+/// Format the kind, lifetime, access, nullability, and storage of one reference.
 fn format_reference_qualifiers<'a>(
     kind: ReferenceKind,
     lifetime: &Lifetime,
@@ -560,21 +565,21 @@ fn format_reference_qualifiers<'a>(
     format_lifetime(lifetime, f)?;
     format_access(access, f)?;
     format_nullability(nullability, f)?;
-    if storage != Storage::default() {
-        write!(f, [token(","), space()])?;
-        format_storage(storage, f)?;
-    }
+    write!(f, [token(","), space()])?;
+    format_storage(storage, f)?;
+
     Ok(())
 }
 
 /// Format one reference storage qualifier.
 fn format_storage<'a>(storage: Storage, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     match storage {
-        Storage::SharedStatic => write!(f, [token("shared"), space(), token("global")]),
+        Storage::SharedStatic => write!(f, [token("shared"), space(), token("static")]),
         _ => write!(f, [token(storage.label())]),
     }
 }
 
+/// Format one nullability qualifier.
 fn format_nullability<'a>(nullability: Nullability, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     match nullability {
         Nullability::None => Ok(()),
@@ -584,6 +589,7 @@ fn format_nullability<'a>(nullability: Nullability, f: &mut Writer<'a, '_>) -> F
     }
 }
 
+/// Format one reference lifetime qualifier.
 fn format_lifetime<'a>(lifetime: &Lifetime, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     if lifetime.is_empty() {
         return Ok(());
@@ -593,6 +599,7 @@ fn format_lifetime<'a>(lifetime: &Lifetime, f: &mut Writer<'a, '_>) -> FormatRes
     format_lifetime_terms(lifetime, f)
 }
 
+/// Format one type use with its applied lifetime arguments.
 fn format_type_application<'a>(
     base: TypeId,
     lifetimes: &[Lifetime],
@@ -612,24 +619,32 @@ fn format_type_application<'a>(
     }
 
     write!(f, [token("<")])?;
-    for (index, argument) in arguments.iter().enumerate() {
-        if index > 0 {
+    let mut written = 0;
+    for argument in arguments {
+        if written > 0 {
             write!(f, [token(","), space()])?;
         }
+        written += 1;
 
         format_static(*argument, f)?;
     }
 
-    for (index, lifetime) in lifetimes.iter().enumerate() {
-        if index > 0 || !arguments.is_empty() {
+    // erased lifetimes elide from the application
+    for lifetime in lifetimes {
+        if lifetime.is_empty() {
+            continue;
+        }
+        if written > 0 {
             write!(f, [token(","), space()])?;
         }
+        written += 1;
 
         format_lifetime_terms(lifetime, f)?;
     }
     write!(f, [token(">")])
 }
 
+/// Format one function signature parameter.
 pub(super) fn format_signature_parameter<'a>(
     parameter: &SignatureParameter,
     f: &mut Writer<'a, '_>,
@@ -637,6 +652,7 @@ pub(super) fn format_signature_parameter<'a>(
     format_type_id(parameter.ty, f)
 }
 
+/// Format one function signature's lifetimes, parameters, and result.
 pub(super) fn format_function_signature<'a>(
     lifetimes: &[LifetimeParameter],
     parameters: &[SignatureParameter],
@@ -662,6 +678,7 @@ pub(super) fn format_function_signature<'a>(
     Ok(())
 }
 
+/// Format the terms of one lifetime as a union.
 pub(super) fn format_lifetime_terms<'a>(
     lifetime: &Lifetime,
     f: &mut Writer<'a, '_>,
@@ -749,6 +766,7 @@ pub(super) fn format_type_name<'a>(
     write!(f, [token(">")])
 }
 
+/// Format one reference access qualifier.
 fn format_access<'a>(access: Access, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     match access {
         Access::Readonly => write!(f, [token(","), space(), token("readonly")]),
@@ -771,6 +789,7 @@ impl FormatNode for TypeDeclaration {
     }
 }
 
+/// Format one struct field's name and type.
 fn format_struct_field<'a>(field: &Field, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     if let Some(name) = field.name {
         let field_name = f.context().strings.get(name);

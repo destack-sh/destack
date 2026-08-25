@@ -133,9 +133,9 @@ pub enum GlobalInitializer {
     Bytes(Vec<u8>),
     /// Aggregate (array/struct fields).
     Aggregate(Vec<GlobalInitializer>),
-    /// One string value, rewritten into its carrier's fields by the constant encoder.
+    /// One string value, rewritten into its representation's fields by the constant encoder.
     String(StringId),
-    /// One bigint value, rewritten into its carrier's fields by the constant encoder.
+    /// One bigint value, rewritten into its representation's fields by the constant encoder.
     BigInt(i64),
 }
 

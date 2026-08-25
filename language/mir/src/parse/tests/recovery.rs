@@ -246,9 +246,9 @@ fn test_parse_rejects_direct_self_type_definition() {
 #[test]
 fn test_parse_restores_lifetime_scope_after_type_error() {
     let source = r#"
-type Broken<'L> = ref<int32, borrowed, 'Missing, mutable>
+type Broken<'L> = ref<int32, borrowed, 'Missing, mutable, local>
 
-type Later = ref<int32, borrowed, 'L, mutable>
+type Later = ref<int32, borrowed, 'L, mutable, local>
 
 function later(): void {
 b0:
@@ -361,6 +361,7 @@ b0:
     assert_eq!(function.blocks().len(), 1);
 }
 
+/// Assert one type node recovered as the error type.
 fn assert_error_type(tree: &Tree, ty: LocalNodeId<Type>) {
     assert_node!(tree, ty, Type::Error);
 }

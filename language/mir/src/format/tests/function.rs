@@ -85,19 +85,19 @@ entry:
 fn test_format_function_environment() {
     assert_format(
         r#"
-@environment(ref<void, managed, mutable>)
+@environment(ref<void, managed, mutable, local>)
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    v1: ref<void, managed, mutable> = function.environment.current
+    v1: ref<void, managed, mutable, local> = function.environment.current
     return v0
 }
 
-@environment(ref<void, managed, mutable>)
+@environment(ref<void, managed, mutable, local>)
 function caller(): int32 {
 entry:
-    v0: ref<void, managed, mutable> = function.environment.current
-    v1: function<(int32) => int32, repeatable, managed, mutable> = function.bind callee, v0
-    v2: ref<void, managed, mutable> = function.environment v1
+    v0: ref<void, managed, mutable, local> = function.environment.current
+    v1: function<(int32) => int32, repeatable, managed, mutable, local> = function.bind callee, v0
+    v2: ref<void, managed, mutable, local> = function.environment v1
     v3: int32 = 1
     v4: int32 = call.indirect v1(v3): (int32) => int32
     return v4
@@ -116,8 +116,8 @@ entry(v0: int32):
     return v0
 }
 
-function borrow<int32, 'a>(v0: ref<int32, borrowed, 'a, readonly>): ref<int32, borrowed, 'a, readonly> {
-entry(v0: ref<int32, borrowed, 'a, readonly>):
+function borrow<int32, 'a>(v0: ref<int32, borrowed, 'a, readonly, local>): ref<int32, borrowed, 'a, readonly, local> {
+entry(v0: ref<int32, borrowed, 'a, readonly, local>):
     return v0
 }
 
@@ -150,8 +150,8 @@ entry(v3: int32):
 fn test_format_reference_access_preserved() {
     assert_format(
         r#"
-function refMutability(v0: ref<int32, managed, mutable>, v1: ref<int32, unique, readonly>): ref<int32, managed, mutable> {
-entry(v0: ref<int32, managed, mutable>, v1: ref<int32, unique, readonly>):
+function refMutability(v0: ref<int32, managed, mutable, local>, v1: ref<int32, unique, readonly, local>): ref<int32, managed, mutable, local> {
+entry(v0: ref<int32, managed, mutable, local>, v1: ref<int32, unique, readonly, local>):
     return v0
 }
 "#,

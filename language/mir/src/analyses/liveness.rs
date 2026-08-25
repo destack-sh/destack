@@ -650,8 +650,12 @@ impl LiveSet<'_> {
             .is_ok_and(|index| self.locals.contains(index))
     }
 
-    /// Return one live carrier for a canonical place origin.
-    pub fn find_carrier(&self, origin: PlaceOrigin, places: &PlaceTable) -> Option<PlaceOrigin> {
+    /// Return one live representation for a canonical place origin.
+    pub fn find_representation(
+        &self,
+        origin: PlaceOrigin,
+        places: &PlaceTable,
+    ) -> Option<PlaceOrigin> {
         match origin {
             PlaceOrigin::Local(local) => self.contains_local(local).then_some(origin),
             PlaceOrigin::Global(_) => Some(origin),

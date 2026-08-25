@@ -5,14 +5,14 @@ use super::{assert_format, assert_format_eq};
 fn test_format_allocation_family() {
     assert_format(
         r#"
-function allocFamily(v0: int64): ref<int32, managed, mutable> {
+function allocFamily(v0: int64): ref<int32, managed, mutable, local> {
 entry(v0: int64):
-    v1: ref<int32, managed, mutable> = new.zeroed int32
-    v2: slice<int32, managed, mutable> = new.slice.zeroed int32, v0
-    v3: uninit<ref<int32, managed, mutable>> = new.uninit int32
-    v4: ref<int32, managed, mutable> = new.complete v3
-    v5: uninit<slice<int32, managed, mutable>> = new.slice.uninit int32, v0
-    v6: slice<int32, managed, mutable> = new.complete v5
+    v1: ref<int32, managed, mutable, local> = new.zeroed int32
+    v2: slice<int32, managed, mutable, local> = new.slice.zeroed int32, v0
+    v3: uninit<ref<int32, managed, mutable, local>> = new.uninit int32
+    v4: ref<int32, managed, mutable, local> = new.complete v3
+    v5: uninit<slice<int32, managed, mutable, local>> = new.slice.uninit int32, v0
+    v6: slice<int32, managed, mutable, local> = new.complete v5
     return v4
 }
 "#,
@@ -28,15 +28,15 @@ function allocTry(v0: int64): int32 {
 entry(v0: int64):
     new.zeroed.try int32 => b1 | b2
 
-b1(v1: ref<int32, managed, mutable>):
+b1(v1: ref<int32, managed, mutable, local>):
     new.slice.uninit.try int32, v0 => b3 | b2
 
 b2:
     v2: int32 = 0
     return v2
 
-b3(v3: uninit<slice<int32, managed, mutable>>):
-    v4: slice<int32, managed, mutable> = new.complete v3
+b3(v3: uninit<slice<int32, managed, mutable, local>>):
+    v4: slice<int32, managed, mutable, local> = new.complete v3
     v5: int32 = 1
     return v5
 }
@@ -49,9 +49,9 @@ b3(v3: uninit<slice<int32, managed, mutable>>):
 fn test_format_slice_view() {
     assert_format(
         r#"
-function subslice<'a>(v0: slice<int32, borrowed, 'a, mutable>, v1: int64, v2: int64): slice<int32, borrowed, 'a, mutable> {
-entry(v0: slice<int32, borrowed, 'a, mutable>, v1: int64, v2: int64):
-    v3: slice<int32, borrowed, 'a, mutable> = slice.view v0, v1, v2
+function subslice<'a>(v0: slice<int32, borrowed, 'a, mutable, local>, v1: int64, v2: int64): slice<int32, borrowed, 'a, mutable, local> {
+entry(v0: slice<int32, borrowed, 'a, mutable, local>, v1: int64, v2: int64):
+    v3: slice<int32, borrowed, 'a, mutable, local> = slice.view v0, v1, v2
     return v3
 }
 "#,
@@ -65,11 +65,11 @@ fn test_format_load_store_family() {
         r#"
 global counter: int32 = zeroinit
 
-function memory(v0: ref<int32, borrowed, mutable>): int32 {
+function memory(v0: ref<int32, borrowed, mutable, local>): int32 {
     local l0: int32
 
-entry(v0: ref<int32, borrowed, mutable>):
-    v1: ref<int32, borrowed, mutable> = global.address counter
+entry(v0: ref<int32, borrowed, mutable, local>):
+    v1: ref<int32, borrowed, mutable, local> = global.address counter
     v2: ref<int32, borrowed, mutable, frame> = local.address l0
     v3: int32 = load v0
     store v0, v3
@@ -92,7 +92,7 @@ function atomics(v0: ref<atomic<int32>, borrowed, mutable, frame>): int32 {
 entry(v0: ref<atomic<int32>, borrowed, mutable, frame>):
     v1: int32 = atomic.load v0, acquire, scope(device)
     atomic.store v0, v1, release, scope(device)
-    atomic.fence sequentiallyConsistent, scope(device), storage(device)
+    atomic.fence sequentiallyConsistent, scope(device), storage(shared)
     return v1
 }
 "#,
@@ -146,9 +146,9 @@ entry(v0: ref<atomic<uint32>, borrowed, mutable, frame>):
 fn test_format_cleanup_and_pin_family() {
     assert_format(
         r#"
-function cleanup(v0: ref<int32, managed, mutable>): void {
-entry(v0: ref<int32, managed, mutable>):
-    v1: ref<int32, managed, mutable> = pin v0
+function cleanup(v0: ref<int32, managed, mutable, local>): void {
+entry(v0: ref<int32, managed, mutable, local>):
+    v1: ref<int32, managed, mutable, local> = pin v0
     unpin v1
     drop v0
     return

@@ -349,7 +349,7 @@ fn test_build_function_with_panic_terminator() {
     let expected = "\
 function panicker(): void {
 entry:
-    v0: ref<int32, managed, readonly> = null
+    v0: ref<int32, managed, readonly, local> = null
     panic v0
 }";
     assert_eq!(output, expected);
@@ -485,7 +485,7 @@ fn test_ssa_branch_with_phi() {
     builder.return_(Some(result_value));
     builder.finish().unwrap();
 
-    // verify output - should have block parameter in merge block
+    // verify the merge block takes a block parameter
     let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
@@ -539,24 +539,24 @@ fn test_ssa_trivial_phi_removal() {
     builder.branch(condition_value, then_block, else_block);
     builder.seal_block(entry_block);
 
-    // then block: don't redefine, just jump
+    // then block: jump without redefining
     builder.switch_to_block(then_block);
     builder.jump(merge_block);
     builder.seal_block(then_block);
 
-    // else block: don't redefine, just jump
+    // else block: jump without redefining
     builder.switch_to_block(else_block);
     builder.jump(merge_block);
     builder.seal_block(else_block);
 
-    // merge block: use variable (should NOT create block parameter - trivial phi)
+    // merge block: use the variable, a trivial phi keeps the block parameterless
     builder.switch_to_block(merge_block);
     builder.seal_block(merge_block);
     let result_value = builder.use_variable(result_variable);
     builder.return_(Some(result_value));
     builder.finish().unwrap();
 
-    // verify output - no block parameter in merge block
+    // verify the merge block stays parameterless
     let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
@@ -609,12 +609,12 @@ fn test_ssa_trivial_phi_unsealed() {
     builder.branch(condition_value, then_block, else_block);
     builder.seal_block(entry_block);
 
-    // then block: don't redefine, just jump
+    // then block: jump without redefining
     builder.switch_to_block(then_block);
     builder.jump(merge_block);
     builder.seal_block(then_block);
 
-    // else block: don't redefine, just jump
+    // else block: jump without redefining
     builder.switch_to_block(else_block);
     builder.jump(merge_block);
     builder.seal_block(else_block);
@@ -818,7 +818,7 @@ fn test_seal_all_blocks() {
     builder.switch_to_block(b2);
     builder.return_(None);
 
-    // seal all at once instead of individually
+    // seal every block at once
     builder.seal_all_blocks();
     builder.finish().unwrap();
 
@@ -969,9 +969,9 @@ fn test_build_new_zeroed() {
     let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function allocTest(): ref<int32, managed, readonly> {
+function allocTest(): ref<int32, managed, readonly, local> {
 entry:
-    v0: ref<int32, managed, readonly> = new.zeroed int32
+    v0: ref<int32, managed, readonly, local> = new.zeroed int32
     return v0
 }";
     assert_eq!(output, expected);
@@ -1011,9 +1011,9 @@ fn test_build_new_slice_zeroed() {
     let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function allocArrayTest(v0: int64): slice<int32, managed, mutable> {
+function allocArrayTest(v0: int64): slice<int32, managed, mutable, local> {
 entry(v0: int64):
-    v1: slice<int32, managed, mutable> = new.slice.zeroed int32, v0
+    v1: slice<int32, managed, mutable, local> = new.slice.zeroed int32, v0
     return v1
 }";
     assert_eq!(output, expected);
@@ -1064,9 +1064,9 @@ fn test_build_slice_view() {
     let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function sliceTest<'a>(v0: slice<int32, managed, mutable>, v1: int64, v2: int64): slice<int32, borrowed, 'a, mutable> {
-entry(v0: slice<int32, managed, mutable>, v1: int64, v2: int64):
-    v3: slice<int32, borrowed, 'a, mutable> = slice.view v0, v1, v2
+function sliceTest<'a>(v0: slice<int32, managed, mutable, local>, v1: int64, v2: int64): slice<int32, borrowed, 'a, mutable, local> {
+entry(v0: slice<int32, managed, mutable, local>, v1: int64, v2: int64):
+    v3: slice<int32, borrowed, 'a, mutable, local> = slice.view v0, v1, v2
     return v3
 }";
     assert_eq!(output, expected);
@@ -1129,7 +1129,7 @@ fn test_build_void_intrinsic() {
     let access = FenceAccess::new(
         MemoryOrdering::SequentiallyConsistent,
         ExecutionScope::Device,
-        StorageSet::DEVICE,
+        StorageSet::SHARED,
     );
     builder.atomic_fence(access);
     builder.return_(None);
@@ -1142,7 +1142,7 @@ fn test_build_void_intrinsic() {
     let expected = "\
 function fenceTest(): void {
 entry:
-    atomic.fence sequentiallyConsistent, scope(device), storage(device)
+    atomic.fence sequentiallyConsistent, scope(device), storage(shared)
     return
 }";
     assert_eq!(output, expected);
@@ -1432,12 +1432,12 @@ type User {
 
 @copy
 type View<'a> {
-    user: ref<User, borrowed, 'a, readonly>;
+    user: ref<User, borrowed, 'a, readonly, local>;
 }
 
-function getStatic(v0: View<'static>): ref<User, borrowed, 'static, readonly> {
+function getStatic(v0: View<'static>): ref<User, borrowed, 'static, readonly, local> {
 entry(v0: View<'static>):
-    v1: ref<User, borrowed, 'static, readonly> = field.get v0, 0
+    v1: ref<User, borrowed, 'static, readonly, local> = field.get v0, 0
     return v1
 }";
     assert_eq!(output, expected);
@@ -1525,7 +1525,7 @@ fn test_ssa_passthrough_intermediate_block() {
     let cond = builder.function_parameter(0);
     let _x_header = builder.use_variable(x_var); // use x in header
     builder.branch(cond, b2, b4);
-    // don't seal yet - has back edge from b3
+    // leave b1 unsealed, b3 still branches back into it
 
     // b2 (body): update x = x + 10
     builder.switch_to_block(b2);

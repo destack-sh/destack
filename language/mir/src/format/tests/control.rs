@@ -115,8 +115,8 @@ entry(v0: int32):
 fn test_format_panic() {
     assert_format(
         r#"
-function panicker(v0: ref<void, managed, readonly>): void {
-entry(v0: ref<void, managed, readonly>):
+function panicker(v0: ref<void, managed, readonly, local>): void {
+entry(v0: ref<void, managed, readonly, local>):
     panic v0
 }
 "#,
@@ -128,8 +128,8 @@ entry(v0: ref<void, managed, readonly>):
 fn test_format_abort() {
     assert_format(
         r#"
-function aborter(v0: ref<void, managed, readonly>): void {
-entry(v0: ref<void, managed, readonly>):
+function aborter(v0: ref<void, managed, readonly, local>): void {
+entry(v0: ref<void, managed, readonly, local>):
     abort v0
 }
 "#,
@@ -141,8 +141,8 @@ entry(v0: ref<void, managed, readonly>):
 fn test_format_check_type_guards() {
     assert_format(
         r#"
-function guard(v0: ref<void, managed, mutable>): int32 {
-entry(v0: ref<void, managed, mutable>):
+function guard(v0: ref<void, managed, mutable, local>): int32 {
+entry(v0: ref<void, managed, mutable, local>):
     check is.type v0, int32 => b1 | b3
 
 b1:

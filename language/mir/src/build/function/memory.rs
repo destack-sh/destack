@@ -228,7 +228,7 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::Drop { value })
     }
 
-    /// Release one unique carrier's backing heap allocation after drop elaboration.
+    /// Release one unique representation's backing heap allocation after drop elaboration.
     pub fn free(&mut self, value: Value) {
         self.insert_instruction(Instruction::Free { value });
     }

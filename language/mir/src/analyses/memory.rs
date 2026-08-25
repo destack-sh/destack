@@ -315,7 +315,7 @@ impl MemoryDef {
             return true;
         }
 
-        // ignore non writing accesses
+        // ignore non-writing accesses
         if !self.effect.writes {
             return false;
         }
@@ -369,7 +369,7 @@ impl MemoryDef {
             return true;
         }
 
-        // ignore non writing accesses
+        // ignore non-writing accesses
         if !self.effect.writes {
             return false;
         }
@@ -393,7 +393,7 @@ impl MemoryDef {
             return self.effect.writes;
         }
 
-        // check address based aliasing
+        // check address-based aliasing
         let Some(location) = region.location() else {
             return self.effect.writes;
         };
@@ -456,6 +456,7 @@ impl MemoryTable {
             Some(entry) => entry,
             None => {
                 let live_on_entry = MemoryAccessId::from_index(0);
+
                 return Self {
                     accesses: vec![MemoryNode::LiveOnEntry],
                     block_phis: NodeTable::new(),
@@ -1882,8 +1883,8 @@ impl<'a> MemoryRenamer<'a> {
         }
 
         // wire phi incoming edges for successors
-        let block_data = self.tree.get(block);
-        let terminator = self.tree.get(block_data.terminator);
+        let node = self.tree.get(block);
+        let terminator = self.tree.get(node.terminator);
         for successor in terminator.successors(self.tree) {
             if let Some(phi_id) = *ssa.block_phis.get(successor)
                 && let Some(MemoryNode::Phi(phi)) = ssa.accesses.get_mut(phi_id.index())
@@ -2134,7 +2135,7 @@ entry:
         let store_v1 = instructions[5];
         let load_v0 = instructions[6];
 
-        // attach tables that retargets the load to v1
+        // attach an access entry that retargets the load to v1
         test.insert_address_location(
             load_v0,
             mir::MemoryOperation::Read,
@@ -2156,7 +2157,7 @@ entry:
             .instruction_access(store_v1)
             .expect("missing store access");
 
-        // clobber should follow the tables target
+        // clobber should follow the entry's target
         let clobber = memory.clobbering_use(load_access, &alias);
         assert_eq!(clobber, store_access);
     }
@@ -2492,7 +2493,7 @@ entry(v0: ref<atomic<int32>, borrowed, mutable>):
             r#"
 function test(): int32 {
 entry:
-    atomic.fence sequentiallyConsistent, scope(device), storage(device)
+    atomic.fence sequentiallyConsistent, scope(device), storage(shared)
     v0: int32 = 0
     return v0
 }
@@ -2600,7 +2601,7 @@ b2:
         assert_eq!(memory.defining_access(load_access), Some(call_accesses[0]));
     }
 
-    /// Call tables no memory suppresses memory accesses.
+    /// A call declaring no memory effects suppresses memory accesses.
     #[test]
     fn test_memory_skips_no_memory_call() {
         let mut test = TestProgram::new(
@@ -2631,7 +2632,7 @@ entry(v0: ref<int32, borrowed, mutable>):
         );
     }
 
-    /// Memory access entries overrides default instruction effects.
+    /// Memory access entries override default instruction effects.
     #[test]
     fn test_memory_access_entries_override() {
         // build the test program
@@ -2829,7 +2830,7 @@ b3:
         assert!(incoming_blocks.contains(&body_block));
     }
 
-    /// Unreachable blocks do not contribute memory accesses.
+    /// Memory analysis skips the accesses unreachable blocks write.
     #[test]
     fn test_memory_ignores_unreachable_blocks() {
         let test = TestProgram::new(

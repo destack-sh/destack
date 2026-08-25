@@ -6,15 +6,8 @@ use crate::{
     walk_local, walk_terminator, walk_type, walk_type_declaration,
 };
 
-/// Options for the NodeVisitor.
-#[derive(Debug, Clone, Default)]
-pub struct NodeVisitorOptions {}
-
 /// A visitor for traversing MIR nodes.
 pub trait NodeVisitor {
-    /// Get the options for the visitor.
-    fn options(&self) -> &NodeVisitorOptions;
-
     /// Visit any node (called before the specific visit method).
     #[inline]
     fn visit_any(&mut self, tree: &Tree, ty: NodeType, id: u32) {

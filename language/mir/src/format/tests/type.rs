@@ -52,11 +52,11 @@ entry:
 fn test_format_reference_kinds_and_nullability() {
     assert_format(
         r#"
-function refs(v0: ref<int32, managed, mutable, nullable>, v1: ref<int32, unique, readonly>): ref<int32, managed, mutable, nullable> {
-entry(v0: ref<int32, managed, mutable, nullable>, v1: ref<int32, unique, readonly>):
-    v2: ref<int32, managed, mutable, nullable> = null
-    v3: ref<int32, managed, mutable, undefined> = undefined
-    v4: slice<int32, managed, mutable, nullish> = undefined
+function refs(v0: ref<int32, managed, mutable, nullable, local>, v1: ref<int32, unique, readonly, local>): ref<int32, managed, mutable, nullable, local> {
+entry(v0: ref<int32, managed, mutable, nullable, local>, v1: ref<int32, unique, readonly, local>):
+    v2: ref<int32, managed, mutable, nullable, local> = null
+    v3: ref<int32, managed, mutable, undefined, local> = undefined
+    v4: slice<int32, managed, mutable, nullish, local> = undefined
     return v2
 }
 "#,
@@ -81,8 +81,8 @@ entry(v0: ptr<int32, readonly>, v1: ptr<int32, mutable, nullish>, v2: ptr<int32,
 fn test_format_reference_storage() {
     assert_format(
         r#"
-function storage(v0: ref<int32, borrowed, mutable, shared>, v1: ref<int32, borrowed, mutable, frame>, v2: ref<int32, borrowed, mutable, constant>, v3: ref<int32, borrowed, mutable, global>, v4: ref<int32, borrowed, mutable, shared global>): ref<int32, borrowed, mutable, shared> {
-entry(v0: ref<int32, borrowed, mutable, shared>, v1: ref<int32, borrowed, mutable, frame>, v2: ref<int32, borrowed, mutable, constant>, v3: ref<int32, borrowed, mutable, global>, v4: ref<int32, borrowed, mutable, shared global>):
+function storage(v0: ref<int32, borrowed, mutable, shared>, v1: ref<int32, borrowed, mutable, frame>, v2: ref<int32, borrowed, mutable, constant>, v3: ref<int32, borrowed, mutable, static>, v4: ref<int32, borrowed, mutable, shared static>): ref<int32, borrowed, mutable, shared> {
+entry(v0: ref<int32, borrowed, mutable, shared>, v1: ref<int32, borrowed, mutable, frame>, v2: ref<int32, borrowed, mutable, constant>, v3: ref<int32, borrowed, mutable, static>, v4: ref<int32, borrowed, mutable, shared static>):
     return v0
 }
 "#,
@@ -94,8 +94,8 @@ entry(v0: ref<int32, borrowed, mutable, shared>, v1: ref<int32, borrowed, mutabl
 fn test_format_parameter_borrow_lifetime() {
     assert_format(
         r#"
-function borrowParam<'a>(v0: ref<int32, borrowed, 'a, mutable>): ref<int32, borrowed, 'a, mutable> {
-entry(v0: ref<int32, borrowed, 'a, mutable>):
+function borrowParam<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): ref<int32, borrowed, 'a, mutable, local> {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>):
     return v0
 }
 "#,
@@ -107,8 +107,8 @@ entry(v0: ref<int32, borrowed, 'a, mutable>):
 fn test_format_static_borrow_lifetime() {
     assert_format(
         r#"
-function staticBorrow(v0: ref<int32, borrowed, 'static, mutable>): ref<int32, borrowed, 'static, mutable> {
-entry(v0: ref<int32, borrowed, 'static, mutable>):
+function staticBorrow(v0: ref<int32, borrowed, 'static, mutable, local>): ref<int32, borrowed, 'static, mutable, local> {
+entry(v0: ref<int32, borrowed, 'static, mutable, local>):
     return v0
 }
 "#,
@@ -134,12 +134,12 @@ fn test_format_named_lifetimes() {
     assert_format(
         r#"
 type Player<'LWorld, 'LMesh> {
-    world: ref<int32, borrowed, 'LWorld, mutable>;
-    mesh: ref<float64, borrowed, 'LMesh, mutable>;
+    world: ref<int32, borrowed, 'LWorld, mutable, local>;
+    mesh: ref<float64, borrowed, 'LMesh, mutable, local>;
 }
 
-function tickPlayer<'LPlayer, 'LWorld, 'LMesh>(v0: ref<Player<'LWorld, 'LMesh>, borrowed, 'LPlayer, mutable>): void {
-entry(v0: ref<Player<'LWorld, 'LMesh>, borrowed, 'LPlayer, mutable>):
+function tickPlayer<'LPlayer, 'LWorld, 'LMesh>(v0: ref<Player<'LWorld, 'LMesh>, borrowed, 'LPlayer, mutable, local>): void {
+entry(v0: ref<Player<'LWorld, 'LMesh>, borrowed, 'LPlayer, mutable, local>):
     return
 }
 "#,
@@ -152,7 +152,7 @@ fn test_format_type_instances() {
     assert_format(
         r#"
 type Box<int32, 'a> {
-    value: ref<int32, borrowed, 'a, readonly>;
+    value: ref<int32, borrowed, 'a, readonly, local>;
 }
 
 function borrow(v0: Box<int32, 'static>): Box<int32, 'static> {
@@ -168,8 +168,8 @@ entry(v0: Box<int32, 'static>):
 fn test_format_lifetime_outlives_bounds() {
     assert_format(
         r#"
-function pass<'LA, 'LC>(v0: ref<int32, borrowed, 'LA, mutable>): ref<int32, borrowed, 'LC, mutable> where 'LA: 'LC {
-entry(v0: ref<int32, borrowed, 'LA, mutable>):
+function pass<'LA, 'LC>(v0: ref<int32, borrowed, 'LA, mutable, local>): ref<int32, borrowed, 'LC, mutable, local> where 'LA: 'LC {
+entry(v0: ref<int32, borrowed, 'LA, mutable, local>):
     return v0
 }
 "#,
@@ -181,8 +181,8 @@ entry(v0: ref<int32, borrowed, 'LA, mutable>):
 fn test_format_borrowed_slices() {
     assert_format(
         r#"
-function views<'a>(v0: slice<int32, borrowed, 'a, readonly>): void {
-entry(v0: slice<int32, borrowed, 'a, readonly>):
+function views<'a>(v0: slice<int32, borrowed, 'a, readonly, local>): void {
+entry(v0: slice<int32, borrowed, 'a, readonly, local>):
     return
 }
 "#,
@@ -207,8 +207,8 @@ entry(v0: (int32, float64, boolean), v1: [int32; 10]):
 fn test_format_callable_types() {
     assert_format(
         r#"
-function callbacks(v0: fn(int32, int32) => int64, v1: function<(int32) => int32, once, managed, mutable, nullish>): function<(int32) => int32, once, managed, mutable, nullish> {
-entry(v0: fn(int32, int32) => int64, v1: function<(int32) => int32, once, managed, mutable, nullish>):
+function callbacks(v0: fn(int32, int32) => int64, v1: function<(int32) => int32, once, managed, mutable, nullish, local>): function<(int32) => int32, once, managed, mutable, nullish, local> {
+entry(v0: fn(int32, int32) => int64, v1: function<(int32) => int32, once, managed, mutable, nullish, local>):
     return v1
 }
 "#,
@@ -250,8 +250,8 @@ type Writer {
     write: fn() => uint32;
 }
 
-function erased(v0: dynamic<Writer, managed, mutable>): dynamic<Writer, managed, mutable> {
-entry(v0: dynamic<Writer, managed, mutable>):
+function erased(v0: dynamic<Writer, managed, mutable, local>): dynamic<Writer, managed, mutable, local> {
+entry(v0: dynamic<Writer, managed, mutable, local>):
     return v0
 }
 
@@ -275,11 +275,11 @@ type Point {
 
 type Node {
     value: int64;
-    next: ref<Node, managed, mutable>;
+    next: ref<Node, managed, mutable, local>;
 }
 
-function usePoint(v0: ref<Point, managed, mutable>, v1: ref<Node, managed, mutable>): ref<Point, managed, mutable> {
-entry(v0: ref<Point, managed, mutable>, v1: ref<Node, managed, mutable>):
+function usePoint(v0: ref<Point, managed, mutable, local>, v1: ref<Node, managed, mutable, local>): ref<Point, managed, mutable, local> {
+entry(v0: ref<Point, managed, mutable, local>, v1: ref<Node, managed, mutable, local>):
     return v0
 }
 "#,
@@ -291,11 +291,11 @@ type Point {
 
 type Node {
     value: int64;
-    next: ref<Node, managed, mutable>;
+    next: ref<Node, managed, mutable, local>;
 }
 
-function usePoint(v0: ref<Point, managed, mutable>, v1: ref<Node, managed, mutable>): ref<Point, managed, mutable> {
-entry(v0: ref<Point, managed, mutable>, v1: ref<Node, managed, mutable>):
+function usePoint(v0: ref<Point, managed, mutable, local>, v1: ref<Node, managed, mutable, local>): ref<Point, managed, mutable, local> {
+entry(v0: ref<Point, managed, mutable, local>, v1: ref<Node, managed, mutable, local>):
     return v0
 }
 "#,
@@ -326,8 +326,8 @@ fn test_format_type_copy_markers() {
     assert_format(
         r#"
 type OwnedPair {
-    ref<int32, unique, mutable>;
-    ref<int32, unique, mutable>;
+    ref<int32, unique, mutable, local>;
+    ref<int32, unique, mutable, local>;
 }
 
 @copy

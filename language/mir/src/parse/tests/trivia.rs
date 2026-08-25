@@ -2,6 +2,7 @@ use crate::{Block, Function, assert_node};
 
 use super::{TestParser, comment_texts};
 
+/// Comments before declarations attach as leading trivia.
 #[test]
 fn test_parse_declaration_comments() {
     TestParser::new(
@@ -17,7 +18,7 @@ readonly global Count: int32 = 1
 
 function use(v0: Callable): int32 {
 entry(v0: Callable):
-    v1: ref<int32, borrowed, readonly> = global.address Count
+    v1: ref<int32, borrowed, readonly, local> = global.address Count
     v2: int32 = load v1
     v3: int32 = call.indirect v0(v2): (int32) => int32
     return v3
@@ -37,7 +38,7 @@ readonly global Count: int32 = 1
 
 function use(v0: Callable): int32 {
 entry(v0: Callable):
-    v1: ref<int32, borrowed, readonly> = global.address Count
+    v1: ref<int32, borrowed, readonly, local> = global.address Count
     v2: int32 = load v1
     v3: int32 = call.indirect v0(v2): (int32) => int32
     return v3
@@ -46,6 +47,7 @@ entry(v0: Callable):
     );
 }
 
+/// Comments before type fields attach as leading trivia.
 #[test]
 fn test_parse_type_field_comments() {
     TestParser::new(
@@ -72,6 +74,7 @@ type Pair {
     );
 }
 
+/// Comments before function attributes attach as leading trivia.
 #[test]
 fn test_parse_function_attribute_comments() {
     TestParser::new(
@@ -96,6 +99,7 @@ entry:
     );
 }
 
+/// Comments before field attributes attach as leading trivia.
 #[test]
 fn test_parse_field_attribute_comments() {
     TestParser::new(

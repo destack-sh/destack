@@ -647,7 +647,7 @@ impl Parser {
                 })?;
                 Ok(GlobalInitializer::Bytes(value.into_bytes()))
             }
-            // string literal: a value form for nominal carriers, raw bytes otherwise
+            // string literal: a value form for nominal representations, raw bytes otherwise
             TokenType::String => {
                 let token_text = self.tree.source_text(token.span).to_string();
                 let token_start = token.start();

@@ -64,11 +64,12 @@ impl Parser {
                     destination_type_span,
                     &[],
                 )?;
+
                 return Ok(id);
             }
         }
 
-        // ordered source parts
+        // ordered source segments
         let mut segment_spans = Vec::new();
 
         // opcode
@@ -888,7 +889,7 @@ impl Parser {
             );
         }
 
-        // ordered source parts
+        // ordered source segments
         self.set_segment_spans(instruction_id, segment_spans)?;
 
         Ok(())
@@ -1232,7 +1233,7 @@ impl Parser {
                 .ok_or_else(|| ParseError::unexpected_end("storage set", self.pos()))?;
             if !matches!(
                 self.token_type(token),
-                TokenType::Identifier | TokenType::Global | TokenType::Local
+                TokenType::Identifier | TokenType::Global | TokenType::Local | TokenType::Shared
             ) {
                 return Err(ParseError::unexpected(
                     "storage set",

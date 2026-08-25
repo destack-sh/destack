@@ -4,9 +4,9 @@ use destack_core::FxIndexSet;
 
 use crate::{
     ElementLayout, Function, Global, Layout, LayoutId, LayoutShape, LayoutTable, LocalNodeId,
-    NewtypeLayout, NodeVisitor, NodeVisitorOptions, Nullability, Primitive, Representation, Scalar,
-    ScalarField, StructLayout, TargetLayout, TraceMap, Tree, TupleLayout, Type, TypeDeclaration,
-    Validity, Vector, walk_type,
+    NewtypeLayout, NodeVisitor, Nullability, Primitive, Representation, Scalar, ScalarField,
+    StructLayout, TargetLayout, TraceMap, Tree, TupleLayout, Type, TypeDeclaration, Validity,
+    Vector, walk_type,
 };
 
 use super::aggregate::Aggregate;
@@ -75,8 +75,6 @@ impl std::error::Error for LayoutError {}
 
 /// MIR types reachable from runtime roots.
 struct ReachableTypeCollector {
-    /// The MIR visitor options.
-    options: NodeVisitorOptions,
     /// The types already traversed.
     visited: FxIndexSet<LocalNodeId<Type>>,
     /// The reachable types in discovery order.
@@ -87,7 +85,6 @@ impl ReachableTypeCollector {
     /// Create an empty reachable-type traversal.
     fn new() -> Self {
         Self {
-            options: NodeVisitorOptions::default(),
             visited: FxIndexSet::default(),
             types: Vec::new(),
         }
@@ -95,10 +92,6 @@ impl ReachableTypeCollector {
 }
 
 impl NodeVisitor for ReachableTypeCollector {
-    fn options(&self) -> &NodeVisitorOptions {
-        &self.options
-    }
-
     fn visit_type(&mut self, tree: &Tree, id: LocalNodeId<Type>, ty: &Type) {
         // stop reference cycles at their first visited type
         if !self.visited.insert(id) {

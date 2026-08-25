@@ -225,7 +225,7 @@ impl Parser {
         }
     }
 
-    /// Parse an integer literal (just the number, no type suffix).
+    /// Parse one unsuffixed integer literal.
     pub(super) fn parse_int_literal(&mut self) -> ParseResult<i128> {
         let token = self.eat_token(TokenType::Integer)?;
         let text = self.tree.source_text(token.span).to_string();
@@ -275,8 +275,6 @@ impl Parser {
             "shared" => StorageSet::SHARED,
             "frame" => StorageSet::FRAME,
             "global" => StorageSet::GLOBAL,
-            "device" => StorageSet::DEVICE,
-            "workgroup" => StorageSet::WORKGROUP,
             _ => {
                 return Err(ParseError::invalid(&format!("storage '{text}'"), start));
             }

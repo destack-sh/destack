@@ -21,7 +21,7 @@ pub struct LoanTable {
     /// Root loans sorted by carrying SSA value.
     roots: Vec<Root>,
     /// Loans carried by structural paths inside SSA values.
-    carriers: Vec<Carrier>,
+    representations: Vec<Representation>,
 }
 
 /// One borrow loan.
@@ -32,7 +32,7 @@ pub struct Loan {
     /// Access granted by the borrow.
     pub access: Access,
     /// The SSA value carrying the borrowed reference.
-    pub carrier: Value,
+    pub representation: Value,
     /// Loans from which this loan was reborrowed.
     parents: SmallVec<[LoanId; 2]>,
     /// The operation that issued the loan.
@@ -55,7 +55,7 @@ enum LoanTarget {
 
 /// One structural value path carrying a loan.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Carrier {
+struct Representation {
     /// The SSA value carrying the loan.
     value: Value,
     /// The structural path inside the value.
@@ -79,7 +79,7 @@ impl LoanTable {
         Self {
             loans: Vec::new(),
             roots: Vec::new(),
-            carriers: Vec::new(),
+            representations: Vec::new(),
         }
     }
 
@@ -106,8 +106,9 @@ impl LoanTable {
             return self.root(value);
         }
 
-        self.carriers.iter().find_map(|carrier| {
-            (carrier.value == value && &carrier.path == path).then_some(carrier.loan)
+        self.representations.iter().find_map(|representation| {
+            (representation.value == value && &representation.path == path)
+                .then_some(representation.loan)
         })
     }
 
@@ -157,7 +158,7 @@ impl LoanTable {
         }
         // retain uncommon structural paths sparsely
         else {
-            self.carriers.push(Carrier {
+            self.representations.push(Representation {
                 value,
                 path,
                 loan: id,
@@ -204,14 +205,14 @@ impl Loan {
         place: Place,
         source: Option<Value>,
         access: Access,
-        carrier: Value,
+        representation: Value,
         parents: impl IntoIterator<Item = LoanId>,
         issued_at: LocalNodeIdAny,
     ) -> Self {
         Self {
             target: LoanTarget::Place { place, source },
             access,
-            carrier,
+            representation,
             parents: parents.into_iter().collect(),
             issued_at,
         }
@@ -227,7 +228,7 @@ impl Loan {
         Self {
             target: LoanTarget::Parameter { value, path },
             access,
-            carrier: value,
+            representation: value,
             parents: SmallVec::new(),
             issued_at,
         }

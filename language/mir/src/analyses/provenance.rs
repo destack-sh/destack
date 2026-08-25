@@ -206,10 +206,10 @@ impl ProvenanceTable {
             let block = tree.get(block_id);
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
-                if let Some((carrier, path, loan)) =
+                if let Some((representation, path, loan)) =
                     Self::loan(instruction_id, instruction, function, tree, places)
                 {
-                    loans.insert(carrier, path, loan);
+                    loans.insert(representation, path, loan);
                 }
             }
         }
@@ -257,7 +257,7 @@ impl ProvenanceTable {
         tree: &Tree,
         places: &PlaceTable,
     ) -> Option<(Value, Path, Loan)> {
-        let (carrier, place, source) = match instruction {
+        let (representation, place, source) = match instruction {
             Instruction::FieldAddr {
                 destination,
                 aggregate,
@@ -298,7 +298,7 @@ impl ProvenanceTable {
             } => (*destination, Place::global(*global), None),
             _ => return None,
         };
-        let ty = function.expect_value_type(carrier);
+        let ty = function.expect_value_type(representation);
         let value_type = tree.get(ty);
         if !value_type.is_borrowed_reference() {
             return None;
@@ -310,12 +310,12 @@ impl ProvenanceTable {
             place,
             source,
             access,
-            carrier,
+            representation,
             [],
             instruction_id.into_any(),
         );
 
-        Some((carrier, Path::root(), loan))
+        Some((representation, Path::root(), loan))
     }
 
     /// Bind predecessor values to successor parameters.
@@ -740,7 +740,7 @@ impl ProvenanceState {
                 .place()
                 .unwrap_or_else(|| unreachable!("instruction loan has no concrete place"));
             let provenance = self.place(place, function, tree);
-            self.insert(loan.carrier, provenance.with_loan(loan_id));
+            self.insert(loan.representation, provenance.with_loan(loan_id));
         }
 
         // bind a borrowed call result before transferring stored provenance

@@ -45,12 +45,12 @@ pub enum Access {
 }
 
 impl Access {
-    /// Return true when this access can write through the reference.
+    /// Return whether this access can write through the reference.
     pub fn can_write(self) -> bool {
         matches!(self, Access::Mutable | Access::Exclusive)
     }
 
-    /// Return true when this access excludes overlapping borrows.
+    /// Return whether this access excludes overlapping borrows.
     pub fn is_exclusive(self) -> bool {
         matches!(self, Access::Exclusive)
     }
@@ -170,6 +170,24 @@ impl Storage {
         }
     }
 
+    /// Return the space coordinate of this storage.
+    pub const fn space(self) -> Space {
+        match self {
+            Self::LocalHeap | Self::Frame | Self::LocalStatic => Space::Local,
+            Self::SharedHeap | Self::SharedStatic => Space::Shared,
+            Self::Constant => Space::Constant,
+        }
+    }
+
+    /// Return the residence coordinate of this storage.
+    pub const fn residence(self) -> Residence {
+        match self {
+            Self::Frame => Residence::Frame,
+            Self::LocalHeap | Self::SharedHeap => Residence::Heap,
+            Self::Constant | Self::LocalStatic | Self::SharedStatic => Residence::Static,
+        }
+    }
+
     /// Return the heap ownership domain when this is heap storage.
     pub const fn heap_space(self) -> Option<Space> {
         match self {
@@ -181,18 +199,30 @@ impl Storage {
 
     /// Return whether this storage is shared across workers.
     pub const fn is_shared(self) -> bool {
-        matches!(self, Self::SharedHeap | Self::SharedStatic)
+        matches!(self.space(), Space::Shared)
     }
 
-    /// Return the canonical MIR name for this storage.
+    /// Return the canonical MIR text for this storage, the local space eliding.
     pub const fn label(self) -> &'static str {
         match self {
             Self::LocalHeap => "local",
             Self::SharedHeap => "shared",
             Self::Frame => "frame",
             Self::Constant => "constant",
-            Self::LocalStatic => "global",
-            Self::SharedStatic => "sharedGlobal",
+            Self::LocalStatic => "static",
+            Self::SharedStatic => "shared static",
+        }
+    }
+
+    /// Return the symbol path segment for this storage.
+    pub const fn segment(self) -> &'static str {
+        match self {
+            Self::LocalHeap => "local",
+            Self::SharedHeap => "shared",
+            Self::Frame => "frame",
+            Self::Constant => "constant",
+            Self::LocalStatic => "static",
+            Self::SharedStatic => "sharedStatic",
         }
     }
 
@@ -207,6 +237,17 @@ impl Storage {
             Self::SharedStatic => StorageSet::GLOBAL.union(StorageSet::SHARED),
         }
     }
+}
+
+/// Storage residence axis: where the bytes live across activations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum Residence {
+    /// Inside the current activation frame.
+    Frame,
+    /// Allocated on a heap.
+    Heap,
+    /// Written once into static storage.
+    Static,
 }
 
 /// Kind of reference in MIR.
@@ -306,12 +347,12 @@ pub enum Copy {
 }
 
 impl Copy {
-    /// Report whether this type can be copied freely.
+    /// Return whether this type can be copied freely.
     pub fn is_yes(self) -> bool {
         matches!(self, Copy::Yes)
     }
 
-    /// Report whether this type is move only.
+    /// Return whether this type is move only.
     pub fn is_no(self) -> bool {
         matches!(self, Copy::No)
     }
@@ -462,9 +503,9 @@ pub enum Type {
         /// Copy of this struct type.
         copy: Copy,
     },
-    /// Nominal newtype wrapping an inner type.
+    /// Nominal newtype over one wrapped type.
     Newtype {
-        /// The wrapped inner type.
+        /// The wrapped type.
         inner: TypeId,
         /// Copy of this newtype.
         copy: Copy,
@@ -707,7 +748,7 @@ impl Type {
         }
     }
 
-    /// Whether this type is a scalar (non-compound).
+    /// Return whether this type is a scalar.
     pub fn is_scalar(&self) -> bool {
         matches!(
             self,
@@ -750,22 +791,22 @@ impl Type {
         }
     }
 
-    /// Whether this type is a process-local machine pointer.
+    /// Return whether this type is a process-local machine pointer.
     pub fn is_pointer(&self) -> bool {
         matches!(self, Type::Pointer { .. })
     }
 
-    /// Whether this type is a managed reference.
+    /// Return whether this type is a managed reference.
     pub fn is_managed_reference(&self) -> bool {
         self.reference_kind() == Some(ReferenceKind::Managed)
     }
 
-    /// Whether this type is a borrowed reference.
+    /// Return whether this type is a borrowed reference.
     pub fn is_borrowed_reference(&self) -> bool {
         self.reference_kind() == Some(ReferenceKind::Borrowed)
     }
 
-    /// Whether this type is a writable borrowed reference.
+    /// Return whether this type is a writable borrowed reference.
     pub fn is_writable_borrowed_reference(&self) -> bool {
         self.is_borrowed_reference()
             && self
@@ -773,25 +814,25 @@ impl Type {
                 .is_some_and(|access| access.can_write())
     }
 
-    /// Whether this type is a unique reference.
+    /// Return whether this type is a unique reference.
     pub fn is_unique_reference(&self) -> bool {
         self.reference_kind() == Some(ReferenceKind::Unique)
     }
 
-    /// Whether this reference-like value may alias another carrier.
+    /// Return whether this reference-like value may alias another reference.
     pub fn is_aliasable_reference(&self) -> bool {
-        self.is_reference_carrier()
+        self.is_reference_representation()
             && !self.is_unique_reference()
             && !self.reference_access().is_some_and(Access::is_exclusive)
     }
 
-    /// Whether this type owns unique storage.
+    /// Return whether this type owns unique storage.
     pub fn is_unique_storage(&self) -> bool {
         self.reference_kind() == Some(ReferenceKind::Unique)
     }
 
     /// Return whether this type carries a reference as its intrinsic representation.
-    pub fn is_reference_carrier(&self) -> bool {
+    pub fn is_reference_representation(&self) -> bool {
         matches!(
             self,
             Type::Dynamic { .. }
@@ -812,7 +853,7 @@ impl Type {
         }
     }
 
-    /// Return this carrier with its proof-only lifetime erased.
+    /// Return this type with its verification-only lifetime erased.
     pub fn erased_lifetime(&self) -> Type {
         let mut erased = self.clone();
         erased.set_lifetime(Lifetime::empty());
@@ -939,7 +980,7 @@ impl Type {
     /// Return the copy property of this type.
     pub fn copy(&self, tree: &Tree) -> Copy {
         match self {
-            // parse recovery nodes are never copyable semantic values
+            // parse recovery nodes carry no copyable value
             Type::Error => Copy::No,
 
             // the uninhabited type has no values to move
@@ -956,7 +997,7 @@ impl Type {
             | Type::TypeId
             | Type::Pointer { .. } => Copy::Yes,
 
-            // atomic cells are storage, not freely copied values
+            // atomic cells are storage, so each use consumes them
             Type::Atomic { .. } => Copy::No,
 
             // initialization tokens are linear capabilities
@@ -1040,7 +1081,7 @@ impl FloatType {
 /// A field in a struct type.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct Field {
-    /// Name (optional).
+    /// The optional field name.
     pub name: Option<StringId>,
     /// Type of the field.
     pub ty: TypeId,
@@ -1152,7 +1193,7 @@ impl Type {
     }
 }
 
-/// One nullish constant a carrier can store.
+/// One nullish constant a type can store.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Nullish {
     /// The null constant.
@@ -1161,12 +1202,12 @@ pub enum Nullish {
     Undefined,
 }
 
-/// One carrier position storing an absent nullish constant.
+/// One position where a type stores an absent nullish constant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NullishCase {
     /// The variant case holding the void payload.
     Case(u32),
-    /// The nullish niche of a reference-family carrier.
+    /// The nullish niche of a reference-family type.
     Niche,
 }
 
@@ -1187,7 +1228,7 @@ impl Nullability {
 }
 
 impl Tree {
-    /// Return where one carrier stores one nullish constant, when it does.
+    /// Return where one type stores one nullish constant, when it does.
     pub fn nullish_case(&self, ty: TypeId, nullish: Nullish) -> Option<NullishCase> {
         match self.get(ty) {
             // read through lifetime applications onto the wrapped base
@@ -1202,7 +1243,7 @@ impl Tree {
                 Nullish::Null => None,
             },
 
-            // read the nullish niche of reference-family carriers
+            // read the nullish niche of reference-family types
             other => other
                 .nullability()
                 .filter(|nullability| nullability.admits(nullish))
@@ -1210,7 +1251,7 @@ impl Tree {
         }
     }
 
-    /// Return where one carrier stores undefined, when it does.
+    /// Return where one type stores undefined, when it does.
     pub fn undefined_case(&self, ty: TypeId) -> Option<NullishCase> {
         self.nullish_case(ty, Nullish::Undefined)
     }

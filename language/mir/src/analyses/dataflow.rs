@@ -352,7 +352,7 @@ exit:
         assert_eq!(result.entry(entry), Some(&FxIndexSet::from_iter([0, 1])));
     }
 
-    /// Forward dataflow should not skip blocks when the first predecessor is unreachable.
+    /// Forward dataflow visits every block when the first predecessor is unreachable.
     #[test]
     fn test_forward_dataflow_unreachable_predecessor_order() {
         let mut program = TestProgram::new(
@@ -453,8 +453,8 @@ entry(v0: int32):
     fn test_backward_dataflow_panic_exit() {
         let program = TestProgram::new(
             r#"
-function test(v0: ref<void, managed, readonly>): void {
-entry(v0: ref<void, managed, readonly>):
+function test(v0: ref<void, managed, readonly, local>): void {
+entry(v0: ref<void, managed, readonly, local>):
     panic v0
 }
 "#,

@@ -552,11 +552,11 @@ pub enum Instruction {
         /// The result type of the allocation.
         result_type: TypeId,
     },
-    /// Release one unique carrier's backing heap allocation (`free`).
+    /// Release one unique representation's backing heap allocation (`free`).
     ///
     /// This is valid after drop elaboration has destroyed the allocation contents.
     Free {
-        /// The unique heap carrier whose backing allocation is released.
+        /// The unique heap representation whose backing allocation is released.
         value: Value,
     },
 

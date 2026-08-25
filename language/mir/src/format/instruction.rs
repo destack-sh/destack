@@ -1255,6 +1255,7 @@ impl FormatNode for Instruction {
     }
 }
 
+/// Format one instruction destination followed by its value type.
 fn format_typed_destination<'a>(destination: Value, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     let ty = f
         .context()
@@ -1266,6 +1267,7 @@ fn format_typed_destination<'a>(destination: Value, f: &mut Writer<'a, '_>) -> F
     format_type_id(ty, f)
 }
 
+/// Return the value type of one instruction destination.
 fn typed_destination_type<'a>(
     destination: Value,
     f: &mut Writer<'a, '_>,
@@ -1417,7 +1419,7 @@ fn format_fence_context<'a>(access: FenceAccess, f: &mut Writer<'a, '_>) -> Form
 
 /// Collect named storage regions in formatting order.
 fn collect_effect_space_names(spaces: StorageSet) -> Vec<&'static str> {
-    // special cases for named sets
+    // name the empty and complete sets directly
     if spaces == StorageSet::NONE {
         return vec!["none"];
     }
@@ -1432,8 +1434,6 @@ fn collect_effect_space_names(spaces: StorageSet) -> Vec<&'static str> {
         ("shared", StorageSet::SHARED),
         ("frame", StorageSet::FRAME),
         ("global", StorageSet::GLOBAL),
-        ("device", StorageSet::DEVICE),
-        ("workgroup", StorageSet::WORKGROUP),
     ];
     for (name, set) in ordered {
         if spaces.contains(set) {

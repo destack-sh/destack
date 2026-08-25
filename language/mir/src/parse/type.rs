@@ -222,7 +222,7 @@ impl Parser {
         Ok(ty)
     }
 
-    /// Check if a token can start a type in a value position.
+    /// Return whether a token can start a type in a value position.
     pub(super) fn peek_type(&self, kind: TokenType) -> bool {
         matches!(
             kind,
@@ -380,6 +380,7 @@ impl Parser {
             TokenType::OpenBracket => self.parse_array_type()?,
             TokenType::OpenBrace => {
                 let (type_id, _, _) = self.parse_struct_type()?;
+
                 return Ok(type_id);
             }
             _ => {
@@ -394,6 +395,7 @@ impl Parser {
     fn parse_named_type(&mut self, name: &str, start: usize) -> ParseResult<LocalNodeId<Type>> {
         if let Some(primitive) = Type::from_primitive_name(name) {
             self.bump();
+
             return self.intern_type(primitive);
         }
 
@@ -569,7 +571,6 @@ impl Parser {
         })
     }
 
-    /// Parse a continuation handle type.
     /// Parse a linear uninitialized allocation token type.
     fn parse_uninit_type(&mut self) -> ParseResult<Type> {
         self.bump();
@@ -612,7 +613,7 @@ impl Parser {
         })
     }
 
-    /// Parse a newtype wrapper type.
+    /// Parse a newtype type.
     fn parse_newtype_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
@@ -959,26 +960,31 @@ impl Parser {
     ) -> ParseResult<()> {
         if let Some(kind) = self.parse_reference_kind()? {
             qualifiers.kind = Some(kind);
+
             return Ok(());
         }
 
         if self.eat_token_if(TokenType::Readonly) {
             qualifiers.access = Some(Access::Readonly);
+
             return Ok(());
         }
 
         if self.eat_name_if("mutable") {
             qualifiers.access = Some(Access::Mutable);
+
             return Ok(());
         }
 
         if self.eat_name_if("exclusive") {
             qualifiers.access = Some(Access::Exclusive);
+
             return Ok(());
         }
 
         if let Some(nullability) = self.parse_nullability()? {
             qualifiers.nullability = nullability;
+
             return Ok(());
         }
 
@@ -987,11 +993,13 @@ impl Parser {
             .is_some_and(|token| self.token_type(token) == TokenType::Lifetime)
         {
             qualifiers.lifetime = self.parse_lifetime_union()?;
+
             return Ok(());
         }
 
         if let Some(storage) = self.parse_storage_if() {
             qualifiers.storage = storage;
+
             return Ok(());
         }
 
@@ -1049,10 +1057,10 @@ impl Parser {
             "local" => Storage::LocalHeap,
             "frame" => Storage::Frame,
             "constant" => Storage::Constant,
-            "global" => Storage::LocalStatic,
+            "static" => Storage::LocalStatic,
             "shared" => {
                 self.bump();
-                if self.eat_token_if(TokenType::Global) {
+                if self.eat_name_if("static") {
                     return Some(Storage::SharedStatic);
                 }
 

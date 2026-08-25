@@ -23,26 +23,15 @@ impl StorageSet {
     pub const FRAME: Self = Self(1 << 2);
     /// Global storage.
     pub const GLOBAL: Self = Self(1 << 3);
-    /// Device storage.
-    pub const DEVICE: Self = Self(1 << 4);
-    /// Workgroup storage.
-    pub const WORKGROUP: Self = Self(1 << 5);
     /// All storage regions.
-    pub const ANY: Self = Self(
-        Self::LOCAL.0
-            | Self::SHARED.0
-            | Self::FRAME.0
-            | Self::GLOBAL.0
-            | Self::DEVICE.0
-            | Self::WORKGROUP.0,
-    );
+    pub const ANY: Self = Self(Self::LOCAL.0 | Self::SHARED.0 | Self::FRAME.0 | Self::GLOBAL.0);
 
-    /// Check if the set is empty.
+    /// Return whether the set is empty.
     pub fn is_empty(self) -> bool {
         self.0 == 0
     }
 
-    /// Check if this set contains the other set.
+    /// Return whether this set contains another set.
     pub fn contains(self, other: Self) -> bool {
         self.0 & other.0 == other.0
     }
@@ -94,8 +83,6 @@ impl TryFrom<&str> for StorageSet {
             "shared" => Ok(StorageSet::SHARED),
             "frame" => Ok(StorageSet::FRAME),
             "global" => Ok(StorageSet::GLOBAL),
-            "device" => Ok(StorageSet::DEVICE),
-            "workgroup" => Ok(StorageSet::WORKGROUP),
             "any" => Ok(StorageSet::ANY),
             _ => Err(()),
         }
@@ -119,7 +106,7 @@ pub enum MemoryOrdering {
 }
 
 impl MemoryOrdering {
-    /// Text representation for formatting and parsing.
+    /// Return the canonical text name.
     pub fn to_str(self) -> &'static str {
         match self {
             MemoryOrdering::Relaxed => "relaxed",
@@ -245,7 +232,7 @@ pub enum ExecutionScope {
 }
 
 impl ExecutionScope {
-    /// Text representation for formatting and parsing.
+    /// Return the canonical text name.
     pub fn to_str(self) -> &'static str {
         match self {
             ExecutionScope::Invocation => "invocation",

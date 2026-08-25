@@ -72,11 +72,11 @@ entry:
 fn test_format_void_call_with_callable_argument() {
     assert_format(
         r#"
-external function consume(function<() => int32, repeatable, managed, mutable>): void
+external function consume(function<() => int32, repeatable, managed, mutable, local>): void
 
-function caller(v0: function<() => int32, repeatable, managed, mutable>): void {
-entry(v0: function<() => int32, repeatable, managed, mutable>):
-    call consume(v0): (function<() => int32, repeatable, managed, mutable>) => void
+function caller(v0: function<() => int32, repeatable, managed, mutable, local>): void {
+entry(v0: function<() => int32, repeatable, managed, mutable, local>):
+    call consume(v0): (function<() => int32, repeatable, managed, mutable, local>) => void
     return
 }
 "#,
