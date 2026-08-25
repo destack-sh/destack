@@ -117,9 +117,6 @@
     "./runtime": {
       "path": "./src/runtime/index.ds"
     },
-    "./schema": {
-      "path": "./src/schema/index.ds"
-    },
     "./serde": {
       "path": "./src/serde/index.ds"
     },

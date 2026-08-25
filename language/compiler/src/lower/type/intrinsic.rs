@@ -68,12 +68,6 @@ impl TypeLowerer<'_, '_> {
 
                 Ok(())
             }
-            // carry the runtime type identity token directly
-            Some(dir::LanguageItem::TypeId) => {
-                self.tree.define_type(ty, mir::Type::TypeId);
-
-                Ok(())
-            }
             // carry the runtime type descriptor handle, erasing the reflected type
             Some(dir::LanguageItem::Type) => {
                 self.tree.define_type(ty, mir::Type::TypeDescriptor);

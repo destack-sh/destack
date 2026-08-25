@@ -771,25 +771,6 @@ impl Tree {
         unreachable!("missing void type id in MIR tree");
     }
 
-    /// Return the type descriptor type id.
-    pub fn type_descriptor_type(&self) -> LocalNodeId<Type> {
-        if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::TypeDescriptor))
-        {
-            return type_id;
-        }
-
-        unreachable!("missing type descriptor type id in MIR tree");
-    }
-
-    /// Return the type id type id.
-    pub fn type_id_type(&self) -> LocalNodeId<Type> {
-        if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::TypeId)) {
-            return type_id;
-        }
-
-        unreachable!("missing type id type in MIR tree");
-    }
-
     /// Return the isize type id.
     pub fn isize_type(&self) -> LocalNodeId<Type> {
         if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Isize)) {

@@ -4,11 +4,6 @@
 const size = const sizeOf<User>();
 //           ^^^^^ storage.modifier.ds
 
-const {
-// <- storage.modifier.ds
-    assert(layoutOf<User>().size > 0);
-}
-
 // expressions / const / static if annotations
 @if(import.meta.runtime == "js")
 // <~-- entity.name.function.decorator.ds

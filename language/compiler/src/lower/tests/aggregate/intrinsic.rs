@@ -54,28 +54,6 @@ type Counter = newtype<Atomic<int32>>;
 }
 
 #[test]
-fn test_lower_type_identity_to_the_runtime_type_id() {
-    let session = TestSession::single(
-        r#"
-@languageItem("reflect.TypeId")
-newtype TypeId = intrinsic;
-
-newtype Tag = TypeId;
-"#,
-    );
-
-    session.assert_mir_lowered(
-        "main.ds",
-        r#"
-type TypeId = typeId;
-
-@copy
-type Tag = newtype<TypeId>;
-"#,
-    );
-}
-
-#[test]
 fn test_lower_unsafe_cell_transparently_over_its_value() {
     let session = TestSession::single(
         r#"

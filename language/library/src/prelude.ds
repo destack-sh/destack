@@ -2,19 +2,9 @@ global {
     // destack:reflect
     export {
         alignOf,
-        equalTypes,
-        Layout,
-        LayoutField,
-        LayoutShape,
-        LayoutVariant,
-        layoutOf,
-        Reflect,
         sizeOf,
         strideOf,
         Type,
-        TypeId,
-        type,
-        typeOf,
     } from "destack:reflect";
 
     // destack:types

@@ -100,7 +100,6 @@ struct Header {
 const size = const sizeOf<Header>();
 const alignment = const alignOf<Header>();
 const stride = const strideOf<Header>();
-const layout = const layoutOf<Header>();
 
 declare let bytes: [uint8; sizeOf<Header>()];
 type Slots<T, const N: usize = strideOf<T>()> = [uint8; N];
@@ -120,15 +119,6 @@ declare let erased: Dynamic<Writer>;
         (property_identifier)
         (type_annotation
           (type_identifier)))))
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (const_expression
-        (call_expression
-          (identifier)
-          (type_arguments
-            (type_identifier))
-          (arguments)))))
   (lexical_declaration
     (variable_declarator
       (identifier)

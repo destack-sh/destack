@@ -1,6 +1,5 @@
 import { todo } from "destack:error";
 import { RangeBounds } from "destack:range";
-import { Schema } from "destack:schema";
 
 import { FloatOptions, StringOptions } from "./options.ds";
 
@@ -66,11 +65,6 @@ export class Generator<T> {
     /// Generate arrays.
     static array<T>(options: ArrayOptions<T>): Generator<T[]> {
         todo("fuzz.Generator.array")
-    }
-
-    /// Generate values from a schema.
-    static fromSchema<T>(schema: &readonly Schema<T>): Generator<T> {
-        todo("fuzz.Generator.fromSchema")
     }
 
     /// Generate one constant value.

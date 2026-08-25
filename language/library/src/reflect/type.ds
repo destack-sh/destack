@@ -1,72 +1,8 @@
 import { Concrete } from "destack:memory/capability";
 
-/// Stable type identifier.
-@languageItem("reflect.TypeId")
-export newtype TypeId = intrinsic;
-
-/// Reflected semantic type for `T`.
+/// Type value for `T`.
 @languageItem("reflect.Type")
 export newtype Type<T = unknown> = intrinsic;
-
-/// Target-specific layout for one type.
-@languageItem("reflect.Layout")
-export struct Layout {
-    /// The total size in bytes.
-    size: usize;
-    /// The required alignment in bytes.
-    align: usize;
-    /// The stride in bytes.
-    stride: usize;
-    /// The layout shape.
-    shape: LayoutShape;
-}
-
-/// Reflected layout shape.
-@languageItem("reflect.LayoutShape")
-export newtype LayoutShape =
-    | { kind: "scalar" }
-    | { kind: "aggregate"; fields: readonly LayoutField[] }
-    | { kind: "variant"; variants: readonly LayoutVariant[] }
-    | { kind: "opaque" };
-
-/// Target-specific layout for one aggregate field.
-@languageItem("reflect.LayoutField")
-export struct LayoutField {
-    /// The field name when one exists.
-    name?: string;
-    /// The field offset in bytes.
-    offset: usize;
-    /// The field size in bytes.
-    size: usize;
-    /// The field alignment in bytes.
-    align: usize;
-    /// The field type.
-    type: Type<unknown>;
-}
-
-/// Target-specific layout for one variant case.
-@languageItem("reflect.LayoutVariant")
-export struct LayoutVariant {
-    /// The case name when one exists.
-    name?: string;
-    /// The case type.
-    type: Type<unknown>;
-    /// The case layout.
-    layout: Layout;
-}
-
-/// Return the reflected type for a value.
-@languageItem("reflect.typeOf")
-@intrinsic("reflect.typeOf")
-export declare function typeOf<T>(value: T): Type<T>;
-
-/// Return the reflected type for `T`.
-@intrinsic("reflect.type")
-export declare function type<T>(): Type<T>;
-
-/// Return true when two reflected types name the same normalized type.
-@intrinsic("reflect.type.equals")
-export declare function equalTypes<A, B>(left: Type<A>, right: Type<B>): boolean;
 
 /// Return the target-specific size of `T`.
 @languageItem("reflect.sizeOf")
@@ -82,12 +18,3 @@ export declare function alignOf<T: Concrete>(): usize;
 @languageItem("reflect.strideOf")
 @intrinsic("reflect.strideOf")
 export declare function strideOf<T: Concrete>(): usize;
-
-/// Return the target-specific layout of `T`.
-@languageItem("reflect.layoutOf")
-@intrinsic("reflect.layoutOf")
-export declare function layoutOf<T: Concrete>(): Layout;
-
-/// One reflected static property key.
-@languageItem("reflect.StaticKey")
-export newtype StaticKey = intrinsic;

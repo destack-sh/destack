@@ -2641,33 +2641,12 @@ define_language_items! {
         }
     }
 
-    /// Reflection types.
+    /// Type values and layout queries.
     reflect {
-        /// `destack:reflect/reflect`.
-        reflect {
-            /// Reflect class.
-            Reflect => (Class, "reflect/reflect", "Reflect"),
-        }
-
         /// `destack:reflect/type`.
         type {
             /// Alignment query intrinsic.
             AlignOf => (Function, "reflect/type", "alignOf"),
-
-            /// Target-specific layout.
-            Layout => (Struct, "reflect/type", "Layout"),
-
-            /// Target-specific field layout.
-            LayoutField => (Struct, "reflect/type", "LayoutField"),
-
-            /// Layout query intrinsic.
-            LayoutOf => (Function, "reflect/type", "layoutOf"),
-
-            /// Reflected layout shape.
-            LayoutShape => (Newtype, "reflect/type", "LayoutShape"),
-
-            /// Target-specific variant case layout.
-            LayoutVariant => (Struct, "reflect/type", "LayoutVariant"),
 
             /// Size query intrinsic.
             SizeOf => (Function, "reflect/type", "sizeOf"),
@@ -2675,17 +2654,8 @@ define_language_items! {
             /// Stride query intrinsic.
             StrideOf => (Function, "reflect/type", "strideOf"),
 
-            /// Reflected static property key.
-            ReflectStaticKey => (Newtype, "reflect/type", "StaticKey"),
-
-            /// Reflected type.
+            /// Type value.
             Type => (Newtype, "reflect/type", "Type"),
-
-            /// Stable type identifier.
-            TypeId => (Newtype, "reflect/type", "TypeId"),
-
-            /// Runtime type query intrinsic.
-            TypeOf => (Function, "reflect/type", "typeOf"),
         }
     }
 
@@ -3007,48 +2977,6 @@ define_language_items! {
 
             /// Runtime world view handle.
             WorldViewHandle => (Newtype, "runtime/world", "WorldViewHandle"),
-        }
-    }
-
-    /// Schema types.
-    schema {
-        /// `destack:schema/constraint`.
-        constraint {
-            /// Schema refinement protocol.
-            Refinement => (NewtypeInterface, "schema/constraint", "Refinement"),
-
-            /// Schema value constraint.
-            SchemaConstraint => (Newtype, "schema/constraint", "Constraint"),
-        }
-
-        /// `destack:schema/error`.
-        error {
-            /// Schema issue code.
-            SchemaIssueCode => (Enum, "schema/error", "IssueCode"),
-
-            /// Schema validation issue.
-            SchemaIssue => (Struct, "schema/error", "Issue"),
-
-            /// Schema validation error.
-            ValidationError => (Struct, "schema/error", "ValidationError"),
-        }
-
-        /// `destack:schema/schema`.
-        schema {
-            /// Runtime schema.
-            Schema => (Class, "schema/schema", "Schema"),
-
-            /// Runtime schema definition.
-            SchemaDefinition => (Struct, "schema/schema", "SchemaDefinition"),
-
-            /// Runtime schema element.
-            SchemaElement => (Struct, "schema/schema", "SchemaElement"),
-
-            /// Runtime schema field.
-            SchemaField => (Struct, "schema/schema", "SchemaField"),
-
-            /// Runtime schema kind.
-            SchemaKind => (Enum, "schema/schema", "SchemaKind"),
         }
     }
 
