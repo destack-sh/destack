@@ -80,7 +80,6 @@ static LINTS: &[&Lint] = &[
     &style::BRANCHES_SHARING_CODE,
     &style::COMMENT_STYLE,
     &style::DECIMAL_BITWISE_OPERAND,
-    &style::DECLARATION_ORDER,
     &style::DEFAULT_CASE_LAST,
     &style::DEFAULT_PARAM_LAST,
     &style::DOT_NOTATION,
