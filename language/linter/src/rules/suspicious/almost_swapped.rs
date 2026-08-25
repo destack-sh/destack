@@ -10,7 +10,7 @@ declare_lint! {
         summary: "Disallow assignments that overwrite a value before swapping it",
         explanation: r#"
 `left = right; right = left` assigns the original right value to both places because the first assignment overwrites the original left value.
-Instead, you SHOULD preserve one value before the first assignment.
+Instead, you SHOULD assign the reversed tuple to both places in parallel.
 "#,
         example: {
             reported: r#"
@@ -21,9 +21,7 @@ function exchange(pair: { left: int32; right: int32 }): void {
 "#,
             accepted: r#"
 function exchange(pair: { left: int32; right: int32 }): void {
-    const previous = pair.left;
-    pair.left = pair.right;
-    pair.right = previous;
+    (pair.left, pair.right) = (pair.right, pair.left);
 }
 "#,
         },
@@ -90,7 +88,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 let span = first_span.merge(second_span);
                 let diagnostic = lint
                     .diagnostic("assignments overwrite a value instead of swapping", span)
-                    .help("preserve one value temporarily before assigning either place");
+                    .help("assign the reversed tuple to both places in parallel");
                 output.report(diagnostic);
             }
 
@@ -137,7 +135,41 @@ warning[almost-swapped]: assignments overwrite a value instead of swapping
 8 │ }
   │
 
- = help: preserve one value temporarily before assigning either place
+ = help: assign the reversed tuple to both places in parallel
+"#,
+        );
+    }
+
+    /// Report adjacent reversed binding assignments.
+    #[test]
+    fn test_reports_reversed_binding_assignments() {
+        let session = TestSession::dir(
+            &ALMOST_SWAPPED,
+            r#"
+function exchange(left: int32, right: int32): void {
+    let first = left;
+    let second = right;
+    first = second;
+    second = first;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[almost-swapped]: assignments overwrite a value instead of swapping
+ ──▶ main.ds:4:5
+  │
+2 │     let first = left;
+3 │     let second = right;
+4 │     first = second;
+  │     ^^^^^^^^^^^^^^^
+5 │     second = first;
+  │     ^^^^^^^^^^^^^^
+6 │ }
+  │
+
+ = help: assign the reversed tuple to both places in parallel
 "#,
         );
     }

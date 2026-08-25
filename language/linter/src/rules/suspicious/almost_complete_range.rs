@@ -6,13 +6,13 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Disallow alphabetic ranges stopping before their conventional endpoint.
+    /// Disallow character ranges stopping before their conventional endpoint.
     pub ALMOST_COMPLETE_RANGE {
         id: "almost-complete-range",
-        summary: "Disallow alphabetic ranges stopping before their conventional endpoint",
+        summary: "Disallow character ranges stopping before their conventional endpoint",
         explanation: r#"
-An exclusive alphabetic range ending at `z` or `Z` omits that final letter.
-Instead, you SHOULD make the endpoint inclusive when the full alphabet is intended.
+An exclusive range from `a` to `z`, `A` to `Z`, or `0` to `9` omits its conventional endpoint.
+Instead, you SHOULD make the endpoint inclusive when the complete sequence is intended.
 "#,
         example: {
             reported: r#"
@@ -29,7 +29,7 @@ const lowercase = 'a'..='z';
     }
 }
 
-/// Report conventional alphabet ranges that omit their final letter.
+/// Report conventional character ranges that omit their final value.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
@@ -56,6 +56,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             ) | (
                 Some(dir::Literal::Character('A')),
                 Some(dir::Literal::Character('Z'))
+            ) | (
+                Some(dir::Literal::Character('0')),
+                Some(dir::Literal::Character('9'))
             )
         ) {
             continue;
@@ -63,7 +66,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // make the range endpoint inclusive
         let span = module.source_extent(expression.into_any())?;
-        let mut diagnostic = lint.diagnostic("alphabetic range omits its final letter", span);
+        let mut diagnostic = lint.diagnostic("character range omits its final value", span);
         if let Some(suggestion) = suggestion(module, lint, expression, *start, *end)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
@@ -92,7 +95,7 @@ fn suggestion(
     let start = module.source(start_span)?;
     let end = module.source(end_span)?;
     let patch = Patch::replace(span, format!("{start}..={end}"));
-    let suggestion = lint.suggestion("include the final letter", patch)?;
+    let suggestion = lint.suggestion("include the final value", patch)?;
 
     Ok(Some(suggestion))
 }
@@ -119,13 +122,30 @@ const uppercase = 'A'..='Z';
         );
     }
 
-    /// Accept other exclusive character ranges.
+    /// Include the final digit in a complete decimal range.
+    #[test]
+    fn test_includes_nine() {
+        let session = TestSession::dir(
+            &ALMOST_COMPLETE_RANGE,
+            r#"
+const digits = '0'..'9';
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+const digits = '0'..='9';
+"#,
+        );
+    }
+
+    /// Accept another exclusive character range.
     #[test]
     fn test_accepts_other_character_range() {
         let session = TestSession::dir(
             &ALMOST_COMPLETE_RANGE,
             r#"
-const digits = '0'..'9';
+const subset = 'b'..'y';
 "#,
         );
 
