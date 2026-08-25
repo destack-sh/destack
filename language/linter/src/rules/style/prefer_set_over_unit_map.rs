@@ -45,6 +45,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         else {
             continue;
         };
+        let [key, value] = generic_arguments.as_slice() else {
+            continue;
+        };
         let (map_name, set_name, set_item) = match module.representation_item(node.into_any())? {
             Some(dir::LanguageItem::Map) => ("Map", "Set", dir::LanguageItem::Set),
             Some(dir::LanguageItem::SortedMap) => {
@@ -60,9 +63,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         if module.is_within_language_item(node.into_any(), set_item)? {
             continue;
         }
-        let [key, value] = generic_arguments.as_slice() else {
-            continue;
-        };
         let dir::GenericArgument::Type { value: key } = view.get(*key) else {
             continue;
         };
@@ -232,6 +232,25 @@ declare function concurrent(): ConcurrentSet<string>;
 function collect(): Map<string, boolean> {
     return new Map<string, boolean>();
 }
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept non-map references without asking for a map representation.
+    #[test]
+    fn test_accepts_generic_references() {
+        let session = TestSession::dir(
+            &PREFER_SET_OVER_UNIT_MAP,
+            r#"
+interface Iterable<T> {
+    type Iterator = T;
+
+    iterator(): T;
+}
+
+declare function identity<T>(value: T): T;
 "#,
         );
 

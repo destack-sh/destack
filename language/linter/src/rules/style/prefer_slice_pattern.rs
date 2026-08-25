@@ -99,6 +99,9 @@ fn minimum_length(
             continue;
         };
         let minimum = match operator {
+            dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict if bound >= 0 => {
+                bound as usize
+            }
             dir::BinaryOperator::GreaterThanOrEqual if bound >= 0 => bound as usize,
             dir::BinaryOperator::GreaterThan if bound >= -1 => (bound + 1) as usize,
             _ => continue,
@@ -204,5 +207,36 @@ function second(values: int32[]): int32 | undefined {
         );
 
         session.assert_no_diagnostics();
+    }
+
+    /// Report fixed indexing after an exact length guard in either operand order.
+    #[test]
+    fn test_reports_exact_length_indexing() {
+        let session = TestSession::dir(
+            &PREFER_SLICE_PATTERN,
+            r#"
+function firstPair(values: int32[]): int32 | undefined {
+    if (2 === values.length) {
+        return values[0] + values[1];
+    }
+
+    return undefined;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[prefer-slice-pattern]: length guard precedes fixed sequence indexing
+ ──▶ main.ds:2:5
+  │
+1 │ function firstPair(values: int32[]): int32 | undefined {
+2 │     if (2 === values.length) {
+  │     ^^
+3 │         return values[0] + values[1];
+4 │     }
+  │
+"#,
+        );
     }
 }

@@ -6,12 +6,12 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Prefer unary negation over multiplying by -1.
+    /// Prefer unary negation over multiplying or dividing by -1.
     pub PREFER_UNARY_NEGATION {
         id: "prefer-unary-negation",
-        summary: "Prefer unary negation over multiplying by -1",
+        summary: "Prefer unary negation over multiplying or dividing by -1",
         explanation: r#"
-Multiplying a builtin numeric value by negative one performs the same operation as unary negation.
+Multiplying or dividing a builtin numeric value by negative one performs the same operation as unary negation.
 Instead, you SHOULD negate the value directly.
 "#,
         example: {
@@ -33,18 +33,22 @@ function negate(value: int32): int32 {
     }
 }
 
-/// Report builtin multiplication by negative one.
+/// Report builtin multiplication or division by negative one.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
-    // inspect compiler-defined numeric multiplication
+    // inspect compiler-defined numeric multiplication and division
     for expression in module.operator_expressions() {
         let expression = expression?;
-        let Some((dir::BinaryOperator::Multiply, operands @ [left, right])) =
-            module.builtin_binary(expression)?
-        else {
+        let Some((operator, operands @ [left, right])) = module.builtin_binary(expression)? else {
             continue;
         };
+        if !matches!(
+            operator,
+            dir::BinaryOperator::Multiply | dir::BinaryOperator::Divide
+        ) {
+            continue;
+        }
         if !operands.iter().all(|operand| {
             operand
                 .scalar_families
@@ -59,20 +63,25 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let right = right.source.local_id;
         let left_constant = module.scalar_constant(left)?;
         let right_constant = module.scalar_constant(right)?;
-        let value = if is_negative_one(right_constant) {
-            left
-        } else if is_negative_one(left_constant) {
-            right
-        } else {
-            continue;
+        let (value, message) = match operator {
+            dir::BinaryOperator::Multiply if is_negative_one(right_constant) => {
+                (left, "numeric value is multiplied by negative one")
+            }
+            dir::BinaryOperator::Multiply if is_negative_one(left_constant) => {
+                (right, "numeric value is multiplied by negative one")
+            }
+            dir::BinaryOperator::Divide if is_negative_one(right_constant) => {
+                (left, "numeric value is divided by negative one")
+            }
+            _ => continue,
         };
         if module.node_type_id(expression.into_any())? != module.node_type_id(value.into_any())? {
             continue;
         }
 
-        // replace the multiplication with direct negation
+        // replace the arithmetic expression with direct negation
         let span = module.source_extent(expression.into_any())?;
-        let mut diagnostic = lint.diagnostic("numeric value is multiplied by negative one", span);
+        let mut diagnostic = lint.diagnostic(message, span);
         if let Some(suggestion) = suggestion(module, lint, expression, value)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
@@ -156,6 +165,42 @@ function negate(value: float64): float64 {
 }
 "#,
         );
+    }
+
+    /// Negate a builtin numeric dividend divided by negative one.
+    #[test]
+    fn test_replaces_negative_one_division() {
+        let session = TestSession::dir(
+            &PREFER_UNARY_NEGATION,
+            r#"
+function negate(value: int32): int32 {
+    return value / -1;
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"
+function negate(value: int32): int32 {
+    return -value;
+}
+"#,
+        );
+    }
+
+    /// Accept negative one divided by another value.
+    #[test]
+    fn test_accepts_negative_one_dividend() {
+        let session = TestSession::dir(
+            &PREFER_UNARY_NEGATION,
+            r#"
+function reciprocal(value: float64): float64 {
+    return -1.0 / value;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
     }
 
     /// Accept multiplication selected through a user-defined protocol.
