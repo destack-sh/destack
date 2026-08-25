@@ -277,8 +277,8 @@ export type SettingsPayload = {
     readonly packages: string;
     /** Maximum package directory size in bytes before pruning is requested. */
     readonly packageMaximumBytes?: bigint;
-    /** Workspace-local cache and session directory. */
-    readonly workspaceCache: string;
+    /** Machine-local cache directory. */
+    readonly cache: string;
     /** Maximum cache size in bytes before pruning is requested. */
     readonly cacheMaximumBytes?: bigint;
     /** Workspace-owned vendor directory. */
@@ -320,7 +320,7 @@ export function encodeSettingsPayload(writer: BinaryWriter, value: SettingsPaylo
     writer.writeOption(value.packageMaximumBytes, (value2) => {
         writer.writeUnsigned(value2);
     });
-    writer.writeString(value.workspaceCache);
+    writer.writeString(value.cache);
     writer.writeOption(value.cacheMaximumBytes, (value4) => {
         writer.writeUnsigned(value4);
     });
@@ -340,7 +340,7 @@ export function decodeSettingsPayload(reader: BinaryReader): SettingsPayload {
     const home = reader.readString();
     const packages = reader.readString();
     const packageMaximumBytes = reader.readOption(() => reader.readUnsigned());
-    const workspaceCache = reader.readString();
+    const cache = reader.readString();
     const cacheMaximumBytes = reader.readOption(() => reader.readUnsigned());
     const vendor = reader.readString();
     const registry = reader.readOption(() => reader.readString());
@@ -351,7 +351,7 @@ export function decodeSettingsPayload(reader: BinaryReader): SettingsPayload {
         home,
         packages,
         ...(packageMaximumBytes === undefined ? {} : { packageMaximumBytes }),
-        workspaceCache,
+        cache,
         ...(cacheMaximumBytes === undefined ? {} : { cacheMaximumBytes }),
         vendor,
         ...(registry === undefined ? {} : { registry }),
@@ -366,7 +366,7 @@ export function toJsonSettingsPayload(value: SettingsPayload): Json {
         home: value.home,
         packages: value.packages,
         ...(value.packageMaximumBytes === undefined ? {} : { packageMaximumBytes: value.packageMaximumBytes.toString() }),
-        workspaceCache: value.workspaceCache,
+        cache: value.cache,
         ...(value.cacheMaximumBytes === undefined ? {} : { cacheMaximumBytes: value.cacheMaximumBytes.toString() }),
         vendor: value.vendor,
         ...(value.registry === undefined ? {} : { registry: value.registry }),
@@ -383,7 +383,7 @@ export function fromJsonSettingsPayload(value: Json): SettingsPayload {
         home: jsonString(jsonField(object, "home")),
         packages: jsonString(jsonField(object, "packages")),
         packageMaximumBytes: jsonOptional(object, "packageMaximumBytes", (value) => jsonBigint(value)),
-        workspaceCache: jsonString(jsonField(object, "workspaceCache")),
+        cache: jsonString(jsonField(object, "cache")),
         cacheMaximumBytes: jsonOptional(object, "cacheMaximumBytes", (value) => jsonBigint(value)),
         vendor: jsonString(jsonField(object, "vendor")),
         registry: jsonOptional(object, "registry", (value) => jsonString(value)),

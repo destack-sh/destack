@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 use destack_artifact::{ArtifactKey, IndexKind};
 use destack_query::Module;
@@ -9,7 +9,7 @@ use destack_source::{File, FileId, ModuleId, ProfileId, TargetId};
 
 use crate::Error;
 
-use super::Workspace;
+use super::{State, Workspace};
 
 /// Pinned workspace state at one immutable repository revision.
 #[derive(Debug)]
@@ -20,15 +20,23 @@ pub(crate) struct WorkspacePin {
     session: Arc<Session>,
     /// The retained repository revision.
     revision: RevisionPin,
+    /// Mutable workspace state selecting the physical revision.
+    state: Weak<parking_lot::Mutex<State>>,
 }
 
 impl WorkspacePin {
     /// Create one workspace pin.
-    pub(crate) fn new(root: PathBuf, session: Arc<Session>, revision: RevisionPin) -> Self {
+    pub(crate) fn new(
+        root: PathBuf,
+        session: Arc<Session>,
+        revision: RevisionPin,
+        state: Weak<parking_lot::Mutex<State>>,
+    ) -> Self {
         Self {
             root,
             session,
             revision,
+            state,
         }
     }
 
@@ -45,6 +53,22 @@ impl WorkspacePin {
     /// Return the retained repository revision.
     pub(crate) fn into_revision(self) -> RevisionPin {
         self.revision
+    }
+
+    /// Persist this revision when physical workspace state still selects it.
+    pub(crate) fn persist_artifacts(&self) -> bool {
+        let Some(state) = self.state.upgrade() else {
+            return false;
+        };
+        let state = state.lock();
+        let is_physical = state.lifecycle == super::Lifecycle::Open
+            && state.physical.revision() == self.revision.revision();
+        drop(state);
+        if !is_physical {
+            return false;
+        }
+
+        self.revision.persist_artifacts()
     }
 
     /// Return the repository backing this revision.
@@ -237,6 +261,7 @@ impl Workspace {
             self.root.clone(),
             self.session(),
             revision,
+            Arc::downgrade(&self.state),
         ))
     }
 
@@ -248,6 +273,7 @@ impl Workspace {
             self.root.clone(),
             self.session(),
             revision,
+            Arc::downgrade(&self.state),
         ))
     }
 }

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
 use destack_repository::{Commit, Revision, RevisionPin};
-use destack_session::{ArtifactPriority, Session};
+use destack_session::{ArtifactPriority, ArtifactRun, Session};
 use parking_lot::MutexGuard;
 
 use crate::{Error, Watch, Workspace};
@@ -26,6 +26,35 @@ pub(crate) enum Lifecycle {
     Open,
     /// The workspace rejects operations.
     Closed,
+}
+
+/// One proactive artifact run pinned to its exact workspace revision.
+pub(crate) struct BackgroundRun {
+    /// Scheduled proactive artifact work.
+    artifacts: ArtifactRun,
+    /// Workspace revision receiving completed artifacts.
+    revision: super::WorkspacePin,
+}
+
+impl BackgroundRun {
+    /// Create one proactive artifact run.
+    fn new(artifacts: ArtifactRun, revision: super::WorkspacePin) -> Self {
+        Self {
+            artifacts,
+            revision,
+        }
+    }
+
+    /// Return this run's exact revision.
+    pub(crate) fn revision(&self) -> Revision {
+        self.revision.revision()
+    }
+
+    /// Cancel unfinished work and persist its completed artifacts.
+    fn finish(self) {
+        drop(self.artifacts);
+        self.revision.persist_artifacts();
+    }
 }
 
 impl State {
@@ -58,7 +87,9 @@ impl Workspace {
 
         // cancel background work and terminate semantic subscriptions
         let background_run = self.background_run.lock().take();
-        drop(background_run);
+        if let Some(run) = background_run {
+            run.finish();
+        }
         self.watch.lock().close();
     }
 
@@ -90,8 +121,8 @@ impl Workspace {
         }
     }
 
-    /// Schedule proactive editor artifacts for one revision.
-    pub(crate) fn schedule_background(
+    /// Provide proactive editor artifacts for one revision.
+    pub(crate) fn provide_background(
         &self,
         revision: Revision,
         artifacts: &[ArtifactKey],
@@ -100,15 +131,19 @@ impl Workspace {
         let run = if artifacts.is_empty() {
             None
         } else {
-            Some(
-                self.session
-                    .provide(revision, artifacts, ArtifactPriority::Background),
-            )
+            let session = self.pin(revision)?;
+            let run = self
+                .session
+                .provide(revision, artifacts, ArtifactPriority::Background);
+
+            Some(BackgroundRun::new(run, session))
         };
         let previous = std::mem::replace(&mut *self.background_run.lock(), run);
 
         // cancel obsolete work after publishing its replacement
-        drop(previous);
+        if let Some(run) = previous {
+            run.finish();
+        }
 
         Ok(())
     }

@@ -162,7 +162,7 @@ export function fromJsonBuildRequest(value: Json): BuildRequest {
     };
 }
 
-/** Request for workspace cache locations. */
+/** Request for cache locations. */
 export type CacheRequest = {
     /** Workspace root to inspect. */
     readonly root: string;

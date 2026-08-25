@@ -77,8 +77,8 @@ impl CommandContext<'_> {
         // build the cache payload
         let payload = CachePayload {
             caches: vec![CacheEntry {
-                directory: layout.workspace_cache.display().to_string(),
-                kind: "workspace".to_string(),
+                directory: layout.cache.display().to_string(),
+                kind: "artifact".to_string(),
             }],
         };
 

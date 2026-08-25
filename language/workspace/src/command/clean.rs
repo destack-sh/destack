@@ -127,7 +127,7 @@ impl CommandContext<'_> {
             }
         }
         if clean_cache {
-            paths.insert(self.repository.layout().workspace_cache.clone());
+            paths.insert(self.repository.layout().cache.clone());
         }
 
         // delete selected paths

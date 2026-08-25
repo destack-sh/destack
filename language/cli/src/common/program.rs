@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use clap::{Args, ValueEnum};
-use destack_artifact::BuildId;
+use destack_artifact::{ArtifactCache, BuildId};
 use destack_daemon::{
     DaemonConnectOptions, DaemonConnection, DaemonEndpoint, DaemonLaunch, DaemonLaunchCommand,
     OpenWorkspaceRequest,
@@ -178,7 +178,7 @@ pub struct ProgramArgs {
     #[arg(long = "package-dir", global = true)]
     pub package_dir: Option<PathBuf>,
 
-    /// Workspace cache directory override.
+    /// Cache directory override.
     #[arg(long = "cache-dir", global = true)]
     pub cache_dir: Option<PathBuf>,
 
@@ -331,7 +331,7 @@ impl ProgramArgs {
         let layout_override = DestackLayoutOverride {
             home: self.home.clone(),
             packages: self.package_dir.clone(),
-            workspace_cache: self.cache_dir.clone(),
+            cache: self.cache_dir.clone(),
         };
         let home = DestackLayout::resolve_home(&cwd, &environment, layout_override.home.as_deref());
         let settings = Settings::load_from_home(file_system.as_ref(), &home).map_err(|error| {
@@ -345,7 +345,20 @@ impl ProgramArgs {
         let build_id = BuildId::current().map_err(|error| {
             ConsoleError::message(format!("failed to identify Destack build: {error}"))
         })?;
-        let host = Host::new(build_id, environment, file_system);
+        let artifact_cache = DestackLayout::resolve_cache(
+            &cwd,
+            &home,
+            &environment,
+            &settings,
+            layout_override.cache.as_deref(),
+        );
+        let artifact_cache = ArtifactCache::open(build_id, file_system.clone(), artifact_cache)
+            .map(Arc::new)
+            .map_err(|error| {
+                ConsoleError::message(format!("failed to open artifact cache: {error}"))
+            })?;
+        let host = Host::new(build_id, environment, file_system)
+            .with_artifact_cache(artifact_cache, self.workers as usize);
         let (repository, revision) =
             Repository::open(workspace_path, host, settings, layout_override).map_err(|error| {
                 ConsoleError::message(format!("failed to open workspace: {error}"))

@@ -1,4 +1,5 @@
 mod artifact;
+mod cache;
 mod command;
 mod doc;
 mod edit;

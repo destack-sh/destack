@@ -58,8 +58,8 @@ pub struct SettingsPayload {
     pub packages: String,
     /// Maximum package directory size in bytes before pruning is requested.
     pub package_maximum_bytes: Option<u64>,
-    /// Workspace-local cache and session directory.
-    pub workspace_cache: String,
+    /// Machine-local cache directory.
+    pub cache: String,
     /// Maximum cache size in bytes before pruning is requested.
     pub cache_maximum_bytes: Option<u64>,
     /// Workspace-owned vendor directory.
@@ -154,7 +154,7 @@ impl CommandContext<'_> {
             home: layout.home.display().to_string(),
             packages: layout.packages.display().to_string(),
             package_maximum_bytes: settings.packages.maximum_bytes,
-            workspace_cache: layout.workspace_cache.display().to_string(),
+            cache: layout.cache.display().to_string(),
             cache_maximum_bytes: settings.cache.maximum_bytes,
             vendor: vendor.display().to_string(),
             registry: settings.registry.clone(),

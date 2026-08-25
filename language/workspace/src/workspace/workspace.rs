@@ -7,12 +7,12 @@ use destack_artifact::{
 };
 use destack_core::Blob;
 use destack_repository::{Repository, Revision, Trace, TraceLevel, TraceSnapshot, TraceView};
-use destack_session::{ArtifactRun, Executor, Session};
+use destack_session::{Executor, Session};
 use destack_source::{File, FileId, Uri};
 use futures::future::BoxFuture;
 use parking_lot::Mutex;
 
-use super::{Lifecycle, State, WorkspacePin};
+use super::{BackgroundRun, Lifecycle, State, WorkspacePin};
 use crate::{
     BenchInput, BenchOptions, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOptions,
     CacheOutput, CheckInput, CheckOutput, CleanInput, CleanOptions, CleanOutput, CommandContext,
@@ -33,11 +33,11 @@ pub struct Workspace {
     /// Repository-specific artifact computation session.
     pub(crate) session: Arc<Session>,
     /// Serialized workspace lifecycle and mutation state.
-    pub(crate) state: Mutex<State>,
+    pub(crate) state: Arc<Mutex<State>>,
     /// Semantic watch state.
     pub(crate) watch: Arc<Mutex<WatchState>>,
     /// Latest proactive editor artifact run.
-    pub(crate) background_run: Mutex<Option<ArtifactRun>>,
+    pub(crate) background_run: Mutex<Option<BackgroundRun>>,
 }
 
 impl std::fmt::Debug for Workspace {
@@ -56,7 +56,7 @@ impl std::fmt::Debug for Workspace {
                     .background_run
                     .lock()
                     .as_ref()
-                    .map(ArtifactRun::revision),
+                    .map(BackgroundRun::revision),
             )
             .finish()
     }
@@ -70,17 +70,18 @@ impl Workspace {
         executor: Arc<Executor>,
     ) -> Result<Self, Error> {
         let root = repository.path().to_path_buf();
+        repository.restore_artifacts(physical, executor.worker_count())?;
         let physical = repository.pin(physical)?;
         let session = Arc::new(Session::new(repository.clone(), executor)?);
         Ok(Self {
             root,
             repository,
             session,
-            state: Mutex::new(State {
+            state: Arc::new(Mutex::new(State {
                 lifecycle: Lifecycle::Open,
                 physical,
                 branches: HashMap::new(),
-            }),
+            })),
             watch: Arc::new(Mutex::new(WatchState::default())),
             background_run: Mutex::new(None),
         })
@@ -89,6 +90,22 @@ impl Workspace {
     /// Return this workspace's canonical root.
     pub fn root(&self) -> &Path {
         &self.root
+    }
+
+    /// Persist successful artifacts from the current physical revision.
+    pub fn persist_artifacts(&self, revision: Revision) -> Result<bool, Error> {
+        let session = self.pin_physical()?;
+        let current = session.revision();
+        if revision != current {
+            return Ok(false);
+        }
+
+        Ok(session.persist_artifacts())
+    }
+
+    /// Wait for every queued artifact cache write on this host.
+    pub fn flush_artifact_cache(&self) -> Result<(), Error> {
+        self.repository.flush_artifact_cache().map_err(Into::into)
     }
 
     /// Start one trace configured for this workspace executor.
@@ -150,6 +167,14 @@ impl Workspace {
         // execute the requested operation
         let result = execute(&mut context).await?;
 
+        // queue completed physical artifacts outside compiler execution
+        let revision = context.revision();
+        let trace = context.trace();
+        let is_queued = trace
+            .span("cache.enqueue", || self.persist_artifacts(revision))
+            .map_err(|error| CommandError::internal(error.to_string()))?;
+        trace.add_counter("cache.write_queued", u64::from(is_queued));
+
         // finalize command output
         let CommandOutcome {
             diagnostics,
@@ -161,7 +186,6 @@ impl Workspace {
             profile_count,
             target_count,
         } = result;
-        let revision = context.revision();
         let files = context.file_images(revision, &diagnostics, &files)?;
         let success = exit_code == 0;
         let trace = common
@@ -482,7 +506,12 @@ impl Workspace {
     ) -> Result<Vec<Arc<File>>, Error> {
         // pin the requested immutable revision
         let revision = self.repository.pin(revision)?;
-        let session = WorkspacePin::new(self.root.clone(), self.session(), revision);
+        let session = WorkspacePin::new(
+            self.root.clone(),
+            self.session(),
+            revision,
+            Arc::downgrade(&self.state),
+        );
 
         // read every requested file exactly
         let mut files = Vec::with_capacity(file_ids.len());
@@ -546,7 +575,14 @@ impl Workspace {
             });
         }
 
-        if let Some(payload) = self.repository.artifact_table().payload(&artifact.version) {
+        let payload = self
+            .repository
+            .artifact_table()
+            .payload(&artifact.version)
+            .map_err(|error| Error::Internal {
+                detail: error.to_string(),
+            })?;
+        if let Some(payload) = payload {
             return Ok(payload);
         }
 

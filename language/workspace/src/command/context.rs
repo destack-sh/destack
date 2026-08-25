@@ -150,7 +150,7 @@ impl<'a> CommandContext<'a> {
     }
 
     /// Return the trace spanning this command.
-    pub(super) fn trace(&self) -> Arc<Trace> {
+    pub(crate) fn trace(&self) -> Arc<Trace> {
         self.trace.clone()
     }
 

@@ -8,8 +8,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use destack_artifact::BuildId;
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Repository, Revision, RevisionPin,
-    Settings,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Repository, Revision,
+    RevisionPin, Settings,
 };
 use destack_source::{File, FileSystem, MemoryFileSystem};
 use futures::executor::block_on;

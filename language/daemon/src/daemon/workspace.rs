@@ -55,7 +55,7 @@ impl WorkspaceRegistry {
         let layout = DestackLayoutOverride {
             home: Some(repository.layout().home.clone()),
             packages: Some(repository.layout().packages.clone()),
-            workspace_cache: None,
+            cache: Some(repository.layout().cache.clone()),
         };
         let root = workspace.root().to_path_buf();
         let registration = WorkspaceRegistration::new(Arc::new(workspace))?;

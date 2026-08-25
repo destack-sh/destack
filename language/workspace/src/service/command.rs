@@ -98,7 +98,7 @@ pub struct TargetsRequest {
     pub input: TargetsInput,
 }
 
-/// Request for workspace cache locations.
+/// Request for cache locations.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CacheRequest {
     /// Workspace root to inspect.

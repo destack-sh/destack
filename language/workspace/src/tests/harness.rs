@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_artifact::BuildId;
+use destack_artifact::{ArtifactCache, BuildId};
 use destack_core::Blob;
 use destack_dir as dir;
 use destack_repository::{
@@ -17,39 +17,52 @@ use destack_source::{
 use futures::executor::block_on;
 
 use crate::command::{
-    CommandInput, CommandOptions, CommandRevision, QueryInput, QueryOutput, RewriteInput,
-    RewriteMode, RewriteOutput,
+    CheckInput, CommandInput, CommandOptions, CommandRevision, QueryInput, QueryOutput,
+    RewriteInput, RewriteMode, RewriteOutput,
 };
-use crate::{Error, Workspace};
+use crate::{CheckOutput, Error, Workspace};
 
 /// Test harness for workspace integration tests.
 #[derive(Debug)]
 pub(super) struct TestWorkspace {
-    /// Temporary filesystem root.
-    pub fs: TemporaryPhysicalFileSystem,
     /// Workspace under test.
     pub workspace: Workspace,
+    /// Temporary filesystem root retained until the workspace closes.
+    pub fs: TemporaryPhysicalFileSystem,
     /// Canonical workspace root.
     pub root: PathBuf,
+    /// Persistent artifact cache directory when enabled.
+    artifact_cache: Option<PathBuf>,
 }
 
 impl TestWorkspace {
     /// Create a new harness rooted at a temporary source root.
     pub(super) fn new(prefix: &str) -> Self {
-        Self::build(prefix, |_| Arc::new(PhysicalFileSystem::new()))
+        Self::build(prefix, |_| Arc::new(PhysicalFileSystem::new()), false)
+    }
+
+    /// Create a new harness with persistent artifact storage.
+    pub(super) fn persistent(prefix: &str) -> Self {
+        Self::build(prefix, |_| Arc::new(PhysicalFileSystem::new()), true)
     }
 
     /// Create a new harness whose first write to one path fails.
     pub(super) fn new_with_write_failure(prefix: &str, path: &str, content: &str) -> Self {
         let content = content.as_bytes().to_vec();
 
-        Self::build(prefix, |root| {
-            Arc::new(FailingFileSystem::fail_once(root.join(path), content))
-        })
+        Self::build(
+            prefix,
+            |root| Arc::new(FailingFileSystem::fail_once(root.join(path), content)),
+            false,
+        )
     }
 
     /// Create one harness over an explicit repository filesystem.
-    fn build(prefix: &str, file_system: impl FnOnce(&Path) -> Arc<dyn FileSystem>) -> Self {
+    fn build(
+        prefix: &str,
+        file_system: impl FnOnce(&Path) -> Arc<dyn FileSystem>,
+        is_persistent: bool,
+    ) -> Self {
         // create a temporary filesystem root for test files
         let fs = TemporaryPhysicalFileSystem::new_with_prefix(prefix);
         let root = fs.root().to_path_buf();
@@ -61,9 +74,36 @@ impl TestWorkspace {
             .unwrap_or_else(|error| panic!("failed to write {}: {error}", config.display()));
 
         // create a repository over the selected physical filesystem
-        let host = Host::new(BuildId::test(), Environment::capture_process(), file_system);
+        let artifact_cache = is_persistent.then(|| root.join(".destack/artifacts"));
+        let workspace = Self::open(&root, file_system, artifact_cache.as_deref());
+
+        Self {
+            workspace,
+            fs,
+            root,
+            artifact_cache,
+        }
+    }
+
+    /// Open one complete workspace generation over the retained physical root.
+    fn open(
+        root: &Path,
+        file_system: Arc<dyn FileSystem>,
+        artifact_cache: Option<&Path>,
+    ) -> Workspace {
+        let mut host = Host::new(BuildId::test(), Environment::capture_process(), file_system);
+        if let Some(directory) = artifact_cache {
+            let cache = ArtifactCache::open(
+                BuildId::test(),
+                Arc::new(PhysicalFileSystem::new()),
+                directory,
+            )
+            .map(Arc::new)
+            .expect("open artifact cache");
+            host = host.with_artifact_cache(cache, 4);
+        }
         let (repository, physical) = Repository::open(
-            root.clone(),
+            root.to_path_buf(),
             host,
             Settings::default(),
             DestackLayoutOverride::default(),
@@ -71,13 +111,64 @@ impl TestWorkspace {
         .expect("failed to import repository from physical fs");
         let repository = Arc::new(repository);
         let executor = Executor::new(Execution::Threaded, 1).expect("create executor");
-        let workspace = Workspace::new(repository, physical, executor).expect("expected workspace");
+        Workspace::new(repository, physical, executor).expect("expected workspace")
+    }
+
+    /// Restart every live toolchain owner while retaining source and cache files.
+    pub(super) fn restart(self) -> Self {
+        let Self {
+            workspace,
+            fs,
+            root,
+            artifact_cache,
+        } = self;
+        drop(workspace);
+        let file_system = Arc::new(PhysicalFileSystem::new());
+        let workspace = Self::open(&root, file_system, artifact_cache.as_deref());
 
         Self {
-            fs,
             workspace,
+            fs,
             root,
+            artifact_cache,
         }
+    }
+
+    /// Persist the current physical artifact selection.
+    pub(super) fn save_artifacts(&self) {
+        let revision = self.workspace.revision().expect("read physical revision");
+
+        self.workspace
+            .persist_artifacts(revision)
+            .expect("schedule physical artifacts");
+        self.workspace
+            .flush_artifact_cache()
+            .expect("flush physical artifacts");
+    }
+
+    /// Return the build-specific persistent artifact cache directory.
+    pub(super) fn artifact_cache_directory(&self) -> PathBuf {
+        let directory = self
+            .artifact_cache
+            .as_ref()
+            .expect("persistent artifact cache");
+
+        directory.join(BuildId::test().to_string())
+    }
+
+    /// Run one fully traced check over an authored entry file and revision.
+    pub(super) fn check(&self, main: PathBuf, revision: CommandRevision) -> CheckOutput {
+        let mut input = CheckInput::from((
+            revision,
+            CommandOptions {
+                inputs: vec![CommandInput::File { path: main }],
+                ..CommandOptions::default()
+            },
+        ));
+        input.lint = false;
+        input.trace = Some(destack_repository::TraceView::Detailed);
+
+        block_on(self.workspace.check(input, None)).expect("workspace check")
     }
 
     /// Resolve a path under the temporary root.

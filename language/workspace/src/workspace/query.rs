@@ -226,6 +226,7 @@ impl QueryRun {
 
         // close the run before publishing its complete trace
         drop(artifacts);
+        session.persist_artifacts();
         trace.finish();
 
         result
@@ -259,7 +260,12 @@ impl Workspace {
             RevisionPolicy::Exact(revision) => {
                 let revision = self.repository.pin(revision)?;
 
-                WorkspacePin::new(self.root.clone(), self.session(), revision)
+                WorkspacePin::new(
+                    self.root.clone(),
+                    self.session(),
+                    revision,
+                    Arc::downgrade(&self.state),
+                )
             }
 
             // require physical state to remain at the caller's revision

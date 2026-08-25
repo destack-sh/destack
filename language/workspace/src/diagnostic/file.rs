@@ -168,6 +168,7 @@ impl DiagnosticRead {
         if let Err(error) = artifact_run.complete().await {
             outcome.failures.push(error.into());
         }
+        session.persist_artifacts();
         let diagnostics = match repository.diagnostics_for_keys(revision, &artifact_keys) {
             Ok(diagnostics) => diagnostics,
             Err(error) => {
@@ -279,7 +280,7 @@ impl Workspace {
     /// Schedule program indexes for one selected revision.
     fn schedule_program_indexes(&self, session: &WorkspacePin) -> Result<(), Error> {
         let artifacts = session.program_indexes()?;
-        self.schedule_background(session.revision(), &artifacts)?;
+        self.provide_background(session.revision(), &artifacts)?;
 
         Ok(())
     }

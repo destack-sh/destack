@@ -4,11 +4,13 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_artifact::BuildId;
+use destack_artifact::{ArtifactCache, BuildId};
 use destack_lsp_server::{Client, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
-use destack_repository::{Environment, Execution, Host, Revision, SourceRoot, Trace};
+use destack_repository::{
+    DestackLayout, Environment, Execution, Host, Revision, Settings, SourceRoot, Trace,
+};
 use destack_session::Executor;
 use destack_source::{File, FileSystem, PhysicalFileSystem, TextChange, Uri};
 use destack_workspace::Workspace;
@@ -42,6 +44,7 @@ pub(super) struct ServerSession {
 impl ServerSession {
     /// Open one initialized language server session.
     pub(super) fn open(params: &lsp::InitializeParams, trace: &Trace) -> jsonrpc::Result<Self> {
+        let worker_count = Executor::default_worker_count();
         let folders = trace.span("folders.resolve", || {
             let mut folders = Self::editor_folders(params)?;
             if folders.is_empty() {
@@ -55,12 +58,23 @@ impl ServerSession {
             let file_system = Arc::new(PhysicalFileSystem::new());
             let build_id = BuildId::current().map_err(internal_error)?;
             let environment = Environment::capture_process();
+            let cwd = environment.cwd.as_deref().unwrap_or_else(|| Path::new("."));
+            let home = DestackLayout::resolve_home(cwd, &environment, None);
+            let settings =
+                Settings::load_from_home(file_system.as_ref(), &home).map_err(internal_error)?;
+            let artifact_cache =
+                DestackLayout::resolve_cache(cwd, &home, &environment, &settings, None);
+            let artifact_cache = ArtifactCache::open(build_id, file_system.clone(), artifact_cache)
+                .map(Arc::new)
+                .map_err(internal_error)?;
 
-            Ok::<_, jsonrpc::Error>(Host::new(build_id, environment, file_system))
+            Ok::<_, jsonrpc::Error>(
+                Host::new(build_id, environment, file_system)
+                    .with_artifact_cache(artifact_cache, worker_count),
+            )
         })?;
         let executor = trace.span("executor.open", || {
-            Executor::new(Execution::Threaded, Executor::default_worker_count())
-                .map_err(internal_error)
+            Executor::new(Execution::Threaded, worker_count).map_err(internal_error)
         })?;
         let client_capabilities = ClientCapabilities::try_from(params)?;
         let diagnostics = if client_capabilities.supports_pull_diagnostics {
@@ -94,6 +108,11 @@ impl ServerSession {
         workspace.ok_or_else(|| {
             jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
         })
+    }
+
+    /// Wait for every persistent artifact write scheduled by this server.
+    pub(super) fn flush_artifact_cache(&self) -> jsonrpc::Result<()> {
+        self.host.flush_artifact_cache().map_err(internal_error)
     }
 
     /// Resolve the project workspace and editor revision for one source path.

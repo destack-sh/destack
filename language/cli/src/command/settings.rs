@@ -54,7 +54,7 @@ pub async fn run(args: &SettingsArgs) -> i32 {
             // print resolved paths
             console::info(&format!("home: {}", payload.home));
             console::info(&format!("packages: {}", payload.packages));
-            console::info(&format!("workspace cache: {}", payload.workspace_cache));
+            console::info(&format!("cache: {}", payload.cache));
             console::info(&format!("vendor: {}", payload.vendor));
 
             // print package settings
