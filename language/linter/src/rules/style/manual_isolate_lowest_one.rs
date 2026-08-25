@@ -6,22 +6,22 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Prefer isolateLowestOne over its manual bitwise form.
+    /// Prefer isolateLowestOne over its manual wrapping bitwise form.
     pub MANUAL_ISOLATE_LOWEST_ONE {
         id: "manual-isolate-lowest-one",
-        summary: "Prefer isolateLowestOne over its manual bitwise form",
+        summary: "Prefer isolateLowestOne over its manual wrapping bitwise form",
         explanation: r#"
-Combining a signed integer with its negation isolates its least-significant one bit.
+Combining an integer with its wrapping negation isolates its least-significant one bit.
 Instead, you SHOULD call `.isolateLowestOne()` on the integer.
 "#,
         example: {
             reported: r#"
-function lowest(value: int32): int32 {
-    return value & -value;
+function lowest(value: uint32): uint32 {
+    return value & value.wrappingNegate();
 }
 "#,
             accepted: r#"
-function lowest(value: int32): int32 {
+function lowest(value: uint32): uint32 {
     return value.isolateLowestOne();
 }
 "#,
@@ -33,7 +33,7 @@ function lowest(value: int32): int32 {
     }
 }
 
-/// Report signed integers combined with their negation.
+/// Report integers combined with their wrapping negation.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
@@ -45,12 +45,12 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         else {
             continue;
         };
-        let Some(value) = negated_pair(module, left, right)? else {
+        let Some(value) = select_wrapping_negated_value(module, left, right)? else {
             continue;
         };
         if !matches!(
             module.primitive_type(value.into_any())?,
-            Some(dir::PrimitiveType::Integer(integer)) if integer.is_signed()
+            Some(dir::PrimitiveType::Integer(_))
         ) {
             continue;
         }
@@ -68,19 +68,24 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Select the repeated value from `value & -value` in either order.
-fn negated_pair(
+/// Select the repeated value from `value & value.wrappingNegate()` in either order.
+fn select_wrapping_negated_value(
     module: &DirModule<'_>,
     left: &dir::BuiltinOperand,
     right: &dir::BuiltinOperand,
 ) -> Result<Option<dir::LocalNodeId<dir::Expression>>, ProviderError> {
     for (value, negated) in [(left, right), (right, left)] {
-        let Some((dir::UnaryOperator::Negate, operand)) =
-            module.builtin_unary(negated.source.local_id)?
-        else {
+        let negated = negated.source.local_id;
+        let Some(call) = module.member_call(negated) else {
             continue;
         };
-        if module.is_same_operand(value, operand)? {
+        if module.language_member(negated)?
+            == Some(dir::LanguageItem::Integer.member("wrappingNegate"))
+            && !call.is_optional()
+            && call.generic_arguments.is_empty()
+            && call.arguments.is_empty()
+            && module.is_same_computation(value.source.local_id, call.receiver)?
+        {
             return Ok(Some(value.source.local_id));
         }
     }
@@ -101,7 +106,7 @@ fn suggestion(
         return Ok(None);
     }
 
-    // retain one evaluation of the signed integer
+    // retain one evaluation of the integer
     let value = module.expression_source(value, dir::OperatorPrecedence::Postfix)?;
     let patch = Patch::replace(span, format!("{value}.isolateLowestOne()"));
     let suggestion = lint.fix("call `.isolateLowestOne()`", patch)?;
@@ -121,7 +126,7 @@ mod tests {
             &MANUAL_ISOLATE_LOWEST_ONE,
             r#"
 function lowest(value: int32): int32 {
-    return -value & value;
+    return value.wrappingNegate() & value;
 }
 "#,
         );
@@ -141,8 +146,23 @@ function lowest(value: int32): int32 {
         let session = TestSession::dir(
             &MANUAL_ISOLATE_LOWEST_ONE,
             r#"
-function mask(left: int32, right: int32): int32 {
-    return left & -right;
+function mask(left: uint32, right: uint32): uint32 {
+    return left & right.wrappingNegate();
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept signed negation because it traps for the minimum value.
+    #[test]
+    fn test_accepts_signed_negation() {
+        let session = TestSession::dir(
+            &MANUAL_ISOLATE_LOWEST_ONE,
+            r#"
+function lowest(value: int32): int32 {
+    return value & -value;
 }
 "#,
         );

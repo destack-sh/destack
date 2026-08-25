@@ -11,7 +11,7 @@ declare_lint! {
         id: "manual-is-finite",
         summary: "Prefer `.isFinite()` over equivalent infinity comparisons",
         explanation: r#"
-Strictly bounding one floating-point value between negative and positive infinity performs the same classification as `isFinite`.
+Strict infinity bounds and an absolute-value comparison with positive infinity perform the same finite-value classification.
 Instead, you SHOULD call `.isFinite()` on that value.
 
 Paired `!=` checks are excluded because NaN satisfies both comparisons.
@@ -35,36 +35,20 @@ function finite(value: float64): boolean {
     }
 }
 
-/// Report paired strict bounds against negative and positive infinity.
+/// Report infinity comparisons equivalent to isFinite.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
-    // inspect compiler-defined logical conjunctions
+    // inspect compiler-defined float comparisons
     for expression in module.operator_expressions() {
         let expression = expression?;
-        let Some((dir::BinaryOperator::And, [left, right])) = module.builtin_binary(expression)?
-        else {
+        let Some(value) = select_finite_value(module, expression)? else {
             continue;
         };
-
-        // require complementary strict bounds over one duplicable float
-        let Some((left_value, left_bound)) = select_infinity_bound(module, left.source.local_id)?
-        else {
-            continue;
-        };
-        let Some((right_value, right_bound)) =
-            select_infinity_bound(module, right.source.local_id)?
-        else {
-            continue;
-        };
-        let is_float = matches!(
-            module.primitive_type(left_value.into_any())?,
+        if !matches!(
+            module.primitive_type(value.into_any())?,
             Some(dir::PrimitiveType::Float(_))
-        );
-        if left_bound == right_bound
-            || !module.is_same_computation(left_value, right_value)?
-            || !is_float
-        {
+        ) {
             continue;
         }
 
@@ -74,16 +58,63 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // replace the complete bound pair with the predicate call
+        // replace the complete infinity comparison with the predicate call
         let span = module.source_extent(expression.into_any())?;
-        let mut diagnostic = lint.diagnostic("finiteness is tested with two bounds", span);
-        if let Some(suggestion) = suggestion(module, lint, span, left_value)? {
+        let mut diagnostic = lint.diagnostic("infinity comparison manually tests finiteness", span);
+        if let Some(suggestion) = suggestion(module, lint, span, value)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
         output.report(diagnostic);
     }
 
     Ok(output)
+}
+
+/// Select the tested value from one exact manual finiteness predicate.
+fn select_finite_value(
+    module: &DirModule<'_>,
+    expression: dir::LocalNodeId<dir::Expression>,
+) -> Result<Option<dir::LocalNodeId<dir::Expression>>, ProviderError> {
+    // recognize complementary strict infinity bounds
+    if let Some((dir::BinaryOperator::And, [left, right])) = module.builtin_binary(expression)?
+        && let Some((left_value, left_bound)) = select_infinity_bound(module, left.source.local_id)?
+        && let Some((right_value, right_bound)) =
+            select_infinity_bound(module, right.source.local_id)?
+        && left_bound != right_bound
+        && module.is_same_computation(left_value, right_value)?
+    {
+        return Ok(Some(left_value));
+    }
+
+    // recognize an absolute value strictly below positive infinity
+    let Some((operator, [left, right])) = module.builtin_binary(expression)? else {
+        return Ok(None);
+    };
+    let absolute = match (
+        operator,
+        module.infinity(left.source.local_id)?,
+        module.infinity(right.source.local_id)?,
+    ) {
+        (dir::BinaryOperator::LessThan, None, Some(infinity)) if infinity.is_sign_positive() => {
+            left.source.local_id
+        }
+        (dir::BinaryOperator::GreaterThan, Some(infinity), None) if infinity.is_sign_positive() => {
+            right.source.local_id
+        }
+        _ => return Ok(None),
+    };
+    let Some(call) = module.member_call(absolute) else {
+        return Ok(None);
+    };
+    if module.language_member(absolute)? != Some(dir::LanguageItem::Float.member("abs"))
+        || call.is_optional()
+        || !call.generic_arguments.is_empty()
+        || !call.arguments.is_empty()
+    {
+        return Ok(None);
+    }
+
+    Ok(Some(call.receiver))
 }
 
 /// One side of a strict finite interval.
@@ -138,7 +169,7 @@ fn suggestion(
         return Ok(None);
     }
 
-    // retain the checked value with postfix-safe grouping
+    // retain the tested value with postfix-safe grouping
     let value = module.expression_source(value, dir::OperatorPrecedence::Postfix)?;
     let patch = Patch::replace(span, format!("{value}.isFinite()"));
     let suggestion = lint.suggestion("call `.isFinite()`", patch)?;
@@ -159,6 +190,27 @@ mod tests {
             r#"
 function finite(value: float64): boolean {
     return Number.NEGATIVE_INFINITY < value && Number.POSITIVE_INFINITY > value;
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+function finite(value: float64): boolean {
+    return value.isFinite();
+}
+"#,
+        );
+    }
+
+    /// Replace an absolute value below positive infinity.
+    #[test]
+    fn test_replaces_absolute_infinity_bound() {
+        let session = TestSession::dir(
+            &MANUAL_IS_FINITE,
+            r#"
+function finite(value: float64): boolean {
+    return Infinity > value.abs();
 }
 "#,
         );

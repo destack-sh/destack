@@ -140,6 +140,12 @@ fn manual_saturation(
         {
             "saturatingMultiply"
         }
+        (Some(operation), Some(bound))
+            if operation == dir::LanguageItem::Integer.member("checkedPower")
+                && bound == dir::LanguageItem::Integer.member("maximum") =>
+        {
+            "saturatingPower"
+        }
         _ => return Ok(None),
     };
 
@@ -221,6 +227,27 @@ function multiply(left: uint64, right: uint64): uint64 {
             r#"
 function multiply(left: uint64, right: uint64): uint64 {
     return left.saturatingMultiply(right);
+}
+"#,
+        );
+    }
+
+    /// Replace checked exponentiation with saturatingPower.
+    #[test]
+    fn test_replaces_checked_power() {
+        let session = TestSession::dir(
+            &MANUAL_SATURATING_ARITHMETIC,
+            r#"
+function power(value: uint32, exponent: uint32): uint32 {
+    return value.checkedPower(exponent) ?? uint32.maximum();
+}
+"#,
+        );
+
+        session.assert_suggestions(
+            r#"
+function power(value: uint32, exponent: uint32): uint32 {
+    return value.saturatingPower(exponent);
 }
 "#,
         );
