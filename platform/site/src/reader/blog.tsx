@@ -37,6 +37,7 @@ export function BlogArticle(props: BlogArticleProps) {
             )}
             publication="journal"
             source={props.post}
+            tokenCount={props.post.tokens}
         >
             <BlogArticleHeader post={props.post} />
             <div class="markdown" innerHTML={props.content.html} />

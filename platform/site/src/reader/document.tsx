@@ -28,6 +28,11 @@ type DocumentArticleProps = {
 
 /// Render one manual chapter with book and heading navigation.
 export function DocumentArticle(props: DocumentArticleProps) {
+    // show reading size for authored manual chapters
+    const tokenCount = props.document.path.startsWith(standardLibraryPath)
+        ? undefined
+        : props.document.tokens;
+
     return (
         <Reader
             contents={props.document.tableOfContents}
@@ -41,6 +46,7 @@ export function DocumentArticle(props: DocumentArticleProps) {
             )}
             publication="manual"
             source={props.document}
+            tokenCount={tokenCount}
         >
             <header {...stylex.attrs(styles.articleHeader)}>
                 <h1 {...stylex.attrs(styles.articleTitle)}>

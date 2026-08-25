@@ -5,8 +5,6 @@ import { commandEvents } from "../command/command";
 import type { PageSource } from "../content/source";
 import { tokens } from "../style/tokens.stylex";
 
-const narrow = "@media (width < 60rem)";
-
 /// Properties for the page source controls.
 type SourceActionsProps = {
     /// The shared page source commands.
@@ -111,9 +109,5 @@ const styles = stylex.create({
         gap: "1rem",
         letterSpacing: "0.02em",
         minWidth: 0,
-        [narrow]: {
-            gridColumn: 2,
-            gridRow: 1,
-        },
     },
 });

@@ -29,6 +29,9 @@ type ReaderProps = {
 
     /// The portable source files for the current page.
     source: PageSource;
+
+    /// The approximate token count shown for authored pages.
+    tokenCount?: number;
 };
 
 /// Properties for one responsive reader toolbar.
@@ -44,6 +47,9 @@ type ReaderToolbarProps = {
 
     /// The shared page source commands.
     sourceCommands: PageSourceCommands;
+
+    /// The approximate token count shown for authored pages.
+    tokenCount?: number;
 };
 
 /// Render the common blog and documentation reading frame.
@@ -94,6 +100,7 @@ export function Reader(props: ReaderProps) {
                     location={props.location}
                     navigation={props.navigation}
                     sourceCommands={sourceCommands}
+                    tokenCount={props.tokenCount}
                 />
 
                 {props.children}
@@ -122,12 +129,33 @@ function ReaderToolbar(props: ReaderToolbarProps) {
             <div {...stylex.attrs(styles.location)}>
                 {props.location()}
             </div>
-            <SourceActions commands={props.sourceCommands} />
+            <div {...stylex.attrs(styles.toolbarTools)}>
+                {props.tokenCount !== undefined && (
+                    <span {...stylex.attrs(styles.tokenCount)}>
+                        {formatTokenCount(props.tokenCount)}
+                    </span>
+                )}
+                <SourceActions commands={props.sourceCommands} />
+            </div>
         </header>
     );
 }
 
+/// Format an approximate token count for the compact article toolbar.
+function formatTokenCount(tokenCount: number) {
+    // keep exact counts legible for short pages
+    if (tokenCount < 1_000) {
+        return `${tokenCount} tokens`;
+    }
+
+    // retain one useful decimal without trailing zeroes
+    const thousands = Math.round(tokenCount / 100) / 10;
+
+    return `${thousands}k tokens`;
+}
+
 const narrow = "@media (width < 60rem)";
+const compact = "@media (width < 52rem)";
 const mobile = "@media (max-width: 767px)";
 
 /// Shared reader styles.
@@ -245,8 +273,29 @@ const styles = stylex.create({
         fontFamily: tokens.monoFont,
         fontSize: "var(--size-label)",
     },
+    toolbarTools: {
+        alignItems: "baseline",
+        display: "flex",
+        gap: "0.75rem",
+        minWidth: 0,
+        [narrow]: {
+            gridColumn: 2,
+            gridRow: 1,
+        },
+    },
     toolbarTop: {
         [mobile]: {
+            display: "none",
+        },
+    },
+    tokenCount: {
+        color: tokens.soft,
+        whiteSpace: "nowrap",
+        "::after": {
+            content: "·",
+            marginLeft: "0.75rem",
+        },
+        [compact]: {
             display: "none",
         },
     },
