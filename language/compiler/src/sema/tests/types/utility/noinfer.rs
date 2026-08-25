@@ -48,7 +48,7 @@ const ok = choose(["red", "blue"], "red");
 /// @generic.instance id="NoInfer<\"red\" | \"blue\">" template=NoInfer arguments=("red" | "blue")
 /// @generic.instance id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
 /// @generic.instance id="new<MaybeUninit<\"red\" | \"blue\">>" template=new arguments=(MaybeUninit<"red" | "blue">)
-/// @resolution.call source=["red", "blue"] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest("red", "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<\"red\" | \"blue\">"
+/// @resolution.call source=["red", "blue"] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest("red", "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<\"red\" | \"blue\">"
 /// @generic.instantiation id="arrayFromSlice<\"red\" | \"blue\">" template=arrayFromSlice arguments=("red" | "blue")
 /// @generic.instance id="arrayFromSlice<\"red\" | \"blue\", \"local\">" template=arrayFromSlice arguments=("red" | "blue", "local")
 
@@ -196,7 +196,7 @@ const kept = keep(values, ["green"]);
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @resolution.call source=["green"] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest("green") as "red") return="red"[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<\"red\">"
+/// @resolution.call source=["green"] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest("green") as "red") return="red"[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<\"red\">"
 /// @generic.instantiation id="arrayFromSlice<\"red\">" template=arrayFromSlice arguments=("red")
 
 const reds: "red"[] = values;
@@ -375,7 +375,7 @@ choose(["red", "blue"], "green");
 /// @resolution.name source=choose target=choose
 /// @resolution.call source="choose([\"red\", \"blue\"], \"green\")" parameters=("red" | "blue"[], "red" | "blue" | undefined) arguments=(provided(["red", "blue"]) as "red" | "blue"[], provided("green") as "red" | "blue" | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
 /// @generic.instantiation id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
-/// @resolution.call source=["red", "blue"] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest("red", "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<\"red\" | \"blue\">"
+/// @resolution.call source=["red", "blue"] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest("red", "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<\"red\" | \"blue\">"
 /// @generic.instantiation id="arrayFromSlice<\"red\" | \"blue\">" template=arrayFromSlice arguments=("red" | "blue")
 "#,
         r#"

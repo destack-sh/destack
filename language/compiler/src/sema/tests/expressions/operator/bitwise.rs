@@ -184,7 +184,7 @@ extension of Flags implements And<Flags> {
 /// @definition.extension symbol=<module>#2 form=local target=Flags
 /// @definition.implements symbol=<module>#2 source=And<Flags> target=And<Flags>
 /// @definition.associated.type symbol=Output source="type Output = Flags" key=Output value=Flags
-/// @definition.method symbol=and slot=and type=<and.'a, and.P1: Place>(this: Borrowed<Flags, and.'a & and.P1, "readonly">, Flags) => Flags
+/// @definition.method symbol=and slot=and type=<and.'a, and.P1: Place>(this: &and.'a readonly Flags, Flags) => Flags
 /// @definition.conformance symbol=<module>#2 member=Output requirement=And.Output
 /// @definition.conformance symbol=<module>#2 member=and requirement=And.and
 /// @resolution.name source=Flags target=Flags
@@ -197,17 +197,17 @@ extension of Flags implements And<Flags> {
 
     and(&readonly this, other: Flags): Flags {
     /// @generic.template symbol=and parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=and type=<and.'a, and.P1: Place>(this: Borrowed<Flags, and.'a & and.P1, "readonly">, Flags) => Flags
-    /// @type.symbol symbol=and.this source="&readonly this" type=Borrowed<this, and.'a & and.P1, "readonly">
+    /// @type.symbol symbol=and type=<and.'a, and.P1: Place>(this: &and.'a readonly Flags, Flags) => Flags
+    /// @type.symbol symbol=and.this source="&readonly this" type=&and.'a readonly this
     /// @type.symbol symbol=and.other source="other: Flags" type=Flags
     /// @resolution.name source=Flags target=Flags
     /// @resolution.name source=Flags target=Flags
 
         Flags { bits: this.bits & other.bits }
         /// @resolution.name source=Flags target=Flags
-        /// @resolution.member source=this.bits receiver=Borrowed<Flags, and.'a & and.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Flags, and.'a & and.P1, "readonly"> key=bits target=Flags.bits target_type=int32
+        /// @resolution.member source=this.bits receiver=&and.'a readonly Flags type=int32 kind=field target_receiver=&and.'a readonly Flags key=bits target=Flags.bits target_type=int32
         /// @resolution.operator source="this.bits & other.bits" type=int32 operator="&" kind=builtin operands=[this.bits as int32 families=(integer), other.bits as int32 families=(integer)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Flags, and.'a & and.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&and.'a readonly Flags
         /// @resolution.place source=this placement=and.P1 lifetime=and.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.bits placement=and.P1 lifetime=and.'a access="readonly"

@@ -110,7 +110,7 @@ function fallback(result: Result<int32, string>): int32 {
         DirRows::checked(),
         r#"
 === annotated ===
-function count<'a, P1: Place>(values: Borrowed<int32[], 'a & P1, "readonly">): int32 {
+function count<'a, P1: Place>(values: &'a readonly int32[]): int32 {
     let total: int32 = 0;
     for (const value of values) {
         total += value;
@@ -129,8 +129,8 @@ function fallback(result: Result<int32, string>): int32 {
 === dir ===
 function count(values: &readonly int32[]): int32 {
 /// @generic.template symbol=count parameters=('a, P1: Place)
-/// @type.symbol symbol=count type=<count.'a, count.P1: Place>(Borrowed<int32[], count.'a & count.P1, "readonly">) => int32
-/// @type.symbol symbol=count.values source="values: &readonly int32[]" type=Borrowed<int32[], count.'a & count.P1, "readonly">
+/// @type.symbol symbol=count type=<count.'a, count.P1: Place>(&count.'a readonly int32[]) => int32
+/// @type.symbol symbol=count.values source="values: &readonly int32[]" type=&count.'a readonly int32[]
 
     let total = 0;
     /// @type.symbol symbol=count.total source=total type=int32
@@ -588,7 +588,7 @@ const text = (1).toString();
 const mixed = [1, 2.5];
 /// @type.symbol symbol=mixed source=mixed type=float64[]
 /// @resolution.pattern source=mixed kind=binding target=mixed
-/// @resolution.call source=[1, 2.5] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2.5) as float64) return=float64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<float64>
+/// @resolution.call source=[1, 2.5] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2.5) as float64) return=float64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<float64>
 /// @generic.instantiation id=arrayFromSlice<float64> template=arrayFromSlice arguments=(float64)
 
 let counter = 1;

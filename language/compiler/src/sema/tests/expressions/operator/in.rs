@@ -123,7 +123,7 @@ found satisfies boolean;
         r#"
 === annotated ===
 class Bag {
-    has(key: Borrowed<string, 'a & P1, "readonly">): boolean {
+    has(key: &'a readonly string): boolean {
         return true;
     }
 }
@@ -137,12 +137,12 @@ found satisfies boolean;
 class Bag {
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.class symbol=Bag
-/// @definition.method symbol=Bag.has slot=has type=<Bag.has.'a, Bag.has.P1: Place, Bag.has.P2: Place>(this: Managed<Bag, Bag.has.P2>, Borrowed<string, Bag.has.'a & Bag.has.P1, "readonly">) => boolean
+/// @definition.method symbol=Bag.has slot=has type=<Bag.has.'a, Bag.has.P1: Place, Bag.has.P2: Place>(this: Managed<Bag, Bag.has.P2>, &Bag.has.'a readonly string) => boolean
 
     has(key: &readonly string): boolean {
     /// @generic.template symbol=Bag.has parameters=('a, P1: Place, P2: Place)
-    /// @type.symbol symbol=Bag.has type=<Bag.has.'a, Bag.has.P1: Place, Bag.has.P2: Place>(this: Managed<Bag, Bag.has.P2>, Borrowed<string, Bag.has.'a & Bag.has.P1, "readonly">) => boolean
-    /// @type.symbol symbol=Bag.has.key source="key: &readonly string" type=Borrowed<string, Bag.has.'a & Bag.has.P1, "readonly">
+    /// @type.symbol symbol=Bag.has type=<Bag.has.'a, Bag.has.P1: Place, Bag.has.P2: Place>(this: Managed<Bag, Bag.has.P2>, &Bag.has.'a readonly string) => boolean
+    /// @type.symbol symbol=Bag.has.key source="key: &readonly string" type=&Bag.has.'a readonly string
 
         return true;
         /// @type.node source=true type=true

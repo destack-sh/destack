@@ -60,11 +60,11 @@ newtype NamedWriter = Writer;
 struct Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
 /// @definition.struct symbol=Buffer
-/// @definition.method symbol=Buffer.write slot=write type=<Buffer.write.'a, Buffer.write.P1: Place>(this: Borrowed<this, Buffer.write.'a & Buffer.write.P1, "readonly">, readonly uint8[]) => usize
+/// @definition.method symbol=Buffer.write slot=write type=<Buffer.write.'a, Buffer.write.P1: Place>(this: &Buffer.write.'a readonly this, readonly uint8[]) => usize
 
     write(bytes: readonly uint8[]): usize {
     /// @generic.template symbol=Buffer.write parameters=('a, P1: Place)
-    /// @type.symbol symbol=Buffer.write type=<Buffer.write.'a, Buffer.write.P1: Place>(this: Borrowed<this, Buffer.write.'a & Buffer.write.P1, "readonly">, readonly uint8[]) => usize
+    /// @type.symbol symbol=Buffer.write type=<Buffer.write.'a, Buffer.write.P1: Place>(this: &Buffer.write.'a readonly this, readonly uint8[]) => usize
     /// @type.symbol symbol=Buffer.write.bytes source="bytes: readonly uint8[]" type=readonly uint8[]
 
         bytes.length

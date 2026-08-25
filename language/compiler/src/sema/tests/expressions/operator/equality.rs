@@ -15,15 +15,15 @@ function positive(value: &readonly (int32 | undefined)): boolean {
         DirRows::checked(),
         r#"
 === annotated ===
-function positive<'a, P1: Place>(value: Borrowed<int32 | undefined, 'a & P1, "readonly">): boolean {
+function positive<'a, P1: Place>(value: &'a readonly (int32 | undefined)): boolean {
     value !== (undefined as int32 | undefined) && (value as int32) > 0
 }
 
 === dir ===
 function positive(value: &readonly (int32 | undefined)): boolean {
 /// @generic.template symbol=positive parameters=('a, P1: Place)
-/// @type.symbol symbol=positive type=<positive.'a, positive.P1: Place>(Borrowed<int32 | undefined, positive.'a & positive.P1, "readonly">) => boolean
-/// @type.symbol symbol=positive.value source="value: &readonly (int32 | undefined)" type=Borrowed<int32 | undefined, positive.'a & positive.P1, "readonly">
+/// @type.symbol symbol=positive type=<positive.'a, positive.P1: Place>(&positive.'a readonly int32 | undefined) => boolean
+/// @type.symbol symbol=positive.value source="value: &readonly (int32 | undefined)" type=&positive.'a readonly int32 | undefined
 
     value !== undefined && value > 0
     /// @resolution.name source=value target=positive.value
@@ -56,15 +56,15 @@ function positive(value: &readonly (int32 | undefined)): boolean {
         DirRows::checked(),
         r#"
 === annotated ===
-function positive<'a, P1: Place>(value: Borrowed<int32 | undefined, 'a & P1, "readonly">): boolean {
+function positive<'a, P1: Place>(value: &'a readonly (int32 | undefined)): boolean {
     value === (undefined as int32 | undefined) || (value as int32) > 0
 }
 
 === dir ===
 function positive(value: &readonly (int32 | undefined)): boolean {
 /// @generic.template symbol=positive parameters=('a, P1: Place)
-/// @type.symbol symbol=positive type=<positive.'a, positive.P1: Place>(Borrowed<int32 | undefined, positive.'a & positive.P1, "readonly">) => boolean
-/// @type.symbol symbol=positive.value source="value: &readonly (int32 | undefined)" type=Borrowed<int32 | undefined, positive.'a & positive.P1, "readonly">
+/// @type.symbol symbol=positive type=<positive.'a, positive.P1: Place>(&positive.'a readonly int32 | undefined) => boolean
+/// @type.symbol symbol=positive.value source="value: &readonly (int32 | undefined)" type=&positive.'a readonly int32 | undefined
 
     value === undefined || value > 0
     /// @resolution.name source=value target=positive.value
@@ -323,15 +323,15 @@ const usersDiffer = different(firstUser, secondUser);
 import { StrictEqual } from "destack:ops";
 
 function same<R, L: StrictEqual<R>, 'a, P3: Place, 'b, P5: Place>(
-    left: Borrowed<L, 'a & P3, "readonly">,
-    right: Borrowed<R, 'b & P5, "readonly">,
+    left: &'a readonly L,
+    right: &'b readonly R,
 ): boolean {
     *left === *right
 }
 
 function different<T: StrictEqual<T>, 'a, P2: Place, 'b, P4: Place>(
-    left: Borrowed<T, 'a & P2, "readonly">,
-    right: Borrowed<T, 'b & P4, "readonly">,
+    left: &'a readonly T,
+    right: &'b readonly T,
 ): boolean {
     *left !== *right
 }
@@ -363,14 +363,14 @@ import { StrictEqual } from "destack:ops";
 
 function same<R, L: StrictEqual<R>>(left: &readonly L, right: &readonly R): boolean {
 /// @generic.template symbol=same parameters=(R, L: StrictEqual<R>, 'a, P3: Place, 'b, P5: Place)
-/// @type.symbol symbol=same type=<R, L: StrictEqual<R>, same.'a, same.P3: Place, same.'b, same.P5: Place>(Borrowed<L, same.'a & same.P3, "readonly">, Borrowed<R, same.'b & same.P5, "readonly">) => boolean
+/// @type.symbol symbol=same type=<R, L: StrictEqual<R>, same.'a, same.P3: Place, same.'b, same.P5: Place>(&same.'a readonly L, &same.'b readonly R) => boolean
 /// @type.symbol symbol=same.R source=R type=R
 /// @type.symbol symbol=same.L source="L: StrictEqual<R>" type=L
 /// @resolution.name source=StrictEqual target=StrictEqual
 /// @resolution.name source=R target=same.R
-/// @type.symbol symbol=same.left source="left: &readonly L" type=Borrowed<L, same.'a & same.P3, "readonly">
+/// @type.symbol symbol=same.left source="left: &readonly L" type=&same.'a readonly L
 /// @resolution.name source=L target=same.L
-/// @type.symbol symbol=same.right source="right: &readonly R" type=Borrowed<R, same.'b & same.P5, "readonly">
+/// @type.symbol symbol=same.right source="right: &readonly R" type=&same.'b readonly R
 /// @resolution.name source=R target=same.R
 
     *left === *right
@@ -378,15 +378,15 @@ function same<R, L: StrictEqual<R>>(left: &readonly L, right: &readonly R): bool
     /// @type.node source=*left type=L
     /// @resolution.operator source="*left === *right" type=boolean operator="===" kind=builtin operands=[*left as L, *right as R]
     /// @resolution.place source=*left placement=same.P3 lifetime=same.'a access="readonly"
-    /// @resolution.operator source=*left type=L operator="*" kind=builtin operands=[left as Borrowed<L, same.'a & same.P3, "readonly">]
-    /// @type.node source=left type=Borrowed<L, same.'a & same.P3, "readonly">
+    /// @resolution.operator source=*left type=L operator="*" kind=builtin operands=[left as &same.'a readonly L]
+    /// @type.node source=left type=&same.'a readonly L
     /// @resolution.name source=left target=same.left
     /// @resolution.place source=left placement=same.P3 lifetime=same.'a access="readonly"
     /// @resolution.access source=left root=same.left
     /// @type.node source=*right type=R
     /// @resolution.place source=*right placement=same.P5 lifetime=same.'b access="readonly"
-    /// @resolution.operator source=*right type=R operator="*" kind=builtin operands=[right as Borrowed<R, same.'b & same.P5, "readonly">]
-    /// @type.node source=right type=Borrowed<R, same.'b & same.P5, "readonly">
+    /// @resolution.operator source=*right type=R operator="*" kind=builtin operands=[right as &same.'b readonly R]
+    /// @type.node source=right type=&same.'b readonly R
     /// @resolution.name source=right target=same.right
     /// @resolution.place source=right placement=same.P5 lifetime=same.'b access="readonly"
     /// @resolution.access source=right root=same.right
@@ -395,13 +395,13 @@ function same<R, L: StrictEqual<R>>(left: &readonly L, right: &readonly R): bool
 
 function different<T: StrictEqual<T>>(left: &readonly T, right: &readonly T): boolean {
 /// @generic.template symbol=different parameters=(T: StrictEqual<T>, 'a, P2: Place, 'b, P4: Place)
-/// @type.symbol symbol=different type=<T: StrictEqual<T>, different.'a, different.P2: Place, different.'b, different.P4: Place>(Borrowed<T, different.'a & different.P2, "readonly">, Borrowed<T, different.'b & different.P4, "readonly">) => boolean
+/// @type.symbol symbol=different type=<T: StrictEqual<T>, different.'a, different.P2: Place, different.'b, different.P4: Place>(&different.'a readonly T, &different.'b readonly T) => boolean
 /// @type.symbol symbol=different.T source="T: StrictEqual<T>" type=T
 /// @resolution.name source=StrictEqual target=StrictEqual
 /// @resolution.name source=T target=different.T
-/// @type.symbol symbol=different.left source="left: &readonly T" type=Borrowed<T, different.'a & different.P2, "readonly">
+/// @type.symbol symbol=different.left source="left: &readonly T" type=&different.'a readonly T
 /// @resolution.name source=T target=different.T
-/// @type.symbol symbol=different.right source="right: &readonly T" type=Borrowed<T, different.'b & different.P4, "readonly">
+/// @type.symbol symbol=different.right source="right: &readonly T" type=&different.'b readonly T
 /// @resolution.name source=T target=different.T
 
     *left !== *right
@@ -409,15 +409,15 @@ function different<T: StrictEqual<T>>(left: &readonly T, right: &readonly T): bo
     /// @type.node source=*left type=T
     /// @resolution.operator source="*left !== *right" type=boolean operator="!==" kind=builtin operands=[*left as T, *right as T]
     /// @resolution.place source=*left placement=different.P2 lifetime=different.'a access="readonly"
-    /// @resolution.operator source=*left type=T operator="*" kind=builtin operands=[left as Borrowed<T, different.'a & different.P2, "readonly">]
-    /// @type.node source=left type=Borrowed<T, different.'a & different.P2, "readonly">
+    /// @resolution.operator source=*left type=T operator="*" kind=builtin operands=[left as &different.'a readonly T]
+    /// @type.node source=left type=&different.'a readonly T
     /// @resolution.name source=left target=different.left
     /// @resolution.place source=left placement=different.P2 lifetime=different.'a access="readonly"
     /// @resolution.access source=left root=different.left
     /// @type.node source=*right type=T
     /// @resolution.place source=*right placement=different.P4 lifetime=different.'b access="readonly"
-    /// @resolution.operator source=*right type=T operator="*" kind=builtin operands=[right as Borrowed<T, different.'b & different.P4, "readonly">]
-    /// @type.node source=right type=Borrowed<T, different.'b & different.P4, "readonly">
+    /// @resolution.operator source=*right type=T operator="*" kind=builtin operands=[right as &different.'b readonly T]
+    /// @type.node source=right type=&different.'b readonly T
     /// @resolution.name source=right target=different.right
     /// @resolution.place source=right placement=different.P4 lifetime=different.'b access="readonly"
     /// @resolution.access source=right root=different.right
@@ -894,7 +894,7 @@ extension of Badge implements PartialEqual<Badge> {
 /// @generic.instance id=PartialEqual<Badge> template=PartialEqual arguments=(Badge)
 /// @definition.extension symbol=<module>#2 form=local target=Badge
 /// @definition.implements symbol=<module>#2 source=PartialEqual<Badge> target=PartialEqual<Badge>
-/// @definition.method symbol=equal slot=equal type=<equal.'a, equal.P1: Place>(this: Borrowed<Badge, equal.'a & equal.P1, "readonly">, Badge) => boolean
+/// @definition.method symbol=equal slot=equal type=<equal.'a, equal.P1: Place>(this: &equal.'a readonly Badge, Badge) => boolean
 /// @definition.conformance symbol=<module>#2 member=equal requirement=PartialEqual.equal
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=PartialEqual target=PartialEqual
@@ -902,15 +902,15 @@ extension of Badge implements PartialEqual<Badge> {
 
     equal(&readonly this, other: Badge): boolean {
     /// @generic.template symbol=equal parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=equal type=<equal.'a, equal.P1: Place>(this: Borrowed<Badge, equal.'a & equal.P1, "readonly">, Badge) => boolean
-    /// @type.symbol symbol=equal.this source="&readonly this" type=Borrowed<this, equal.'a & equal.P1, "readonly">
+    /// @type.symbol symbol=equal type=<equal.'a, equal.P1: Place>(this: &equal.'a readonly Badge, Badge) => boolean
+    /// @type.symbol symbol=equal.this source="&readonly this" type=&equal.'a readonly this
     /// @type.symbol symbol=equal.other source="other: Badge" type=Badge
     /// @resolution.name source=Badge target=Badge
 
         this.id == other.id
-        /// @resolution.member source=this.id receiver=Borrowed<Badge, equal.'a & equal.P1, "readonly"> type=float64 kind=field target_receiver=Borrowed<Badge, equal.'a & equal.P1, "readonly"> key=id target=Badge.id target_type=float64
+        /// @resolution.member source=this.id receiver=&equal.'a readonly Badge type=float64 kind=field target_receiver=&equal.'a readonly Badge key=id target=Badge.id target_type=float64
         /// @resolution.operator source="this.id == other.id" type=boolean operator="==" kind=builtin operands=[this.id as float64 families=(float), other.id as float64 families=(float)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Badge, equal.'a & equal.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&equal.'a readonly Badge
         /// @resolution.place source=this placement=equal.P1 lifetime=equal.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.id placement=equal.P1 lifetime=equal.'a access="readonly"
@@ -1009,21 +1009,21 @@ extension of Measure implements PartialEqual<float64> {
 /// @generic.instance id=PartialEqual<float64> template=PartialEqual arguments=(float64)
 /// @definition.extension symbol=<module>#2 form=local target=Measure
 /// @definition.implements symbol=<module>#2 source=PartialEqual<float64> target=PartialEqual<float64>
-/// @definition.method symbol=equal slot=equal type=<equal.'a, equal.P1: Place>(this: Borrowed<Measure, equal.'a & equal.P1, "readonly">, float64) => boolean
+/// @definition.method symbol=equal slot=equal type=<equal.'a, equal.P1: Place>(this: &equal.'a readonly Measure, float64) => boolean
 /// @definition.conformance symbol=<module>#2 member=equal requirement=PartialEqual.equal
 /// @resolution.name source=Measure target=Measure
 /// @resolution.name source=PartialEqual target=PartialEqual
 
     equal(&readonly this, other: float64): boolean {
     /// @generic.template symbol=equal parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=equal type=<equal.'a, equal.P1: Place>(this: Borrowed<Measure, equal.'a & equal.P1, "readonly">, float64) => boolean
-    /// @type.symbol symbol=equal.this source="&readonly this" type=Borrowed<this, equal.'a & equal.P1, "readonly">
+    /// @type.symbol symbol=equal type=<equal.'a, equal.P1: Place>(this: &equal.'a readonly Measure, float64) => boolean
+    /// @type.symbol symbol=equal.this source="&readonly this" type=&equal.'a readonly this
     /// @type.symbol symbol=equal.other source="other: float64" type=float64
 
         return this.value == other;
-        /// @resolution.member source=this.value receiver=Borrowed<Measure, equal.'a & equal.P1, "readonly"> type=float64 kind=field target_receiver=Borrowed<Measure, equal.'a & equal.P1, "readonly"> key=value target=Measure.value target_type=float64
+        /// @resolution.member source=this.value receiver=&equal.'a readonly Measure type=float64 kind=field target_receiver=&equal.'a readonly Measure key=value target=Measure.value target_type=float64
         /// @resolution.operator source="this.value == other" type=boolean operator="==" kind=builtin operands=[this.value as float64 families=(float), other as float64 families=(float)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Measure, equal.'a & equal.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&equal.'a readonly Measure
         /// @resolution.place source=this placement=equal.P1 lifetime=equal.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=equal.P1 lifetime=equal.'a access="readonly"
@@ -1069,15 +1069,15 @@ function positive(value: &readonly int32): boolean {
         DirRows::checked(),
         r#"
 === annotated ===
-function positive<'a, P1: Place>(value: Borrowed<int32, 'a & P1, "readonly">): boolean {
+function positive<'a, P1: Place>(value: &'a readonly int32): boolean {
     return (value as int32) > 0;
 }
 
 === dir ===
 function positive(value: &readonly int32): boolean {
 /// @generic.template symbol=positive parameters=('a, P1: Place)
-/// @type.symbol symbol=positive type=<positive.'a, positive.P1: Place>(Borrowed<int32, positive.'a & positive.P1, "readonly">) => boolean
-/// @type.symbol symbol=positive.value source="value: &readonly int32" type=Borrowed<int32, positive.'a & positive.P1, "readonly">
+/// @type.symbol symbol=positive type=<positive.'a, positive.P1: Place>(&positive.'a readonly int32) => boolean
+/// @type.symbol symbol=positive.value source="value: &readonly int32" type=&positive.'a readonly int32
 
     return value > 0;
     /// @resolution.name source=value target=positive.value

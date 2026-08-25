@@ -719,7 +719,7 @@ function prepare(values: [int32]): void {
         DirRows::checked().with_flows(),
         r#"
 === annotated ===
-declare function fill<'a, P1: Place>(buffer: Borrowed<[int32], 'a & P1, "exclusive">): void;
+declare function fill<'a, P1: Place>(buffer: &'a exclusive [int32]): void;
 
 function prepare(values: [int32]): void {
     fill<"local">(&exclusive values);
@@ -728,9 +728,9 @@ function prepare(values: [int32]): void {
 === dir ===
 declare function fill(buffer: &exclusive [int32]): void;
 /// @generic.template symbol=fill parameters=('a, P1: Place)
-/// @type.symbol symbol=fill source="declare function fill(buffer: &exclusive [int32]): void" type=<fill.'a, fill.P1: Place>(Borrowed<Slice<int32>, fill.'a & fill.P1, "exclusive">) => void
+/// @type.symbol symbol=fill source="declare function fill(buffer: &exclusive [int32]): void" type=<fill.'a, fill.P1: Place>(&fill.'a exclusive Slice<int32>) => void
 /// @flow.use symbol=fill uses=read
-/// @type.symbol symbol=fill.buffer source="buffer: &exclusive [int32]" type=Borrowed<Slice<int32>, fill.'a & fill.P1, "exclusive">
+/// @type.symbol symbol=fill.buffer source="buffer: &exclusive [int32]" type=&fill.'a exclusive Slice<int32>
 
 function prepare(values: [int32]): void {
 /// @type.symbol symbol=prepare type=(Slice<int32>) => void
@@ -798,13 +798,13 @@ function feed(output: Array<int32>, values: [int32]): void {
     /// @resolution.access source=output root=feed.output
     /// @generic.instantiation id="push<int32, \"local\">" template=push arguments=(int32, "local")
     /// @generic.instantiation id=push<int32> template=push arguments=(int32)
-    /// @resolution.call source=[2, 3] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(2, 3) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+    /// @resolution.call source=[2, 3] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(2, 3) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
     /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
 
     consume([...values]);
     /// @resolution.name source=consume target=consume
     /// @resolution.call source=consume([...values]) parameters=(Iterable<int32>) arguments=(provided([...values]) as Iterable<int32>) return=void kind=symbol target=consume
-    /// @resolution.call source=[...values] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+    /// @resolution.call source=[...values] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
     /// @resolution.name source=values target=feed.values
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=feed.values

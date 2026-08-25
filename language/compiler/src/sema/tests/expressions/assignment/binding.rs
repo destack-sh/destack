@@ -283,7 +283,7 @@ values = [1, 2];
 /// @resolution.access source=values root=values
 /// @resolution.assignment source=values write=binding(values) type=int32[]
 /// @type.node source=[1, 2] type=int32[]
-/// @resolution.call source=[1, 2] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+/// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
 /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
 /// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
 /// @type.node source=1 type=1
@@ -325,7 +325,7 @@ values = [];
 /// @resolution.access source=values root=values
 /// @resolution.assignment source=values write=binding(values) type=int32[]
 /// @type.node source=[] type=int32[]
-/// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+/// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
 /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
 /// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
 "#,

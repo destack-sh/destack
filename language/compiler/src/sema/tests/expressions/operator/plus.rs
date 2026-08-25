@@ -100,7 +100,7 @@ extension of Vector implements Add<Vector> {
 /// @definition.extension symbol=<module>#2 form=local target=Vector
 /// @definition.implements symbol=<module>#2 source=Add<Vector> target=Add<Vector>
 /// @definition.associated.type symbol=Output source="type Output = Vector" key=Output value=Vector
-/// @definition.method symbol=add slot=add type=<add.'a, add.P1: Place>(this: Borrowed<Vector, add.'a & add.P1, "readonly">, Vector) => Vector
+/// @definition.method symbol=add slot=add type=<add.'a, add.P1: Place>(this: &add.'a readonly Vector, Vector) => Vector
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Add.Output
 /// @definition.conformance symbol=<module>#2 member=add requirement=Add.add
 /// @resolution.name source=Vector target=Vector
@@ -113,8 +113,8 @@ extension of Vector implements Add<Vector> {
 
     add(&readonly this, other: Vector): Vector {
     /// @generic.template symbol=add parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=add type=<add.'a, add.P1: Place>(this: Borrowed<Vector, add.'a & add.P1, "readonly">, Vector) => Vector
-    /// @type.symbol symbol=add.this source="&readonly this" type=Borrowed<this, add.'a & add.P1, "readonly">
+    /// @type.symbol symbol=add type=<add.'a, add.P1: Place>(this: &add.'a readonly Vector, Vector) => Vector
+    /// @type.symbol symbol=add.this source="&readonly this" type=&add.'a readonly this
     /// @type.symbol symbol=add.other source="other: Vector" type=Vector
     /// @resolution.name source=Vector target=Vector
     /// @resolution.name source=Vector target=Vector
@@ -125,11 +125,11 @@ extension of Vector implements Add<Vector> {
 
             x: this.x + other.x,
             /// @type.node source="this.x + other.x" type=int32
-            /// @type.node source=this type=Borrowed<Vector, add.'a & add.P1, "readonly">
+            /// @type.node source=this type=&add.'a readonly Vector
             /// @type.node source=this.x type=int32
-            /// @resolution.member source=this.x receiver=Borrowed<Vector, add.'a & add.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Vector, add.'a & add.P1, "readonly"> key=x target=Vector.x target_type=int32
+            /// @resolution.member source=this.x receiver=&add.'a readonly Vector type=int32 kind=field target_receiver=&add.'a readonly Vector key=x target=Vector.x target_type=int32
             /// @resolution.operator source="this.x + other.x" type=int32 operator="+" kind=builtin operands=[this.x as int32 families=(integer), other.x as int32 families=(integer)]
-            /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Vector, add.'a & add.P1, "readonly">
+            /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&add.'a readonly Vector
             /// @resolution.place source=this placement=add.P1 lifetime=add.'a access="readonly"
             /// @resolution.access source=this root=this
             /// @resolution.place source=this.x placement=add.P1 lifetime=add.'a access="readonly"
@@ -145,11 +145,11 @@ extension of Vector implements Add<Vector> {
 
             y: this.y + other.y,
             /// @type.node source="this.y + other.y" type=int32
-            /// @type.node source=this type=Borrowed<Vector, add.'a & add.P1, "readonly">
+            /// @type.node source=this type=&add.'a readonly Vector
             /// @type.node source=this.y type=int32
-            /// @resolution.member source=this.y receiver=Borrowed<Vector, add.'a & add.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Vector, add.'a & add.P1, "readonly"> key=y target=Vector.y target_type=int32
+            /// @resolution.member source=this.y receiver=&add.'a readonly Vector type=int32 kind=field target_receiver=&add.'a readonly Vector key=y target=Vector.y target_type=int32
             /// @resolution.operator source="this.y + other.y" type=int32 operator="+" kind=builtin operands=[this.y as int32 families=(integer), other.y as int32 families=(integer)]
-            /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Vector, add.'a & add.P1, "readonly">
+            /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&add.'a readonly Vector
             /// @resolution.place source=this placement=add.P1 lifetime=add.'a access="readonly"
             /// @resolution.access source=this root=this
             /// @resolution.place source=this.y placement=add.P1 lifetime=add.'a access="readonly"
@@ -254,8 +254,8 @@ extension of Score implements Add<Score> {
 /// @definition.extension symbol=<module>#2 form=local target=Score
 /// @definition.implements symbol=<module>#2 source=Add<Score> target=Add<Score>
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
-/// @definition.method symbol=add#1 slot=add type=<add#1.'a, add#1.P1: Place>(this: Borrowed<this, add#1.'a & add#1.P1, "readonly">, Score) => string
-/// @definition.method symbol=add#2 slot=add type=<add#2.'a, add#2.P1: Place>(this: Borrowed<this, add#2.'a & add#2.P1, "readonly">, Score) => Score
+/// @definition.method symbol=add#1 slot=add type=<add#1.'a, add#1.P1: Place>(this: &add#1.'a readonly this, Score) => string
+/// @definition.method symbol=add#2 slot=add type=<add#2.'a, add#2.P1: Place>(this: &add#2.'a readonly this, Score) => Score
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Add.Output
 /// @definition.conformance symbol=<module>#2 member=add#2 requirement=Add.add
 /// @resolution.name source=Score target=Score
@@ -268,8 +268,8 @@ extension of Score implements Add<Score> {
 
     add(&readonly this, other: Score): string {
     /// @generic.template symbol=add#1 parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=add#1 type=<add#1.'a, add#1.P1: Place>(this: Borrowed<this, add#1.'a & add#1.P1, "readonly">, Score) => string
-    /// @type.symbol symbol=add.this#1 source="&readonly this" type=Borrowed<this, add#1.'a & add#1.P1, "readonly">
+    /// @type.symbol symbol=add#1 type=<add#1.'a, add#1.P1: Place>(this: &add#1.'a readonly this, Score) => string
+    /// @type.symbol symbol=add.this#1 source="&readonly this" type=&add#1.'a readonly this
     /// @type.symbol symbol=add.other#1 source="other: Score" type=Score
     /// @resolution.name source=Score target=Score
 
@@ -280,8 +280,8 @@ extension of Score implements Add<Score> {
 
     add(&readonly this, other: Score): Score {
     /// @generic.template symbol=add#2 parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=add#2 type=<add#2.'a, add#2.P1: Place>(this: Borrowed<this, add#2.'a & add#2.P1, "readonly">, Score) => Score
-    /// @type.symbol symbol=add.this#2 source="&readonly this" type=Borrowed<this, add#2.'a & add#2.P1, "readonly">
+    /// @type.symbol symbol=add#2 type=<add#2.'a, add#2.P1: Place>(this: &add#2.'a readonly this, Score) => Score
+    /// @type.symbol symbol=add.this#2 source="&readonly this" type=&add#2.'a readonly this
     /// @type.symbol symbol=add.other#2 source="other: Score" type=Score
     /// @resolution.name source=Score target=Score
     /// @resolution.name source=Score target=Score
@@ -388,7 +388,7 @@ extension of Score implements Add<Score> {
 /// @definition.extension symbol=<module>#2 form=local target=Score
 /// @definition.implements symbol=<module>#2 source=Add<Score> target=Add<Score>
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
-/// @definition.method symbol=add slot=add type=<add.'a, add.P1: Place>(this: Borrowed<Score, add.'a & add.P1, "readonly">, Score) => Score
+/// @definition.method symbol=add slot=add type=<add.'a, add.P1: Place>(this: &add.'a readonly Score, Score) => Score
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Add.Output
 /// @definition.conformance symbol=<module>#2 member=add requirement=Add.add
 /// @resolution.name source=Score target=Score
@@ -401,16 +401,16 @@ extension of Score implements Add<Score> {
 
     add(other: Score): Score {
     /// @generic.template symbol=add parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=add type=<add.'a, add.P1: Place>(this: Borrowed<Score, add.'a & add.P1, "readonly">, Score) => Score
+    /// @type.symbol symbol=add type=<add.'a, add.P1: Place>(this: &add.'a readonly Score, Score) => Score
     /// @type.symbol symbol=add.other source="other: Score" type=Score
     /// @resolution.name source=Score target=Score
     /// @resolution.name source=Score target=Score
 
         Score { value: this.value + other.value }
         /// @resolution.name source=Score target=Score
-        /// @resolution.member source=this.value receiver=Borrowed<Score, add.'a & add.P1, "readonly"> type=float64 kind=field target_receiver=Borrowed<Score, add.'a & add.P1, "readonly"> key=value target=Score.value target_type=float64
+        /// @resolution.member source=this.value receiver=&add.'a readonly Score type=float64 kind=field target_receiver=&add.'a readonly Score key=value target=Score.value target_type=float64
         /// @resolution.operator source="this.value + other.value" type=float64 operator="+" kind=builtin operands=[this.value as float64 families=(float), other.value as float64 families=(float)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Score, add.'a & add.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&add.'a readonly Score
         /// @resolution.place source=this placement=add.P1 lifetime=add.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=add.P1 lifetime=add.'a access="readonly"
@@ -511,7 +511,7 @@ extension of Score implements Add {
 /// @definition.extension symbol=<module>#2 form=local target=Score
 /// @definition.implements symbol=<module>#2 source=Add target=Add<this>
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
-/// @definition.method symbol=add slot=add type=<add.'a, add.P1: Place>(this: Borrowed<Score, add.'a & add.P1, "readonly">, Score) => Score
+/// @definition.method symbol=add slot=add type=<add.'a, add.P1: Place>(this: &add.'a readonly Score, Score) => Score
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Add.Output
 /// @definition.conformance symbol=<module>#2 member=add requirement=Add.add
 /// @resolution.name source=Score target=Score
@@ -523,16 +523,16 @@ extension of Score implements Add {
 
     add(other: Score): Score {
     /// @generic.template symbol=add parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=add type=<add.'a, add.P1: Place>(this: Borrowed<Score, add.'a & add.P1, "readonly">, Score) => Score
+    /// @type.symbol symbol=add type=<add.'a, add.P1: Place>(this: &add.'a readonly Score, Score) => Score
     /// @type.symbol symbol=add.other source="other: Score" type=Score
     /// @resolution.name source=Score target=Score
     /// @resolution.name source=Score target=Score
 
         Score { value: this.value + other.value }
         /// @resolution.name source=Score target=Score
-        /// @resolution.member source=this.value receiver=Borrowed<Score, add.'a & add.P1, "readonly"> type=float64 kind=field target_receiver=Borrowed<Score, add.'a & add.P1, "readonly"> key=value target=Score.value target_type=float64
+        /// @resolution.member source=this.value receiver=&add.'a readonly Score type=float64 kind=field target_receiver=&add.'a readonly Score key=value target=Score.value target_type=float64
         /// @resolution.operator source="this.value + other.value" type=float64 operator="+" kind=builtin operands=[this.value as float64 families=(float), other.value as float64 families=(float)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Score, add.'a & add.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&add.'a readonly Score
         /// @resolution.place source=this placement=add.P1 lifetime=add.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=add.P1 lifetime=add.'a access="readonly"

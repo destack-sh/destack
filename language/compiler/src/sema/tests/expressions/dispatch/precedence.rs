@@ -676,7 +676,7 @@ struct Pack<out T> {
     value: T;
 }
 
-function read<T, 'a, P2: Place>(pack: Borrowed<Pack<T>, 'a & P2, "readonly">): readonly T {
+function read<T, 'a, P2: Place>(pack: &'a readonly Pack<T>): readonly T {
     pack.value
 }
 
@@ -696,18 +696,18 @@ struct Pack<T> {
 
 function read<T>(pack: &readonly Pack<T>): readonly T {
 /// @generic.template symbol=read parameters=(T#2, 'a, P2: Place)
-/// @type.symbol symbol=read type=<T#2, read.'a, read.P2: Place>(Borrowed<Pack<T#2>, read.'a & read.P2, "readonly">) => Readonly<T#2>
+/// @type.symbol symbol=read type=<T#2, read.'a, read.P2: Place>(&read.'a readonly Pack<T#2>) => Readonly<T#2>
 /// @type.symbol symbol=read.T source=T type=T#2
-/// @type.symbol symbol=read.pack source="pack: &readonly Pack<T>" type=Borrowed<Pack<T#2>, read.'a & read.P2, "readonly">
+/// @type.symbol symbol=read.pack source="pack: &readonly Pack<T>" type=&read.'a readonly Pack<T#2>
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=read.T
 /// @resolution.name source=T target=read.T
 
     pack.value
-    /// @type.node source=pack type=Borrowed<Pack<T#2>, read.'a & read.P2, "readonly">
+    /// @type.node source=pack type=&read.'a readonly Pack<T#2>
     /// @type.node source=pack.value type=Readonly<T#2>
     /// @resolution.name source=pack target=read.pack
-    /// @resolution.member source=pack.value receiver=Borrowed<Pack<T#2>, read.'a & read.P2, "readonly"> type=Readonly<T#2> kind=field target_receiver=Borrowed<Pack<T#2>, read.'a & read.P2, "readonly"> key=value target=Pack.value target_type=Readonly<T#2>
+    /// @resolution.member source=pack.value receiver=&read.'a readonly Pack<T#2> type=Readonly<T#2> kind=field target_receiver=&read.'a readonly Pack<T#2> key=value target=Pack.value target_type=Readonly<T#2>
     /// @resolution.place source=pack placement=read.P2 lifetime=read.'a access="readonly"
     /// @resolution.access source=pack root=read.pack
     /// @resolution.place source=pack.value placement=read.P2 lifetime=read.'a access="readonly"
@@ -751,7 +751,7 @@ function same<T>(actual: readonly T | T, expected: T): void {
     todo("same" as string | undefined);
 }
 
-function check<T, 'a, P2: Place>(pack: Borrowed<Pack<T>, 'a & P2, "readonly">, expected: T): void {
+function check<T, 'a, P2: Place>(pack: &'a readonly Pack<T>, expected: T): void {
     same<T>(pack.value as readonly T | T, expected);
 }
 
@@ -790,9 +790,9 @@ function same<T>(actual: readonly T | T, expected: T): void {
 
 function check<T>(pack: &readonly Pack<T>, expected: T): void {
 /// @generic.template symbol=check parameters=(T#3, 'a, P2: Place)
-/// @type.symbol symbol=check type=<T#3, check.'a, check.P2: Place>(Borrowed<Pack<T#3>, check.'a & check.P2, "readonly">, T#3) => void
+/// @type.symbol symbol=check type=<T#3, check.'a, check.P2: Place>(&check.'a readonly Pack<T#3>, T#3) => void
 /// @type.symbol symbol=check.T source=T type=T#3
-/// @type.symbol symbol=check.pack source="pack: &readonly Pack<T>" type=Borrowed<Pack<T#3>, check.'a & check.P2, "readonly">
+/// @type.symbol symbol=check.pack source="pack: &readonly Pack<T>" type=&check.'a readonly Pack<T#3>
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=check.T
 /// @type.symbol symbol=check.expected source="expected: T" type=T#3
@@ -804,10 +804,10 @@ function check<T>(pack: &readonly Pack<T>, expected: T): void {
     /// @resolution.name source=same target=same
     /// @resolution.call source="same(pack.value, expected)" parameters=(Readonly<T#3> | T#3, T#3) arguments=(provided(pack.value) as Readonly<T#3> | T#3, provided(expected) as T#3) return=void kind=symbol target=same instance=same<T#3>
     /// @generic.instantiation id=same<T#3> template=same arguments=(T#3) owner=check
-    /// @type.node source=pack type=Borrowed<Pack<T#3>, check.'a & check.P2, "readonly">
+    /// @type.node source=pack type=&check.'a readonly Pack<T#3>
     /// @type.node source=pack.value type=Readonly<T#3>
     /// @resolution.name source=pack target=check.pack
-    /// @resolution.member source=pack.value receiver=Borrowed<Pack<T#3>, check.'a & check.P2, "readonly"> type=Readonly<T#3> kind=field target_receiver=Borrowed<Pack<T#3>, check.'a & check.P2, "readonly"> key=value target=Pack.value target_type=Readonly<T#3>
+    /// @resolution.member source=pack.value receiver=&check.'a readonly Pack<T#3> type=Readonly<T#3> kind=field target_receiver=&check.'a readonly Pack<T#3> key=value target=Pack.value target_type=Readonly<T#3>
     /// @resolution.place source=pack placement=check.P2 lifetime=check.'a access="readonly"
     /// @resolution.access source=pack root=check.pack
     /// @resolution.place source=pack.value placement=check.P2 lifetime=check.'a access="readonly"

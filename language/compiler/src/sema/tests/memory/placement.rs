@@ -346,7 +346,7 @@ extension of Buffer implements Default {
 
 extension of Buffer {
 /// @definition.extension symbol=<module>#3 form=local target=Buffer
-/// @definition.method symbol=clear source="clear(&exclusive this): void {}" slot=clear type=<clear.'a, clear.P1: Place>(this: Borrowed<this, clear.'a & clear.P1, "exclusive">) => void
+/// @definition.method symbol=clear source="clear(&exclusive this): void {}" slot=clear type=<clear.'a, clear.P1: Place>(this: &clear.'a exclusive this) => void
 /// @definition.method symbol=make slot=make static=true type=() => Buffer
 /// @resolution.name source=Buffer target=Buffer
 
@@ -362,8 +362,8 @@ extension of Buffer {
 
     clear(&exclusive this): void {}
     /// @generic.template symbol=clear parameters=('a, P1: Place)
-    /// @type.symbol symbol=clear source="clear(&exclusive this): void {}" type=<clear.'a, clear.P1: Place>(this: Borrowed<this, clear.'a & clear.P1, "exclusive">) => void
-    /// @type.symbol symbol=clear.this source="&exclusive this" type=Borrowed<this, clear.'a & clear.P1, "exclusive">
+    /// @type.symbol symbol=clear source="clear(&exclusive this): void {}" type=<clear.'a, clear.P1: Place>(this: &clear.'a exclusive this) => void
+    /// @type.symbol symbol=clear.this source="&exclusive this" type=&clear.'a exclusive this
 
 }
 
@@ -513,15 +513,15 @@ class Holder<T> {
 extension<T> of Item<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=local target=Item<T#3>
-/// @definition.method symbol=size slot=size type=<size.'a, size.P1: Place>(this: Borrowed<this, size.'a & size.P1, "readonly">) => int32
+/// @definition.method symbol=size slot=size type=<size.'a, size.P1: Place>(this: &size.'a readonly this) => int32
 /// @type.symbol symbol=T#1 source=T type=T#3
 /// @resolution.name source=Item target=Item
 /// @resolution.name source=T target=T#1
 
     size(&readonly this): int32 {
     /// @generic.template symbol=size parent=template#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=size type=<size.'a, size.P1: Place>(this: Borrowed<this, size.'a & size.P1, "readonly">) => int32
-    /// @type.symbol symbol=size.this source="&readonly this" type=Borrowed<this, size.'a & size.P1, "readonly">
+    /// @type.symbol symbol=size type=<size.'a, size.P1: Place>(this: &size.'a readonly this) => int32
+    /// @type.symbol symbol=size.this source="&readonly this" type=&size.'a readonly this
 
         return 1;
     }
@@ -530,21 +530,21 @@ extension<T> of Item<T> {
 extension<T> of Holder<T> {
 /// @generic.template symbol=<module>#3 parameters=(T#4)
 /// @definition.extension symbol=<module>#3 form=local target=Holder<T#4>
-/// @definition.method symbol=peek slot=peek type=<peek.'a, peek.P1: Place>(this: Borrowed<this, peek.'a & peek.P1, "readonly">) => int32
+/// @definition.method symbol=peek slot=peek type=<peek.'a, peek.P1: Place>(this: &peek.'a readonly this) => int32
 /// @type.symbol symbol=T#2 source=T type=T#4
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=T target=T#2
 
     peek(&readonly this): int32 {
     /// @generic.template symbol=peek parent=template#3 parameters=('a, P1: Place)
-    /// @type.symbol symbol=peek type=<peek.'a, peek.P1: Place>(this: Borrowed<this, peek.'a & peek.P1, "readonly">) => int32
-    /// @type.symbol symbol=peek.this source="&readonly this" type=Borrowed<this, peek.'a & peek.P1, "readonly">
+    /// @type.symbol symbol=peek type=<peek.'a, peek.P1: Place>(this: &peek.'a readonly this) => int32
+    /// @type.symbol symbol=peek.this source="&readonly this" type=&peek.'a readonly this
 
         return this.item.size();
-        /// @resolution.member source=this.item receiver=Borrowed<Holder<T#4>, peek.'a & peek.P1, "readonly"> type=Readonly<Item<T#4>> kind=field target_receiver=Borrowed<Holder<T#4>, peek.'a & peek.P1, "readonly"> key=item target=Holder.item target_type=Readonly<Item<T#4>>
-        /// @resolution.member source=this.item.size receiver=Readonly<Managed<Item<T#4>, peek.P1>> type=<size.'a, size.P1: Place>(this: Borrowed<Item<T#4>, size.'a & size.P1, "readonly">) => int32 kind=symbol target_receiver=Readonly<Managed<Item<T#4>, peek.P1>> target=size
-        /// @resolution.call source=this.item.size() parameters=() return=int32 kind=symbol target=size receiver=Readonly<Managed<Item<T#4>, peek.P1>> adjustments=(Readonly<Managed<Item<T#4>, peek.P1>> => direct -> Managed<Item<T#4>, peek.P1>, borrow(Borrowed<Managed<Item<T#4>, peek.P1>, peek.'a & peek.P1, "readonly">)) instance=Item<T#4>.<extension#1>.size<peek.P1>
-        /// @resolution.receiver source=this kind=this declaration=<module>#3 type=Borrowed<Holder<T#4>, peek.'a & peek.P1, "readonly">
+        /// @resolution.member source=this.item receiver=&peek.'a readonly Holder<T#4> type=Readonly<Item<T#4>> kind=field target_receiver=&peek.'a readonly Holder<T#4> key=item target=Holder.item target_type=Readonly<Item<T#4>>
+        /// @resolution.member source=this.item.size receiver=Readonly<Managed<Item<T#4>, peek.P1>> type=<size.'a, size.P1: Place>(this: &size.'a readonly Item<T#4>) => int32 kind=symbol target_receiver=Readonly<Managed<Item<T#4>, peek.P1>> target=size
+        /// @resolution.call source=this.item.size() parameters=() return=int32 kind=symbol target=size receiver=Readonly<Managed<Item<T#4>, peek.P1>> adjustments=(Readonly<Managed<Item<T#4>, peek.P1>> => direct -> Managed<Item<T#4>, peek.P1>, borrow(&peek.'a readonly Managed<Item<T#4>, peek.P1>)) instance=Item<T#4>.<extension#1>.size<peek.P1>
+        /// @resolution.receiver source=this kind=this declaration=<module>#3 type=&peek.'a readonly Holder<T#4>
         /// @resolution.place source=this placement=peek.P1 lifetime=peek.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.item placement=peek.P1 lifetime=peek.'a access="readonly"
@@ -635,21 +635,21 @@ class Holder<T> {
 extension<T> of Holder<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=local target=Holder<T#2>
-/// @definition.method symbol=peek slot=peek type=<peek.'a, peek.P1: Place>(this: Borrowed<this, peek.'a & peek.P1, "readonly">) => int32
+/// @definition.method symbol=peek slot=peek type=<peek.'a, peek.P1: Place>(this: &peek.'a readonly this) => int32
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=T target=T
 
     peek(&readonly this): int32 {
     /// @generic.template symbol=peek parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=peek type=<peek.'a, peek.P1: Place>(this: Borrowed<this, peek.'a & peek.P1, "readonly">) => int32
-    /// @type.symbol symbol=peek.this source="&readonly this" type=Borrowed<this, peek.'a & peek.P1, "readonly">
+    /// @type.symbol symbol=peek type=<peek.'a, peek.P1: Place>(this: &peek.'a readonly this) => int32
+    /// @type.symbol symbol=peek.this source="&readonly this" type=&peek.'a readonly this
 
         return this.item.size();
-        /// @resolution.member source=this.item receiver=Borrowed<Holder<T#2>, peek.'a & peek.P1, "readonly"> type=Readonly<item.Item<T#2>> kind=field target_receiver=Borrowed<Holder<T#2>, peek.'a & peek.P1, "readonly"> key=item target=Holder.item target_type=Readonly<item.Item<T#2>>
+        /// @resolution.member source=this.item receiver=&peek.'a readonly Holder<T#2> type=Readonly<item.Item<T#2>> kind=field target_receiver=&peek.'a readonly Holder<T#2> key=item target=Holder.item target_type=Readonly<item.Item<T#2>>
         /// @resolution.member source=this.item.size receiver=Readonly<Managed<item.Item<T#2>, peek.P1>> type=<item.size.'a, item.size.P1: Place>(this: Borrowed<item.Item<T#2>, item.size.'a & item.size.P1, "readonly">) => int32 kind=symbol target_receiver=Readonly<Managed<item.Item<T#2>, peek.P1>> target=item.size
-        /// @resolution.call source=this.item.size() parameters=() return=int32 kind=symbol target=item.size receiver=Readonly<Managed<item.Item<T#2>, peek.P1>> adjustments=(Readonly<Managed<item.Item<T#2>, peek.P1>> => direct -> Managed<item.Item<T#2>, peek.P1>, borrow(Borrowed<Managed<item.Item<T#2>, peek.P1>, peek.'a & peek.P1, "readonly">)) instance=item.Item<T#2>.<extension#1>.size<peek.P1>
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Holder<T#2>, peek.'a & peek.P1, "readonly">
+        /// @resolution.call source=this.item.size() parameters=() return=int32 kind=symbol target=item.size receiver=Readonly<Managed<item.Item<T#2>, peek.P1>> adjustments=(Readonly<Managed<item.Item<T#2>, peek.P1>> => direct -> Managed<item.Item<T#2>, peek.P1>, borrow(&peek.'a readonly Managed<item.Item<T#2>, peek.P1>)) instance=item.Item<T#2>.<extension#1>.size<peek.P1>
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&peek.'a readonly Holder<T#2>
         /// @resolution.place source=this placement=peek.P1 lifetime=peek.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.item placement=peek.P1 lifetime=peek.'a access="readonly"
@@ -705,7 +705,7 @@ class Pile<T> {
 /// @type.symbol symbol=Pile type=Pile
 /// @definition.class symbol=Pile template=(in out T)
 /// @definition.field symbol=Pile.items source="items: T[]" key=items type=T[]
-/// @definition.method symbol=Pile.count slot=count type=<Pile.count.'a, Pile.count.P1: Place>(this: Borrowed<this, Pile.count.'a & Pile.count.P1, "readonly">) => isize
+/// @definition.method symbol=Pile.count slot=count type=<Pile.count.'a, Pile.count.P1: Place>(this: &Pile.count.'a readonly this) => isize
 /// @type.symbol symbol=Pile.T source=T type=T
 
     items: T[];
@@ -714,16 +714,16 @@ class Pile<T> {
 
     count(&readonly this): isize {
     /// @generic.template symbol=Pile.count parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=Pile.count type=<Pile.count.'a, Pile.count.P1: Place>(this: Borrowed<this, Pile.count.'a & Pile.count.P1, "readonly">) => isize
-    /// @type.symbol symbol=Pile.count.this source="&readonly this" type=Borrowed<this, Pile.count.'a & Pile.count.P1, "readonly">
+    /// @type.symbol symbol=Pile.count type=<Pile.count.'a, Pile.count.P1: Place>(this: &Pile.count.'a readonly this) => isize
+    /// @type.symbol symbol=Pile.count.this source="&readonly this" type=&Pile.count.'a readonly this
 
         const item = this.items.at(0);
         /// @type.symbol symbol=Pile.count.item source=item type=&'frame readonly T | undefined
         /// @resolution.pattern source=item kind=binding target=Pile.count.item
-        /// @resolution.member source=this.items receiver=Borrowed<Pile<T>, Pile.count.'a & Pile.count.P1, "readonly"> type=readonly T[] kind=field target_receiver=Borrowed<Pile<T>, Pile.count.'a & Pile.count.P1, "readonly"> key=items target=Pile.items target_type=readonly T[]
+        /// @resolution.member source=this.items receiver=&Pile.count.'a readonly Pile<T> type=readonly T[] kind=field target_receiver=&Pile.count.'a readonly Pile<T> key=items target=Pile.items target_type=readonly T[]
         /// @resolution.member source=this.items.at receiver=Readonly<Managed<T[], Pile.count.P1>> type=(this: &'frame readonly T[], isize) => &'frame readonly T | undefined kind=symbol target_receiver=Readonly<Managed<T[], Pile.count.P1>> adjustments=(Readonly<Managed<T[], Pile.count.P1>> => direct -> Managed<T[], Pile.count.P1>, Managed<T[], Pile.count.P1> => direct -> T[]) target=at#2
         /// @resolution.call source=this.items.at(0) parameters=(isize) arguments=(provided(0) as isize) return=&'frame readonly T | undefined kind=symbol target=at#2 receiver=Readonly<Managed<T[], Pile.count.P1>> adjustments=(Readonly<Managed<T[], Pile.count.P1>> => direct -> Managed<T[], Pile.count.P1>, Managed<T[], Pile.count.P1> => direct -> T[], borrow(&'frame readonly T[])) instance="Borrowed<T#4[], 'a, A#1>.<extension#4>.at#2"
-        /// @resolution.receiver source=this kind=this declaration=Pile type=Borrowed<Pile<T>, Pile.count.'a & Pile.count.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=Pile type=&Pile.count.'a readonly Pile<T>
         /// @resolution.place source=this placement=Pile.count.P1 lifetime=Pile.count.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.items placement=Pile.count.P1 lifetime=Pile.count.'a access="readonly"
@@ -731,9 +731,9 @@ class Pile<T> {
         /// @generic.instantiation id="at#2<T, \"readonly\">" template=at#2 arguments=(T, "readonly") owner=Pile.count
 
         return this.items.size;
-        /// @resolution.member source=this.items receiver=Borrowed<Pile<T>, Pile.count.'a & Pile.count.P1, "readonly"> type=readonly T[] kind=field target_receiver=Borrowed<Pile<T>, Pile.count.'a & Pile.count.P1, "readonly"> key=items target=Pile.items target_type=readonly T[]
+        /// @resolution.member source=this.items receiver=&Pile.count.'a readonly Pile<T> type=readonly T[] kind=field target_receiver=&Pile.count.'a readonly Pile<T> key=items target=Pile.items target_type=readonly T[]
         /// @resolution.member source=this.items.size receiver=Readonly<Managed<T[], Pile.count.P1>> type=isize kind=call target="size(parameters=(), arguments=(), return=isize)"
-        /// @resolution.receiver source=this kind=this declaration=Pile type=Borrowed<Pile<T>, Pile.count.'a & Pile.count.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=Pile type=&Pile.count.'a readonly Pile<T>
         /// @resolution.place source=this placement=Pile.count.P1 lifetime=Pile.count.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.items placement=Pile.count.P1 lifetime=Pile.count.'a access="readonly"

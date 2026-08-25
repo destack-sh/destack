@@ -965,14 +965,14 @@ extension of Point implements Collect<int32> {
 /// @generic.instance id=Collect<int32> template=Collect arguments=(int32)
 /// @definition.extension symbol=<module>#2 form=local target=Point
 /// @definition.implements symbol=<module>#2 source=Collect<int32> target=Collect<int32>
-/// @definition.method symbol=add source="add(value: int32): void {}" slot=add type=<add.'a, add.P1: Place>(this: Borrowed<Point, add.'a & add.P1, "readonly">, int32) => void
+/// @definition.method symbol=add source="add(value: int32): void {}" slot=add type=<add.'a, add.P1: Place>(this: &add.'a readonly Point, int32) => void
 /// @definition.conformance symbol=<module>#2 member=add requirement=Collect.add
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=Collect target=Collect
 
     add(value: int32): void {}
     /// @generic.template symbol=add parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=add source="add(value: int32): void {}" type=<add.'a, add.P1: Place>(this: Borrowed<Point, add.'a & add.P1, "readonly">, int32) => void
+    /// @type.symbol symbol=add source="add(value: int32): void {}" type=<add.'a, add.P1: Place>(this: &add.'a readonly Point, int32) => void
     /// @type.symbol symbol=add.value source="value: int32" type=int32
 
 }
@@ -1031,7 +1031,7 @@ const values = Deque.from([1, 2, 3]);
 /// @resolution.call source="Deque.from([1, 2, 3])" parameters=(Iterable<int64>) arguments=(provided([1, 2, 3]) as Iterable<int64>) return=Owned<Deque<int64>> kind=symbol target=from#1 instance=Deque<int64>.<extension#4>.from#1
 /// @generic.instantiation id=from#1<int64> template=from#1 arguments=(int64)
 /// @generic.instance id=from#1<int64> template=from#1 arguments=(int64)
-/// @resolution.call source=[1, 2, 3] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+/// @resolution.call source=[1, 2, 3] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
 /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 /// @generic.instance id="DropIterator<Iterator<int64>, int64>" template=DropIterator arguments=(Iterator<int64>, int64)
 /// @generic.instance id="DropWhileIterator<Iterator<int64>, int64>" template=DropWhileIterator arguments=(Iterator<int64>, int64)
@@ -1092,7 +1092,7 @@ struct Holder<T> {
 /// @type.symbol symbol=Holder type=Holder
 /// @definition.struct symbol=Holder template=(in out T)
 /// @definition.field symbol=Holder.storage source="private storage: ^[T] | undefined = undefined" key=storage type=Owned<Slice<T>> | undefined
-/// @definition.method symbol=Holder.isInline slot=isInline role=getter type=<Holder.isInline.'a, Holder.isInline.P1: Place>(this: Borrowed<this, Holder.isInline.'a & Holder.isInline.P1, "readonly">) => boolean
+/// @definition.method symbol=Holder.isInline slot=isInline role=getter type=<Holder.isInline.'a, Holder.isInline.P1: Place>(this: &Holder.isInline.'a readonly this) => boolean
 /// @type.symbol symbol=Holder.T source=T type=T
 
     private storage: ^[T] | undefined = undefined;
@@ -1101,12 +1101,12 @@ struct Holder<T> {
 
     get isInline(): boolean {
     /// @generic.template symbol=Holder.isInline parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=Holder.isInline type=<Holder.isInline.'a, Holder.isInline.P1: Place>(this: Borrowed<this, Holder.isInline.'a & Holder.isInline.P1, "readonly">) => boolean
+    /// @type.symbol symbol=Holder.isInline type=<Holder.isInline.'a, Holder.isInline.P1: Place>(this: &Holder.isInline.'a readonly this) => boolean
 
         this.storage == undefined
-        /// @resolution.member source=this.storage receiver=Borrowed<Holder<T>, Holder.isInline.'a & Holder.isInline.P1, "readonly"> type=Readonly<Owned<Slice<T>> | undefined> kind=field target_receiver=Borrowed<Holder<T>, Holder.isInline.'a & Holder.isInline.P1, "readonly"> key=storage target=Holder.storage target_type=Readonly<Owned<Slice<T>> | undefined>
+        /// @resolution.member source=this.storage receiver=&Holder.isInline.'a readonly Holder<T> type=Readonly<Owned<Slice<T>> | undefined> kind=field target_receiver=&Holder.isInline.'a readonly Holder<T> key=storage target=Holder.storage target_type=Readonly<Owned<Slice<T>> | undefined>
         /// @resolution.operator source="this.storage == undefined" type=boolean operator="==" kind=builtin operands=[this.storage as Owned<Slice<T>> | undefined, undefined as undefined families=(undefined)]
-        /// @resolution.receiver source=this kind=this declaration=Holder type=Borrowed<Holder<T>, Holder.isInline.'a & Holder.isInline.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=Holder type=&Holder.isInline.'a readonly Holder<T>
         /// @resolution.place source=this placement=Holder.isInline.P1 lifetime=Holder.isInline.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.storage placement=Holder.isInline.P1 lifetime=Holder.isInline.'a access="readonly"

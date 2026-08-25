@@ -288,7 +288,7 @@ function run(): void {
     /// @type.symbol symbol=run.users source=users type=User[]
     /// @resolution.pattern source=users kind=binding target=run.users
     /// @resolution.name source=User target=User
-    /// @resolution.call source=[make()] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(make()) as User) return=User[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<User>
+    /// @resolution.call source=[make()] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(make()) as User) return=User[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<User>
     /// @generic.instantiation id=arrayFromSlice<User> template=arrayFromSlice arguments=(User)
     /// @resolution.name source=make target=make
     /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make

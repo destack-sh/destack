@@ -545,7 +545,41 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     dir::Form::Readonly => dir::TypeExpression::Readonly { target_type },
                     dir::Form::Borrowed(borrow) => {
                         let borrow = self.check.type_borrow(id.module_id, *borrow)?;
-                        let (lifetime, access) = (borrow.lifetime, borrow.access);
+                        let (region, access) = (borrow.region, borrow.access);
+                        let region = self.check.shallow_resolve(region)?;
+                        let (lifetime, spaces) = match self.check.ty(region)? {
+                            dir::Type::Region(pair) => (pair.extent, Some(pair.space)),
+                            _ => (region, None),
+                        };
+
+                        // read the referent space the pair closes over
+                        let (space, is_induced_space) = match spaces {
+                            Some(spaces) => {
+                                let place = self.check.shallow_resolve(spaces)?;
+                                let is_induced = match self.check.ty(place)? {
+                                    dir::Type::Parameter(parameter) => self
+                                        .check
+                                        .generic_parameter(parameter)
+                                        .is_some_and(|binding| {
+                                            binding.induced_memory_parameter().is_some()
+                                        }),
+                                    _ => false,
+                                };
+
+                                (self.check.place_space(place)?, is_induced)
+                            }
+                            None => (None, false),
+                        };
+
+                        // fold a known space back into the borrow target, induced spaces eliding
+                        let sugared = match space {
+                            Some(dir::Space::Local | dir::Space::Constant) => Some(target_type),
+                            Some(dir::Space::Shared) => {
+                                Some(self.insert(dir::TypeExpression::Shared { target_type }))
+                            }
+                            None if is_induced_space => Some(target_type),
+                            None => None,
+                        };
 
                         // reify closed borrows through the borrow form
                         if let Some(borrowed) =

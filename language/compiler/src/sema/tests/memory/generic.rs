@@ -128,7 +128,7 @@ function replace(user: User): void {
 === annotated ===
 class User {}
 
-declare function consume<'a, P1: Place>(value: Borrowed<User, 'a & P1, "exclusive">): void;
+declare function consume<'a, P1: Place>(value: &'a exclusive User): void;
 
 function replace(user: User): void {
     consume<"local">(user as &'frame exclusive User);
@@ -141,8 +141,8 @@ class User {}
 
 declare function consume(value: &exclusive User): void;
 /// @generic.template symbol=consume parameters=('a, P1: Place)
-/// @type.symbol symbol=consume source="declare function consume(value: &exclusive User): void" type=<consume.'a, consume.P1: Place>(Borrowed<User, consume.'a & consume.P1, "exclusive">) => void
-/// @type.symbol symbol=consume.value source="value: &exclusive User" type=Borrowed<User, consume.'a & consume.P1, "exclusive">
+/// @type.symbol symbol=consume source="declare function consume(value: &exclusive User): void" type=<consume.'a, consume.P1: Place>(&consume.'a exclusive User) => void
+/// @type.symbol symbol=consume.value source="value: &exclusive User" type=&consume.'a exclusive User
 /// @resolution.name source=User target=User
 
 function replace(user: User): void {
@@ -549,9 +549,7 @@ function inspect(value: &readonly User): &readonly User {
 === annotated ===
 class User {}
 
-function inspect<'a, P1: Place>(
-    value: Borrowed<User, 'a & P1, "readonly">,
-): Borrowed<User, 'a & P1, "readonly"> {
+function inspect<'a, P1: Place>(value: &'a readonly User): &'a readonly User {
     return value;
 }
 
@@ -562,8 +560,8 @@ class User {}
 
 function inspect(value: &readonly User): &readonly User {
 /// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect type=<inspect.'a, inspect.P1: Place>(Borrowed<User, inspect.'a & inspect.P1, "readonly">) => Borrowed<User, inspect.'a & inspect.P1, "readonly">
-/// @type.symbol symbol=inspect.value source="value: &readonly User" type=Borrowed<User, inspect.'a & inspect.P1, "readonly">
+/// @type.symbol symbol=inspect type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly User) => &inspect.'a readonly User
+/// @type.symbol symbol=inspect.value source="value: &readonly User" type=&inspect.'a readonly User
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
 
@@ -604,9 +602,9 @@ struct Holder<out T> {
 }
 
 declare function maybe<'a, P1: Place>(
-    value: Borrowed<User, 'a & P1, "readonly"> | undefined,
+    value: &'a readonly User | undefined,
 ): &readonly User | undefined;
-declare function inspect<'a, P1: Place>(holder: Holder<Borrowed<User, 'a & P1, "readonly">>): void;
+declare function inspect<'a, P1: Place>(holder: Holder<&'a readonly User>): void;
 
 === dir ===
 class User {}
@@ -628,15 +626,15 @@ struct Holder<T> {
 
 declare function maybe(value: &readonly User | undefined): &readonly User | undefined;
 /// @generic.template symbol=maybe parameters=('a, P1: Place)
-/// @type.symbol symbol=maybe type=<maybe.'a, maybe.P1: Place>(Borrowed<User, maybe.'a & maybe.P1, "readonly"> | undefined) => Borrowed<User, maybe.'a & maybe.P1, "readonly"> | undefined
-/// @type.symbol symbol=maybe.value source="value: &readonly User | undefined" type=Borrowed<User, maybe.'a & maybe.P1, "readonly"> | undefined
+/// @type.symbol symbol=maybe type=<maybe.'a, maybe.P1: Place>(&maybe.'a readonly User | undefined) => &maybe.'a readonly User | undefined
+/// @type.symbol symbol=maybe.value source="value: &readonly User | undefined" type=&maybe.'a readonly User | undefined
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
 
 declare function inspect(holder: Holder<&readonly User>): void;
 /// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(holder: Holder<&readonly User>): void" type=<inspect.'a, inspect.P1: Place>(Holder<Borrowed<User, inspect.'a & inspect.P1, "readonly">>) => void
-/// @type.symbol symbol=inspect.holder source="holder: Holder<&readonly User>" type=Holder<Borrowed<User, inspect.'a & inspect.P1, "readonly">>
+/// @type.symbol symbol=inspect source="declare function inspect(holder: Holder<&readonly User>): void" type=<inspect.'a, inspect.P1: Place>(Holder<&inspect.'a readonly User>) => void
+/// @type.symbol symbol=inspect.holder source="holder: Holder<&readonly User>" type=Holder<&inspect.'a readonly User>
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=User target=User
 "#,
@@ -824,11 +822,11 @@ interface Box<in out T> {
 }
 
 extension<T> of Box<T> {
-    borrow(&readonly this): Borrowed<T, 'a & P1, "readonly"> {
+    borrow(&readonly this): &'a readonly T {
         todo("borrow" as string | undefined)
     }
 
-    forward(&readonly this): Borrowed<T, 'a & P1, "readonly"> {
+    forward(&readonly this): &'a readonly T {
         this.borrow<T, P1>()
     }
 }
@@ -855,16 +853,16 @@ interface Box<T> { value: T; }
 extension<T> of Box<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=local target=Box<T#2>
-/// @definition.method symbol=borrow slot=borrow type=<borrow.'a, borrow.P1: Place>(this: Borrowed<this, borrow.'a & borrow.P1, "readonly">) => Borrowed<T#2, borrow.'a & borrow.P1, "readonly">
-/// @definition.method symbol=forward slot=forward type=<forward.'a, forward.P1: Place>(this: Borrowed<this, forward.'a & forward.P1, "readonly">) => Borrowed<T#2, forward.'a & forward.P1, "readonly">
+/// @definition.method symbol=borrow slot=borrow type=<borrow.'a, borrow.P1: Place>(this: &borrow.'a readonly this) => &borrow.'a readonly T#2
+/// @definition.method symbol=forward slot=forward type=<forward.'a, forward.P1: Place>(this: &forward.'a readonly this) => &forward.'a readonly T#2
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=T
 
     borrow(&readonly this): &readonly T {
     /// @generic.template symbol=borrow parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=borrow type=<borrow.'a, borrow.P1: Place>(this: Borrowed<this, borrow.'a & borrow.P1, "readonly">) => Borrowed<T#2, borrow.'a & borrow.P1, "readonly">
-    /// @type.symbol symbol=borrow.this source="&readonly this" type=Borrowed<this, borrow.'a & borrow.P1, "readonly">
+    /// @type.symbol symbol=borrow type=<borrow.'a, borrow.P1: Place>(this: &borrow.'a readonly this) => &borrow.'a readonly T#2
+    /// @type.symbol symbol=borrow.this source="&readonly this" type=&borrow.'a readonly this
     /// @resolution.name source=T target=T
 
         todo("borrow")
@@ -875,14 +873,14 @@ extension<T> of Box<T> {
 
     forward(&readonly this): &readonly T {
     /// @generic.template symbol=forward parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=forward type=<forward.'a, forward.P1: Place>(this: Borrowed<this, forward.'a & forward.P1, "readonly">) => Borrowed<T#2, forward.'a & forward.P1, "readonly">
-    /// @type.symbol symbol=forward.this source="&readonly this" type=Borrowed<this, forward.'a & forward.P1, "readonly">
+    /// @type.symbol symbol=forward type=<forward.'a, forward.P1: Place>(this: &forward.'a readonly this) => &forward.'a readonly T#2
+    /// @type.symbol symbol=forward.this source="&readonly this" type=&forward.'a readonly this
     /// @resolution.name source=T target=T
 
         this.borrow()
-        /// @resolution.member source=this.borrow receiver=Borrowed<Box<T#2>, forward.'a & forward.P1, "readonly"> type=<borrow.'a, borrow.P1: Place>(this: Borrowed<Box<T#2>, borrow.'a & borrow.P1, "readonly">) => Borrowed<T#2, borrow.'a & borrow.P1, "readonly"> kind=symbol target_receiver=Borrowed<Box<T#2>, forward.'a & forward.P1, "readonly"> dispatch=dynamic constraint=Box<T#2> target=borrow
-        /// @resolution.call source=this.borrow() parameters=() return=Borrowed<T#2, forward.'a & forward.P1, "readonly"> kind=dynamic target=borrow receiver=Borrowed<Box<T#2>, forward.'a & forward.P1, "readonly"> constraint=Box<T#2> generic_arguments=(T#2, forward.P1)
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Box<T#2>, forward.'a & forward.P1, "readonly">
+        /// @resolution.member source=this.borrow receiver=&forward.'a readonly Box<T#2> type=<borrow.'a, borrow.P1: Place>(this: &borrow.'a readonly Box<T#2>) => &borrow.'a readonly T#2 kind=symbol target_receiver=&forward.'a readonly Box<T#2> dispatch=dynamic constraint=Box<T#2> target=borrow
+        /// @resolution.call source=this.borrow() parameters=() return=&forward.'a readonly T#2 kind=dynamic target=borrow receiver=&forward.'a readonly Box<T#2> constraint=Box<T#2> generic_arguments=(T#2, forward.P1)
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&forward.'a readonly Box<T#2>
         /// @resolution.place source=this placement=forward.P1 lifetime=forward.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @generic.instantiation id=borrow<T#2> template=borrow arguments=(T#2) owner=forward
@@ -910,7 +908,7 @@ declare const mixedBox: local Box<shared User>;
 
 localBox.borrow() satisfies local &readonly User;
 /// @resolution.name source=localBox target=localBox
-/// @resolution.member source=localBox.borrow receiver=local Box<User> type=<borrow.'a, borrow.P1: Place>(this: Borrowed<Box<User>, borrow.'a & borrow.P1, "readonly">) => Borrowed<User, borrow.'a & borrow.P1, "readonly"> kind=symbol target_receiver=local Box<User> dispatch=dynamic constraint=Box<User> target=borrow
+/// @resolution.member source=localBox.borrow receiver=local Box<User> type=<borrow.'a, borrow.P1: Place>(this: &borrow.'a readonly Box<User>) => &borrow.'a readonly User kind=symbol target_receiver=local Box<User> dispatch=dynamic constraint=Box<User> target=borrow
 /// @resolution.call source=localBox.borrow() parameters=() return=&'static readonly User kind=dynamic target=borrow receiver=local Box<User> constraint=Box<User> adjustments=(borrow(&'static readonly local Box<User>)) generic_arguments=(User, "local")
 /// @resolution.place source=localBox placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=localBox root=localBox
@@ -920,7 +918,7 @@ localBox.borrow() satisfies local &readonly User;
 
 mixedBox.borrow() satisfies shared &readonly User;
 /// @resolution.name source=mixedBox target=mixedBox
-/// @resolution.member source=mixedBox.borrow receiver=local Box<shared User> type=<borrow.'a, borrow.P1: Place>(this: Borrowed<Box<shared User>, borrow.'a & borrow.P1, "readonly">) => Borrowed<shared User, borrow.'a & borrow.P1, "readonly"> kind=symbol target_receiver=local Box<shared User> dispatch=dynamic constraint=Box<shared User> target=borrow
+/// @resolution.member source=mixedBox.borrow receiver=local Box<shared User> type=<borrow.'a, borrow.P1: Place>(this: &borrow.'a readonly Box<shared User>) => &borrow.'a readonly shared User kind=symbol target_receiver=local Box<shared User> dispatch=dynamic constraint=Box<shared User> target=borrow
 /// @resolution.call source=mixedBox.borrow() parameters=() return=&'static readonly shared User kind=dynamic target=borrow receiver=local Box<shared User> constraint=Box<shared User> adjustments=(borrow(&'static readonly local Box<shared User>)) generic_arguments=(shared User, "local")
 /// @resolution.place source=mixedBox placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=mixedBox root=mixedBox

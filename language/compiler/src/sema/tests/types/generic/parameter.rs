@@ -132,7 +132,7 @@ const values = id([1, 2]);
 /// @resolution.call source="id([1, 2])" parameters=(int64[]) arguments=(provided([1, 2]) as int64[]) return=int64[] kind=symbol target=id instance=id<int64[]>
 /// @generic.instantiation id=id<int64[]> template=id arguments=(int64[])
 /// @generic.instance id=id<int64[]> template=id arguments=(int64[])
-/// @resolution.call source=[1, 2] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+/// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
 /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 /// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
 
@@ -229,7 +229,7 @@ declare function take(values: Slice<float64>): void;
 take([1, 2]);
 /// @resolution.name source=take target=take
 /// @resolution.call source="take([1, 2])" parameters=(Slice<float64>) arguments=(provided([1, 2]) as Slice<float64>) return=void kind=symbol target=take
-/// @resolution.call source=[1, 2] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<float64>
+/// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<float64>
 /// @generic.instantiation id=arrayFromSlice<float64> template=arrayFromSlice arguments=(float64)
 /// @generic.instance id="arrayFromSlice<float64, \"local\">" template=arrayFromSlice arguments=(float64, "local")
 /// @generic.instance id=Array<float64> template=Array arguments=(float64)
@@ -392,7 +392,7 @@ const values = collect([{ kind: "ready" }]);
 /// @resolution.call source="collect([{ kind: \"ready\" }])" parameters=({ readonly kind: "ready" }[]) arguments=(provided([{ kind: "ready" }]) as { readonly kind: "ready" }[]) return={ readonly kind: "ready" }[] kind=symbol target=collect instance="collect<{ readonly kind: \"ready\" }>"
 /// @generic.instantiation id="collect<{ readonly kind: \"ready\" }>" template=collect arguments=({ readonly kind: "ready" })
 /// @generic.instance id="collect<{ readonly kind: \"ready\" }>" template=collect arguments=({ readonly kind: "ready" })
-/// @resolution.call source=[{ kind: "ready" }] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest({ kind: "ready" }) as { readonly kind: "ready" }) return={ readonly kind: "ready" }[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<{ readonly kind: \"ready\" }>"
+/// @resolution.call source=[{ kind: "ready" }] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest({ kind: "ready" }) as { readonly kind: "ready" }) return={ readonly kind: "ready" }[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<{ readonly kind: \"ready\" }>"
 /// @generic.instantiation id="arrayFromSlice<{ readonly kind: \"ready\" }>" template=arrayFromSlice arguments=({ readonly kind: "ready" })
 /// @generic.instance id="arrayFromSlice<{ readonly kind: \"ready\" }, \"local\">" template=arrayFromSlice arguments=({ readonly kind: "ready" }, "local")
 

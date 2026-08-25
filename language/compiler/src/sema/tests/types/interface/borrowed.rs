@@ -61,7 +61,7 @@ class Foo {}
 extension<'a, P1: Place> of Foo implements Add<&readonly Foo>, Hash {
     type Output = Foo;
 
-    add(&readonly this, other: Borrowed<Foo, 'b & P3, "readonly">): Foo {
+    add(&readonly this, other: &'b readonly Foo): Foo {
         return new Foo();
     }
 
@@ -75,7 +75,7 @@ newtype Name = string;
 extension<'a, P1: Place> of Name implements Add<&readonly Name>, Hash {
     type Output = Name;
 
-    add(&readonly this, other: Borrowed<Name, 'b & P3, "readonly">): Name {
+    add(&readonly this, other: &'b readonly Name): Name {
         return this;
     }
 
@@ -106,10 +106,10 @@ class Foo {}
 extension of Foo implements Add<&readonly Foo>, Hash {
 /// @generic.template symbol=<module>#2 parameters=('a, P1: Place)
 /// @definition.extension symbol=<module>#2 form=local target=Foo
-/// @definition.implements symbol=<module>#2 source="Add<&readonly Foo>" target="Add<Borrowed<Foo, <module>#2.'a & <module>#2.P1, \"readonly\">>"
+/// @definition.implements symbol=<module>#2 source="Add<&readonly Foo>" target="Add<&<module>#2.'a readonly Foo>"
 /// @definition.implements symbol=<module>#2 source=Hash target=Hash
 /// @definition.associated.type symbol=Output#1 source="type Output = Foo" key=Output value=Foo
-/// @definition.method symbol=add#1 slot=add type=<add#1.'a, add#1.P1: Place, add#1.'b, add#1.P3: Place>(this: Borrowed<this, add#1.'a & add#1.P1, "readonly">, Borrowed<Foo, add#1.'b & add#1.P3, "readonly">) => Foo
+/// @definition.method symbol=add#1 slot=add type=<add#1.'a, add#1.P1: Place, add#1.'b, add#1.P3: Place>(this: &add#1.'a readonly this, &add#1.'b readonly Foo) => Foo
 /// @definition.method symbol=hash#1 slot=hash type=<hash#1.P0: Place>(this: Managed<this, hash#1.P0>) => int32
 /// @definition.conformance symbol=<module>#2 member=Output#1 requirement=Add.Output
 /// @definition.conformance symbol=<module>#2 member=add#1 requirement=Add.add
@@ -125,9 +125,9 @@ extension of Foo implements Add<&readonly Foo>, Hash {
 
     add(&readonly this, other: &readonly Foo): Foo {
     /// @generic.template symbol=add#1 parent=template#0 parameters=('a, P1: Place, 'b, P3: Place)
-    /// @type.symbol symbol=add#1 type=<add#1.'a, add#1.P1: Place, add#1.'b, add#1.P3: Place>(this: Borrowed<this, add#1.'a & add#1.P1, "readonly">, Borrowed<Foo, add#1.'b & add#1.P3, "readonly">) => Foo
-    /// @type.symbol symbol=add.this#1 source="&readonly this" type=Borrowed<this, add#1.'a & add#1.P1, "readonly">
-    /// @type.symbol symbol=add.other#1 source="other: &readonly Foo" type=Borrowed<Foo, add#1.'b & add#1.P3, "readonly">
+    /// @type.symbol symbol=add#1 type=<add#1.'a, add#1.P1: Place, add#1.'b, add#1.P3: Place>(this: &add#1.'a readonly this, &add#1.'b readonly Foo) => Foo
+    /// @type.symbol symbol=add.this#1 source="&readonly this" type=&add#1.'a readonly this
+    /// @type.symbol symbol=add.other#1 source="other: &readonly Foo" type=&add#1.'b readonly Foo
     /// @resolution.name source=Foo target=Foo
     /// @resolution.name source=Foo target=Foo
 
@@ -152,10 +152,10 @@ newtype Name = string;
 extension of Name implements Add<&readonly Name>, Hash {
 /// @generic.template symbol=<module>#3 parameters=('a, P1: Place)
 /// @definition.extension symbol=<module>#3 form=local target=Name
-/// @definition.implements symbol=<module>#3 source="Add<&readonly Name>" target="Add<Borrowed<Name, <module>#3.'a & <module>#3.P1, \"readonly\">>"
+/// @definition.implements symbol=<module>#3 source="Add<&readonly Name>" target="Add<&<module>#3.'a readonly Name>"
 /// @definition.implements symbol=<module>#3 source=Hash target=Hash
 /// @definition.associated.type symbol=Output#2 source="type Output = Name" key=Output value=Name
-/// @definition.method symbol=add#2 slot=add type=<add#2.'a, add#2.P1: Place, add#2.'b, add#2.P3: Place>(this: Borrowed<this, add#2.'a & add#2.P1, "readonly">, Borrowed<Name, add#2.'b & add#2.P3, "readonly">) => Name
+/// @definition.method symbol=add#2 slot=add type=<add#2.'a, add#2.P1: Place, add#2.'b, add#2.P3: Place>(this: &add#2.'a readonly this, &add#2.'b readonly Name) => Name
 /// @definition.method symbol=hash#2 slot=hash type=<hash#2.P0: Place>(this: Managed<this, hash#2.P0>) => int32
 /// @definition.conformance symbol=<module>#3 member=Output#2 requirement=Add.Output
 /// @definition.conformance symbol=<module>#3 member=add#2 requirement=Add.add
@@ -171,14 +171,14 @@ extension of Name implements Add<&readonly Name>, Hash {
 
     add(&readonly this, other: &readonly Name): Name {
     /// @generic.template symbol=add#2 parent=template#1 parameters=('a, P1: Place, 'b, P3: Place)
-    /// @type.symbol symbol=add#2 type=<add#2.'a, add#2.P1: Place, add#2.'b, add#2.P3: Place>(this: Borrowed<this, add#2.'a & add#2.P1, "readonly">, Borrowed<Name, add#2.'b & add#2.P3, "readonly">) => Name
-    /// @type.symbol symbol=add.this#2 source="&readonly this" type=Borrowed<this, add#2.'a & add#2.P1, "readonly">
-    /// @type.symbol symbol=add.other#2 source="other: &readonly Name" type=Borrowed<Name, add#2.'b & add#2.P3, "readonly">
+    /// @type.symbol symbol=add#2 type=<add#2.'a, add#2.P1: Place, add#2.'b, add#2.P3: Place>(this: &add#2.'a readonly this, &add#2.'b readonly Name) => Name
+    /// @type.symbol symbol=add.this#2 source="&readonly this" type=&add#2.'a readonly this
+    /// @type.symbol symbol=add.other#2 source="other: &readonly Name" type=&add#2.'b readonly Name
     /// @resolution.name source=Name target=Name
     /// @resolution.name source=Name target=Name
 
         return this;
-        /// @resolution.receiver source=this kind=this declaration=<module>#3 type=Borrowed<Name, add#2.'a & add#2.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=<module>#3 type=&add#2.'a readonly Name
         /// @resolution.place source=this placement=add#2.P1 lifetime=add#2.'a access="readonly"
         /// @resolution.access source=this root=this
 

@@ -439,8 +439,8 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
 /// @definition.implements symbol=<module>#2 source="IndexSet<string, int32>" target="IndexSet<string, int32>"
 /// @definition.implements symbol=<module>#2 source=Index<string> target="Index<string, \"readonly\">"
 /// @definition.associated.type symbol=Output source="type Output = int32 | undefined" key=Output value="int32 | undefined"
-/// @definition.method symbol=index slot=index type=<index.'a, index.P1: Place>(this: Borrowed<Store, index.'a & index.P1, "readonly">, string) => int32 | undefined
-/// @definition.method symbol=indexSet slot=indexSet type=<indexSet.'a, indexSet.P1: Place>(this: Borrowed<Store, indexSet.'a & indexSet.P1, "exclusive">, string, int32) => void
+/// @definition.method symbol=index slot=index type=<index.'a, index.P1: Place>(this: &index.'a readonly Store, string) => int32 | undefined
+/// @definition.method symbol=indexSet slot=indexSet type=<indexSet.'a, indexSet.P1: Place>(this: &indexSet.'a exclusive Store, string, int32) => void
 /// @definition.conformance symbol=<module>#2 member=Index.Missing requirement=Index.Missing
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Index.Output
 /// @definition.conformance symbol=<module>#2 member=index requirement=Index.index
@@ -454,17 +454,17 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
 
     index(key: string): this.Output {
     /// @generic.template symbol=index parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=index type=<index.'a, index.P1: Place>(this: Borrowed<Store, index.'a & index.P1, "readonly">, string) => int32 | undefined
+    /// @type.symbol symbol=index type=<index.'a, index.P1: Place>(this: &index.'a readonly Store, string) => int32 | undefined
     /// @type.symbol symbol=index.key source="key: string" type=string
 
         return this.storage[key];
-        /// @resolution.member source=this.storage receiver=Borrowed<Store, index.'a & index.P1, "readonly"> type=Readonly<Map<string, int32>> kind=field target_receiver=Borrowed<Store, index.'a & index.P1, "readonly"> key=storage target=Store.storage target_type=Readonly<Map<string, int32>>
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Store, index.'a & index.P1, "readonly">
+        /// @resolution.member source=this.storage receiver=&index.'a readonly Store type=Readonly<Map<string, int32>> kind=field target_receiver=&index.'a readonly Store key=storage target=Store.storage target_type=Readonly<Map<string, int32>>
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&index.'a readonly Store
         /// @resolution.place source=this placement=index.P1 lifetime=index.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.storage placement=index.P1 lifetime=index.'a access="readonly"
         /// @resolution.access source=this.storage root=this keys=[storage]
-        /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="index(parameters=(Managed<string, index.P1>), arguments=(provided(key) as Managed<string, index.P1>), return=WithAccess<Borrowed<int32, index.'a & index.P1, \"mutable\">, \"readonly\"> | undefined)"
+        /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="index(parameters=(Managed<string, index.P1>), arguments=(provided(key) as Managed<string, index.P1>), return=WithAccess<&index.'a int32, \"readonly\"> | undefined)"
         /// @generic.instantiation id="index<string, int32, \"readonly\", index.P1>" template=index arguments=(string, int32, "readonly", index.P1)
         /// @generic.instance id="WithAccess<&'frame Map<string, int32>, \"readonly\">" template=WithAccess arguments=(&'frame Map<string, int32>, "readonly")
         /// @generic.instance id="WithAccess<&'frame int32, \"readonly\">" template=WithAccess arguments=(&'frame int32, "readonly")
@@ -477,14 +477,14 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
 
     indexSet(&exclusive this, key: string, value: int32): void {
     /// @generic.template symbol=indexSet parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=indexSet type=<indexSet.'a, indexSet.P1: Place>(this: Borrowed<Store, indexSet.'a & indexSet.P1, "exclusive">, string, int32) => void
-    /// @type.symbol symbol=indexSet.this source="&exclusive this" type=Borrowed<this, indexSet.'a & indexSet.P1, "exclusive">
+    /// @type.symbol symbol=indexSet type=<indexSet.'a, indexSet.P1: Place>(this: &indexSet.'a exclusive Store, string, int32) => void
+    /// @type.symbol symbol=indexSet.this source="&exclusive this" type=&indexSet.'a exclusive this
     /// @type.symbol symbol=indexSet.key source="key: string" type=string
     /// @type.symbol symbol=indexSet.value source="value: int32" type=int32
 
         this.storage[key] = value;
-        /// @resolution.member source=this.storage receiver=Borrowed<Store, indexSet.'a & indexSet.P1, "exclusive"> type=Map<string, int32> kind=field target_receiver=Borrowed<Store, indexSet.'a & indexSet.P1, "exclusive"> key=storage target=Store.storage target_type=Map<string, int32>
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Store, indexSet.'a & indexSet.P1, "exclusive">
+        /// @resolution.member source=this.storage receiver=&indexSet.'a exclusive Store type=Map<string, int32> kind=field target_receiver=&indexSet.'a exclusive Store key=storage target=Store.storage target_type=Map<string, int32>
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&indexSet.'a exclusive Store
         /// @resolution.place source=this placement=indexSet.P1 lifetime=indexSet.'a access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.storage placement=indexSet.P1 lifetime=indexSet.'a access="exclusive"
@@ -1012,7 +1012,7 @@ extension of Counter implements Index<string>, IndexSet<string, int32 | float64>
 /// @definition.implements symbol=<module>#2 source=Index<string> target="Index<string, \"readonly\">"
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
 /// @definition.method symbol=index slot=index type=<const R>(this: Borrowed<Counter, R, "readonly">, string) => Borrowed<int32, R, "readonly">
-/// @definition.method symbol=indexSet source="indexSet(&exclusive this, key: string, value: int32 | float64): void {}" slot=indexSet type=<indexSet.'a, indexSet.P1: Place>(this: Borrowed<Counter, indexSet.'a & indexSet.P1, "exclusive">, string, int32 | float64) => void
+/// @definition.method symbol=indexSet source="indexSet(&exclusive this, key: string, value: int32 | float64): void {}" slot=indexSet type=<indexSet.'a, indexSet.P1: Place>(this: &indexSet.'a exclusive Counter, string, int32 | float64) => void
 /// @definition.conformance symbol=<module>#2 member=Index.Missing requirement=Index.Missing
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Index.Output
 /// @definition.conformance symbol=<module>#2 member=index requirement=Index.index
@@ -1050,8 +1050,8 @@ extension of Counter implements Index<string>, IndexSet<string, int32 | float64>
 
     indexSet(&exclusive this, key: string, value: int32 | float64): void {}
     /// @generic.template symbol=indexSet parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=indexSet source="indexSet(&exclusive this, key: string, value: int32 | float64): void {}" type=<indexSet.'a, indexSet.P1: Place>(this: Borrowed<Counter, indexSet.'a & indexSet.P1, "exclusive">, string, int32 | float64) => void
-    /// @type.symbol symbol=indexSet.this source="&exclusive this" type=Borrowed<this, indexSet.'a & indexSet.P1, "exclusive">
+    /// @type.symbol symbol=indexSet source="indexSet(&exclusive this, key: string, value: int32 | float64): void {}" type=<indexSet.'a, indexSet.P1: Place>(this: &indexSet.'a exclusive Counter, string, int32 | float64) => void
+    /// @type.symbol symbol=indexSet.this source="&exclusive this" type=&indexSet.'a exclusive this
     /// @type.symbol symbol=indexSet.key source="key: string" type=string
     /// @type.symbol symbol=indexSet.value source="value: int32 | float64" type=int32 | float64
 

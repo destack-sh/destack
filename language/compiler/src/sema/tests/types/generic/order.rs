@@ -111,14 +111,14 @@ struct Box<T> {
 extension<T> of Box<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=local target=Box<T#2>
-/// @definition.method symbol=swap slot=swap type=<U, swap.'a, swap.P2: Place>(this: Borrowed<this, swap.'a & swap.P2, "readonly">, U) => U
+/// @definition.method symbol=swap slot=swap type=<U, swap.'a, swap.P2: Place>(this: &swap.'a readonly this, U) => U
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=T
 
     swap<U>(other: U): U {
     /// @generic.template symbol=swap parent=template#1 parameters=(U, 'a, P2: Place)
-    /// @type.symbol symbol=swap type=<U, swap.'a, swap.P2: Place>(this: Borrowed<this, swap.'a & swap.P2, "readonly">, U) => U
+    /// @type.symbol symbol=swap type=<U, swap.'a, swap.P2: Place>(this: &swap.'a readonly this, U) => U
     /// @type.symbol symbol=swap.U source=U type=U
     /// @type.symbol symbol=swap.other source="other: U" type=U
     /// @resolution.name source=U target=swap.U
@@ -140,7 +140,7 @@ function use(box: Box<int32>): string {
 
     return box.swap("x");
     /// @resolution.name source=box target=use.box
-    /// @resolution.member source=box.swap receiver=Box<int32> type=<U, swap.'a, swap.P2: Place>(this: Borrowed<Box<int32>, swap.'a & swap.P2, "readonly">, U) => U kind=symbol target_receiver=Box<int32> target=swap
+    /// @resolution.member source=box.swap receiver=Box<int32> type=<U, swap.'a, swap.P2: Place>(this: &swap.'a readonly Box<int32>, U) => U kind=symbol target_receiver=Box<int32> target=swap
     /// @resolution.call source="box.swap(\"x\")" parameters=("x") arguments=(provided("x") as "x") return="x" kind=symbol target=swap receiver=Box<int32> adjustments=(borrow(&'frame readonly Box<int32>)) instance="Box<int32>.<extension#1>.swap<\"x\", \"local\">"
     /// @resolution.place source=box placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=box root=use.box

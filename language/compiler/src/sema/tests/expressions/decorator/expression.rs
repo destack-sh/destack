@@ -330,7 +330,7 @@ function run(): void {
     /// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
     /// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
     /// @type.node source=[@mark("array") 3] type=int64[]
-    /// @resolution.call source=[@mark("array") 3] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(3) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+    /// @resolution.call source=[@mark("array") 3] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(3) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
     /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
     /// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
     /// @decorator.node source="@mark(\"array\")" owner="@mark(\"array\") 3" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("array") as string) newtype=mark backing=(string,) value="mark(\"array\")"

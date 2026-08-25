@@ -65,14 +65,14 @@ struct User {}
 extension of User implements Show {
 /// @definition.extension symbol=<module>#2 form=local target=User
 /// @definition.implements symbol=<module>#2 source=Show target=Show
-/// @definition.method symbol=show#1 slot=show type=<show#1.'a, show#1.P1: Place>(this: Borrowed<this, show#1.'a & show#1.P1, "readonly">) => string
+/// @definition.method symbol=show#1 slot=show type=<show#1.'a, show#1.P1: Place>(this: &show#1.'a readonly this) => string
 /// @definition.conformance symbol=<module>#2 member=show#1 requirement=Show.show
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
     show(): string {
     /// @generic.template symbol=show#1 parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=show#1 type=<show#1.'a, show#1.P1: Place>(this: Borrowed<this, show#1.'a & show#1.P1, "readonly">) => string
+    /// @type.symbol symbol=show#1 type=<show#1.'a, show#1.P1: Place>(this: &show#1.'a readonly this) => string
 
         return "user";
     }
@@ -81,14 +81,14 @@ extension of User implements Show {
 extension of User implements Show {
 /// @definition.extension symbol=<module>#3 form=local target=User
 /// @definition.implements symbol=<module>#3 source=Show target=Show
-/// @definition.method symbol=show#2 slot=show type=<show#2.'a, show#2.P1: Place>(this: Borrowed<this, show#2.'a & show#2.P1, "readonly">) => string
+/// @definition.method symbol=show#2 slot=show type=<show#2.'a, show#2.P1: Place>(this: &show#2.'a readonly this) => string
 /// @definition.conformance symbol=<module>#3 member=show#2 requirement=Show.show
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
     show(): string {
     /// @generic.template symbol=show#2 parent=template#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=show#2 type=<show#2.'a, show#2.P1: Place>(this: Borrowed<this, show#2.'a & show#2.P1, "readonly">) => string
+    /// @type.symbol symbol=show#2 type=<show#2.'a, show#2.P1: Place>(this: &show#2.'a readonly this) => string
 
         return "debug";
     }
@@ -230,13 +230,13 @@ struct User {}
 extension of User implements Show {
 /// @definition.extension symbol=<module>#2 form=local target=User
 /// @definition.implements symbol=<module>#2 source=Show target=Show
-/// @definition.method symbol=show slot=show type=<show.'a, show.P1: Place>(this: Borrowed<this, show.'a & show.P1, "readonly">) => string
+/// @definition.method symbol=show slot=show type=<show.'a, show.P1: Place>(this: &show.'a readonly this) => string
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
     show(): string {
     /// @generic.template symbol=show parent=template#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=show type=<show.'a, show.P1: Place>(this: Borrowed<this, show.'a & show.P1, "readonly">) => string
+    /// @type.symbol symbol=show type=<show.'a, show.P1: Place>(this: &show.'a readonly this) => string
 
         return "user";
     }
@@ -335,7 +335,7 @@ extension of Badge implements Equal<Badge> {
 /// @generic.instance id=PartialEqual<Badge> template=PartialEqual arguments=(Badge)
 /// @definition.extension symbol=<module>#2 form=local target=Badge
 /// @definition.implements symbol=<module>#2 source=Equal<Badge> target=Equal<Badge>
-/// @definition.method symbol=equal slot=equal type=<equal.'a, equal.P1: Place>(this: Borrowed<Badge, equal.'a & equal.P1, "readonly">, Badge) => boolean
+/// @definition.method symbol=equal slot=equal type=<equal.'a, equal.P1: Place>(this: &equal.'a readonly Badge, Badge) => boolean
 /// @definition.conformance symbol=<module>#2 member=equal requirement=PartialEqual.equal
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=Equal target=Equal
@@ -343,7 +343,7 @@ extension of Badge implements Equal<Badge> {
 
     equal(other: Badge): boolean {
     /// @generic.template symbol=equal parent=template#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=equal type=<equal.'a, equal.P1: Place>(this: Borrowed<Badge, equal.'a & equal.P1, "readonly">, Badge) => boolean
+    /// @type.symbol symbol=equal type=<equal.'a, equal.P1: Place>(this: &equal.'a readonly Badge, Badge) => boolean
     /// @type.symbol symbol=equal.other source="other: Badge" type=Badge
     /// @resolution.name source=Badge target=Badge
 
@@ -487,13 +487,13 @@ type Alias = Show;
 
 extension of User implements Alias {
 /// @definition.extension symbol=<module>#2 form=local target=User
-/// @definition.method symbol=show slot=show type=<show.'a, show.P1: Place>(this: Borrowed<this, show.'a & show.P1, "readonly">) => string
+/// @definition.method symbol=show slot=show type=<show.'a, show.P1: Place>(this: &show.'a readonly this) => string
 /// @resolution.name source=User target=User
 /// @resolution.name source=Alias target=Alias
 
     show(): string {
     /// @generic.template symbol=show parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=show type=<show.'a, show.P1: Place>(this: Borrowed<this, show.'a & show.P1, "readonly">) => string
+    /// @type.symbol symbol=show type=<show.'a, show.P1: Place>(this: &show.'a readonly this) => string
 
         return "";
     }
@@ -571,14 +571,14 @@ interface Debug {
 
 extension of User implements Show | Debug {
 /// @definition.extension symbol=<module>#2 form=local target=User
-/// @definition.method symbol=show slot=show type=<show.'a, show.P1: Place>(this: Borrowed<this, show.'a & show.P1, "readonly">) => string
+/// @definition.method symbol=show slot=show type=<show.'a, show.P1: Place>(this: &show.'a readonly this) => string
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 /// @resolution.name source=Debug target=Debug
 
     show(): string {
     /// @generic.template symbol=show parent=template#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=show type=<show.'a, show.P1: Place>(this: Borrowed<this, show.'a & show.P1, "readonly">) => string
+    /// @type.symbol symbol=show type=<show.'a, show.P1: Place>(this: &show.'a readonly this) => string
 
         return "";
     }
@@ -645,7 +645,7 @@ extension of int32 implements Doubling {
 /// @definition.extension symbol=<module>#2 form=local target=int32
 /// @definition.implements symbol=<module>#2 source=Doubling target=Doubling
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=double slot=double type=<double.'a, double.P1: Place>(this: Borrowed<int32, double.'a & double.P1, "readonly">) => int32.Output
+/// @definition.method symbol=double slot=double type=<double.'a, double.P1: Place>(this: &double.'a readonly int32) => int32.Output
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Doubling.Output
 /// @definition.conformance symbol=<module>#2 member=double requirement=Doubling.double
 /// @resolution.name source=Doubling target=Doubling
@@ -655,7 +655,7 @@ extension of int32 implements Doubling {
 
     double(): this.Output {
     /// @generic.template symbol=double parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=double type=<double.'a, double.P1: Place>(this: Borrowed<int32, double.'a & double.P1, "readonly">) => int32.Output
+    /// @type.symbol symbol=double type=<double.'a, double.P1: Place>(this: &double.'a readonly int32) => int32.Output
 
         todo("double")
         /// @resolution.name source=todo target=todo
@@ -745,7 +745,7 @@ extension<T> of Box<T> implements Container {
 /// @definition.extension symbol=<module>#2 form=local target=Box<T#2>
 /// @definition.implements symbol=<module>#2 source=Container target=Container
 /// @definition.associated.type symbol=Item source="type Item = T" key=Item value=T#2
-/// @definition.method symbol=get slot=get type=<get.'a, get.P1: Place>(this: Borrowed<this, get.'a & get.P1, "readonly">) => T#2
+/// @definition.method symbol=get slot=get type=<get.'a, get.P1: Place>(this: &get.'a readonly this) => T#2
 /// @definition.conformance symbol=<module>#2 member=Item requirement=Container.Item
 /// @definition.conformance symbol=<module>#2 member=get requirement=Container.get
 /// @type.symbol symbol=T source=T type=T#2
@@ -759,7 +759,7 @@ extension<T> of Box<T> implements Container {
 
     get(): T {
     /// @generic.template symbol=get parent=template#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=get type=<get.'a, get.P1: Place>(this: Borrowed<this, get.'a & get.P1, "readonly">) => T#2
+    /// @type.symbol symbol=get type=<get.'a, get.P1: Place>(this: &get.'a readonly this) => T#2
     /// @resolution.name source=T target=T
 
         todo("get")
@@ -892,7 +892,7 @@ extension<T> of Box<T> implements Container<T> {
 /// @definition.extension symbol=<module>#2 form=local target=Box<T#2>
 /// @definition.implements symbol=<module>#2 source=Container<T> target=Container<T#2>
 /// @definition.associated.type symbol=Item source="type Item = int32" key=Item value=int32
-/// @definition.method symbol=get slot=get type=<get.'a, get.P1: Place>(this: Borrowed<this, get.'a & get.P1, "readonly">, T#2) => (int32, int32, int32, Container<string>.Item, string)
+/// @definition.method symbol=get slot=get type=<get.'a, get.P1: Place>(this: &get.'a readonly this, T#2) => (int32, int32, int32, Container<string>.Item, string)
 /// @definition.conformance symbol=<module>#2 member=Container.Output requirement=Container.Output
 /// @definition.conformance symbol=<module>#2 member=Item requirement=Container.Item
 /// @definition.conformance symbol=<module>#2 member=get requirement=Container.get
@@ -907,7 +907,7 @@ extension<T> of Box<T> implements Container<T> {
 
     get(value: T): (int32, int32, int32, Container<string>.Item, string) {
     /// @generic.template symbol=get parent=template#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=get type=<get.'a, get.P1: Place>(this: Borrowed<this, get.'a & get.P1, "readonly">, T#2) => (int32, int32, int32, Container<string>.Item, string)
+    /// @type.symbol symbol=get type=<get.'a, get.P1: Place>(this: &get.'a readonly this, T#2) => (int32, int32, int32, Container<string>.Item, string)
     /// @type.symbol symbol=get.value source="value: T" type=T#2
     /// @resolution.name source=T target=T
     /// @resolution.name source=Container target=Container
@@ -1099,7 +1099,7 @@ extension of int32 implements Halving {
 /// @definition.extension symbol=<module>#2 form=local target=int32
 /// @definition.implements symbol=<module>#2 source=Halving target=Halving
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=halve slot=halve type=<halve.'a, halve.P1: Place>(this: Borrowed<int32, halve.'a & halve.P1, "readonly">) => int32.Output
+/// @definition.method symbol=halve slot=halve type=<halve.'a, halve.P1: Place>(this: &halve.'a readonly int32) => int32.Output
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Halving.Output
 /// @definition.conformance symbol=<module>#2 member=halve requirement=Halving.halve
 /// @resolution.name source=Halving target=Halving
@@ -1109,8 +1109,8 @@ extension of int32 implements Halving {
 
     halve(&readonly this): this.Output {
     /// @generic.template symbol=halve parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=halve type=<halve.'a, halve.P1: Place>(this: Borrowed<int32, halve.'a & halve.P1, "readonly">) => int32.Output
-    /// @type.symbol symbol=halve.this source="&readonly this" type=Borrowed<this, halve.'a & halve.P1, "readonly">
+    /// @type.symbol symbol=halve type=<halve.'a, halve.P1: Place>(this: &halve.'a readonly int32) => int32.Output
+    /// @type.symbol symbol=halve.this source="&readonly this" type=&halve.'a readonly this
 
         todo("halve")
         /// @resolution.name source=todo target=todo
@@ -1237,7 +1237,7 @@ extension of Cell implements Reading {
 /// @definition.extension symbol=<module>#2 form=local target=Cell
 /// @definition.implements symbol=<module>#2 source=Reading target=Reading
 /// @definition.associated.type symbol=Output#1 source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=read slot=read type=<read.'a, read.P1: Place>(this: Borrowed<Cell, read.'a & read.P1, "readonly">) => int32
+/// @definition.method symbol=read slot=read type=<read.'a, read.P1: Place>(this: &read.'a readonly Cell) => int32
 /// @definition.conformance symbol=<module>#2 member=Output#1 requirement=Reading.Output
 /// @definition.conformance symbol=<module>#2 member=read requirement=Reading.read
 /// @resolution.name source=Cell target=Cell
@@ -1248,7 +1248,7 @@ extension of Cell implements Reading {
 
     read(): this.Output {
     /// @generic.template symbol=read parent=template#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=read type=<read.'a, read.P1: Place>(this: Borrowed<Cell, read.'a & read.P1, "readonly">) => int32
+    /// @type.symbol symbol=read type=<read.'a, read.P1: Place>(this: &read.'a readonly Cell) => int32
 
         todo("read")
         /// @resolution.name source=todo target=todo
@@ -1261,7 +1261,7 @@ extension of Cell implements Writing {
 /// @definition.extension symbol=<module>#3 form=local target=Cell
 /// @definition.implements symbol=<module>#3 source=Writing target=Writing
 /// @definition.associated.type symbol=Output#2 source="type Output = float64" key=Output value=float64
-/// @definition.method symbol=write slot=write type=<write.'a, write.P1: Place>(this: Borrowed<Cell, write.'a & write.P1, "readonly">) => float64
+/// @definition.method symbol=write slot=write type=<write.'a, write.P1: Place>(this: &write.'a readonly Cell) => float64
 /// @definition.conformance symbol=<module>#3 member=Output#2 requirement=Writing.Output
 /// @definition.conformance symbol=<module>#3 member=write requirement=Writing.write
 /// @resolution.name source=Cell target=Cell
@@ -1272,7 +1272,7 @@ extension of Cell implements Writing {
 
     write(): this.Output {
     /// @generic.template symbol=write parent=template#3 parameters=('a, P1: Place)
-    /// @type.symbol symbol=write type=<write.'a, write.P1: Place>(this: Borrowed<Cell, write.'a & write.P1, "readonly">) => float64
+    /// @type.symbol symbol=write type=<write.'a, write.P1: Place>(this: &write.'a readonly Cell) => float64
 
         todo("write")
         /// @resolution.name source=todo target=todo
@@ -1383,11 +1383,11 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
         r#"
 === annotated ===
 interface Eq<in T> {
-    equals(other: Borrowed<T, 'a & P1, "readonly">): boolean;
+    equals(other: &'a readonly T): boolean;
 }
 
 interface Has<in T> {
-    has(value: Borrowed<T, 'a & P1, "readonly">): boolean;
+    has(value: &'a readonly T): boolean;
 }
 
 struct Pack<out T> {
@@ -1395,7 +1395,7 @@ struct Pack<out T> {
 }
 
 export extension<T: Eq<T>> of Pack<T> implements Has<T> {
-    has<Q: Eq<Q>>(value: Borrowed<Q, 'a & P2, "readonly">): boolean {
+    has<Q: Eq<Q>>(value: &'a readonly Q): boolean {
         false
     }
 }
@@ -1406,13 +1406,13 @@ interface Eq<T> {
 /// @type.symbol symbol=Eq type=Eq
 /// @definition.interface symbol=Eq template=(in T#1)
 /// @definition.where symbol=Eq relation=satisfies left=this right=Eq<T#1>
-/// @definition.method symbol=Eq.equals source="equals(other: &readonly T): boolean" slot=equals type=<Eq.equals.'a, Eq.equals.P1: Place>(this: this, Borrowed<T#1, Eq.equals.'a & Eq.equals.P1, "readonly">) => boolean
+/// @definition.method symbol=Eq.equals source="equals(other: &readonly T): boolean" slot=equals type=<Eq.equals.'a, Eq.equals.P1: Place>(this: this, &Eq.equals.'a readonly T#1) => boolean
 /// @type.symbol symbol=Eq.T source=T type=T#1
 
     equals(other: &readonly T): boolean;
     /// @generic.template symbol=Eq.equals parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=Eq.equals source="equals(other: &readonly T): boolean" type=<Eq.equals.'a, Eq.equals.P1: Place>(this: this, Borrowed<T#1, Eq.equals.'a & Eq.equals.P1, "readonly">) => boolean
-    /// @type.symbol symbol=Eq.equals.other source="other: &readonly T" type=Borrowed<T#1, Eq.equals.'a & Eq.equals.P1, "readonly">
+    /// @type.symbol symbol=Eq.equals source="equals(other: &readonly T): boolean" type=<Eq.equals.'a, Eq.equals.P1: Place>(this: this, &Eq.equals.'a readonly T#1) => boolean
+    /// @type.symbol symbol=Eq.equals.other source="other: &readonly T" type=&Eq.equals.'a readonly T#1
     /// @resolution.name source=T target=Eq.T
 
 }
@@ -1422,13 +1422,13 @@ interface Has<T> {
 /// @type.symbol symbol=Has type=Has
 /// @definition.interface symbol=Has template=(in T#2)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#2>
-/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a, Has.has.P1: Place>(this: this, Borrowed<T#2, Has.has.'a & Has.has.P1, "readonly">) => boolean
+/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a, Has.has.P1: Place>(this: this, &Has.has.'a readonly T#2) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#2
 
     has(value: &readonly T): boolean;
     /// @generic.template symbol=Has.has parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a, Has.has.P1: Place>(this: this, Borrowed<T#2, Has.has.'a & Has.has.P1, "readonly">) => boolean
-    /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=Borrowed<T#2, Has.has.'a & Has.has.P1, "readonly">
+    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a, Has.has.P1: Place>(this: this, &Has.has.'a readonly T#2) => boolean
+    /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=&Has.has.'a readonly T#2
     /// @resolution.name source=T target=Has.T
 
 }
@@ -1450,7 +1450,7 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#4: Eq<T#4>)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#4>
 /// @definition.implements symbol=<module>#2 source=Has<T> target=Has<T#4>
-/// @definition.method symbol=has slot=has type=<Q: Eq<Q>, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: Borrowed<this, has.'b & has.P4, "readonly">, Borrowed<Q, has.'a & has.P2, "readonly">) => boolean
+/// @definition.method symbol=has slot=has type=<Q: Eq<Q>, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: &has.'b readonly this, &has.'a readonly Q) => boolean
 /// @definition.conformance symbol=<module>#2 member=has requirement=Has.has
 /// @type.symbol symbol=T source="T: Eq<T>" type=T#4
 /// @resolution.name source=Eq target=Eq
@@ -1462,11 +1462,11 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 
     has<Q: Eq<Q>>(value: &readonly Q): boolean {
     /// @generic.template symbol=has parent=template#3 parameters=(Q: Eq<Q>, 'a, P2: Place, 'b, P4: Place)
-    /// @type.symbol symbol=has type=<Q: Eq<Q>, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: Borrowed<this, has.'b & has.P4, "readonly">, Borrowed<Q, has.'a & has.P2, "readonly">) => boolean
+    /// @type.symbol symbol=has type=<Q: Eq<Q>, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: &has.'b readonly this, &has.'a readonly Q) => boolean
     /// @type.symbol symbol=has.Q source="Q: Eq<Q>" type=Q
     /// @resolution.name source=Eq target=Eq
     /// @resolution.name source=Q target=has.Q
-    /// @type.symbol symbol=has.value source="value: &readonly Q" type=Borrowed<Q, has.'a & has.P2, "readonly">
+    /// @type.symbol symbol=has.value source="value: &readonly Q" type=&has.'a readonly Q
     /// @resolution.name source=Q target=has.Q
 
         false
@@ -1511,7 +1511,7 @@ export extension<T> of Pack<T> implements Has<T> {
 interface Marker {}
 
 interface Has<in T> {
-    has(value: Borrowed<T, 'a & P1, "readonly">): boolean;
+    has(value: &'a readonly T): boolean;
 }
 
 struct Pack<out T> {
@@ -1519,7 +1519,7 @@ struct Pack<out T> {
 }
 
 export extension<T> of Pack<T> implements Has<T> {
-    has<Q: Marker>(value: Borrowed<Q, 'a & P2, "readonly">): boolean {
+    has<Q: Marker>(value: &'a readonly Q): boolean {
         false
     }
 }
@@ -1534,13 +1534,13 @@ interface Has<T> {
 /// @type.symbol symbol=Has type=Has
 /// @definition.interface symbol=Has template=(in T#1)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#1>
-/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a, Has.has.P1: Place>(this: this, Borrowed<T#1, Has.has.'a & Has.has.P1, "readonly">) => boolean
+/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a, Has.has.P1: Place>(this: this, &Has.has.'a readonly T#1) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#1
 
     has(value: &readonly T): boolean;
     /// @generic.template symbol=Has.has parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a, Has.has.P1: Place>(this: this, Borrowed<T#1, Has.has.'a & Has.has.P1, "readonly">) => boolean
-    /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=Borrowed<T#1, Has.has.'a & Has.has.P1, "readonly">
+    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a, Has.has.P1: Place>(this: this, &Has.has.'a readonly T#1) => boolean
+    /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=&Has.has.'a readonly T#1
     /// @resolution.name source=T target=Has.T
 
 }
@@ -1562,7 +1562,7 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#3>
 /// @definition.implements symbol=<module>#2 source=Has<T> target=Has<T#3>
-/// @definition.method symbol=has slot=has type=<Q: Marker, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: Borrowed<this, has.'b & has.P4, "readonly">, Borrowed<Q, has.'a & has.P2, "readonly">) => boolean
+/// @definition.method symbol=has slot=has type=<Q: Marker, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: &has.'b readonly this, &has.'a readonly Q) => boolean
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T
@@ -1571,10 +1571,10 @@ export extension<T> of Pack<T> implements Has<T> {
 
     has<Q: Marker>(value: &readonly Q): boolean {
     /// @generic.template symbol=has parent=template#3 parameters=(Q: Marker, 'a, P2: Place, 'b, P4: Place)
-    /// @type.symbol symbol=has type=<Q: Marker, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: Borrowed<this, has.'b & has.P4, "readonly">, Borrowed<Q, has.'a & has.P2, "readonly">) => boolean
+    /// @type.symbol symbol=has type=<Q: Marker, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: &has.'b readonly this, &has.'a readonly Q) => boolean
     /// @type.symbol symbol=has.Q source="Q: Marker" type=Q
     /// @resolution.name source=Marker target=Marker
-    /// @type.symbol symbol=has.value source="value: &readonly Q" type=Borrowed<Q, has.'a & has.P2, "readonly">
+    /// @type.symbol symbol=has.value source="value: &readonly Q" type=&has.'a readonly Q
     /// @resolution.name source=Q target=has.Q
 
         false
@@ -1615,7 +1615,7 @@ export extension<T> of Pack<T> implements Has<T> {
         r#"
 === annotated ===
 interface Has<in T> {
-    has(value: Borrowed<T, 'a & P1, "readonly">): boolean;
+    has(value: &'a readonly T): boolean;
 }
 
 struct Pack<out T> {
@@ -1623,7 +1623,7 @@ struct Pack<out T> {
 }
 
 export extension<T> of Pack<T> implements Has<T> {
-    has<Q>(value: Borrowed<Q, 'a & P2, "exclusive">): boolean {
+    has<Q>(value: &'a exclusive Q): boolean {
         false
     }
 }
@@ -1634,13 +1634,13 @@ interface Has<T> {
 /// @type.symbol symbol=Has type=Has
 /// @definition.interface symbol=Has template=(in T#1)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#1>
-/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a, Has.has.P1: Place>(this: this, Borrowed<T#1, Has.has.'a & Has.has.P1, "readonly">) => boolean
+/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a, Has.has.P1: Place>(this: this, &Has.has.'a readonly T#1) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#1
 
     has(value: &readonly T): boolean;
     /// @generic.template symbol=Has.has parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a, Has.has.P1: Place>(this: this, Borrowed<T#1, Has.has.'a & Has.has.P1, "readonly">) => boolean
-    /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=Borrowed<T#1, Has.has.'a & Has.has.P1, "readonly">
+    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a, Has.has.P1: Place>(this: this, &Has.has.'a readonly T#1) => boolean
+    /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=&Has.has.'a readonly T#1
     /// @resolution.name source=T target=Has.T
 
 }
@@ -1662,7 +1662,7 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#3>
 /// @definition.implements symbol=<module>#2 source=Has<T> target=Has<T#3>
-/// @definition.method symbol=has slot=has type=<Q, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: Borrowed<this, has.'b & has.P4, "readonly">, Borrowed<Q, has.'a & has.P2, "exclusive">) => boolean
+/// @definition.method symbol=has slot=has type=<Q, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: &has.'b readonly this, &has.'a exclusive Q) => boolean
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T
@@ -1671,9 +1671,9 @@ export extension<T> of Pack<T> implements Has<T> {
 
     has<Q>(value: &exclusive Q): boolean {
     /// @generic.template symbol=has parent=template#2 parameters=(Q, 'a, P2: Place, 'b, P4: Place)
-    /// @type.symbol symbol=has type=<Q, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: Borrowed<this, has.'b & has.P4, "readonly">, Borrowed<Q, has.'a & has.P2, "exclusive">) => boolean
+    /// @type.symbol symbol=has type=<Q, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: &has.'b readonly this, &has.'a exclusive Q) => boolean
     /// @type.symbol symbol=has.Q source=Q type=Q
-    /// @type.symbol symbol=has.value source="value: &exclusive Q" type=Borrowed<Q, has.'a & has.P2, "exclusive">
+    /// @type.symbol symbol=has.value source="value: &exclusive Q" type=&has.'a exclusive Q
     /// @resolution.name source=Q target=has.Q
 
         false
@@ -1751,9 +1751,7 @@ export extension<K, V, 'a, P3: Place, 'b, P5: Place> of Bag<K, V>
 
     iterator<const A: Access = "readonly">(
         this: WithAccess<&Bag<K, V>, A>,
-    ): Iterator<
-        Entry<Borrowed<K, 'a & P2, "readonly">, WithAccess<Borrowed<V, 'a & P2, "mutable">, A>>
-    > {
+    ): Iterator<Entry<&'a readonly K, WithAccess<&'a V, A>>> {
         todo("Bag.iterator" as string | undefined)
     }
 }
@@ -1794,13 +1792,13 @@ export class Bag<K, V> {
     keys: K[] = [];
     /// @type.symbol symbol=Bag.keys source="keys: K[] = []" type=K#2[]
     /// @resolution.name source=K target=Bag.K
-    /// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as K#2) return=K#2[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<K#2>
+    /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as K#2) return=K#2[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<K#2>
     /// @generic.instantiation id=arrayFromSlice<K#2> template=arrayFromSlice arguments=(K#2) owner=Bag
 
     values: V[] = [];
     /// @type.symbol symbol=Bag.values source="values: V[] = []" type=V#2[]
     /// @resolution.name source=V target=Bag.V
-    /// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as V#2) return=V#2[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<V#2>
+    /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as V#2) return=V#2[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<V#2>
     /// @generic.instantiation id=arrayFromSlice<V#2> template=arrayFromSlice arguments=(V#2) owner=Bag
 
 }
@@ -1809,9 +1807,9 @@ export extension<K, V> of Bag<K, V>
 /// @generic.template symbol=<module>#2 parameters=(K#3, V#3, 'a, P3: Place, 'b, P5: Place)
 /// @definition.extension symbol=<module>#2 form=exported target=Bag<K#3, V#3>
 /// @definition.implements symbol=<module>#2 source="Iterable<(K, V)>" target="Iterable<(K#3, V#3)>"
-/// @definition.implements symbol=<module>#2 source="Iterable<Entry<&readonly K, &V>>" target="Iterable<Entry<Borrowed<K#3, <module>#2.'a & <module>#2.P3, \"readonly\">, Borrowed<V#3, <module>#2.'b & <module>#2.P5, \"mutable\">>>"
+/// @definition.implements symbol=<module>#2 source="Iterable<Entry<&readonly K, &V>>" target="Iterable<Entry<&<module>#2.'a readonly K#3, &<module>#2.'b V#3>>"
 /// @definition.method symbol=iterator#1 slot=iterator type=<iterator#1.P0: Place>(this: Managed<this, iterator#1.P0>) => Iterator<(K#3, V#3)>
-/// @definition.method symbol=iterator#2 slot=iterator type=<const A: Access = "readonly", iterator#2.'a, iterator#2.P2: Place>(this: WithAccess<Borrowed<Bag<K#3, V#3>, iterator#2.'a & iterator#2.P2, "mutable">, A>) => Iterator<Entry<Borrowed<K#3, iterator#2.'a & iterator#2.P2, "readonly">, WithAccess<Borrowed<V#3, iterator#2.'a & iterator#2.P2, "mutable">, A>>>
+/// @definition.method symbol=iterator#2 slot=iterator type=<const A: Access = "readonly", iterator#2.'a, iterator#2.P2: Place>(this: WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => Iterator<Entry<&iterator#2.'a readonly K#3, WithAccess<&iterator#2.'a V#3, A>>>
 /// @definition.conformance symbol=<module>#2 member=Iterable.Iterator requirement=Iterable.Iterator
 /// @definition.conformance symbol=<module>#2 member=iterator#1 requirement=Iterable.iterator
 /// @definition.conformance symbol=<module>#2 member=iterator#2 requirement=Iterable.iterator
@@ -1848,12 +1846,12 @@ export extension<K, V> of Bag<K, V>
 
     iterator<const A: Access = "readonly">(
     /// @generic.template symbol=iterator#2 parent=template#2 parameters=(const A: Access = "readonly", 'a, P2: Place)
-    /// @type.symbol symbol=iterator#2 type=<const A: Access = "readonly", iterator#2.'a, iterator#2.P2: Place>(this: WithAccess<Borrowed<Bag<K#3, V#3>, iterator#2.'a & iterator#2.P2, "mutable">, A>) => Iterator<Entry<Borrowed<K#3, iterator#2.'a & iterator#2.P2, "readonly">, WithAccess<Borrowed<V#3, iterator#2.'a & iterator#2.P2, "mutable">, A>>>
+    /// @type.symbol symbol=iterator#2 type=<const A: Access = "readonly", iterator#2.'a, iterator#2.P2: Place>(this: WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => Iterator<Entry<&iterator#2.'a readonly K#3, WithAccess<&iterator#2.'a V#3, A>>>
     /// @type.symbol symbol=iterator.A source="const A: Access = \"readonly\"" type=A
     /// @resolution.name source=Access target=Access
 
         this: WithAccess<&Bag<K, V>, A>,
-        /// @type.symbol symbol=iterator.this#2 source="this: WithAccess<&Bag<K, V>, A>" type=WithAccess<Borrowed<Bag<K#3, V#3>, iterator#2.'a & iterator#2.P2, "mutable">, A>
+        /// @type.symbol symbol=iterator.this#2 source="this: WithAccess<&Bag<K, V>, A>" type=WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>
         /// @resolution.name source=WithAccess target=WithAccess
         /// @resolution.name source=Bag target=Bag
         /// @resolution.name source=K target=K
@@ -2153,12 +2151,12 @@ import { Integer } from "destack:math";
 newtype interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show nominal=true
-/// @definition.method symbol=Show.show source="show(&readonly this): string" slot=show type=<Show.show.'a, Show.show.P1: Place>(this: Borrowed<this, Show.show.'a & Show.show.P1, "readonly">) => string
+/// @definition.method symbol=Show.show source="show(&readonly this): string" slot=show type=<Show.show.'a, Show.show.P1: Place>(this: &Show.show.'a readonly this) => string
 
     show(&readonly this): string;
     /// @generic.template symbol=Show.show parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=Show.show source="show(&readonly this): string" type=<Show.show.'a, Show.show.P1: Place>(this: Borrowed<this, Show.show.'a & Show.show.P1, "readonly">) => string
-    /// @type.symbol symbol=Show.show.this source="&readonly this" type=Borrowed<this, Show.show.'a & Show.show.P1, "readonly">
+    /// @type.symbol symbol=Show.show source="show(&readonly this): string" type=<Show.show.'a, Show.show.P1: Place>(this: &Show.show.'a readonly this) => string
+    /// @type.symbol symbol=Show.show.this source="&readonly this" type=&Show.show.'a readonly this
 
 }
 
@@ -2166,7 +2164,7 @@ extension AnyShow<T: Integer> of T implements Show {
 /// @generic.template symbol=AnyShow parameters=(T: Integer)
 /// @definition.extension symbol=AnyShow form=local target=T
 /// @definition.implements symbol=AnyShow source=Show target=Show
-/// @definition.method symbol=AnyShow.show slot=show type=<AnyShow.show.'a, AnyShow.show.P1: Place>(this: Borrowed<this, AnyShow.show.'a & AnyShow.show.P1, "readonly">) => string
+/// @definition.method symbol=AnyShow.show slot=show type=<AnyShow.show.'a, AnyShow.show.P1: Place>(this: &AnyShow.show.'a readonly this) => string
 /// @definition.conformance symbol=AnyShow member=AnyShow.show requirement=Show.show
 /// @type.symbol symbol=AnyShow.T source="T: Integer" type=T
 /// @resolution.name source=Integer target=Integer
@@ -2175,8 +2173,8 @@ extension AnyShow<T: Integer> of T implements Show {
 
     show(&readonly this): string {
     /// @generic.template symbol=AnyShow.show parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=AnyShow.show type=<AnyShow.show.'a, AnyShow.show.P1: Place>(this: Borrowed<this, AnyShow.show.'a & AnyShow.show.P1, "readonly">) => string
-    /// @type.symbol symbol=AnyShow.show.this source="&readonly this" type=Borrowed<this, AnyShow.show.'a & AnyShow.show.P1, "readonly">
+    /// @type.symbol symbol=AnyShow.show type=<AnyShow.show.'a, AnyShow.show.P1: Place>(this: &AnyShow.show.'a readonly this) => string
+    /// @type.symbol symbol=AnyShow.show.this source="&readonly this" type=&AnyShow.show.'a readonly this
 
         return "any";
     }
@@ -2185,14 +2183,14 @@ extension AnyShow<T: Integer> of T implements Show {
 extension IntShow of int16 implements Show {
 /// @definition.extension symbol=IntShow form=local target=int16
 /// @definition.implements symbol=IntShow source=Show target=Show
-/// @definition.method symbol=IntShow.show slot=show type=<IntShow.show.'a, IntShow.show.P1: Place>(this: Borrowed<this, IntShow.show.'a & IntShow.show.P1, "readonly">) => string
+/// @definition.method symbol=IntShow.show slot=show type=<IntShow.show.'a, IntShow.show.P1: Place>(this: &IntShow.show.'a readonly this) => string
 /// @definition.conformance symbol=IntShow member=IntShow.show requirement=Show.show
 /// @resolution.name source=Show target=Show
 
     show(&readonly this): string {
     /// @generic.template symbol=IntShow.show parent=template#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=IntShow.show type=<IntShow.show.'a, IntShow.show.P1: Place>(this: Borrowed<this, IntShow.show.'a & IntShow.show.P1, "readonly">) => string
-    /// @type.symbol symbol=IntShow.show.this source="&readonly this" type=Borrowed<this, IntShow.show.'a & IntShow.show.P1, "readonly">
+    /// @type.symbol symbol=IntShow.show type=<IntShow.show.'a, IntShow.show.P1: Place>(this: &IntShow.show.'a readonly this) => string
+    /// @type.symbol symbol=IntShow.show.this source="&readonly this" type=&IntShow.show.'a readonly this
 
         return "int16";
     }
@@ -2381,7 +2379,7 @@ extension<T, R, Q, I: It<T, R>, J: It<T, Q>> of Chain<I, J, T> implements It<T> 
 /// @generic.template symbol=<module>#2 parameters=(T#3, R#2, Q, I#2: It<T#3, R#2>, J#2: It<T#3, Q>)
 /// @definition.extension symbol=<module>#2 form=local target=Chain<I#2, J#2, T#3>
 /// @definition.implements symbol=<module>#2 source=It<T> target="It<T#3, void>"
-/// @definition.method symbol=next slot=next type=<next.'a, next.P1: Place>(this: Borrowed<this, next.'a & next.P1, "readonly">) => void
+/// @definition.method symbol=next slot=next type=<next.'a, next.P1: Place>(this: &next.'a readonly this) => void
 /// @definition.conformance symbol=<module>#2 member=It.first requirement=It.first
 /// @definition.conformance symbol=<module>#2 member=next requirement=It.next
 /// @type.symbol symbol=T source=T type=T#3
@@ -2404,7 +2402,7 @@ extension<T, R, Q, I: It<T, R>, J: It<T, Q>> of Chain<I, J, T> implements It<T> 
 
     next(): void {
     /// @generic.template symbol=next parent=template#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=next type=<next.'a, next.P1: Place>(this: Borrowed<this, next.'a & next.P1, "readonly">) => void
+    /// @type.symbol symbol=next type=<next.'a, next.P1: Place>(this: &next.'a readonly this) => void
 
         todo("next")
         /// @type.node source="todo(\"next\")" type=never
@@ -2773,7 +2771,7 @@ extension<First: Copy, Second: Copy> of (First, Second) implements Sized {
 /// @generic.template symbol=<module>#2 parameters=(First: Copy, Second: Copy)
 /// @definition.extension symbol=<module>#2 form=local target=(First, Second)
 /// @definition.implements symbol=<module>#2 source=Sized target=Sized
-/// @definition.method symbol=size slot=size type=<size.'a, size.P1: Place>(this: Borrowed<this, size.'a & size.P1, "readonly">) => isize
+/// @definition.method symbol=size slot=size type=<size.'a, size.P1: Place>(this: &size.'a readonly this) => isize
 /// @definition.conformance symbol=<module>#2 member=size requirement=Sized.size
 /// @type.symbol symbol=First source="First: Copy" type=First
 /// @resolution.name source=Copy target=Copy
@@ -2785,7 +2783,7 @@ extension<First: Copy, Second: Copy> of (First, Second) implements Sized {
 
     size(): isize {
     /// @generic.template symbol=size parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=size type=<size.'a, size.P1: Place>(this: Borrowed<this, size.'a & size.P1, "readonly">) => isize
+    /// @type.symbol symbol=size type=<size.'a, size.P1: Place>(this: &size.'a readonly this) => isize
 
         return 2;
     }
@@ -2816,7 +2814,7 @@ const direct = pair.size();
 /// @type.symbol symbol=direct source=direct type=isize
 /// @resolution.pattern source=direct kind=binding target=direct
 /// @resolution.name source=pair target=pair
-/// @resolution.member source=pair.size receiver=(int32, boolean) type=<size.'a, size.P1: Place>(this: Borrowed<(int32, boolean), size.'a & size.P1, "readonly">) => isize kind=symbol target_receiver=(int32, boolean) target=size
+/// @resolution.member source=pair.size receiver=(int32, boolean) type=<size.'a, size.P1: Place>(this: &size.'a readonly (int32, boolean)) => isize kind=symbol target_receiver=(int32, boolean) target=size
 /// @resolution.call source=pair.size() parameters=() return=isize kind=symbol target=size receiver=(int32, boolean) adjustments=(borrow(&'static readonly constant (int32, boolean))) instance="(First, Second).<extension#1>.size<\"constant\">"
 /// @resolution.place source=pair placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=pair root=pair

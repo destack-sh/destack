@@ -83,7 +83,7 @@ extension<T: Numeric> of Pair<T> implements Doubles {
 /// @definition.extension symbol=<module>#2 form=local target=Pair<T#2>
 /// @definition.implements symbol=<module>#2 source=Doubles target=Doubles
 /// @definition.associated.type symbol=Output source="type Output = Pair<T>" key=Output value=Pair<T#2>
-/// @definition.method symbol=double slot=double type=<double.'a, double.P1: Place>(this: Borrowed<this, double.'a & double.P1, "readonly">) => this.Output
+/// @definition.method symbol=double slot=double type=<double.'a, double.P1: Place>(this: &double.'a readonly this) => this.Output
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Doubles.Output
 /// @definition.conformance symbol=<module>#2 member=double requirement=Doubles.double
 /// @type.symbol symbol=T source="T: Numeric" type=T#2
@@ -99,23 +99,23 @@ extension<T: Numeric> of Pair<T> implements Doubles {
 
     double(): this.Output {
     /// @generic.template symbol=double parent=template#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=double type=<double.'a, double.P1: Place>(this: Borrowed<this, double.'a & double.P1, "readonly">) => this.Output
+    /// @type.symbol symbol=double type=<double.'a, double.P1: Place>(this: &double.'a readonly this) => this.Output
 
         Pair { x: this.x + this.x }
         /// @type.node source="Pair { x: this.x + this.x }" type=Pair<T#2>
         /// @resolution.name source=Pair target=Pair
         /// @type.node source="this.x + this.x" type=T#2
         /// @type.node source=this.x type=T#2
-        /// @resolution.member source=this.x receiver=Borrowed<Pair<T#2>, double.'a & double.P1, "readonly"> type=T#2 kind=field target_receiver=Borrowed<Pair<T#2>, double.'a & double.P1, "readonly"> key=x target=Pair.x target_type=T#2
+        /// @resolution.member source=this.x receiver=&double.'a readonly Pair<T#2> type=T#2 kind=field target_receiver=&double.'a readonly Pair<T#2> key=x target=Pair.x target_type=T#2
         /// @resolution.operator source="this.x + this.x" type=T#2 operator="+" kind=builtin operands=[this.x as T#2 families=(integer | float), this.x as T#2 families=(integer | float)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Pair<T#2>, double.'a & double.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&double.'a readonly Pair<T#2>
         /// @resolution.place source=this placement=double.P1 lifetime=double.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.x placement=double.P1 lifetime=double.'a access="readonly"
         /// @resolution.access source=this.x root=this keys=[x]
         /// @type.node source=this.x type=T#2
-        /// @resolution.member source=this.x receiver=Borrowed<Pair<T#2>, double.'a & double.P1, "readonly"> type=T#2 kind=field target_receiver=Borrowed<Pair<T#2>, double.'a & double.P1, "readonly"> key=x target=Pair.x target_type=T#2
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Pair<T#2>, double.'a & double.P1, "readonly">
+        /// @resolution.member source=this.x receiver=&double.'a readonly Pair<T#2> type=T#2 kind=field target_receiver=&double.'a readonly Pair<T#2> key=x target=Pair.x target_type=T#2
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&double.'a readonly Pair<T#2>
         /// @resolution.place source=this placement=double.P1 lifetime=double.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.x placement=double.P1 lifetime=double.'a access="readonly"

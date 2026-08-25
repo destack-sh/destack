@@ -191,7 +191,7 @@ export const pair = [1, 2];
 /// @generic.instance id=Array<int64> template=Array arguments=(int64)
 /// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
 /// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
-/// @resolution.call source=[1, 2] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+/// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
 /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 /// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
 

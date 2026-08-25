@@ -72,9 +72,9 @@ class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32 = 0" key=value type=int32
-/// @definition.method symbol=Counter.borrow slot=borrow type=<Counter.borrow.'a, Counter.borrow.P1: Place>(this: Borrowed<Counter, Counter.borrow.'a & Counter.borrow.P1, "mutable">) => int32
-/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">) => void
-/// @definition.method symbol=Counter.inspect slot=inspect type=<Counter.inspect.'a, Counter.inspect.P1: Place>(this: Borrowed<Counter, Counter.inspect.'a & Counter.inspect.P1, "readonly">) => int32
+/// @definition.method symbol=Counter.borrow slot=borrow type=<Counter.borrow.'a, Counter.borrow.P1: Place>(this: &Counter.borrow.'a Counter) => int32
+/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a exclusive Counter) => void
+/// @definition.method symbol=Counter.inspect slot=inspect type=<Counter.inspect.'a, Counter.inspect.P1: Place>(this: &Counter.inspect.'a readonly Counter) => int32
 /// @definition.method symbol=Counter.peek slot=peek type=(this: Readonly<Counter>) => int32
 /// @definition.method symbol=Counter.read slot=read type=(this: Counter) => int32
 /// @definition.method symbol=Counter.zero slot=zero static=true type=() => Counter
@@ -112,12 +112,12 @@ class Counter {
 
     borrow(&this): int32 {
     /// @generic.template symbol=Counter.borrow parameters=('a, P1: Place)
-    /// @type.symbol symbol=Counter.borrow type=<Counter.borrow.'a, Counter.borrow.P1: Place>(this: Borrowed<Counter, Counter.borrow.'a & Counter.borrow.P1, "mutable">) => int32
-    /// @type.symbol symbol=Counter.borrow.this source=&this type=Borrowed<this, Counter.borrow.'a & Counter.borrow.P1, "mutable">
+    /// @type.symbol symbol=Counter.borrow type=<Counter.borrow.'a, Counter.borrow.P1: Place>(this: &Counter.borrow.'a Counter) => int32
+    /// @type.symbol symbol=Counter.borrow.this source=&this type=&Counter.borrow.'a this
 
         return this.value;
-        /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.borrow.'a & Counter.borrow.P1, "mutable"> type=int32 kind=field target_receiver=Borrowed<Counter, Counter.borrow.'a & Counter.borrow.P1, "mutable"> key=value target=Counter.value target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.borrow.'a & Counter.borrow.P1, "mutable">
+        /// @resolution.member source=this.value receiver=&Counter.borrow.'a Counter type=int32 kind=field target_receiver=&Counter.borrow.'a Counter key=value target=Counter.value target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.borrow.'a Counter
         /// @resolution.place source=this placement=Counter.borrow.P1 lifetime=Counter.borrow.'a access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=Counter.borrow.P1 lifetime=Counter.borrow.'a access="mutable"
@@ -127,12 +127,12 @@ class Counter {
 
     inspect(&readonly this): int32 {
     /// @generic.template symbol=Counter.inspect parameters=('a, P1: Place)
-    /// @type.symbol symbol=Counter.inspect type=<Counter.inspect.'a, Counter.inspect.P1: Place>(this: Borrowed<Counter, Counter.inspect.'a & Counter.inspect.P1, "readonly">) => int32
-    /// @type.symbol symbol=Counter.inspect.this source="&readonly this" type=Borrowed<this, Counter.inspect.'a & Counter.inspect.P1, "readonly">
+    /// @type.symbol symbol=Counter.inspect type=<Counter.inspect.'a, Counter.inspect.P1: Place>(this: &Counter.inspect.'a readonly Counter) => int32
+    /// @type.symbol symbol=Counter.inspect.this source="&readonly this" type=&Counter.inspect.'a readonly this
 
         return this.value;
-        /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.inspect.'a & Counter.inspect.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Counter, Counter.inspect.'a & Counter.inspect.P1, "readonly"> key=value target=Counter.value target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.inspect.'a & Counter.inspect.P1, "readonly">
+        /// @resolution.member source=this.value receiver=&Counter.inspect.'a readonly Counter type=int32 kind=field target_receiver=&Counter.inspect.'a readonly Counter key=value target=Counter.value target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.inspect.'a readonly Counter
         /// @resolution.place source=this placement=Counter.inspect.P1 lifetime=Counter.inspect.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=Counter.inspect.P1 lifetime=Counter.inspect.'a access="readonly"
@@ -142,19 +142,19 @@ class Counter {
 
     increment(&exclusive this): void {
     /// @generic.template symbol=Counter.increment parameters=('a, P1: Place)
-    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">) => void
-    /// @type.symbol symbol=Counter.increment.this source="&exclusive this" type=Borrowed<this, Counter.increment.'a & Counter.increment.P1, "exclusive">
+    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a exclusive Counter) => void
+    /// @type.symbol symbol=Counter.increment.this source="&exclusive this" type=&Counter.increment.'a exclusive this
 
         this.value = this.value + 1;
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
         /// @resolution.place source=this placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
-        /// @resolution.assignment source=this.value write="receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, \"exclusive\">, target=field(receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, \"exclusive\">, target=Counter.value, type=int32), type=int32" type=int32
-        /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive"> type=int32 kind=field target_receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive"> key=value target=Counter.value target_type=int32
+        /// @resolution.assignment source=this.value write="receiver=&Counter.increment.'a exclusive Counter, target=field(receiver=&Counter.increment.'a exclusive Counter, target=Counter.value, type=int32), type=int32" type=int32
+        /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter type=int32 kind=field target_receiver=&Counter.increment.'a exclusive Counter key=value target=Counter.value target_type=int32
         /// @resolution.operator source="this.value + 1" type=int32 operator="+" kind=builtin operands=[this.value as int32 families=(integer), 1 as int32 families=(integer)]
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
         /// @resolution.place source=this placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
@@ -223,12 +223,12 @@ class Message {}
 newtype interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink nominal=true
-/// @definition.method symbol=Sink.write source="write(&readonly this, value: Message): Message" slot=write type=<Sink.write.'a, Sink.write.P1: Place>(this: Borrowed<Sink, Sink.write.'a & Sink.write.P1, "readonly">, Message) => Message
+/// @definition.method symbol=Sink.write source="write(&readonly this, value: Message): Message" slot=write type=<Sink.write.'a, Sink.write.P1: Place>(this: &Sink.write.'a readonly Sink, Message) => Message
 
     write(&readonly this, value: Message): Message;
     /// @generic.template symbol=Sink.write parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=Sink.write source="write(&readonly this, value: Message): Message" type=<Sink.write.'a, Sink.write.P1: Place>(this: Borrowed<Sink, Sink.write.'a & Sink.write.P1, "readonly">, Message) => Message
-    /// @type.symbol symbol=Sink.write.this source="&readonly this" type=Borrowed<this, Sink.write.'a & Sink.write.P1, "readonly">
+    /// @type.symbol symbol=Sink.write source="write(&readonly this, value: Message): Message" type=<Sink.write.'a, Sink.write.P1: Place>(this: &Sink.write.'a readonly Sink, Message) => Message
+    /// @type.symbol symbol=Sink.write.this source="&readonly this" type=&Sink.write.'a readonly this
     /// @type.symbol symbol=Sink.write.value source="value: Message" type=Message
     /// @resolution.name source=Message target=Message
     /// @resolution.name source=Message target=Message
@@ -257,7 +257,7 @@ declare const sharedMessage: shared Message;
 
 localSink.write(localMessage) satisfies local Message;
 /// @resolution.name source=localSink target=localSink
-/// @resolution.member source=localSink.write receiver=local Sink type=<Sink.write.'a, Sink.write.P1: Place>(this: Borrowed<Sink, Sink.write.'a & Sink.write.P1, "readonly">, Message) => Message kind=symbol target_receiver=local Sink dispatch=dynamic constraint=Sink target=Sink.write
+/// @resolution.member source=localSink.write receiver=local Sink type=<Sink.write.'a, Sink.write.P1: Place>(this: &Sink.write.'a readonly Sink, Message) => Message kind=symbol target_receiver=local Sink dispatch=dynamic constraint=Sink target=Sink.write
 /// @resolution.call source=localSink.write(localMessage) parameters=(Message) arguments=(provided(localMessage) as Message) return=Message kind=dynamic target=Sink.write receiver=local Sink constraint=Sink adjustments=(borrow(&'static readonly local Sink)) generic_arguments=("local")
 /// @resolution.place source=localSink placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=localSink root=localSink
@@ -268,7 +268,7 @@ localSink.write(localMessage) satisfies local Message;
 
 sharedSink.write(sharedMessage) satisfies shared Message;
 /// @resolution.name source=sharedSink target=sharedSink
-/// @resolution.member source=sharedSink.write receiver=shared Sink type=<Sink.write.'a, Sink.write.P1: Place>(this: Borrowed<Sink, Sink.write.'a & Sink.write.P1, "readonly">, Message) => Message kind=symbol target_receiver=shared Sink dispatch=dynamic constraint=Sink target=Sink.write
+/// @resolution.member source=sharedSink.write receiver=shared Sink type=<Sink.write.'a, Sink.write.P1: Place>(this: &Sink.write.'a readonly Sink, Message) => Message kind=symbol target_receiver=shared Sink dispatch=dynamic constraint=Sink target=Sink.write
 /// @resolution.call source=sharedSink.write(sharedMessage) parameters=(shared Message) arguments=(provided(sharedMessage) as shared Message) return=shared Message kind=dynamic target=Sink.write receiver=shared Sink constraint=Sink adjustments=(borrow(&'static readonly shared shared Sink)) generic_arguments=("shared")
 /// @resolution.place source=sharedSink placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=sharedSink root=sharedSink
@@ -315,12 +315,12 @@ sharedBuffer.clear<"shared">();
 class Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
 /// @definition.class symbol=Buffer
-/// @definition.method symbol=Buffer.clear source="clear(&exclusive this): void {}" slot=clear type=<Buffer.clear.'a, Buffer.clear.P1: Place>(this: Borrowed<this, Buffer.clear.'a & Buffer.clear.P1, "exclusive">) => void
+/// @definition.method symbol=Buffer.clear source="clear(&exclusive this): void {}" slot=clear type=<Buffer.clear.'a, Buffer.clear.P1: Place>(this: &Buffer.clear.'a exclusive this) => void
 
     clear(&exclusive this): void {}
     /// @generic.template symbol=Buffer.clear parameters=('a, P1: Place)
-    /// @type.symbol symbol=Buffer.clear source="clear(&exclusive this): void {}" type=<Buffer.clear.'a, Buffer.clear.P1: Place>(this: Borrowed<this, Buffer.clear.'a & Buffer.clear.P1, "exclusive">) => void
-    /// @type.symbol symbol=Buffer.clear.this source="&exclusive this" type=Borrowed<this, Buffer.clear.'a & Buffer.clear.P1, "exclusive">
+    /// @type.symbol symbol=Buffer.clear source="clear(&exclusive this): void {}" type=<Buffer.clear.'a, Buffer.clear.P1: Place>(this: &Buffer.clear.'a exclusive this) => void
+    /// @type.symbol symbol=Buffer.clear.this source="&exclusive this" type=&Buffer.clear.'a exclusive this
 
 }
 
@@ -336,7 +336,7 @@ declare const sharedBuffer: shared Buffer;
 
 localBuffer.clear();
 /// @resolution.name source=localBuffer target=localBuffer
-/// @resolution.member source=localBuffer.clear receiver=local Buffer type=<Buffer.clear.'a, Buffer.clear.P1: Place>(this: Borrowed<Buffer, Buffer.clear.'a & Buffer.clear.P1, "exclusive">) => void kind=symbol target_receiver=local Buffer target=Buffer.clear
+/// @resolution.member source=localBuffer.clear receiver=local Buffer type=<Buffer.clear.'a, Buffer.clear.P1: Place>(this: &Buffer.clear.'a exclusive Buffer) => void kind=symbol target_receiver=local Buffer target=Buffer.clear
 /// @resolution.call source=localBuffer.clear() parameters=() return=void kind=symbol target=Buffer.clear receiver=local Buffer adjustments=(borrow(&'static exclusive local Buffer)) instance="Buffer.clear<\"local\">"
 /// @resolution.place source=localBuffer placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=localBuffer root=localBuffer
@@ -344,7 +344,7 @@ localBuffer.clear();
 
 sharedBuffer.clear();
 /// @resolution.name source=sharedBuffer target=sharedBuffer
-/// @resolution.member source=sharedBuffer.clear receiver=shared Buffer type=<Buffer.clear.'a, Buffer.clear.P1: Place>(this: Borrowed<Buffer, Buffer.clear.'a & Buffer.clear.P1, "exclusive">) => void kind=symbol target_receiver=shared Buffer target=Buffer.clear
+/// @resolution.member source=sharedBuffer.clear receiver=shared Buffer type=<Buffer.clear.'a, Buffer.clear.P1: Place>(this: &Buffer.clear.'a exclusive Buffer) => void kind=symbol target_receiver=shared Buffer target=Buffer.clear
 /// @resolution.call source=sharedBuffer.clear() parameters=() return=void kind=symbol target=Buffer.clear receiver=shared Buffer instance="Buffer.clear<\"shared\">"
 /// @resolution.place source=sharedBuffer placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=sharedBuffer root=sharedBuffer
@@ -407,20 +407,20 @@ struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: Borrowed<this, Counter.increment.'a & Counter.increment.P1, "exclusive">) => void
-/// @definition.method symbol=Counter.read slot=read type=<Counter.read.'a, Counter.read.P1: Place>(this: Borrowed<this, Counter.read.'a & Counter.read.P1, "readonly">) => int32
+/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a exclusive this) => void
+/// @definition.method symbol=Counter.read slot=read type=<Counter.read.'a, Counter.read.P1: Place>(this: &Counter.read.'a readonly this) => int32
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     read(&readonly this): int32 {
     /// @generic.template symbol=Counter.read parameters=('a, P1: Place)
-    /// @type.symbol symbol=Counter.read type=<Counter.read.'a, Counter.read.P1: Place>(this: Borrowed<this, Counter.read.'a & Counter.read.P1, "readonly">) => int32
-    /// @type.symbol symbol=Counter.read.this source="&readonly this" type=Borrowed<this, Counter.read.'a & Counter.read.P1, "readonly">
+    /// @type.symbol symbol=Counter.read type=<Counter.read.'a, Counter.read.P1: Place>(this: &Counter.read.'a readonly this) => int32
+    /// @type.symbol symbol=Counter.read.this source="&readonly this" type=&Counter.read.'a readonly this
 
         return this.value;
-        /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.read.'a & Counter.read.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Counter, Counter.read.'a & Counter.read.P1, "readonly"> key=value target=Counter.value target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.read.'a & Counter.read.P1, "readonly">
+        /// @resolution.member source=this.value receiver=&Counter.read.'a readonly Counter type=int32 kind=field target_receiver=&Counter.read.'a readonly Counter key=value target=Counter.value target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.read.'a readonly Counter
         /// @resolution.place source=this placement=Counter.read.P1 lifetime=Counter.read.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=Counter.read.P1 lifetime=Counter.read.'a access="readonly"
@@ -430,19 +430,19 @@ struct Counter {
 
     increment(&exclusive this): void {
     /// @generic.template symbol=Counter.increment parameters=('a, P1: Place)
-    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: Borrowed<this, Counter.increment.'a & Counter.increment.P1, "exclusive">) => void
-    /// @type.symbol symbol=Counter.increment.this source="&exclusive this" type=Borrowed<this, Counter.increment.'a & Counter.increment.P1, "exclusive">
+    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a exclusive this) => void
+    /// @type.symbol symbol=Counter.increment.this source="&exclusive this" type=&Counter.increment.'a exclusive this
 
         this.value = this.value + 1;
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
         /// @resolution.place source=this placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
-        /// @resolution.assignment source=this.value write="receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, \"exclusive\">, target=field(receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, \"exclusive\">, target=Counter.value, type=int32), type=int32" type=int32
-        /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive"> type=int32 kind=field target_receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive"> key=value target=Counter.value target_type=int32
+        /// @resolution.assignment source=this.value write="receiver=&Counter.increment.'a exclusive Counter, target=field(receiver=&Counter.increment.'a exclusive Counter, target=Counter.value, type=int32), type=int32" type=int32
+        /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter type=int32 kind=field target_receiver=&Counter.increment.'a exclusive Counter key=value target=Counter.value target_type=int32
         /// @resolution.operator source="this.value + 1" type=int32 operator="+" kind=builtin operands=[this.value as int32 families=(integer), 1 as int32 families=(integer)]
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
         /// @resolution.place source=this placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
@@ -458,7 +458,7 @@ declare const counter: Counter;
 
 counter.read();
 /// @resolution.name source=counter target=counter
-/// @resolution.member source=counter.read receiver=Counter type=<Counter.read.'a, Counter.read.P1: Place>(this: Borrowed<Counter, Counter.read.'a & Counter.read.P1, "readonly">) => int32 kind=symbol target_receiver=Counter target=Counter.read
+/// @resolution.member source=counter.read receiver=Counter type=<Counter.read.'a, Counter.read.P1: Place>(this: &Counter.read.'a readonly Counter) => int32 kind=symbol target_receiver=Counter target=Counter.read
 /// @resolution.call source=counter.read() parameters=() return=int32 kind=symbol target=Counter.read receiver=Counter adjustments=(borrow(&'static readonly constant Counter)) instance="Counter.read<\"constant\">"
 /// @resolution.place source=counter placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=counter root=counter
@@ -466,7 +466,7 @@ counter.read();
 
 counter.increment();
 /// @resolution.name source=counter target=counter
-/// @resolution.member source=counter.increment receiver=Counter type=<Counter.increment.'a, Counter.increment.P1: Place>(this: Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">) => void kind=symbol target_receiver=Counter target=Counter.increment
+/// @resolution.member source=counter.increment receiver=Counter type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a exclusive Counter) => void kind=symbol target_receiver=Counter target=Counter.increment
 /// @resolution.call source=counter.increment() parameters=() return=void kind=symbol target=Counter.increment receiver=Counter instance="Counter.increment<\"constant\">"
 /// @resolution.place source=counter placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=counter root=counter
@@ -519,26 +519,26 @@ struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
-/// @definition.method symbol=Point.scale slot=scale type=<Point.scale.'a, Point.scale.P1: Place>(this: Borrowed<this, Point.scale.'a & Point.scale.P1, "readonly">, int32) => void
+/// @definition.method symbol=Point.scale slot=scale type=<Point.scale.'a, Point.scale.P1: Place>(this: &Point.scale.'a readonly this, int32) => void
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
     scale(by: int32): void {
     /// @generic.template symbol=Point.scale parameters=('a, P1: Place)
-    /// @type.symbol symbol=Point.scale type=<Point.scale.'a, Point.scale.P1: Place>(this: Borrowed<this, Point.scale.'a & Point.scale.P1, "readonly">, int32) => void
+    /// @type.symbol symbol=Point.scale type=<Point.scale.'a, Point.scale.P1: Place>(this: &Point.scale.'a readonly this, int32) => void
     /// @type.symbol symbol=Point.scale.by source="by: int32" type=int32
 
         this.x = this.x * by;
-        /// @resolution.receiver source=this kind=this declaration=Point type=Borrowed<Point, Point.scale.'a & Point.scale.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.scale.'a readonly Point
         /// @resolution.place source=this placement=Point.scale.P1 lifetime=Point.scale.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.x kind=place
         /// @resolution.access source=this.x root=this keys=[x]
-        /// @resolution.assignment source=this.x write="receiver=Readonly<Borrowed<Point, Point.scale.'a & Point.scale.P1, \"readonly\">>, target=field(receiver=Readonly<Borrowed<Point, Point.scale.'a & Point.scale.P1, \"readonly\">>, target=Point.x, type=int32), type=int32" type=int32
-        /// @resolution.member source=this.x receiver=Borrowed<Point, Point.scale.'a & Point.scale.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Point, Point.scale.'a & Point.scale.P1, "readonly"> key=x target=Point.x target_type=int32
+        /// @resolution.assignment source=this.x write="receiver=Readonly<&Point.scale.'a readonly Point>, target=field(receiver=Readonly<&Point.scale.'a readonly Point>, target=Point.x, type=int32), type=int32" type=int32
+        /// @resolution.member source=this.x receiver=&Point.scale.'a readonly Point type=int32 kind=field target_receiver=&Point.scale.'a readonly Point key=x target=Point.x target_type=int32
         /// @resolution.operator source="this.x * by" type=int32 operator="*" kind=builtin operands=[this.x as int32 families=(integer), by as int32 families=(integer)]
-        /// @resolution.receiver source=this kind=this declaration=Point type=Borrowed<Point, Point.scale.'a & Point.scale.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.scale.'a readonly Point
         /// @resolution.place source=this placement=Point.scale.P1 lifetime=Point.scale.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.x placement=Point.scale.P1 lifetime=Point.scale.'a access="readonly"
@@ -557,7 +557,7 @@ function freeze(point: readonly Point): void {
 
     point.scale(2);
     /// @resolution.name source=point target=freeze.point
-    /// @resolution.member source=point.scale receiver=Readonly<Point> type=<Point.scale.'a, Point.scale.P1: Place>(this: Borrowed<Point, Point.scale.'a & Point.scale.P1, "readonly">, int32) => void kind=symbol target_receiver=Readonly<Point> target=Point.scale
+    /// @resolution.member source=point.scale receiver=Readonly<Point> type=<Point.scale.'a, Point.scale.P1: Place>(this: &Point.scale.'a readonly Point, int32) => void kind=symbol target_receiver=Readonly<Point> target=Point.scale
     /// @resolution.call source=point.scale(2) parameters=(int32) arguments=(provided(2) as int32) return=void kind=symbol target=Point.scale receiver=Readonly<Point> adjustments=(Readonly<Point> => direct -> Point, borrow(&'frame readonly Point)) instance="Point.scale<\"local\">"
     /// @resolution.place source=point placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=point root=freeze.point
@@ -694,19 +694,19 @@ struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
-/// @definition.method symbol=Point.length slot=length type=<Point.length.'a, Point.length.P1: Place>(this: Borrowed<Point, Point.length.'a & Point.length.P1, "readonly">) => int32
+/// @definition.method symbol=Point.length slot=length type=<Point.length.'a, Point.length.P1: Place>(this: &Point.length.'a readonly Point) => int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
     length(&readonly this): int32 {
     /// @generic.template symbol=Point.length parameters=('a, P1: Place)
-    /// @type.symbol symbol=Point.length type=<Point.length.'a, Point.length.P1: Place>(this: Borrowed<Point, Point.length.'a & Point.length.P1, "readonly">) => int32
-    /// @type.symbol symbol=Point.length.this source="&readonly this" type=Borrowed<this, Point.length.'a & Point.length.P1, "readonly">
+    /// @type.symbol symbol=Point.length type=<Point.length.'a, Point.length.P1: Place>(this: &Point.length.'a readonly Point) => int32
+    /// @type.symbol symbol=Point.length.this source="&readonly this" type=&Point.length.'a readonly this
 
         return this.x;
-        /// @resolution.member source=this.x receiver=Borrowed<Point, Point.length.'a & Point.length.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Point, Point.length.'a & Point.length.P1, "readonly"> key=x target=Point.x target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=Point type=Borrowed<Point, Point.length.'a & Point.length.P1, "readonly">
+        /// @resolution.member source=this.x receiver=&Point.length.'a readonly Point type=int32 kind=field target_receiver=&Point.length.'a readonly Point key=x target=Point.x target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.length.'a readonly Point
         /// @resolution.place source=this placement=Point.length.P1 lifetime=Point.length.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.x placement=Point.length.P1 lifetime=Point.length.'a access="readonly"
@@ -722,7 +722,7 @@ function measure(point: readonly Point): int32 {
 
     return point.length();
     /// @resolution.name source=point target=measure.point
-    /// @resolution.member source=point.length receiver=Readonly<Point> type=<Point.length.'a, Point.length.P1: Place>(this: Borrowed<Point, Point.length.'a & Point.length.P1, "readonly">) => int32 kind=symbol target_receiver=Readonly<Point> target=Point.length
+    /// @resolution.member source=point.length receiver=Readonly<Point> type=<Point.length.'a, Point.length.P1: Place>(this: &Point.length.'a readonly Point) => int32 kind=symbol target_receiver=Readonly<Point> target=Point.length
     /// @resolution.call source=point.length() parameters=() return=int32 kind=symbol target=Point.length receiver=Readonly<Point> adjustments=(Readonly<Point> => direct -> Point, borrow(&'frame readonly Point)) instance="Point.length<\"local\">"
     /// @resolution.place source=point placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=point root=measure.point
@@ -766,18 +766,18 @@ struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.current slot=current role=getter type=<Counter.current.'a, Counter.current.P1: Place>(this: Borrowed<Counter, Counter.current.'a & Counter.current.P1, "readonly">) => int32
+/// @definition.method symbol=Counter.current slot=current role=getter type=<Counter.current.'a, Counter.current.P1: Place>(this: &Counter.current.'a readonly Counter) => int32
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     get current(): int32 {
     /// @generic.template symbol=Counter.current parameters=('a, P1: Place)
-    /// @type.symbol symbol=Counter.current type=<Counter.current.'a, Counter.current.P1: Place>(this: Borrowed<Counter, Counter.current.'a & Counter.current.P1, "readonly">) => int32
+    /// @type.symbol symbol=Counter.current type=<Counter.current.'a, Counter.current.P1: Place>(this: &Counter.current.'a readonly Counter) => int32
 
         this.value
-        /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.current.'a & Counter.current.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Counter, Counter.current.'a & Counter.current.P1, "readonly"> key=value target=Counter.value target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.current.'a & Counter.current.P1, "readonly">
+        /// @resolution.member source=this.value receiver=&Counter.current.'a readonly Counter type=int32 kind=field target_receiver=&Counter.current.'a readonly Counter key=value target=Counter.value target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.current.'a readonly Counter
         /// @resolution.place source=this placement=Counter.current.P1 lifetime=Counter.current.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=Counter.current.P1 lifetime=Counter.current.'a access="readonly"

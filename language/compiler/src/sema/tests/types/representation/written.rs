@@ -519,7 +519,7 @@ const shapes: Array<Shape> = [
 /// @generic.instance id=new<MaybeUninit<Shape>> template=new arguments=(MaybeUninit<Shape>)
 /// @resolution.name source=Array target=Array
 /// @resolution.name source=Shape target=Shape
-/// @resolution.call parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(Circle { radius: 1.0 }, Rectangle { width: 1.0, height: 1.0 }) as Shape) return=Shape[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<Shape>
+/// @resolution.call parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(Circle { radius: 1.0 }, Rectangle { width: 1.0, height: 1.0 }) as Shape) return=Shape[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<Shape>
 /// @generic.instantiation id=arrayFromSlice<Shape> template=arrayFromSlice arguments=(Shape)
 /// @generic.instance id="arrayFromSlice<Shape, \"local\">" template=arrayFromSlice arguments=(Shape, "local")
 

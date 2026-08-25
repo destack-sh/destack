@@ -19,7 +19,7 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     values.iterator<int32 | undefined, "local">().map<int32 | undefined, int32 | undefined>(
         (value: int32 | undefined): int32 | undefined => value,
     ).find<int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>>(
-        (value: Borrowed<int32 | undefined, 'a & P1, "readonly">): boolean =>
+        (value: &'a readonly (int32 | undefined)): boolean =>
             value !== (undefined as int32 | undefined) && (value as int32) > 0,
     )
 }
@@ -72,8 +72,8 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     /// @resolution.name source=value target=firstPositive.symbol3.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=firstPositive.symbol3.value
-    /// @type.symbol symbol=firstPositive.symbol5 source="(value) => value !== undefined && value > 0" type=Function<(Borrowed<int32 | undefined, type_expression.'a & type_expression.P1, "readonly">,), boolean>
-    /// @type.symbol symbol=firstPositive.symbol5.value source=value type=Borrowed<int32 | undefined, type_expression.'a & type_expression.P1, "readonly">
+    /// @type.symbol symbol=firstPositive.symbol5 source="(value) => value !== undefined && value > 0" type=Function<(&type_expression.'a readonly int32 | undefined,), boolean>
+    /// @type.symbol symbol=firstPositive.symbol5.value source=value type=&type_expression.'a readonly int32 | undefined
     /// @resolution.name source=value target=firstPositive.symbol5.value
     /// @resolution.operator source="value !== undefined && value > 0" type=boolean operator="&&" kind=builtin operands=[value !== undefined as boolean families=(boolean), value > 0 as boolean families=(boolean)]
     /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]

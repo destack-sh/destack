@@ -31,11 +31,7 @@ struct Point {
     x: int32;
 }
 
-function run<'a, P1: Place>(
-    values: int32[],
-    points: Point[],
-    view: Borrowed<int32[], 'a & P1, "readonly">,
-): int32 {
+function run<'a, P1: Place>(values: int32[], points: Point[], view: &'a readonly int32[]): int32 {
     const read: int32 = values[0];
     values[0] = 1;
     values[1] += 2;
@@ -60,11 +56,11 @@ struct Point {
 
 function run(values: int32[], points: Point[], view: &readonly int32[]): int32 {
 /// @generic.template symbol=run parameters=('a, P1: Place)
-/// @type.symbol symbol=run type=<run.'a, run.P1: Place>(int32[], Point[], Borrowed<int32[], run.'a & run.P1, "readonly">) => int32
+/// @type.symbol symbol=run type=<run.'a, run.P1: Place>(int32[], Point[], &run.'a readonly int32[]) => int32
 /// @type.symbol symbol=run.values source="values: int32[]" type=int32[]
 /// @type.symbol symbol=run.points source="points: Point[]" type=Point[]
 /// @resolution.name source=Point target=Point
-/// @type.symbol symbol=run.view source="view: &readonly int32[]" type=Borrowed<int32[], run.'a & run.P1, "readonly">
+/// @type.symbol symbol=run.view source="view: &readonly int32[]" type=&run.'a readonly int32[]
 
     const read = values[0];
     /// @type.symbol symbol=run.read source=read type=int32
@@ -131,7 +127,7 @@ function run(values: int32[], points: Point[], view: &readonly int32[]): int32 {
     /// @resolution.place source=view placement=run.P1 lifetime=run.'a access="readonly"
     /// @resolution.access source=view root=run.view
     /// @resolution.access source=view[0] root=run.view keys=[0]
-    /// @resolution.subscript source=view[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<int32, run.'a & run.P1, \"mutable\">, \"readonly\">)"
+    /// @resolution.subscript source=view[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&run.'a int32, \"readonly\">)"
     /// @generic.instantiation id="index#1<int32, \"readonly\", run.P1>" template=index#1 arguments=(int32, "readonly", run.P1)
 
     view[0] = 4;
@@ -181,8 +177,8 @@ function copyManaged(target: int32[], source: int32[]): void {
         r#"
 === annotated ===
 function copy<'a, P1: Place, 'b, P3: Place>(
-    source: Borrowed<int32[], 'a & P1, "readonly">,
-    target: Borrowed<int32[], 'b & P3, "exclusive">,
+    source: &'a readonly int32[],
+    target: &'b exclusive int32[],
 ): void {
     for (let index: isize = 0; index < source.length; index += 1) {
         target[index] = source[index];
@@ -198,9 +194,9 @@ function copyManaged(target: int32[], source: int32[]): void {
 === dir ===
 function copy(source: &readonly int32[], target: &exclusive int32[]): void {
 /// @generic.template symbol=copy parameters=('a, P1: Place, 'b, P3: Place)
-/// @type.symbol symbol=copy type=<copy.'a, copy.P1: Place, copy.'b, copy.P3: Place>(Borrowed<int32[], copy.'a & copy.P1, "readonly">, Borrowed<int32[], copy.'b & copy.P3, "exclusive">) => void
-/// @type.symbol symbol=copy.source source="source: &readonly int32[]" type=Borrowed<int32[], copy.'a & copy.P1, "readonly">
-/// @type.symbol symbol=copy.target source="target: &exclusive int32[]" type=Borrowed<int32[], copy.'b & copy.P3, "exclusive">
+/// @type.symbol symbol=copy type=<copy.'a, copy.P1: Place, copy.'b, copy.P3: Place>(&copy.'a readonly int32[], &copy.'b exclusive int32[]) => void
+/// @type.symbol symbol=copy.source source="source: &readonly int32[]" type=&copy.'a readonly int32[]
+/// @type.symbol symbol=copy.target source="target: &exclusive int32[]" type=&copy.'b exclusive int32[]
 
     for (let index = 0; index < source.length; index += 1) {
     /// @type.symbol symbol=copy.index source=index type=isize
@@ -210,7 +206,7 @@ function copy(source: &readonly int32[], target: &exclusive int32[]): void {
     /// @resolution.place source=index placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=index root=copy.index
     /// @resolution.name source=source target=copy.source
-    /// @resolution.member source=source.length receiver=Borrowed<int32[], copy.'a & copy.P1, "readonly"> type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
+    /// @resolution.member source=source.length receiver=&copy.'a readonly int32[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
     /// @resolution.place source=source placement=copy.P1 lifetime=copy.'a access="readonly"
     /// @resolution.access source=source root=copy.source
     /// @generic.instantiation id="length<int32, copy.P1>" template=length arguments=(int32, copy.P1)
@@ -235,7 +231,7 @@ function copy(source: &readonly int32[], target: &exclusive int32[]): void {
         /// @resolution.place source=source placement=copy.P1 lifetime=copy.'a access="readonly"
         /// @resolution.access source=source root=copy.source
         /// @resolution.place source=source[index] placement=copy.P1 lifetime=copy.'a access="readonly"
-        /// @resolution.subscript source=source[index] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(index) as isize), return=WithAccess<Borrowed<int32, copy.'a & copy.P1, \"mutable\">, \"readonly\">)"
+        /// @resolution.subscript source=source[index] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(index) as isize), return=WithAccess<&copy.'a int32, \"readonly\">)"
         /// @generic.instantiation id="index#1<int32, \"readonly\", copy.P1>" template=index#1 arguments=(int32, "readonly", copy.P1)
         /// @resolution.name source=index target=copy.index
         /// @resolution.place source=index placement="local" lifetime="frame" access="exclusive"
@@ -359,7 +355,7 @@ export extension<T: Copy> of Packet<T> implements Iterable<T> {
 /// @definition.extension symbol=<module>#2 form=exported target=packet.Packet<T>
 /// @definition.implements symbol=<module>#2 source=Iterable<T> target=Iterable<T>
 /// @definition.method symbol=first slot=first type=(this: this) => T | undefined
-/// @definition.method symbol=iterator slot=iterator type=<iterator.'a, iterator.P1: Place>(this: Borrowed<this, iterator.'a & iterator.P1, "readonly">) => Iterator<T>
+/// @definition.method symbol=iterator slot=iterator type=<iterator.'a, iterator.P1: Place>(this: &iterator.'a readonly this) => Iterator<T>
 /// @definition.conformance symbol=<module>#2 member=Iterable.Iterator requirement=Iterable.Iterator
 /// @definition.conformance symbol=<module>#2 member=iterator requirement=Iterable.iterator
 /// @type.symbol symbol=T source="T: Copy" type=T
@@ -372,8 +368,8 @@ export extension<T: Copy> of Packet<T> implements Iterable<T> {
     /// Iterate copied values.
     iterator(&readonly this): Iterator<T> {
     /// @generic.template symbol=iterator parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=iterator type=<iterator.'a, iterator.P1: Place>(this: Borrowed<this, iterator.'a & iterator.P1, "readonly">) => Iterator<T>
-    /// @type.symbol symbol=iterator.this source="&readonly this" type=Borrowed<this, iterator.'a & iterator.P1, "readonly">
+    /// @type.symbol symbol=iterator type=<iterator.'a, iterator.P1: Place>(this: &iterator.'a readonly this) => Iterator<T>
+    /// @type.symbol symbol=iterator.this source="&readonly this" type=&iterator.'a readonly this
     /// @resolution.name source=Iterator target=Iterator
     /// @resolution.name source=T target=T
 

@@ -56,7 +56,7 @@ extension of Token implements Add<Token> {
 /// @definition.extension symbol=<module>#2 form=local target=Token
 /// @definition.implements symbol=<module>#2 source=Add<Token> target=Add<Token>
 /// @definition.associated.type symbol=Output source="type Output = string" key=Output value=string
-/// @definition.method symbol=add slot=add type=<add.'a, add.P1: Place>(this: Borrowed<Token, add.'a & add.P1, "readonly">, Token) => string
+/// @definition.method symbol=add slot=add type=<add.'a, add.P1: Place>(this: &add.'a readonly Token, Token) => string
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Add.Output
 /// @definition.conformance symbol=<module>#2 member=add requirement=Add.add
 /// @resolution.name source=Token target=Token
@@ -68,7 +68,7 @@ extension of Token implements Add<Token> {
 
     add(other: Token): string {
     /// @generic.template symbol=add parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=add type=<add.'a, add.P1: Place>(this: Borrowed<Token, add.'a & add.P1, "readonly">, Token) => string
+    /// @type.symbol symbol=add type=<add.'a, add.P1: Place>(this: &add.'a readonly Token, Token) => string
     /// @type.symbol symbol=add.other source="other: Token" type=Token
     /// @resolution.name source=Token target=Token
 
@@ -182,7 +182,7 @@ extension of Attempt implements Try {
 /// @definition.implements symbol=<module>#2 source=Try target=Try
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
 /// @definition.associated.type symbol=Residual source="type Residual = string" key=Residual value=string
-/// @definition.method symbol=branch slot=branch type=<branch.'a, branch.P1: Place>(this: Borrowed<Attempt, branch.'a & branch.P1, "readonly">) => ControlFlow<string, int32>
+/// @definition.method symbol=branch slot=branch type=<branch.'a, branch.P1: Place>(this: &branch.'a readonly Attempt) => ControlFlow<string, int32>
 /// @definition.method symbol=fromOutput slot=fromOutput static=true type=(int32) => Attempt
 /// @definition.method symbol=fromResidual slot=fromResidual static=true type=(string) => Attempt
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Try.Output
@@ -224,7 +224,7 @@ extension of Attempt implements Try {
 
     branch(): ControlFlow<string, int32> {
     /// @generic.template symbol=branch parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=branch type=<branch.'a, branch.P1: Place>(this: Borrowed<Attempt, branch.'a & branch.P1, "readonly">) => ControlFlow<string, int32>
+    /// @type.symbol symbol=branch type=<branch.'a, branch.P1: Place>(this: &branch.'a readonly Attempt) => ControlFlow<string, int32>
     /// @resolution.name source=ControlFlow target=ControlFlow
     /// @generic.instance id="ControlFlow<string, int32>" template=ControlFlow arguments=(string, int32)
     /// @generic.instance id=Break<string> template=Break arguments=(string)
@@ -236,8 +236,8 @@ extension of Attempt implements Try {
         /// @resolution.call source=ControlFlow.continue(this.value) parameters=(int32) arguments=(provided(this.value) as int32) return=ControlFlow<string, int32> kind=symbol target=continue instance="ControlFlow<string, int32>.<extension#1>.continue"
         /// @generic.instantiation id="continue<string, int32>" template=continue arguments=(string, int32)
         /// @generic.instance id="continue<string, int32>" template=continue arguments=(string, int32)
-        /// @resolution.member source=this.value receiver=Borrowed<Attempt, branch.'a & branch.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Attempt, branch.'a & branch.P1, "readonly"> key=value target=Attempt.value target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Attempt, branch.'a & branch.P1, "readonly">
+        /// @resolution.member source=this.value receiver=&branch.'a readonly Attempt type=int32 kind=field target_receiver=&branch.'a readonly Attempt key=value target=Attempt.value target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&branch.'a readonly Attempt
         /// @resolution.place source=this placement=branch.P1 lifetime=branch.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=branch.P1 lifetime=branch.'a access="readonly"

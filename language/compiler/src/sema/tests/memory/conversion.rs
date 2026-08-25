@@ -28,7 +28,7 @@ selected satisfies "borrowed";
 === annotated ===
 class User {}
 
-function select<'a, P1: Place>(value: Borrowed<User, 'a & P1, "readonly">): "borrowed" {
+function select<'a, P1: Place>(value: &'a readonly User): "borrowed" {
     return "borrowed";
 }
 
@@ -48,8 +48,8 @@ class User {}
 
 function select(value: &readonly User): "borrowed" {
 /// @generic.template symbol=select#1 parameters=('a, P1: Place)
-/// @type.symbol symbol=select#1 type=<select#1.'a, select#1.P1: Place>(Borrowed<User, select#1.'a & select#1.P1, "readonly">) => "borrowed"
-/// @type.symbol symbol=select.value#1 source="value: &readonly User" type=Borrowed<User, select#1.'a & select#1.P1, "readonly">
+/// @type.symbol symbol=select#1 type=<select#1.'a, select#1.P1: Place>(&select#1.'a readonly User) => "borrowed"
+/// @type.symbol symbol=select.value#1 source="value: &readonly User" type=&select#1.'a readonly User
 /// @resolution.name source=User target=User
 
     return "borrowed";
@@ -117,11 +117,11 @@ selected satisfies "readonly";
 === annotated ===
 class User {}
 
-function select<'a, P1: Place>(value: Borrowed<User, 'a & P1, "readonly">): "readonly" {
+function select<'a, P1: Place>(value: &'a readonly User): "readonly" {
     return "readonly";
 }
 
-function select<'a, P1: Place>(value: Borrowed<User, 'a & P1, "mutable">): "mutable" {
+function select<'a, P1: Place>(value: &'a User): "mutable" {
     return "mutable";
 }
 
@@ -137,8 +137,8 @@ class User {}
 
 function select(value: &readonly User): "readonly" {
 /// @generic.template symbol=select#1 parameters=('a, P1: Place)
-/// @type.symbol symbol=select#1 type=<select#1.'a, select#1.P1: Place>(Borrowed<User, select#1.'a & select#1.P1, "readonly">) => "readonly"
-/// @type.symbol symbol=select.value#1 source="value: &readonly User" type=Borrowed<User, select#1.'a & select#1.P1, "readonly">
+/// @type.symbol symbol=select#1 type=<select#1.'a, select#1.P1: Place>(&select#1.'a readonly User) => "readonly"
+/// @type.symbol symbol=select.value#1 source="value: &readonly User" type=&select#1.'a readonly User
 /// @resolution.name source=User target=User
 
     return "readonly";
@@ -146,8 +146,8 @@ function select(value: &readonly User): "readonly" {
 
 function select(value: &User): "mutable" {
 /// @generic.template symbol=select#2 parameters=('a, P1: Place)
-/// @type.symbol symbol=select#2 type=<select#2.'a, select#2.P1: Place>(Borrowed<User, select#2.'a & select#2.P1, "mutable">) => "mutable"
-/// @type.symbol symbol=select.value#2 source="value: &User" type=Borrowed<User, select#2.'a & select#2.P1, "mutable">
+/// @type.symbol symbol=select#2 type=<select#2.'a, select#2.P1: Place>(&select#2.'a User) => "mutable"
+/// @type.symbol symbol=select.value#2 source="value: &User" type=&select#2.'a User
 /// @resolution.name source=User target=User
 
     return "mutable";
@@ -207,11 +207,11 @@ selected satisfies "readonly";
 === annotated ===
 class User {}
 
-function select<'a, P1: Place>(value: Borrowed<User, 'a & P1, "readonly">): "readonly" {
+function select<'a, P1: Place>(value: &'a readonly User): "readonly" {
     return "readonly";
 }
 
-function select<'a, P1: Place>(value: Borrowed<User, 'a & P1, "mutable">): "mutable" {
+function select<'a, P1: Place>(value: &'a User): "mutable" {
     return "mutable";
 }
 
@@ -227,8 +227,8 @@ class User {}
 
 function select(value: &readonly User): "readonly" {
 /// @generic.template symbol=select#1 parameters=('a, P1: Place)
-/// @type.symbol symbol=select#1 type=<select#1.'a, select#1.P1: Place>(Borrowed<User, select#1.'a & select#1.P1, "readonly">) => "readonly"
-/// @type.symbol symbol=select.value#1 source="value: &readonly User" type=Borrowed<User, select#1.'a & select#1.P1, "readonly">
+/// @type.symbol symbol=select#1 type=<select#1.'a, select#1.P1: Place>(&select#1.'a readonly User) => "readonly"
+/// @type.symbol symbol=select.value#1 source="value: &readonly User" type=&select#1.'a readonly User
 /// @resolution.name source=User target=User
 
     return "readonly";
@@ -236,8 +236,8 @@ function select(value: &readonly User): "readonly" {
 
 function select(value: &User): "mutable" {
 /// @generic.template symbol=select#2 parameters=('a, P1: Place)
-/// @type.symbol symbol=select#2 type=<select#2.'a, select#2.P1: Place>(Borrowed<User, select#2.'a & select#2.P1, "mutable">) => "mutable"
-/// @type.symbol symbol=select.value#2 source="value: &User" type=Borrowed<User, select#2.'a & select#2.P1, "mutable">
+/// @type.symbol symbol=select#2 type=<select#2.'a, select#2.P1: Place>(&select#2.'a User) => "mutable"
+/// @type.symbol symbol=select.value#2 source="value: &User" type=&select#2.'a User
 /// @resolution.name source=User target=User
 
     return "mutable";
@@ -293,9 +293,9 @@ replace(user);
 === annotated ===
 class User {}
 
-declare function inspect<'a, P1: Place>(value: Borrowed<User, 'a & P1, "readonly">): void;
-declare function modify<'a, P1: Place>(value: Borrowed<User, 'a & P1, "mutable">): void;
-declare function replace<'a, P1: Place>(value: Borrowed<User, 'a & P1, "exclusive">): void;
+declare function inspect<'a, P1: Place>(value: &'a readonly User): void;
+declare function modify<'a, P1: Place>(value: &'a User): void;
+declare function replace<'a, P1: Place>(value: &'a exclusive User): void;
 
 const user: User = new User();
 
@@ -310,20 +310,20 @@ class User {}
 
 declare function inspect(value: &readonly User): void;
 /// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly User): void" type=<inspect.'a, inspect.P1: Place>(Borrowed<User, inspect.'a & inspect.P1, "readonly">) => void
-/// @type.symbol symbol=inspect.value source="value: &readonly User" type=Borrowed<User, inspect.'a & inspect.P1, "readonly">
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly User): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly User) => void
+/// @type.symbol symbol=inspect.value source="value: &readonly User" type=&inspect.'a readonly User
 /// @resolution.name source=User target=User
 
 declare function modify(value: &User): void;
 /// @generic.template symbol=modify parameters=('a, P1: Place)
-/// @type.symbol symbol=modify source="declare function modify(value: &User): void" type=<modify.'a, modify.P1: Place>(Borrowed<User, modify.'a & modify.P1, "mutable">) => void
-/// @type.symbol symbol=modify.value source="value: &User" type=Borrowed<User, modify.'a & modify.P1, "mutable">
+/// @type.symbol symbol=modify source="declare function modify(value: &User): void" type=<modify.'a, modify.P1: Place>(&modify.'a User) => void
+/// @type.symbol symbol=modify.value source="value: &User" type=&modify.'a User
 /// @resolution.name source=User target=User
 
 declare function replace(value: &exclusive User): void;
 /// @generic.template symbol=replace parameters=('a, P1: Place)
-/// @type.symbol symbol=replace source="declare function replace(value: &exclusive User): void" type=<replace.'a, replace.P1: Place>(Borrowed<User, replace.'a & replace.P1, "exclusive">) => void
-/// @type.symbol symbol=replace.value source="value: &exclusive User" type=Borrowed<User, replace.'a & replace.P1, "exclusive">
+/// @type.symbol symbol=replace source="declare function replace(value: &exclusive User): void" type=<replace.'a, replace.P1: Place>(&replace.'a exclusive User) => void
+/// @type.symbol symbol=replace.value source="value: &exclusive User" type=&replace.'a exclusive User
 /// @resolution.name source=User target=User
 
 const user: User = new User();
@@ -482,7 +482,7 @@ inspect(user);
 === annotated ===
 class User {}
 
-declare function inspect<'a, P1: Place>(value: Borrowed<User, 'a & P1, "readonly">): void;
+declare function inspect<'a, P1: Place>(value: &'a readonly User): void;
 declare const user: readonly local User;
 
 inspect<"local">(user as &'static readonly User);
@@ -494,8 +494,8 @@ class User {}
 
 declare function inspect(value: &readonly User): void;
 /// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly User): void" type=<inspect.'a, inspect.P1: Place>(Borrowed<User, inspect.'a & inspect.P1, "readonly">) => void
-/// @type.symbol symbol=inspect.value source="value: &readonly User" type=Borrowed<User, inspect.'a & inspect.P1, "readonly">
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly User): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly User) => void
+/// @type.symbol symbol=inspect.value source="value: &readonly User" type=&inspect.'a readonly User
 /// @resolution.name source=User target=User
 
 declare const user: local readonly User;
@@ -620,7 +620,7 @@ struct Cell {}
 
 type ManagedCell = Managed<Cell>;
 
-declare function inspect<'a, P1: Place>(value: Borrowed<Cell, 'a & P1, "readonly">): void;
+declare function inspect<'a, P1: Place>(value: &'a readonly Cell): void;
 declare const explicit: local Cell;
 declare const alias: local Cell;
 
@@ -640,8 +640,8 @@ type ManagedCell = Managed<Cell>;
 
 declare function inspect(value: &readonly Cell): void;
 /// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly Cell): void" type=<inspect.'a, inspect.P1: Place>(Borrowed<Cell, inspect.'a & inspect.P1, "readonly">) => void
-/// @type.symbol symbol=inspect.value source="value: &readonly Cell" type=Borrowed<Cell, inspect.'a & inspect.P1, "readonly">
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly Cell): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly Cell) => void
+/// @type.symbol symbol=inspect.value source="value: &readonly Cell" type=&inspect.'a readonly Cell
 /// @resolution.name source=Cell target=Cell
 
 declare const explicit: Managed<Cell>;
@@ -702,7 +702,7 @@ struct Cell {}
 
 newtype ManagedCellId = Managed<Cell>;
 
-declare function inspect<'a, P1: Place>(value: Borrowed<ManagedCellId, 'a & P1, "readonly">): void;
+declare function inspect<'a, P1: Place>(value: &'a readonly ManagedCellId): void;
 declare const cell: ManagedCellId;
 
 inspect<"local">(cell as &'static readonly ManagedCellId);
@@ -720,8 +720,8 @@ newtype ManagedCellId = Managed<Cell>;
 
 declare function inspect(value: &readonly ManagedCellId): void;
 /// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly ManagedCellId): void" type=<inspect.'a, inspect.P1: Place>(Borrowed<ManagedCellId, inspect.'a & inspect.P1, "readonly">) => void
-/// @type.symbol symbol=inspect.value source="value: &readonly ManagedCellId" type=Borrowed<ManagedCellId, inspect.'a & inspect.P1, "readonly">
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly ManagedCellId): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly ManagedCellId) => void
+/// @type.symbol symbol=inspect.value source="value: &readonly ManagedCellId" type=&inspect.'a readonly ManagedCellId
 /// @resolution.name source=ManagedCellId target=ManagedCellId
 
 declare const cell: ManagedCellId;
@@ -766,7 +766,7 @@ inspect(readonlyCell);
 === annotated ===
 struct Cell {}
 
-declare function inspect<'a, P1: Place>(value: Borrowed<Cell, 'a & P1, "readonly">): void;
+declare function inspect<'a, P1: Place>(value: &'a readonly Cell): void;
 declare const localCell: local Cell;
 declare const readonlyCell: readonly local Cell;
 
@@ -780,8 +780,8 @@ struct Cell {}
 
 declare function inspect(value: &readonly Cell): void;
 /// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly Cell): void" type=<inspect.'a, inspect.P1: Place>(Borrowed<Cell, inspect.'a & inspect.P1, "readonly">) => void
-/// @type.symbol symbol=inspect.value source="value: &readonly Cell" type=Borrowed<Cell, inspect.'a & inspect.P1, "readonly">
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly Cell): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly Cell) => void
+/// @type.symbol symbol=inspect.value source="value: &readonly Cell" type=&inspect.'a readonly Cell
 /// @resolution.name source=Cell target=Cell
 
 declare const localCell: local Managed<Cell>;
@@ -861,7 +861,7 @@ class State {
     users: User[] = [];
 }
 
-declare function inspect<'a, P1: Place>(value: Borrowed<User, 'a & P1, "readonly">): void;
+declare function inspect<'a, P1: Place>(value: &'a readonly User): void;
 declare const state: State;
 
 inspect<"local">(state.user as &'static readonly User);
@@ -914,7 +914,7 @@ class State {
     /// @generic.instance id=MaybeUninit<User> template=MaybeUninit arguments=(User)
     /// @generic.instance id=new<MaybeUninit<User>> template=new arguments=(MaybeUninit<User>)
     /// @resolution.name source=User target=User
-    /// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as User) return=User[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<User>
+    /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as User) return=User[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<User>
     /// @generic.instantiation id=arrayFromSlice<User> template=arrayFromSlice arguments=(User)
     /// @generic.instance id="arrayFromSlice<User, \"local\">" template=arrayFromSlice arguments=(User, "local")
 
@@ -922,8 +922,8 @@ class State {
 
 declare function inspect(value: &readonly User): void;
 /// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly User): void" type=<inspect.'a, inspect.P1: Place>(Borrowed<User, inspect.'a & inspect.P1, "readonly">) => void
-/// @type.symbol symbol=inspect.value source="value: &readonly User" type=Borrowed<User, inspect.'a & inspect.P1, "readonly">
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly User): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly User) => void
+/// @type.symbol symbol=inspect.value source="value: &readonly User" type=&inspect.'a readonly User
 /// @resolution.name source=User target=User
 
 declare const state: State;
@@ -1227,15 +1227,15 @@ inspect("message");
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
-declare function inspect<'a, P1: Place>(value: Borrowed<string, 'a & P1, "readonly">): void;
+declare function inspect<'a, P1: Place>(value: &'a readonly string): void;
 
 inspect<"local">("message" as &'frame readonly string);
 
 === dir ===
 declare function inspect(value: &readonly string): void;
 /// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly string): void" type=<inspect.'a, inspect.P1: Place>(Borrowed<string, inspect.'a & inspect.P1, "readonly">) => void
-/// @type.symbol symbol=inspect.value source="value: &readonly string" type=Borrowed<string, inspect.'a & inspect.P1, "readonly">
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly string): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly string) => void
+/// @type.symbol symbol=inspect.value source="value: &readonly string" type=&inspect.'a readonly string
 
 inspect("message");
 /// @resolution.name source=inspect target=inspect
@@ -1499,8 +1499,8 @@ struct Point {
     x: int32;
 }
 
-declare function inspectPoint<'a, P1: Place>(value: Borrowed<Point, 'a & P1, "readonly">): void;
-declare function inspectValues<'a, P1: Place>(value: Borrowed<int32[], 'a & P1, "readonly">): void;
+declare function inspectPoint<'a, P1: Place>(value: &'a readonly Point): void;
+declare function inspectValues<'a, P1: Place>(value: &'a readonly int32[]): void;
 declare const point: Point;
 declare const values: int32[];
 
@@ -1520,14 +1520,14 @@ struct Point {
 
 declare function inspectPoint(value: &readonly Point): void;
 /// @generic.template symbol=inspectPoint parameters=('a, P1: Place)
-/// @type.symbol symbol=inspectPoint source="declare function inspectPoint(value: &readonly Point): void" type=<inspectPoint.'a, inspectPoint.P1: Place>(Borrowed<Point, inspectPoint.'a & inspectPoint.P1, "readonly">) => void
-/// @type.symbol symbol=inspectPoint.value source="value: &readonly Point" type=Borrowed<Point, inspectPoint.'a & inspectPoint.P1, "readonly">
+/// @type.symbol symbol=inspectPoint source="declare function inspectPoint(value: &readonly Point): void" type=<inspectPoint.'a, inspectPoint.P1: Place>(&inspectPoint.'a readonly Point) => void
+/// @type.symbol symbol=inspectPoint.value source="value: &readonly Point" type=&inspectPoint.'a readonly Point
 /// @resolution.name source=Point target=Point
 
 declare function inspectValues(value: &readonly int32[]): void;
 /// @generic.template symbol=inspectValues parameters=('a, P1: Place)
-/// @type.symbol symbol=inspectValues source="declare function inspectValues(value: &readonly int32[]): void" type=<inspectValues.'a, inspectValues.P1: Place>(Borrowed<int32[], inspectValues.'a & inspectValues.P1, "readonly">) => void
-/// @type.symbol symbol=inspectValues.value source="value: &readonly int32[]" type=Borrowed<int32[], inspectValues.'a & inspectValues.P1, "readonly">
+/// @type.symbol symbol=inspectValues source="declare function inspectValues(value: &readonly int32[]): void" type=<inspectValues.'a, inspectValues.P1: Place>(&inspectValues.'a readonly int32[]) => void
+/// @type.symbol symbol=inspectValues.value source="value: &readonly int32[]" type=&inspectValues.'a readonly int32[]
 
 declare const point: Point;
 /// @type.symbol symbol=point source=point type=Point
@@ -1585,9 +1585,9 @@ replace(value);
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
-declare function inspect<'a, P1: Place>(value: Borrowed<int32, 'a & P1, "readonly">): void;
-declare function modify<'a, P1: Place>(value: Borrowed<int32, 'a & P1, "mutable">): void;
-declare function replace<'a, P1: Place>(value: Borrowed<int32, 'a & P1, "exclusive">): void;
+declare function inspect<'a, P1: Place>(value: &'a readonly int32): void;
+declare function modify<'a, P1: Place>(value: &'a int32): void;
+declare function replace<'a, P1: Place>(value: &'a exclusive int32): void;
 
 declare const value: int32;
 
@@ -1598,18 +1598,18 @@ replace<"constant">(value);
 === dir ===
 declare function inspect(value: &readonly int32): void;
 /// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly int32): void" type=<inspect.'a, inspect.P1: Place>(Borrowed<int32, inspect.'a & inspect.P1, "readonly">) => void
-/// @type.symbol symbol=inspect.value source="value: &readonly int32" type=Borrowed<int32, inspect.'a & inspect.P1, "readonly">
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly int32): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly int32) => void
+/// @type.symbol symbol=inspect.value source="value: &readonly int32" type=&inspect.'a readonly int32
 
 declare function modify(value: &int32): void;
 /// @generic.template symbol=modify parameters=('a, P1: Place)
-/// @type.symbol symbol=modify source="declare function modify(value: &int32): void" type=<modify.'a, modify.P1: Place>(Borrowed<int32, modify.'a & modify.P1, "mutable">) => void
-/// @type.symbol symbol=modify.value source="value: &int32" type=Borrowed<int32, modify.'a & modify.P1, "mutable">
+/// @type.symbol symbol=modify source="declare function modify(value: &int32): void" type=<modify.'a, modify.P1: Place>(&modify.'a int32) => void
+/// @type.symbol symbol=modify.value source="value: &int32" type=&modify.'a int32
 
 declare function replace(value: &exclusive int32): void;
 /// @generic.template symbol=replace parameters=('a, P1: Place)
-/// @type.symbol symbol=replace source="declare function replace(value: &exclusive int32): void" type=<replace.'a, replace.P1: Place>(Borrowed<int32, replace.'a & replace.P1, "exclusive">) => void
-/// @type.symbol symbol=replace.value source="value: &exclusive int32" type=Borrowed<int32, replace.'a & replace.P1, "exclusive">
+/// @type.symbol symbol=replace source="declare function replace(value: &exclusive int32): void" type=<replace.'a, replace.P1: Place>(&replace.'a exclusive int32) => void
+/// @type.symbol symbol=replace.value source="value: &exclusive int32" type=&replace.'a exclusive int32
 
 declare const value: int32;
 /// @type.symbol symbol=value source=value type=int32

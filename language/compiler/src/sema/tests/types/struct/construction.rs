@@ -345,21 +345,21 @@ struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "readonly">) => Counter
+/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a readonly Counter) => Counter
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     increment(): Counter {
     /// @generic.template symbol=Counter.increment parameters=('a, P1: Place)
-    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "readonly">) => Counter
+    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a readonly Counter) => Counter
     /// @resolution.name source=Counter target=Counter
 
         Counter { value: this.value + 1 }
         /// @resolution.name source=Counter target=Counter
-        /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "readonly"> key=value target=Counter.value target_type=int32
+        /// @resolution.member source=this.value receiver=&Counter.increment.'a readonly Counter type=int32 kind=field target_receiver=&Counter.increment.'a readonly Counter key=value target=Counter.value target_type=int32
         /// @resolution.operator source="this.value + 1" type=int32 operator="+" kind=builtin operands=[this.value as int32 families=(integer), 1 as int32 families=(integer)]
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a readonly Counter
         /// @resolution.place source=this placement=Counter.increment.P1 lifetime=Counter.increment.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=Counter.increment.P1 lifetime=Counter.increment.'a access="readonly"
@@ -372,7 +372,7 @@ const next = Counter { value: 1 }.increment();
 /// @type.symbol symbol=next source=next type=Counter
 /// @resolution.pattern source=next kind=binding target=next
 /// @resolution.name source=Counter target=Counter
-/// @resolution.member source="Counter { value: 1 }.increment" receiver=Counter type=<Counter.increment.'a, Counter.increment.P1: Place>(this: Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "readonly">) => Counter kind=symbol target_receiver=Counter target=Counter.increment
+/// @resolution.member source="Counter { value: 1 }.increment" receiver=Counter type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a readonly Counter) => Counter kind=symbol target_receiver=Counter target=Counter.increment
 /// @resolution.call source="Counter { value: 1 }.increment()" parameters=() return=Counter kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow(&'frame readonly Counter)) instance="Counter.increment<\"local\">"
 /// @generic.instantiation id="Counter.increment<\"local\">" template=Counter.increment arguments=("local")
 /// @generic.instance id="Counter.increment<\"local\">" template=Counter.increment arguments=("local")
@@ -590,34 +590,34 @@ struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">) => int32
+/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a exclusive Counter) => int32
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     increment(&exclusive this): int32 {
     /// @generic.template symbol=Counter.increment parameters=('a, P1: Place)
-    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">) => int32
-    /// @type.symbol symbol=Counter.increment.this source="&exclusive this" type=Borrowed<this, Counter.increment.'a & Counter.increment.P1, "exclusive">
+    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a exclusive Counter) => int32
+    /// @type.symbol symbol=Counter.increment.this source="&exclusive this" type=&Counter.increment.'a exclusive this
 
         this.value = this.value + 1;
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
         /// @resolution.place source=this placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
-        /// @resolution.assignment source=this.value write="receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, \"exclusive\">, target=field(receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, \"exclusive\">, target=Counter.value, type=int32), type=int32" type=int32
-        /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive"> type=int32 kind=field target_receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive"> key=value target=Counter.value target_type=int32
+        /// @resolution.assignment source=this.value write="receiver=&Counter.increment.'a exclusive Counter, target=field(receiver=&Counter.increment.'a exclusive Counter, target=Counter.value, type=int32), type=int32" type=int32
+        /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter type=int32 kind=field target_receiver=&Counter.increment.'a exclusive Counter key=value target=Counter.value target_type=int32
         /// @resolution.operator source="this.value + 1" type=int32 operator="+" kind=builtin operands=[this.value as int32 families=(integer), 1 as int32 families=(integer)]
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
         /// @resolution.place source=this placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this.value root=this keys=[value]
 
         this.value
-        /// @resolution.member source=this.value receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive"> type=int32 kind=field target_receiver=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive"> key=value target=Counter.value target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">
+        /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter type=int32 kind=field target_receiver=&Counter.increment.'a exclusive Counter key=value target=Counter.value target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
         /// @resolution.place source=this placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
@@ -635,7 +635,7 @@ const next = counter.increment();
 /// @type.symbol symbol=next source=next type=int32
 /// @resolution.pattern source=next kind=binding target=next
 /// @resolution.name source=counter target=counter
-/// @resolution.member source=counter.increment receiver=Counter type=<Counter.increment.'a, Counter.increment.P1: Place>(this: Borrowed<Counter, Counter.increment.'a & Counter.increment.P1, "exclusive">) => int32 kind=symbol target_receiver=Counter target=Counter.increment
+/// @resolution.member source=counter.increment receiver=Counter type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a exclusive Counter) => int32 kind=symbol target_receiver=Counter target=Counter.increment
 /// @resolution.call source=counter.increment() parameters=() return=int32 kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow(&'static exclusive Counter)) instance="Counter.increment<\"local\">"
 /// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counter root=counter

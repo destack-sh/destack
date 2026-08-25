@@ -30,7 +30,7 @@ struct State {
     user: User;
 }
 
-function update<'a, P1: Place>(state: Borrowed<State, 'a & P1, "mutable">): void {
+function update<'a, P1: Place>(state: &'a State): void {
     state.count = 1;
     state.user = state.user;
 }
@@ -57,8 +57,8 @@ struct State {
 
 function update(state: &State): void {
 /// @generic.template symbol=update parameters=('a, P1: Place)
-/// @type.symbol symbol=update type=<update.'a, update.P1: Place>(Borrowed<State, update.'a & update.P1, "mutable">) => void
-/// @type.symbol symbol=update.state source="state: &State" type=Borrowed<State, update.'a & update.P1, "mutable">
+/// @type.symbol symbol=update type=<update.'a, update.P1: Place>(&update.'a State) => void
+/// @type.symbol symbol=update.state source="state: &State" type=&update.'a State
 /// @resolution.name source=State target=State
 
     state.count = 1;
@@ -67,7 +67,7 @@ function update(state: &State): void {
     /// @resolution.access source=state root=update.state
     /// @resolution.pattern.assign source=state.count kind=place
     /// @resolution.access source=state.count root=update.state keys=[count]
-    /// @resolution.assignment source=state.count write="receiver=Borrowed<State, update.'a & update.P1, \"mutable\">, target=field(receiver=Borrowed<State, update.'a & update.P1, \"mutable\">, target=State.count, type=int32), type=int32" type=int32
+    /// @resolution.assignment source=state.count write="receiver=&update.'a State, target=field(receiver=&update.'a State, target=State.count, type=int32), type=int32" type=int32
 
     state.user = state.user;
     /// @resolution.name source=state target=update.state
@@ -75,9 +75,9 @@ function update(state: &State): void {
     /// @resolution.access source=state root=update.state
     /// @resolution.pattern.assign source=state.user kind=place
     /// @resolution.access source=state.user root=update.state keys=[user]
-    /// @resolution.assignment source=state.user write="receiver=Borrowed<State, update.'a & update.P1, \"mutable\">, target=field(receiver=Borrowed<State, update.'a & update.P1, \"mutable\">, target=State.user, type=User), type=User" type=User
+    /// @resolution.assignment source=state.user write="receiver=&update.'a State, target=field(receiver=&update.'a State, target=State.user, type=User), type=User" type=User
     /// @resolution.name source=state target=update.state
-    /// @resolution.member source=state.user receiver=Borrowed<State, update.'a & update.P1, "mutable"> type=User kind=field target_receiver=Borrowed<State, update.'a & update.P1, "mutable"> key=user target=State.user target_type=User
+    /// @resolution.member source=state.user receiver=&update.'a State type=User kind=field target_receiver=&update.'a State key=user target=State.user target_type=User
     /// @resolution.place source=state placement=update.P1 lifetime=update.'a access="mutable"
     /// @resolution.access source=state root=update.state
     /// @resolution.place source=state.user placement=update.P1 lifetime=update.'a access="mutable"
@@ -118,7 +118,7 @@ shared struct State {
     user: User;
 }
 
-function update<'a, P1: Place>(state: Borrowed<State, 'a & P1, "mutable">): void {
+function update<'a, P1: Place>(state: &'a State): void {
     state.count = 1;
     state.user = state.user;
 }
@@ -145,8 +145,8 @@ shared struct State {
 
 function update(state: &State): void {
 /// @generic.template symbol=update parameters=('a, P1: Place)
-/// @type.symbol symbol=update type=<update.'a, update.P1: Place>(Borrowed<State, update.'a & update.P1, "mutable">) => void
-/// @type.symbol symbol=update.state source="state: &State" type=Borrowed<State, update.'a & update.P1, "mutable">
+/// @type.symbol symbol=update type=<update.'a, update.P1: Place>(&update.'a State) => void
+/// @type.symbol symbol=update.state source="state: &State" type=&update.'a State
 /// @resolution.name source=State target=State
 
     state.count = 1;
@@ -155,7 +155,7 @@ function update(state: &State): void {
     /// @resolution.access source=state root=update.state
     /// @resolution.pattern.assign source=state.count kind=place
     /// @resolution.access source=state.count root=update.state keys=[count]
-    /// @resolution.assignment source=state.count write="receiver=Borrowed<State, update.'a & update.P1, \"mutable\">, target=field(receiver=Borrowed<State, update.'a & update.P1, \"mutable\">, target=State.count, type=int32), type=int32" type=int32
+    /// @resolution.assignment source=state.count write="receiver=&update.'a State, target=field(receiver=&update.'a State, target=State.count, type=int32), type=int32" type=int32
 
     state.user = state.user;
     /// @resolution.name source=state target=update.state
@@ -163,9 +163,9 @@ function update(state: &State): void {
     /// @resolution.access source=state root=update.state
     /// @resolution.pattern.assign source=state.user kind=place
     /// @resolution.access source=state.user root=update.state keys=[user]
-    /// @resolution.assignment source=state.user write="receiver=Borrowed<State, update.'a & update.P1, \"mutable\">, target=field(receiver=Borrowed<State, update.'a & update.P1, \"mutable\">, target=State.user, type=shared User), type=shared User" type=shared User
+    /// @resolution.assignment source=state.user write="receiver=&update.'a State, target=field(receiver=&update.'a State, target=State.user, type=shared User), type=shared User" type=shared User
     /// @resolution.name source=state target=update.state
-    /// @resolution.member source=state.user receiver=Borrowed<State, update.'a & update.P1, "mutable"> type=shared User kind=field target_receiver=Borrowed<State, update.'a & update.P1, "mutable"> key=user target=State.user target_type=shared User
+    /// @resolution.member source=state.user receiver=&update.'a State type=shared User kind=field target_receiver=&update.'a State key=user target=State.user target_type=shared User
     /// @resolution.place source=state placement=update.P1 lifetime=update.'a access="mutable"
     /// @resolution.access source=state root=update.state
     /// @resolution.place source=state.user placement="shared" lifetime=update.'a access="mutable"
@@ -204,7 +204,7 @@ struct State {
     status: Status;
 }
 
-function update<'a, P1: Place>(state: Borrowed<State, 'a & P1, "mutable">): void {
+function update<'a, P1: Place>(state: &'a State): void {
     state.status = Status.Busy;
 }
 
@@ -226,8 +226,8 @@ struct State { status: Status; }
 
 function update(state: &State): void {
 /// @generic.template symbol=update parameters=('a, P1: Place)
-/// @type.symbol symbol=update type=<update.'a, update.P1: Place>(Borrowed<State, update.'a & update.P1, "mutable">) => void
-/// @type.symbol symbol=update.state source="state: &State" type=Borrowed<State, update.'a & update.P1, "mutable">
+/// @type.symbol symbol=update type=<update.'a, update.P1: Place>(&update.'a State) => void
+/// @type.symbol symbol=update.state source="state: &State" type=&update.'a State
 /// @resolution.name source=State target=State
 
     state.status = Status.Busy;
@@ -236,7 +236,7 @@ function update(state: &State): void {
     /// @resolution.access source=state root=update.state
     /// @resolution.pattern.assign source=state.status kind=place
     /// @resolution.access source=state.status root=update.state keys=[status]
-    /// @resolution.assignment source=state.status write="receiver=Borrowed<State, update.'a & update.P1, \"mutable\">, target=field(receiver=Borrowed<State, update.'a & update.P1, \"mutable\">, target=State.status, type=Status), type=Status" type=Status
+    /// @resolution.assignment source=state.status write="receiver=&update.'a State, target=field(receiver=&update.'a State, target=State.status, type=Status), type=Status" type=Status
     /// @resolution.name source=Status target=Status
     /// @resolution.member source=Status.Busy receiver=Status type=Status.Busy kind=symbol target_receiver=Status target=Status.Busy
 
@@ -279,7 +279,7 @@ struct State {
     status: Status;
 }
 
-function update<'a, P1: Place>(state: Borrowed<State, 'a & P1, "exclusive">): void {
+function update<'a, P1: Place>(state: &'a exclusive State): void {
     state.status = Status.Busy;
 }
 
@@ -301,8 +301,8 @@ struct State { status: Status; }
 
 function update(state: &exclusive State): void {
 /// @generic.template symbol=update parameters=('a, P1: Place)
-/// @type.symbol symbol=update type=<update.'a, update.P1: Place>(Borrowed<State, update.'a & update.P1, "exclusive">) => void
-/// @type.symbol symbol=update.state source="state: &exclusive State" type=Borrowed<State, update.'a & update.P1, "exclusive">
+/// @type.symbol symbol=update type=<update.'a, update.P1: Place>(&update.'a exclusive State) => void
+/// @type.symbol symbol=update.state source="state: &exclusive State" type=&update.'a exclusive State
 /// @resolution.name source=State target=State
 
     state.status = Status.Busy;
@@ -311,7 +311,7 @@ function update(state: &exclusive State): void {
     /// @resolution.access source=state root=update.state
     /// @resolution.pattern.assign source=state.status kind=place
     /// @resolution.access source=state.status root=update.state keys=[status]
-    /// @resolution.assignment source=state.status write="receiver=Borrowed<State, update.'a & update.P1, \"exclusive\">, target=field(receiver=Borrowed<State, update.'a & update.P1, \"exclusive\">, target=State.status, type=Status), type=Status" type=Status
+    /// @resolution.assignment source=state.status write="receiver=&update.'a exclusive State, target=field(receiver=&update.'a exclusive State, target=State.status, type=Status), type=Status" type=Status
     /// @resolution.name source=Status target=Status
     /// @resolution.member source=Status.Busy receiver=Status type=Status.Busy kind=symbol target_receiver=Status target=Status.Busy
 
@@ -335,19 +335,19 @@ function update(value: &int32): void {
         DirRows::checked(),
         r#"
 === annotated ===
-function update<'a, P1: Place>(value: Borrowed<int32, 'a & P1, "mutable">): void {
+function update<'a, P1: Place>(value: &'a int32): void {
     *value = 1;
 }
 
 === dir ===
 function update(value: &int32): void {
 /// @generic.template symbol=update parameters=('a, P1: Place)
-/// @type.symbol symbol=update type=<update.'a, update.P1: Place>(Borrowed<int32, update.'a & update.P1, "mutable">) => void
-/// @type.symbol symbol=update.value source="value: &int32" type=Borrowed<int32, update.'a & update.P1, "mutable">
+/// @type.symbol symbol=update type=<update.'a, update.P1: Place>(&update.'a int32) => void
+/// @type.symbol symbol=update.value source="value: &int32" type=&update.'a int32
 
     *value = 1;
     /// @resolution.pattern.assign source=*value kind=place
-    /// @resolution.assignment source=*value write="Borrowed<int32, update.'a & update.P1, \"mutable\"> => direct -> int32" type=int32
+    /// @resolution.assignment source=*value write="&update.'a int32 => direct -> int32" type=int32
     /// @resolution.name source=value target=update.value
     /// @resolution.place source=value placement=update.P1 lifetime=update.'a access="mutable"
     /// @resolution.access source=value root=update.value
@@ -379,7 +379,7 @@ enum Status {
     Busy,
 }
 
-function update<'a, P1: Place>(value: Borrowed<Status, 'a & P1, "mutable">): void {
+function update<'a, P1: Place>(value: &'a Status): void {
     *value = Status.Busy;
 }
 
@@ -394,13 +394,13 @@ enum Status { Idle, Busy }
 
 function update(value: &Status): void {
 /// @generic.template symbol=update parameters=('a, P1: Place)
-/// @type.symbol symbol=update type=<update.'a, update.P1: Place>(Borrowed<Status, update.'a & update.P1, "mutable">) => void
-/// @type.symbol symbol=update.value source="value: &Status" type=Borrowed<Status, update.'a & update.P1, "mutable">
+/// @type.symbol symbol=update type=<update.'a, update.P1: Place>(&update.'a Status) => void
+/// @type.symbol symbol=update.value source="value: &Status" type=&update.'a Status
 /// @resolution.name source=Status target=Status
 
     *value = Status.Busy;
     /// @resolution.pattern.assign source=*value kind=place
-    /// @resolution.assignment source=*value write="Borrowed<Status, update.'a & update.P1, \"mutable\"> => direct -> Status" type=Status
+    /// @resolution.assignment source=*value write="&update.'a Status => direct -> Status" type=Status
     /// @resolution.name source=value target=update.value
     /// @resolution.place source=value placement=update.P1 lifetime=update.'a access="mutable"
     /// @resolution.access source=value root=update.value
@@ -433,15 +433,15 @@ function update(value: &readonly int32): void {
         DirRows::checked(),
         r#"
 === annotated ===
-function update<'a, P1: Place>(value: Borrowed<int32, 'a & P1, "readonly">): void {
+function update<'a, P1: Place>(value: &'a readonly int32): void {
     *value = 1;
 }
 
 === dir ===
 function update(value: &readonly int32): void {
 /// @generic.template symbol=update parameters=('a, P1: Place)
-/// @type.symbol symbol=update type=<update.'a, update.P1: Place>(Borrowed<int32, update.'a & update.P1, "readonly">) => void
-/// @type.symbol symbol=update.value source="value: &readonly int32" type=Borrowed<int32, update.'a & update.P1, "readonly">
+/// @type.symbol symbol=update type=<update.'a, update.P1: Place>(&update.'a readonly int32) => void
+/// @type.symbol symbol=update.value source="value: &readonly int32" type=&update.'a readonly int32
 
     *value = 1;
     /// @resolution.rejected source=*value
@@ -486,11 +486,11 @@ enum Status {
     Busy,
 }
 
-function updateNumbers<'a, P1: Place>(values: Borrowed<[int32; 2], 'a & P1, "mutable">): void {
+function updateNumbers<'a, P1: Place>(values: &'a [int32; 2]): void {
     values[0] = 1;
 }
 
-function updateStatuses<'a, P1: Place>(values: Borrowed<[Status; 2], 'a & P1, "mutable">): void {
+function updateStatuses<'a, P1: Place>(values: &'a [Status; 2]): void {
     values[0] = Status.Busy;
 }
 
@@ -505,8 +505,8 @@ enum Status { Idle, Busy }
 
 function updateNumbers(values: &[int32; 2]): void {
 /// @generic.template symbol=updateNumbers parameters=('a, P1: Place)
-/// @type.symbol symbol=updateNumbers type=<updateNumbers.'a, updateNumbers.P1: Place>(Borrowed<FixedArray<int32, 2>, updateNumbers.'a & updateNumbers.P1, "mutable">) => void
-/// @type.symbol symbol=updateNumbers.values source="values: &[int32; 2]" type=Borrowed<FixedArray<int32, 2>, updateNumbers.'a & updateNumbers.P1, "mutable">
+/// @type.symbol symbol=updateNumbers type=<updateNumbers.'a, updateNumbers.P1: Place>(&updateNumbers.'a FixedArray<int32, 2>) => void
+/// @type.symbol symbol=updateNumbers.values source="values: &[int32; 2]" type=&updateNumbers.'a FixedArray<int32, 2>
 
     values[0] = 1;
     /// @resolution.name source=values target=updateNumbers.values
@@ -520,8 +520,8 @@ function updateNumbers(values: &[int32; 2]): void {
 
 function updateStatuses(values: &[Status; 2]): void {
 /// @generic.template symbol=updateStatuses parameters=('a, P1: Place)
-/// @type.symbol symbol=updateStatuses type=<updateStatuses.'a, updateStatuses.P1: Place>(Borrowed<FixedArray<Status, 2>, updateStatuses.'a & updateStatuses.P1, "mutable">) => void
-/// @type.symbol symbol=updateStatuses.values source="values: &[Status; 2]" type=Borrowed<FixedArray<Status, 2>, updateStatuses.'a & updateStatuses.P1, "mutable">
+/// @type.symbol symbol=updateStatuses type=<updateStatuses.'a, updateStatuses.P1: Place>(&updateStatuses.'a FixedArray<Status, 2>) => void
+/// @type.symbol symbol=updateStatuses.values source="values: &[Status; 2]" type=&updateStatuses.'a FixedArray<Status, 2>
 /// @resolution.name source=Status target=Status
 
     values[0] = Status.Busy;
@@ -849,9 +849,7 @@ enum Status {
     Busy,
 }
 
-function update<T: { status: Status }, 'a, P2: Place>(
-    state: Borrowed<T, 'a & P2, "mutable">,
-): void {
+function update<T: { status: Status }, 'a, P2: Place>(state: &'a T): void {
     state.status = Status.Busy;
 }
 
@@ -866,10 +864,10 @@ enum Status { Idle, Busy }
 
 function update<T: { status: Status }>(state: &T): void {
 /// @generic.template symbol=update parameters=(T: { status: Status }, 'a, P2: Place)
-/// @type.symbol symbol=update type=<T: { status: Status }, update.'a, update.P2: Place>(Borrowed<T, update.'a & update.P2, "mutable">) => void
+/// @type.symbol symbol=update type=<T: { status: Status }, update.'a, update.P2: Place>(&update.'a T) => void
 /// @type.symbol symbol=update.T source="T: { status: Status }" type=T
 /// @resolution.name source=Status target=Status
-/// @type.symbol symbol=update.state source="state: &T" type=Borrowed<T, update.'a & update.P2, "mutable">
+/// @type.symbol symbol=update.state source="state: &T" type=&update.'a T
 /// @resolution.name source=T target=update.T
 
     state.status = Status.Busy;
@@ -878,7 +876,7 @@ function update<T: { status: Status }>(state: &T): void {
     /// @resolution.access source=state root=update.state
     /// @resolution.pattern.assign source=state.status kind=place
     /// @resolution.access source=state.status root=update.state keys=[status]
-    /// @resolution.assignment source=state.status write="receiver=Borrowed<T, update.'a & update.P2, \"mutable\">, target=field(receiver=Borrowed<T, update.'a & update.P2, \"mutable\">, target=status, type=Status), type=Status" type=Status
+    /// @resolution.assignment source=state.status write="receiver=&update.'a T, target=field(receiver=&update.'a T, target=status, type=Status), type=Status" type=Status
     /// @resolution.name source=Status target=Status
     /// @resolution.member source=Status.Busy receiver=Status type=Status.Busy kind=symbol target_receiver=Status target=Status.Busy
 

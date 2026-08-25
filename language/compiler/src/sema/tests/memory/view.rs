@@ -49,7 +49,7 @@ local class Counter {
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.name source="readonly name: string" key=name type=string
 /// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=<Counter.constructor.P0: Place>(string) => Managed<Counter, Counter.constructor.P0>
-/// @definition.method symbol=Counter.describe slot=describe type=<Counter.describe.'a, Counter.describe.P1: Place>(this: Borrowed<Counter, Counter.describe.'a & Counter.describe.P1, "readonly">) => void
+/// @definition.method symbol=Counter.describe slot=describe type=<Counter.describe.'a, Counter.describe.P1: Place>(this: &Counter.describe.'a readonly Counter) => void
 
     readonly name: string;
     /// @type.symbol symbol=Counter.name source="readonly name: string" type=string
@@ -74,14 +74,14 @@ local class Counter {
 
     describe(&readonly this): void {
     /// @generic.template symbol=Counter.describe parameters=('a, P1: Place)
-    /// @type.symbol symbol=Counter.describe type=<Counter.describe.'a, Counter.describe.P1: Place>(this: Borrowed<Counter, Counter.describe.'a & Counter.describe.P1, "readonly">) => void
-    /// @type.symbol symbol=Counter.describe.this source="&readonly this" type=Borrowed<this, Counter.describe.'a & Counter.describe.P1, "readonly">
+    /// @type.symbol symbol=Counter.describe type=<Counter.describe.'a, Counter.describe.P1: Place>(this: &Counter.describe.'a readonly Counter) => void
+    /// @type.symbol symbol=Counter.describe.this source="&readonly this" type=&Counter.describe.'a readonly this
 
         label(this.name)
         /// @resolution.name source=label target=label
         /// @resolution.call source=label(this.name) parameters=(string) arguments=(provided(this.name) as string) return=void kind=symbol target=label
-        /// @resolution.member source=this.name receiver=Borrowed<Counter, Counter.describe.'a & Counter.describe.P1, "readonly"> type=Readonly<string> kind=field target_receiver=Borrowed<Counter, Counter.describe.'a & Counter.describe.P1, "readonly"> key=name target=Counter.name target_type=Readonly<string>
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.describe.'a & Counter.describe.P1, "readonly">
+        /// @resolution.member source=this.name receiver=&Counter.describe.'a readonly Counter type=Readonly<string> kind=field target_receiver=&Counter.describe.'a readonly Counter key=name target=Counter.name target_type=Readonly<string>
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.describe.'a readonly Counter
         /// @resolution.place source=this placement=Counter.describe.P1 lifetime=Counter.describe.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.name placement=Counter.describe.P1 lifetime=Counter.describe.'a access="readonly"
@@ -177,8 +177,8 @@ local class Meter {
 /// @definition.class symbol=Meter
 /// @definition.field symbol=Meter.sink source="private sink: Sink" key=sink type=Sink
 /// @definition.method symbol=Meter.constructor slot=constructor role=constructor type=<Meter.constructor.P0: Place>(Sink) => Managed<this, Meter.constructor.P0>
-/// @definition.method symbol=Meter.forward slot=forward type=<Meter.forward.'a, Meter.forward.P1: Place>(this: Borrowed<this, Meter.forward.'a & Meter.forward.P1, "readonly">) => void
-/// @definition.method symbol=Meter.leak slot=leak type=<Meter.leak.'a, Meter.leak.P1: Place>(this: Borrowed<this, Meter.leak.'a & Meter.leak.P1, "readonly">) => void
+/// @definition.method symbol=Meter.forward slot=forward type=<Meter.forward.'a, Meter.forward.P1: Place>(this: &Meter.forward.'a readonly this) => void
+/// @definition.method symbol=Meter.leak slot=leak type=<Meter.leak.'a, Meter.leak.P1: Place>(this: &Meter.leak.'a readonly this) => void
 
     private sink: Sink;
     /// @type.symbol symbol=Meter.sink source="private sink: Sink" type=Sink
@@ -205,14 +205,14 @@ local class Meter {
 
     leak(&readonly this): void {
     /// @generic.template symbol=Meter.leak parameters=('a, P1: Place)
-    /// @type.symbol symbol=Meter.leak type=<Meter.leak.'a, Meter.leak.P1: Place>(this: Borrowed<this, Meter.leak.'a & Meter.leak.P1, "readonly">) => void
-    /// @type.symbol symbol=Meter.leak.this source="&readonly this" type=Borrowed<this, Meter.leak.'a & Meter.leak.P1, "readonly">
+    /// @type.symbol symbol=Meter.leak type=<Meter.leak.'a, Meter.leak.P1: Place>(this: &Meter.leak.'a readonly this) => void
+    /// @type.symbol symbol=Meter.leak.this source="&readonly this" type=&Meter.leak.'a readonly this
 
         consume(this.sink)
         /// @resolution.name source=consume target=consume
         /// @resolution.call source=consume(this.sink) parameters=(Sink) arguments=(provided(this.sink) as Sink) return=void kind=symbol target=consume
-        /// @resolution.member source=this.sink receiver=Borrowed<Meter, Meter.leak.'a & Meter.leak.P1, "readonly"> type=Readonly<Sink> kind=field target_receiver=Borrowed<Meter, Meter.leak.'a & Meter.leak.P1, "readonly"> key=sink target=Meter.sink target_type=Readonly<Sink>
-        /// @resolution.receiver source=this kind=this declaration=Meter type=Borrowed<Meter, Meter.leak.'a & Meter.leak.P1, "readonly">
+        /// @resolution.member source=this.sink receiver=&Meter.leak.'a readonly Meter type=Readonly<Sink> kind=field target_receiver=&Meter.leak.'a readonly Meter key=sink target=Meter.sink target_type=Readonly<Sink>
+        /// @resolution.receiver source=this kind=this declaration=Meter type=&Meter.leak.'a readonly Meter
         /// @resolution.place source=this placement=Meter.leak.P1 lifetime=Meter.leak.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.sink placement=Meter.leak.P1 lifetime=Meter.leak.'a access="readonly"
@@ -222,14 +222,14 @@ local class Meter {
 
     forward(&readonly this): void {
     /// @generic.template symbol=Meter.forward parameters=('a, P1: Place)
-    /// @type.symbol symbol=Meter.forward type=<Meter.forward.'a, Meter.forward.P1: Place>(this: Borrowed<this, Meter.forward.'a & Meter.forward.P1, "readonly">) => void
-    /// @type.symbol symbol=Meter.forward.this source="&readonly this" type=Borrowed<this, Meter.forward.'a & Meter.forward.P1, "readonly">
+    /// @type.symbol symbol=Meter.forward type=<Meter.forward.'a, Meter.forward.P1: Place>(this: &Meter.forward.'a readonly this) => void
+    /// @type.symbol symbol=Meter.forward.this source="&readonly this" type=&Meter.forward.'a readonly this
 
         inspect(this.sink)
         /// @resolution.name source=inspect target=inspect
         /// @resolution.call source=inspect(this.sink) parameters=(Readonly<Sink>) arguments=(provided(this.sink) as Readonly<Sink>) return=void kind=symbol target=inspect
-        /// @resolution.member source=this.sink receiver=Borrowed<Meter, Meter.forward.'a & Meter.forward.P1, "readonly"> type=Readonly<Sink> kind=field target_receiver=Borrowed<Meter, Meter.forward.'a & Meter.forward.P1, "readonly"> key=sink target=Meter.sink target_type=Readonly<Sink>
-        /// @resolution.receiver source=this kind=this declaration=Meter type=Borrowed<Meter, Meter.forward.'a & Meter.forward.P1, "readonly">
+        /// @resolution.member source=this.sink receiver=&Meter.forward.'a readonly Meter type=Readonly<Sink> kind=field target_receiver=&Meter.forward.'a readonly Meter key=sink target=Meter.sink target_type=Readonly<Sink>
+        /// @resolution.receiver source=this kind=this declaration=Meter type=&Meter.forward.'a readonly Meter
         /// @resolution.place source=this placement=Meter.forward.P1 lifetime=Meter.forward.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.sink placement=Meter.forward.P1 lifetime=Meter.forward.'a access="readonly"
@@ -291,7 +291,7 @@ local class Counter {
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.name source="readonly name: string" key=name type=string
 /// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=<Counter.constructor.P0: Place>(string) => Managed<Counter, Counter.constructor.P0>
-/// @definition.method symbol=Counter.describe slot=describe type=<Counter.describe.'a, Counter.describe.P1: Place>(this: Borrowed<Counter, Counter.describe.'a & Counter.describe.P1, "readonly">) => void
+/// @definition.method symbol=Counter.describe slot=describe type=<Counter.describe.'a, Counter.describe.P1: Place>(this: &Counter.describe.'a readonly Counter) => void
 
     readonly name: string;
     /// @type.symbol symbol=Counter.name source="readonly name: string" type=string
@@ -316,14 +316,14 @@ local class Counter {
 
     describe(&readonly this): void {
     /// @generic.template symbol=Counter.describe parameters=('a, P1: Place)
-    /// @type.symbol symbol=Counter.describe type=<Counter.describe.'a, Counter.describe.P1: Place>(this: Borrowed<Counter, Counter.describe.'a & Counter.describe.P1, "readonly">) => void
-    /// @type.symbol symbol=Counter.describe.this source="&readonly this" type=Borrowed<this, Counter.describe.'a & Counter.describe.P1, "readonly">
+    /// @type.symbol symbol=Counter.describe type=<Counter.describe.'a, Counter.describe.P1: Place>(this: &Counter.describe.'a readonly Counter) => void
+    /// @type.symbol symbol=Counter.describe.this source="&readonly this" type=&Counter.describe.'a readonly this
 
         label(this.name)
         /// @resolution.name source=label target=label
         /// @resolution.call source=label(this.name) parameters=(string) arguments=(provided(this.name) as string) return=void kind=symbol target=label
-        /// @resolution.member source=this.name receiver=Borrowed<Counter, Counter.describe.'a & Counter.describe.P1, "readonly"> type=Readonly<string> kind=field target_receiver=Borrowed<Counter, Counter.describe.'a & Counter.describe.P1, "readonly"> key=name target=Counter.name target_type=Readonly<string>
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Borrowed<Counter, Counter.describe.'a & Counter.describe.P1, "readonly">
+        /// @resolution.member source=this.name receiver=&Counter.describe.'a readonly Counter type=Readonly<string> kind=field target_receiver=&Counter.describe.'a readonly Counter key=name target=Counter.name target_type=Readonly<string>
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.describe.'a readonly Counter
         /// @resolution.place source=this placement=Counter.describe.P1 lifetime=Counter.describe.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.name placement=Counter.describe.P1 lifetime=Counter.describe.'a access="readonly"

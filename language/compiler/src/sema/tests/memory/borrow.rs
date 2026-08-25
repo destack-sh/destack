@@ -501,9 +501,9 @@ struct Node {
 }
 
 function access<'a, P1: Place, 'b, P3: Place, 'c, P5: Place>(
-    read: Borrowed<Node, 'a & P1, "readonly">,
-    write: Borrowed<Node, 'b & P3, "mutable">,
-    exclusive: Borrowed<Node, 'c & P5, "exclusive">,
+    read: &'a readonly Node,
+    write: &'b Node,
+    exclusive: &'c exclusive Node,
 ): void {
     read.id;
     write.id;
@@ -523,17 +523,17 @@ struct Node {
 
 function access(read: &readonly Node, write: &Node, exclusive: &exclusive Node): void {
 /// @generic.template symbol=access parameters=('a, P1: Place, 'b, P3: Place, 'c, P5: Place)
-/// @type.symbol symbol=access type=<access.'a, access.P1: Place, access.'b, access.P3: Place, access.'c, access.P5: Place>(Borrowed<Node, access.'a & access.P1, "readonly">, Borrowed<Node, access.'b & access.P3, "mutable">, Borrowed<Node, access.'c & access.P5, "exclusive">) => void
-/// @type.symbol symbol=access.read source="read: &readonly Node" type=Borrowed<Node, access.'a & access.P1, "readonly">
+/// @type.symbol symbol=access type=<access.'a, access.P1: Place, access.'b, access.P3: Place, access.'c, access.P5: Place>(&access.'a readonly Node, &access.'b Node, &access.'c exclusive Node) => void
+/// @type.symbol symbol=access.read source="read: &readonly Node" type=&access.'a readonly Node
 /// @resolution.name source=Node target=Node
-/// @type.symbol symbol=access.write source="write: &Node" type=Borrowed<Node, access.'b & access.P3, "mutable">
+/// @type.symbol symbol=access.write source="write: &Node" type=&access.'b Node
 /// @resolution.name source=Node target=Node
-/// @type.symbol symbol=access.exclusive source="exclusive: &exclusive Node" type=Borrowed<Node, access.'c & access.P5, "exclusive">
+/// @type.symbol symbol=access.exclusive source="exclusive: &exclusive Node" type=&access.'c exclusive Node
 /// @resolution.name source=Node target=Node
 
     read.id;
     /// @resolution.name source=read target=access.read
-    /// @resolution.member source=read.id receiver=Borrowed<Node, access.'a & access.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Node, access.'a & access.P1, "readonly"> key=id target=Node.id target_type=int32
+    /// @resolution.member source=read.id receiver=&access.'a readonly Node type=int32 kind=field target_receiver=&access.'a readonly Node key=id target=Node.id target_type=int32
     /// @resolution.place source=read placement=access.P1 lifetime=access.'a access="readonly"
     /// @resolution.access source=read root=access.read
     /// @resolution.place source=read.id placement=access.P1 lifetime=access.'a access="readonly"
@@ -541,7 +541,7 @@ function access(read: &readonly Node, write: &Node, exclusive: &exclusive Node):
 
     write.id;
     /// @resolution.name source=write target=access.write
-    /// @resolution.member source=write.id receiver=Borrowed<Node, access.'b & access.P3, "mutable"> type=int32 kind=field target_receiver=Borrowed<Node, access.'b & access.P3, "mutable"> key=id target=Node.id target_type=int32
+    /// @resolution.member source=write.id receiver=&access.'b Node type=int32 kind=field target_receiver=&access.'b Node key=id target=Node.id target_type=int32
     /// @resolution.place source=write placement=access.P3 lifetime=access.'b access="mutable"
     /// @resolution.access source=write root=access.write
     /// @resolution.place source=write.id placement=access.P3 lifetime=access.'b access="mutable"
@@ -549,7 +549,7 @@ function access(read: &readonly Node, write: &Node, exclusive: &exclusive Node):
 
     exclusive.id;
     /// @resolution.name source=exclusive target=access.exclusive
-    /// @resolution.member source=exclusive.id receiver=Borrowed<Node, access.'c & access.P5, "exclusive"> type=int32 kind=field target_receiver=Borrowed<Node, access.'c & access.P5, "exclusive"> key=id target=Node.id target_type=int32
+    /// @resolution.member source=exclusive.id receiver=&access.'c exclusive Node type=int32 kind=field target_receiver=&access.'c exclusive Node key=id target=Node.id target_type=int32
     /// @resolution.place source=exclusive placement=access.P5 lifetime=access.'c access="exclusive"
     /// @resolution.access source=exclusive root=access.exclusive
     /// @resolution.place source=exclusive.id placement=access.P5 lifetime=access.'c access="exclusive"

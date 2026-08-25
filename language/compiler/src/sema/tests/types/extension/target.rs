@@ -34,19 +34,19 @@ const count: int32 = pair.count<"constant">();
 === dir ===
 extension of (int32, string) {
 /// @definition.extension symbol=<module>#2 form=local target=(int32, string)
-/// @definition.method symbol=count#1 slot=count type=<count#1.'a, count#1.P1: Place>(this: Borrowed<this, count#1.'a & count#1.P1, "readonly">) => int32
+/// @definition.method symbol=count#1 slot=count type=<count#1.'a, count#1.P1: Place>(this: &count#1.'a readonly this) => int32
 
     count(): int32 {
     /// @generic.template symbol=count#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=count#1 type=<count#1.'a, count#1.P1: Place>(this: Borrowed<this, count#1.'a & count#1.P1, "readonly">) => int32
+    /// @type.symbol symbol=count#1 type=<count#1.'a, count#1.P1: Place>(this: &count#1.'a readonly this) => int32
 
         return this[0];
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<(int32, string), count#1.'a & count#1.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&count#1.'a readonly (int32, string)
         /// @resolution.place source=this placement=count#1.P1 lifetime=count#1.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this[0] placement=count#1.P1 lifetime=count#1.'a access="readonly"
         /// @resolution.access source=this[0] root=this keys=[0]
-        /// @resolution.subscript source=this[0] type=int32 kind=member target="receiver=Borrowed<(int32, string), count#1.'a & count#1.P1, \"readonly\">, target=field(receiver=(int32, string), target=0, type=int32), type=int32"
+        /// @resolution.subscript source=this[0] type=int32 kind=member target="receiver=&count#1.'a readonly (int32, string), target=field(receiver=(int32, string), target=0, type=int32), type=int32"
 
     }
 }
@@ -59,7 +59,7 @@ const count = pair.count();
 /// @type.symbol symbol=count source=count type=int32
 /// @resolution.pattern source=count kind=binding target=count
 /// @resolution.name source=pair target=pair
-/// @resolution.member source=pair.count receiver=(int32, string) type=<count#1.'a, count#1.P1: Place>(this: Borrowed<(int32, string), count#1.'a & count#1.P1, "readonly">) => int32 kind=symbol target_receiver=(int32, string) target=count#1
+/// @resolution.member source=pair.count receiver=(int32, string) type=<count#1.'a, count#1.P1: Place>(this: &count#1.'a readonly (int32, string)) => int32 kind=symbol target_receiver=(int32, string) target=count#1
 /// @resolution.call source=pair.count() parameters=() return=int32 kind=symbol target=count#1 receiver=(int32, string) adjustments=(borrow(&'static readonly constant (int32, string))) instance="(int32, string).<extension#1>.count#1<\"constant\">"
 /// @resolution.place source=pair placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=pair root=pair
@@ -107,7 +107,7 @@ const swapped: (boolean, int32) = pair.swap<int32, boolean, "constant">();
 extension<First: Copy, Second: Copy> of (First, Second) {
 /// @generic.template symbol=<module>#2 parameters=(First: Copy, Second: Copy)
 /// @definition.extension symbol=<module>#2 form=local target=(First, Second)
-/// @definition.method symbol=swap slot=swap type=<swap.'a, swap.P1: Place>(this: Borrowed<this, swap.'a & swap.P1, "readonly">) => (Second, First)
+/// @definition.method symbol=swap slot=swap type=<swap.'a, swap.P1: Place>(this: &swap.'a readonly this) => (Second, First)
 /// @type.symbol symbol=First source="First: Copy" type=First
 /// @resolution.name source=Copy target=Copy
 /// @type.symbol symbol=Second source="Second: Copy" type=Second
@@ -117,23 +117,23 @@ extension<First: Copy, Second: Copy> of (First, Second) {
 
     swap(): (Second, First) {
     /// @generic.template symbol=swap parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=swap type=<swap.'a, swap.P1: Place>(this: Borrowed<this, swap.'a & swap.P1, "readonly">) => (Second, First)
+    /// @type.symbol symbol=swap type=<swap.'a, swap.P1: Place>(this: &swap.'a readonly this) => (Second, First)
     /// @resolution.name source=Second target=Second
     /// @resolution.name source=First target=First
 
         return (this[1], this[0]);
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<(First, Second), swap.'a & swap.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&swap.'a readonly (First, Second)
         /// @resolution.place source=this placement=swap.P1 lifetime=swap.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this[1] placement=swap.P1 lifetime=swap.'a access="readonly"
         /// @resolution.access source=this[1] root=this keys=[1]
-        /// @resolution.subscript source=this[1] type=Second kind=member target="receiver=Borrowed<(First, Second), swap.'a & swap.P1, \"readonly\">, target=field(receiver=(First, Second), target=1, type=Second), type=Second"
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<(First, Second), swap.'a & swap.P1, "readonly">
+        /// @resolution.subscript source=this[1] type=Second kind=member target="receiver=&swap.'a readonly (First, Second), target=field(receiver=(First, Second), target=1, type=Second), type=Second"
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&swap.'a readonly (First, Second)
         /// @resolution.place source=this placement=swap.P1 lifetime=swap.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this[0] placement=swap.P1 lifetime=swap.'a access="readonly"
         /// @resolution.access source=this[0] root=this keys=[0]
-        /// @resolution.subscript source=this[0] type=First kind=member target="receiver=Borrowed<(First, Second), swap.'a & swap.P1, \"readonly\">, target=field(receiver=(First, Second), target=0, type=First), type=First"
+        /// @resolution.subscript source=this[0] type=First kind=member target="receiver=&swap.'a readonly (First, Second), target=field(receiver=(First, Second), target=0, type=First), type=First"
 
     }
 }
@@ -146,7 +146,7 @@ const swapped = pair.swap();
 /// @type.symbol symbol=swapped source=swapped type=(boolean, int32)
 /// @resolution.pattern source=swapped kind=binding target=swapped
 /// @resolution.name source=pair target=pair
-/// @resolution.member source=pair.swap receiver=(int32, boolean) type=<swap.'a, swap.P1: Place>(this: Borrowed<(int32, boolean), swap.'a & swap.P1, "readonly">) => (boolean, int32) kind=symbol target_receiver=(int32, boolean) target=swap
+/// @resolution.member source=pair.swap receiver=(int32, boolean) type=<swap.'a, swap.P1: Place>(this: &swap.'a readonly (int32, boolean)) => (boolean, int32) kind=symbol target_receiver=(int32, boolean) target=swap
 /// @resolution.call source=pair.swap() parameters=() return=(boolean, int32) kind=symbol target=swap receiver=(int32, boolean) adjustments=(borrow(&'static readonly constant (int32, boolean))) instance="(First, Second).<extension#1>.swap<\"constant\">"
 /// @resolution.place source=pair placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=pair root=pair
@@ -199,7 +199,7 @@ const missing = mixed.head();
 extension<T: Copy> of (T, T) {
 /// @generic.template symbol=<module>#2 parameters=(T: Copy)
 /// @definition.extension symbol=<module>#2 form=local target=(T, T)
-/// @definition.method symbol=head slot=head type=<head.'a, head.P1: Place>(this: Borrowed<this, head.'a & head.P1, "readonly">) => T
+/// @definition.method symbol=head slot=head type=<head.'a, head.P1: Place>(this: &head.'a readonly this) => T
 /// @type.symbol symbol=T source="T: Copy" type=T
 /// @resolution.name source=Copy target=Copy
 /// @resolution.name source=T target=T
@@ -207,16 +207,16 @@ extension<T: Copy> of (T, T) {
 
     head(): T {
     /// @generic.template symbol=head parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=head type=<head.'a, head.P1: Place>(this: Borrowed<this, head.'a & head.P1, "readonly">) => T
+    /// @type.symbol symbol=head type=<head.'a, head.P1: Place>(this: &head.'a readonly this) => T
     /// @resolution.name source=T target=T
 
         return this[0];
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<(T, T), head.'a & head.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&head.'a readonly (T, T)
         /// @resolution.place source=this placement=head.P1 lifetime=head.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this[0] placement=head.P1 lifetime=head.'a access="readonly"
         /// @resolution.access source=this[0] root=this keys=[0]
-        /// @resolution.subscript source=this[0] type=T kind=member target="receiver=Borrowed<(T, T), head.'a & head.P1, \"readonly\">, target=field(receiver=(T, T), target=0, type=T), type=T"
+        /// @resolution.subscript source=this[0] type=T kind=member target="receiver=&head.'a readonly (T, T), target=field(receiver=(T, T), target=0, type=T), type=T"
 
     }
 }
@@ -233,7 +233,7 @@ const first = same.head();
 /// @type.symbol symbol=first source=first type=int32
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=same target=same
-/// @resolution.member source=same.head receiver=(int32, int32) type=<head.'a, head.P1: Place>(this: Borrowed<(int32, int32), head.'a & head.P1, "readonly">) => int32 kind=symbol target_receiver=(int32, int32) target=head
+/// @resolution.member source=same.head receiver=(int32, int32) type=<head.'a, head.P1: Place>(this: &head.'a readonly (int32, int32)) => int32 kind=symbol target_receiver=(int32, int32) target=head
 /// @resolution.call source=same.head() parameters=() return=int32 kind=symbol target=head receiver=(int32, int32) adjustments=(borrow(&'static readonly constant (int32, int32))) instance="(T, T).<extension#1>.head<\"constant\">"
 /// @resolution.place source=same placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=same root=same
@@ -290,19 +290,19 @@ const head: int32 = triple.head<"constant">();
 === dir ===
 extension of [int32; 3] {
 /// @definition.extension symbol=<module>#2 form=local target=FixedArray<int32, 3>
-/// @definition.method symbol=head#1 slot=head type=<head#1.'a, head#1.P1: Place>(this: Borrowed<this, head#1.'a & head#1.P1, "readonly">) => int32
+/// @definition.method symbol=head#1 slot=head type=<head#1.'a, head#1.P1: Place>(this: &head#1.'a readonly this) => int32
 
     head(): int32 {
     /// @generic.template symbol=head#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=head#1 type=<head#1.'a, head#1.P1: Place>(this: Borrowed<this, head#1.'a & head#1.P1, "readonly">) => int32
+    /// @type.symbol symbol=head#1 type=<head#1.'a, head#1.P1: Place>(this: &head#1.'a readonly this) => int32
 
         return this[0];
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<FixedArray<int32, 3>, head#1.'a & head#1.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&head#1.'a readonly FixedArray<int32, 3>
         /// @resolution.place source=this placement=head#1.P1 lifetime=head#1.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this[0] placement=head#1.P1 lifetime=head#1.'a access="readonly"
         /// @resolution.access source=this[0] root=this keys=[0]
-        /// @resolution.subscript source=this[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<int32, head#1.'a & head#1.P1, \"mutable\">, \"readonly\">)"
+        /// @resolution.subscript source=this[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&head#1.'a int32, \"readonly\">)"
         /// @generic.instantiation id="index#1<int32, 3, \"readonly\", head#1.P1>" template=index#1 arguments=(int32, 3, "readonly", head#1.P1)
 
     }
@@ -316,7 +316,7 @@ const head = triple.head();
 /// @type.symbol symbol=head source=head type=int32
 /// @resolution.pattern source=head kind=binding target=head
 /// @resolution.name source=triple target=triple
-/// @resolution.member source=triple.head receiver=FixedArray<int32, 3> type=<head#1.'a, head#1.P1: Place>(this: Borrowed<FixedArray<int32, 3>, head#1.'a & head#1.P1, "readonly">) => int32 kind=symbol target_receiver=FixedArray<int32, 3> target=head#1
+/// @resolution.member source=triple.head receiver=FixedArray<int32, 3> type=<head#1.'a, head#1.P1: Place>(this: &head#1.'a readonly FixedArray<int32, 3>) => int32 kind=symbol target_receiver=FixedArray<int32, 3> target=head#1
 /// @resolution.call source=triple.head() parameters=() return=int32 kind=symbol target=head#1 receiver=FixedArray<int32, 3> adjustments=(borrow(&'static readonly constant FixedArray<int32, 3>)) instance="FixedArray<int32, 3>.<extension#1>.head#1<\"constant\">"
 /// @resolution.place source=triple placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=triple root=triple
@@ -699,12 +699,12 @@ type Account = User;
 
 extension of Account {
 /// @definition.extension symbol=<module>#2 form=local target=User
-/// @definition.method symbol=label slot=label type=<label.'a, label.P1: Place>(this: Borrowed<this, label.'a & label.P1, "readonly">) => string
+/// @definition.method symbol=label slot=label type=<label.'a, label.P1: Place>(this: &label.'a readonly this) => string
 /// @resolution.name source=Account target=Account
 
     label(): string {
     /// @generic.template symbol=label parameters=('a, P1: Place)
-    /// @type.symbol symbol=label type=<label.'a, label.P1: Place>(this: Borrowed<this, label.'a & label.P1, "readonly">) => string
+    /// @type.symbol symbol=label type=<label.'a, label.P1: Place>(this: &label.'a readonly this) => string
 
         return "account";
     }
@@ -814,13 +814,13 @@ struct User {}
 
 extension of User where int32: Show {
 /// @definition.extension symbol=<module>#2 form=local target=User
-/// @definition.method symbol=label slot=label type=<label.'a, label.P1: Place>(this: Borrowed<this, label.'a & label.P1, "readonly">) => string
+/// @definition.method symbol=label slot=label type=<label.'a, label.P1: Place>(this: &label.'a readonly this) => string
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
     label(): string {
     /// @generic.template symbol=label parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=label type=<label.'a, label.P1: Place>(this: Borrowed<this, label.'a & label.P1, "readonly">) => string
+    /// @type.symbol symbol=label type=<label.'a, label.P1: Place>(this: &label.'a readonly this) => string
 
         return "user";
     }

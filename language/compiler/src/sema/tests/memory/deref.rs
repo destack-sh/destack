@@ -34,10 +34,7 @@ struct Point {
     y: int32;
 }
 
-function run<'a, P1: Place>(
-    boxed: Box<Point>,
-    readonlyBoxed: Borrowed<Box<Point>, 'a & P1, "readonly">,
-): int32 {
+function run<'a, P1: Place>(boxed: Box<Point>, readonlyBoxed: &'a readonly Box<Point>): int32 {
     const read: int32 = boxed.x;
     boxed.x = 2;
     (*boxed).y = 3;
@@ -65,11 +62,11 @@ struct Point {
 
 function run(boxed: Box<Point>, readonlyBoxed: &readonly Box<Point>): int32 {
 /// @generic.template symbol=run parameters=('a, P1: Place)
-/// @type.symbol symbol=run type=<run.'a, run.P1: Place>(Box<Point>, Borrowed<Box<Point>, run.'a & run.P1, "readonly">) => int32
+/// @type.symbol symbol=run type=<run.'a, run.P1: Place>(Box<Point>, &run.'a readonly Box<Point>) => int32
 /// @type.symbol symbol=run.boxed source="boxed: Box<Point>" type=Box<Point>
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Point target=Point
-/// @type.symbol symbol=run.readonlyBoxed source="readonlyBoxed: &readonly Box<Point>" type=Borrowed<Box<Point>, run.'a & run.P1, "readonly">
+/// @type.symbol symbol=run.readonlyBoxed source="readonlyBoxed: &readonly Box<Point>" type=&run.'a readonly Box<Point>
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Point target=Point
 
@@ -105,7 +102,7 @@ function run(boxed: Box<Point>, readonlyBoxed: &readonly Box<Point>): int32 {
     /// @type.symbol symbol=run.viewed source=viewed type=int32
     /// @resolution.pattern source=viewed kind=binding target=run.viewed
     /// @resolution.name source=readonlyBoxed target=run.readonlyBoxed
-    /// @resolution.member source=readonlyBoxed.x receiver=Borrowed<Box<Point>, run.'a & run.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Box<Point>, run.'a & run.P1, "readonly"> adjustments=(Borrowed<Box<Point>, run.'a & run.P1, "readonly"> => direct -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<Borrowed<Point, run.'a & run.P1, "mutable">, "readonly">) -> Point) key=x target=Point.x target_type=int32
+    /// @resolution.member source=readonlyBoxed.x receiver=&run.'a readonly Box<Point> type=int32 kind=field target_receiver=&run.'a readonly Box<Point> adjustments=(&run.'a readonly Box<Point> => direct -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&run.'a Point, "readonly">) -> Point) key=x target=Point.x target_type=int32
     /// @resolution.place source=readonlyBoxed placement=run.P1 lifetime=run.'a access="readonly"
     /// @resolution.access source=readonlyBoxed root=run.readonlyBoxed
     /// @resolution.access source=readonlyBoxed.x root=run.readonlyBoxed keys=[x]
@@ -454,7 +451,7 @@ extension of Point {
 function run<'a, P1: Place>(
     boxed: Box<Point>,
     nested: Box<Box<Point>>,
-    viewed: Borrowed<Box<Point>, 'a & P1, "readonly">,
+    viewed: &'a readonly Box<Point>,
 ): int32 {
     boxed.bump<"local">();
     nested.bump<"local">();
@@ -482,25 +479,25 @@ struct Point {
 
 extension of Point {
 /// @definition.extension symbol=<module>#2 form=local target=Point
-/// @definition.method symbol=bump slot=bump type=<bump.'a, bump.P1: Place>(this: Borrowed<this, bump.'a & bump.P1, "exclusive">) => void
-/// @definition.method symbol=sum slot=sum type=<sum.'a, sum.P1: Place>(this: Borrowed<this, sum.'a & sum.P1, "readonly">) => int32
+/// @definition.method symbol=bump slot=bump type=<bump.'a, bump.P1: Place>(this: &bump.'a exclusive this) => void
+/// @definition.method symbol=sum slot=sum type=<sum.'a, sum.P1: Place>(this: &sum.'a readonly this) => int32
 /// @resolution.name source=Point target=Point
 
     sum(&readonly this): int32 {
     /// @generic.template symbol=sum parameters=('a, P1: Place)
-    /// @type.symbol symbol=sum type=<sum.'a, sum.P1: Place>(this: Borrowed<this, sum.'a & sum.P1, "readonly">) => int32
-    /// @type.symbol symbol=sum.this source="&readonly this" type=Borrowed<this, sum.'a & sum.P1, "readonly">
+    /// @type.symbol symbol=sum type=<sum.'a, sum.P1: Place>(this: &sum.'a readonly this) => int32
+    /// @type.symbol symbol=sum.this source="&readonly this" type=&sum.'a readonly this
 
         return this.x + this.y;
-        /// @resolution.member source=this.x receiver=Borrowed<Point, sum.'a & sum.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Point, sum.'a & sum.P1, "readonly"> key=x target=Point.x target_type=int32
+        /// @resolution.member source=this.x receiver=&sum.'a readonly Point type=int32 kind=field target_receiver=&sum.'a readonly Point key=x target=Point.x target_type=int32
         /// @resolution.operator source="this.x + this.y" type=int32 operator="+" kind=builtin operands=[this.x as int32 families=(integer), this.y as int32 families=(integer)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Point, sum.'a & sum.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&sum.'a readonly Point
         /// @resolution.place source=this placement=sum.P1 lifetime=sum.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.x placement=sum.P1 lifetime=sum.'a access="readonly"
         /// @resolution.access source=this.x root=this keys=[x]
-        /// @resolution.member source=this.y receiver=Borrowed<Point, sum.'a & sum.P1, "readonly"> type=int32 kind=field target_receiver=Borrowed<Point, sum.'a & sum.P1, "readonly"> key=y target=Point.y target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Point, sum.'a & sum.P1, "readonly">
+        /// @resolution.member source=this.y receiver=&sum.'a readonly Point type=int32 kind=field target_receiver=&sum.'a readonly Point key=y target=Point.y target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&sum.'a readonly Point
         /// @resolution.place source=this placement=sum.P1 lifetime=sum.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.y placement=sum.P1 lifetime=sum.'a access="readonly"
@@ -510,16 +507,16 @@ extension of Point {
 
     bump(&exclusive this): void {
     /// @generic.template symbol=bump parameters=('a, P1: Place)
-    /// @type.symbol symbol=bump type=<bump.'a, bump.P1: Place>(this: Borrowed<this, bump.'a & bump.P1, "exclusive">) => void
-    /// @type.symbol symbol=bump.this source="&exclusive this" type=Borrowed<this, bump.'a & bump.P1, "exclusive">
+    /// @type.symbol symbol=bump type=<bump.'a, bump.P1: Place>(this: &bump.'a exclusive this) => void
+    /// @type.symbol symbol=bump.this source="&exclusive this" type=&bump.'a exclusive this
 
         this.x += 1;
         /// @resolution.operator source="this.x += 1" type=int32 operator="+" kind=builtin operands=[this.x as int32 families=(integer), 1 as int32 families=(integer)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Point, bump.'a & bump.P1, "exclusive">
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&bump.'a exclusive Point
         /// @resolution.place source=this placement=bump.P1 lifetime=bump.'a access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.x kind=place
-        /// @resolution.assignment source=this.x read="receiver=Borrowed<Point, bump.'a & bump.P1, \"exclusive\">, target=field(receiver=Borrowed<Point, bump.'a & bump.P1, \"exclusive\">, target=Point.x, type=int32), type=int32" write="receiver=Borrowed<Point, bump.'a & bump.P1, \"exclusive\">, target=field(receiver=Borrowed<Point, bump.'a & bump.P1, \"exclusive\">, target=Point.x, type=int32), type=int32" type=int32
+        /// @resolution.assignment source=this.x read="receiver=&bump.'a exclusive Point, target=field(receiver=&bump.'a exclusive Point, target=Point.x, type=int32), type=int32" write="receiver=&bump.'a exclusive Point, target=field(receiver=&bump.'a exclusive Point, target=Point.x, type=int32), type=int32" type=int32
         /// @resolution.access source=this.x root=this keys=[x]
 
     }
@@ -527,7 +524,7 @@ extension of Point {
 
 function run(boxed: Box<Point>, nested: Box<Box<Point>>, viewed: &readonly Box<Point>): int32 {
 /// @generic.template symbol=run parameters=('a, P1: Place)
-/// @type.symbol symbol=run type=<run.'a, run.P1: Place>(Box<Point>, Box<Box<Point>>, Borrowed<Box<Point>, run.'a & run.P1, "readonly">) => int32
+/// @type.symbol symbol=run type=<run.'a, run.P1: Place>(Box<Point>, Box<Box<Point>>, &run.'a readonly Box<Point>) => int32
 /// @type.symbol symbol=run.boxed source="boxed: Box<Point>" type=Box<Point>
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Point target=Point
@@ -535,13 +532,13 @@ function run(boxed: Box<Point>, nested: Box<Box<Point>>, viewed: &readonly Box<P
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Point target=Point
-/// @type.symbol symbol=run.viewed source="viewed: &readonly Box<Point>" type=Borrowed<Box<Point>, run.'a & run.P1, "readonly">
+/// @type.symbol symbol=run.viewed source="viewed: &readonly Box<Point>" type=&run.'a readonly Box<Point>
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Point target=Point
 
     boxed.bump();
     /// @resolution.name source=boxed target=run.boxed
-    /// @resolution.member source=boxed.bump receiver=Box<Point> type=<bump.'a, bump.P1: Place>(this: Borrowed<Point, bump.'a & bump.P1, "exclusive">) => void kind=symbol target_receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point) target=bump
+    /// @resolution.member source=boxed.bump receiver=Box<Point> type=<bump.'a, bump.P1: Place>(this: &bump.'a exclusive Point) => void kind=symbol target_receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point) target=bump
     /// @resolution.call source=boxed.bump() parameters=() return=void kind=symbol target=bump receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point, borrow(&'frame exclusive Point)) instance="Point.<extension#1>.bump<\"local\">"
     /// @resolution.place source=boxed placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=boxed root=run.boxed
@@ -550,7 +547,7 @@ function run(boxed: Box<Point>, nested: Box<Box<Point>>, viewed: &readonly Box<P
 
     nested.bump();
     /// @resolution.name source=nested target=run.nested
-    /// @resolution.member source=nested.bump receiver=Box<Box<Point>> type=<bump.'a, bump.P1: Place>(this: Borrowed<Point, bump.'a & bump.P1, "exclusive">) => void kind=symbol target_receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, "exclusive">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point) target=bump
+    /// @resolution.member source=nested.bump receiver=Box<Box<Point>> type=<bump.'a, bump.P1: Place>(this: &bump.'a exclusive Point) => void kind=symbol target_receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, "exclusive">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point) target=bump
     /// @resolution.call source=nested.bump() parameters=() return=void kind=symbol target=bump receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, "exclusive">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point, borrow(&'frame exclusive Point)) instance="Point.<extension#1>.bump<\"local\">"
     /// @resolution.place source=nested placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=nested root=run.nested
@@ -575,7 +572,7 @@ function run(boxed: Box<Point>, nested: Box<Box<Point>>, viewed: &readonly Box<P
 
     return boxed.sum() + nested.sum() + viewed.sum() + nested.y;
     /// @resolution.name source=boxed target=run.boxed
-    /// @resolution.member source=boxed.sum receiver=Box<Point> type=<sum.'a, sum.P1: Place>(this: Borrowed<Point, sum.'a & sum.P1, "readonly">) => int32 kind=symbol target_receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "readonly">) -> Point) target=sum
+    /// @resolution.member source=boxed.sum receiver=Box<Point> type=<sum.'a, sum.P1: Place>(this: &sum.'a readonly Point) => int32 kind=symbol target_receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "readonly">) -> Point) target=sum
     /// @resolution.call source=boxed.sum() parameters=() return=int32 kind=symbol target=sum receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "readonly">) -> Point, borrow(&'frame readonly Point)) instance="Point.<extension#1>.sum<\"local\">"
     /// @resolution.operator source="boxed.sum() + nested.sum() + viewed.sum() + nested.y" type=int32 operator="+" kind=builtin operands=[boxed.sum() + nested.sum() + viewed.sum() as int32 families=(integer), nested.y as int32 families=(integer)]
     /// @resolution.operator source="boxed.sum() + nested.sum() + viewed.sum()" type=int32 operator="+" kind=builtin operands=[boxed.sum() + nested.sum() as int32 families=(integer), viewed.sum() as int32 families=(integer)]
@@ -585,14 +582,14 @@ function run(boxed: Box<Point>, nested: Box<Box<Point>>, viewed: &readonly Box<P
     /// @generic.instantiation id="dereference<Point, \"readonly\", \"local\">" template=dereference arguments=(Point, "readonly", "local")
     /// @generic.instantiation id="sum<\"local\">" template=sum arguments=("local")
     /// @resolution.name source=nested target=run.nested
-    /// @resolution.member source=nested.sum receiver=Box<Box<Point>> type=<sum.'a, sum.P1: Place>(this: Borrowed<Point, sum.'a & sum.P1, "readonly">) => int32 kind=symbol target_receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, "readonly">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "readonly">) -> Point) target=sum
+    /// @resolution.member source=nested.sum receiver=Box<Box<Point>> type=<sum.'a, sum.P1: Place>(this: &sum.'a readonly Point) => int32 kind=symbol target_receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, "readonly">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "readonly">) -> Point) target=sum
     /// @resolution.call source=nested.sum() parameters=() return=int32 kind=symbol target=sum receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, "readonly">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "readonly">) -> Point, borrow(&'frame readonly Point)) instance="Point.<extension#1>.sum<\"local\">"
     /// @resolution.place source=nested placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=nested root=run.nested
     /// @generic.instantiation id="dereference<Box<Point>, \"readonly\", \"local\">" template=dereference arguments=(Box<Point>, "readonly", "local")
     /// @resolution.name source=viewed target=run.viewed
-    /// @resolution.member source=viewed.sum receiver=Borrowed<Box<Point>, run.'a & run.P1, "readonly"> type=<sum.'a, sum.P1: Place>(this: Borrowed<Point, sum.'a & sum.P1, "readonly">) => int32 kind=symbol target_receiver=Borrowed<Box<Point>, run.'a & run.P1, "readonly"> adjustments=(Borrowed<Box<Point>, run.'a & run.P1, "readonly"> => direct -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<Borrowed<Point, run.'a & run.P1, "mutable">, "readonly">) -> Point) target=sum
-    /// @resolution.call source=viewed.sum() parameters=() return=int32 kind=symbol target=sum receiver=Borrowed<Box<Point>, run.'a & run.P1, "readonly"> adjustments=(Borrowed<Box<Point>, run.'a & run.P1, "readonly"> => direct -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<Borrowed<Point, run.'a & run.P1, "mutable">, "readonly">) -> Point, borrow(&run.'a readonly Point)) instance="Point.<extension#1>.sum<\"local\">"
+    /// @resolution.member source=viewed.sum receiver=&run.'a readonly Box<Point> type=<sum.'a, sum.P1: Place>(this: &sum.'a readonly Point) => int32 kind=symbol target_receiver=&run.'a readonly Box<Point> adjustments=(&run.'a readonly Box<Point> => direct -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&run.'a Point, "readonly">) -> Point) target=sum
+    /// @resolution.call source=viewed.sum() parameters=() return=int32 kind=symbol target=sum receiver=&run.'a readonly Box<Point> adjustments=(&run.'a readonly Box<Point> => direct -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&run.'a Point, "readonly">) -> Point, borrow(&run.'a readonly Point)) instance="Point.<extension#1>.sum<\"local\">"
     /// @resolution.place source=viewed placement=run.P1 lifetime=run.'a access="readonly"
     /// @resolution.access source=viewed root=run.viewed
     /// @generic.instantiation id="dereference<Point, \"readonly\", run.P1>" template=dereference arguments=(Point, "readonly", run.P1)

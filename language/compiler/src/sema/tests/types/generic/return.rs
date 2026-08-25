@@ -67,7 +67,7 @@ function capture<T>(value: T): { reactions: T[] } {
     return { reactions: [] };
     /// @type.node source={ reactions: [] } type={ reactions: T[] }
     /// @type.node source=[] type=T[]
-    /// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as T) return=T[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T>
+    /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as T) return=T[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T>
     /// @generic.instantiation id=arrayFromSlice<T> template=arrayFromSlice arguments=(T) owner=capture
 
 }
@@ -177,7 +177,7 @@ function pending<T>(): State<T> {
     /// @type.node source={ kind: "pending", reactions: [] } type={ kind: "pending"; reactions: T#4[] }
     /// @type.node source="\"pending\"" type="pending"
     /// @type.node source=[] type=T#4[]
-    /// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as T#4) return=T#4[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#4>
+    /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as T#4) return=T#4[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#4>
     /// @generic.instantiation id=arrayFromSlice<T#4> template=arrayFromSlice arguments=(T#4) owner=pending
 
 }

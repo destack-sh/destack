@@ -42,14 +42,14 @@ struct Guard implements Drop {
 /// @definition.struct symbol=Guard
 /// @definition.where symbol=Guard source=Drop relation=satisfies left=this right=Drop
 /// @definition.implements symbol=Guard source=Drop target=Drop
-/// @definition.method symbol=Guard.drop source="drop(&exclusive this): void {}" slot=drop type=<Guard.drop.'a, Guard.drop.P1: Place>(this: Borrowed<this, Guard.drop.'a & Guard.drop.P1, "exclusive">) => void
+/// @definition.method symbol=Guard.drop source="drop(&exclusive this): void {}" slot=drop type=<Guard.drop.'a, Guard.drop.P1: Place>(this: &Guard.drop.'a exclusive this) => void
 /// @definition.conformance symbol=Guard member=Guard.drop requirement=Drop.drop
 /// @resolution.name source=Drop target=Drop
 
     drop(&exclusive this): void {}
     /// @generic.template symbol=Guard.drop parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=Guard.drop source="drop(&exclusive this): void {}" type=<Guard.drop.'a, Guard.drop.P1: Place>(this: Borrowed<this, Guard.drop.'a & Guard.drop.P1, "exclusive">) => void
-    /// @type.symbol symbol=Guard.drop.this source="&exclusive this" type=Borrowed<this, Guard.drop.'a & Guard.drop.P1, "exclusive">
+    /// @type.symbol symbol=Guard.drop source="drop(&exclusive this): void {}" type=<Guard.drop.'a, Guard.drop.P1: Place>(this: &Guard.drop.'a exclusive this) => void
+    /// @type.symbol symbol=Guard.drop.this source="&exclusive this" type=&Guard.drop.'a exclusive this
 
 }
 
@@ -140,15 +140,15 @@ struct Guard {
 extension of Guard implements Drop {
 /// @definition.extension symbol=<module>#2 form=local target=Guard
 /// @definition.implements symbol=<module>#2 source=Drop target=Drop
-/// @definition.method symbol=drop source="drop(&exclusive this): void {}" slot=drop type=<drop.'a, drop.P1: Place>(this: Borrowed<this, drop.'a & drop.P1, "exclusive">) => void
+/// @definition.method symbol=drop source="drop(&exclusive this): void {}" slot=drop type=<drop.'a, drop.P1: Place>(this: &drop.'a exclusive this) => void
 /// @definition.conformance symbol=<module>#2 member=drop requirement=Drop.drop
 /// @resolution.name source=Guard target=Guard
 /// @resolution.name source=Drop target=Drop
 
     drop(&exclusive this): void {}
     /// @generic.template symbol=drop parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=drop source="drop(&exclusive this): void {}" type=<drop.'a, drop.P1: Place>(this: Borrowed<this, drop.'a & drop.P1, "exclusive">) => void
-    /// @type.symbol symbol=drop.this source="&exclusive this" type=Borrowed<this, drop.'a & drop.P1, "exclusive">
+    /// @type.symbol symbol=drop source="drop(&exclusive this): void {}" type=<drop.'a, drop.P1: Place>(this: &drop.'a exclusive this) => void
+    /// @type.symbol symbol=drop.this source="&exclusive this" type=&drop.'a exclusive this
 
 }
 
@@ -231,14 +231,14 @@ struct Guard implements Drop {
 /// @definition.struct symbol=Guard
 /// @definition.where symbol=Guard source=Drop relation=satisfies left=this right=Drop
 /// @definition.implements symbol=Guard source=Drop target=Drop
-/// @definition.method symbol=Guard.drop source="drop(&exclusive this): void {}" slot=drop type=<Guard.drop.'a, Guard.drop.P1: Place>(this: Borrowed<this, Guard.drop.'a & Guard.drop.P1, "exclusive">) => void
+/// @definition.method symbol=Guard.drop source="drop(&exclusive this): void {}" slot=drop type=<Guard.drop.'a, Guard.drop.P1: Place>(this: &Guard.drop.'a exclusive this) => void
 /// @definition.conformance symbol=Guard member=Guard.drop requirement=Drop.drop
 /// @resolution.name source=Drop target=Drop
 
     drop(&exclusive this): void {}
     /// @generic.template symbol=Guard.drop parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=Guard.drop source="drop(&exclusive this): void {}" type=<Guard.drop.'a, Guard.drop.P1: Place>(this: Borrowed<this, Guard.drop.'a & Guard.drop.P1, "exclusive">) => void
-    /// @type.symbol symbol=Guard.drop.this source="&exclusive this" type=Borrowed<this, Guard.drop.'a & Guard.drop.P1, "exclusive">
+    /// @type.symbol symbol=Guard.drop source="drop(&exclusive this): void {}" type=<Guard.drop.'a, Guard.drop.P1: Place>(this: &Guard.drop.'a exclusive this) => void
+    /// @type.symbol symbol=Guard.drop.this source="&exclusive this" type=&Guard.drop.'a exclusive this
 
 }
 

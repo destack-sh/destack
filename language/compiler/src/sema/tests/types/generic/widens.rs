@@ -933,7 +933,7 @@ class Stack<T> {
     items: T[] = [];
     /// @type.symbol symbol=Stack.items source="items: T[] = []" type=T#1[]
     /// @resolution.name source=T target=Stack.T
-    /// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as T#1) return=T#1[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#1>
+    /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as T#1) return=T#1[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#1>
     /// @generic.instantiation id=arrayFromSlice<T#1> template=arrayFromSlice arguments=(T#1) owner=Stack
 
 }
@@ -959,7 +959,7 @@ extension<T> of Stack<T> {
         /// @resolution.pattern.assign source=this.items kind=place
         /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Stack<T#2>, target=field(receiver=Stack<T#2>, target=Stack.items, type=T#2[]), type=T#2[]" type=T#2[]
-        /// @resolution.call source=[value] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(value) as T#2) return=T#2[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#2>
+        /// @resolution.call source=[value] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(value) as T#2) return=T#2[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#2>
         /// @generic.instantiation id=arrayFromSlice<T#2> template=arrayFromSlice arguments=(T#2) owner=refill
         /// @resolution.name source=value target=refill.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -1057,7 +1057,7 @@ class Stack<T> {
     items: T[] = [];
     /// @type.symbol symbol=Stack.items source="items: T[] = []" type=T#1[]
     /// @resolution.name source=T target=Stack.T
-    /// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as T#1) return=T#1[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#1>
+    /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as T#1) return=T#1[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#1>
     /// @generic.instantiation id=arrayFromSlice<T#1> template=arrayFromSlice arguments=(T#1) owner=Stack
 
 }
@@ -1083,7 +1083,7 @@ extension<T> of Stack<T> {
         /// @resolution.pattern.assign source=this.items kind=place
         /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Stack<T#2>, target=field(receiver=Stack<T#2>, target=Stack.items, type=T#2[]), type=T#2[]" type=T#2[]
-        /// @resolution.call source=[value] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(value) as T#2) return=T#2[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#2>
+        /// @resolution.call source=[value] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(value) as T#2) return=T#2[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#2>
         /// @generic.instantiation id=arrayFromSlice<T#2> template=arrayFromSlice arguments=(T#2) owner=refill
         /// @resolution.name source=value target=refill.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -1182,7 +1182,7 @@ class Bag<T> {
     items: T[] = [];
     /// @type.symbol symbol=Bag.items source="items: T[] = []" type=T[]
     /// @resolution.name source=T target=Bag.T
-    /// @resolution.call source=[] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as T) return=T[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T>
+    /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as T) return=T[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T>
     /// @generic.instantiation id=arrayFromSlice<T> template=arrayFromSlice arguments=(T) owner=Bag
 
     refill(this, value: T): void {
@@ -1198,7 +1198,7 @@ class Bag<T> {
         /// @resolution.pattern.assign source=this.items kind=place
         /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Bag<T>, target=field(receiver=Bag<T>, target=Bag.items, type=T[]), type=T[]" type=T[]
-        /// @resolution.call source=[value] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(value) as T) return=T[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T>
+        /// @resolution.call source=[value] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(value) as T) return=T[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T>
         /// @generic.instantiation id=arrayFromSlice<T> template=arrayFromSlice arguments=(T) owner=Bag.refill
         /// @resolution.name source=value target=Bag.refill.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"

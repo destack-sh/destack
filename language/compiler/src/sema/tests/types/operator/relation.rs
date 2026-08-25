@@ -254,7 +254,7 @@ struct DrawnPoint implements Drawable {
 /// @definition.where symbol=DrawnPoint source=Drawable relation=satisfies left=this right=Drawable
 /// @definition.implements symbol=DrawnPoint source=Drawable target=Drawable
 /// @definition.field symbol=DrawnPoint.x source="x: int32" key=x type=int32
-/// @definition.method symbol=DrawnPoint.draw source="draw(): void {}" slot=draw type=<DrawnPoint.draw.'a, DrawnPoint.draw.P1: Place>(this: Borrowed<DrawnPoint, DrawnPoint.draw.'a & DrawnPoint.draw.P1, "readonly">) => void
+/// @definition.method symbol=DrawnPoint.draw source="draw(): void {}" slot=draw type=<DrawnPoint.draw.'a, DrawnPoint.draw.P1: Place>(this: &DrawnPoint.draw.'a readonly DrawnPoint) => void
 /// @definition.conformance symbol=DrawnPoint member=DrawnPoint.draw requirement=Drawable.draw
 /// @resolution.name source=Drawable target=Drawable
 
@@ -263,7 +263,7 @@ struct DrawnPoint implements Drawable {
 
     draw(): void {}
     /// @generic.template symbol=DrawnPoint.draw parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=DrawnPoint.draw source="draw(): void {}" type=<DrawnPoint.draw.'a, DrawnPoint.draw.P1: Place>(this: Borrowed<DrawnPoint, DrawnPoint.draw.'a & DrawnPoint.draw.P1, "readonly">) => void
+    /// @type.symbol symbol=DrawnPoint.draw source="draw(): void {}" type=<DrawnPoint.draw.'a, DrawnPoint.draw.P1: Place>(this: &DrawnPoint.draw.'a readonly DrawnPoint) => void
 
 }
 

@@ -77,7 +77,7 @@ const fresh = id("users");
 const tags = [tag];
 /// @type.symbol symbol=tags source=tags type="users"[]
 /// @resolution.pattern source=tags kind=binding target=tags
-/// @resolution.call source=[tag] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(tag) as "users") return="users"[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<\"users\">"
+/// @resolution.call source=[tag] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(tag) as "users") return="users"[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<\"users\">"
 /// @generic.instantiation id="arrayFromSlice<\"users\">" template=arrayFromSlice arguments=("users")
 /// @resolution.name source=tag target=tag
 /// @resolution.place source=tag placement="local" lifetime="static" access="exclusive"
@@ -86,7 +86,7 @@ const tags = [tag];
 const literals = ["users"];
 /// @type.symbol symbol=literals source=literals type=string[]
 /// @resolution.pattern source=literals kind=binding target=literals
-/// @resolution.call source=["users"] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest("users") as string) return=string[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<string>
+/// @resolution.call source=["users"] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest("users") as string) return=string[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<string>
 /// @generic.instantiation id=arrayFromSlice<string> template=arrayFromSlice arguments=(string)
 
 const echoed = withLabel("users", (label) => label);
@@ -195,7 +195,7 @@ const list = id([tag, "users"]);
 /// @resolution.name source=id target=id
 /// @resolution.call source="id([tag, \"users\"])" parameters=(string[]) arguments=(provided([tag, "users"]) as string[]) return=string[] kind=symbol target=id instance=id<string[]>
 /// @generic.instantiation id=id<string[]> template=id arguments=(string[])
-/// @resolution.call source=[tag, "users"] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(tag, "users") as string) return=string[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<string>
+/// @resolution.call source=[tag, "users"] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(tag, "users") as string) return=string[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<string>
 /// @generic.instantiation id=arrayFromSlice<string> template=arrayFromSlice arguments=(string)
 /// @resolution.name source=tag target=tag
 /// @resolution.place source=tag placement="local" lifetime="static" access="exclusive"

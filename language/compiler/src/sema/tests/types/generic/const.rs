@@ -256,7 +256,7 @@ function put<T>(destination: &exclusive [T], value: T): void {
         DirRows::checked(),
         r#"
 === annotated ===
-function put<T, 'a, P2: Place>(destination: Borrowed<[T], 'a & P2, "exclusive">, value: T): void {
+function put<T, 'a, P2: Place>(destination: &'a exclusive [T], value: T): void {
     let lane: isize = 0;
 
     destination[lane] = value;
@@ -265,9 +265,9 @@ function put<T, 'a, P2: Place>(destination: Borrowed<[T], 'a & P2, "exclusive">,
 === dir ===
 function put<T>(destination: &exclusive [T], value: T): void {
 /// @generic.template symbol=put parameters=(T, 'a, P2: Place)
-/// @type.symbol symbol=put type=<T, put.'a, put.P2: Place>(Borrowed<Slice<T>, put.'a & put.P2, "exclusive">, T) => void
+/// @type.symbol symbol=put type=<T, put.'a, put.P2: Place>(&put.'a exclusive Slice<T>, T) => void
 /// @type.symbol symbol=put.T source=T type=T
-/// @type.symbol symbol=put.destination source="destination: &exclusive [T]" type=Borrowed<Slice<T>, put.'a & put.P2, "exclusive">
+/// @type.symbol symbol=put.destination source="destination: &exclusive [T]" type=&put.'a exclusive Slice<T>
 /// @resolution.name source=T target=put.T
 /// @type.symbol symbol=put.value source="value: T" type=T
 /// @resolution.name source=T target=put.T
@@ -312,10 +312,7 @@ function put(destination: &exclusive [int32], value: int32): void {
         DirRows::checked(),
         r#"
 === annotated ===
-function put<'a, P1: Place>(
-    destination: Borrowed<[int32], 'a & P1, "exclusive">,
-    value: int32,
-): void {
+function put<'a, P1: Place>(destination: &'a exclusive [int32], value: int32): void {
     let lane: isize = 0;
 
     destination[lane] = value;
@@ -324,8 +321,8 @@ function put<'a, P1: Place>(
 === dir ===
 function put(destination: &exclusive [int32], value: int32): void {
 /// @generic.template symbol=put parameters=('a, P1: Place)
-/// @type.symbol symbol=put type=<put.'a, put.P1: Place>(Borrowed<Slice<int32>, put.'a & put.P1, "exclusive">, int32) => void
-/// @type.symbol symbol=put.destination source="destination: &exclusive [int32]" type=Borrowed<Slice<int32>, put.'a & put.P1, "exclusive">
+/// @type.symbol symbol=put type=<put.'a, put.P1: Place>(&put.'a exclusive Slice<int32>, int32) => void
+/// @type.symbol symbol=put.destination source="destination: &exclusive [int32]" type=&put.'a exclusive Slice<int32>
 /// @type.symbol symbol=put.value source="value: int32" type=int32
 
     let lane: isize = 0;

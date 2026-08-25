@@ -153,16 +153,16 @@ struct Point {
 extension of Point implements Display {
 /// @definition.extension symbol=<module>#2 form=local target=Point
 /// @definition.implements symbol=<module>#2 source=Display target=Display
-/// @definition.method symbol=display slot=display type=<display.'a, display.P1: Place>(this: Borrowed<Point, display.'a & display.P1, "readonly">) => MaybeOwned<string>
+/// @definition.method symbol=display slot=display type=<display.'a, display.P1: Place>(this: &display.'a readonly Point) => MaybeOwned<string>
 /// @definition.conformance symbol=<module>#2 member=display requirement=Display.display
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=Display target=Display
 
     display(&readonly this): MaybeOwned<string> {
     /// @generic.template symbol=display parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=display type=<display.'a, display.P1: Place>(this: Borrowed<Point, display.'a & display.P1, "readonly">) => MaybeOwned<string>
+    /// @type.symbol symbol=display type=<display.'a, display.P1: Place>(this: &display.'a readonly Point) => MaybeOwned<string>
     /// @generic.instance id=MaybeOwned<string> template=MaybeOwned arguments=(string)
-    /// @type.symbol symbol=display.this source="&readonly this" type=Borrowed<this, display.'a & display.P1, "readonly">
+    /// @type.symbol symbol=display.this source="&readonly this" type=&display.'a readonly this
     /// @resolution.name source=MaybeOwned target=MaybeOwned
     /// @generic.instance id="CowBorrowed<&'frame readonly string>" template=CowBorrowed arguments=(&'frame readonly string)
     /// @generic.instance id=Cow<string> template=Cow arguments=(string)

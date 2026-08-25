@@ -87,7 +87,7 @@ let [...middle, last] = [1, 2, 3];
 /// @type.symbol symbol=middle source=middle type=<error>
 /// @type.symbol symbol=last source=last type=<error>
 /// @type.node source=[1, 2, 3] type=int64[]
-/// @resolution.call source=[1, 2, 3] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+/// @resolution.call source=[1, 2, 3] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
 /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -122,7 +122,7 @@ let [head, ...middle, ...tail] = [1, 2, 3];
 /// @type.symbol symbol=middle source=middle type=<error>
 /// @type.symbol symbol=tail source=tail type=<error>
 /// @type.node source=[1, 2, 3] type=int64[]
-/// @resolution.call source=[1, 2, 3] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+/// @resolution.call source=[1, 2, 3] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
 /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2

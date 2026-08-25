@@ -62,7 +62,7 @@ extension of Charge implements Negate {
 /// @definition.extension symbol=<module>#2 form=local target=Charge
 /// @definition.implements symbol=<module>#2 source=Negate target=Negate
 /// @definition.associated.type symbol=Output source="type Output = Charge" key=Output value=Charge
-/// @definition.method symbol=negate slot=negate type=<negate.'a, negate.P1: Place>(this: Borrowed<Charge, negate.'a & negate.P1, "readonly">) => Charge
+/// @definition.method symbol=negate slot=negate type=<negate.'a, negate.P1: Place>(this: &negate.'a readonly Charge) => Charge
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Negate.Output
 /// @definition.conformance symbol=<module>#2 member=negate requirement=Negate.negate
 /// @resolution.name source=Charge target=Charge
@@ -74,15 +74,15 @@ extension of Charge implements Negate {
 
     negate(&readonly this): Charge {
     /// @generic.template symbol=negate parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=negate type=<negate.'a, negate.P1: Place>(this: Borrowed<Charge, negate.'a & negate.P1, "readonly">) => Charge
-    /// @type.symbol symbol=negate.this source="&readonly this" type=Borrowed<this, negate.'a & negate.P1, "readonly">
+    /// @type.symbol symbol=negate type=<negate.'a, negate.P1: Place>(this: &negate.'a readonly Charge) => Charge
+    /// @type.symbol symbol=negate.this source="&readonly this" type=&negate.'a readonly this
     /// @resolution.name source=Charge target=Charge
 
         Charge { value: -this.value }
         /// @resolution.name source=Charge target=Charge
         /// @resolution.operator source=-this.value type=float64 operator="-" kind=builtin operands=[this.value as float64 families=(float)]
-        /// @resolution.member source=this.value receiver=Borrowed<Charge, negate.'a & negate.P1, "readonly"> type=float64 kind=field target_receiver=Borrowed<Charge, negate.'a & negate.P1, "readonly"> key=value target=Charge.value target_type=float64
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Charge, negate.'a & negate.P1, "readonly">
+        /// @resolution.member source=this.value receiver=&negate.'a readonly Charge type=float64 kind=field target_receiver=&negate.'a readonly Charge key=value target=Charge.value target_type=float64
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&negate.'a readonly Charge
         /// @resolution.place source=this placement=negate.P1 lifetime=negate.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=negate.P1 lifetime=negate.'a access="readonly"

@@ -227,7 +227,7 @@ function build(values: [int32]): void {
     /// @resolution.member source=Set.from receiver=Set type=(Iterable<T#5>) => Owned<Set<T#5>> kind=symbol target_receiver=Set target=from#1
     /// @resolution.call source=Set.from([...values]) parameters=(Iterable<int32>) arguments=(provided([...values]) as Iterable<int32>) return=Owned<Set<int32>> kind=symbol target=from#1 instance=Set<int32>.<extension#5>.from#1
     /// @generic.instantiation id=from#1<int32> template=from#1 arguments=(int32)
-    /// @resolution.call source=[...values] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+    /// @resolution.call source=[...values] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
     /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
     /// @resolution.name source=values target=build.values
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
@@ -240,7 +240,7 @@ function build(values: [int32]): void {
     /// @resolution.name source=Set target=Set
     /// @resolution.member source=Set.from receiver=Set type=(Iterable<T#5>) => Owned<Set<T#5>> kind=symbol target_receiver=Set target=from#1
     /// @resolution.call source=Set.from([...values]) parameters=(Iterable<int32>) arguments=(provided([...values]) as Iterable<int32>) return=Owned<Set<int32>> kind=symbol target=from#1 instance=Set<int32>.<extension#5>.from#1
-    /// @resolution.call source=[...values] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+    /// @resolution.call source=[...values] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
     /// @resolution.name source=values target=build.values
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=build.values
@@ -252,7 +252,7 @@ function build(values: [int32]): void {
     /// @resolution.member source=Array.from receiver=Array type=(Iterable<T#5>) => Owned<T#5[]> & <from.U>(Iterable<from.U>, Function<(from.U, isize), T#5>) => Owned<T#5[]> kind=overload-set targets=[from#1, from#2]
     /// @resolution.call source="Array.from([...values], (value) => value)" parameters=(Iterable<int32>, Function<(int32, isize), int32>) arguments=(provided([...values]) as Iterable<int32>, provided((value) => value) as Function<(int32, isize), int32>) return=Owned<int32[]> kind=symbol target=from#2 instance=Array<int32>.<extension#5>.from#2<int32>
     /// @generic.instantiation id="from#2<int32, int32>" template=from#2 arguments=(int32, int32)
-    /// @resolution.call source=[...values] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+    /// @resolution.call source=[...values] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
     /// @resolution.name source=values target=build.values
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=build.values

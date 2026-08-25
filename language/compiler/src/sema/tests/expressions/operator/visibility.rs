@@ -139,7 +139,7 @@ extension of Force implements Multiply<float64> {
 /// @definition.extension symbol=<module>#2 form=local target=Force
 /// @definition.implements symbol=<module>#2 source=Multiply<float64> target=Multiply<float64>
 /// @definition.associated.type symbol=Output source="type Output = Force" key=Output value=Force
-/// @definition.method symbol=multiply slot=multiply type=<multiply.'a, multiply.P1: Place>(this: Borrowed<Force, multiply.'a & multiply.P1, "readonly">, float64) => Force
+/// @definition.method symbol=multiply slot=multiply type=<multiply.'a, multiply.P1: Place>(this: &multiply.'a readonly Force, float64) => Force
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Multiply.Output
 /// @definition.conformance symbol=<module>#2 member=multiply requirement=Multiply.multiply
 /// @resolution.name source=Force target=Force
@@ -151,16 +151,16 @@ extension of Force implements Multiply<float64> {
 
     multiply(&readonly this, other: float64): Force {
     /// @generic.template symbol=multiply parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=multiply type=<multiply.'a, multiply.P1: Place>(this: Borrowed<Force, multiply.'a & multiply.P1, "readonly">, float64) => Force
-    /// @type.symbol symbol=multiply.this source="&readonly this" type=Borrowed<this, multiply.'a & multiply.P1, "readonly">
+    /// @type.symbol symbol=multiply type=<multiply.'a, multiply.P1: Place>(this: &multiply.'a readonly Force, float64) => Force
+    /// @type.symbol symbol=multiply.this source="&readonly this" type=&multiply.'a readonly this
     /// @type.symbol symbol=multiply.other source="other: float64" type=float64
     /// @resolution.name source=Force target=Force
 
         Force { value: this.value * other }
         /// @resolution.name source=Force target=Force
-        /// @resolution.member source=this.value receiver=Borrowed<Force, multiply.'a & multiply.P1, "readonly"> type=float64 kind=field target_receiver=Borrowed<Force, multiply.'a & multiply.P1, "readonly"> key=value target=Force.value target_type=float64
+        /// @resolution.member source=this.value receiver=&multiply.'a readonly Force type=float64 kind=field target_receiver=&multiply.'a readonly Force key=value target=Force.value target_type=float64
         /// @resolution.operator source="this.value * other" type=float64 operator="*" kind=builtin operands=[this.value as float64 families=(float), other as float64 families=(float)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Borrowed<Force, multiply.'a & multiply.P1, "readonly">
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&multiply.'a readonly Force
         /// @resolution.place source=this placement=multiply.P1 lifetime=multiply.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=multiply.P1 lifetime=multiply.'a access="readonly"

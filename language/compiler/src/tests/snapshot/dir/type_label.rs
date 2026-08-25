@@ -329,6 +329,33 @@ impl DirSnapshotBuilder<'_> {
         }
     }
 
+    /// Return whether one region's space term is an induced place parameter.
+    fn is_induced_space_term(&self, types: &dir::TypeTable<'_>, region: dir::GlobalTypeId) -> bool {
+        // read the space coordinate of a local region pair
+        if region.module_id != types.module_id {
+            return false;
+        }
+        let dir::Type::Region(pair) = types.get_type(region.local_id) else {
+            return false;
+        };
+        if pair.space.module_id != types.module_id {
+            return false;
+        }
+        let dir::Type::Parameter(parameter) = types.get_type(pair.space.local_id) else {
+            return false;
+        };
+
+        // look the parameter's binding up in its module's generic table
+        let generics = match parameter.module_id == self.tree.module_id {
+            true => self.generics.as_ref(),
+            false => self.foreign_generics.get(&parameter.module_id),
+        };
+
+        generics
+            .and_then(|generics| generics.get_parameter_maybe(parameter.local_id))
+            .is_some_and(|binding| binding.induced_memory_parameter().is_some())
+    }
+
     /// Return one form type label.
     fn form_type_label(&self, types: &dir::TypeTable<'_>, form: &dir::FormType) -> String {
         // render the payload once, all forms wrap the same value
@@ -350,10 +377,15 @@ impl DirSnapshotBuilder<'_> {
                 let _row = *borrow;
                 let borrow = types.borrow_form(*borrow);
                 let region = self.type_id_label(types, borrow.region);
-                let (lifetime, place) = match region.split_once(" & ") {
+                let (lifetime, mut place) = match region.split_once(" & ") {
                     Some((extent, spaces)) => (extent.to_string(), spaces.to_string()),
                     None => (region.clone(), String::new()),
                 };
+
+                // induced spaces elide back into the reference sugar
+                if self.is_induced_space_term(types, borrow.region) {
+                    place = String::new();
+                }
                 let access = self.type_id_label(types, borrow.access);
 
                 // spell settled borrows through the tick form

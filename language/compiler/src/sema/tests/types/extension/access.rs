@@ -53,25 +53,25 @@ struct Grid {
 export extension<const A: Access = "readonly"> of Grid {
 /// @generic.template symbol=<module>#2 parameters=(const A: Access = "readonly")
 /// @definition.extension symbol=<module>#2 form=exported target=Grid
-/// @definition.method symbol=peek slot=peek type=<peek.'a, peek.P1: Place>(this: WithAccess<Borrowed<Grid, peek.'a & peek.P1, "mutable">, A>) => int32
-/// @definition.method symbol=view slot=view type=<view.'a, view.P1: Place>(this: WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, A>) => int32
+/// @definition.method symbol=peek slot=peek type=<peek.'a, peek.P1: Place>(this: WithAccess<&peek.'a Grid, A>) => int32
+/// @definition.method symbol=view slot=view type=<view.'a, view.P1: Place>(this: WithAccess<&view.'a Grid, A>) => int32
 /// @type.symbol symbol=A source="const A: Access = \"readonly\"" type=A
 /// @resolution.name source=Access target=Access
 /// @resolution.name source=Grid target=Grid
 
     view(this: WithAccess<&Grid, A>): int32 {
     /// @generic.template symbol=view parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=view type=<view.'a, view.P1: Place>(this: WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, A>) => int32
-    /// @type.symbol symbol=view.this source="this: WithAccess<&Grid, A>" type=WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, A>
+    /// @type.symbol symbol=view type=<view.'a, view.P1: Place>(this: WithAccess<&view.'a Grid, A>) => int32
+    /// @type.symbol symbol=view.this source="this: WithAccess<&Grid, A>" type=WithAccess<&view.'a Grid, A>
     /// @resolution.name source=WithAccess target=WithAccess
     /// @resolution.name source=Grid target=Grid
     /// @resolution.name source=A target=A
 
         this.size
-        /// @type.node source=this type=WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, A>
+        /// @type.node source=this type=WithAccess<&view.'a Grid, A>
         /// @type.node source=this.size type=int32
-        /// @resolution.member source=this.size receiver=WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, A> type=int32 kind=field target_receiver=WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, A> key=size target=Grid.size target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, A>
+        /// @resolution.member source=this.size receiver=WithAccess<&view.'a Grid, A> type=int32 kind=field target_receiver=WithAccess<&view.'a Grid, A> key=size target=Grid.size target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=WithAccess<&view.'a Grid, A>
         /// @resolution.place source=this placement=view.P1 lifetime=view.'a access=A
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.size placement=view.P1 lifetime=view.'a access=A
@@ -81,19 +81,19 @@ export extension<const A: Access = "readonly"> of Grid {
 
     peek(this: WithAccess<&Grid, A>): int32 {
     /// @generic.template symbol=peek parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=peek type=<peek.'a, peek.P1: Place>(this: WithAccess<Borrowed<Grid, peek.'a & peek.P1, "mutable">, A>) => int32
-    /// @type.symbol symbol=peek.this source="this: WithAccess<&Grid, A>" type=WithAccess<Borrowed<Grid, peek.'a & peek.P1, "mutable">, A>
+    /// @type.symbol symbol=peek type=<peek.'a, peek.P1: Place>(this: WithAccess<&peek.'a Grid, A>) => int32
+    /// @type.symbol symbol=peek.this source="this: WithAccess<&Grid, A>" type=WithAccess<&peek.'a Grid, A>
     /// @resolution.name source=WithAccess target=WithAccess
     /// @resolution.name source=Grid target=Grid
     /// @resolution.name source=A target=A
 
         this.view()
-        /// @type.node source=this type=WithAccess<Borrowed<Grid, peek.'a & peek.P1, "mutable">, A>
-        /// @type.node source=this.view type=<view.'a, view.P1: Place>(this: WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, A>) => int32
+        /// @type.node source=this type=WithAccess<&peek.'a Grid, A>
+        /// @type.node source=this.view type=<view.'a, view.P1: Place>(this: WithAccess<&view.'a Grid, A>) => int32
         /// @type.node source=this.view() type=int32
-        /// @resolution.member source=this.view receiver=WithAccess<Borrowed<Grid, peek.'a & peek.P1, "mutable">, A> type=<view.'a, view.P1: Place>(this: WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, A>) => int32 kind=symbol target_receiver=WithAccess<Borrowed<Grid, peek.'a & peek.P1, "mutable">, A> target=view
-        /// @resolution.call source=this.view() parameters=() return=int32 kind=symbol target=view receiver=WithAccess<Borrowed<Grid, peek.'a & peek.P1, "mutable">, A> instance=Grid.<extension#1>.view<peek.P1>
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=WithAccess<Borrowed<Grid, peek.'a & peek.P1, "mutable">, A>
+        /// @resolution.member source=this.view receiver=WithAccess<&peek.'a Grid, A> type=<view.'a, view.P1: Place>(this: WithAccess<&view.'a Grid, A>) => int32 kind=symbol target_receiver=WithAccess<&peek.'a Grid, A> target=view
+        /// @resolution.call source=this.view() parameters=() return=int32 kind=symbol target=view receiver=WithAccess<&peek.'a Grid, A> instance=Grid.<extension#1>.view<peek.P1>
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=WithAccess<&peek.'a Grid, A>
         /// @resolution.place source=this placement=peek.P1 lifetime=peek.'a access=A
         /// @resolution.access source=this root=this
         /// @generic.instantiation id="view<A, peek.P1>" template=view arguments=(A, peek.P1) owner=peek
@@ -144,11 +144,11 @@ export extension<const A: Access = "readonly"> of Grid {
     }
 }
 
-function read<'a, P1: Place>(grid: Borrowed<Grid, 'a & P1, "readonly">): int32 {
+function read<'a, P1: Place>(grid: &'a readonly Grid): int32 {
     grid.view<"readonly", P1>()
 }
 
-function write<'a, P1: Place>(grid: Borrowed<Grid, 'a & P1, "exclusive">): int32 {
+function write<'a, P1: Place>(grid: &'a exclusive Grid): int32 {
     grid.view<"exclusive", P1>()
 }
 
@@ -166,24 +166,24 @@ struct Grid {
 export extension<const A: Access = "readonly"> of Grid {
 /// @generic.template symbol=<module>#2 parameters=(const A: Access = "readonly")
 /// @definition.extension symbol=<module>#2 form=exported target=Grid
-/// @definition.method symbol=view slot=view type=<view.'a, view.P1: Place>(this: WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, A>) => int32
+/// @definition.method symbol=view slot=view type=<view.'a, view.P1: Place>(this: WithAccess<&view.'a Grid, A>) => int32
 /// @type.symbol symbol=A source="const A: Access = \"readonly\"" type=A
 /// @resolution.name source=Access target=Access
 /// @resolution.name source=Grid target=Grid
 
     view(this: WithAccess<&Grid, A>): int32 {
     /// @generic.template symbol=view parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=view type=<view.'a, view.P1: Place>(this: WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, A>) => int32
-    /// @type.symbol symbol=view.this source="this: WithAccess<&Grid, A>" type=WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, A>
+    /// @type.symbol symbol=view type=<view.'a, view.P1: Place>(this: WithAccess<&view.'a Grid, A>) => int32
+    /// @type.symbol symbol=view.this source="this: WithAccess<&Grid, A>" type=WithAccess<&view.'a Grid, A>
     /// @resolution.name source=WithAccess target=WithAccess
     /// @resolution.name source=Grid target=Grid
     /// @resolution.name source=A target=A
 
         this.size
-        /// @type.node source=this type=WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, A>
+        /// @type.node source=this type=WithAccess<&view.'a Grid, A>
         /// @type.node source=this.size type=int32
-        /// @resolution.member source=this.size receiver=WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, A> type=int32 kind=field target_receiver=WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, A> key=size target=Grid.size target_type=int32
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, A>
+        /// @resolution.member source=this.size receiver=WithAccess<&view.'a Grid, A> type=int32 kind=field target_receiver=WithAccess<&view.'a Grid, A> key=size target=Grid.size target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=WithAccess<&view.'a Grid, A>
         /// @resolution.place source=this placement=view.P1 lifetime=view.'a access=A
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.size placement=view.P1 lifetime=view.'a access=A
@@ -194,17 +194,17 @@ export extension<const A: Access = "readonly"> of Grid {
 
 function read(grid: &readonly Grid): int32 {
 /// @generic.template symbol=read parameters=('a, P1: Place)
-/// @type.symbol symbol=read type=<read.'a, read.P1: Place>(Borrowed<Grid, read.'a & read.P1, "readonly">) => int32
-/// @type.symbol symbol=read.grid source="grid: &readonly Grid" type=Borrowed<Grid, read.'a & read.P1, "readonly">
+/// @type.symbol symbol=read type=<read.'a, read.P1: Place>(&read.'a readonly Grid) => int32
+/// @type.symbol symbol=read.grid source="grid: &readonly Grid" type=&read.'a readonly Grid
 /// @resolution.name source=Grid target=Grid
 
     grid.view()
-    /// @type.node source=grid type=Borrowed<Grid, read.'a & read.P1, "readonly">
-    /// @type.node source=grid.view type=<view.'a, view.P1: Place>(this: WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, "readonly">) => int32
+    /// @type.node source=grid type=&read.'a readonly Grid
+    /// @type.node source=grid.view type=<view.'a, view.P1: Place>(this: WithAccess<&view.'a Grid, "readonly">) => int32
     /// @type.node source=grid.view() type=int32
     /// @resolution.name source=grid target=read.grid
-    /// @resolution.member source=grid.view receiver=Borrowed<Grid, read.'a & read.P1, "readonly"> type=<view.'a, view.P1: Place>(this: WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, "readonly">) => int32 kind=symbol target_receiver=Borrowed<Grid, read.'a & read.P1, "readonly"> target=view
-    /// @resolution.call source=grid.view() parameters=() return=int32 kind=symbol target=view receiver=Borrowed<Grid, read.'a & read.P1, "readonly"> instance=Grid.<extension#1>.view<read.P1>
+    /// @resolution.member source=grid.view receiver=&read.'a readonly Grid type=<view.'a, view.P1: Place>(this: WithAccess<&view.'a Grid, "readonly">) => int32 kind=symbol target_receiver=&read.'a readonly Grid target=view
+    /// @resolution.call source=grid.view() parameters=() return=int32 kind=symbol target=view receiver=&read.'a readonly Grid instance=Grid.<extension#1>.view<read.P1>
     /// @resolution.place source=grid placement=read.P1 lifetime=read.'a access="readonly"
     /// @resolution.access source=grid root=read.grid
     /// @generic.instantiation id="view<\"readonly\", read.P1>" template=view arguments=("readonly", read.P1)
@@ -216,17 +216,17 @@ function read(grid: &readonly Grid): int32 {
 
 function write(grid: &exclusive Grid): int32 {
 /// @generic.template symbol=write parameters=('a, P1: Place)
-/// @type.symbol symbol=write type=<write.'a, write.P1: Place>(Borrowed<Grid, write.'a & write.P1, "exclusive">) => int32
-/// @type.symbol symbol=write.grid source="grid: &exclusive Grid" type=Borrowed<Grid, write.'a & write.P1, "exclusive">
+/// @type.symbol symbol=write type=<write.'a, write.P1: Place>(&write.'a exclusive Grid) => int32
+/// @type.symbol symbol=write.grid source="grid: &exclusive Grid" type=&write.'a exclusive Grid
 /// @resolution.name source=Grid target=Grid
 
     grid.view()
-    /// @type.node source=grid type=Borrowed<Grid, write.'a & write.P1, "exclusive">
-    /// @type.node source=grid.view type=<view.'a, view.P1: Place>(this: WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, "exclusive">) => int32
+    /// @type.node source=grid type=&write.'a exclusive Grid
+    /// @type.node source=grid.view type=<view.'a, view.P1: Place>(this: WithAccess<&view.'a Grid, "exclusive">) => int32
     /// @type.node source=grid.view() type=int32
     /// @resolution.name source=grid target=write.grid
-    /// @resolution.member source=grid.view receiver=Borrowed<Grid, write.'a & write.P1, "exclusive"> type=<view.'a, view.P1: Place>(this: WithAccess<Borrowed<Grid, view.'a & view.P1, "mutable">, "exclusive">) => int32 kind=symbol target_receiver=Borrowed<Grid, write.'a & write.P1, "exclusive"> target=view
-    /// @resolution.call source=grid.view() parameters=() return=int32 kind=symbol target=view receiver=Borrowed<Grid, write.'a & write.P1, "exclusive"> instance=Grid.<extension#1>.view<read.P1>
+    /// @resolution.member source=grid.view receiver=&write.'a exclusive Grid type=<view.'a, view.P1: Place>(this: WithAccess<&view.'a Grid, "exclusive">) => int32 kind=symbol target_receiver=&write.'a exclusive Grid target=view
+    /// @resolution.call source=grid.view() parameters=() return=int32 kind=symbol target=view receiver=&write.'a exclusive Grid instance=Grid.<extension#1>.view<read.P1>
     /// @resolution.place source=grid placement=write.P1 lifetime=write.'a access="exclusive"
     /// @resolution.access source=grid root=write.grid
     /// @generic.instantiation id="view<\"exclusive\", read.P1>" template=view arguments=("exclusive", read.P1)
@@ -274,8 +274,8 @@ export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly
 export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly"> of [T; N] {
 /// @generic.template symbol=FixedArrayAccess parameters=(T, const N: usize, const A: Access = "readonly")
 /// @definition.extension symbol=FixedArrayAccess form=exported target=FixedArray<T, N>
-/// @definition.method symbol=FixedArrayAccess.inspect slot=inspect type=<FixedArrayAccess.inspect.'a, FixedArrayAccess.inspect.P1: Place>(this: WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.inspect.'a & FixedArrayAccess.inspect.P1, "mutable">, A>) => int32
-/// @definition.method symbol=FixedArrayAccess.probe slot=probe type=<FixedArrayAccess.probe.'a, FixedArrayAccess.probe.P1: Place>(this: WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.probe.'a & FixedArrayAccess.probe.P1, "mutable">, A>) => int32
+/// @definition.method symbol=FixedArrayAccess.inspect slot=inspect type=<FixedArrayAccess.inspect.'a, FixedArrayAccess.inspect.P1: Place>(this: WithAccess<&FixedArrayAccess.inspect.'a FixedArray<T, N>, A>) => int32
+/// @definition.method symbol=FixedArrayAccess.probe slot=probe type=<FixedArrayAccess.probe.'a, FixedArrayAccess.probe.P1: Place>(this: WithAccess<&FixedArrayAccess.probe.'a FixedArray<T, N>, A>) => int32
 /// @type.symbol symbol=FixedArrayAccess.T source=T type=T
 /// @type.symbol symbol=FixedArrayAccess.N source="const N: usize" type=N
 /// @type.symbol symbol=FixedArrayAccess.A source="const A: Access = \"readonly\"" type=A
@@ -285,8 +285,8 @@ export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly
 
     inspect(this: WithAccess<&[T; N], A>): int32 {
     /// @generic.template symbol=FixedArrayAccess.inspect parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=FixedArrayAccess.inspect type=<FixedArrayAccess.inspect.'a, FixedArrayAccess.inspect.P1: Place>(this: WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.inspect.'a & FixedArrayAccess.inspect.P1, "mutable">, A>) => int32
-    /// @type.symbol symbol=FixedArrayAccess.inspect.this source="this: WithAccess<&[T; N], A>" type=WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.inspect.'a & FixedArrayAccess.inspect.P1, "mutable">, A>
+    /// @type.symbol symbol=FixedArrayAccess.inspect type=<FixedArrayAccess.inspect.'a, FixedArrayAccess.inspect.P1: Place>(this: WithAccess<&FixedArrayAccess.inspect.'a FixedArray<T, N>, A>) => int32
+    /// @type.symbol symbol=FixedArrayAccess.inspect.this source="this: WithAccess<&[T; N], A>" type=WithAccess<&FixedArrayAccess.inspect.'a FixedArray<T, N>, A>
     /// @resolution.name source=WithAccess target=WithAccess
     /// @resolution.name source=T target=FixedArrayAccess.T
     /// @resolution.name source=N target=FixedArrayAccess.N
@@ -299,20 +299,20 @@ export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly
 
     probe(this: WithAccess<&[T; N], A>): int32 {
     /// @generic.template symbol=FixedArrayAccess.probe parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=FixedArrayAccess.probe type=<FixedArrayAccess.probe.'a, FixedArrayAccess.probe.P1: Place>(this: WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.probe.'a & FixedArrayAccess.probe.P1, "mutable">, A>) => int32
-    /// @type.symbol symbol=FixedArrayAccess.probe.this source="this: WithAccess<&[T; N], A>" type=WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.probe.'a & FixedArrayAccess.probe.P1, "mutable">, A>
+    /// @type.symbol symbol=FixedArrayAccess.probe type=<FixedArrayAccess.probe.'a, FixedArrayAccess.probe.P1: Place>(this: WithAccess<&FixedArrayAccess.probe.'a FixedArray<T, N>, A>) => int32
+    /// @type.symbol symbol=FixedArrayAccess.probe.this source="this: WithAccess<&[T; N], A>" type=WithAccess<&FixedArrayAccess.probe.'a FixedArray<T, N>, A>
     /// @resolution.name source=WithAccess target=WithAccess
     /// @resolution.name source=T target=FixedArrayAccess.T
     /// @resolution.name source=N target=FixedArrayAccess.N
     /// @resolution.name source=A target=FixedArrayAccess.A
 
         this.inspect()
-        /// @type.node source=this type=WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.probe.'a & FixedArrayAccess.probe.P1, "mutable">, A>
-        /// @type.node source=this.inspect type=<FixedArrayAccess.inspect.'a, FixedArrayAccess.inspect.P1: Place>(this: WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.inspect.'a & FixedArrayAccess.inspect.P1, "mutable">, A>) => int32
+        /// @type.node source=this type=WithAccess<&FixedArrayAccess.probe.'a FixedArray<T, N>, A>
+        /// @type.node source=this.inspect type=<FixedArrayAccess.inspect.'a, FixedArrayAccess.inspect.P1: Place>(this: WithAccess<&FixedArrayAccess.inspect.'a FixedArray<T, N>, A>) => int32
         /// @type.node source=this.inspect() type=int32
-        /// @resolution.member source=this.inspect receiver=WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.probe.'a & FixedArrayAccess.probe.P1, "mutable">, A> type=<FixedArrayAccess.inspect.'a, FixedArrayAccess.inspect.P1: Place>(this: WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.inspect.'a & FixedArrayAccess.inspect.P1, "mutable">, A>) => int32 kind=symbol target_receiver=WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.probe.'a & FixedArrayAccess.probe.P1, "mutable">, A> target=FixedArrayAccess.inspect
-        /// @resolution.call source=this.inspect() parameters=() return=int32 kind=symbol target=FixedArrayAccess.inspect receiver=WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.probe.'a & FixedArrayAccess.probe.P1, "mutable">, A> instance="FixedArrayAccess<T, N, A>.inspect<FixedArrayAccess.probe.P1>"
-        /// @resolution.receiver source=this kind=this declaration=FixedArrayAccess type=WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.probe.'a & FixedArrayAccess.probe.P1, "mutable">, A>
+        /// @resolution.member source=this.inspect receiver=WithAccess<&FixedArrayAccess.probe.'a FixedArray<T, N>, A> type=<FixedArrayAccess.inspect.'a, FixedArrayAccess.inspect.P1: Place>(this: WithAccess<&FixedArrayAccess.inspect.'a FixedArray<T, N>, A>) => int32 kind=symbol target_receiver=WithAccess<&FixedArrayAccess.probe.'a FixedArray<T, N>, A> target=FixedArrayAccess.inspect
+        /// @resolution.call source=this.inspect() parameters=() return=int32 kind=symbol target=FixedArrayAccess.inspect receiver=WithAccess<&FixedArrayAccess.probe.'a FixedArray<T, N>, A> instance="FixedArrayAccess<T, N, A>.inspect<FixedArrayAccess.probe.P1>"
+        /// @resolution.receiver source=this kind=this declaration=FixedArrayAccess type=WithAccess<&FixedArrayAccess.probe.'a FixedArray<T, N>, A>
         /// @resolution.place source=this placement=FixedArrayAccess.probe.P1 lifetime=FixedArrayAccess.probe.'a access=A
         /// @resolution.access source=this root=this
         /// @generic.instantiation id="FixedArrayAccess.inspect<T, N, A, FixedArrayAccess.probe.P1>" template=FixedArrayAccess.inspect arguments=(T, N, A, FixedArrayAccess.probe.P1) owner=FixedArrayAccess.probe
@@ -359,8 +359,8 @@ export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
 export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
 /// @generic.template symbol=ArrayAccess parameters=(T, const A: Access = "readonly")
 /// @definition.extension symbol=ArrayAccess form=exported target=T[]
-/// @definition.method symbol=ArrayAccess.inspect slot=inspect type=<ArrayAccess.inspect.'a, ArrayAccess.inspect.P1: Place>(this: WithAccess<Borrowed<T[], ArrayAccess.inspect.'a & ArrayAccess.inspect.P1, "mutable">, A>) => int32
-/// @definition.method symbol=ArrayAccess.probe slot=probe type=<ArrayAccess.probe.'a, ArrayAccess.probe.P1: Place>(this: WithAccess<Borrowed<T[], ArrayAccess.probe.'a & ArrayAccess.probe.P1, "mutable">, A>) => int32
+/// @definition.method symbol=ArrayAccess.inspect slot=inspect type=<ArrayAccess.inspect.'a, ArrayAccess.inspect.P1: Place>(this: WithAccess<&ArrayAccess.inspect.'a T[], A>) => int32
+/// @definition.method symbol=ArrayAccess.probe slot=probe type=<ArrayAccess.probe.'a, ArrayAccess.probe.P1: Place>(this: WithAccess<&ArrayAccess.probe.'a T[], A>) => int32
 /// @type.symbol symbol=ArrayAccess.T source=T type=T
 /// @type.symbol symbol=ArrayAccess.A source="const A: Access = \"readonly\"" type=A
 /// @resolution.name source=Access target=Access
@@ -369,8 +369,8 @@ export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
 
     inspect(this: WithAccess<&Array<T>, A>): int32 {
     /// @generic.template symbol=ArrayAccess.inspect parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=ArrayAccess.inspect type=<ArrayAccess.inspect.'a, ArrayAccess.inspect.P1: Place>(this: WithAccess<Borrowed<T[], ArrayAccess.inspect.'a & ArrayAccess.inspect.P1, "mutable">, A>) => int32
-    /// @type.symbol symbol=ArrayAccess.inspect.this source="this: WithAccess<&Array<T>, A>" type=WithAccess<Borrowed<T[], ArrayAccess.inspect.'a & ArrayAccess.inspect.P1, "mutable">, A>
+    /// @type.symbol symbol=ArrayAccess.inspect type=<ArrayAccess.inspect.'a, ArrayAccess.inspect.P1: Place>(this: WithAccess<&ArrayAccess.inspect.'a T[], A>) => int32
+    /// @type.symbol symbol=ArrayAccess.inspect.this source="this: WithAccess<&Array<T>, A>" type=WithAccess<&ArrayAccess.inspect.'a T[], A>
     /// @resolution.name source=WithAccess target=WithAccess
     /// @resolution.name source=Array target=Array
     /// @resolution.name source=T target=ArrayAccess.T
@@ -383,20 +383,20 @@ export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
 
     probe(this: WithAccess<&Array<T>, A>): int32 {
     /// @generic.template symbol=ArrayAccess.probe parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=ArrayAccess.probe type=<ArrayAccess.probe.'a, ArrayAccess.probe.P1: Place>(this: WithAccess<Borrowed<T[], ArrayAccess.probe.'a & ArrayAccess.probe.P1, "mutable">, A>) => int32
-    /// @type.symbol symbol=ArrayAccess.probe.this source="this: WithAccess<&Array<T>, A>" type=WithAccess<Borrowed<T[], ArrayAccess.probe.'a & ArrayAccess.probe.P1, "mutable">, A>
+    /// @type.symbol symbol=ArrayAccess.probe type=<ArrayAccess.probe.'a, ArrayAccess.probe.P1: Place>(this: WithAccess<&ArrayAccess.probe.'a T[], A>) => int32
+    /// @type.symbol symbol=ArrayAccess.probe.this source="this: WithAccess<&Array<T>, A>" type=WithAccess<&ArrayAccess.probe.'a T[], A>
     /// @resolution.name source=WithAccess target=WithAccess
     /// @resolution.name source=Array target=Array
     /// @resolution.name source=T target=ArrayAccess.T
     /// @resolution.name source=A target=ArrayAccess.A
 
         this.inspect()
-        /// @type.node source=this type=WithAccess<Borrowed<T[], ArrayAccess.probe.'a & ArrayAccess.probe.P1, "mutable">, A>
-        /// @type.node source=this.inspect type=<ArrayAccess.inspect.'a, ArrayAccess.inspect.P1: Place>(this: WithAccess<Borrowed<T[], ArrayAccess.inspect.'a & ArrayAccess.inspect.P1, "mutable">, A>) => int32
+        /// @type.node source=this type=WithAccess<&ArrayAccess.probe.'a T[], A>
+        /// @type.node source=this.inspect type=<ArrayAccess.inspect.'a, ArrayAccess.inspect.P1: Place>(this: WithAccess<&ArrayAccess.inspect.'a T[], A>) => int32
         /// @type.node source=this.inspect() type=int32
-        /// @resolution.member source=this.inspect receiver=WithAccess<Borrowed<T[], ArrayAccess.probe.'a & ArrayAccess.probe.P1, "mutable">, A> type=<ArrayAccess.inspect.'a, ArrayAccess.inspect.P1: Place>(this: WithAccess<Borrowed<T[], ArrayAccess.inspect.'a & ArrayAccess.inspect.P1, "mutable">, A>) => int32 kind=symbol target_receiver=WithAccess<Borrowed<T[], ArrayAccess.probe.'a & ArrayAccess.probe.P1, "mutable">, A> target=ArrayAccess.inspect
-        /// @resolution.call source=this.inspect() parameters=() return=int32 kind=symbol target=ArrayAccess.inspect receiver=WithAccess<Borrowed<T[], ArrayAccess.probe.'a & ArrayAccess.probe.P1, "mutable">, A> instance="ArrayAccess<T, A>.inspect<ArrayAccess.probe.P1>"
-        /// @resolution.receiver source=this kind=this declaration=ArrayAccess type=WithAccess<Borrowed<T[], ArrayAccess.probe.'a & ArrayAccess.probe.P1, "mutable">, A>
+        /// @resolution.member source=this.inspect receiver=WithAccess<&ArrayAccess.probe.'a T[], A> type=<ArrayAccess.inspect.'a, ArrayAccess.inspect.P1: Place>(this: WithAccess<&ArrayAccess.inspect.'a T[], A>) => int32 kind=symbol target_receiver=WithAccess<&ArrayAccess.probe.'a T[], A> target=ArrayAccess.inspect
+        /// @resolution.call source=this.inspect() parameters=() return=int32 kind=symbol target=ArrayAccess.inspect receiver=WithAccess<&ArrayAccess.probe.'a T[], A> instance="ArrayAccess<T, A>.inspect<ArrayAccess.probe.P1>"
+        /// @resolution.receiver source=this kind=this declaration=ArrayAccess type=WithAccess<&ArrayAccess.probe.'a T[], A>
         /// @resolution.place source=this placement=ArrayAccess.probe.P1 lifetime=ArrayAccess.probe.'a access=A
         /// @resolution.access source=this root=this
         /// @generic.instantiation id="ArrayAccess.inspect<T, A, ArrayAccess.probe.P1>" template=ArrayAccess.inspect arguments=(T, A, ArrayAccess.probe.P1) owner=ArrayAccess.probe
@@ -456,7 +456,7 @@ struct Box<Value> {
 extension<Value, const A: Access = "readonly"> of Box<Value> {
 /// @generic.template symbol=<module>#2 parameters=(Value#2, const A: Access = "readonly")
 /// @definition.extension symbol=<module>#2 form=local target=Box<Value#2>
-/// @definition.method symbol=read slot=read type=<read.'a, read.P1: Place>(this: WithAccess<Borrowed<Box<Value#2>, read.'a & read.P1, "mutable">, A>) => Value#2
+/// @definition.method symbol=read slot=read type=<read.'a, read.P1: Place>(this: WithAccess<&read.'a Box<Value#2>, A>) => Value#2
 /// @type.symbol symbol=Value source=Value type=Value#2
 /// @type.symbol symbol=A source="const A: Access = \"readonly\"" type=A
 /// @resolution.name source=Access target=Access
@@ -465,8 +465,8 @@ extension<Value, const A: Access = "readonly"> of Box<Value> {
 
     read(this: WithAccess<&Box<Value>, A>): Value {
     /// @generic.template symbol=read parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=read type=<read.'a, read.P1: Place>(this: WithAccess<Borrowed<Box<Value#2>, read.'a & read.P1, "mutable">, A>) => Value#2
-    /// @type.symbol symbol=read.this source="this: WithAccess<&Box<Value>, A>" type=WithAccess<Borrowed<Box<Value#2>, read.'a & read.P1, "mutable">, A>
+    /// @type.symbol symbol=read type=<read.'a, read.P1: Place>(this: WithAccess<&read.'a Box<Value#2>, A>) => Value#2
+    /// @type.symbol symbol=read.this source="this: WithAccess<&Box<Value>, A>" type=WithAccess<&read.'a Box<Value#2>, A>
     /// @resolution.name source=WithAccess target=WithAccess
     /// @resolution.name source=Box target=Box
     /// @resolution.name source=Value target=Value
@@ -474,7 +474,7 @@ extension<Value, const A: Access = "readonly"> of Box<Value> {
     /// @resolution.name source=Value target=Value
 
         return this.val;
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=WithAccess<Borrowed<Box<Value#2>, read.'a & read.P1, "mutable">, A>
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=WithAccess<&read.'a Box<Value#2>, A>
         /// @resolution.place source=this placement=read.P1 lifetime=read.'a access=A
         /// @resolution.access source=this root=this
         /// @resolution.rejected source=this.val
@@ -634,7 +634,7 @@ extension<T, U, R, I: It<T, R>> of Wrap<I, T, U> implements It<U> {
 /// @generic.template symbol=<module>#2 parameters=(T#3, U#3, R#2, I#2: It<T#3, R#2>)
 /// @definition.extension symbol=<module>#2 form=local target=Wrap<I#2, T#3, U#3>
 /// @definition.implements symbol=<module>#2 source=It<U> target="It<U#3, void>"
-/// @definition.method symbol=next slot=next type=<next.'a, next.P1: Place>(this: Borrowed<this, next.'a & next.P1, "readonly">) => void
+/// @definition.method symbol=next slot=next type=<next.'a, next.P1: Place>(this: &next.'a readonly this) => void
 /// @definition.conformance symbol=<module>#2 member=It.find requirement=It.find
 /// @definition.conformance symbol=<module>#2 member=It.map requirement=It.map
 /// @definition.conformance symbol=<module>#2 member=next requirement=It.next
@@ -654,7 +654,7 @@ extension<T, U, R, I: It<T, R>> of Wrap<I, T, U> implements It<U> {
 
     next(): void {
     /// @generic.template symbol=next parent=template#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=next type=<next.'a, next.P1: Place>(this: Borrowed<this, next.'a & next.P1, "readonly">) => void
+    /// @type.symbol symbol=next type=<next.'a, next.P1: Place>(this: &next.'a readonly this) => void
 
         todo("next")
         /// @type.node source="todo(\"next\")" type=never

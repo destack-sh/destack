@@ -26,7 +26,7 @@ let values = [1, 2];
 /// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
 /// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
 /// @type.node source=[1, 2] type=int64[]
-/// @resolution.call source=[1, 2] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+/// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
 /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 /// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
 /// @type.node source=1 type=1
@@ -77,7 +77,7 @@ const values: (1 | 2)[] = [1, 2];
 /// @generic.instance id="MaybeUninit<1 | 2>" template=MaybeUninit arguments=(1 | 2)
 /// @generic.instance id="new<MaybeUninit<1 | 2>>" template=new arguments=(MaybeUninit<1 | 2>)
 /// @type.node source=[1, 2] type=1 | 2[]
-/// @resolution.call source=[1, 2] parameters=(Borrowed<Slice<arrayFromSlice.T>, arrayFromSlice.'a & arrayFromSlice.P2, "readonly">) arguments=(rest(1, 2) as 1 | 2) return=1 | 2[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<1 | 2>"
+/// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as 1 | 2) return=1 | 2[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<1 | 2>"
 /// @generic.instantiation id="arrayFromSlice<1 | 2>" template=arrayFromSlice arguments=(1 | 2)
 /// @generic.instance id="arrayFromSlice<1 | 2, \"local\">" template=arrayFromSlice arguments=(1 | 2, "local")
 /// @type.node source=1 type=1

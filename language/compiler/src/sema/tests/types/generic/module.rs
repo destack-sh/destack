@@ -884,7 +884,7 @@ export struct Attempt {
     module: string;
 }
 
-export type Predicate = (attempt: Borrowed<Attempt, 'a & P1, "readonly">) => boolean;
+export type Predicate = (attempt: &'a readonly Attempt) => boolean;
 
 export struct Trigger {
     predicate?: Predicate;
@@ -902,10 +902,10 @@ export struct Attempt {
 }
 
 export type Predicate = (attempt: &readonly Attempt) => boolean;
-/// @type.symbol symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" type=Function<(Borrowed<Attempt, type_expression.'a & type_expression.P1, "readonly">,), boolean>
-/// @definition.type symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" value=Function<(Borrowed<Attempt, type_expression.'a & type_expression.P1, "readonly">,), boolean>
+/// @type.symbol symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" type=Function<(&type_expression.'a readonly Attempt,), boolean>
+/// @definition.type symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" value=Function<(&type_expression.'a readonly Attempt,), boolean>
 /// @generic.template source=type_expression parameters=('a, P1: Place)
-/// @type.symbol symbol=Predicate.attempt source="attempt: &readonly Attempt" type=Borrowed<Attempt, type_expression.'a & type_expression.P1, "readonly">
+/// @type.symbol symbol=Predicate.attempt source="attempt: &readonly Attempt" type=&type_expression.'a readonly Attempt
 /// @resolution.name source=Attempt target=Attempt
 
 export struct Trigger {

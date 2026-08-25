@@ -90,33 +90,33 @@ struct User {}
 
 extension of User {
 /// @definition.extension symbol=<module>#2 form=local target=User
-/// @definition.method symbol=display#1 slot=display type=<display#1.'a, display#1.P1: Place>(this: Borrowed<this, display#1.'a & display#1.P1, "readonly">) => string
-/// @definition.method symbol=display#2 slot=display type=<display#2.'a, display#2.P1: Place>(this: Borrowed<this, display#2.'a & display#2.P1, "readonly">) => string
-/// @definition.method symbol=greet#1 slot=greet type=<greet#1.'a, greet#1.P1: Place>(this: Borrowed<this, greet#1.'a & greet#1.P1, "readonly">, string) => string
-/// @definition.method symbol=greet#2 slot=greet type=<greet#2.'a, greet#2.P1: Place>(this: Borrowed<this, greet#2.'a & greet#2.P1, "readonly">, "admin") => string
-/// @definition.method symbol=label#1 slot=label type=<label#1.'a, label#1.P1: Place>(this: Borrowed<this, label#1.'a & label#1.P1, "readonly">, int32) => string
-/// @definition.method symbol=label#2 slot=label type=<label#2.'a, label#2.P1: Place>(this: Borrowed<this, label#2.'a & label#2.P1, "readonly">, string) => string
-/// @definition.method symbol=pair#1 slot=pair type=<pair#1.'a, pair#1.P1: Place>(this: Borrowed<this, pair#1.'a & pair#1.P1, "readonly">, int32) => string
-/// @definition.method symbol=pair#2 slot=pair type=<pair#2.'a, pair#2.P1: Place>(this: Borrowed<this, pair#2.'a & pair#2.P1, "readonly">, int32, string) => string
+/// @definition.method symbol=display#1 slot=display type=<display#1.'a, display#1.P1: Place>(this: &display#1.'a readonly this) => string
+/// @definition.method symbol=display#2 slot=display type=<display#2.'a, display#2.P1: Place>(this: &display#2.'a readonly this) => string
+/// @definition.method symbol=greet#1 slot=greet type=<greet#1.'a, greet#1.P1: Place>(this: &greet#1.'a readonly this, string) => string
+/// @definition.method symbol=greet#2 slot=greet type=<greet#2.'a, greet#2.P1: Place>(this: &greet#2.'a readonly this, "admin") => string
+/// @definition.method symbol=label#1 slot=label type=<label#1.'a, label#1.P1: Place>(this: &label#1.'a readonly this, int32) => string
+/// @definition.method symbol=label#2 slot=label type=<label#2.'a, label#2.P1: Place>(this: &label#2.'a readonly this, string) => string
+/// @definition.method symbol=pair#1 slot=pair type=<pair#1.'a, pair#1.P1: Place>(this: &pair#1.'a readonly this, int32) => string
+/// @definition.method symbol=pair#2 slot=pair type=<pair#2.'a, pair#2.P1: Place>(this: &pair#2.'a readonly this, int32, string) => string
 /// @resolution.name source=User target=User
 
     display(): string {
     /// @generic.template symbol=display#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=display#1 type=<display#1.'a, display#1.P1: Place>(this: Borrowed<this, display#1.'a & display#1.P1, "readonly">) => string
+    /// @type.symbol symbol=display#1 type=<display#1.'a, display#1.P1: Place>(this: &display#1.'a readonly this) => string
 
         return "first";
     }
 
     display(): string {
     /// @generic.template symbol=display#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=display#2 type=<display#2.'a, display#2.P1: Place>(this: Borrowed<this, display#2.'a & display#2.P1, "readonly">) => string
+    /// @type.symbol symbol=display#2 type=<display#2.'a, display#2.P1: Place>(this: &display#2.'a readonly this) => string
 
         return "second";
     }
 
     greet(name: string): string {
     /// @generic.template symbol=greet#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=greet#1 type=<greet#1.'a, greet#1.P1: Place>(this: Borrowed<this, greet#1.'a & greet#1.P1, "readonly">, string) => string
+    /// @type.symbol symbol=greet#1 type=<greet#1.'a, greet#1.P1: Place>(this: &greet#1.'a readonly this, string) => string
     /// @type.symbol symbol=greet.name#1 source="name: string" type=string
 
         return name;
@@ -128,7 +128,7 @@ extension of User {
 
     greet(name: "admin"): string {
     /// @generic.template symbol=greet#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=greet#2 type=<greet#2.'a, greet#2.P1: Place>(this: Borrowed<this, greet#2.'a & greet#2.P1, "readonly">, "admin") => string
+    /// @type.symbol symbol=greet#2 type=<greet#2.'a, greet#2.P1: Place>(this: &greet#2.'a readonly this, "admin") => string
     /// @type.symbol symbol=greet.name#2 source="name: \"admin\"" type="admin"
 
         return "root";
@@ -136,7 +136,7 @@ extension of User {
 
     label(value: int32): string {
     /// @generic.template symbol=label#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=label#1 type=<label#1.'a, label#1.P1: Place>(this: Borrowed<this, label#1.'a & label#1.P1, "readonly">, int32) => string
+    /// @type.symbol symbol=label#1 type=<label#1.'a, label#1.P1: Place>(this: &label#1.'a readonly this, int32) => string
     /// @type.symbol symbol=label.value#1 source="value: int32" type=int32
 
         return "number";
@@ -144,7 +144,7 @@ extension of User {
 
     label(value: string): string {
     /// @generic.template symbol=label#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=label#2 type=<label#2.'a, label#2.P1: Place>(this: Borrowed<this, label#2.'a & label#2.P1, "readonly">, string) => string
+    /// @type.symbol symbol=label#2 type=<label#2.'a, label#2.P1: Place>(this: &label#2.'a readonly this, string) => string
     /// @type.symbol symbol=label.value#2 source="value: string" type=string
 
         return value;
@@ -156,7 +156,7 @@ extension of User {
 
     pair(left: int32): string {
     /// @generic.template symbol=pair#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=pair#1 type=<pair#1.'a, pair#1.P1: Place>(this: Borrowed<this, pair#1.'a & pair#1.P1, "readonly">, int32) => string
+    /// @type.symbol symbol=pair#1 type=<pair#1.'a, pair#1.P1: Place>(this: &pair#1.'a readonly this, int32) => string
     /// @type.symbol symbol=pair.left#1 source="left: int32" type=int32
 
         return "one";
@@ -164,7 +164,7 @@ extension of User {
 
     pair(left: int32, right: string): string {
     /// @generic.template symbol=pair#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=pair#2 type=<pair#2.'a, pair#2.P1: Place>(this: Borrowed<this, pair#2.'a & pair#2.P1, "readonly">, int32, string) => string
+    /// @type.symbol symbol=pair#2 type=<pair#2.'a, pair#2.P1: Place>(this: &pair#2.'a readonly this, int32, string) => string
     /// @type.symbol symbol=pair.left#2 source="left: int32" type=int32
     /// @type.symbol symbol=pair.right source="right: string" type=string
 
@@ -221,7 +221,7 @@ struct Builder {}
 struct Path {}
 
 extension of Path {
-    static from(value: Borrowed<Slice, 'a & P1, "readonly">): Path {
+    static from(value: &'a readonly Slice): Path {
         return Path {};
     }
 
@@ -251,14 +251,14 @@ struct Path {}
 
 extension of Path {
 /// @definition.extension symbol=<module>#2 form=local target=Path
-/// @definition.method symbol=from#1 slot=from static=true type=<from#1.'a, from#1.P1: Place>(Borrowed<Slice, from#1.'a & from#1.P1, "readonly">) => Path
+/// @definition.method symbol=from#1 slot=from static=true type=<from#1.'a, from#1.P1: Place>(&from#1.'a readonly Slice) => Path
 /// @definition.method symbol=from#2 slot=from static=true type=(Builder) => Path
 /// @resolution.name source=Path target=Path
 
     static from(value: &readonly Slice): Path {
     /// @generic.template symbol=from#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=from#1 type=<from#1.'a, from#1.P1: Place>(Borrowed<Slice, from#1.'a & from#1.P1, "readonly">) => Path
-    /// @type.symbol symbol=from.value#1 source="value: &readonly Slice" type=Borrowed<Slice, from#1.'a & from#1.P1, "readonly">
+    /// @type.symbol symbol=from#1 type=<from#1.'a, from#1.P1: Place>(&from#1.'a readonly Slice) => Path
+    /// @type.symbol symbol=from.value#1 source="value: &readonly Slice" type=&from#1.'a readonly Slice
     /// @resolution.name source=Slice target=Slice
     /// @resolution.name source=Path target=Path
 
@@ -293,7 +293,7 @@ const fromBuilder = Path.from(builder);
 /// @type.symbol symbol=fromBuilder source=fromBuilder type=Path
 /// @resolution.pattern source=fromBuilder kind=binding target=fromBuilder
 /// @resolution.name source=Path target=Path
-/// @resolution.member source=Path.from receiver=Path type=<from#1.'a, from#1.P1: Place>(Borrowed<Slice, from#1.'a & from#1.P1, "readonly">) => Path & (Builder) => Path kind=overload-set targets=[from#1, from#2]
+/// @resolution.member source=Path.from receiver=Path type=<from#1.'a, from#1.P1: Place>(&from#1.'a readonly Slice) => Path & (Builder) => Path kind=overload-set targets=[from#1, from#2]
 /// @resolution.call source=Path.from(builder) parameters=(Builder) arguments=(provided(builder) as Builder) return=Path kind=symbol target=from#2
 /// @resolution.name source=builder target=builder
 /// @resolution.place source=builder placement="constant" lifetime="static" access="readonly"
@@ -303,7 +303,7 @@ const fromSlice = Path.from(slice);
 /// @type.symbol symbol=fromSlice source=fromSlice type=Path
 /// @resolution.pattern source=fromSlice kind=binding target=fromSlice
 /// @resolution.name source=Path target=Path
-/// @resolution.member source=Path.from receiver=Path type=<from#1.'a, from#1.P1: Place>(Borrowed<Slice, from#1.'a & from#1.P1, "readonly">) => Path & (Builder) => Path kind=overload-set targets=[from#1, from#2]
+/// @resolution.member source=Path.from receiver=Path type=<from#1.'a, from#1.P1: Place>(&from#1.'a readonly Slice) => Path & (Builder) => Path kind=overload-set targets=[from#1, from#2]
 /// @resolution.call source=Path.from(slice) parameters=(&'static readonly constant Slice) arguments=(provided(slice) as &'static readonly constant Slice) return=Path kind=symbol target=from#1 instance="Path.<extension#1>.from#1<\"constant\">"
 /// @generic.instantiation id="from#1<\"constant\">" template=from#1 arguments=("constant")
 /// @resolution.name source=slice target=slice
