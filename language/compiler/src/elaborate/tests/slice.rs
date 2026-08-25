@@ -18,18 +18,18 @@ entry(v0: slice<Box, unique, mutable>):
     program.assert_elaborated(
         r#"
 type Box {
-    value: ref<int32, unique, mutable>;
+    value: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: slice<Box, unique, mutable>): void {
-entry(v0: slice<Box, unique, mutable>):
+function test(v0: slice<Box, unique, mutable, local>): void {
+entry(v0: slice<Box, unique, mutable, local>):
     drop v0
     return
 }
 
-function drop.frame<slice<Box, unique, mutable>>(v0: ref<slice<Box, unique, mutable>, borrowed, exclusive, frame>): void {
-entry(v0: ref<slice<Box, unique, mutable>, borrowed, exclusive, frame>):
-    v1: slice<Box, unique, mutable> = load v0
+function drop.frame<slice<Box, unique, mutable, local>>(v0: ref<slice<Box, unique, mutable, local>, borrowed, exclusive, frame>): void {
+entry(v0: ref<slice<Box, unique, mutable, local>, borrowed, exclusive, frame>):
+    v1: slice<Box, unique, mutable, local> = load v0
     v2: usize = slice.length v1
     v3: usize = 0
     jump b1(v2)
@@ -41,9 +41,9 @@ b1(v4: usize):
 b2:
     v6: usize = 1
     v7: usize = sub v4, v6
-    v8: ref<Box, unique, mutable> = element.address v1, v7
-    v9: ref<Box, borrowed, exclusive> = cast.bit v8 -> ref<Box, borrowed, exclusive>
-    call drop.local<Box>(v9): (ref<Box, borrowed, exclusive>) => void
+    v8: ref<Box, unique, mutable, local> = element.address v1, v7
+    v9: ref<Box, borrowed, exclusive, local> = cast.bit v8 -> ref<Box, borrowed, exclusive, local>
+    call drop.local<Box>(v9): (ref<Box, borrowed, exclusive, local>) => void
     jump b1(v7)
 
 b3:
@@ -51,10 +51,10 @@ b3:
     return
 }
 
-function drop.local<Box>(v0: ref<Box, borrowed, exclusive>): void {
-entry(v0: ref<Box, borrowed, exclusive>):
-    v1: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
-    v2: ref<int32, unique, mutable> = load v1
+function drop.local<Box>(v0: ref<Box, borrowed, exclusive, local>): void {
+entry(v0: ref<Box, borrowed, exclusive, local>):
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, local> = field.address v0, 0
+    v2: ref<int32, unique, mutable, local> = load v1
     free v2
     return
 }
@@ -80,18 +80,18 @@ entry(v0: slice<slice<Box, unique, mutable>, unique, mutable>):
     program.assert_elaborated(
         r#"
 type Box {
-    value: ref<int32, unique, mutable>;
+    value: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: slice<slice<Box, unique, mutable>, unique, mutable>): void {
-entry(v0: slice<slice<Box, unique, mutable>, unique, mutable>):
+function test(v0: slice<slice<Box, unique, mutable, local>, unique, mutable, local>): void {
+entry(v0: slice<slice<Box, unique, mutable, local>, unique, mutable, local>):
     drop v0
     return
 }
 
-function drop.frame<slice<slice<Box, unique, mutable>, unique, mutable>>(v0: ref<slice<slice<Box, unique, mutable>, unique, mutable>, borrowed, exclusive, frame>): void {
-entry(v0: ref<slice<slice<Box, unique, mutable>, unique, mutable>, borrowed, exclusive, frame>):
-    v1: slice<slice<Box, unique, mutable>, unique, mutable> = load v0
+function drop.frame<slice<slice<Box, unique, mutable, local>, unique, mutable, local>>(v0: ref<slice<slice<Box, unique, mutable, local>, unique, mutable, local>, borrowed, exclusive, frame>): void {
+entry(v0: ref<slice<slice<Box, unique, mutable, local>, unique, mutable, local>, borrowed, exclusive, frame>):
+    v1: slice<slice<Box, unique, mutable, local>, unique, mutable, local> = load v0
     v2: usize = slice.length v1
     v3: usize = 0
     jump b1(v2)
@@ -103,9 +103,9 @@ b1(v4: usize):
 b2:
     v6: usize = 1
     v7: usize = sub v4, v6
-    v8: ref<slice<Box, unique, mutable>, unique, mutable> = element.address v1, v7
-    v9: ref<slice<Box, unique, mutable>, borrowed, exclusive> = cast.bit v8 -> ref<slice<Box, unique, mutable>, borrowed, exclusive>
-    call drop.local<slice<Box, unique, mutable>>(v9): (ref<slice<Box, unique, mutable>, borrowed, exclusive>) => void
+    v8: ref<slice<Box, unique, mutable, local>, unique, mutable, local> = element.address v1, v7
+    v9: ref<slice<Box, unique, mutable, local>, borrowed, exclusive, local> = cast.bit v8 -> ref<slice<Box, unique, mutable, local>, borrowed, exclusive, local>
+    call drop.local<slice<Box, unique, mutable, local>>(v9): (ref<slice<Box, unique, mutable, local>, borrowed, exclusive, local>) => void
     jump b1(v7)
 
 b3:
@@ -113,9 +113,9 @@ b3:
     return
 }
 
-function drop.local<slice<Box, unique, mutable>>(v0: ref<slice<Box, unique, mutable>, borrowed, exclusive>): void {
-entry(v0: ref<slice<Box, unique, mutable>, borrowed, exclusive>):
-    v1: slice<Box, unique, mutable> = load v0
+function drop.local<slice<Box, unique, mutable, local>>(v0: ref<slice<Box, unique, mutable, local>, borrowed, exclusive, local>): void {
+entry(v0: ref<slice<Box, unique, mutable, local>, borrowed, exclusive, local>):
+    v1: slice<Box, unique, mutable, local> = load v0
     v2: usize = slice.length v1
     v3: usize = 0
     jump b1(v2)
@@ -127,9 +127,9 @@ b1(v4: usize):
 b2:
     v6: usize = 1
     v7: usize = sub v4, v6
-    v8: ref<Box, unique, mutable> = element.address v1, v7
-    v9: ref<Box, borrowed, exclusive> = cast.bit v8 -> ref<Box, borrowed, exclusive>
-    call drop.local<Box>(v9): (ref<Box, borrowed, exclusive>) => void
+    v8: ref<Box, unique, mutable, local> = element.address v1, v7
+    v9: ref<Box, borrowed, exclusive, local> = cast.bit v8 -> ref<Box, borrowed, exclusive, local>
+    call drop.local<Box>(v9): (ref<Box, borrowed, exclusive, local>) => void
     jump b1(v7)
 
 b3:
@@ -137,10 +137,10 @@ b3:
     return
 }
 
-function drop.local<Box>(v0: ref<Box, borrowed, exclusive>): void {
-entry(v0: ref<Box, borrowed, exclusive>):
-    v1: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
-    v2: ref<int32, unique, mutable> = load v1
+function drop.local<Box>(v0: ref<Box, borrowed, exclusive, local>): void {
+entry(v0: ref<Box, borrowed, exclusive, local>):
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, local> = field.address v0, 0
+    v2: ref<int32, unique, mutable, local> = load v1
     free v2
     return
 }
@@ -171,8 +171,8 @@ type Writer {
     write: fn() => uint32;
 }
 
-function test(v0: slice<dynamic<Writer, managed, mutable>, unique, mutable>): void {
-entry(v0: slice<dynamic<Writer, managed, mutable>, unique, mutable>):
+function test(v0: slice<dynamic<Writer, managed, mutable, local>, unique, mutable, local>): void {
+entry(v0: slice<dynamic<Writer, managed, mutable, local>, unique, mutable, local>):
     free v0
     return
 }

@@ -175,7 +175,7 @@ impl<'a> DestructorBuilder<'a> {
         ty: mir::LocalNodeId<mir::Type>,
         storage: mir::Storage,
     ) -> mir::LocalNodeId<mir::Function> {
-        let name = self.strings.intern(&format!("drop.{}", storage.label()));
+        let name = self.strings.intern(&format!("drop.{}", storage.segment()));
         let argument = self.tree.intern_static(mir::Static::Type(ty));
         let arguments = vec![argument];
         let symbol = mir::Symbol::named(name).instantiate(&arguments, self.tree);

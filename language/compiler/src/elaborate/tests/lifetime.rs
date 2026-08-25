@@ -14,8 +14,8 @@ entry(v0: ref<int32, unique, mutable>):
 
     program.assert_elaborated(
         r#"
-function test(v0: ref<int32, unique, mutable>): int32 {
-entry(v0: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>): int32 {
+entry(v0: ref<int32, unique, mutable, local>):
     v1: int32 = load v0
     free v0
     return v1
@@ -49,8 +49,8 @@ entry:
     return
 }
 
-function test(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
     v1: int32 = load v0
     free v0
     call later(): () => void
@@ -85,9 +85,9 @@ type Box {
     value: int32;
 }
 
-function test(v0: ref<Box, unique, mutable>): int32 {
-entry(v0: ref<Box, unique, mutable>):
-    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+function test(v0: ref<Box, unique, mutable, local>): int32 {
+entry(v0: ref<Box, unique, mutable, local>):
+    v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
     v2: int32 = load v1
     free v0
     return v2
@@ -128,9 +128,9 @@ type Box {
 @binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
 external function park(): void
 
-function test(v0: ref<Box, unique, mutable>): int32 {
-entry(v0: ref<Box, unique, mutable>):
-    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+function test(v0: ref<Box, unique, mutable, local>): int32 {
+entry(v0: ref<Box, unique, mutable, local>):
+    v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
     call park(): () => void
     v2: int32 = load v1
     free v0
@@ -177,17 +177,17 @@ type Box {
 
 @copy
 type Holder {
-    value: ref<int32, borrowed, readonly>;
+    value: ref<int32, borrowed, readonly, local>;
 }
 
-function test(v0: ref<Box, unique, mutable>): int32 {
-entry(v0: ref<Box, unique, mutable>):
-    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+function test(v0: ref<Box, unique, mutable, local>): int32 {
+entry(v0: ref<Box, unique, mutable, local>):
+    v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
     v2: Holder = aggregate (v1)
     jump b1(v2)
 
 b1(v3: Holder):
-    v4: ref<int32, borrowed, readonly> = field.get v3, 0
+    v4: ref<int32, borrowed, readonly, local> = field.get v3, 0
     v5: int32 = load v4
     free v0
     return v5

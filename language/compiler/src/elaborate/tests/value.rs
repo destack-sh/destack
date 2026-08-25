@@ -13,8 +13,8 @@ entry(v0: ref<int32, unique, mutable>):
 
     program.assert_elaborated(
         r#"
-function test(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
     free v0
     return
 }
@@ -40,7 +40,7 @@ entry:
 function test(): void {
 entry:
     v0: int64 = 4
-    v1: slice<int32, unique, mutable> = new.slice.zeroed int32, v0
+    v1: slice<int32, unique, mutable, local> = new.slice.zeroed int32, v0
     free v1
     return
 }
@@ -71,8 +71,8 @@ type Writer {
     write: fn() => void;
 }
 
-function test(v0: dynamic<Writer, unique, mutable>): void {
-entry(v0: dynamic<Writer, unique, mutable>):
+function test(v0: dynamic<Writer, unique, mutable, local>): void {
+entry(v0: dynamic<Writer, unique, mutable, local>):
     drop v0
     free v0
     return
@@ -94,8 +94,8 @@ entry(v0: function<() => void, once, unique, mutable>):
 
     program.assert_elaborated(
         r#"
-function test(v0: function<() => void, once, unique, mutable>): void {
-entry(v0: function<() => void, once, unique, mutable>):
+function test(v0: function<() => void, once, unique, mutable, local>): void {
+entry(v0: function<() => void, once, unique, mutable, local>):
     drop v0
     free v0
     return

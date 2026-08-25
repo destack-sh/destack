@@ -4,8 +4,8 @@ use crate::tests::TestProgram;
 fn test_skip_drop_for_managed_parameter() {
     let mut program = TestProgram::mir(
         r#"
-function test(v0: ref<int32, managed, mutable>): void {
-entry(v0: ref<int32, managed, mutable>):
+function test(v0: ref<int32, managed, mutable, local>): void {
+entry(v0: ref<int32, managed, mutable, local>):
     return
 }
 "#,
@@ -13,8 +13,8 @@ entry(v0: ref<int32, managed, mutable>):
 
     program.assert_elaborated(
         r#"
-function test(v0: ref<int32, managed, mutable>): void {
-entry(v0: ref<int32, managed, mutable>):
+function test(v0: ref<int32, managed, mutable, local>): void {
+entry(v0: ref<int32, managed, mutable, local>):
     return
 }
 "#,
@@ -27,7 +27,7 @@ fn test_skip_drop_for_managed_allocation() {
         r#"
 function test(): void {
 entry:
-    v0: ref<int32, managed, mutable> = new.zeroed int32
+    v0: ref<int32, managed, mutable, local> = new.zeroed int32
     return
 }
 "#,
@@ -37,7 +37,7 @@ entry:
         r#"
 function test(): void {
 entry:
-    v0: ref<int32, managed, mutable> = new.zeroed int32
+    v0: ref<int32, managed, mutable, local> = new.zeroed int32
     return
 }
 "#,
@@ -51,7 +51,7 @@ fn test_skip_drop_for_managed_slice_allocation() {
 function test(): void {
 entry:
     v0: int64 = 4
-    v1: slice<int32, managed, mutable> = new.slice.zeroed int32, v0
+    v1: slice<int32, managed, mutable, local> = new.slice.zeroed int32, v0
     return
 }
 "#,
@@ -62,7 +62,7 @@ entry:
 function test(): void {
 entry:
     v0: int64 = 4
-    v1: slice<int32, managed, mutable> = new.slice.zeroed int32, v0
+    v1: slice<int32, managed, mutable, local> = new.slice.zeroed int32, v0
     return
 }
 "#,
@@ -78,9 +78,9 @@ type User {
     id: int32;
 }
 
-function test(v0: ref<User, managed, mutable>): int32 {
-entry(v0: ref<User, managed, mutable>):
-    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+function test(v0: ref<User, managed, mutable, local>): int32 {
+entry(v0: ref<User, managed, mutable, local>):
+    v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
@@ -94,9 +94,9 @@ type User {
     id: int32;
 }
 
-function test(v0: ref<User, managed, mutable>): int32 {
-entry(v0: ref<User, managed, mutable>):
-    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+function test(v0: ref<User, managed, mutable, local>): int32 {
+entry(v0: ref<User, managed, mutable, local>):
+    v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
@@ -108,10 +108,10 @@ entry(v0: ref<User, managed, mutable>):
 fn test_skip_drop_for_borrow_into_managed_slice() {
     let mut program = TestProgram::mir(
         r#"
-function test(v0: slice<int32, managed, mutable>): int32 {
-entry(v0: slice<int32, managed, mutable>):
+function test(v0: slice<int32, managed, mutable, local>): int32 {
+entry(v0: slice<int32, managed, mutable, local>):
     v1: int64 = 0
-    v2: ref<int32, borrowed, readonly> = element.address v0, v1
+    v2: ref<int32, borrowed, readonly, local> = element.address v0, v1
     v3: int32 = load v2
     return v3
 }
@@ -120,10 +120,10 @@ entry(v0: slice<int32, managed, mutable>):
 
     program.assert_elaborated(
         r#"
-function test(v0: slice<int32, managed, mutable>): int32 {
-entry(v0: slice<int32, managed, mutable>):
+function test(v0: slice<int32, managed, mutable, local>): int32 {
+entry(v0: slice<int32, managed, mutable, local>):
     v1: int64 = 0
-    v2: ref<int32, borrowed, readonly> = element.address v0, v1
+    v2: ref<int32, borrowed, readonly, local> = element.address v0, v1
     v3: int32 = load v2
     return v3
 }
@@ -167,7 +167,7 @@ fn test_skip_generated_function_for_zero_length_array() {
     let mut program = TestProgram::mir(
         r#"
 type Box {
-    value: ref<int32, unique, mutable>;
+    value: ref<int32, unique, mutable, local>;
 }
 
 function test(v0: [Box; 0]): void {
@@ -180,7 +180,7 @@ entry(v0: [Box; 0]):
     program.assert_elaborated(
         r#"
 type Box {
-    value: ref<int32, unique, mutable>;
+    value: ref<int32, unique, mutable, local>;
 }
 
 function test(v0: [Box; 0]): void {
@@ -195,8 +195,8 @@ entry(v0: [Box; 0]):
 fn test_skip_drop_after_owned_return() {
     let mut program = TestProgram::mir(
         r#"
-function test(v0: ref<int32, unique, mutable>): ref<int32, unique, mutable> {
-entry(v0: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>): ref<int32, unique, mutable, local> {
+entry(v0: ref<int32, unique, mutable, local>):
     return v0
 }
 "#,
@@ -204,8 +204,8 @@ entry(v0: ref<int32, unique, mutable>):
 
     program.assert_elaborated(
         r#"
-function test(v0: ref<int32, unique, mutable>): ref<int32, unique, mutable> {
-entry(v0: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>): ref<int32, unique, mutable, local> {
+entry(v0: ref<int32, unique, mutable, local>):
     return v0
 }
 "#,
@@ -231,15 +231,15 @@ entry(v0: ref<int32, unique, mutable>):
 
     program.assert_elaborated(
         r#"
-function consume(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
+function consume(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
     free v0
     return
 }
 
-function test(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
-    call consume(v0): (ref<int32, unique, mutable>) => void
+function test(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
+    call consume(v0): (ref<int32, unique, mutable, local>) => void
     return
 }
 "#,

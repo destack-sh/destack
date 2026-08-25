@@ -15,7 +15,7 @@ entry(v0: Value):
 
     program.assert_elaborated(
         r#"
-type Value = variant<uint8> { 0uint8 = ref<int32, unique, mutable>; 1uint8 = int32; };
+type Value = variant<uint8> { 0uint8 = ref<int32, unique, mutable, local>; 1uint8 = int32; };
 
 function test(v0: Value): void {
 entry(v0: Value):
@@ -31,8 +31,8 @@ entry(v0: ref<Value, borrowed, exclusive, frame>):
     branch v3 => b1 | b2
 
 b1:
-    v4: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = variant.payload.address v0, 0
-    v5: ref<int32, unique, mutable> = load v4
+    v4: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = variant.payload.address v0, 0
+    v5: ref<int32, unique, mutable, local> = load v4
     free v5
     jump b2
 

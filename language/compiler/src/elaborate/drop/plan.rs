@@ -451,7 +451,7 @@ impl<'a> DropAnalysis<'a> {
         retained: &[mir::MovePathId],
     ) -> bool {
         let origin = self.paths.get(owner).place.origin;
-        let is_live = live.find_carrier(origin, &self.places).is_some();
+        let is_live = live.find_representation(origin, &self.places).is_some();
 
         is_live || retained.contains(&owner)
     }
