@@ -133,13 +133,14 @@ impl<'a> ObjectTypes<'a> {
         let drop = self.program.drop_id(self.module, type_id);
 
         let descriptor = TypeDescriptorBuilder::new(layout).supertypes(supertypes);
+
         match drop {
             Some(drop) => descriptor.drop(drop),
             None => descriptor,
         }
     }
 
-    /// Return the scalar layout for one MIR type id.
+    /// Return the scalar format for one MIR type id.
     pub(crate) fn scalar_format(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<ScalarFormat> {
         let ty = self.storage_type(ty);
 
@@ -214,6 +215,7 @@ impl<'a> ObjectTypes<'a> {
         else {
             return None;
         };
+
         Some(LayoutShapeBuilder::Dynamic(DynamicLayout {
             constraint: self.type_id(*constraint),
             nullability: *nullability,
@@ -279,7 +281,7 @@ impl<'a> ObjectTypes<'a> {
         }
     }
 
-    /// Return the scalar layout for one MIR type.
+    /// Return the scalar format for one MIR type shape.
     fn scalar_layout_node(&self, ty: &mir::Type) -> Option<ScalarFormat> {
         match ty {
             mir::Type::Int { width, is_signed } => Some(ScalarFormat::int(*width, *is_signed)),
@@ -370,6 +372,7 @@ impl<'a> ObjectTypes<'a> {
         else {
             return None;
         };
+
         Some(LayoutShapeBuilder::Function(FunctionLayout {
             signature: self.signature(*signature)?,
             nullability: *nullability,
@@ -387,6 +390,7 @@ impl<'a> ObjectTypes<'a> {
 
     /// Project MIR layout fields.
     fn layout_fields(&self, fields: &[mir::LayoutField]) -> Vec<LayoutField> {
+        // pair each projected field with its declaration index
         let mut fields = fields
             .iter()
             .map(|field| {
@@ -401,6 +405,8 @@ impl<'a> ObjectTypes<'a> {
                 (field.source_index, layout)
             })
             .collect::<Vec<_>>();
+
+        // restore source declaration order
         fields.sort_by_key(|(source_index, _)| *source_index);
 
         fields.into_iter().map(|(_, field)| field).collect()
@@ -446,7 +452,7 @@ impl TypeLinker<'_> {
         (ids, types)
     }
 
-    /// Return whether two module-local types denote the same declaration type.
+    /// Return whether two module-local types resolve to the same program type.
     pub(crate) fn same(
         left_module: ModuleId,
         left: mir::TypeId,
@@ -473,7 +479,10 @@ impl TypeLinker<'_> {
         // resolve every specialized destructor into canonical program identity
         for (module, object) in objects {
             for (ty, storage, function) in object.drops().destructors() {
-                if matches!(storage, mir::Storage::Global(_)) {
+                if matches!(
+                    storage,
+                    mir::Storage::Constant | mir::Storage::LocalStatic | mir::Storage::SharedStatic
+                ) {
                     return Err(LinkError::invalid_input(
                         package,
                         format!("type {ty:?} defines a destructor for global storage"),
@@ -507,11 +516,13 @@ impl TypeLinker<'_> {
                 .remove(&(ty, mir::Storage::Frame))
                 .map(|(module, function)| function_ids[&(module, function)]);
             let local = functions
-                .remove(&(ty, mir::Storage::Heap(mir::Space::Local)))
+                .remove(&(ty, mir::Storage::LocalHeap))
                 .map(|(module, function)| function_ids[&(module, function)]);
             let shared = functions
-                .remove(&(ty, mir::Storage::Heap(mir::Space::Shared)))
+                .remove(&(ty, mir::Storage::SharedHeap))
                 .map(|(module, function)| function_ids[&(module, function)]);
+
+            // skip types without a destructor in any storage
             if frame.is_none() && local.is_none() && shared.is_none() {
                 continue;
             }

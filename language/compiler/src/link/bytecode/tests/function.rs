@@ -37,7 +37,7 @@ entry(v0: int32):
 
 export function readAnswer(): int32 {
 entry:
-    v0: ref<int32, borrowed, mutable, global> = global.address answer
+    v0: ref<int32, borrowed, mutable, static> = global.address answer
     v1: int32 = load v0
     return v1
 }
@@ -102,7 +102,7 @@ entry:
     assert_eq!(instruction.opcode(), Opcode::CALL);
     assert_eq!(call_site.target.get(), Some(callee));
 
-    // match the caller's call-site state to its linked physical frame map
+    // match the caller's call site state to its linked physical frame map
     let state = program
         .frame_state_at(FramePoint::operation(call_site.point))
         .expect("caller call state should exist");
@@ -115,7 +115,8 @@ entry:
     let map = code
         .frame(sections, state.index())
         .expect("caller call map should exist");
-    // the caller argument stays live across the call in one canonical slot
+
+    // keep the caller argument live across the call in one canonical slot
     let parameters = program
         .function_parameters(caller)
         .expect("caller parameters should exist");

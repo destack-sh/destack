@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use destack_core::{float_from_bits, float_to_bits};
+use destack_core::{StringId, float_from_bits, float_to_bits};
 use destack_mir as mir;
 use destack_program as program;
 use destack_program::{
@@ -21,8 +21,6 @@ pub(crate) struct ProgramStatics {
     pub(crate) globals: GlobalTableBuilder,
     /// Immutable program constants.
     pub(crate) constants: StaticBytes,
-    /// Immortal pre-built program objects.
-    pub(crate) immortals: StaticBytes,
     /// Shared mutable program statics.
     pub(crate) shared: StaticBytes,
     /// Local mutable program statics.
@@ -53,8 +51,8 @@ struct GlobalLinker<'a> {
 
 /// Rendering state threaded through one global's initializer encoding.
 struct GlobalRender<'a, 'b> {
-    /// The storage of the global being rendered.
-    storage: mir::GlobalStorage,
+    /// The space of the global being rendered.
+    space: mir::Space,
     /// Every placed program global in dense id order.
     placements: &'a [(Symbol, Global)],
     /// Static address words rebased at materialization.
@@ -65,7 +63,7 @@ impl GlobalRender<'_, '_> {
     /// Reborrow this render state for one nested range.
     fn reborrow(&mut self) -> GlobalRender<'_, '_> {
         GlobalRender {
-            storage: self.storage,
+            space: self.space,
             placements: self.placements,
             relocations: self.relocations,
         }
@@ -89,10 +87,9 @@ impl<'a> StaticLinker<'a> {
         Self { program }
     }
 
-    /// Link constant, immortal, shared static, and local static spaces.
+    /// Link constant, shared static, and local static spaces.
     pub(crate) fn link(&self) -> LinkResult<ProgramStatics> {
         let mut constants = GlobalAllocator::new();
-        let mut immortals = GlobalAllocator::new();
         let mut shared = GlobalAllocator::new();
         let mut local = GlobalAllocator::new();
         let mut globals = Vec::new();
@@ -113,13 +110,7 @@ impl<'a> StaticLinker<'a> {
                 self.program,
                 object.layouts(),
             );
-            let global = linker.place_global(
-                global,
-                &mut constants,
-                &mut immortals,
-                &mut shared,
-                &mut local,
-            )?;
+            let global = linker.place_global(global, &mut constants, &mut shared, &mut local)?;
             globals.push((symbol, global));
         }
 
@@ -143,7 +134,6 @@ impl<'a> StaticLinker<'a> {
                 &globals[index].1,
                 &globals,
                 &mut constants,
-                &mut immortals,
                 &mut shared,
                 &mut local,
             )?;
@@ -152,7 +142,6 @@ impl<'a> StaticLinker<'a> {
         Ok(ProgramStatics {
             globals: GlobalTableBuilder::new().globals(globals),
             constants: constants.build(),
-            immortals: immortals.build(),
             shared: shared.build(),
             local: local.build(),
         })
@@ -189,7 +178,6 @@ impl<'a> GlobalLinker<'a> {
         &self,
         global: &program::object::Global,
         constants: &mut GlobalAllocator,
-        immortals: &mut GlobalAllocator,
         shared: &mut GlobalAllocator,
         local: &mut GlobalAllocator,
     ) -> LinkResult<Global> {
@@ -199,16 +187,15 @@ impl<'a> GlobalLinker<'a> {
         let byte_len = layout.byte_len();
 
         // reserve a zeroed range in the selected region
-        let (allocator, is_mutable) = match global.storage {
-            mir::GlobalStorage::Constant => (constants, false),
-            mir::GlobalStorage::Immortal => (immortals, false),
-            mir::GlobalStorage::Shared => (shared, global.is_mutable()),
-            mir::GlobalStorage::Local => (local, global.is_mutable()),
+        let (allocator, is_mutable) = match global.space {
+            mir::Space::Constant => (constants, false),
+            mir::Space::Shared => (shared, global.is_mutable()),
+            mir::Space::Local => (local, global.is_mutable()),
         };
         let offset = allocator.reserve(alignment, byte_len);
 
         Ok(Global::new(
-            Self::location(global.storage),
+            Self::location(global.space),
             offset,
             byte_len,
             self.program.type_id(self.module, ty),
@@ -224,7 +211,6 @@ impl<'a> GlobalLinker<'a> {
         placed: &Global,
         placements: &[(Symbol, Global)],
         constants: &mut GlobalAllocator,
-        immortals: &mut GlobalAllocator,
         shared: &mut GlobalAllocator,
         local: &mut GlobalAllocator,
     ) -> LinkResult<()> {
@@ -233,27 +219,141 @@ impl<'a> GlobalLinker<'a> {
             return Ok(());
         };
 
+        // encode value constants into the constant region directly
+        if matches!(
+            initializer,
+            mir::GlobalInitializer::String(_) | mir::GlobalInitializer::BigInt(_)
+        ) {
+            return self.render_value_constant(global, placed, initializer, constants);
+        }
+
         // render the payload with region-relative address words
         let mut relocations = Vec::new();
         let render = GlobalRender {
-            storage: global.storage,
+            space: global.space,
             placements,
             relocations: &mut relocations,
         };
         let bytes = self.initializer_bytes(initializer, global.ty, placed.offset(), render)?;
 
         // write the payload into its placed range
-        let allocator = match global.storage {
-            mir::GlobalStorage::Constant => constants,
-            mir::GlobalStorage::Immortal => &mut *immortals,
-            mir::GlobalStorage::Shared => shared,
-            mir::GlobalStorage::Local => local,
+        let allocator = match global.space {
+            mir::Space::Constant => constants,
+            mir::Space::Shared => shared,
+            mir::Space::Local => local,
         };
         allocator.write(placed.offset(), &bytes);
 
         // record address words in their source image
         for (byte_offset, location) in relocations {
             allocator.relocate(byte_offset, location);
+        }
+
+        Ok(())
+    }
+
+    /// Encode one value constant and its payload into the constant region.
+    fn render_value_constant(
+        &self,
+        global: &program::object::Global,
+        placed: &Global,
+        initializer: &mir::GlobalInitializer,
+        constants: &mut GlobalAllocator,
+    ) -> LinkResult<()> {
+        let word_len = usize::from(self.target_layout.pointer_bytes());
+
+        // select the language item key and payload units for this value form
+        let (key, sign, units, unit_alignment) = match initializer {
+            mir::GlobalInitializer::String(value) => {
+                let text = self.program.strings().get(*value).to_string();
+                let units: Vec<u8> = text
+                    .encode_utf16()
+                    .flat_map(|unit| unit.to_le_bytes())
+                    .collect();
+
+                ("string.String", None, units, 2)
+            }
+            mir::GlobalInitializer::BigInt(value) => {
+                let limbs: Vec<u8> = match value {
+                    0 => Vec::new(),
+                    value => value.unsigned_abs().to_le_bytes().to_vec(),
+                };
+
+                ("math.BigInt", Some(value.signum() as i8), limbs, 8)
+            }
+            _ => {
+                return Err(self
+                    .program
+                    .type_mismatch("value initializer", "byte initializer"));
+            }
+        };
+
+        // require the representation to declare the value form's language item
+        let tagged = self
+            .object
+            .ty(global.ty)
+            .and_then(|entry| entry.language_item)
+            .is_some_and(|item| item == StringId::for_text(key));
+        if !tagged {
+            return Err(self.program.invalid_input(format!(
+                "a value constant's representation does not declare '{key}'"
+            )));
+        }
+
+        // place the payload units as anonymous constant bytes
+        let length = (units.len() / unit_alignment) as u128;
+        let units_offset = constants.reserve(unit_alignment, units.len());
+        constants.write(units_offset, &units);
+
+        // write each representation field at its layout offset
+        let layout = self.layout(global.ty)?;
+        let mir::LayoutShape::Struct(struct_layout) = &layout.shape else {
+            return Err(self
+                .program
+                .type_mismatch("struct representation", format!("{:?}", global.ty)));
+        };
+        let mut bytes = vec![0; layout.byte_len()];
+        let mut relocations = Vec::new();
+        for field in &struct_layout.fields {
+            let name = field.name.map(StringId::raw);
+            let offset = field.offset as usize;
+            // write the payload address word and its unit count
+            if name == Some(StringId::for_text("codeUnits").raw())
+                || name == Some(StringId::for_text("limbs").raw())
+            {
+                let address = self.unsigned_bytes(units_offset as u128, word_len);
+                bytes[offset..offset + word_len].copy_from_slice(&address);
+                relocations.push((placed.offset() + offset, GlobalLocation::Constant));
+                let count = self.unsigned_bytes(length, word_len);
+                bytes[offset + word_len..offset + 2 * word_len].copy_from_slice(&count);
+            }
+            // write the sign as one signed byte
+            else if name == Some(StringId::for_text("sign").raw()) {
+                let Some(sign) = sign else {
+                    return Err(self.program.type_mismatch(
+                        "bigint representation",
+                        "sign on a string representation",
+                    ));
+                };
+                bytes[offset] = sign as u8;
+            }
+            // write the unit count on its own
+            else if name == Some(StringId::for_text("length").raw()) {
+                let count = self.unsigned_bytes(length, word_len);
+                bytes[offset..offset + word_len].copy_from_slice(&count);
+            }
+            // refuse representations with fields the encoder does not know
+            else {
+                return Err(self.program.invalid_input(
+                    "a value representation declares an unencoded field".to_string(),
+                ));
+            }
+        }
+
+        // write the representation and record its address words
+        constants.write(placed.offset(), &bytes);
+        for (byte_offset, location) in relocations {
+            constants.relocate(byte_offset, location);
         }
 
         Ok(())
@@ -269,16 +369,21 @@ impl<'a> GlobalLinker<'a> {
     ) -> LinkResult<Vec<u8>> {
         let layout = self.layout(ty)?;
 
+        // encode scalars through the scalar encoder
         if self.is_scalar(ty) {
             return self.scalar_initializer_bytes(initializer, ty, offset, render);
         }
 
-        // slice headers render as one address word and one length word
+        // encode slice headers as one address word and one length word
         if matches!(layout.shape, mir::LayoutShape::Slice) {
             return self.slice_initializer_bytes(initializer, offset, render, layout.byte_len());
         }
 
         match initializer {
+            // value constants render through the constant encoder before this path
+            mir::GlobalInitializer::String(_) | mir::GlobalInitializer::BigInt(_) => Err(self
+                .program
+                .invalid_input("a value initializer reached the byte renderer".to_string())),
             mir::GlobalInitializer::Zero => {
                 self.validate_zero_initializer(ty)?;
 
@@ -316,6 +421,10 @@ impl<'a> GlobalLinker<'a> {
         let byte_len = self.layout(ty)?.byte_len();
 
         match initializer {
+            // value constants render through the constant encoder before this path
+            mir::GlobalInitializer::String(_) | mir::GlobalInitializer::BigInt(_) => Err(self
+                .program
+                .invalid_input("a value initializer reached the byte renderer".to_string())),
             mir::GlobalInitializer::Zero => {
                 self.validate_zero_scalar_type(ty)?;
 
@@ -423,10 +532,8 @@ impl<'a> GlobalLinker<'a> {
                 .invalid_input(format!("missing placed global {target_id:?}")));
         };
 
-        // runtime-owned images cannot refer to worker-owned storage
-        if render.storage != mir::GlobalStorage::Local
-            && placed.location == GlobalLocation::LocalStatic
-        {
+        // reject runtime-owned images that address worker-owned storage
+        if render.space != mir::Space::Local && placed.location == GlobalLocation::LocalStatic {
             return Err(self.program.invalid_input(
                 "a runtime static initializer cannot reference local static storage".to_string(),
             ));
@@ -439,12 +546,11 @@ impl<'a> GlobalLinker<'a> {
     }
 
     /// Return the Program location for one MIR global storage class.
-    const fn location(storage: mir::GlobalStorage) -> GlobalLocation {
-        match storage {
-            mir::GlobalStorage::Constant => GlobalLocation::Constant,
-            mir::GlobalStorage::Immortal => GlobalLocation::Immortal,
-            mir::GlobalStorage::Shared => GlobalLocation::SharedStatic,
-            mir::GlobalStorage::Local => GlobalLocation::LocalStatic,
+    const fn location(space: mir::Space) -> GlobalLocation {
+        match space {
+            mir::Space::Constant => GlobalLocation::Constant,
+            mir::Space::Shared => GlobalLocation::SharedStatic,
+            mir::Space::Local => GlobalLocation::LocalStatic,
         }
     }
 
@@ -735,10 +841,12 @@ impl<'a> GlobalLinker<'a> {
 
     /// Return whether one signed value fits the requested bit width.
     fn signed_value_fits(value: i128, width: u16) -> bool {
+        // admit only zero at zero width
         if width == 0 {
             return value == 0;
         }
 
+        // admit everything the widest constant can hold
         if width >= 128 {
             return true;
         }
@@ -751,10 +859,12 @@ impl<'a> GlobalLinker<'a> {
 
     /// Return whether one unsigned value fits the requested bit width.
     fn unsigned_value_fits(value: u128, width: u16) -> bool {
+        // admit only zero at zero width
         if width == 0 {
             return value == 0;
         }
 
+        // admit everything the widest constant can hold
         if width >= 128 {
             return true;
         }
@@ -764,6 +874,7 @@ impl<'a> GlobalLinker<'a> {
 
     /// Encode one signed integer in target byte order.
     fn signed_bytes(&self, value: i128, byte_len: usize) -> Vec<u8> {
+        // sign extend the destination and encode the value in target byte order
         let mut bytes = vec![if value < 0 { 0xff } else { 0 }; byte_len];
         let source = if self.target_layout.endian.is_little() {
             value.to_le_bytes()
@@ -771,6 +882,8 @@ impl<'a> GlobalLinker<'a> {
             value.to_be_bytes()
         };
         let copied = source.len().min(byte_len);
+
+        // keep the low bytes on little endian and the high bytes on big endian
         if self.target_layout.endian.is_little() {
             bytes[..copied].copy_from_slice(&source[..copied]);
         } else {
@@ -784,6 +897,7 @@ impl<'a> GlobalLinker<'a> {
 
     /// Encode one unsigned integer in target byte order.
     fn unsigned_bytes(&self, value: u128, byte_len: usize) -> Vec<u8> {
+        // zero fill the destination and encode the value in target byte order
         let mut bytes = vec![0; byte_len];
         let source = if self.target_layout.endian.is_little() {
             value.to_le_bytes()
@@ -791,6 +905,8 @@ impl<'a> GlobalLinker<'a> {
             value.to_be_bytes()
         };
         let copied = source.len().min(byte_len);
+
+        // keep the low bytes on little endian and the high bytes on big endian
         if self.target_layout.endian.is_little() {
             bytes[..copied].copy_from_slice(&source[..copied]);
         } else {
@@ -804,12 +920,14 @@ impl<'a> GlobalLinker<'a> {
 
     /// Validate one zero initializer against the declared type.
     fn validate_zero_initializer(&self, ty: mir::TypeId) -> LinkResult<()> {
+        // check scalars against their declared type
         if self.is_scalar(ty) {
             self.validate_zero_scalar_type(ty)?;
 
             return Ok(());
         }
 
+        // check every aggregate range in turn
         for range in self.initializer_ranges(ty)? {
             self.validate_zero_initializer(range.ty)?;
         }
@@ -1016,6 +1134,8 @@ impl StaticLinker<'_> {
                 }
 
                 let id = GlobalId::from(globals.len() as u32);
+
+                // record exported definitions for later import resolution
                 if global.linkage.is_exported() {
                     let definition = (id, *module, global);
                     if symbols.insert(global.symbol, definition).is_some() {
@@ -1046,6 +1166,8 @@ impl StaticLinker<'_> {
                         format!("global symbol {:?} is undefined", global.symbol),
                     ));
                 };
+
+                // reject imports that disagree with their definition
                 if !TypeLinker::same(
                     *module,
                     global.ty,
@@ -1053,7 +1175,7 @@ impl StaticLinker<'_> {
                     definition.ty,
                     type_ids,
                 ) || global.mutability != definition.mutability
-                    || global.storage != definition.storage
+                    || global.space != definition.space
                 {
                     return Err(LinkError::invalid_input(
                         package,

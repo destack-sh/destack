@@ -1,9 +1,7 @@
 use destack_source::{ModuleId, PackageId};
 
-use crate::LinkError;
-
-use crate::ProgramLinker;
 use crate::link::tests::TestModule;
+use crate::{LinkError, ProgramLinker};
 
 /// Resolve functions, globals, and structural types across independently emitted objects.
 #[test]
@@ -37,7 +35,7 @@ entry(v0: int32):
 
 export function readAnswer(): int32 {
 entry:
-    v0: ref<int32, borrowed, mutable, global> = global.address answer
+    v0: ref<int32, borrowed, mutable, static> = global.address answer
     v1: int32 = load v0
     return v1
 }
@@ -118,6 +116,7 @@ external function transform((int32, boolean)): (int32, boolean)
     )
     .expect("structurally equal signatures should link");
 
+    // read the anonymous parameter type each object declared
     let imported = linker.function(consumer_module, "transform");
     let exported = linker.function(provider_module, "transform");
     let imported_object = linker.object(consumer_module);

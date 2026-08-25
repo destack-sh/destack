@@ -66,6 +66,11 @@ pub struct ProgramLinker<'a> {
 }
 
 impl<'a> ProgramLinker<'a> {
+    /// Return the shared repository string pool.
+    pub(crate) fn strings(&self) -> &StringPool {
+        self.strings
+    }
+
     /// Create one program linker.
     pub fn new(
         package: PackageId,
@@ -150,15 +155,20 @@ impl<'a> ProgramLinker<'a> {
             .traces(layouts.traces)
             .globals(statics.globals)
             .constants(statics.constants)
-            .immortals(statics.immortals)
             .shared_statics(statics.shared)
             .local_statics(statics.local);
+
+        // attach the bytecode form when the package emits it
         if let Some(bytecode) = bytecode {
             program = program.bytecode(bytecode);
         }
+
+        // attach the native form when the package emits it
         if let Some(native) = native {
             program = program.native(native);
         }
+
+        // seal the image
         let program = program.build().map_err(|error| LinkError::InvalidInput {
             anchor: package.into(),
             package,
@@ -200,6 +210,7 @@ impl<'a> ProgramLinker<'a> {
 
         // retain names stored in linked dynamic dispatch
         for (_, object) in &self.objects {
+            // retain the named slots of each dynamic shape
             for shape in object.dispatch().iter_dynamic_shapes() {
                 ids.extend(shape.slots.iter().filter_map(|slot| match slot {
                     mir::DynamicSlot::Field { name, .. } => Some(*name),
@@ -207,28 +218,23 @@ impl<'a> ProgramLinker<'a> {
                 }));
             }
 
+            // retain the entry names of each dynamic table
             for table in object.dispatch().iter_dynamic_tables() {
                 ids.extend(table.names.iter().map(|entry| entry.name));
             }
         }
 
         // retain native target identity
-        if self
-            .objects
-            .iter()
-            .any(|(_, object)| object.native().is_some())
-        {
-            for (_, object) in &self.objects {
-                let Some(native) = object.native() else {
-                    continue;
-                };
-                ids.push(self.strings.intern(native.target()));
-                ids.extend(
-                    native
-                        .features()
-                        .map(|feature| self.strings.intern(feature)),
-                );
-            }
+        for (_, object) in &self.objects {
+            let Some(native) = object.native() else {
+                continue;
+            };
+            ids.push(self.strings.intern(native.target()));
+            ids.extend(
+                native
+                    .features()
+                    .map(|feature| self.strings.intern(feature)),
+            );
         }
 
         Ok(ids)
@@ -356,6 +362,7 @@ impl<'a> ProgramLinker<'a> {
     pub(crate) fn layout_id(&self, module: ModuleId, ty: mir::TypeId) -> LayoutId {
         let ty = self.type_id(module, ty);
 
+        // layout ids are nonzero, so they sit one above their zero-based type ids
         LayoutId::new(ty.0 + 1)
     }
 
@@ -481,6 +488,8 @@ impl<'a> ProgramLinker<'a> {
                 "Program has no module objects",
             ));
         };
+
+        // read the ABI of the first object as the shared one
         let target = first.target();
 
         // require one ABI across every linked module
