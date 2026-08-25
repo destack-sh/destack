@@ -2,7 +2,8 @@ use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use crate::{assert_node, assert_path, assert_string};
 use destack_dir::{
-    Declaration, Expression, GenericParameter, Mutability, TypeDeclaration, TypeExpression,
+    Declaration, Expression, GenericArgument, GenericParameter, Mutability, TypeDeclaration,
+    TypeExpression,
 };
 
 /// Parse one named borrow lifetime ahead of the access modifier.
@@ -70,6 +71,66 @@ fn test_parse_lifetime_union_generic_argument() {
             assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                 assert_path!(parser, *path, "Borrowed");
                 assert_eq!(generic_arguments.len(), 2);
+            });
+        });
+    });
+}
+
+/// Parse tick names as intersection operands inside generic arguments.
+#[test]
+fn test_parse_lifetime_intersection_generic_argument() {
+    let test = TestParser::new("type Confined = Dynamic<Printable & 'a>");
+    let mut parser = test.prepare();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
+        .unwrap();
+
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                assert_path!(parser, *path, "Dynamic");
+                assert_eq!(generic_arguments.len(), 1);
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Intersection { elements } => {
+                        assert_eq!(elements.len(), 2);
+                        assert_node!(parser.tree, elements[0], TypeExpression::Reference { path, .. } => {
+                            assert_path!(parser, *path, "Printable");
+                        });
+                        assert_node!(parser.tree, elements[1], TypeExpression::Lifetime { name } => {
+                            assert_string!(parser, *name, "'a");
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Parse a lifetime and space meet as one generic argument intersection.
+#[test]
+fn test_parse_lifetime_space_intersection_generic_argument() {
+    let test = TestParser::new("type Leaked = Borrowed<Node, 'static & S>");
+    let mut parser = test.prepare();
+    let expr_id = parser
+        .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
+        .unwrap();
+
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                assert_path!(parser, *path, "Borrowed");
+                assert_eq!(generic_arguments.len(), 2);
+                assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Intersection { elements } => {
+                        assert_eq!(elements.len(), 2);
+                        assert_node!(parser.tree, elements[0], TypeExpression::Lifetime { name } => {
+                            assert_string!(parser, *name, "'static");
+                        });
+                        assert_node!(parser.tree, elements[1], TypeExpression::Reference { path, .. } => {
+                            assert_path!(parser, *path, "S");
+                        });
+                    });
+                });
             });
         });
     });

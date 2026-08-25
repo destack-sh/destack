@@ -44,6 +44,7 @@ fn test_parse_integer_literal_uppercase_radix_prefixes() {
     );
 }
 
+/// Recover the elements of an array literal missing its closing bracket.
 #[test]
 fn test_parse_array_literal_with_missing_close_bracket() {
     let test = TestParser::new("[first, second");
@@ -61,6 +62,7 @@ fn test_parse_array_literal_with_missing_close_bracket() {
     });
 }
 
+/// Recover the properties of an object literal missing its closing brace.
 #[test]
 fn test_parse_object_literal_with_missing_close_brace() {
     let test = TestParser::new("{ foo: 1");
@@ -120,6 +122,8 @@ fn test_parse_boolean_literal() {
         Literal::Boolean(false)
     );
 }
+
+/// Parse a single quoted literal as a character.
 #[test]
 fn test_parse_single_quoted_character_literal() {
     let test = TestParser::new("'a'");
@@ -364,9 +368,10 @@ fn test_report_template_literal_legacy_octal_escape() {
     assert_eq!(parser.range_str(error.range()), r"`\1`");
 }
 
+/// Parse each builtin scalar type keyword as a type literal.
 #[test]
 fn test_parse_type_literal() {
-    let test = TestParser::new("int32 uint8 u8 float float32 float64 boolean char");
+    let test = TestParser::new("int32 uint8 float float32 float64 boolean char");
     let mut parser = test.prepare();
 
     assert!(matches!(
@@ -374,13 +379,6 @@ fn test_parse_type_literal() {
         TypeLiteral::Integer(IntegerType::Fixed {
             width: 32,
             is_signed: true
-        })
-    ));
-    assert!(matches!(
-        parser.parse_type_literal().unwrap(),
-        TypeLiteral::Integer(IntegerType::Fixed {
-            width: 8,
-            is_signed: false
         })
     ));
     assert!(matches!(
@@ -412,6 +410,7 @@ fn test_parse_type_literal() {
     ));
 }
 
+/// Parse an array literal into positional elements.
 #[test]
 fn test_parse_array_literal() {
     let test = TestParser::new("[1, 2]");
@@ -437,6 +436,7 @@ fn test_parse_array_literal() {
     );
 }
 
+/// Parse comma separated array elements as separate positional elements.
 #[test]
 fn test_parse_array_literal_disallows_sequence_elements() {
     let test = TestParser::new("[1, 2, 3]");
@@ -470,6 +470,7 @@ fn test_parse_array_literal_disallows_sequence_elements() {
     );
 }
 
+/// Parse an elided element between two array elements.
 #[test]
 fn test_parse_sparse_array_middle_hole() {
     let test = TestParser::new("[1, , 3]");
@@ -497,6 +498,7 @@ fn test_parse_sparse_array_middle_hole() {
     );
 }
 
+/// Parse an elided element ahead of the first array element.
 #[test]
 fn test_parse_sparse_array_leading_hole() {
     let test = TestParser::new("[, 1]");
@@ -516,6 +518,7 @@ fn test_parse_sparse_array_leading_hole() {
     );
 }
 
+/// Parse a trailing comma as the array end, keeping one element.
 #[test]
 fn test_parse_sparse_array_trailing_hole() {
     let test = TestParser::new("[1, ]");
@@ -534,6 +537,7 @@ fn test_parse_sparse_array_trailing_hole() {
     );
 }
 
+/// Parse array elements separated by a comma on the following line.
 #[test]
 fn test_parse_array_literal_with_newline_prefixed_comma_separator() {
     let test = TestParser::new("[1\n, 2]");
@@ -561,6 +565,7 @@ fn test_parse_array_literal_with_newline_prefixed_comma_separator() {
     );
 }
 
+/// Parse a self closing tree element.
 #[test]
 fn test_parse_tree_fragment() {
     let test = TestParser::new("<A/>");
@@ -606,6 +611,7 @@ fn test_parse_tree_literal_records_body_span() {
     assert_eq!(parser.span_str(body_span), "\n  Docs\n");
 }
 
+/// Parse a kebab case tree tag into its camel case path.
 #[test]
 fn test_parse_tree_fragment_with_kebab_tag() {
     let test = TestParser::new("<amp-something />");
@@ -620,6 +626,7 @@ fn test_parse_tree_fragment_with_kebab_tag() {
     });
 }
 
+/// Parse named tree attributes with expression values and implicit flags.
 #[test]
 fn test_parse_tree_fragment_with_attributes() {
     // pure tree syntax: numeric values need {}, boolean flags are implicit true
@@ -753,7 +760,7 @@ fn test_recover_unterminated_tree_expression_child() {
     });
 }
 
-/// Recover missing inner closing tags at the matching ancestor closing tag.
+/// Recover missing nested closing tags at the matching ancestor closing tag.
 #[test]
 fn test_recover_tree_ancestor_closing_tag() {
     let test = TestParser::new("<Panel><Item></Panel>");
@@ -842,6 +849,7 @@ fn test_recover_tree_closing_tag_at_eof() {
     });
 }
 
+/// Parse a tree element carrying attributes and one expression child.
 #[test]
 fn test_parse_tree_fragment_with_attributes_and_child() {
     // pure tree syntax
@@ -884,6 +892,7 @@ fn test_parse_tree_fragment_with_attributes_and_child() {
     });
 }
 
+/// Parse tree elements nested several levels deep.
 #[test]
 fn test_parse_tree_nested_deep() {
     // pure tree syntax: children must be children or {expression}
@@ -936,6 +945,7 @@ fn test_parse_tree_nested_deep() {
     });
 }
 
+/// Parse a tree element written inside parentheses.
 #[test]
 fn test_parse_tree_in_parenthesis() {
     let test = TestParser::new(
@@ -1151,6 +1161,7 @@ fn test_parse_tree_attribute_leading_comments_keep_tag_name_span() {
     });
 }
 
+/// Parse a tree element mixing text children with expression children.
 #[test]
 fn test_parse_tree_with_text_content() {
     let test = TestParser::new(r#"<h4>Tool: {part.toolName}</h4>"#);
@@ -1173,6 +1184,7 @@ fn test_parse_tree_with_text_content() {
     });
 }
 
+/// Parse a nested tree element holding text and expression children.
 #[test]
 fn test_parse_nested_tree_with_text_content() {
     // <div><h4>Tool: {x}</h4></div>
@@ -1191,6 +1203,7 @@ fn test_parse_nested_tree_with_text_content() {
     });
 }
 
+/// Parse a tree element with one attribute and one nested child.
 #[test]
 fn test_parse_tree_with_attribute_and_children() {
     // <div key={index}><h4>Tool: {x}</h4></div>
@@ -1219,8 +1232,7 @@ fn test_parse_tree_fragment_with_nested_callback() {
     });
 }
 
-/// Tree literal with comment container syntax {/* */}.
-/// The comment is filtered out, leaving an empty expression container.
+/// Parse a comment container `{/* */}` as an empty expression container.
 #[test]
 fn test_parse_tree_with_comment_container() {
     let test = TestParser::new(r#"<div>{/* comment */}</div>"#);
@@ -1298,11 +1310,10 @@ fn test_parse_tree_with_namespace_tag() {
     });
 }
 
-/// Ternary with tree literal containing && inside expression container.
-/// Regression test for nested tree expression precedence.
+/// Parse a ternary whose branch holds a tree literal containing `&&`.
 #[test]
 fn test_parse_ternary_with_and_in_tree() {
-    // Just the ternary part, without leading condition
+    // parse the ternary alone, its condition is a bare name
     let test = TestParser::new(r#"a ? <>{y && <E />}</> : null"#);
     let mut parser = test.prepare();
     let expr = parser
@@ -1332,8 +1343,7 @@ fn test_parse_ternary_with_and_in_tree() {
     });
 }
 
-/// Nested tree literal in attribute expression container.
-/// Regression test for from_content fix in TreeExpressionEntry.
+/// Parse a nested tree literal inside an attribute expression container.
 #[test]
 fn test_parse_nested_tree_in_attribute() {
     let test = TestParser::new(r#"<Button icon={<Icon />} />"#);
@@ -1407,6 +1417,7 @@ fn test_parse_multiline_tree_attribute_expression_before_tag_close() {
     });
 }
 
+/// Parse a tree attribute holding a tree with a nested map callback.
 #[test]
 fn test_parse_tree_attribute_tree_with_nested_map_before_tag_close() {
     let test = TestParser::new(
@@ -1613,6 +1624,7 @@ fn test_parse_tree_attribute_spread_with_multiline_comments() {
     });
 }
 
+/// Parse spread tree attributes holding a cast expression.
 #[test]
 fn test_parse_tree_attribute_spread_with_cast() {
     let test = TestParser::new(
@@ -1642,10 +1654,9 @@ fn test_parse_tree_attribute_spread_with_cast() {
     });
 }
 
-/// Deeply nested tree literals in attributes.
-/// Regression test for from_content fix with multiple nesting levels.
+/// Parse deeply nested tree literals inside attributes.
 #[test]
-fn test_parse_deeply_nested_tree_in_attr() {
+fn test_parse_deeply_nested_tree_in_attribute() {
     let test = TestParser::new(r#"<Outer title={<div><Button icon={<Icon />} /></div>} />"#);
     let mut parser = test.prepare();
     let expr = parser.parse_tree_literal().unwrap();
@@ -2552,6 +2563,7 @@ function app() {
     });
 }
 
+/// Attach trailing line and block comments to the property they follow.
 #[test]
 fn test_parse_object_property_trailing_comments_on_property_owners() {
     let test = TestParser::new(

@@ -4,7 +4,9 @@ use destack_dir::{
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
-use crate::{TestParser, assert_comment, assert_expression_path, assert_node, assert_path};
+use crate::{
+    TestParser, assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
+};
 
 /// Parse a repeated Pattern placeholder as one complete where clause.
 #[test]
@@ -26,6 +28,7 @@ fn test_parse_pattern_where_clause_placeholder() {
     });
 }
 
+/// Parse a where clause bounding a parameter by a keyword type.
 #[test]
 fn test_parse_where_type_assertion() {
     let test = TestParser::new("where T: int32");
@@ -47,6 +50,7 @@ fn test_parse_where_type_assertion() {
     });
 }
 
+/// Parse a where clause bounding a parameter by a negated capability.
 #[test]
 fn test_parse_where_negative_capability() {
     let test = TestParser::new("where T: !Unpin");
@@ -66,6 +70,7 @@ fn test_parse_where_negative_capability() {
     });
 }
 
+/// Parse a where clause equating a projected type with a parameter.
 #[test]
 fn test_parse_where_equality_constraint() {
     let test = TestParser::new("where T.Output == U");
@@ -88,6 +93,7 @@ fn test_parse_where_equality_constraint() {
     assert_eq!(parser.span_str(type_range), "== U");
 }
 
+/// Parse several comma separated where clauses.
 #[test]
 fn test_parse_where_multiple_clauses() {
     let input = "where T: Numeric, U: Copy, V: Comparable";
@@ -117,6 +123,7 @@ fn test_parse_where_multiple_clauses() {
     });
 }
 
+/// Parse parenthesized where clauses spread over several lines.
 #[test]
 fn test_parse_where_parenthesized_multiline() {
     let input = r##"where (
@@ -150,6 +157,7 @@ fn test_parse_where_parenthesized_multiline() {
     });
 }
 
+/// Recover the clauses of a parenthesized where list missing its closing parenthesis.
 #[test]
 fn test_parse_parenthesized_where_with_missing_close_parenthesis() {
     let test = TestParser::new("where (T: Numeric, U: Copy");
@@ -184,7 +192,7 @@ fn test_parse_parenthesized_where_with_missing_close_parenthesis() {
     });
 }
 
-/// Ensure where clauses record main and type spans.
+/// Where clauses record their main span and their type span.
 #[test]
 fn test_where_clause_spans() {
     let test = TestParser::new("where T: Numeric");
@@ -207,8 +215,9 @@ fn test_where_clause_spans() {
     assert_eq!(parser.span_str(type_range), ": Numeric");
 }
 
+/// Parse a where clause holding a line comment before its bound.
 #[test]
-fn test_where_clause_constraint_with_boundary_comment() {
+fn test_where_clause_constraint_with_interleaved_comment() {
     let source = "where T: // bound-note\nNumeric";
     let test = TestParser::new(source);
     let mut parser = test.prepare();
@@ -237,6 +246,7 @@ fn test_where_clause_constraint_with_boundary_comment() {
     assert_comment!(parser, 0, CommentKind::Line, "bound-note");
 }
 
+/// Parse a where clause whose left side is a type application.
 #[test]
 fn test_parse_where_type_expression_left() {
     let test = TestParser::new("where BaseOf<Borrowed>: Clone");
@@ -252,6 +262,55 @@ fn test_parse_where_type_expression_left() {
     });
 }
 
+/// Parse one tick outlives clause with tick operands on both sides.
+#[test]
+fn test_parse_where_lifetime_outlives() {
+    let test = TestParser::new("where 'a: 'b");
+    let mut parser = test.prepare();
+    let clauses = parser.parse_where().unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_eq!(clauses.len(), 1);
+    assert_node!(parser.tree, clauses[0], WhereClause { relation, left, right } => {
+        assert_eq!(*relation, WhereRelation::Satisfies);
+        assert_node!(parser.tree, *left, TypeExpression::Lifetime { name } => {
+            assert_string!(parser, *name, "'a");
+        });
+        assert_node!(parser.tree, *right, TypeExpression::Lifetime { name } => {
+            assert_string!(parser, *name, "'b");
+        });
+    });
+}
+
+/// Parse a region meet as the right side of one where clause.
+#[test]
+fn test_parse_where_region_meet_bound() {
+    let test = TestParser::new("where 'a: 'b & S");
+    let mut parser = test.prepare();
+    let clauses = parser.parse_where().unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_eq!(clauses.len(), 1);
+    assert_node!(parser.tree, clauses[0], WhereClause { relation, left, right } => {
+        assert_eq!(*relation, WhereRelation::Satisfies);
+        assert_node!(parser.tree, *left, TypeExpression::Lifetime { name } => {
+            assert_string!(parser, *name, "'a");
+        });
+        assert_node!(parser.tree, *right, TypeExpression::Intersection { elements } => {
+            assert_eq!(elements.len(), 2);
+            assert_node!(parser.tree, elements[0], TypeExpression::Lifetime { name } => {
+                assert_string!(parser, *name, "'b");
+            });
+            assert_node!(parser.tree, elements[1], TypeExpression::Reference { path, .. } => {
+                assert_path!(parser, *path, "S");
+            });
+        });
+    });
+}
+
+/// Recover a where clause written with implements in place of a colon.
 #[test]
 fn test_recover_where_implements_separator() {
     let test = TestParser::new("where T implements Clone");
@@ -268,6 +327,7 @@ fn test_recover_where_implements_separator() {
     });
 }
 
+/// Recover a where clause written with extends in place of a colon.
 #[test]
 fn test_recover_where_extends_separator() {
     let test = TestParser::new("where T extends Clone");
