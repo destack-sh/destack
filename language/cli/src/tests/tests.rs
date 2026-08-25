@@ -8,8 +8,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use destack_artifact::BuildId;
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Host, MemoryBlobStore, Repository,
-    Revision, RevisionPin, Settings,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Repository, Revision, RevisionPin,
+    Settings,
 };
 use destack_source::{File, FileSystem, MemoryFileSystem};
 use futures::executor::block_on;
@@ -49,8 +49,7 @@ impl TestProgram {
             &DestackLayoutOverride::default(),
             None,
         );
-        let host = Host::new(BuildId::test(), environment, fs.clone())
-            .with_blob_store(Arc::new(MemoryBlobStore::new()));
+        let host = Host::new(BuildId::test(), environment, fs.clone());
         let (repository, revision) =
             Repository::new(root.clone(), host, Settings::default(), layout);
         let repository = Arc::new(repository);
@@ -113,7 +112,7 @@ impl TestProgram {
         let revision = self.current_revision();
         let blob = self
             .repository
-            .put_blob(contents.as_bytes())
+            .retain_blob(contents.as_bytes())
             .expect("CLI test Blob should store");
         let revision = self
             .repository

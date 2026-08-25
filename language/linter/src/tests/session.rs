@@ -3,12 +3,12 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use destack_artifact::{
     ArtifactKey, BuildId, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
-    MirLowered, NullArtifactStore, ToDiagnostic,
+    MirLowered, ToDiagnostic,
 };
 use destack_mir as mir;
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, MemoryBlobStore,
-    Repository, Revision, RevisionPin, Settings,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Repository, Revision,
+    RevisionPin, Settings,
 };
 use destack_session::{Executor, Session};
 use destack_source::{
@@ -182,10 +182,10 @@ impl TestSession {
         let (repository, base) = shared_repository();
         let configuration = lint_configuration(lint);
         let configuration = repository
-            .put_blob(configuration.as_bytes())
+            .retain_blob(configuration.as_bytes())
             .expect("lint configuration Blob should store");
         let source = repository
-            .put_blob(trim_source_frame(source).as_bytes())
+            .retain_blob(trim_source_frame(source).as_bytes())
             .expect("lint source Blob should store");
         let mut edits = vec![
             Edit::add_file("destack.json", configuration),
@@ -195,7 +195,7 @@ impl TestSession {
         // add the remaining fixture files
         for (additional_path, additional_source) in additional_sources {
             let source = repository
-                .put_blob(trim_source_frame(additional_source).as_bytes())
+                .retain_blob(trim_source_frame(additional_source).as_bytes())
                 .expect("additional lint source Blob should store");
             edits.push(Edit::add_file(*additional_path, source));
         }
@@ -534,10 +534,8 @@ pub(super) fn shared_repository() -> &'static (Arc<Repository>, RevisionPin) {
             environment,
             Arc::new(MemoryFileSystem::new()),
         )
-        .with_blob_store(Arc::new(MemoryBlobStore::new()))
         .with_execution(Execution::Cooperative);
         let (repository, revision) = Repository::new(root, host, settings, layout);
-        let repository = repository.with_artifact_store(Arc::new(NullArtifactStore::new()));
         let repository = Arc::new(repository);
         let revision = repository
             .pin(revision)

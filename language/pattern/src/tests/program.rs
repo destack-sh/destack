@@ -8,7 +8,7 @@ use destack_artifact::{
 use destack_core::StringPool;
 use destack_repository::{
     ArtifactReader, DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host,
-    MemoryBlobStore, Repository, Revision, RevisionPin, Settings,
+    Repository, Revision, RevisionPin, Settings,
 };
 use destack_session::{ArtifactPriority, Executor, Session};
 use destack_source::{File, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
@@ -134,8 +134,7 @@ impl TestProgram {
             &DestackLayoutOverride::default(),
             None,
         );
-        let host = Host::new(BuildId::test(), environment, files)
-            .with_blob_store(Arc::new(MemoryBlobStore::new()));
+        let host = Host::new(BuildId::test(), environment, files);
         let (repository, revision) =
             Repository::new(root.clone(), host, Settings::default(), layout);
         let repository = Arc::new(repository);
@@ -155,11 +154,11 @@ impl TestProgram {
         let revision = self.revision.revision();
         let manifest = self
             .repository
-            .put_blob(TEST_MANIFEST.as_bytes())
+            .retain_blob(TEST_MANIFEST.as_bytes())
             .expect("test manifest Blob should store");
         let source = self
             .repository
-            .put_blob(source.as_bytes())
+            .retain_blob(source.as_bytes())
             .expect("test source Blob should store");
         let mut edits = vec![
             Edit::set_file("destack.json", manifest),
@@ -168,7 +167,7 @@ impl TestProgram {
         for (path, source) in dependencies {
             let blob = self
                 .repository
-                .put_blob(source.as_bytes())
+                .retain_blob(source.as_bytes())
                 .expect("test dependency Blob should store");
             edits.push(Edit::set_file(path, blob));
         }

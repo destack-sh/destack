@@ -10,7 +10,7 @@ use destack_daemon::{
 };
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Environment, Execution, FormatterOptions, Host,
-    MemoryBlobStore, Repository, Revision, Settings, SourceRoot,
+    Repository, Revision, Settings, SourceRoot,
 };
 use destack_session::Executor;
 use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
@@ -346,11 +346,6 @@ impl ProgramArgs {
             ConsoleError::message(format!("failed to identify Destack build: {error}"))
         })?;
         let host = Host::new(build_id, environment, file_system);
-        let host = if self.file_system_override.is_some() {
-            host.with_blob_store(Arc::new(MemoryBlobStore::new()))
-        } else {
-            host
-        };
         let (repository, revision) =
             Repository::open(workspace_path, host, settings, layout_override).map_err(|error| {
                 ConsoleError::message(format!("failed to open workspace: {error}"))

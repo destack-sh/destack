@@ -5,8 +5,8 @@ use std::sync::Arc;
 use destack_artifact::BuildId;
 use destack_query::{QueryRequest, QueryResponse};
 use destack_repository::{
-    DestackLayoutOverride, Edit, Environment, Execution, Host, MemoryBlobStore, Repository,
-    Revision, Settings, Trace, TraceLevel, TraceSnapshot, TraceView,
+    DestackLayoutOverride, Edit, Environment, Execution, Host, Repository, Revision, Settings,
+    Trace, TraceLevel, TraceSnapshot, TraceView,
 };
 use destack_session::Executor;
 use destack_source::{FileSystem, MemoryFileSystem};
@@ -64,8 +64,7 @@ impl QueryWorkspace {
         file_system
             .create_dir_all(&root)
             .map_err(|error| format!("failed to create query workspace: {error}"))?;
-        let host = Host::new(BuildId::test(), Environment::capture_process(), file_system)
-            .with_blob_store(Arc::new(MemoryBlobStore::new()));
+        let host = Host::new(BuildId::test(), Environment::capture_process(), file_system);
         let (repository, revision) = Repository::open(
             root.clone(),
             host,
@@ -119,7 +118,7 @@ impl QueryWorkspace {
         if !files.contains_key(Path::new("destack.json")) {
             let blob = self
                 .repository
-                .put_blob(QUERY_MANIFEST.as_bytes())
+                .retain_blob(QUERY_MANIFEST.as_bytes())
                 .map_err(|error| format!("failed to store query manifest: {error}"))?;
             edits.push(Edit::add_file("destack.json", blob));
         }
@@ -129,7 +128,7 @@ impl QueryWorkspace {
             let logical_path = query_logical_path(&file.path)?;
             let blob = self
                 .repository
-                .put_blob(file.source.as_bytes())
+                .retain_blob(file.source.as_bytes())
                 .map_err(|error| format!("failed to store query file: {error}"))?;
             edits.push(Edit::add_file(logical_path, blob));
         }
@@ -250,7 +249,7 @@ impl QueryWorkspace {
                 let logical_path = query_logical_path(&file.path)?;
                 let blob = self
                     .repository
-                    .put_blob(file.source.as_bytes())
+                    .retain_blob(file.source.as_bytes())
                     .map_err(|error| format!("failed to store query file: {error}"))?;
 
                 Ok(Edit::add_file(logical_path, blob))
@@ -259,7 +258,7 @@ impl QueryWorkspace {
                 let logical_path = query_logical_path(&target.path)?;
                 let blob = self
                     .repository
-                    .put_blob(target.source.as_bytes())
+                    .retain_blob(target.source.as_bytes())
                     .map_err(|error| format!("failed to store query file: {error}"))?;
 
                 Ok(Edit::set_file(logical_path, blob))

@@ -456,28 +456,28 @@ impl Indexer {
         let Some(base) = context.artifact_base() else {
             return Ok(None);
         };
-        if base.version.key != context.artifact_key() {
+        let base_version = base.version();
+        if base_version.key != context.artifact_key() {
             return Err(ProviderError::internal(format!(
                 "program index predecessor has another key: expected={:?}, found={:?}",
                 context.artifact_key(),
-                base.version.key
+                base_version.key
             ))
             .into());
         }
 
         // rebuild when program membership changed
-        let base_versions = Self::program_module_versions(&base.dependencies, profile_id, kind)?;
+        let base_versions = Self::program_module_versions(base.dependencies(), profile_id, kind)?;
         let base_modules = base_versions.keys().copied().collect::<Vec<_>>();
         if base_modules != module_ids {
             return Ok(None);
         }
 
         // load the predecessor program index
-        let base_index = repository
-            .artifact_table()
-            .artifact::<ProgramIndex>(&base.version)
+        let base_index = base
+            .artifact::<ProgramIndex>()
             .ok_or(ProviderError::Corrupt {
-                version: base.version,
+                version: base_version,
             })?;
         if base_index.kind() != kind {
             return Err(ProviderError::internal(format!(

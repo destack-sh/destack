@@ -118,7 +118,8 @@ impl Linter {
         // read the root edges before walking the reachable graph
         let graph_key = ArtifactKey::module_graph(profile);
         for root in roots.iter().copied() {
-            dependencies.require_projection(graph_key, ArtifactProjectionKey::ModuleEdges(root));
+            dependencies
+                .require_projection(graph_key, ArtifactProjectionKey::ModuleGraphEdges(root));
         }
         let artifacts = self.artifact_reader(context);
         let graph = match artifacts.module_graph_reader(profile) {
@@ -134,7 +135,8 @@ impl Linter {
         // project the program's import closure from the target roots
         let program_modules = graph.reachable(&roots)?;
         for module in program_modules.iter().copied() {
-            dependencies.require_projection(graph_key, ArtifactProjectionKey::ModuleEdges(module));
+            dependencies
+                .require_projection(graph_key, ArtifactProjectionKey::ModuleGraphEdges(module));
         }
         let mut required = program_modules.iter().copied().collect::<FxIndexSet<_>>();
 
@@ -167,8 +169,10 @@ impl Linter {
             let modules = graph.reachable(&graph_roots)?;
             for module in modules.iter().copied() {
                 if required.insert(module) {
-                    dependencies
-                        .require_projection(graph_key, ArtifactProjectionKey::ModuleEdges(module));
+                    dependencies.require_projection(
+                        graph_key,
+                        ArtifactProjectionKey::ModuleGraphEdges(module),
+                    );
                 }
             }
 
