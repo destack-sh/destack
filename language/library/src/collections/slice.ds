@@ -159,10 +159,10 @@ export extension<T: Copy> of Slice<T> implements Iterable<T>, Sequence {
     /// Return the first element by value.
     first(): T | undefined {
         if (this.isEmpty) {
-            return undefined;
+            undefined
+        } else {
+            this[0]
         }
-
-        this[0]
     }
 
     /// Return the last element by value.
@@ -170,10 +170,10 @@ export extension<T: Copy> of Slice<T> implements Iterable<T>, Sequence {
         let length = this.length;
 
         if (length == 0) {
-            return undefined;
+            undefined
+        } else {
+            this[length - 1]
         }
-
-        this[length - 1]
     }
 }
 

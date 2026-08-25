@@ -9,10 +9,10 @@ export extension Arithmetic<T: Integer> of T {
         let (result, overflow) = overflowingAdd(this, other);
 
         if (overflow) {
-            return undefined;
+            undefined
+        } else {
+            result
         }
-
-        result
     }
 
     /// Return `this - other`, or `undefined` on overflow.
@@ -20,10 +20,10 @@ export extension Arithmetic<T: Integer> of T {
         let (result, overflow) = overflowingSubtract(this, other);
 
         if (overflow) {
-            return undefined;
+            undefined
+        } else {
+            result
         }
-
-        result
     }
 
     /// Return `this * other`, or `undefined` on overflow.
@@ -31,10 +31,10 @@ export extension Arithmetic<T: Integer> of T {
         let (result, overflow) = overflowingMultiply(this, other);
 
         if (overflow) {
-            return undefined;
+            undefined
+        } else {
+            result
         }
-
-        result
     }
 
     /// Return `this / other`, or `undefined` on division by zero or overflow.

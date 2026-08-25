@@ -198,12 +198,12 @@ export extension<T: Float> of Vector2<T> {
         let length = this.length();
 
         if (length == T.zero()) {
-            return Vector2.zero();
-        }
-
-        Vector2 {
-            x: this.x / length,
-            y: this.y / length,
+            Vector2.zero()
+        } else {
+            Vector2 {
+                x: this.x / length,
+                y: this.y / length,
+            }
         }
     }
 
@@ -420,13 +420,13 @@ export extension<T: Float> of Vector3<T> {
         let length = this.length();
 
         if (length == T.zero()) {
-            return Vector3.zero();
-        }
-
-        Vector3 {
-            x: this.x / length,
-            y: this.y / length,
-            z: this.z / length,
+            Vector3.zero()
+        } else {
+            Vector3 {
+                x: this.x / length,
+                y: this.y / length,
+                z: this.z / length,
+            }
         }
     }
 
@@ -672,14 +672,14 @@ export extension<T: Float> of Vector4<T> {
         let length = this.length();
 
         if (length == T.zero()) {
-            return Vector4.zero();
-        }
-
-        Vector4 {
-            x: this.x / length,
-            y: this.y / length,
-            z: this.z / length,
-            w: this.w / length,
+            Vector4.zero()
+        } else {
+            Vector4 {
+                x: this.x / length,
+                y: this.y / length,
+                z: this.z / length,
+                w: this.w / length,
+            }
         }
     }
 
