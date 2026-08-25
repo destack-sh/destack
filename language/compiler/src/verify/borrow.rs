@@ -135,7 +135,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
         self.check_terminator(block_id, block.terminator, terminator);
     }
 
-    /// Return live carriers and the move-only owners they retain.
+    /// Return live representations and the move-only owners they retain.
     fn retention_entries(&self, live: &LiveSet<'_>) -> Vec<MovePathId> {
         let mut retention = Vec::new();
 
@@ -145,9 +145,9 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
                 continue;
             }
 
-            let carrier = PlaceOrigin::Value(binding.value);
+            let representation = PlaceOrigin::Value(binding.value);
             for loan in binding.provenance.loans() {
-                let Some(owner) = self.retained_owner(*loan, carrier) else {
+                let Some(owner) = self.retained_owner(*loan, representation) else {
                     continue;
                 };
                 if !retention.contains(&owner) {
@@ -158,12 +158,13 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
 
         // collect owners retained by addressable places
         for binding in self.state.places() {
-            let Some(carrier) = live.find_carrier(binding.place.origin, &self.places) else {
+            let Some(representation) = live.find_representation(binding.place.origin, &self.places)
+            else {
                 continue;
             };
 
             for loan in binding.provenance.loans() {
-                let Some(owner) = self.retained_owner(*loan, carrier) else {
+                let Some(owner) = self.retained_owner(*loan, representation) else {
                     continue;
                 };
                 if !retention.contains(&owner) {
@@ -194,12 +195,12 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
         Some(self.moves.root(path))
     }
 
-    /// Return an owner retained beyond its direct carrier.
-    fn retained_owner(&self, loan_id: LoanId, carrier: PlaceOrigin) -> Option<MovePathId> {
+    /// Return an owner retained beyond its direct representation.
+    fn retained_owner(&self, loan_id: LoanId, representation: PlaceOrigin) -> Option<MovePathId> {
         let owner = self.owner(loan_id)?;
         let origin = self.moves.get(owner).place.origin;
 
-        (carrier != origin).then_some(owner)
+        (representation != origin).then_some(owner)
     }
 
     /// Check one instruction against the current provenance.
@@ -571,7 +572,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
             return true;
         }
 
-        self.escape.escapes(loan.carrier)
+        self.escape.escapes(loan.representation)
     }
 
     /// Return whether one memory effect may touch an active loan.
@@ -587,7 +588,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
                     .is_some_and(|loan| self.alias.may_overlap(&place, loan))
             }
             MemoryRegion::Place(_) | MemoryRegion::Any { .. } => {
-                let location = MemoryLocation::from_address(loan.carrier);
+                let location = MemoryLocation::from_address(loan.representation);
 
                 effect.may_touch_location(&location, &self.alias)
             }
@@ -710,6 +711,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
                     .emit_error(VerifyError::BorrowThroughReadonlyReference {
                         anchor: self.verification.anchor(anchor),
                     });
+
                 continue;
             }
 
@@ -729,6 +731,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
                     .emit_error(VerifyError::ExclusiveBorrowFromSharedStorage {
                         anchor: self.verification.anchor(anchor),
                     });
+
                 continue;
             }
 
@@ -768,7 +771,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
             loans.push(loan);
         }
 
-        // check memory through call arguments once
+        // authorize the active loans these argument loans already cover
         self.active_loans
             .iter()
             .copied()
@@ -991,7 +994,10 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
         }
     }
 
-    /// Return whether one loan borrows managed storage.
+    /// Return whether one loan borrows local managed storage.
+    ///
+    /// Shared and constant loans survive parks: shared writes ride overwrite stability
+    /// and constant storage stays fixed, so only local synchronous regions end there.
     fn loan_is_managed(&self, loan: LoanId) -> bool {
         let loan = self.provenance.loans().get(loan);
         let Some(place) = loan.place() else {
@@ -1001,8 +1007,14 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
             return false;
         };
         let ty = self.function.expect_value_type(value);
+        let definition = self.tree.get(ty);
 
-        self.tree.get(ty).reference_kind() == Some(ReferenceKind::Managed)
+        // treat a managed reference without declared storage as local
+        definition.reference_kind() == Some(ReferenceKind::Managed)
+            && matches!(
+                definition.reference_storage(),
+                None | Some(Storage::LocalHeap)
+            )
     }
 
     /// Emit managed borrow errors for one parking call.
@@ -1132,7 +1144,10 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
     fn activate_loans(&mut self, live: &LiveSet<'_>) {
         self.active_loans = self.state.active_loans(
             |value| live.contains_value(value),
-            |place| live.find_carrier(place.origin, &self.places).is_some(),
+            |place| {
+                live.find_representation(place.origin, &self.places)
+                    .is_some()
+            },
         );
         self.active_loans
             .retain(|loan| !self.rejected_loans.contains(loan.index()));

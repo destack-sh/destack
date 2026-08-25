@@ -1,5 +1,6 @@
 use crate::tests::TestProgram;
 
+/// A readonly borrow of shared managed storage verifies.
 #[test]
 fn test_allow_shared_managed_readonly_borrow() {
     let mut program = TestProgram::mir(
@@ -20,6 +21,7 @@ entry(v0: ref<User, managed, mutable, shared>):
     program.assert_verified();
 }
 
+/// An exclusive borrow of shared managed storage reports a diagnostic.
 #[test]
 fn test_reject_shared_managed_exclusive_borrow() {
     let mut program = TestProgram::mir(
@@ -55,6 +57,7 @@ for more information about an error, run `destack explain exclusive-borrow-from-
     );
 }
 
+/// An exclusive borrow of a shared global reports a diagnostic.
 #[test]
 fn test_reject_shared_global_exclusive_borrow() {
     let mut program = TestProgram::mir(
@@ -63,7 +66,7 @@ shared global value: int32 = 0
 
 function test(): int32 {
 entry:
-    v0: ref<int32, borrowed, exclusive, shared global> = global.address value
+    v0: ref<int32, borrowed, exclusive, shared static> = global.address value
     v1: int32 = load v0
     return v1
 }
@@ -77,7 +80,7 @@ error[exclusive-borrow-from-shared-storage]: cannot borrow shared storage exclus
   │
 4 │ function test(): int32 {
 5 │ entry:
-6 │     v0: ref<int32, borrowed, exclusive, shared global> = global.address value
+6 │     v0: ref<int32, borrowed, exclusive, shared static> = global.address value
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 7 │     v1: int32 = load v0
 8 │     return v1
@@ -88,6 +91,7 @@ for more information about an error, run `destack explain exclusive-borrow-from-
     );
 }
 
+/// Passing shared storage to an exclusive parameter reports a diagnostic.
 #[test]
 fn test_reject_shared_storage_passed_exclusively() {
     let mut program = TestProgram::mir(
@@ -124,6 +128,7 @@ for more information about an error, run `destack explain exclusive-borrow-from-
     );
 }
 
+/// Storing a frame borrow into managed storage reports a diagnostic.
 #[test]
 fn test_reject_frame_borrow_stored_in_managed_storage() {
     let mut program = TestProgram::mir(
@@ -164,6 +169,7 @@ for more information about an error, run `destack explain borrow-outlives-origin
     );
 }
 
+/// Exclusive borrows of a heap field and a global verify together.
 #[test]
 fn test_allow_disjoint_heap_and_global_borrows() {
     let mut program = TestProgram::mir(
@@ -189,6 +195,7 @@ entry(v0: ref<Box, borrowed, mutable>):
     program.assert_verified();
 }
 
+/// Exclusive borrows of fields in distinct allocations verify together.
 #[test]
 fn test_allow_exclusive_borrows_from_distinct_allocations() {
     let mut program = TestProgram::mir(
