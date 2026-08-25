@@ -65,7 +65,7 @@ impl HeapStorage {
         reference: HeapReference,
         trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
-        // only live shared-reference carriers need rescanning
+        // only live shared-reference representations need rescanning
         if !self.collector.is_scanning_shared_edges
             || !self.reference_has_shared_roots(reference, trace_view)?
         {
