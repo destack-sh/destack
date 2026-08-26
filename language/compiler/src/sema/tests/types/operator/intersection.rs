@@ -32,10 +32,12 @@ const age: int32 = person.age;
 type Named = { name: string };
 /// @type.symbol symbol=Named source="type Named = { name: string }" type={ name: string }
 /// @definition.type symbol=Named source="type Named = { name: string }" value={ name: string }
+/// @type.symbol symbol=Named.name source="name: string" type=string
 
 type Aged = { age: int32 };
 /// @type.symbol symbol=Aged source="type Aged = { age: int32 }" type={ age: int32 }
 /// @definition.type symbol=Aged source="type Aged = { age: int32 }" value={ age: int32 }
+/// @type.symbol symbol=Aged.age source="age: int32" type=int32
 
 type Person = Named & Aged;
 /// @type.symbol symbol=Person source="type Person = Named & Aged" type={ name: string; age: int32 }
@@ -172,10 +174,12 @@ const person: { name: string; age: int32 } = { name: "Ada" };
 type Named = { name: string };
 /// @type.symbol symbol=Named source="type Named = { name: string }" type={ name: string }
 /// @definition.type symbol=Named source="type Named = { name: string }" value={ name: string }
+/// @type.symbol symbol=Named.name source="name: string" type=string
 
 type Aged = { age: int32 };
 /// @type.symbol symbol=Aged source="type Aged = { age: int32 }" type={ age: int32 }
 /// @definition.type symbol=Aged source="type Aged = { age: int32 }" value={ age: int32 }
+/// @type.symbol symbol=Aged.age source="age: int32" type=int32
 
 type Person = Named & Aged;
 /// @type.symbol symbol=Person source="type Person = Named & Aged" type={ name: string; age: int32 }
@@ -224,10 +228,12 @@ const value: { value: never } = { value: "ok" };
 type NumberValue = { value: int32 };
 /// @type.symbol symbol=NumberValue source="type NumberValue = { value: int32 }" type={ value: int32 }
 /// @definition.type symbol=NumberValue source="type NumberValue = { value: int32 }" value={ value: int32 }
+/// @type.symbol symbol=NumberValue.value source="value: int32" type=int32
 
 type TextValue = { value: string };
 /// @type.symbol symbol=TextValue source="type TextValue = { value: string }" type={ value: string }
 /// @definition.type symbol=TextValue source="type TextValue = { value: string }" value={ value: string }
+/// @type.symbol symbol=TextValue.value source="value: string" type=string
 
 type Value = NumberValue & TextValue;
 /// @type.symbol symbol=Value source="type Value = NumberValue & TextValue" type={ value: never }
@@ -281,10 +287,13 @@ value.extra satisfies string;
 type Wide = { value: string | int32 };
 /// @type.symbol symbol=Wide source="type Wide = { value: string | int32 }" type={ value: string | int32 }
 /// @definition.type symbol=Wide source="type Wide = { value: string | int32 }" value={ value: string | int32 }
+/// @type.symbol symbol=Wide.value source="value: string | int32" type=string | int32
 
 type Narrow = { value: string; extra: string };
 /// @type.symbol symbol=Narrow source="type Narrow = { value: string; extra: string }" type={ value: string; extra: string }
 /// @definition.type symbol=Narrow source="type Narrow = { value: string; extra: string }" value={ value: string; extra: string }
+/// @type.symbol symbol=Narrow.value source="value: string" type=string
+/// @type.symbol symbol=Narrow.extra source="extra: string" type=string
 
 type Value = Wide & Narrow;
 /// @type.symbol symbol=Value source="type Value = Wide & Narrow" type={ value: string; extra: string }

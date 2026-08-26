@@ -32,6 +32,8 @@ declare const items: { name: string; value: int32 }[];
 /// @generic.instance id="Array<{ name: string; value: int32 }>" template=Array arguments=({ name: string; value: int32 })
 /// @generic.instance id="MaybeUninit<{ name: string; value: int32 }>" template=MaybeUninit arguments=({ name: string; value: int32 })
 /// @generic.instance id="new<MaybeUninit<{ name: string; value: int32 }>>" template=new arguments=(MaybeUninit<{ name: string; value: int32 }>)
+/// @type.symbol symbol=name#1 source="name: string" type=string
+/// @type.symbol symbol=value#1 source="value: int32" type=int32
 
 for (const { name, value } of items) {
 /// @resolution.pattern source={ name, value } kind=object fields={ name, value }
@@ -87,6 +89,7 @@ for (const { name } in item) {
 declare const item: { name: string };
 /// @type.symbol symbol=item source=item type={ name: string }
 /// @resolution.pattern source=item kind=binding target=item
+/// @type.symbol symbol=name#1 source="name: string" type=string
 
 for (const { name } in item) {
 /// @resolution.rejected source={ name }

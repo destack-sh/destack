@@ -244,6 +244,7 @@ extension of Panel implements Rowed {
 
     type Rows = { header: string };
     /// @type.symbol symbol=Rows source="type Rows = { header: string }" type={ header: string }
+    /// @type.symbol symbol=Rows.header source="header: string" type=string
 
     static row<const Key: keyof this.Rows>(key: Key): Panel {
     /// @generic.template symbol=row parent=template#1 parameters=(const Key#2: keyof this.Rows)
@@ -345,6 +346,7 @@ extension of Panel implements Rowed {
 
     type Rows = { header: string };
     /// @type.symbol symbol=Rows source="type Rows = { header: string }" type={ header: string }
+    /// @type.symbol symbol=Rows.header source="header: string" type=string
 
     static row<const Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): Panel {
     /// @generic.template symbol=row parent=template#1 parameters=(const Key#2: keyof this.Rows)
@@ -542,7 +544,12 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; span: {} }
 
         div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
         span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
     };
 
     static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
@@ -698,7 +705,12 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; span: {} }
 
         div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
         span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
     };
 
     static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(

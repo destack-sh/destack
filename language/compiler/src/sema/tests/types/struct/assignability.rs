@@ -323,6 +323,7 @@ const point = Point { x: 1 };
 const value: { readonly x: int32 } = point;
 /// @type.symbol symbol=value source=value type={ readonly x: int32 }
 /// @resolution.pattern source=value kind=binding target=value
+/// @type.symbol symbol=x#1 source="readonly x: int32" type=int32
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
@@ -331,6 +332,7 @@ value satisfies { readonly x: int32 };
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
+/// @type.symbol symbol=x#2 source="readonly x: int32" type=int32
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Point' is not assignable to type '{ readonly x: int32 }'"

@@ -117,6 +117,8 @@ declare function read(): Result<string, { code: int32; message: string }>;
 /// @generic.instance id="Result<string, { code: int32; message: string }>" template=Result arguments=(string, { code: int32; message: string })
 /// @generic.instance id=Ok<string> template=Ok arguments=(string)
 /// @resolution.name source=Result target=Result
+/// @type.symbol symbol=read.code source="code: int32" type=int32
+/// @type.symbol symbol=read.message source="message: string" type=string
 
 try {
 /// @type.node type=string | void
@@ -244,6 +246,7 @@ declare function read(): Result<string, { message: string }>;
 /// @generic.instance id="Result<string, { message: string }>" template=Result arguments=(string, { message: string })
 /// @generic.instance id=Ok<string> template=Ok arguments=(string)
 /// @resolution.name source=Result target=Result
+/// @type.symbol symbol=read.message source="message: string" type=string
 
 try {
 /// @type.node type=string | void

@@ -36,7 +36,11 @@ type User = {
 /// @definition.type symbol=User value={ profile: { name: string } }
 
     profile: {
+    /// @type.symbol symbol=User.profile type={ name: string }
+
         name: string;
+        /// @type.symbol symbol=User.name source="name: string" type=string
+
     };
 };
 

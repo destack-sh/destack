@@ -105,6 +105,7 @@ state.count = 1;
 const state: { count: int32 } = { count: 0 };
 /// @type.symbol symbol=state source=state type={ count: int32 }
 /// @resolution.pattern source=state kind=binding target=state
+/// @type.symbol symbol=count source="count: int32" type=int32
 /// @type.node source={ count: 0 } type={ count: int32 }
 /// @type.node source=0 type=0
 

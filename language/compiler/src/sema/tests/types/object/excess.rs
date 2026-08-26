@@ -23,6 +23,7 @@ const value: { name: string } = { name: "Ada", extra: true };
 type Person = { name: string };
 /// @type.symbol symbol=Person source="type Person = { name: string }" type={ name: string }
 /// @definition.type symbol=Person source="type Person = { name: string }" value={ name: string }
+/// @type.symbol symbol=Person.name source="name: string" type=string
 
 const value: Person = { name: "Ada", extra: true };
 /// @type.symbol symbol=value source=value type={ name: string }
@@ -67,6 +68,7 @@ const value: { name: string } = source;
 type Person = { name: string };
 /// @type.symbol symbol=Person source="type Person = { name: string }" type={ name: string }
 /// @definition.type symbol=Person source="type Person = { name: string }" value={ name: string }
+/// @type.symbol symbol=Person.name source="name: string" type=string
 
 const source = { name: "Ada", extra: true };
 /// @type.symbol symbol=source source=source type={ name: string; extra: boolean }
@@ -126,6 +128,7 @@ function keep<T: { name: string }>(value: T): T {
 /// @generic.template symbol=keep parameters=(T: { name: string })
 /// @type.symbol symbol=keep type=<T: { name: string }>(T) => T
 /// @type.symbol symbol=keep.T source="T: { name: string }" type=T
+/// @type.symbol symbol=keep.name source="name: string" type=string
 /// @type.symbol symbol=keep.value source="value: T" type=T
 /// @resolution.name source=T target=keep.T
 /// @resolution.name source=T target=keep.T

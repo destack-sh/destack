@@ -138,7 +138,11 @@ type Point = {
 /// @definition.type symbol=Point value={ x: int32; y: int32 }
 
     x: int32;
+    /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
     y: int32;
+    /// @type.symbol symbol=Point.y source="y: int32" type=int32
+
 };
 
 struct Rectangle {
@@ -227,7 +231,11 @@ type Point = {
 /// @definition.type symbol=Point value={ x: int32; y: int32 }
 
     x: int32;
+    /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
     y: int32;
+    /// @type.symbol symbol=Point.y source="y: int32" type=int32
+
 };
 
 struct Rectangle {
@@ -674,6 +682,8 @@ marker.position satisfies Point;
 type Point = { x: int32; y: int32 };
 /// @type.symbol symbol=Point source="type Point = { x: int32; y: int32 }" type={ x: int32; y: int32 }
 /// @definition.type symbol=Point source="type Point = { x: int32; y: int32 }" value={ x: int32; y: int32 }
+/// @type.symbol symbol=Point.x source="x: int32" type=int32
+/// @type.symbol symbol=Point.y source="y: int32" type=int32
 
 struct Segment {
 /// @type.symbol symbol=Segment type=Segment

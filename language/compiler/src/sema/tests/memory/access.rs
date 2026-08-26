@@ -867,6 +867,7 @@ function update<T: { status: Status }>(state: &T): void {
 /// @generic.template symbol=update parameters=(T: { status: Status }, 'a, P2: Place)
 /// @type.symbol symbol=update type=<T: { status: Status }, update.'a, update.P2: Place>(&update.'a T) => void
 /// @type.symbol symbol=update.T source="T: { status: Status }" type=T
+/// @type.symbol symbol=update.status source="status: Status" type=Status
 /// @resolution.name source=Status target=Status
 /// @type.symbol symbol=update.state source="state: &T" type=&update.'a T
 /// @resolution.name source=T target=update.T

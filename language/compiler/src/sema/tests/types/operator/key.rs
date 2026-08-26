@@ -26,6 +26,8 @@ declare const key: "name" | "age";
 type User = { name: string; age: int32 };
 /// @type.symbol symbol=User source="type User = { name: string; age: int32 }" type={ name: string; age: int32 }
 /// @definition.type symbol=User source="type User = { name: string; age: int32 }" value={ name: string; age: int32 }
+/// @type.symbol symbol=User.name source="name: string" type=string
+/// @type.symbol symbol=User.age source="age: int32" type=int32
 
 type Keys = keyof User;
 /// @type.symbol symbol=Keys source="type Keys = keyof User" type="name" | "age"
@@ -68,10 +70,14 @@ declare const key: "shared";
 type Left = { shared: string; left: int32 };
 /// @type.symbol symbol=Left source="type Left = { shared: string; left: int32 }" type={ shared: string; left: int32 }
 /// @definition.type symbol=Left source="type Left = { shared: string; left: int32 }" value={ shared: string; left: int32 }
+/// @type.symbol symbol=Left.shared source="shared: string" type=string
+/// @type.symbol symbol=Left.left source="left: int32" type=int32
 
 type Right = { shared: string; right: int32 };
 /// @type.symbol symbol=Right source="type Right = { shared: string; right: int32 }" type={ shared: string; right: int32 }
 /// @definition.type symbol=Right source="type Right = { shared: string; right: int32 }" value={ shared: string; right: int32 }
+/// @type.symbol symbol=Right.shared source="shared: string" type=string
+/// @type.symbol symbol=Right.right source="right: int32" type=int32
 
 type Keys = keyof (Left | Right);
 /// @type.symbol symbol=Keys source="type Keys = keyof (Left | Right)" type="shared"
@@ -115,10 +121,14 @@ const bad: "shared" = "left";
 type Left = { shared: string; left: int32 };
 /// @type.symbol symbol=Left source="type Left = { shared: string; left: int32 }" type={ shared: string; left: int32 }
 /// @definition.type symbol=Left source="type Left = { shared: string; left: int32 }" value={ shared: string; left: int32 }
+/// @type.symbol symbol=Left.shared source="shared: string" type=string
+/// @type.symbol symbol=Left.left source="left: int32" type=int32
 
 type Right = { shared: string; right: int32 };
 /// @type.symbol symbol=Right source="type Right = { shared: string; right: int32 }" type={ shared: string; right: int32 }
 /// @definition.type symbol=Right source="type Right = { shared: string; right: int32 }" value={ shared: string; right: int32 }
+/// @type.symbol symbol=Right.shared source="shared: string" type=string
+/// @type.symbol symbol=Right.right source="right: int32" type=int32
 
 type Keys = keyof (Left | Right);
 /// @type.symbol symbol=Keys source="type Keys = keyof (Left | Right)" type="shared"
@@ -167,10 +177,14 @@ declare const key: "shared" | "left" | "right";
 type Left = { shared: string; left: int32 };
 /// @type.symbol symbol=Left source="type Left = { shared: string; left: int32 }" type={ shared: string; left: int32 }
 /// @definition.type symbol=Left source="type Left = { shared: string; left: int32 }" value={ shared: string; left: int32 }
+/// @type.symbol symbol=Left.shared source="shared: string" type=string
+/// @type.symbol symbol=Left.left source="left: int32" type=int32
 
 type Right = { shared: string; right: int32 };
 /// @type.symbol symbol=Right source="type Right = { shared: string; right: int32 }" type={ shared: string; right: int32 }
 /// @definition.type symbol=Right source="type Right = { shared: string; right: int32 }" value={ shared: string; right: int32 }
+/// @type.symbol symbol=Right.shared source="shared: string" type=string
+/// @type.symbol symbol=Right.right source="right: int32" type=int32
 
 type Keys = keyof (Left & Right);
 /// @type.symbol symbol=Keys source="type Keys = keyof (Left & Right)" type="shared" | "left" | "right"
@@ -214,12 +228,15 @@ type Keys<T: { a: int32 }> = keyof T;
 /// @type.symbol symbol=Keys source="type Keys<T: { a: int32 }> = keyof T" type=keyof T
 /// @definition.type symbol=Keys source="type Keys<T: { a: int32 }> = keyof T" template=(T: { a: int32 }) value=keyof T
 /// @type.symbol symbol=Keys.T source="T: { a: int32 }" type=T
+/// @type.symbol symbol=Keys.a source="a: int32" type=int32
 /// @resolution.name source=T target=Keys.T
 
 type Actual = Keys<{ a: int32; b: string }>;
 /// @type.symbol symbol=Actual source="type Actual = Keys<{ a: int32; b: string }>" type="a" | "b"
 /// @definition.type symbol=Actual source="type Actual = Keys<{ a: int32; b: string }>" value="a" | "b"
 /// @resolution.name source=Keys target=Keys
+/// @type.symbol symbol=Actual.a source="a: int32" type=int32
+/// @type.symbol symbol=Actual.b source="b: string" type=string
 
 declare const key: Actual;
 /// @type.symbol symbol=key source=key type="a" | "b"
@@ -255,6 +272,8 @@ declare const key: "name" | "age";
 type User = { readonly name: string; age?: int32 };
 /// @type.symbol symbol=User source="type User = { readonly name: string; age?: int32 }" type={ readonly name: string; age?: int32 }
 /// @definition.type symbol=User source="type User = { readonly name: string; age?: int32 }" value={ readonly name: string; age?: int32 }
+/// @type.symbol symbol=User.name source="readonly name: string" type=string
+/// @type.symbol symbol=User.age source="age?: int32" type=int32
 
 type Keys = keyof User;
 /// @type.symbol symbol=Keys source="type Keys = keyof User" type="name" | "age"
@@ -594,6 +613,8 @@ const title: false = false;
 type Person = { name: string; age: int32 };
 /// @type.symbol symbol=Person source="type Person = { name: string; age: int32 }" type={ name: string; age: int32 }
 /// @definition.type symbol=Person source="type Person = { name: string; age: int32 }" value={ name: string; age: int32 }
+/// @type.symbol symbol=Person.name source="name: string" type=string
+/// @type.symbol symbol=Person.age source="age: int32" type=int32
 
 type HasName = "name" extends keyof Person ? true : false;
 /// @type.symbol symbol=HasName source="type HasName = \"name\" extends keyof Person ? true : false" type=true
@@ -656,10 +677,14 @@ const intersectionLeft: true = true;
 type Left = { shared: string; left: int32 };
 /// @type.symbol symbol=Left source="type Left = { shared: string; left: int32 }" type={ shared: string; left: int32 }
 /// @definition.type symbol=Left source="type Left = { shared: string; left: int32 }" value={ shared: string; left: int32 }
+/// @type.symbol symbol=Left.shared source="shared: string" type=string
+/// @type.symbol symbol=Left.left source="left: int32" type=int32
 
 type Right = { shared: string; right: int32 };
 /// @type.symbol symbol=Right source="type Right = { shared: string; right: int32 }" type={ shared: string; right: int32 }
 /// @definition.type symbol=Right source="type Right = { shared: string; right: int32 }" value={ shared: string; right: int32 }
+/// @type.symbol symbol=Right.shared source="shared: string" type=string
+/// @type.symbol symbol=Right.right source="right: int32" type=int32
 
 type HasUnionLeft = "left" extends keyof (Left | Right) ? true : false;
 /// @type.symbol symbol=HasUnionLeft source="type HasUnionLeft = \"left\" extends keyof (Left | Right) ? true : false" type=false

@@ -231,6 +231,8 @@ const value = { env: { mode: "dev" } } as const satisfies { env: { mode: string 
 /// @type.node source={ env: { mode: "dev" } } type={ readonly env: { readonly mode: "dev" } }
 /// @type.node source={ mode: "dev" } type={ readonly mode: "dev" }
 /// @type.node source="\"dev\"" type="dev"
+/// @type.symbol symbol=env source="env: { mode: string }" type={ mode: string }
+/// @type.symbol symbol=mode#1 source="mode: string" type=string
 
 const mode = value.env.mode;
 /// @type.symbol symbol=mode#2 source=mode type="dev"

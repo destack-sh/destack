@@ -142,6 +142,8 @@ const value: { a: float64; b: string } = { a: 1, b: 2 };
 const value: { a: number; b: string } = { a: 1, b: 2 };
 /// @type.symbol symbol=value source=value type={ a: float64; b: string }
 /// @resolution.pattern source=value kind=binding target=value
+/// @type.symbol symbol=a source="a: number" type=float64
+/// @type.symbol symbol=b source="b: string" type=string
 /// @type.node source={ a: 1, b: 2 } type={ a: float64; b: string }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -177,6 +179,7 @@ const state: { reactions: int32[] } = { reactions: [] };
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
 /// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
 /// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
+/// @type.symbol symbol=reactions source="reactions: int32[]" type=int32[]
 /// @type.node source={ reactions: [] } type={ reactions: int32[] }
 /// @type.node source=[] type=int32[]
 /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
@@ -258,6 +261,7 @@ type Mode = "dev" | "prod";
 type Shape = { mode: Mode };
 /// @type.symbol symbol=Shape source="type Shape = { mode: Mode }" type={ mode: Mode }
 /// @definition.type symbol=Shape source="type Shape = { mode: Mode }" value={ mode: Mode }
+/// @type.symbol symbol=Shape.mode source="mode: Mode" type="dev" | "prod"
 /// @resolution.name source=Mode target=Mode
 
 let config = { mode: "dev" } satisfies Shape;
@@ -527,6 +531,8 @@ struct Point {
 const base: { x: int32; y: int32 } = { x: 1, y: 2 };
 /// @type.symbol symbol=base source=base type={ x: int32; y: int32 }
 /// @resolution.pattern source=base kind=binding target=base
+/// @type.symbol symbol=x source="x: int32" type=int32
+/// @type.symbol symbol=y source="y: int32" type=int32
 /// @type.node source={ x: 1, y: 2 } type={ x: int32; y: int32 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -1093,6 +1099,7 @@ const handlers: { onCount: (arg0: int32) => void } = {
 type Handlers = { onCount: (value: int32) => void };
 /// @type.symbol symbol=Handlers source="type Handlers = { onCount: (value: int32) => void }" type={ onCount: Function<(int32,), void> }
 /// @definition.type symbol=Handlers source="type Handlers = { onCount: (value: int32) => void }" value={ onCount: Function<(int32,), void> }
+/// @type.symbol symbol=Handlers.onCount source="onCount: (value: int32) => void" type=Function<(int32,), void>
 /// @type.symbol symbol=Handlers.value source="value: int32" type=int32
 
 const handlers: Handlers = {
@@ -1154,6 +1161,7 @@ function retain(source: boolean[]): { active: boolean } {
 function retain(source: boolean[]): { active: boolean } {
 /// @type.symbol symbol=retain type=(boolean[]) => { active: boolean }
 /// @type.symbol symbol=retain.source source="source: boolean[]" type=boolean[]
+/// @type.symbol symbol=retain.active#1 source="active: boolean" type=boolean
 
     return source.reduce<{ active: boolean }>(
     /// @resolution.name source=source target=retain.source
@@ -1163,6 +1171,7 @@ function retain(source: boolean[]): { active: boolean } {
     /// @resolution.access source=source root=retain.source
     /// @generic.instantiation id="reduce#2<boolean, { active: boolean }, \"local\">" template=reduce#2 arguments=(boolean, { active: boolean }, "local")
     /// @generic.instantiation id=reduce#2<boolean> template=reduce#2 arguments=(boolean)
+    /// @type.symbol symbol=retain.active#2 source="active: boolean" type=boolean
 
         (output, value) => ({ ...output, active: value }),
         /// @type.symbol symbol=retain.symbol7 source=(output, value) => ({ ...output, active: value }) type=Function<({ active: boolean }, boolean), { active: boolean }>

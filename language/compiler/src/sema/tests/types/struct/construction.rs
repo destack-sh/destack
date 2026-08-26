@@ -748,6 +748,8 @@ type Options = {
 /// @definition.type symbol=Options value={ message?: string }
 
     message?: string;
+    /// @type.symbol symbol=Options.message source="message?: string" type=string
+
 };
 
 struct Entry<'a> {

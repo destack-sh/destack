@@ -234,6 +234,7 @@ register({ skip: true } as Argument | undefined);
 type Options = { skip?: boolean };
 /// @type.symbol symbol=Options source="type Options = { skip?: boolean }" type={ skip?: boolean }
 /// @definition.type symbol=Options source="type Options = { skip?: boolean }" value={ skip?: boolean }
+/// @type.symbol symbol=Options.skip source="skip?: boolean" type=boolean
 
 type Argument = Options | (() => void);
 /// @type.symbol symbol=Argument source="type Argument = Options | (() => void)" type=Options | Function<(), void>

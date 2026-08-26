@@ -160,6 +160,8 @@ const overflows: int8 = 300;
 type Pair = { 0: string; 1: string };
 /// @type.symbol symbol=Pair source="type Pair = { 0: string; 1: string }" type={ 0: string; 1: string }
 /// @definition.type symbol=Pair source="type Pair = { 0: string; 1: string }" value={ 0: string; 1: string }
+/// @type.symbol symbol=Pair.symbol4 source="0: string" type=string
+/// @type.symbol symbol=Pair.symbol6 source="1: string" type=string
 
 declare const key: keyof Pair;
 /// @type.symbol symbol=key source=key type=0 | 1

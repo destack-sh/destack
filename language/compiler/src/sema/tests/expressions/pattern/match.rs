@@ -1110,6 +1110,8 @@ result satisfies int32;
 declare const point: { x: int32; y: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
 /// @resolution.pattern source=point kind=binding target=point
+/// @type.symbol symbol=x#1 source="x: int32" type=int32
+/// @type.symbol symbol=y#1 source="y: int32" type=int32
 
 const result = match (point) {
 /// @type.symbol symbol=result source=result type=int32
@@ -1295,6 +1297,8 @@ match (config) {
 declare const config: { enabled: boolean; retries: int32 };
 /// @type.symbol symbol=config source=config type={ enabled: boolean; retries: int32 }
 /// @resolution.pattern source=config kind=binding target=config
+/// @type.symbol symbol=enabled#1 source="enabled: boolean" type=boolean
+/// @type.symbol symbol=retries#1 source="retries: int32" type=int32
 
 match (config) {
 /// @resolution.coverage exhaustive=true disjoint=true
@@ -1371,6 +1375,10 @@ match (packet) {
 declare const packet: { point: { x: int32; y: int32 }; labels: [string; 2] };
 /// @type.symbol symbol=packet source=packet type={ point: { x: int32; y: int32 }; labels: FixedArray<string, 2> }
 /// @resolution.pattern source=packet kind=binding target=packet
+/// @type.symbol symbol=point source="point: { x: int32; y: int32 }" type={ x: int32; y: int32 }
+/// @type.symbol symbol=x#1 source="x: int32" type=int32
+/// @type.symbol symbol=y#1 source="y: int32" type=int32
+/// @type.symbol symbol=labels source="labels: [string; 2]" type=FixedArray<string, 2>
 
 match (packet) {
 /// @resolution.coverage exhaustive=true disjoint=true
@@ -1638,6 +1646,8 @@ match (value) {
 declare const value: { left: int32 } | { right: int32 };
 /// @type.symbol symbol=value source=value type={ left: int32 } | { right: int32 }
 /// @resolution.pattern source=value kind=binding target=value
+/// @type.symbol symbol=left source="left: int32" type=int32
+/// @type.symbol symbol=right source="right: int32" type=int32
 
 match (value) {
 /// @type.node type=int32

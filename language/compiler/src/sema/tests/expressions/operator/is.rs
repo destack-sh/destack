@@ -122,6 +122,7 @@ if (value is { name: string }) {
 /// @resolution.guard source="value is { name: string }" kind=is value=Dynamic<unknown> target={ name: string } predicate="Dynamic<unknown> is never"
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
+/// @type.symbol symbol=name source="name: string" type=string
 
 }
 "#,

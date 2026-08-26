@@ -62,7 +62,11 @@ type Events = {
 /// @definition.type symbol=Events value={ ready: boolean; message: string }
 
     ready: boolean;
+    /// @type.symbol symbol=Events.ready source="ready: boolean" type=boolean
+
     message: string;
+    /// @type.symbol symbol=Events.message source="message: string" type=string
+
 };
 
 declare const handlers: Handlers<Events>;
@@ -154,7 +158,11 @@ type Person = {
 /// @definition.type symbol=Person value={ name: string; age: int32 }
 
     name: string;
+    /// @type.symbol symbol=Person.name source="name: string" type=string
+
     age: int32;
+    /// @type.symbol symbol=Person.age source="age: int32" type=int32
+
 };
 
 declare const getters: Getters<Person>;
@@ -232,6 +240,7 @@ type Value = Handlers<{ name: string }>["on-name"];
 /// @type.symbol symbol=Value source="type Value = Handlers<{ name: string }>[\"on-name\"]" type=string
 /// @definition.type symbol=Value source="type Value = Handlers<{ name: string }>[\"on-name\"]" value=string
 /// @resolution.name source=Handlers target=Handlers
+/// @type.symbol symbol=Value.name source="name: string" type=string
 
 declare const value: Value;
 /// @type.symbol symbol=value source=value type=string
@@ -289,7 +298,11 @@ type Events = {
 /// @definition.type symbol=Events value={ userCreated: string; orderPaid: int32 }
 
     userCreated: string;
+    /// @type.symbol symbol=Events.userCreated source="userCreated: string" type=string
+
     orderPaid: int32;
+    /// @type.symbol symbol=Events.orderPaid source="orderPaid: int32" type=int32
+
 };
 
 type Names<T> = {
@@ -367,7 +380,11 @@ type Events = {
 /// @definition.type symbol=Events value={ userCreated: string; orderPaid: int32 }
 
     userCreated: string;
+    /// @type.symbol symbol=Events.userCreated source="userCreated: string" type=string
+
     orderPaid: int32;
+    /// @type.symbol symbol=Events.orderPaid source="orderPaid: int32" type=int32
+
 };
 
 type Names<T> = {
@@ -466,6 +483,8 @@ const handlers = {
     "on-close": false,
 } satisfies HandlerMap<{ open: boolean; close: boolean }>;
 /// @resolution.name source=HandlerMap target=HandlerMap
+/// @type.symbol symbol=open source="open: boolean" type=boolean
+/// @type.symbol symbol=close source="close: boolean" type=boolean
 
 handlers["on-open"] satisfies boolean;
 /// @resolution.name source=handlers target=handlers

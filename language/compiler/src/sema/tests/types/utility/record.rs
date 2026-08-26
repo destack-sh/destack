@@ -251,6 +251,7 @@ type Bad = Record<{ name: string }, boolean>;
 /// @type.symbol symbol=Bad source="type Bad = Record<{ name: string }, boolean>" type={ [P in { name: string }]: boolean }
 /// @definition.type symbol=Bad source="type Bad = Record<{ name: string }, boolean>" value={ [P in { name: string }]: boolean }
 /// @resolution.name source=Record target=Record
+/// @type.symbol symbol=Bad.name source="name: string" type=string
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type '{ name: string }' does not satisfy 'PropertyKey'"
@@ -301,6 +302,7 @@ declare function read(bag: Bag): int32 | undefined;
 const point: { x: int32 } = { x: 1 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
 /// @resolution.pattern source=point kind=binding target=point
+/// @type.symbol symbol=x source="x: int32" type=int32
 
 const value = read(point);
 /// @type.symbol symbol=value source=value type=int32 | undefined

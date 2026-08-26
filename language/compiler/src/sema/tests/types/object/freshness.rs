@@ -53,7 +53,11 @@ type Base = {
 /// @definition.type symbol=Base value={ only?: boolean; skip?: boolean }
 
     only?: boolean;
+    /// @type.symbol symbol=Base.only source="only?: boolean" type=boolean
+
     skip?: boolean;
+    /// @type.symbol symbol=Base.skip source="skip?: boolean" type=boolean
+
 };
 
 type Options = Base & {
@@ -62,6 +66,8 @@ type Options = Base & {
 /// @resolution.name source=Base target=Base
 
     samples?: uint64;
+    /// @type.symbol symbol=Options.samples source="samples?: uint64" type=uint64
+
 };
 
 type Argument = (() => void) | Options;

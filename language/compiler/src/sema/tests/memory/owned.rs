@@ -613,6 +613,7 @@ witness(pair);
 declare const object: ^{ value: int32 };
 /// @type.symbol symbol=object source=object type=Owned<{ value: int32 }>
 /// @resolution.pattern source=object kind=binding target=object
+/// @type.symbol symbol=value source="value: int32" type=int32
 
 witness(object);
 /// @resolution.name source=witness target=witness
@@ -683,6 +684,7 @@ witness(dynamic);
 declare const buffer: ^{ items: ^[int32] };
 /// @type.symbol symbol=buffer source=buffer type=Owned<{ items: Owned<Slice<int32>> }>
 /// @resolution.pattern source=buffer kind=binding target=buffer
+/// @type.symbol symbol=items source="items: ^[int32]" type=Owned<Slice<int32>>
 
 witness(buffer);
 /// @resolution.name source=witness target=witness

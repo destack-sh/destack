@@ -1025,6 +1025,7 @@ export type Box<T = Marker> = { value: T };
 /// @definition.type symbol=Box source="export type Box<T = Marker> = { value: T }" template=(T = Marker) value={ value: T }
 /// @type.symbol symbol=Box.T source="T = Marker" type=T
 /// @resolution.name source=Marker target=Marker
+/// @type.symbol symbol=Box.value source="value: T" type=T
 /// @resolution.name source=T target=Box.T
 
 === b.ds ===

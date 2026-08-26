@@ -355,6 +355,7 @@ const source = { name: "Ada", extra: 1 };
 const target: { name: string } = source;
 /// @type.symbol symbol=target source=target type={ name: string }
 /// @resolution.pattern source=target kind=binding target=target
+/// @type.symbol symbol=name#1 source="name: string" type=string
 /// @type.node source=source type={ name: string; extra: int64 }
 /// @resolution.name source=source target=source
 /// @resolution.place source=source placement="local" lifetime="static" access="exclusive"
@@ -363,6 +364,7 @@ const target: { name: string } = source;
 const direct: { name: string } = { name: "Ada", extra: 1 };
 /// @type.symbol symbol=direct source=direct type={ name: string }
 /// @resolution.pattern source=direct kind=binding target=direct
+/// @type.symbol symbol=name#2 source="name: string" type=string
 /// @type.node source={ name: "Ada", extra: 1 } type={ name: string }
 /// @type.node source="\"Ada\"" type="Ada"
 /// @type.node source=1 type=1

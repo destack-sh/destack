@@ -96,6 +96,7 @@ const config: Config = Config({ debug: true });
 newtype Config = { debug: boolean };
 /// @type.symbol symbol=Config source="newtype Config = { debug: boolean }" type=Config
 /// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" backing={ debug: boolean } constructors=[({ debug: boolean }) => Config]
+/// @type.symbol symbol=Config.debug source="debug: boolean" type=boolean
 
 const config = Config({ debug: true });
 /// @type.symbol symbol=config source=config type=Config
@@ -133,6 +134,7 @@ const annotation: Annotation = Annotation("lint", { reason: "intentional" });
 newtype Annotation = () | (string, { reason?: string });
 /// @type.symbol symbol=Annotation source="newtype Annotation = () | (string, { reason?: string })" type=Annotation
 /// @definition.newtype symbol=Annotation source="newtype Annotation = () | (string, { reason?: string })" backing=() | (string, { reason?: string }) constructors=[() => Annotation, (string, { reason?: string }) => Annotation, (() | (string, { reason?: string })) => Annotation]
+/// @type.symbol symbol=Annotation.reason source="reason?: string" type=string
 
 const annotation = Annotation("lint", { reason: "intentional" });
 /// @type.symbol symbol=annotation source=annotation type=Annotation
@@ -244,6 +246,7 @@ const config: Config = Config({ debug: true });
 newtype Config = { debug: boolean };
 /// @type.symbol symbol=Config source="newtype Config = { debug: boolean }" type=Config
 /// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" backing={ debug: boolean } constructors=[({ debug: boolean }) => Config]
+/// @type.symbol symbol=Config.debug source="debug: boolean" type=boolean
 
 const config: Config = _({ debug: true });
 /// @type.symbol symbol=config source=config type=Config

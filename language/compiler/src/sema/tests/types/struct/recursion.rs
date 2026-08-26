@@ -28,11 +28,15 @@ const tree: { value: float64; child: TreeB | null } = source;
 type TreeA = { value: float64; child: TreeA | null };
 /// @type.symbol symbol=TreeA source="type TreeA = { value: float64; child: TreeA | null }" type={ value: float64; child: TreeA | null }
 /// @definition.type symbol=TreeA source="type TreeA = { value: float64; child: TreeA | null }" value={ value: float64; child: TreeA | null }
+/// @type.symbol symbol=TreeA.value source="value: float64" type=float64
+/// @type.symbol symbol=TreeA.child source="child: TreeA | null" type=TreeA | null
 /// @resolution.name source=TreeA target=TreeA
 
 type TreeB = { value: float64; child: TreeB | null };
 /// @type.symbol symbol=TreeB source="type TreeB = { value: float64; child: TreeB | null }" type={ value: float64; child: TreeB | null }
 /// @definition.type symbol=TreeB source="type TreeB = { value: float64; child: TreeB | null }" value={ value: float64; child: TreeB | null }
+/// @type.symbol symbol=TreeB.value source="value: float64" type=float64
+/// @type.symbol symbol=TreeB.child source="child: TreeB | null" type=TreeB | null
 /// @resolution.name source=TreeB target=TreeB
 
 declare const source: TreeA;

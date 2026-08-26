@@ -508,10 +508,15 @@ type Options<'a> = {
 /// @type.symbol symbol=Options.'a source='a type='a
 
     count?: int32 | undefined;
+    /// @type.symbol symbol=Options.count source="count?: int32 | undefined" type=int32 | undefined
+
     message?: &'a readonly string;
+    /// @type.symbol symbol=Options.message source="message?: &'a readonly string" type=&'a readonly string
     /// @resolution.name source='a target=Options.'a
 
     error?: unknown;
+    /// @type.symbol symbol=Options.error source="error?: unknown" type=unknown
+
 };
 
 function log(options?: Options): void {}

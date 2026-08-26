@@ -93,11 +93,14 @@ value satisfies { a: int32 } | { b: string } | { c: boolean };
 type A = { a: int32 } | { b: string };
 /// @type.symbol symbol=A source="type A = { a: int32 } | { b: string }" type={ a: int32 } | { b: string }
 /// @definition.type symbol=A source="type A = { a: int32 } | { b: string }" value={ a: int32 } | { b: string }
+/// @type.symbol symbol=A.a source="a: int32" type=int32
+/// @type.symbol symbol=A.b source="b: string" type=string
 
 type B = A | { c: boolean };
 /// @type.symbol symbol=B source="type B = A | { c: boolean }" type=A | { c: boolean }
 /// @definition.type symbol=B source="type B = A | { c: boolean }" value=A | { c: boolean }
 /// @resolution.name source=A target=A
+/// @type.symbol symbol=B.c source="c: boolean" type=boolean
 
 const value: B = { c: true };
 /// @type.symbol symbol=value source=value type=A | { c: boolean }
@@ -108,6 +111,9 @@ value satisfies { a: int32 } | { b: string } | { c: boolean };
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
+/// @type.symbol symbol=a source="a: int32" type=int32
+/// @type.symbol symbol=b source="b: string" type=string
+/// @type.symbol symbol=c source="c: boolean" type=boolean
 "#,
     );
 }

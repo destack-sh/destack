@@ -27,6 +27,7 @@ value satisfies int32;
 declare const point: { x: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
 /// @resolution.pattern source=point kind=binding target=point
+/// @type.symbol symbol=x source="x: int32" type=int32
 
 let { ["x"]: value } = point;
 /// @resolution.pattern source={ ["x"]: value } kind=object fields={ x: value }
@@ -76,6 +77,7 @@ declare const key: string;
 declare const point: { x: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
 /// @resolution.pattern source=point kind=binding target=point
+/// @type.symbol symbol=x source="x: int32" type=int32
 
 let { [key]: value } = point;
 /// @resolution.pattern source={ [key]: value } kind=object fields={}
@@ -197,7 +199,11 @@ type User = {
 /// @definition.type symbol=User value={ readonly name: string; readonly age: int32 }
 
     readonly name: string;
+    /// @type.symbol symbol=User.name source="readonly name: string" type=string
+
     readonly age: int32;
+    /// @type.symbol symbol=User.age source="readonly age: int32" type=int32
+
 };
 
 function get<K: keyof User>(user: User, key: K): User[K] {
@@ -262,6 +268,8 @@ value satisfies int32;
 declare const pair: { 0: string; 1: int32 };
 /// @type.symbol symbol=pair source=pair type={ 0: string; 1: int32 }
 /// @resolution.pattern source=pair kind=binding target=pair
+/// @type.symbol symbol=symbol1 source="0: string" type=string
+/// @type.symbol symbol=symbol3 source="1: int32" type=int32
 
 let { [1]: value } = pair;
 /// @resolution.pattern source={ [1]: value } kind=object fields={ 1: value }

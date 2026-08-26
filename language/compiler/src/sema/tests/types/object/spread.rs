@@ -207,6 +207,8 @@ declare const named: Named;
 declare const full: { only: boolean; name: string };
 /// @type.symbol symbol=full source=full type={ only: boolean; name: string }
 /// @resolution.pattern source=full kind=binding target=full
+/// @type.symbol symbol=only source="only: boolean" type=boolean
+/// @type.symbol symbol=name source="name: string" type=string
 
 const spreadOptional: Named = { ...named, only: true };
 /// @type.symbol symbol=spreadOptional source=spreadOptional type=Named

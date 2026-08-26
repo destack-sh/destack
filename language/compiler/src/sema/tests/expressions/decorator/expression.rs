@@ -165,6 +165,7 @@ const value: 1 = 1;
 newtype Payload = { reason: string };
 /// @type.symbol symbol=Payload source="newtype Payload = { reason: string }" type=Payload
 /// @definition.newtype symbol=Payload source="newtype Payload = { reason: string }" backing={ reason: string } constructors=[({ reason: string }) => Payload]
+/// @type.symbol symbol=Payload.reason source="reason: string" type=string
 
 newtype mark = (Payload,);
 /// @type.symbol symbol=mark source="newtype mark = (Payload,)" type=mark
@@ -216,6 +217,7 @@ const value: 1 = 1;
 newtype mark = ({ reason: string },);
 /// @type.symbol symbol=mark source="newtype mark = ({ reason: string },)" type=mark
 /// @definition.newtype symbol=mark source="newtype mark = ({ reason: string },)" backing=({ reason: string },) constructors=[({ reason: string }) => mark]
+/// @type.symbol symbol=mark.reason source="reason: string" type=string
 
 @mark({ reason: "direct reason", ...{ reason: "spread reason" } })
 /// @decorator.node source="@mark({ reason: \"direct reason\", ...{ reason: \"spread reason\" } })" owner="const value = 1" expression=mark target=mark type=mark kind=newtype parameters=({ reason: string }) arguments=(provided({ reason: "direct reason", ...{ reason: "spread reason" } }) as { reason: string }) newtype=mark backing=({ reason: string },) value="mark({ reason: \"spread reason\" })"

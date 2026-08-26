@@ -174,6 +174,7 @@ type Tagged<const Tag: string> = { tag: Tag };
 /// @type.symbol symbol=Tagged source="type Tagged<const Tag: string> = { tag: Tag }" type={ tag: Tag }
 /// @definition.type symbol=Tagged source="type Tagged<const Tag: string> = { tag: Tag }" template=(const Tag: string) value={ tag: Tag }
 /// @type.symbol symbol=Tagged.Tag source="const Tag: string" type=Tag
+/// @type.symbol symbol=Tagged.tag source="tag: Tag" type=Tag
 /// @resolution.name source=Tag target=Tagged.Tag
 
 type Flagged<const Config: { name: string; enabled: boolean }> = Config;
@@ -181,6 +182,8 @@ type Flagged<const Config: { name: string; enabled: boolean }> = Config;
 /// @type.symbol symbol=Flagged source="type Flagged<const Config: { name: string; enabled: boolean }> = Config" type=Config
 /// @definition.type symbol=Flagged source="type Flagged<const Config: { name: string; enabled: boolean }> = Config" template=(const Config: { name: string; enabled: boolean }) value=Config
 /// @type.symbol symbol=Flagged.Config source="const Config: { name: string; enabled: boolean }" type=Config
+/// @type.symbol symbol=Flagged.name source="name: string" type=string
+/// @type.symbol symbol=Flagged.enabled source="enabled: boolean" type=boolean
 /// @resolution.name source=Config target=Flagged.Config
 
 declare const tagged: Tagged<"alpha">;
@@ -192,6 +195,8 @@ declare const flagged: Flagged<{ name: "search"; enabled: true }>;
 /// @type.symbol symbol=flagged source=flagged type={ name: "search"; enabled: true }
 /// @resolution.pattern source=flagged kind=binding target=flagged
 /// @resolution.name source=Flagged target=Flagged
+/// @type.symbol symbol=name source="name: \"search\"" type="search"
+/// @type.symbol symbol=enabled source="enabled: true" type=true
 "#,
     );
 }

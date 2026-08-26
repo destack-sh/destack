@@ -314,6 +314,7 @@ const config: Config = { debug: true };
 newtype Config = { debug: boolean };
 /// @type.symbol symbol=Config source="newtype Config = { debug: boolean }" type=Config
 /// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" backing={ debug: boolean } constructors=[({ debug: boolean }) => Config]
+/// @type.symbol symbol=Config.debug source="debug: boolean" type=boolean
 
 const config: Config = { debug: true };
 /// @type.symbol symbol=config source=config type=Config

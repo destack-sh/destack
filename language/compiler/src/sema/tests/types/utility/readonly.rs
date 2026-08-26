@@ -226,6 +226,8 @@ interface Person {
     /// @type.symbol symbol=Person.profile type={ name: string }
 
         name: string;
+        /// @type.symbol symbol=Person.name source="name: string" type=string
+
     };
 }
 

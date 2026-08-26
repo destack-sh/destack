@@ -108,8 +108,16 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
 
         div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
         img: { src: string };
+        /// @type.symbol symbol=Tags.img source="img: { src: string }" type={ src: string }
+        /// @type.symbol symbol=Tags.src source="src: string" type=string
+
         span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
     };
 
     static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
@@ -291,8 +299,16 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
 
         div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
         img: { src: string };
+        /// @type.symbol symbol=Tags.img source="img: { src: string }" type={ src: string }
+        /// @type.symbol symbol=Tags.src source="src: string" type=string
+
         span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
     };
 
     static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
@@ -705,8 +721,16 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
 
         div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
         img: { src: string };
+        /// @type.symbol symbol=Tags.img source="img: { src: string }" type={ src: string }
+        /// @type.symbol symbol=Tags.src source="src: string" type=string
+
         span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
     };
 
     static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
@@ -757,6 +781,7 @@ extension of Panel implements TreeBuilder {
 function Header(props: { title: string }): Panel {
 /// @type.symbol symbol=Header type=({ title: string }) => Panel
 /// @type.symbol symbol=Header.props source="props: { title: string }" type={ title: string }
+/// @type.symbol symbol=Header.title source="title: string" type=string
 /// @resolution.name source=Panel target=Panel
 
     return new Panel();
@@ -892,8 +917,16 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
 
         div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
         img: { src: string };
+        /// @type.symbol symbol=Tags.img source="img: { src: string }" type={ src: string }
+        /// @type.symbol symbol=Tags.src source="src: string" type=string
+
         span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
     };
 
     static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
@@ -1135,8 +1168,16 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
 
         div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
         img: { src: string };
+        /// @type.symbol symbol=Tags.img source="img: { src: string }" type={ src: string }
+        /// @type.symbol symbol=Tags.src source="src: string" type=string
+
         span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
     };
 
     static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
@@ -1187,6 +1228,8 @@ extension of Panel implements TreeBuilder {
 function Stack(props: { title: string; children: (Panel,) }): Panel {
 /// @type.symbol symbol=Stack type=({ title: string; children: (Panel,) }) => Panel
 /// @type.symbol symbol=Stack.props source="props: { title: string; children: (Panel,) }" type={ title: string; children: (Panel,) }
+/// @type.symbol symbol=Stack.title source="title: string" type=string
+/// @type.symbol symbol=Stack.children source="children: (Panel,)" type=(Panel,)
 /// @resolution.name source=Panel target=Panel
 /// @resolution.name source=Panel target=Panel
 
@@ -1392,8 +1435,16 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
 
         div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
         img: { src: string };
+        /// @type.symbol symbol=Tags.img source="img: { src: string }" type={ src: string }
+        /// @type.symbol symbol=Tags.src source="src: string" type=string
+
         span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
     };
 
     static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
@@ -1455,6 +1506,7 @@ class Card {
     /// @type.symbol symbol=Card.constructor type=<Card.constructor.P0: Place>({ heading: string }) => Managed<Card, Card.constructor.P0>
     /// @type.symbol symbol=Card.constructor.this type=Card
     /// @type.symbol symbol=Card.constructor.props source="props: { heading: string }" type={ heading: string }
+    /// @type.symbol symbol=Card.constructor.heading source="heading: string" type=string
 
         this.heading = props.heading;
         /// @resolution.receiver source=this kind=this declaration=Card type=Card
@@ -1616,8 +1668,16 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
 
         div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
         img: { src: string };
+        /// @type.symbol symbol=Tags.img source="img: { src: string }" type={ src: string }
+        /// @type.symbol symbol=Tags.src source="src: string" type=string
+
         span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
     };
 
     static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
@@ -1954,8 +2014,18 @@ extension of Panel implements TreeBuilder {
     /// @type.symbol symbol=Tags type={ title: {}; meta: { content: string; name: string }; link: { rel: string; href: string } }
 
         title: {};
+        /// @type.symbol symbol=Tags.title source="title: {}" type={}
+
         meta: { content: string; name: string };
+        /// @type.symbol symbol=Tags.meta source="meta: { content: string; name: string }" type={ content: string; name: string }
+        /// @type.symbol symbol=Tags.content source="content: string" type=string
+        /// @type.symbol symbol=Tags.name source="name: string" type=string
+
         link: { rel: string; href: string };
+        /// @type.symbol symbol=Tags.link source="link: { rel: string; href: string }" type={ rel: string; href: string }
+        /// @type.symbol symbol=Tags.rel source="rel: string" type=string
+        /// @type.symbol symbol=Tags.href source="href: string" type=string
+
     };
 
     static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(

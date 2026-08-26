@@ -498,10 +498,12 @@ const widened: { x: float64 } = point;
 declare const point: { x: 1 };
 /// @type.symbol symbol=point source=point type={ x: 1 }
 /// @resolution.pattern source=point kind=binding target=point
+/// @type.symbol symbol=x#1 source="x: 1" type=1
 
 const widened: { x: float64 } = point;
 /// @type.symbol symbol=widened source=widened type={ x: float64 }
 /// @resolution.pattern source=widened kind=binding target=widened
+/// @type.symbol symbol=x#2 source="x: float64" type=float64
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
@@ -560,11 +562,13 @@ class Circle extends Shape {}
 declare const point: { x: Circle };
 /// @type.symbol symbol=point source=point type={ x: Circle }
 /// @resolution.pattern source=point kind=binding target=point
+/// @type.symbol symbol=x#1 source="x: Circle" type=Circle
 /// @resolution.name source=Circle target=Circle
 
 const widened: { readonly x: Shape } = point;
 /// @type.symbol symbol=widened source=widened type={ readonly x: Shape }
 /// @resolution.pattern source=widened kind=binding target=widened
+/// @type.symbol symbol=x#2 source="readonly x: Shape" type=Shape
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
@@ -573,10 +577,12 @@ const widened: { readonly x: Shape } = point;
 declare const scalar: { x: 1 };
 /// @type.symbol symbol=scalar source=scalar type={ x: 1 }
 /// @resolution.pattern source=scalar kind=binding target=scalar
+/// @type.symbol symbol=x#3 source="x: 1" type=1
 
 const converted: { readonly x: float64 } = scalar;
 /// @type.symbol symbol=converted source=converted type={ readonly x: float64 }
 /// @resolution.pattern source=converted kind=binding target=converted
+/// @type.symbol symbol=x#4 source="readonly x: float64" type=float64
 /// @resolution.name source=scalar target=scalar
 /// @resolution.place source=scalar placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=scalar root=scalar

@@ -101,6 +101,7 @@ local newtype LocalBox<T> = { value: T };
 /// @type.symbol symbol=LocalBox source="local newtype LocalBox<T> = { value: T }" type=LocalBox
 /// @definition.newtype symbol=LocalBox source="local newtype LocalBox<T> = { value: T }" template=(in out T#1) backing={ value: T#1 } constructors=[<T#1>({ value: T#1 }) => LocalBox<T#1>]
 /// @type.symbol symbol=LocalBox.T source=T type=T#1
+/// @type.symbol symbol=LocalBox.value source="value: T" type=T#1
 /// @resolution.name source=T target=LocalBox.T
 
 shared newtype SharedBox<T> = { value: T };
@@ -108,6 +109,7 @@ shared newtype SharedBox<T> = { value: T };
 /// @type.symbol symbol=SharedBox source="shared newtype SharedBox<T> = { value: T }" type=SharedBox
 /// @definition.newtype symbol=SharedBox source="shared newtype SharedBox<T> = { value: T }" template=(in out T#2) backing={ value: T#2 } constructors=[<T#2>({ value: T#2 }) => SharedBox<T#2>]
 /// @type.symbol symbol=SharedBox.T source=T type=T#2
+/// @type.symbol symbol=SharedBox.value source="value: T" type=T#2
 /// @resolution.name source=T target=SharedBox.T
 
 declare const localBox: LocalBox<int32>;

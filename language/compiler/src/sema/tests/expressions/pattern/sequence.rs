@@ -84,6 +84,8 @@ let [x, y] = point;
 declare const point: { x: int32; y: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
 /// @resolution.pattern source=point kind=binding target=point
+/// @type.symbol symbol=x#1 source="x: int32" type=int32
+/// @type.symbol symbol=y#1 source="y: int32" type=int32
 
 let [x, y] = point;
 /// @resolution.rejected source=[x, y]

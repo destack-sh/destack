@@ -265,10 +265,12 @@ if ("name" in value) {
 type Named = { name: string };
 /// @type.symbol symbol=Named source="type Named = { name: string }" type={ name: string }
 /// @definition.type symbol=Named source="type Named = { name: string }" value={ name: string }
+/// @type.symbol symbol=Named.name source="name: string" type=string
 
 type Numbered = { id: int32 };
 /// @type.symbol symbol=Numbered source="type Numbered = { id: int32 }" type={ id: int32 }
 /// @definition.type symbol=Numbered source="type Numbered = { id: int32 }" value={ id: int32 }
+/// @type.symbol symbol=Numbered.id source="id: int32" type=int32
 
 declare const value: Named | Numbered;
 /// @type.symbol symbol=value source=value type=Named | Numbered
@@ -336,10 +338,12 @@ if ("name" in value) {
 type Named = { name: string };
 /// @type.symbol symbol=Named source="type Named = { name: string }" type={ name: string }
 /// @definition.type symbol=Named source="type Named = { name: string }" value={ name: string }
+/// @type.symbol symbol=Named.name source="name: string" type=string
 
 type Numbered = { id: int32 };
 /// @type.symbol symbol=Numbered source="type Numbered = { id: int32 }" type={ id: int32 }
 /// @definition.type symbol=Numbered source="type Numbered = { id: int32 }" value={ id: int32 }
+/// @type.symbol symbol=Numbered.id source="id: int32" type=int32
 
 declare const value: Named | Numbered;
 /// @type.symbol symbol=value source=value type=Named | Numbered

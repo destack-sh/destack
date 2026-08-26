@@ -492,6 +492,7 @@ extension of { x: int32 } {
 extension of { x: int32 } {
 /// @definition.extension symbol=<module>#2 form=local target={ x: int32 }
 /// @definition.method symbol=double slot=double type=<double.P0: Place>(this: Managed<this, double.P0>) => int32
+/// @type.symbol symbol=x source="x: int32" type=int32
 
     double(): int32 {
     /// @generic.template symbol=double parameters=(P0: Place)

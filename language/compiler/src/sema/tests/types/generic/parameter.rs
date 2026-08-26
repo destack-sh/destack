@@ -609,6 +609,7 @@ function read<T: T | { name: string }>(value: T): string {
 /// @type.symbol symbol=read type=<T: T | { name: string }>(T) => string
 /// @type.symbol symbol=read.T source="T: T | { name: string }" type=T
 /// @resolution.name source=T target=read.T
+/// @type.symbol symbol=read.name source="name: string" type=string
 /// @type.symbol symbol=read.value source="value: T" type=T
 /// @resolution.name source=T target=read.T
 
@@ -1550,15 +1551,21 @@ function requireEqual<T, U>(left: T, right: U): void where T == U {}
 declare const wider: { x: int32; y: string };
 /// @type.symbol symbol=wider source=wider type={ x: int32; y: string }
 /// @resolution.pattern source=wider kind=binding target=wider
+/// @type.symbol symbol=x#1 source="x: int32" type=int32
+/// @type.symbol symbol=y#1 source="y: string" type=string
 
 declare const narrower: { x: int32 };
 /// @type.symbol symbol=narrower source=narrower type={ x: int32 }
 /// @resolution.pattern source=narrower kind=binding target=narrower
+/// @type.symbol symbol=x#2 source="x: int32" type=int32
 
 requireEqual<{ x: int32; y: string }, { x: int32 }>(wider, narrower);
 /// @resolution.name source=requireEqual target=requireEqual
 /// @resolution.call source="requireEqual<{ x: int32; y: string }, { x: int32 }>(wider, narrower)" parameters=({ x: int32; y: string }, { x: int32 }) arguments=(provided(wider) as { x: int32; y: string }, provided(narrower) as { x: int32 }) return=void kind=symbol target=requireEqual instance="requireEqual<{ x: int32; y: string }, { x: int32 }>"
 /// @generic.instantiation id="requireEqual<{ x: int32; y: string }, { x: int32 }>" template=requireEqual arguments=({ x: int32; y: string }, { x: int32 })
+/// @type.symbol symbol=x#3 source="x: int32" type=int32
+/// @type.symbol symbol=y#2 source="y: string" type=string
+/// @type.symbol symbol=x#4 source="x: int32" type=int32
 /// @resolution.name source=wider target=wider
 /// @resolution.name source=narrower target=narrower
 "#,
@@ -1614,10 +1621,13 @@ function requireEqual<T, U>(left: T, right: U): void where T == U {}
 declare const wider: { x: int32; y: string };
 /// @type.symbol symbol=wider source=wider type={ x: int32; y: string }
 /// @resolution.pattern source=wider kind=binding target=wider
+/// @type.symbol symbol=x#1 source="x: int32" type=int32
+/// @type.symbol symbol=y source="y: string" type=string
 
 declare const narrower: { x: int32 };
 /// @type.symbol symbol=narrower source=narrower type={ x: int32 }
 /// @resolution.pattern source=narrower kind=binding target=narrower
+/// @type.symbol symbol=x#2 source="x: int32" type=int32
 
 requireEqual(wider, narrower);
 /// @resolution.name source=requireEqual target=requireEqual

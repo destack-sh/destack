@@ -1412,6 +1412,11 @@ impl WalkState<'_, '_> {
                         None => self.intern_type(dir::Type::Unknown)?,
                     };
 
+                    // write the field symbol's declared type for checked output
+                    if let Some(symbol) = self.declared_symbol(member.into_any()) {
+                        self.commit_symbol_type(symbol, ty)?;
+                    }
+
                     let access = if is_readonly {
                         dir::PropertyAccess::Read(ty)
                     } else {

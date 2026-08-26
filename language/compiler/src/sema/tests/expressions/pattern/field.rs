@@ -23,6 +23,7 @@ let { y } = point;
 declare const point: { x: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
 /// @resolution.pattern source=point kind=binding target=point
+/// @type.symbol symbol=x source="x: int32" type=int32
 
 let { y } = point;
 /// @resolution.pattern source={ y } kind=object fields={}
@@ -61,6 +62,7 @@ let { x, x: other } = point;
 declare const point: { x: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
 /// @resolution.pattern source=point kind=binding target=point
+/// @type.symbol symbol=x#1 source="x: int32" type=int32
 
 let { x, x: other } = point;
 /// @resolution.pattern source={ x, x: other } kind=object fields={ x, x: other }
@@ -102,6 +104,8 @@ let { left: value, right: value } = pair;
 declare const pair: { left: int32; right: int32 };
 /// @type.symbol symbol=pair source=pair type={ left: int32; right: int32 }
 /// @resolution.pattern source=pair kind=binding target=pair
+/// @type.symbol symbol=left source="left: int32" type=int32
+/// @type.symbol symbol=right source="right: int32" type=int32
 
 let { left: value, right: value } = pair;
 /// @resolution.pattern source={ left: value, right: value } kind=object fields={ left: value#1, right: value#2 }

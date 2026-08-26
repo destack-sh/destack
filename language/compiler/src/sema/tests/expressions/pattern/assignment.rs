@@ -37,6 +37,8 @@ let label: string = "";
 declare const point: { x: int32; y: string };
 /// @type.symbol symbol=point source=point type={ x: int32; y: string }
 /// @resolution.pattern source=point kind=binding target=point
+/// @type.symbol symbol=x#2 source="x: int32" type=int32
+/// @type.symbol symbol=y source="y: string" type=string
 
 ({ x, y: label } = point);
 /// @type.node source="{ x, y: label } = point" type={ x: int32; y: string }
@@ -158,6 +160,8 @@ let name: string = "";
 let rest: { age: int32; active: boolean } = { age: 0, active: false };
 /// @type.symbol symbol=rest source=rest type={ age: int32; active: boolean }
 /// @resolution.pattern source=rest kind=binding target=rest
+/// @type.symbol symbol=age#1 source="age: int32" type=int32
+/// @type.symbol symbol=active#1 source="active: boolean" type=boolean
 /// @type.node source={ age: 0, active: false } type={ age: int32; active: boolean }
 /// @type.node source=0 type=0
 /// @type.node source=false type=false
@@ -165,6 +169,9 @@ let rest: { age: int32; active: boolean } = { age: 0, active: false };
 declare const user: { name: string; age: int32; active: boolean };
 /// @type.symbol symbol=user source=user type={ name: string; age: int32; active: boolean }
 /// @resolution.pattern source=user kind=binding target=user
+/// @type.symbol symbol=name#2 source="name: string" type=string
+/// @type.symbol symbol=age#2 source="age: int32" type=int32
+/// @type.symbol symbol=active#2 source="active: boolean" type=boolean
 
 ({ name, ...rest } = user);
 /// @type.node source="{ name, ...rest } = user" type={ name: string; age: int32; active: boolean }
@@ -304,6 +311,9 @@ let label: string = "";
 declare const packet: { point: { x: int32 }; meta: (string,) };
 /// @type.symbol symbol=packet source=packet type={ point: { x: int32 }; meta: (string,) }
 /// @resolution.pattern source=packet kind=binding target=packet
+/// @type.symbol symbol=point source="point: { x: int32 }" type={ x: int32 }
+/// @type.symbol symbol=x#2 source="x: int32" type=int32
+/// @type.symbol symbol=meta source="meta: (string,)" type=(string,)
 
 ({
 /// @type.node type={ point: { x: int32 }; meta: (string,) }
@@ -380,6 +390,8 @@ let label: string = "";
 declare const packet: { count?: int32; labels: (string | undefined,) };
 /// @type.symbol symbol=packet source=packet type={ count?: int32; labels: (string | undefined,) }
 /// @resolution.pattern source=packet kind=binding target=packet
+/// @type.symbol symbol=count#2 source="count?: int32" type=int32
+/// @type.symbol symbol=labels source="labels: (string | undefined,)" type=(string | undefined,)
 
 ({
 /// @type.node type={ count?: int32; labels: (string | undefined,) }
@@ -446,6 +458,7 @@ let value: int32 = 0;
 declare const point: { x: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
 /// @resolution.pattern source=point kind=binding target=point
+/// @type.symbol symbol=x source="x: int32" type=int32
 
 ({ ["x"]: value } = point);
 /// @type.node source="{ [\"x\"]: value } = point" type={ x: int32 }
@@ -565,6 +578,7 @@ let value: int32 = 0;
 declare const point: { x: int32 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
 /// @resolution.pattern source=point kind=binding target=point
+/// @type.symbol symbol=x source="x: int32" type=int32
 
 ({ [key]: value } = point);
 /// @type.node source="{ [key]: value } = point" type=<error>

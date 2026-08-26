@@ -290,6 +290,7 @@ function values(entries: { value: int32 }[]): int32[] {
 /// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
 /// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @type.symbol symbol=values.entries source="entries: { value: int32 }[]" type={ value: int32 }[]
+/// @type.symbol symbol=values.value source="value: int32" type=int32
 
     return entries.map(({ value }) => value);
     /// @resolution.name source=entries target=values.entries

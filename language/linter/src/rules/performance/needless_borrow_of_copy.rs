@@ -44,6 +44,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(declared_type) = parameter.declared_type() else {
             continue;
         };
+        if module.is_statically_absent(parameter_id.into_any()) {
+            continue;
+        }
         let dir::TypeExpression::BorrowedOf {
             lifetime,
             mutability,

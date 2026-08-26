@@ -31,6 +31,8 @@ function label({ name, age }: { name: string; age: int32 }): string {
 /// @resolution.pattern source={ name, age } kind=object fields={ name, age }
 /// @type.symbol symbol=label.name#2 source=name type=string
 /// @type.symbol symbol=label.age#2 source=age type=int32
+/// @type.symbol symbol=label.name#1 source="name: string" type=string
+/// @type.symbol symbol=label.age#1 source="age: int32" type=int32
 
     name satisfies string;
     /// @type.node source="name satisfies string" type=string

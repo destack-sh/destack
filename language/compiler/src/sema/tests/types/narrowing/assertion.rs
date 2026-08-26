@@ -393,6 +393,7 @@ function describe(): { reason: string } {
 === dir ===
 function describe(): { reason: string } {
 /// @type.symbol symbol=describe type=() => { reason: string }
+/// @type.symbol symbol=describe.reason source="reason: string" type=string
 
     return {
         reason: "",

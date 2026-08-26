@@ -31,6 +31,7 @@ handler.run(1) satisfies number;
 type Handler = { run: (value: number) => number };
 /// @type.symbol symbol=Handler source="type Handler = { run: (value: number) => number }" type={ run: Function<(float64,), float64> }
 /// @definition.type symbol=Handler source="type Handler = { run: (value: number) => number }" value={ run: Function<(float64,), float64> }
+/// @type.symbol symbol=Handler.run source="run: (value: number) => number" type=Function<(float64,), float64>
 /// @type.symbol symbol=Handler.value source="value: number" type=float64
 
 const handler = {
@@ -90,6 +91,7 @@ type Mode = "dev" | "prod";
 const config = { mode: "dev" } satisfies { mode: Mode };
 /// @type.symbol symbol=config source=config type={ mode: "dev" }
 /// @resolution.pattern source=config kind=binding target=config
+/// @type.symbol symbol=mode source="mode: Mode" type=Mode
 /// @resolution.name source=Mode target=Mode
 
 config.mode satisfies "dev";
@@ -126,6 +128,7 @@ const value: { a: 1; b: int64 } = { a: 1, b: 2 } satisfies Shape;
 type Shape = { a: number };
 /// @type.symbol symbol=Shape source="type Shape = { a: number }" type={ a: float64 }
 /// @definition.type symbol=Shape source="type Shape = { a: number }" value={ a: float64 }
+/// @type.symbol symbol=Shape.a source="a: number" type=float64
 
 const value = { a: 1, b: 2 } satisfies Shape;
 /// @type.symbol symbol=value source=value type={ a: 1; b: int64 }

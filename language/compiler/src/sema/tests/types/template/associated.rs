@@ -132,6 +132,8 @@ declare const handlers: Bus<{ ready: boolean; message: string }>.Handlers;
 /// @resolution.name source=Bus target=Bus
 /// @generic.instance id="Bus<{ ready: boolean; message: string }>" template=Bus arguments=({ ready: boolean; message: string })
 /// @generic.instance id="EventShape<{ ready: boolean; message: string }>" template=EventShape arguments=({ ready: boolean; message: string })
+/// @type.symbol symbol=ready source="ready: boolean" type=boolean
+/// @type.symbol symbol=message source="message: string" type=string
 
 handlers["on-ready"] satisfies boolean;
 /// @resolution.name source=handlers target=handlers

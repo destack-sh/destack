@@ -45,8 +45,11 @@ type Round =
     /// @resolution.name source=Unit target=Unit
 
     | ({ smallest: Unit } | { largest: Unit }) & { mode?: int32 };
+    /// @type.symbol symbol=Round.smallest source="smallest: Unit" type="year" | "month"
     /// @resolution.name source=Unit target=Unit
+    /// @type.symbol symbol=Round.largest source="largest: Unit" type="year" | "month"
     /// @resolution.name source=Unit target=Unit
+    /// @type.symbol symbol=Round.mode source="mode?: int32" type=int32
 
 export function pick(value: Round): int32 {
 /// @type.symbol symbol=pick type=(Round) => int32
@@ -182,6 +185,8 @@ export type ZonedLike = PlainLike & {
 /// @resolution.name source=PlainLike target=plain.PlainLike
 
     offset?: int32;
+    /// @type.symbol symbol=ZonedLike.offset source="offset?: int32" type=int32
+
 };
 
 export class Zoned {

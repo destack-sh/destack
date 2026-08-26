@@ -183,6 +183,21 @@ impl<'a> DirModule<'a> {
         Ok(matches!(self.node_type(node)?, dir::Type::Never))
     }
 
+    /// Return whether one node sits under a statically absent gate.
+    pub fn is_statically_absent(&self, node: dir::LocalNodeIdAny) -> bool {
+        // climb the tree, checking each decorated ancestor's committed presence
+        let tree = &self.parsed.tree;
+        let mut current = Some(node);
+        while let Some(decorated) = current {
+            if self.statics.presence(decorated) == Some(dir::StaticPresence::Absent) {
+                return true;
+            }
+            current = tree.get_parent(decorated.id);
+        }
+
+        false
+    }
+
     /// Return the reduced checked type id of one local node.
     pub fn node_type_id(
         &self,

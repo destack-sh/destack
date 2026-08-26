@@ -26,6 +26,8 @@ declare const name: string;
 type User = { name: string; age: int32 };
 /// @type.symbol symbol=User source="type User = { name: string; age: int32 }" type={ name: string; age: int32 }
 /// @definition.type symbol=User source="type User = { name: string; age: int32 }" value={ name: string; age: int32 }
+/// @type.symbol symbol=User.name source="name: string" type=string
+/// @type.symbol symbol=User.age source="age: int32" type=int32
 
 type Name = User["name"];
 /// @type.symbol symbol=Name source="type Name = User[\"name\"]" type=string
@@ -66,6 +68,8 @@ declare const value: int32;
 type Pair = { 0: string; 1: int32 };
 /// @type.symbol symbol=Pair source="type Pair = { 0: string; 1: int32 }" type={ 0: string; 1: int32 }
 /// @definition.type symbol=Pair source="type Pair = { 0: string; 1: int32 }" value={ 0: string; 1: int32 }
+/// @type.symbol symbol=Pair.symbol2 source="0: string" type=string
+/// @type.symbol symbol=Pair.symbol4 source="1: int32" type=int32
 
 type Right = Pair[1];
 /// @type.symbol symbol=Right source="type Right = Pair[1]" type=int32
@@ -102,6 +106,7 @@ type Missing = ObjectLike[5];
 type ObjectLike = { label: string };
 /// @type.symbol symbol=ObjectLike source="type ObjectLike = { label: string }" type={ label: string }
 /// @definition.type symbol=ObjectLike source="type ObjectLike = { label: string }" value={ label: string }
+/// @type.symbol symbol=ObjectLike.label source="label: string" type=string
 
 type Missing = ObjectLike[5];
 /// @type.symbol symbol=Missing source="type Missing = ObjectLike[5]" type=<error>
@@ -169,6 +174,8 @@ declare const value: string | int32;
 type User = { name: string; age: int32 };
 /// @type.symbol symbol=User source="type User = { name: string; age: int32 }" type={ name: string; age: int32 }
 /// @definition.type symbol=User source="type User = { name: string; age: int32 }" value={ name: string; age: int32 }
+/// @type.symbol symbol=User.name source="name: string" type=string
+/// @type.symbol symbol=User.age source="age: int32" type=int32
 
 type Value = User["name" | "age"];
 /// @type.symbol symbol=Value source="type Value = User[\"name\" | \"age\"]" type=string | int32
@@ -209,6 +216,8 @@ const bad: string | int32 = true;
 type User = { name: string; age: int32 };
 /// @type.symbol symbol=User source="type User = { name: string; age: int32 }" type={ name: string; age: int32 }
 /// @definition.type symbol=User source="type User = { name: string; age: int32 }" value={ name: string; age: int32 }
+/// @type.symbol symbol=User.name source="name: string" type=string
+/// @type.symbol symbol=User.age source="age: int32" type=int32
 
 type Value = User["name" | "age"];
 /// @type.symbol symbol=Value source="type Value = User[\"name\" | \"age\"]" type=string | int32
@@ -258,10 +267,14 @@ const text: int32 | string = "hello" as int32 | string;
 type Left = { kind: "left"; value: int32 };
 /// @type.symbol symbol=Left source="type Left = { kind: \"left\"; value: int32 }" type={ kind: "left"; value: int32 }
 /// @definition.type symbol=Left source="type Left = { kind: \"left\"; value: int32 }" value={ kind: "left"; value: int32 }
+/// @type.symbol symbol=Left.kind source="kind: \"left\"" type="left"
+/// @type.symbol symbol=Left.value source="value: int32" type=int32
 
 type Right = { kind: "right"; value: string };
 /// @type.symbol symbol=Right source="type Right = { kind: \"right\"; value: string }" type={ kind: "right"; value: string }
 /// @definition.type symbol=Right source="type Right = { kind: \"right\"; value: string }" value={ kind: "right"; value: string }
+/// @type.symbol symbol=Right.kind source="kind: \"right\"" type="right"
+/// @type.symbol symbol=Right.value source="value: string" type=string
 
 type Value = (Left | Right)["value"];
 /// @type.symbol symbol=Value source="type Value = (Left | Right)[\"value\"]" type=int32 | string
@@ -312,6 +325,10 @@ const text: float64 | undefined | string = "hello" as float64 | undefined | stri
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 /// @type.symbol symbol=Input source="type Input = { kind: \"a\"; value?: number } | { kind: \"b\"; value: string }" type={ kind: "a"; value?: float64 } | { kind: "b"; value: string }
 /// @definition.type symbol=Input source="type Input = { kind: \"a\"; value?: number } | { kind: \"b\"; value: string }" value={ kind: "a"; value?: float64 } | { kind: "b"; value: string }
+/// @type.symbol symbol=Input.kind#1 source="kind: \"a\"" type="a"
+/// @type.symbol symbol=Input.value#1 source="value?: number" type=float64
+/// @type.symbol symbol=Input.kind#2 source="kind: \"b\"" type="b"
+/// @type.symbol symbol=Input.value#2 source="value: string" type=string
 
 type Value = Input["value"];
 /// @type.symbol symbol=Value source="type Value = Input[\"value\"]" type=float64 | undefined | string
@@ -362,6 +379,10 @@ const bad: float64 | undefined | string = true;
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 /// @type.symbol symbol=Input source="type Input = { kind: \"a\"; value?: number } | { kind: \"b\"; value: string }" type={ kind: "a"; value?: float64 } | { kind: "b"; value: string }
 /// @definition.type symbol=Input source="type Input = { kind: \"a\"; value?: number } | { kind: \"b\"; value: string }" value={ kind: "a"; value?: float64 } | { kind: "b"; value: string }
+/// @type.symbol symbol=Input.kind#1 source="kind: \"a\"" type="a"
+/// @type.symbol symbol=Input.value#1 source="value?: number" type=float64
+/// @type.symbol symbol=Input.kind#2 source="kind: \"b\"" type="b"
+/// @type.symbol symbol=Input.value#2 source="value: string" type=string
 
 type Value = Input["value"];
 /// @type.symbol symbol=Value source="type Value = Input[\"value\"]" type=float64 | undefined | string
@@ -403,6 +424,8 @@ type Missing = User["missing"];
 type User = { name: string; age: int32 };
 /// @type.symbol symbol=User source="type User = { name: string; age: int32 }" type={ name: string; age: int32 }
 /// @definition.type symbol=User source="type User = { name: string; age: int32 }" value={ name: string; age: int32 }
+/// @type.symbol symbol=User.name source="name: string" type=string
+/// @type.symbol symbol=User.age source="age: int32" type=int32
 
 type Missing = User["missing"];
 /// @type.symbol symbol=Missing source="type Missing = User[\"missing\"]" type=<error>
@@ -540,6 +563,8 @@ type ValueAt<T, K: keyof T> = T[K];
 type User = { name: string; age: int32 };
 /// @type.symbol symbol=User source="type User = { name: string; age: int32 }" type={ name: string; age: int32 }
 /// @definition.type symbol=User source="type User = { name: string; age: int32 }" value={ name: string; age: int32 }
+/// @type.symbol symbol=User.name source="name: string" type=string
+/// @type.symbol symbol=User.age source="age: int32" type=int32
 
 type Name = ValueAt<User, "name">;
 /// @type.symbol symbol=Name source="type Name = ValueAt<User, \"name\">" type=string
@@ -638,7 +663,11 @@ type User = {
 /// @definition.type symbol=User value={ readonly name: string; readonly age: int32 }
 
     readonly name: string;
+    /// @type.symbol symbol=User.name source="readonly name: string" type=string
+
     readonly age: int32;
+    /// @type.symbol symbol=User.age source="readonly age: int32" type=int32
+
 };
 
 function get<K: keyof User>(user: User, key: K): User[K] {
@@ -746,6 +775,7 @@ declare const name: string | undefined;
 type User = { name?: string };
 /// @type.symbol symbol=User source="type User = { name?: string }" type={ name?: string }
 /// @definition.type symbol=User source="type User = { name?: string }" value={ name?: string }
+/// @type.symbol symbol=User.name source="name?: string" type=string
 
 type Name = User["name"];
 /// @type.symbol symbol=Name source="type Name = User[\"name\"]" type=string | undefined

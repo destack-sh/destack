@@ -30,6 +30,8 @@ y satisfies string;
 declare const point: { x: int32; y: string };
 /// @type.symbol symbol=point source=point type={ x: int32; y: string }
 /// @resolution.pattern source=point kind=binding target=point
+/// @type.symbol symbol=x#1 source="x: int32" type=int32
+/// @type.symbol symbol=y#1 source="y: string" type=string
 
 let { x, y } = point;
 /// @resolution.pattern source={ x, y } kind=object fields={ x, y }
@@ -80,10 +82,12 @@ let { x }: { x: int32 } = source;
 declare const source: { x: string };
 /// @type.symbol symbol=source source=source type={ x: string }
 /// @resolution.pattern source=source kind=binding target=source
+/// @type.symbol symbol=x#1 source="x: string" type=string
 
 let { x }: { x: int32 } = source;
 /// @resolution.pattern source={ x } kind=object fields={ x }
 /// @type.symbol symbol=x#3 source=x type=int32
+/// @type.symbol symbol=x#2 source="x: int32" type=int32
 /// @type.node source=source type={ x: string }
 /// @resolution.name source=source target=source
 /// @resolution.place source=source placement="local" lifetime="static" access="exclusive"
@@ -168,7 +172,14 @@ type State =
 /// @definition.type symbol=State value={ inner: { kind: "a"; value: int32 } } | { inner: { kind: "b"; flag: boolean } }
 
     | { inner: { kind: "a"; value: int32 } }
+    /// @type.symbol symbol=State.inner#1 source="inner: { kind: \"a\"; value: int32 }" type={ kind: "a"; value: int32 }
+    /// @type.symbol symbol=State.kind#1 source="kind: \"a\"" type="a"
+    /// @type.symbol symbol=State.value source="value: int32" type=int32
+
     | { inner: { kind: "b"; flag: boolean } };
+    /// @type.symbol symbol=State.inner#2 source="inner: { kind: \"b\"; flag: boolean }" type={ kind: "b"; flag: boolean }
+    /// @type.symbol symbol=State.kind#2 source="kind: \"b\"" type="b"
+    /// @type.symbol symbol=State.flag source="flag: boolean" type=boolean
 
 declare const state: State;
 /// @type.symbol symbol=state source=state type={ inner: { kind: "a"; value: int32 } } | { inner: { kind: "b"; flag: boolean } }

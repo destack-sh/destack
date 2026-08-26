@@ -159,6 +159,8 @@ if (let { enabled, retries } = config) {
 declare const config: { enabled: boolean; retries: int32 } | null;
 /// @type.symbol symbol=config source=config type={ enabled: boolean; retries: int32 } | null
 /// @resolution.pattern source=config kind=binding target=config
+/// @type.symbol symbol=enabled#1 source="enabled: boolean" type=boolean
+/// @type.symbol symbol=retries#1 source="retries: int32" type=int32
 
 if (let { enabled, retries } = config) {
 /// @resolution.pattern source={ enabled, retries } kind=object fields={ enabled, retries }
@@ -408,6 +410,7 @@ declare const ready: boolean;
 declare const user: { name: string } | null;
 /// @type.symbol symbol=user source=user type={ name: string } | null
 /// @resolution.pattern source=user kind=binding target=user
+/// @type.symbol symbol=name#1 source="name: string" type=string
 
 if (ready && let { name } = user) {
 /// @type.node source=ready type=boolean
@@ -459,6 +462,7 @@ if (let { name } = user && name.length > 0) {
 declare const user: { name: string } | null;
 /// @type.symbol symbol=user source=user type={ name: string } | null
 /// @resolution.pattern source=user kind=binding target=user
+/// @type.symbol symbol=name#1 source="name: string" type=string
 
 if (let { name } = user && name.length > 0) {
 /// @resolution.pattern source={ name } kind=object fields={ name }
@@ -521,10 +525,12 @@ if (let { name } = user && let { x } = point) {
 declare const user: { name: string } | null;
 /// @type.symbol symbol=user source=user type={ name: string } | null
 /// @resolution.pattern source=user kind=binding target=user
+/// @type.symbol symbol=name#1 source="name: string" type=string
 
 declare const point: { x: int32 } | null;
 /// @type.symbol symbol=point source=point type={ x: int32 } | null
 /// @resolution.pattern source=point kind=binding target=point
+/// @type.symbol symbol=x#1 source="x: int32" type=int32
 
 if (let { name } = user && let { x } = point) {
 /// @resolution.pattern source={ name } kind=object fields={ name }
@@ -588,6 +594,7 @@ if (let { name } = user) {
 declare const user: { name: string } | null;
 /// @type.symbol symbol=user source=user type={ name: string } | null
 /// @resolution.pattern source=user kind=binding target=user
+/// @type.symbol symbol=name#1 source="name: string" type=string
 
 if (let { name } = user) {
 /// @resolution.pattern source={ name } kind=object fields={ name }
@@ -651,6 +658,7 @@ name;
 declare const user: { name: string } | null;
 /// @type.symbol symbol=user source=user type={ name: string } | null
 /// @resolution.pattern source=user kind=binding target=user
+/// @type.symbol symbol=name#1 source="name: string" type=string
 
 while (let { name } = user && name.length > 0) {
 /// @resolution.pattern source={ name } kind=object fields={ name }

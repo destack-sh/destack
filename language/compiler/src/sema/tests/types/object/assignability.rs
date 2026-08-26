@@ -30,6 +30,7 @@ person.name satisfies string;
 type Person = { name: string };
 /// @type.symbol symbol=Person source="type Person = { name: string }" type={ name: string }
 /// @definition.type symbol=Person source="type Person = { name: string }" value={ name: string }
+/// @type.symbol symbol=Person.name source="name: string" type=string
 
 const source = { name: "Ada" };
 /// @type.symbol symbol=source source=source type={ name: string }
@@ -92,6 +93,7 @@ const undecided: { retries?: int32 } = { retries: maybe };
 type Options = { retries?: int32 };
 /// @type.symbol symbol=Options source="type Options = { retries?: int32 }" type={ retries?: int32 }
 /// @definition.type symbol=Options source="type Options = { retries?: int32 }" value={ retries?: int32 }
+/// @type.symbol symbol=Options.retries source="retries?: int32" type=int32
 
 declare const maybe: int32 | undefined;
 /// @type.symbol symbol=maybe source=maybe type=int32 | undefined
@@ -154,6 +156,7 @@ const cleared: { retries?: int32 | undefined } = { retries: undefined as int32 |
 type Options = { retries?: int32 | undefined };
 /// @type.symbol symbol=Options source="type Options = { retries?: int32 | undefined }" type={ retries?: int32 | undefined }
 /// @definition.type symbol=Options source="type Options = { retries?: int32 | undefined }" value={ retries?: int32 | undefined }
+/// @type.symbol symbol=Options.retries source="retries?: int32 | undefined" type=int32 | undefined
 
 declare const maybe: int32 | undefined;
 /// @type.symbol symbol=maybe source=maybe type=int32 | undefined
@@ -278,14 +281,17 @@ const narrowed: { tag: string } = frozen;
 declare let mutable: { tag: string };
 /// @type.symbol symbol=mutable source=mutable type={ tag: string }
 /// @resolution.pattern source=mutable kind=binding target=mutable
+/// @type.symbol symbol=tag#1 source="tag: string" type=string
 
 declare let frozen: { readonly tag: string };
 /// @type.symbol symbol=frozen source=frozen type={ readonly tag: string }
 /// @resolution.pattern source=frozen kind=binding target=frozen
+/// @type.symbol symbol=tag#2 source="readonly tag: string" type=string
 
 const widened: { readonly tag: string } = mutable;
 /// @type.symbol symbol=widened source=widened type={ readonly tag: string }
 /// @resolution.pattern source=widened kind=binding target=widened
+/// @type.symbol symbol=tag#3 source="readonly tag: string" type=string
 /// @type.node source=mutable type={ tag: string }
 /// @resolution.name source=mutable target=mutable
 /// @resolution.place source=mutable placement="local" lifetime="static" access="exclusive"
@@ -294,6 +300,7 @@ const widened: { readonly tag: string } = mutable;
 const narrowed: { tag: string } = frozen;
 /// @type.symbol symbol=narrowed source=narrowed type={ tag: string }
 /// @resolution.pattern source=narrowed kind=binding target=narrowed
+/// @type.symbol symbol=tag#4 source="tag: string" type=string
 /// @type.node source=frozen type={ readonly tag: string }
 /// @resolution.name source=frozen target=frozen
 /// @resolution.place source=frozen placement="local" lifetime="static" access="exclusive"

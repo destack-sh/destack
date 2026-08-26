@@ -81,6 +81,8 @@ function read(bag: Bag): int32 | undefined {
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
 /// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
 /// @resolution.pattern source=point kind=binding target=point
+/// @type.symbol symbol=x#1 source="x: int32" type=int32
+/// @type.symbol symbol=y source="y: int32" type=int32
 
 const x = read(point);
 /// @type.symbol symbol=x#2 source=x type=int32 | undefined
@@ -138,6 +140,8 @@ declare function read(bag: Bag): int32 | undefined;
 const mixed: { x: int32; y: string } = { x: 1, y: "two" };
 /// @type.symbol symbol=mixed source=mixed type={ x: int32; y: string }
 /// @resolution.pattern source=mixed kind=binding target=mixed
+/// @type.symbol symbol=x source="x: int32" type=int32
+/// @type.symbol symbol=y source="y: string" type=string
 
 const value = read(mixed);
 /// @type.symbol symbol=value source=value type=int32 | undefined
@@ -243,6 +247,8 @@ declare function write(bag: Bag): int32 | undefined;
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
 /// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
 /// @resolution.pattern source=point kind=binding target=point
+/// @type.symbol symbol=x source="x: int32" type=int32
+/// @type.symbol symbol=y source="y: int32" type=int32
 
 const bad = write(point);
 /// @type.symbol symbol=bad source=bad type=int32 | undefined
@@ -572,6 +578,7 @@ declare function read(bag: Bag): int32 | undefined;
 const point: { x: int32 } = { x: 1 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
 /// @resolution.pattern source=point kind=binding target=point
+/// @type.symbol symbol=x source="x: int32" type=int32
 
 const bad = read(point);
 /// @type.symbol symbol=bad source=bad type=int32 | undefined
@@ -1097,6 +1104,7 @@ type Row = { name: string; [key: string]: string };
 type Row = { name: string; [key: string]: string };
 /// @type.symbol symbol=Row source="type Row = { name: string; [key: string]: string }" type={ name: string; [key: string]: string }
 /// @definition.type symbol=Row source="type Row = { name: string; [key: string]: string }" value={ name: string; [key: string]: string }
+/// @type.symbol symbol=Row.name source="name: string" type=string
 "#,
         r#"
 /// @diagnostic.error id=mixed-object-type message="object type mixes named properties with an index signature"
@@ -1131,6 +1139,7 @@ class Counter {}
 type Factory = { name: string; new (): Counter };
 /// @type.symbol symbol=Factory source="type Factory = { name: string; new (): Counter }" type={ name: string; <new>: new () => Counter }
 /// @definition.type symbol=Factory source="type Factory = { name: string; new (): Counter }" value={ name: string; <new>: new () => Counter }
+/// @type.symbol symbol=Factory.name source="name: string" type=string
 /// @resolution.name source=Counter target=Counter
 "#,
         r#"

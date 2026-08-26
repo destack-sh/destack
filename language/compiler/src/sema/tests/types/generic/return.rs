@@ -62,6 +62,7 @@ function capture<T>(value: T): { reactions: T[] } {
 /// @type.symbol symbol=capture.T source=T type=T
 /// @type.symbol symbol=capture.value source="value: T" type=T
 /// @resolution.name source=T target=capture.T
+/// @type.symbol symbol=capture.reactions source="reactions: T[]" type=T[]
 /// @resolution.name source=T target=capture.T
 
     return { reactions: [] };

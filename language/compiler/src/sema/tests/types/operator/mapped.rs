@@ -35,6 +35,8 @@ type Actual = Flags<{ name: string; age: int32 }>;
 /// @type.symbol symbol=Actual source="type Actual = Flags<{ name: string; age: int32 }>" type={ name: boolean; age: boolean }
 /// @definition.type symbol=Actual source="type Actual = Flags<{ name: string; age: int32 }>" value={ name: boolean; age: boolean }
 /// @resolution.name source=Flags target=Flags
+/// @type.symbol symbol=Actual.name source="name: string" type=string
+/// @type.symbol symbol=Actual.age source="age: int32" type=int32
 
 declare const value: Actual;
 /// @type.symbol symbol=value source=value type={ name: boolean; age: boolean }
@@ -77,6 +79,8 @@ type Actual = Clone<{ readonly name: string; age?: int32 }>;
 /// @type.symbol symbol=Actual source="type Actual = Clone<{ readonly name: string; age?: int32 }>" type={ readonly name: string; age?: int32 }
 /// @definition.type symbol=Actual source="type Actual = Clone<{ readonly name: string; age?: int32 }>" value={ readonly name: string; age?: int32 }
 /// @resolution.name source=Clone target=Clone
+/// @type.symbol symbol=Actual.name source="readonly name: string" type=string
+/// @type.symbol symbol=Actual.age source="age?: int32" type=int32
 "#,
     );
 }
@@ -114,6 +118,8 @@ type Actual = Loose<{ name: string; age: int32 }>;
 /// @type.symbol symbol=Actual source="type Actual = Loose<{ name: string; age: int32 }>" type={ name?: string; age?: int32 }
 /// @definition.type symbol=Actual source="type Actual = Loose<{ name: string; age: int32 }>" value={ name?: string; age?: int32 }
 /// @resolution.name source=Loose target=Loose
+/// @type.symbol symbol=Actual.name source="name: string" type=string
+/// @type.symbol symbol=Actual.age source="age: int32" type=int32
 "#,
     );
 }
@@ -155,6 +161,7 @@ type Value = Optional<{ name: string }>["name"];
 /// @type.symbol symbol=Value source="type Value = Optional<{ name: string }>[\"name\"]" type=string | undefined
 /// @definition.type symbol=Value source="type Value = Optional<{ name: string }>[\"name\"]" value=string | undefined
 /// @resolution.name source=Optional target=Optional
+/// @type.symbol symbol=Value.name source="name: string" type=string
 
 const missing: Value = undefined;
 /// @type.symbol symbol=missing source=missing type=string | undefined
@@ -201,6 +208,7 @@ type Value = Optional<{ name: string }>["name"];
 /// @type.symbol symbol=Value source="type Value = Optional<{ name: string }>[\"name\"]" type=string | undefined
 /// @definition.type symbol=Value source="type Value = Optional<{ name: string }>[\"name\"]" value=string | undefined
 /// @resolution.name source=Optional target=Optional
+/// @type.symbol symbol=Value.name source="name: string" type=string
 
 const bad: Value = 1;
 /// @type.symbol symbol=bad source=bad type=string | undefined
@@ -248,6 +256,7 @@ type Actual = Strict<{ readonly name?: string }>;
 /// @type.symbol symbol=Actual source="type Actual = Strict<{ readonly name?: string }>" type={ name: string }
 /// @definition.type symbol=Actual source="type Actual = Strict<{ readonly name?: string }>" value={ name: string }
 /// @resolution.name source=Strict target=Strict
+/// @type.symbol symbol=Actual.name source="readonly name?: string" type=string
 "#,
     );
 }
@@ -320,6 +329,8 @@ type Actual = Collide<{ name: string; age: int32 }>;
 /// @type.symbol symbol=Actual source="type Actual = Collide<{ name: string; age: int32 }>" type={ value: string; value: int32 }
 /// @definition.type symbol=Actual source="type Actual = Collide<{ name: string; age: int32 }>" value={ value: string; value: int32 }
 /// @resolution.name source=Collide target=Collide
+/// @type.symbol symbol=Actual.name source="name: string" type=string
+/// @type.symbol symbol=Actual.age source="age: int32" type=int32
 
 declare const actual: Actual;
 /// @type.symbol symbol=actual source=actual type={ value: string; value: int32 }
@@ -372,6 +383,8 @@ type Actual = WithoutSecret<{ name: string; secret: string }>;
 /// @type.symbol symbol=Actual source="type Actual = WithoutSecret<{ name: string; secret: string }>" type={ name: string }
 /// @definition.type symbol=Actual source="type Actual = WithoutSecret<{ name: string; secret: string }>" value={ name: string }
 /// @resolution.name source=WithoutSecret target=WithoutSecret
+/// @type.symbol symbol=Actual.name source="name: string" type=string
+/// @type.symbol symbol=Actual.secret source="secret: string" type=string
 "#,
     );
 }
@@ -409,6 +422,8 @@ type Actual = Locked<{ name: string; age: int32 }>;
 /// @type.symbol symbol=Actual source="type Actual = Locked<{ name: string; age: int32 }>" type={ readonly name?: string; readonly age?: int32 }
 /// @definition.type symbol=Actual source="type Actual = Locked<{ name: string; age: int32 }>" value={ readonly name?: string; readonly age?: int32 }
 /// @resolution.name source=Locked target=Locked
+/// @type.symbol symbol=Actual.name source="name: string" type=string
+/// @type.symbol symbol=Actual.age source="age: int32" type=int32
 "#,
     );
 }

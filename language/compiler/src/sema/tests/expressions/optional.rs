@@ -23,6 +23,7 @@ function name(user: { name: string } | null): string | undefined {
 function name(user: { name: string } | null): string | undefined {
 /// @type.symbol symbol=name type=({ name: string } | null) => string | undefined
 /// @type.symbol symbol=name.user source="user: { name: string } | null" type={ name: string } | null
+/// @type.symbol symbol=name.name source="name: string" type=string
 
     return user?.name;
     /// @type.node source=user?.name type=string
@@ -62,6 +63,7 @@ function name(user: { name: string } | null): string {
 function name(user: { name: string } | null): string {
 /// @type.symbol symbol=name type=({ name: string } | null) => string
 /// @type.symbol symbol=name.user source="user: { name: string } | null" type={ name: string } | null
+/// @type.symbol symbol=name.name source="name: string" type=string
 
     return user.name;
     /// @type.node source=user.name type=string
@@ -105,6 +107,7 @@ function name(user: { name: string } | null): string | undefined {
 function name(user: { name: string } | null): string | undefined {
 /// @type.symbol symbol=name type=({ name: string } | null) => string | undefined
 /// @type.symbol symbol=name.user source="user: { name: string } | null" type={ name: string } | null
+/// @type.symbol symbol=name.name source="name: string" type=string
 
     return user?.["name"];
     /// @type.node source="user?.[\"name\"]" type=string
@@ -145,6 +148,7 @@ function name(user: { name: string } | null): string {
 function name(user: { name: string } | null): string {
 /// @type.symbol symbol=name type=({ name: string } | null) => string
 /// @type.symbol symbol=name.user source="user: { name: string } | null" type={ name: string } | null
+/// @type.symbol symbol=name.name source="name: string" type=string
 
     return user["name"];
     /// @type.node source="user[\"name\"]" type=string
@@ -189,6 +193,7 @@ function invoke(service: { callback?: () => int32 } | null): int32 | undefined {
 function invoke(service: { callback?: () => int32 } | null): int32 | undefined {
 /// @type.symbol symbol=invoke type=({ callback?: Function<(), int32> } | null) => int32 | undefined
 /// @type.symbol symbol=invoke.service source="service: { callback?: () => int32 } | null" type={ callback?: Function<(), int32> } | null
+/// @type.symbol symbol=invoke.callback source="callback?: () => int32" type=Function<(), int32>
 
     return service?.callback?.();
     /// @type.node source=service?.callback type=Function<(), int32> | undefined

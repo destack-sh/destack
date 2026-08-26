@@ -228,6 +228,8 @@ for (const key in target) {
 declare const target: { a: int32 } | { b: int32 };
 /// @type.symbol symbol=target source=target type={ a: int32 } | { b: int32 }
 /// @resolution.pattern source=target kind=binding target=target
+/// @type.symbol symbol=a source="a: int32" type=int32
+/// @type.symbol symbol=b source="b: int32" type=int32
 
 for (const key in target) {
 /// @type.symbol symbol=key source=key type=string
@@ -601,6 +603,8 @@ for (const key in target) {
 declare const target: { name?: string; active: boolean };
 /// @type.symbol symbol=target source=target type={ name?: string; active: boolean }
 /// @resolution.pattern source=target kind=binding target=target
+/// @type.symbol symbol=name source="name?: string" type=string
+/// @type.symbol symbol=active source="active: boolean" type=boolean
 
 for (const key in target) {
 /// @type.symbol symbol=key source=key type=string

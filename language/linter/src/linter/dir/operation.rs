@@ -663,6 +663,11 @@ impl DirModule<'_> {
                 return Ok(None);
             }
 
+            // constructor calls carry their resolution as a construct decision
+            if self.decisions.construct_decision(global).is_some() {
+                return Ok(None);
+            }
+
             return Err(ProviderError::internal(format!(
                 "checked call expression {} in module {:?} has no call resolution",
                 node.id, self.id
