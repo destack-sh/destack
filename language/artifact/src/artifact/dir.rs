@@ -314,8 +314,6 @@ pub struct DirElaborated {
     pub types: Arc<dir::TypeSegment>,
     /// Flattened member bindings per owner subject.
     pub members: Arc<dir::MemberSegment>,
-    /// Auto conformances for concrete nominals.
-    pub auto: Arc<dir::AutoSegment>,
     /// Derived variances.
     pub generics: Arc<dir::GenericSegment>,
     /// Definitions carrying derived constructor entries.
@@ -368,11 +366,6 @@ impl DirElaborated {
             declared.types.clone(),
             self.types.clone(),
         ])
-    }
-
-    /// Return the elaborated auto implementation table.
-    pub fn auto_table(&self) -> dir::AutoTable<'static> {
-        dir::AutoTable::from_segment(self.auto.clone())
     }
 
     /// Return the cumulative generic table for elaborated DIR.
@@ -437,16 +430,9 @@ pub struct DirChecked {
     pub captures: Arc<dir::CaptureSegment>,
     /// Flow conclusions.
     pub flows: Arc<dir::FlowSegment>,
-    /// The auto conformances the check pass decided.
-    pub auto: Arc<dir::AutoSegment>,
 }
 
 impl DirChecked {
-    /// Return the cumulative auto implementation table for checked DIR.
-    pub fn auto_table(&self, elaborated: &DirElaborated) -> dir::AutoTable<'static> {
-        dir::AutoTable::from_segments(vec![elaborated.auto.clone(), self.auto.clone()])
-    }
-
     /// Return the cumulative definition table for checked DIR.
     pub fn definition_table(
         &self,

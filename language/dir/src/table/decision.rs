@@ -10,9 +10,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     AccessResolution, ArgumentBinding, AssignPatternDecision, AssignmentDecision, BindingUse, Call,
     CallDecision, ConstructDecision, Expression, FunctionDecision, GlobalNodeId, GlobalNodeIdAny,
-    GlobalSymbolId, GlobalTypeId, GuardDecision, MemberAccess, MemberDecision, OperationResolution,
-    OperatorDecision, Pattern, PatternDecision, PlaceResolution, ReceiverDecision, SegmentView,
-    InstanceKey, InstanceKeyVisit, SubscriptDecision, SubscriptTarget, TreeDecision, TypeFold,
+    GlobalSymbolId, GlobalTypeId, GuardDecision, InstanceKey, InstanceKeyVisit, MemberAccess,
+    MemberDecision, OperationResolution, OperatorDecision, Pattern, PatternDecision,
+    PlaceResolution, ReceiverDecision, SegmentView, SubscriptDecision, SubscriptTarget,
+    TreeDecision, TypeFold,
 };
 
 /// The one decision inference made for a DIR node.

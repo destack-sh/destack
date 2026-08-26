@@ -828,7 +828,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
     ) -> ProviderResult<()> {
         match target {
             dir::MemberTarget::Symbol(candidate) => {
-                self.index_reference(candidate.selection.symbol, source)?
+                self.index_reference(candidate.key.symbol, source)?
             }
             dir::MemberTarget::OverloadSet(targets) | dir::MemberTarget::Intersection(targets) => {
                 for target in targets {

@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     AdjustedReceiver, ArgumentBinding, ArgumentSource, BinaryOperator, ClassConstructor,
     DynamicDispatch, Expression, GenericArgumentBinding, GlobalNodeId, GlobalNodeIdAny,
-    GlobalSymbolId, GlobalTypeId, MemberReceiver, MemberSpace, Predicate, Projection,
-    ProjectionResolution, ScalarFamily, ScalarFamilySet, InstanceKey, InstanceKeyVisit, StaticKey,
+    GlobalSymbolId, GlobalTypeId, InstanceKey, InstanceKeyVisit, MemberReceiver, MemberSpace,
+    Predicate, Projection, ProjectionResolution, ScalarFamily, ScalarFamilySet, StaticKey,
     StringId, TypeFold, UnaryOperator,
 };
 
@@ -1471,10 +1471,7 @@ impl ConstructTarget {
     /// Return the callable symbol selected by construction, when this target has one.
     pub fn call_symbol(&self) -> Option<GlobalSymbolId> {
         match self {
-            Self::Class {
-                key,
-                constructor,
-            } => match constructor {
+            Self::Class { key, constructor } => match constructor {
                 ClassConstructor::Declared { symbol }
                 | ClassConstructor::ForwardedDeclared { symbol, .. } => Some(*symbol),
                 ClassConstructor::Default | ClassConstructor::ForwardedDefault { .. } => {
@@ -1491,10 +1488,7 @@ impl InstanceKeyVisit for ConstructTarget {
     fn visit_instance_keys(&self, visit: &mut dyn FnMut(&InstanceKey)) {
         match self {
             // visit the class, then its declared constructor under the same arguments
-            Self::Class {
-                key,
-                constructor,
-            } => {
+            Self::Class { key, constructor } => {
                 visit(key);
 
                 if let ClassConstructor::Declared { symbol }

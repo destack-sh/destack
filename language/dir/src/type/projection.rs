@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Access, Call, CallDecision, Dereference, DereferenceResolution, FieldResolution, GlobalTypeId,
-    Literal, MemberAccess, MemberDecision, OperationResolution, InstanceKey, InstanceKeyVisit,
+    InstanceKey, InstanceKeyVisit, Literal, MemberAccess, MemberDecision, OperationResolution,
     StaticKey, Subscript, SubscriptDecision, TypeFold,
 };
 

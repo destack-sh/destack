@@ -2,7 +2,7 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    GlobalTypeId, Literal, PrimitiveType, Projection, RangeEnd, RangeType, InstanceKeyVisit,
+    GlobalTypeId, InstanceKeyVisit, Literal, PrimitiveType, Projection, RangeEnd, RangeType,
     StaticKey, TypeFold,
 };
 

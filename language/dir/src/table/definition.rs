@@ -7,9 +7,10 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 use crate::{
-    AutoInterface, AutoInterfaceSet, EnumBackingType, EnumVariantValue, FunctionRole, GlobalNodeIdAny,
-    GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberKind, MemberSlot,
-    MemberSpace, MethodAbstraction, PrimitiveType, SegmentView, Space, StaticKey, TypeFold,
+    AutoInterface, AutoInterfaceSet, EnumBackingType, EnumVariantValue, FunctionRole,
+    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberKind,
+    MemberSlot, MemberSpace, MethodAbstraction, PrimitiveType, SegmentView, Space, StaticKey,
+    TypeFold,
 };
 
 /// Cumulative declaration definitions for one DIR module.

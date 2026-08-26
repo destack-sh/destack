@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AutoInterfaceSet,
-    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem, LocalNodeIdAny, LocalScopeId,
-    InstanceKey, InstanceKeyVisit, StringId, TypeFold, VarianceModifier, WhereRelation,
+    AutoInterfaceSet, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, InstanceKey, InstanceKeyVisit,
+    LanguageItem, LocalNodeIdAny, LocalScopeId, StringId, TypeFold, VarianceModifier,
+    WhereRelation,
 };
 
 /// Unique identifier for generic templates.

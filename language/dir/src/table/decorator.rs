@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Arena, Argument, ArgumentBinding, AutoInterface, Decorator, Expression, GenericArgument,
-    GlobalNodeId, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId, LanguageItem,
-    LocalNodeId, SegmentView, InstanceKey, TypeFold,
+    GlobalNodeId, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId, InstanceKey,
+    LanguageItem, LocalNodeId, SegmentView, TypeFold,
 };
 
 /// Cumulative decorator applications for one DIR module.
@@ -308,7 +308,7 @@ pub struct DecoratorResolution {
     /// The resolved decorator declaration.
     pub target: DecoratorTarget,
     /// The selection used to construct the decorator value.
-    pub key: DecoratorSelection,
+    pub selection: DecoratorSelection,
     /// The nominal decorator value type.
     pub ty: GlobalTypeId,
 }

@@ -7,10 +7,10 @@ use serde::{Deserialize, Serialize};
 use destack_core::FxIndexMap as IndexMap;
 
 use crate::{
-    Arena, AutoInterfaceSet, Cardinality, GenericParameterBinding, GenericParameterKey, GenericTemplate,
-    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Instance, InstanceOrigin, Instantiation,
-    LocalGenericParameterId, LocalGenericTemplateId, LocalInstanceId, LocalScopeId, SegmentView,
-    TypeFold, VarianceModifier,
+    Arena, AutoInterfaceSet, Cardinality, GenericParameterBinding, GenericParameterKey,
+    GenericTemplate, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Instance, InstanceOrigin,
+    Instantiation, LocalGenericParameterId, LocalGenericTemplateId, LocalInstanceId, LocalScopeId,
+    SegmentView, TypeFold, VarianceModifier,
 };
 
 /// Cumulative generic templates and parameters for one DIR module.
