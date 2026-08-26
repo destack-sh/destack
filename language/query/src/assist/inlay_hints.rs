@@ -203,7 +203,7 @@ impl ModuleQueryContext<'_> {
         for selected in resolution.arms() {
             let names = match &selected.target {
                 dir::CallableTarget::Symbol { function, .. } => {
-                    self.symbol_call_parameter_names(program, call, function.selection.symbol)?
+                    self.symbol_call_parameter_names(program, call, function.key.symbol)?
                 }
                 dir::CallableTarget::Dynamic {
                     function: dir::DynamicFunction::Symbol(symbol),

@@ -153,8 +153,8 @@ impl ModuleQueryContext<'_> {
             let signature = match &call.target {
                 dir::CallableTarget::Symbol { function, .. } => self.call_signature_item(
                     program,
-                    function.selection.symbol,
-                    &function.selection.arguments,
+                    function.key.symbol,
+                    &function.key.arguments,
                     &call.arguments,
                     call.return_type,
                 )?,
@@ -245,7 +245,7 @@ impl ModuleQueryContext<'_> {
         )
     }
 
-    /// Format one expression-backed callable selection.
+    /// Format one expression-backed callable key.
     fn expression_signature_item(
         &self,
         program: &ProgramQueryContext<'_>,
@@ -274,7 +274,7 @@ impl ModuleQueryContext<'_> {
         )
     }
 
-    /// Format one signature-backed dynamic selection from its declaring node.
+    /// Format one signature-backed dynamic key from its declaring node.
     fn signature_node_item(
         &self,
         program: &ProgramQueryContext<'_>,
@@ -372,9 +372,9 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<Vec<SignatureItem>> {
         let item = match &resolution.target {
             dir::ConstructTarget::Class {
-                selection,
+                key,
                 constructor,
-            } => self.class_signature_item(program, selection, constructor, resolution)?,
+            } => self.class_signature_item(program, key, constructor, resolution)?,
             dir::ConstructTarget::Dynamic { function, .. } => self.signature_node_item(
                 program,
                 function,
@@ -382,11 +382,11 @@ impl ModuleQueryContext<'_> {
                 &resolution.arguments,
                 resolution.return_type,
             )?,
-            dir::ConstructTarget::Newtype { selection, .. } => {
-                let Some(name) = program.symbol_name(selection.symbol)? else {
+            dir::ConstructTarget::Newtype { key, .. } => {
+                let Some(name) = program.symbol_name(key.symbol)? else {
                     return Err(QueryError::missing(format!(
                         "newtype constructor name: {:?}",
-                        selection.symbol
+                        key.symbol
                     )));
                 };
                 let parameter_names = vec![None; resolution.arguments.len()];
@@ -394,9 +394,9 @@ impl ModuleQueryContext<'_> {
 
                 self.signature_item(
                     program,
-                    program.symbol_callable_documentation(selection.symbol)?,
+                    program.symbol_callable_documentation(key.symbol)?,
                     &name,
-                    &selection.arguments,
+                    &key.arguments,
                     &parameter_names,
                     &parameter_documentation,
                     &resolution.arguments,
@@ -412,22 +412,22 @@ impl ModuleQueryContext<'_> {
     fn class_signature_item(
         &self,
         program: &ProgramQueryContext<'_>,
-        selection: &dir::Selection,
+        key: &dir::InstanceKey,
         constructor: &dir::ClassConstructor,
         resolution: &dir::ConstructDecision,
     ) -> QueryResult<SignatureItem> {
-        let Some(name) = program.symbol_name(selection.symbol)? else {
+        let Some(name) = program.symbol_name(key.symbol)? else {
             return Err(QueryError::missing(format!(
                 "class constructor name: {:?}",
-                selection.symbol
+                key.symbol
             )));
         };
         let Some(constructor_symbol) = constructor.call_symbol() else {
             return self.signature_item(
                 program,
-                program.symbol_callable_documentation(selection.symbol)?,
+                program.symbol_callable_documentation(key.symbol)?,
                 &name,
-                &selection.arguments,
+                &key.arguments,
                 &[],
                 &[],
                 &resolution.arguments,
@@ -455,7 +455,7 @@ impl ModuleQueryContext<'_> {
             documentation_owner,
             &name,
             parameters,
-            &selection.arguments,
+            &key.arguments,
             &resolution.arguments,
             resolution.return_type,
         )

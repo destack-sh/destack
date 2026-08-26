@@ -59,11 +59,11 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<CallItemResponse> {
         let position = request.position;
 
-        // use only the exact callable selection at a call head
-        if let Some(selection) =
+        // use only the exact callable key at a call head
+        if let Some(key) =
             self.selected_callable_at_offset(position.file_id, position.offset)?
         {
-            let item = CallItem::from_selection(program, selection)?;
+            let item = CallItem::from_selection(program, key)?;
 
             return Ok(CallItemResponse { item });
         }
@@ -91,9 +91,9 @@ pub(crate) struct CallItemOrder<'a> {
     start: u32,
     /// The item end offset.
     end: u32,
-    /// The selection start offset.
+    /// The key start offset.
     selection_start: u32,
-    /// The selection end offset.
+    /// The key end offset.
     selection_end: u32,
     /// The item kind.
     kind: CallItemKind,
@@ -101,7 +101,7 @@ pub(crate) struct CallItemOrder<'a> {
     name: &'a str,
 }
 
-/// One exact callable selection at a call or construction site.
+/// One exact callable key at a call or construction site.
 #[derive(Debug, Clone, Copy)]
 enum CallableSelection<'a> {
     /// One checked call with no declaration backed target.
@@ -188,7 +188,7 @@ impl CallItem {
                 "call hierarchy construction: {source:?}"
             )))?;
         let selected = match &resolution.target {
-            dir::ConstructTarget::Newtype { selection, .. } => selection.symbol,
+            dir::ConstructTarget::Newtype { key, .. } => key.symbol,
             dir::ConstructTarget::Class { .. } => return Self::from_symbol(program, entry.callee),
             // skip dynamic constructions, they index no declaration edge
             dir::ConstructTarget::Dynamic { .. } => {
@@ -215,8 +215,8 @@ impl CallItem {
 
         // format only the exact generated constructor selected at this call
         match &resolution.target {
-            dir::ConstructTarget::Newtype { selection, .. } => {
-                let call = ConstructorCall::new(&selection.arguments, resolution);
+            dir::ConstructTarget::Newtype { key, .. } => {
+                let call = ConstructorCall::new(&key.arguments, resolution);
 
                 module.newtype_call_item(program, entry.callee, Some(call))
             }
@@ -226,12 +226,12 @@ impl CallItem {
         }
     }
 
-    /// Build one hierarchy item from an exact callable selection.
+    /// Build one hierarchy item from an exact callable key.
     fn from_selection(
         program: &ProgramQueryContext<'_>,
-        selection: CallableSelection<'_>,
+        key: CallableSelection<'_>,
     ) -> QueryResult<Option<Self>> {
-        match selection {
+        match key {
             CallableSelection::DeclarationFree | CallableSelection::Multiple => Ok(None),
             CallableSelection::Symbol(symbol_id) => Self::from_symbol(program, symbol_id),
             CallableSelection::Newtype { symbol_id, call } => {
@@ -282,8 +282,8 @@ impl ModuleQueryContext<'_> {
             let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
                 continue;
             };
-            if let Some(selection) = self.selected_callable_at_node(view, node_id)? {
-                return Ok(Some(selection));
+            if let Some(key) = self.selected_callable_at_node(view, node_id)? {
+                return Ok(Some(key));
             }
         }
 
@@ -344,9 +344,9 @@ impl CallableSelection<'_> {
             return Self::from_resolution(resolution);
         }
 
-        // otherwise require the ordinary call selection
+        // otherwise require the ordinary call key
         let resolution = call.ok_or(QueryError::missing(format!(
-            "call item selection: {node_id:?}"
+            "call item key: {node_id:?}"
         )))?;
 
         // represent only one singular declaration as an item
@@ -378,15 +378,15 @@ impl CallableSelection<'_> {
     fn from_resolution(resolution: &dir::ConstructDecision) -> QueryResult<CallableSelection<'_>> {
         match &resolution.target {
             dir::ConstructTarget::Class {
-                selection,
+                key,
                 constructor,
             } => match constructor.call_symbol() {
                 Some(symbol) => Ok(CallableSelection::Symbol(symbol)),
-                None => Ok(CallableSelection::Symbol(selection.symbol)),
+                None => Ok(CallableSelection::Symbol(key.symbol)),
             },
-            dir::ConstructTarget::Newtype { selection, .. } => Ok(CallableSelection::Newtype {
-                symbol_id: selection.symbol,
-                call: ConstructorCall::new(&selection.arguments, resolution),
+            dir::ConstructTarget::Newtype { key, .. } => Ok(CallableSelection::Newtype {
+                symbol_id: key.symbol,
+                call: ConstructorCall::new(&key.arguments, resolution),
             }),
             dir::ConstructTarget::Dynamic { .. } => Ok(CallableSelection::DeclarationFree),
         }
@@ -648,13 +648,13 @@ impl ModuleQueryContext<'_> {
     fn call_item_target(&self, source: dir::LocalNodeIdAny) -> QueryResult<Target> {
         let view = self.view()?;
         let range = self.node_span(view, source)?;
-        let selection = self
+        let key = self
             .node_selection_span(view, source)?
             .ok_or(QueryError::missing(format!(
                 "call item span: {:?}",
                 source.into_global(self.module_id())
             )))?;
 
-        Target::new(self.module(), range).with_selection_span(selection)
+        Target::new(self.module(), range).with_selection_span(key)
     }
 }
