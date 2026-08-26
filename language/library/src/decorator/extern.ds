@@ -1,5 +1,0 @@
-import { Extern } from "destack:ffi";
-
-/// Marks a declaration as externally linked.
-@languageItem("decorator.extern")
-export newtype extern = (Extern,) | ();

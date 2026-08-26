@@ -343,7 +343,6 @@ global {
         derive,
         expect,
         experimental,
-        extern,
         forbid,
         hot,
         InlineHint,

@@ -818,12 +818,6 @@ define_language_items! {
             Warn => (Newtype, "decorator/diagnostic", "warn"),
         }
 
-        /// `destack:decorator/foreign`.
-        foreign {
-            /// `@extern` marker.
-            Extern => (Newtype, "decorator/foreign", "extern"),
-        }
-
         /// `destack:decorator/intrinsic`.
         intrinsic {
             /// `@intrinsic` marker.
@@ -1031,21 +1025,6 @@ define_language_items! {
             StackTrace => (Type, "error/stack", "StackTrace"),
         }
 
-    }
-
-    /// Foreign function interface types.
-    ffi {
-        /// `destack:ffi/abi`.
-        abi {
-            /// Foreign calling convention.
-            Abi => (Type, "ffi/abi", "Abi"),
-        }
-
-        /// `destack:ffi/extern`.
-        extern_ {
-            /// Foreign declaration configuration.
-            FfiExtern => (Type, "ffi/extern", "Extern"),
-        }
     }
 
     /// Filesystem types.

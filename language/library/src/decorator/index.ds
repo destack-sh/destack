@@ -1,7 +1,6 @@
 export * from "./capture.ds";
 export * from "./derive.ds";
 export * from "./diagnostic.ds";
-export * from "./extern.ds";
 export * from "./intrinsic.ds";
 export * from "./representation.ds";
 export * from "./restriction.ds";
