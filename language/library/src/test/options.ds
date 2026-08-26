@@ -7,8 +7,6 @@ import { Duration } from "destack:time";
 export enum CaseKind {
     /// Ordinary example-based check.
     Example = 1,
-    /// Benchmark case.
-    Bench = 2,
     /// Fuzz case.
     Fuzz = 3,
     /// Simulation case.

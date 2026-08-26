@@ -21,9 +21,6 @@
     "./async": {
       "path": "./src/async/index.ds"
     },
-    "./bench": {
-      "path": "./src/bench/index.ds"
-    },
     "./binding": {
       "path": "./src/binding/index.ds"
     },

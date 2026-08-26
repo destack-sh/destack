@@ -413,48 +413,6 @@ define_language_items! {
         }
     }
 
-    /// Benchmark types.
-    bench {
-        /// `destack:bench/budget`.
-        budget {
-            /// Benchmark baseline.
-            BenchBaseline => (Struct, "bench/budget", "Baseline"),
-
-            /// Benchmark budget.
-            BenchBudget => (Struct, "bench/budget", "Budget"),
-        }
-
-        /// `destack:bench/case`.
-        case {
-            /// Registered benchmark case.
-            BenchCase => (Struct, "bench/case", "Case"),
-
-            /// Registered benchmark suite.
-            BenchSuite => (Struct, "bench/case", "Suite"),
-        }
-
-        /// `destack:bench/context`.
-        context {
-            /// Benchmark execution context.
-            BenchContext => (NewtypeInterface, "bench/context", "Context"),
-        }
-
-        /// `destack:bench/measurement`.
-        measurement {
-            /// Benchmark measurement service.
-            Measure => (Class, "bench/measurement", "Measure"),
-
-            /// Benchmark measurement.
-            BenchMeasurement => (Struct, "bench/measurement", "Measurement"),
-
-            /// Benchmark samples.
-            BenchSamples => (Struct, "bench/measurement", "Samples"),
-
-            /// Benchmark measurement unit.
-            BenchUnit => (Newtype, "bench/measurement", "Unit"),
-        }
-    }
-
     /// Byte types.
     bytes {
         /// `destack:bytes/buffer`.

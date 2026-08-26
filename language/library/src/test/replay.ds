@@ -14,8 +14,6 @@ export enum ReplayKind {
     Fuzz = 2,
     /// Simulation replay.
     Simulation = 3,
-    /// Benchmark replay.
-    Bench = 4,
 }
 
 /// One recorded replay input.

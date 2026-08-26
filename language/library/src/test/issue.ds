@@ -12,8 +12,6 @@ export enum IssueKind {
     Snapshot = 2,
     /// Fuzzing found a counterexample.
     Counterexample = 3,
-    /// Benchmark exceeded a budget.
-    Budget = 4,
     /// Simulation invariant failed.
     Invariant = 5,
     /// Execution trapped or panicked.

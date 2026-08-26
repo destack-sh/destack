@@ -19,8 +19,6 @@ export enum ArtifactKind {
     Trace = 5,
     /// Snapshot artifact.
     Snapshot = 6,
-    /// Benchmark artifact.
-    Benchmark = 7,
     /// Log artifact.
     Log = 8,
 }
