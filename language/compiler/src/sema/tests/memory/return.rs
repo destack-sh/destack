@@ -257,7 +257,6 @@ function escape(): &readonly int32 {
     return first(&readonly values);
     /// @resolution.name source=first target=first
     /// @resolution.call source="first(&readonly values)" parameters=(Borrowed<Slice<int32>, "frame" & <error>, "readonly">) arguments=(provided(&readonly values) as Borrowed<Slice<int32>, "frame" & <error>, "readonly">) return=Borrowed<int32, "frame" & <error>, "readonly"> kind=symbol target=first instance=first<<error>>
-    /// @generic.instantiation id=first<<error>> template=first arguments=(<error>)
     /// @resolution.name source=values target=escape.values
     /// @resolution.place source=values placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=values root=escape.values

@@ -630,7 +630,6 @@ requireStringStrictEqual(number);
 /// @type.node source=requireStringStrictEqual(number) type=void
 /// @resolution.name source=requireStringStrictEqual target=requireStringStrictEqual
 /// @resolution.call source=requireStringStrictEqual(number) parameters=(<error>) arguments=(provided(number) as <error>) return=void kind=symbol target=requireStringStrictEqual instance=requireStringStrictEqual<<error>>
-/// @generic.instantiation id=requireStringStrictEqual<<error>> template=requireStringStrictEqual arguments=(<error>)
 /// @type.node source=number type=int32
 /// @resolution.name source=number target=number
 /// @resolution.place source=number placement="constant" lifetime="static" access="readonly"

@@ -2179,7 +2179,6 @@ duplicate(32);
 duplicate(values);
 /// @resolution.name source=duplicate target=duplicate
 /// @resolution.call source=duplicate(values) parameters=(<error>) arguments=(provided(values) as <error>) return=Owned<<error>> kind=symbol target=duplicate instance=duplicate<<error>>
-/// @generic.instantiation id=duplicate<<error>> template=duplicate arguments=(<error>)
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values

@@ -983,7 +983,6 @@ function pick(): void {
     /// @resolution.pattern source=widest kind=binding target=pick.widest
     /// @resolution.name source=longest target=longest
     /// @resolution.call source="longest(&readonly near, &readonly stored)" parameters=(Borrowed<Label, "frame" & <error>, "readonly">, Borrowed<Label, "frame" & <error>, "readonly">) arguments=(provided(&readonly near) as Borrowed<Label, "frame" & <error>, "readonly">, provided(&readonly stored) as Borrowed<Label, "frame" & <error>, "readonly">) return=Borrowed<Label, "frame" & <error>, "readonly"> kind=symbol target=longest instance=longest<<error>>
-    /// @generic.instantiation id=longest<<error>> template=longest arguments=(<error>)
     /// @resolution.name source=near target=pick.near
     /// @resolution.place source=near placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=near root=pick.near

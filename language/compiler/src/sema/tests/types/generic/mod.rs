@@ -11,6 +11,7 @@ mod module;
 mod order;
 mod parameter;
 mod r#return;
+mod r#static;
 mod unused;
 mod variadic;
 mod variance;

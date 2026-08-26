@@ -867,8 +867,38 @@ const store: Store = {
 "#,
     );
 
-    session.assert_dir_diagnostics(
-        "main.ds",
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+interface Store {
+    get value(): string;
+}
+const store: Store = {
+    get value(): int32 {
+        return 1;
+    },
+};
+
+=== dir ===
+interface Store {
+/// @type.symbol symbol=Store type=Store
+/// @definition.interface symbol=Store
+/// @definition.where symbol=Store relation=satisfies left=this right=Store
+/// @definition.method symbol=Store.value source="get value(): string" slot=value role=getter type=(this: this) => string
+
+    get value(): string;
+    /// @type.symbol symbol=Store.value source="get value(): string" type=(this: this) => string
+
+}
+const store: Store = {
+/// @type.symbol symbol=store source=store type=Store
+/// @resolution.pattern source=store kind=binding target=store
+/// @resolution.name source=Store target=Store
+
+    get value(): int32 { return 1; },
+    /// @type.symbol symbol=symbol4 source="get value(): int32 { return 1; }" type=() => int32
+
+};
+"#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '{ readonly value: int32 }' is not assignable to type 'Store'"
 /// @diagnostic.label line=5 column=22 span="{\n    get value(): int32 { return 1; },\n}" line_source="const store: Store = {"
@@ -891,8 +921,38 @@ const store: Store = {
 "#,
     );
 
-    session.assert_dir_diagnostics(
-        "main.ds",
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+interface Store {
+    set value(next: string);
+}
+const store: Store = {
+    set value(next: int32): void {},
+};
+
+=== dir ===
+interface Store {
+/// @type.symbol symbol=Store type=Store
+/// @definition.interface symbol=Store
+/// @definition.where symbol=Store relation=satisfies left=this right=Store
+/// @definition.method symbol=Store.value source="set value(next: string)" slot=value role=setter type=(this: this, string) => void
+
+    set value(next: string);
+    /// @type.symbol symbol=Store.value source="set value(next: string)" type=(this: this, string) => void
+    /// @type.symbol symbol=Store.value.next source="next: string" type=string
+
+}
+const store: Store = {
+/// @type.symbol symbol=store source=store type=Store
+/// @resolution.pattern source=store kind=binding target=store
+/// @resolution.name source=Store target=Store
+
+    set value(next: int32): void {},
+    /// @type.symbol symbol=symbol5 source="set value(next: int32): void {}" type=(int32) => void
+    /// @type.symbol symbol=symbol5.next source="next: int32" type=int32
+
+};
+"#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '{ set value(value: int32) }' is not assignable to type 'Store'"
 /// @diagnostic.label line=5 column=22 span="{\n    set value(next: int32): void {},\n}" line_source="const store: Store = {"
@@ -922,8 +982,67 @@ const writable: Writable = {
 "#,
     );
 
-    session.assert_dir_diagnostics(
-        "main.ds",
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+interface Readable {
+    get value(): string;
+}
+interface Writable {
+    set value(next: string);
+}
+
+const readable: Readable = {
+    set value(next: string): void {},
+};
+const writable: Writable = {
+    get value(): string {
+        return "ready";
+    },
+};
+
+=== dir ===
+interface Readable {
+/// @type.symbol symbol=Readable type=Readable
+/// @definition.interface symbol=Readable
+/// @definition.where symbol=Readable relation=satisfies left=this right=Readable
+/// @definition.method symbol=Readable.value source="get value(): string" slot=value role=getter type=(this: this) => string
+
+    get value(): string;
+    /// @type.symbol symbol=Readable.value source="get value(): string" type=(this: this) => string
+
+}
+interface Writable {
+/// @type.symbol symbol=Writable type=Writable
+/// @definition.interface symbol=Writable
+/// @definition.where symbol=Writable relation=satisfies left=this right=Writable
+/// @definition.method symbol=Writable.value source="set value(next: string)" slot=value role=setter type=(this: this, string) => void
+
+    set value(next: string);
+    /// @type.symbol symbol=Writable.value source="set value(next: string)" type=(this: this, string) => void
+    /// @type.symbol symbol=Writable.value.next source="next: string" type=string
+
+}
+
+const readable: Readable = {
+/// @type.symbol symbol=readable source=readable type=Readable
+/// @resolution.pattern source=readable kind=binding target=readable
+/// @resolution.name source=Readable target=Readable
+
+    set value(next: string): void {},
+    /// @type.symbol symbol=symbol8 source="set value(next: string): void {}" type=(string) => void
+    /// @type.symbol symbol=symbol8.next source="next: string" type=string
+
+};
+const writable: Writable = {
+/// @type.symbol symbol=writable source=writable type=Writable
+/// @resolution.pattern source=writable kind=binding target=writable
+/// @resolution.name source=Writable target=Writable
+
+    get value(): string { return "ready"; },
+    /// @type.symbol symbol=symbol11 source="get value(): string { return \"ready\"; }" type=() => string
+
+};
+"#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '{ set value(value: string) }' is not assignable to type 'Readable'"
 /// @diagnostic.label line=9 column=28 span="{\n    set value(next: string): void {},\n}" line_source="const readable: Readable = {"

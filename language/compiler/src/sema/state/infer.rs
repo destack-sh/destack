@@ -1,5 +1,9 @@
+use std::backtrace::Backtrace;
+use std::sync::OnceLock;
+
 use destack_core::FxIndexMap;
 use destack_dir as dir;
+use rustc_hash::FxHashSet;
 
 use crate::sema::{
     BoundSide, Cause, CauseArena, CauseId, CheckId, CheckOutcome, CheckTable, Fulfillment,
@@ -38,6 +42,8 @@ pub(in crate::sema) struct InferContext {
     pub(in crate::sema) trail: Vec<InferUndo>,
     /// The number of nested trail marks.
     pub(in crate::sema) marks: usize,
+    /// Rollback-poisoned variables, tracked under the residue trap.
+    rollback_poisoned: FxHashSet<dir::TypeVariableId>,
 }
 
 /// One inference trail entry.
@@ -92,6 +98,7 @@ impl InferContext {
             symbol_variables: FxIndexMap::default(),
             trail: Vec::new(),
             marks: 0,
+            rollback_poisoned: FxHashSet::default(),
         }
     }
 }
@@ -297,8 +304,31 @@ impl InferContext {
         variable: dir::TypeVariableId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let root = self.alias_root(variable)?;
+        self.trap_rollback_read(root);
 
         Ok(self.variable(root)?.state.ty())
+    }
+
+    /// Report one live read of a rollback-poisoned variable under the residue trap.
+    pub(in crate::sema) fn trap_rollback_read(&self, variable: dir::TypeVariableId) {
+        if !residue_trap_enabled() || !self.rollback_poisoned.contains(&variable) {
+            return;
+        }
+
+        // render the reading frames past the trap's own machinery
+        let trace = Backtrace::force_capture().to_string();
+        let frames: Vec<&str> = trace
+            .lines()
+            .filter(|line| line.contains("destack_compiler::sema"))
+            .skip(TRAP_MACHINERY_FRAMES)
+            .take(TRAP_REPORTED_FRAMES)
+            .map(|line| line.trim())
+            .collect();
+        eprintln!(
+            "ROLLBACK-READ var={} frames={}",
+            variable.0,
+            frames.join(" << ")
+        );
     }
 
     /// Return all variable entries.
@@ -413,7 +443,14 @@ impl InferContext {
                     self.variables.set_role(id, role)?;
                 }
                 // poison undone allocations, keeping their slot
-                None => self.variables.get_mut(id)?.state = VariableState::Error(poison),
+                None => {
+                    self.variables.get_mut(id)?.state = VariableState::Error(poison);
+
+                    // remember the poisoned slot for the residue trap
+                    if residue_trap_enabled() {
+                        self.rollback_poisoned.insert(id);
+                    }
+                }
             },
             InferUndo::Bound { id, side } => {
                 self.variables.pop_bound(id, side)?;
@@ -430,4 +467,20 @@ impl InferContext {
 
         Ok(())
     }
+}
+
+/// The environment variable enabling the rollback-residue trap.
+const RESIDUE_TRAP_VARIABLE: &str = "DESTACK_RESIDUE_TRAP";
+
+/// The trap's own frames skipped from every reported backtrace.
+const TRAP_MACHINERY_FRAMES: usize = 2;
+
+/// The reading frames each trap report keeps.
+const TRAP_REPORTED_FRAMES: usize = 10;
+
+/// Return whether the rollback-residue trap is enabled for this process.
+fn residue_trap_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+
+    *ENABLED.get_or_init(|| std::env::var(RESIDUE_TRAP_VARIABLE).is_ok())
 }

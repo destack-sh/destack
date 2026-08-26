@@ -81,7 +81,6 @@ declare function parse<T: string>(value: `${T}-${T}`): T;
 parse("row-col");
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"row-col\")" parameters=(`${<error>}-${<error>}`) arguments=(provided("row-col") as `${<error>}-${<error>}`) return=<error> kind=symbol target=parse instance=parse<<error>>
-/// @generic.instantiation id=parse<<error>> template=parse arguments=(<error>)
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '\"row-col\"' is not assignable to parameter of type '`${_}-${_}`'"

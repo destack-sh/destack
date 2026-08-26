@@ -528,8 +528,59 @@ witness(once);
 "#,
     );
 
-    session.assert_dir_diagnostics(
-        "main.ds",
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+function witness<T: Copy>(value: T): T {
+    return value;
+}
+
+declare const repeatable: () => void;
+declare const once: () => void;
+
+witness<() => void>(repeatable);
+witness(once);
+
+=== dir ===
+function witness<T: Copy>(value: T): T {
+/// @generic.template symbol=witness parameters=(T: Copy)
+/// @type.symbol symbol=witness type=<T: Copy>(T) => T
+/// @type.symbol symbol=witness.T source="T: Copy" type=T
+/// @resolution.name source=Copy target=Copy
+/// @type.symbol symbol=witness.value source="value: T" type=T
+/// @resolution.name source=T target=witness.T
+/// @resolution.name source=T target=witness.T
+
+    return value;
+    /// @resolution.name source=value target=witness.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=witness.value
+
+}
+
+declare const repeatable: () => void;
+/// @type.symbol symbol=repeatable source=repeatable type=Function<(), void>
+/// @resolution.pattern source=repeatable kind=binding target=repeatable
+
+declare const once: Function<(), void, "once">;
+/// @type.symbol symbol=once source=once type=Function<(), void>
+/// @resolution.pattern source=once kind=binding target=once
+/// @resolution.name source=Function target=Function
+
+witness(repeatable);
+/// @resolution.name source=witness target=witness
+/// @resolution.call source=witness(repeatable) parameters=(Function<(), void>) arguments=(provided(repeatable) as Function<(), void>) return=Function<(), void> kind=symbol target=witness instance="witness<Function<(), void>>"
+/// @generic.instantiation id="witness<Function<(), void>>" template=witness arguments=(Function<(), void>)
+/// @resolution.name source=repeatable target=repeatable
+/// @resolution.place source=repeatable placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=repeatable root=repeatable
+
+witness(once);
+/// @resolution.name source=witness target=witness
+/// @resolution.call source=witness(once) parameters=(<error>) arguments=(provided(once) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
+/// @resolution.name source=once target=once
+/// @resolution.place source=once placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=once root=once
+"#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Function<(), void, \"once\">' does not satisfy 'Copy'"
 /// @diagnostic.label line=10 column=1 span="witness(once)" line_source="witness(once);"

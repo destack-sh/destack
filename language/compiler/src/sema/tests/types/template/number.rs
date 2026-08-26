@@ -249,7 +249,6 @@ declare function parse<T: int8>(value: `${T}`): T;
 parse("128");
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"128\")" parameters=(`${<error>}`) arguments=(provided("128") as `${<error>}`) return=<error> kind=symbol target=parse instance=parse<<error>>
-/// @generic.instantiation id=parse<<error>> template=parse arguments=(<error>)
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '\"128\"' is not assignable to parameter of type '`${_}`'"

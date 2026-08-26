@@ -164,7 +164,6 @@ const value = use(() => make());
 /// @type.node source=use type=(Function<(), Box<<error>> | Box<Box<<error>>>>) => <error>
 /// @resolution.name source=use target=use
 /// @resolution.call source="use(() => make())" parameters=(Function<(), Box<<error>> | Box<Box<<error>>>>) arguments=(provided(() => make()) as Function<(), Box<<error>> | Box<Box<<error>>>>) return=<error> kind=symbol target=use instance=use<<error>>
-/// @generic.instantiation id=use<<error>> template=use arguments=(<error>)
 /// @type.symbol symbol=symbol7 source=() => make() type=Function<(), <error>>
 /// @type.node source=() => make() type=Function<(), <error>>
 /// @type.node source=make type=() => Box<Box<int32>>

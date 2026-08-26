@@ -423,8 +423,142 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+    label: string = "";
+}
+
+extension of Panel implements TreeBuilder {
+    type Tags = {
+        div: { class?: string };
+        img: { src: string };
+        span: {};
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): Panel {
+        return new Panel();
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+        return new Panel();
+    }
+}
+
+function render(): Panel {
+    const page: Panel = <blink />;
+    return page;
+}
+
+=== dir ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+/// @type.symbol symbol=Panel type=Panel
+/// @definition.class symbol=Panel
+/// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
+
+    label: string = "";
+    /// @type.symbol symbol=Panel.label source="label: string = \"\"" type=string
+
+}
+
+extension of Panel implements TreeBuilder {
+/// @definition.extension symbol=<module>#2 form=local target=Panel
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
+/// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
+/// @resolution.name source=Panel target=Panel
+/// @resolution.name source=TreeBuilder target=TreeBuilder
+
+    type Tags = {
+    /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
+
+        div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
+        img: { src: string };
+        /// @type.symbol symbol=Tags.img source="img: { src: string }" type={ src: string }
+        /// @type.symbol symbol=Tags.src source="src: string" type=string
+
+        span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
+    /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
+
+        tag: Tag,
+        /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
+        /// @resolution.name source=Tag target=element.Tag
+
+        attributes: this.Tags[Tag],
+        /// @type.symbol symbol=element.attributes source="attributes: this.Tags[Tag]" type=this.Tags[Tag]
+        /// @resolution.name source=Tag target=element.Tag
+
+        children: Children,
+        /// @type.symbol symbol=element.children source="children: Children" type=Children#1
+        /// @resolution.name source=Children target=element.Children
+
+    ): Panel {
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+    /// @generic.template symbol=fragment parent=template#0 parameters=(Children#2: (...unknown[],))
+    /// @type.symbol symbol=fragment type=<Children#2: (...unknown[],)>(Children#2) => Panel
+    /// @type.symbol symbol=fragment.Children source="Children: (...unknown[],)" type=Children#2
+    /// @type.symbol symbol=fragment.children source="children: Children" type=Children#2
+    /// @resolution.name source=Children target=fragment.Children
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+}
+
+function render(): Panel {
+/// @type.symbol symbol=render type=() => Panel
+/// @resolution.name source=Panel target=Panel
+
+    const page: Panel = <blink/>;
+    /// @type.symbol symbol=render.page source=page type=Panel
+    /// @resolution.pattern source=page kind=binding target=render.page
+    /// @resolution.name source=Panel target=Panel
+    /// @resolution.rejected source=<blink/>
+
+    return page;
+    /// @resolution.name source=page target=render.page
+    /// @resolution.place source=page placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=page root=render.page
+
+}
+"#,
         r#"
 /// @diagnostic.error id=unknown-tree-tag message="builder 'Panel' declares no 'blink' tag"
 /// @diagnostic.label line=29 column=25 span="<blink/>" line_source="const page: Panel = <blink/>;"
@@ -470,7 +604,139 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_diagnostics("main.ds", r#"
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+    label: string = "";
+}
+
+extension of Panel implements TreeBuilder {
+    type Tags = {
+        div: { class?: string };
+        img: { src: string };
+        span: {};
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): Panel {
+        return new Panel();
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+        return new Panel();
+    }
+}
+
+function render(): Panel {
+    const page: Panel = <div misspelled="1" />;
+    return page;
+}
+
+=== dir ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+/// @type.symbol symbol=Panel type=Panel
+/// @definition.class symbol=Panel
+/// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
+
+    label: string = "";
+    /// @type.symbol symbol=Panel.label source="label: string = \"\"" type=string
+
+}
+
+extension of Panel implements TreeBuilder {
+/// @definition.extension symbol=<module>#2 form=local target=Panel
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
+/// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
+/// @resolution.name source=Panel target=Panel
+/// @resolution.name source=TreeBuilder target=TreeBuilder
+
+    type Tags = {
+    /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
+
+        div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
+        img: { src: string };
+        /// @type.symbol symbol=Tags.img source="img: { src: string }" type={ src: string }
+        /// @type.symbol symbol=Tags.src source="src: string" type=string
+
+        span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
+    /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
+
+        tag: Tag,
+        /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
+        /// @resolution.name source=Tag target=element.Tag
+
+        attributes: this.Tags[Tag],
+        /// @type.symbol symbol=element.attributes source="attributes: this.Tags[Tag]" type=this.Tags[Tag]
+        /// @resolution.name source=Tag target=element.Tag
+
+        children: Children,
+        /// @type.symbol symbol=element.children source="children: Children" type=Children#1
+        /// @resolution.name source=Children target=element.Children
+
+    ): Panel {
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+    /// @generic.template symbol=fragment parent=template#0 parameters=(Children#2: (...unknown[],))
+    /// @type.symbol symbol=fragment type=<Children#2: (...unknown[],)>(Children#2) => Panel
+    /// @type.symbol symbol=fragment.Children source="Children: (...unknown[],)" type=Children#2
+    /// @type.symbol symbol=fragment.children source="children: Children" type=Children#2
+    /// @resolution.name source=Children target=fragment.Children
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+}
+
+function render(): Panel {
+/// @type.symbol symbol=render type=() => Panel
+/// @resolution.name source=Panel target=Panel
+
+    const page: Panel = <div misspelled="1"/>;
+    /// @type.symbol symbol=render.page source=page type=Panel
+    /// @resolution.pattern source=page kind=binding target=render.page
+    /// @resolution.name source=Panel target=Panel
+    /// @resolution.rejected source="<div misspelled=\"1\"/>"
+
+    return page;
+    /// @resolution.name source=page target=render.page
+    /// @resolution.place source=page placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=page root=render.page
+
+}
+"#, r#"
 /// @diagnostic.error id=unknown-tree-attribute message="attribute row '{ div: { class?: string }; img: { src: string }; span: {} }[\"div\"]' declares no 'misspelled' attribute"
 /// @diagnostic.label line=29 column=25 span="<div misspelled=\"1\"/>" line_source="const page: Panel = <div misspelled=\"1\"/>;"
 "#);
@@ -514,8 +780,144 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_diagnostics(
-        "main.ds", r#"
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+    label: string = "";
+}
+
+extension of Panel implements TreeBuilder {
+    type Tags = {
+        div: { class?: string };
+        img: { src: string };
+        span: {};
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): Panel {
+        return new Panel();
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+        return new Panel();
+    }
+}
+
+function render(): Panel {
+    const page: Panel = <img />;
+    return page;
+}
+
+=== dir ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+/// @type.symbol symbol=Panel type=Panel
+/// @definition.class symbol=Panel
+/// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
+
+    label: string = "";
+    /// @type.symbol symbol=Panel.label source="label: string = \"\"" type=string
+
+}
+
+extension of Panel implements TreeBuilder {
+/// @definition.extension symbol=<module>#2 form=local target=Panel
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
+/// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
+/// @resolution.name source=Panel target=Panel
+/// @resolution.name source=TreeBuilder target=TreeBuilder
+
+    type Tags = {
+    /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
+
+        div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
+        img: { src: string };
+        /// @type.symbol symbol=Tags.img source="img: { src: string }" type={ src: string }
+        /// @type.symbol symbol=Tags.src source="src: string" type=string
+
+        span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
+    /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
+
+        tag: Tag,
+        /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
+        /// @resolution.name source=Tag target=element.Tag
+
+        attributes: this.Tags[Tag],
+        /// @type.symbol symbol=element.attributes source="attributes: this.Tags[Tag]" type=this.Tags[Tag]
+        /// @resolution.name source=Tag target=element.Tag
+
+        children: Children,
+        /// @type.symbol symbol=element.children source="children: Children" type=Children#1
+        /// @resolution.name source=Children target=element.Children
+
+    ): Panel {
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+    /// @generic.template symbol=fragment parent=template#0 parameters=(Children#2: (...unknown[],))
+    /// @type.symbol symbol=fragment type=<Children#2: (...unknown[],)>(Children#2) => Panel
+    /// @type.symbol symbol=fragment.Children source="Children: (...unknown[],)" type=Children#2
+    /// @type.symbol symbol=fragment.children source="children: Children" type=Children#2
+    /// @resolution.name source=Children target=fragment.Children
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+}
+
+function render(): Panel {
+/// @type.symbol symbol=render type=() => Panel
+/// @resolution.name source=Panel target=Panel
+
+    const page: Panel = <img/>;
+    /// @type.symbol symbol=render.page source=page type=Panel
+    /// @resolution.pattern source=page kind=binding target=render.page
+    /// @resolution.name source=Panel target=Panel
+    /// @resolution.tree source=<img/> builder=Panel form=element tag=img call=element children=() type=Panel
+    /// @generic.instantiation id="element<\"img\", ()>" template=element arguments=("img", ())
+
+    return page;
+    /// @resolution.name source=page target=render.page
+    /// @resolution.place source=page placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=page root=render.page
+
+}
+"#,
+        r#"
 "#,
     );
 }
@@ -558,7 +960,140 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_diagnostics("main.ds", r#"
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+    label: string = "";
+}
+
+extension of Panel implements TreeBuilder {
+    type Tags = {
+        div: { class?: string };
+        img: { src: string };
+        span: {};
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): Panel {
+        return new Panel();
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+        return new Panel();
+    }
+}
+
+function render(): Panel {
+    const page: Panel = <img src={1} />;
+    return page;
+}
+
+=== dir ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+/// @type.symbol symbol=Panel type=Panel
+/// @definition.class symbol=Panel
+/// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
+
+    label: string = "";
+    /// @type.symbol symbol=Panel.label source="label: string = \"\"" type=string
+
+}
+
+extension of Panel implements TreeBuilder {
+/// @definition.extension symbol=<module>#2 form=local target=Panel
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
+/// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
+/// @resolution.name source=Panel target=Panel
+/// @resolution.name source=TreeBuilder target=TreeBuilder
+
+    type Tags = {
+    /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
+
+        div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
+        img: { src: string };
+        /// @type.symbol symbol=Tags.img source="img: { src: string }" type={ src: string }
+        /// @type.symbol symbol=Tags.src source="src: string" type=string
+
+        span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
+    /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
+
+        tag: Tag,
+        /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
+        /// @resolution.name source=Tag target=element.Tag
+
+        attributes: this.Tags[Tag],
+        /// @type.symbol symbol=element.attributes source="attributes: this.Tags[Tag]" type=this.Tags[Tag]
+        /// @resolution.name source=Tag target=element.Tag
+
+        children: Children,
+        /// @type.symbol symbol=element.children source="children: Children" type=Children#1
+        /// @resolution.name source=Children target=element.Children
+
+    ): Panel {
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+    /// @generic.template symbol=fragment parent=template#0 parameters=(Children#2: (...unknown[],))
+    /// @type.symbol symbol=fragment type=<Children#2: (...unknown[],)>(Children#2) => Panel
+    /// @type.symbol symbol=fragment.Children source="Children: (...unknown[],)" type=Children#2
+    /// @type.symbol symbol=fragment.children source="children: Children" type=Children#2
+    /// @resolution.name source=Children target=fragment.Children
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+}
+
+function render(): Panel {
+/// @type.symbol symbol=render type=() => Panel
+/// @resolution.name source=Panel target=Panel
+
+    const page: Panel = <img src={1}/>;
+    /// @type.symbol symbol=render.page source=page type=Panel
+    /// @resolution.pattern source=page kind=binding target=render.page
+    /// @resolution.name source=Panel target=Panel
+    /// @resolution.tree source="<img src={1}/>" builder=Panel form=element tag=img call=element attributes=(src: 1) children=() type=Panel
+    /// @generic.instantiation id="element<\"img\", ()>" template=element arguments=("img", ())
+
+    return page;
+    /// @resolution.name source=page target=render.page
+    /// @resolution.place source=page placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=page root=render.page
+
+}
+"#, r#"
 /// @diagnostic.error id=not-assignable message="type '1' is not assignable to type 'string'"
 /// @diagnostic.label line=29 column=25 span="<img src={1}/>" line_source="const page: Panel = <img src={1}/>;"
 /// @diagnostic.related line=29 column=35 span="1" line_source="const page: Panel = <img src={1}/>;" message="expected due to the type of this target"
@@ -604,8 +1139,152 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_diagnostics(
-        "main.ds", r#"
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+    label: string = "";
+}
+
+extension of Panel implements TreeBuilder {
+    type Tags = {
+        div: { class?: string };
+        img: { src: string };
+        span: {};
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): Panel {
+        return new Panel();
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+        return new Panel();
+    }
+}
+
+function render(): Panel {
+    const shared: { src: string } = { src: "logo.png" };
+    const page: Panel = <img {...shared} />;
+    return page;
+}
+
+=== dir ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+/// @type.symbol symbol=Panel type=Panel
+/// @definition.class symbol=Panel
+/// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
+
+    label: string = "";
+    /// @type.symbol symbol=Panel.label source="label: string = \"\"" type=string
+
+}
+
+extension of Panel implements TreeBuilder {
+/// @definition.extension symbol=<module>#2 form=local target=Panel
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
+/// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
+/// @resolution.name source=Panel target=Panel
+/// @resolution.name source=TreeBuilder target=TreeBuilder
+
+    type Tags = {
+    /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
+
+        div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
+        img: { src: string };
+        /// @type.symbol symbol=Tags.img source="img: { src: string }" type={ src: string }
+        /// @type.symbol symbol=Tags.src source="src: string" type=string
+
+        span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
+    /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
+
+        tag: Tag,
+        /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
+        /// @resolution.name source=Tag target=element.Tag
+
+        attributes: this.Tags[Tag],
+        /// @type.symbol symbol=element.attributes source="attributes: this.Tags[Tag]" type=this.Tags[Tag]
+        /// @resolution.name source=Tag target=element.Tag
+
+        children: Children,
+        /// @type.symbol symbol=element.children source="children: Children" type=Children#1
+        /// @resolution.name source=Children target=element.Children
+
+    ): Panel {
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+    /// @generic.template symbol=fragment parent=template#0 parameters=(Children#2: (...unknown[],))
+    /// @type.symbol symbol=fragment type=<Children#2: (...unknown[],)>(Children#2) => Panel
+    /// @type.symbol symbol=fragment.Children source="Children: (...unknown[],)" type=Children#2
+    /// @type.symbol symbol=fragment.children source="children: Children" type=Children#2
+    /// @resolution.name source=Children target=fragment.Children
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+}
+
+function render(): Panel {
+/// @type.symbol symbol=render type=() => Panel
+/// @resolution.name source=Panel target=Panel
+
+    const shared = { src: "logo.png" };
+    /// @type.symbol symbol=render.shared source=shared type={ src: string }
+    /// @resolution.pattern source=shared kind=binding target=render.shared
+
+    const page: Panel = <img {...shared}/>;
+    /// @type.symbol symbol=render.page source=page type=Panel
+    /// @resolution.pattern source=page kind=binding target=render.page
+    /// @resolution.name source=Panel target=Panel
+    /// @resolution.tree source="<img {...shared}/>" builder=Panel form=element tag=img call=element attributes=(...: { src: string }) children=() type=Panel
+    /// @generic.instantiation id="element<\"img\", ()>" template=element arguments=("img", ())
+    /// @resolution.name source=shared target=render.shared
+    /// @resolution.place source=shared placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=shared root=render.shared
+
+    return page;
+    /// @resolution.name source=page target=render.page
+    /// @resolution.place source=page placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=page root=render.page
+
+}
+"#,
+        r#"
 "#,
     );
 }
@@ -1047,7 +1726,144 @@ function render(items: Panel[]): Panel {
 "#,
     );
 
-    session.assert_dir_diagnostics("main.ds", r#"
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+    label: string = "";
+}
+
+extension of Panel implements TreeBuilder {
+    type Tags = {
+        div: { class?: string };
+        img: { src: string };
+        span: {};
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): Panel {
+        return new Panel();
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+        return new Panel();
+    }
+}
+
+function render(items: Panel[]): Panel {
+    const page: Panel = <div>{...items}</div>;
+    return page;
+}
+
+=== dir ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+/// @type.symbol symbol=Panel type=Panel
+/// @definition.class symbol=Panel
+/// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
+
+    label: string = "";
+    /// @type.symbol symbol=Panel.label source="label: string = \"\"" type=string
+
+}
+
+extension of Panel implements TreeBuilder {
+/// @definition.extension symbol=<module>#2 form=local target=Panel
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
+/// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
+/// @resolution.name source=Panel target=Panel
+/// @resolution.name source=TreeBuilder target=TreeBuilder
+
+    type Tags = {
+    /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
+
+        div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
+        img: { src: string };
+        /// @type.symbol symbol=Tags.img source="img: { src: string }" type={ src: string }
+        /// @type.symbol symbol=Tags.src source="src: string" type=string
+
+        span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
+    /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
+
+        tag: Tag,
+        /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
+        /// @resolution.name source=Tag target=element.Tag
+
+        attributes: this.Tags[Tag],
+        /// @type.symbol symbol=element.attributes source="attributes: this.Tags[Tag]" type=this.Tags[Tag]
+        /// @resolution.name source=Tag target=element.Tag
+
+        children: Children,
+        /// @type.symbol symbol=element.children source="children: Children" type=Children#1
+        /// @resolution.name source=Children target=element.Children
+
+    ): Panel {
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+    /// @generic.template symbol=fragment parent=template#0 parameters=(Children#2: (...unknown[],))
+    /// @type.symbol symbol=fragment type=<Children#2: (...unknown[],)>(Children#2) => Panel
+    /// @type.symbol symbol=fragment.Children source="Children: (...unknown[],)" type=Children#2
+    /// @type.symbol symbol=fragment.children source="children: Children" type=Children#2
+    /// @resolution.name source=Children target=fragment.Children
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+}
+
+function render(items: Panel[]): Panel {
+/// @type.symbol symbol=render type=(Panel[]) => Panel
+/// @type.symbol symbol=render.items source="items: Panel[]" type=Panel[]
+/// @resolution.name source=Panel target=Panel
+/// @resolution.name source=Panel target=Panel
+
+    const page: Panel = <div>{...items}</div>;
+    /// @type.symbol symbol=render.page source=page type=Panel
+    /// @resolution.pattern source=page kind=binding target=render.page
+    /// @resolution.name source=Panel target=Panel
+    /// @resolution.rejected source=<div>{...items}</div>
+    /// @resolution.name source=items target=render.items
+    /// @resolution.place source=items placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=items root=render.items
+
+    return page;
+    /// @resolution.name source=page target=render.page
+    /// @resolution.place source=page placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=page root=render.page
+
+}
+"#, r#"
 /// @diagnostic.error id=tree-spread-not-tuple message="spread children splat tuples, found 'Panel[]'"
 /// @diagnostic.label line=29 column=25 span="<div>{...items}</div>" line_source="const page: Panel = <div>{...items}</div>;"
 "#);
@@ -1306,7 +2122,163 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_diagnostics("main.ds", r#"
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+    label: string = "";
+}
+
+extension of Panel implements TreeBuilder {
+    type Tags = {
+        div: { class?: string };
+        img: { src: string };
+        span: {};
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): Panel {
+        return new Panel();
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+        return new Panel();
+    }
+}
+
+function Header(props: { title: string }): Panel {
+    return new Panel();
+}
+
+function render(): Panel {
+    const page: Panel = (
+        <Header title="hello">
+            <span />
+        </Header>
+    );
+    return page;
+}
+
+=== dir ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+/// @type.symbol symbol=Panel type=Panel
+/// @definition.class symbol=Panel
+/// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
+
+    label: string = "";
+    /// @type.symbol symbol=Panel.label source="label: string = \"\"" type=string
+
+}
+
+extension of Panel implements TreeBuilder {
+/// @definition.extension symbol=<module>#2 form=local target=Panel
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
+/// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
+/// @resolution.name source=Panel target=Panel
+/// @resolution.name source=TreeBuilder target=TreeBuilder
+
+    type Tags = {
+    /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
+
+        div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
+        img: { src: string };
+        /// @type.symbol symbol=Tags.img source="img: { src: string }" type={ src: string }
+        /// @type.symbol symbol=Tags.src source="src: string" type=string
+
+        span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
+    /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
+
+        tag: Tag,
+        /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
+        /// @resolution.name source=Tag target=element.Tag
+
+        attributes: this.Tags[Tag],
+        /// @type.symbol symbol=element.attributes source="attributes: this.Tags[Tag]" type=this.Tags[Tag]
+        /// @resolution.name source=Tag target=element.Tag
+
+        children: Children,
+        /// @type.symbol symbol=element.children source="children: Children" type=Children#1
+        /// @resolution.name source=Children target=element.Children
+
+    ): Panel {
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+    /// @generic.template symbol=fragment parent=template#0 parameters=(Children#2: (...unknown[],))
+    /// @type.symbol symbol=fragment type=<Children#2: (...unknown[],)>(Children#2) => Panel
+    /// @type.symbol symbol=fragment.Children source="Children: (...unknown[],)" type=Children#2
+    /// @type.symbol symbol=fragment.children source="children: Children" type=Children#2
+    /// @resolution.name source=Children target=fragment.Children
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+}
+
+function Header(props: { title: string }): Panel {
+/// @type.symbol symbol=Header type=({ title: string }) => Panel
+/// @type.symbol symbol=Header.props source="props: { title: string }" type={ title: string }
+/// @type.symbol symbol=Header.title source="title: string" type=string
+/// @resolution.name source=Panel target=Panel
+
+    return new Panel();
+    /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+    /// @resolution.name source=Panel target=Panel
+
+}
+
+function render(): Panel {
+/// @type.symbol symbol=render type=() => Panel
+/// @resolution.name source=Panel target=Panel
+
+    const page: Panel = <Header title="hello"><span/></Header>;
+    /// @type.symbol symbol=render.page source=page type=Panel
+    /// @resolution.pattern source=page kind=binding target=render.page
+    /// @resolution.name source=Panel target=Panel
+    /// @resolution.rejected source="<Header title=\"hello\"><span/></Header>"
+    /// @resolution.name source=Header target=Header
+    /// @resolution.function source=Header type=Function<({ title: string },), Panel> target=Header
+    /// @resolution.tree source=<span/> builder=Panel form=element tag=span call=element children=() type=Panel
+    /// @generic.instantiation id="element<\"span\", ()>" template=element arguments=("span", ())
+
+    return page;
+    /// @resolution.name source=page target=render.page
+    /// @resolution.place source=page placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=page root=render.page
+
+}
+"#, r#"
 /// @diagnostic.error id=unknown-tree-attribute message="attribute row '{ title: string }' declares no 'children' attribute"
 /// @diagnostic.label line=33 column=25 span="<Header title=\"hello\"><span/></Header>" line_source="const page: Panel = <Header title=\"hello\"><span/></Header>;"
 "#);
@@ -1801,7 +2773,159 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_diagnostics("main.ds", r#"
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+    label: string = "";
+}
+
+extension of Panel implements TreeBuilder {
+    type Tags = {
+        div: { class?: string };
+        img: { src: string };
+        span: {};
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): Panel {
+        return new Panel();
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+        return new Panel();
+    }
+}
+
+struct Badge {
+    label: string;
+}
+
+function render(): Panel {
+    const page: Panel = (
+        <>
+            <Badge />
+        </>
+    );
+    return page;
+}
+
+=== dir ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+/// @type.symbol symbol=Panel type=Panel
+/// @definition.class symbol=Panel
+/// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
+
+    label: string = "";
+    /// @type.symbol symbol=Panel.label source="label: string = \"\"" type=string
+
+}
+
+extension of Panel implements TreeBuilder {
+/// @definition.extension symbol=<module>#2 form=local target=Panel
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
+/// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; img: { src: string }; span: {} }
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
+/// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
+/// @definition.conformance symbol=<module>#2 member=fragment requirement=TreeBuilder.fragment
+/// @resolution.name source=Panel target=Panel
+/// @resolution.name source=TreeBuilder target=TreeBuilder
+
+    type Tags = {
+    /// @type.symbol symbol=Tags type={ div: { class?: string }; img: { src: string }; span: {} }
+
+        div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
+        img: { src: string };
+        /// @type.symbol symbol=Tags.img source="img: { src: string }" type={ src: string }
+        /// @type.symbol symbol=Tags.src source="src: string" type=string
+
+        span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
+    /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
+
+        tag: Tag,
+        /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
+        /// @resolution.name source=Tag target=element.Tag
+
+        attributes: this.Tags[Tag],
+        /// @type.symbol symbol=element.attributes source="attributes: this.Tags[Tag]" type=this.Tags[Tag]
+        /// @resolution.name source=Tag target=element.Tag
+
+        children: Children,
+        /// @type.symbol symbol=element.children source="children: Children" type=Children#1
+        /// @resolution.name source=Children target=element.Children
+
+    ): Panel {
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+    /// @generic.template symbol=fragment parent=template#0 parameters=(Children#2: (...unknown[],))
+    /// @type.symbol symbol=fragment type=<Children#2: (...unknown[],)>(Children#2) => Panel
+    /// @type.symbol symbol=fragment.Children source="Children: (...unknown[],)" type=Children#2
+    /// @type.symbol symbol=fragment.children source="children: Children" type=Children#2
+    /// @resolution.name source=Children target=fragment.Children
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+}
+
+struct Badge {
+/// @type.symbol symbol=Badge type=Badge
+/// @definition.struct symbol=Badge
+/// @definition.field symbol=Badge.label source="label: string" key=label type=string
+
+    label: string;
+    /// @type.symbol symbol=Badge.label source="label: string" type=string
+
+}
+
+function render(): Panel {
+/// @type.symbol symbol=render type=() => Panel
+/// @resolution.name source=Panel target=Panel
+
+    const page: Panel = <><Badge/></>;
+    /// @type.symbol symbol=render.page source=page type=Panel
+    /// @resolution.pattern source=page kind=binding target=render.page
+    /// @resolution.name source=Panel target=Panel
+    /// @resolution.tree source=<><Badge/></> builder=Panel form=fragment call=fragment children=(<error>) type=Panel
+    /// @resolution.rejected source=<Badge/>
+    /// @resolution.name source=Badge target=Badge
+
+    return page;
+    /// @resolution.name source=page target=render.page
+    /// @resolution.place source=page placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=page root=render.page
+
+}
+"#, r#"
 /// @diagnostic.error id=missing-tree-attribute message="required attribute 'label' of row 'Badge' is missing"
 /// @diagnostic.label line=33 column=27 span="<Badge/>" line_source="const page: Panel = <><Badge/></>;"
 "#);

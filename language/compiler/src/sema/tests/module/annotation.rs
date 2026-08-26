@@ -84,8 +84,18 @@ const value: _ = 1;
 "#,
     );
 
-    session.assert_dir_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const value: _ = 1;
+
+=== dir ===
+const value: _ = 1;
+/// @type.symbol symbol=value source=value type=<error>
+/// @resolution.pattern source=value kind=binding target=value
+"#,
         r#"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
 /// @diagnostic.label line=2 column=14 span="_" line_source="const value: _ = 1;"
@@ -105,8 +115,26 @@ class Box {
 "#,
     );
 
-    session.assert_dir_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Box {
+    value: _ = 1;
+}
+
+=== dir ===
+class Box {
+/// @type.symbol symbol=Box type=Box
+/// @definition.class symbol=Box
+/// @definition.field symbol=Box.value source="value: _ = 1" key=value type=<error>
+
+    value: _ = 1;
+    /// @type.symbol symbol=Box.value source="value: _ = 1" type=<error>
+
+}
+"#,
         r#"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
 /// @diagnostic.label line=3 column=12 span="_" line_source="value: _ = 1;"
@@ -126,5 +154,25 @@ function build(): void {
 "#,
     );
 
-    session.assert_dir_diagnostics("main.ds", "");
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function build(): void {
+    const value: int64 = 1;
+}
+
+=== dir ===
+function build(): void {
+/// @type.symbol symbol=build type=() => void
+
+    const value: _ = 1;
+    /// @type.symbol symbol=build.value source=value type=int64
+    /// @resolution.pattern source=value kind=binding target=build.value
+
+}
+"#,
+        "",
+    );
 }

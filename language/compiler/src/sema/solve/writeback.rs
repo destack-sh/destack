@@ -113,14 +113,14 @@ impl CheckState<'_> {
 
         // commit the instantiations the committed bodies perform
         if self.is_checking() {
-            self.commit_instantiations();
+            self.commit_instantiations()?;
         }
 
         Ok(())
     }
 
     /// Commit every instantiation the committed decisions and conversions perform.
-    fn commit_instantiations(&mut self) {
+    fn commit_instantiations(&mut self) -> CompilerResult<()> {
         // collect selections that bind generic arguments, with their governing template
         let mut seen = FxIndexSet::default();
         let mut instantiations = Vec::new();
@@ -173,10 +173,38 @@ impl CheckState<'_> {
             }
         }
 
-        // write the collected instantiations into this pass's segment
+        // drop instantiations poisoned by inference, reporting sites without a diagnostic
+        let mut committed = Vec::with_capacity(instantiations.len());
         for instantiation in instantiations {
+            // scan the receiver and every argument for a poisoned type
+            let mut poisoned = false;
+            let receiver = instantiation.key.receiver.into_iter();
+            let arguments = instantiation.key.arguments.iter();
+            for ty in receiver.chain(arguments.map(|binding| binding.argument)) {
+                if self.type_flags(ty)?.has_error() {
+                    poisoned = true;
+                    break;
+                }
+            }
+            if !poisoned {
+                committed.push(instantiation);
+                continue;
+            }
+
+            // report sites this module's own inference gave up on
+            if self.poisoned_nodes.contains(&instantiation.source)
+                && !self.reported_nodes.contains(&instantiation.source)
+            {
+                self.report_cannot_infer_node(instantiation.source)?;
+            }
+        }
+
+        // write the surviving instantiations into this pass's segment
+        for instantiation in committed {
             self.module.generics_tail.push_instantiation(instantiation);
         }
+
+        Ok(())
     }
 
     /// Return the innermost parameterized declaration enclosing one node.

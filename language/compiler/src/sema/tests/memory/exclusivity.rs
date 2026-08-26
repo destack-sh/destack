@@ -69,7 +69,6 @@ declare const guard: Guard;
 duplicate(guard);
 /// @resolution.name source=duplicate target=duplicate
 /// @resolution.call source=duplicate(guard) parameters=(<error>) arguments=(provided(guard) as <error>) return=void kind=symbol target=duplicate instance=duplicate<<error>>
-/// @generic.instantiation id=duplicate<<error>> template=duplicate arguments=(<error>)
 /// @resolution.name source=guard target=guard
 /// @resolution.place source=guard placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=guard root=guard
@@ -168,7 +167,6 @@ declare const guard: Guard;
 duplicate(guard);
 /// @resolution.name source=duplicate target=duplicate
 /// @resolution.call source=duplicate(guard) parameters=(<error>) arguments=(provided(guard) as <error>) return=void kind=symbol target=duplicate instance=duplicate<<error>>
-/// @generic.instantiation id=duplicate<<error>> template=duplicate arguments=(<error>)
 /// @resolution.name source=guard target=guard
 /// @resolution.place source=guard placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=guard root=guard

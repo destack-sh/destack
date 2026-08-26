@@ -188,6 +188,15 @@ impl CheckState<'_> {
                 continue;
             }
 
+            // remember own poisoned sites for the instantiation writeback
+            let origin = self.infer.origin(self.infer.variable(variable)?.origin);
+            if let Origin::Node(node, _) = origin
+                && node.module_id == self.module_id
+            {
+                let lineage = self.node_lineage(node);
+                self.poisoned_nodes.extend(lineage);
+            }
+
             // poison the symbol standing behind the variable
             let error = self.intern_type(dir::Type::Error)?;
             if let Some(symbol) = self.infer.variable_role(variable)?.symbol()

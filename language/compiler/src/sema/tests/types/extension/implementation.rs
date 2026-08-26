@@ -1376,7 +1376,65 @@ requireMine(badge);
 "#,
     );
 
-    session.assert_dir_diagnostics("main.ds", "");
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+newtype interface Mine<out T, out U = string> {}
+
+extension<T, U = string> of T implements Mine<T, U> {}
+
+declare function requireMine<T: Mine<T>>(value: T): void;
+
+struct Badge {}
+
+declare const badge: Badge;
+requireMine<Badge>(badge);
+
+=== dir ===
+newtype interface Mine<out T, out U = string> {}
+/// @generic.template symbol=Mine parameters=(out T#1, out U#1 = string)
+/// @type.symbol symbol=Mine source="newtype interface Mine<out T, out U = string> {}" type=Mine
+/// @definition.interface symbol=Mine source="newtype interface Mine<out T, out U = string> {}" template=(out T#1, out U#1 = string) nominal=true
+/// @definition.where symbol=Mine source="newtype interface Mine<out T, out U = string> {}" relation=satisfies left=this right=Mine<T#1, U#1>
+/// @type.symbol symbol=Mine.T source="out T" type=T#1
+/// @type.symbol symbol=Mine.U source="out U = string" type=U#1
+
+extension<T, U = string> of T implements Mine<T, U> {}
+/// @generic.template symbol=<module>#2 parameters=(T#2, U#2 = string)
+/// @definition.extension symbol=<module>#2 source="extension<T, U = string> of T implements Mine<T, U> {}" form=local target=T#2
+/// @definition.implements symbol=<module>#2 source="Mine<T, U>" target="Mine<T#2, U#2>"
+/// @type.symbol symbol=T source=T type=T#2
+/// @type.symbol symbol=U source="U = string" type=U#2
+/// @resolution.name source=T target=T
+/// @resolution.name source=Mine target=Mine
+/// @resolution.name source=T target=T
+/// @resolution.name source=U target=U
+
+declare function requireMine<T: Mine<T>>(value: T): void;
+/// @generic.template symbol=requireMine parameters=(T#3: Mine<T#3, string>)
+/// @type.symbol symbol=requireMine source="declare function requireMine<T: Mine<T>>(value: T): void" type=<T#3: Mine<T#3, string>>(T#3) => void
+/// @type.symbol symbol=requireMine.T source="T: Mine<T>" type=T#3
+/// @resolution.name source=Mine target=Mine
+/// @resolution.name source=T target=requireMine.T
+/// @type.symbol symbol=requireMine.value source="value: T" type=T#3
+/// @resolution.name source=T target=requireMine.T
+
+struct Badge {}
+/// @type.symbol symbol=Badge source="struct Badge {}" type=Badge
+/// @definition.struct symbol=Badge source="struct Badge {}"
+
+declare const badge: Badge;
+/// @type.symbol symbol=badge source=badge type=Badge
+/// @resolution.pattern source=badge kind=binding target=badge
+/// @resolution.name source=Badge target=Badge
+
+requireMine(badge);
+/// @resolution.name source=requireMine target=requireMine
+/// @resolution.call source=requireMine(badge) parameters=(Badge) arguments=(provided(badge) as Badge) return=void kind=symbol target=requireMine instance=requireMine<Badge>
+/// @generic.instantiation id=requireMine<Badge> template=requireMine arguments=(Badge)
+/// @resolution.name source=badge target=badge
+/// @resolution.place source=badge placement="constant" lifetime="static" access="readonly"
+/// @resolution.access source=badge root=badge
+"#, "");
 }
 
 #[test]
@@ -2398,9 +2456,9 @@ struct Chain<I, J, out T> {
 /// @generic.template symbol=Chain parameters=(out I#1, out J#1, out T#2)
 /// @type.symbol symbol=Chain type=Chain
 /// @definition.struct symbol=Chain template=(out I#1, out J#1, out T#2)
-/// @definition.field symbol=Chain.first source="private first: I" key=first type=I#1
-/// @definition.field symbol=Chain.marker source="private marker: () => T" key=marker type=Function<(), T#2>
-/// @definition.field symbol=Chain.second source="private second: J" key=second type=J#1
+/// @definition.field symbol=Chain.first source="private first: I" key=first visibility=private type=I#1
+/// @definition.field symbol=Chain.marker source="private marker: () => T" key=marker visibility=private type=Function<(), T#2>
+/// @definition.field symbol=Chain.second source="private second: J" key=second visibility=private type=J#1
 /// @type.symbol symbol=Chain.I source=I type=I#1
 /// @type.symbol symbol=Chain.J source=J type=J#1
 /// @type.symbol symbol=Chain.T source="out T" type=T#2
@@ -2591,7 +2649,7 @@ newtype interface Sized {
 struct Box {
 /// @type.symbol symbol=Box type=Box
 /// @definition.struct symbol=Box
-/// @definition.field symbol=Box.size source="private size: isize" key=size type=isize
+/// @definition.field symbol=Box.size source="private size: isize" key=size visibility=private type=isize
 
     private size: isize;
     /// @type.symbol symbol=Box.size source="private size: isize" type=isize
@@ -2884,4 +2942,62 @@ const bounded = measure(pair);
         r#"
 "#,
     );
+}
+
+/// An extension warns when target and interface are both foreign.
+#[test]
+fn test_foreign_extension_implementation_warns_as_non_local() {
+    let session = TestSession::single(
+        r#"
+import { todo } from "destack:error";
+import { Zero } from "destack:math";
+import { Duration } from "destack:time";
+
+extension of Duration implements Zero {
+    static zero(): Duration {
+        todo("Duration.zero")
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+import { todo } from "destack:error";
+import { Zero } from "destack:math";
+import { Duration } from "destack:time";
+
+extension of Duration implements Zero {
+    static zero(): Duration {
+        todo("Duration.zero" as string | undefined)
+    }
+}
+
+=== dir ===
+import { todo } from "destack:error";
+import { Zero } from "destack:math";
+import { Duration } from "destack:time";
+
+extension of Duration implements Zero {
+/// @definition.extension symbol=<module>#2 form=local target=Duration
+/// @definition.implements symbol=<module>#2 source=Zero target=Zero
+/// @definition.method symbol=zero slot=zero static=true type=() => Duration
+/// @definition.conformance symbol=<module>#2 member=zero requirement=Zero.zero
+/// @resolution.name source=Duration target=Duration
+/// @resolution.name source=Zero target=Zero
+
+    static zero(): Duration {
+    /// @type.symbol symbol=zero type=() => Duration
+    /// @resolution.name source=Duration target=Duration
+
+        todo("Duration.zero")
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"Duration.zero\")" parameters=(string | undefined) arguments=(provided("Duration.zero") as string | undefined) return=never kind=symbol target=todo
+
+    }
+}
+"#, r#"
+/// @diagnostic.warning id=non-local-implementation message="implementation of foreign interface 'Zero' for foreign type 'Duration' is not local to this package"
+/// @diagnostic.label line=6 column=14 span="Duration" line_source="extension of Duration implements Zero {"
+"#);
 }

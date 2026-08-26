@@ -209,8 +209,43 @@ function label(point: Point): string {
 "#,
     );
 
-    session.assert_dir_diagnostics(
-        "main.ds", r#"
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Point {
+    x: int32;
+}
+
+function label(point: Point): string {
+    return `point ${point}`;
+}
+
+=== dir ===
+struct Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+
+    x: int32;
+    /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
+}
+
+function label(point: Point): string {
+/// @type.symbol symbol=label type=(Point) => string
+/// @type.symbol symbol=label.point source="point: Point" type=Point
+/// @resolution.name source=Point target=Point
+
+    return `point ${point}`;
+    /// @resolution.name source=point target=label.point
+    /// @resolution.place source=point placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=point root=label.point
+
+}
+"#,
+        r#"
 "#,
     );
 }

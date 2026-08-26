@@ -997,7 +997,10 @@ impl CheckState<'_> {
 
         // discharge a late bound as a relation check, keeping extent bounds
         //  without deciding, MIR Verify enforces outlives
-        if let Some(solution) = self.infer.variable(variable)?.state.ty() {
+        self.infer
+            .trap_rollback_read(self.infer.alias_root(variable)?);
+        let solution = self.infer.variable(variable)?.state.ty();
+        if let Some(solution) = solution {
             if self.variable_memory_parameter(variable)? != Some(dir::MemoryParameter::Region) {
                 let late = TypeBound::new(origin, bound, relation, cause);
                 self.discharge_bound(side, &late, solution)?;

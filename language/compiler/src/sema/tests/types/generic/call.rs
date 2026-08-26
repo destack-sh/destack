@@ -1372,8 +1372,79 @@ function build(value: float64): Box<int32> {
 "#,
     );
 
-    session.assert_dir_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Box<out T> {
+    value: T;
+}
+
+extension<T> of Box<T> {
+    static of(value: T): Box<T> {
+        return Box<T> { value };
+    }
+}
+
+function build(value: float64): Box<int32> {
+    return Box.of(value);
+}
+
+=== dir ===
+struct Box<T> {
+/// @generic.template symbol=Box parameters=(out T#1)
+/// @type.symbol symbol=Box type=Box
+/// @definition.struct symbol=Box template=(out T#1)
+/// @definition.field symbol=Box.value source="value: T" key=value type=T#1
+/// @type.symbol symbol=Box.T source=T type=T#1
+
+    value: T;
+    /// @type.symbol symbol=Box.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Box.T
+
+}
+
+extension<T> of Box<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#2)
+/// @definition.extension symbol=<module>#2 form=local target=Box<T#2>
+/// @definition.method symbol=of slot=of static=true type=(T#2) => Box<T#2>
+/// @type.symbol symbol=T source=T type=T#2
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=T target=T
+
+    static of(value: T): Box<T> {
+    /// @type.symbol symbol=of type=(T#2) => Box<T#2>
+    /// @type.symbol symbol=of.value source="value: T" type=T#2
+    /// @resolution.name source=T target=T
+    /// @resolution.name source=Box target=Box
+    /// @resolution.name source=T target=T
+
+        return Box<T> { value };
+        /// @resolution.name source=Box target=Box
+        /// @resolution.name source=T target=T
+        /// @resolution.name source=value target=of.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=of.value
+
+    }
+}
+
+function build(value: float64): Box<int32> {
+/// @type.symbol symbol=build type=(float64) => Box<int32>
+/// @type.symbol symbol=build.value source="value: float64" type=float64
+/// @resolution.name source=Box target=Box
+
+    return Box.of(value);
+    /// @resolution.name source=Box target=Box
+    /// @resolution.member source=Box.of receiver=Box type=(T#2) => Box<T#2> kind=symbol target_receiver=Box target=of
+    /// @resolution.call source=Box.of(value) parameters=(<error>) arguments=(provided(value) as <error>) return=Box<<error>> kind=symbol target=of instance=Box<<error>>.<extension#1>.of
+    /// @resolution.name source=value target=build.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=build.value
+
+}
+"#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'float64' is not assignable to type 'int32'"
 /// @diagnostic.label line=13 column=12 span="Box.of(value)" line_source="return Box.of(value);"
@@ -2535,7 +2606,6 @@ const picked = pick(boxed);
 /// @type.node source=pick(boxed) type=<error>
 /// @resolution.name source=pick target=pick
 /// @resolution.call source=pick(boxed) parameters=(Box<<error>> | Box<Box<<error>>>) arguments=(provided(boxed) as Box<<error>> | Box<Box<<error>>>) return=<error> kind=symbol target=pick instance=pick<<error>>
-/// @generic.instantiation id=pick<<error>> template=pick arguments=(<error>)
 /// @type.node source=boxed type=Box<Box<int32>>
 /// @resolution.name source=boxed target=boxed
 /// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
@@ -3319,11 +3389,9 @@ const result = fix((value) => [value]);
 /// @resolution.pattern source=result kind=binding target=result
 /// @resolution.name source=fix target=fix
 /// @resolution.call source="fix((value) => [value])" parameters=(Function<(<error>[],), <error>[]>) arguments=(provided((value) => [value]) as Function<(<error>[],), <error>[]>) return=<error>[] kind=symbol target=fix instance=fix<<error>[]>
-/// @generic.instantiation id=fix<<error>[]> template=fix arguments=(<error>[])
 /// @type.symbol symbol=symbol5 source="(value) => [value]" type=Function<(<error>[],), <error>[]>
 /// @type.symbol symbol=symbol5.value source=value type=<error>[]
 /// @resolution.call source=[value] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(value) as <error>) return=<error>[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<<error>>
-/// @generic.instantiation id=arrayFromSlice<<error>> template=arrayFromSlice arguments=(<error>)
 /// @resolution.name source=value target=symbol5.value
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=value root=symbol5.value

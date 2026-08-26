@@ -177,7 +177,7 @@ function inspect(sink: readonly Sink): void {}
 local class Meter {
 /// @type.symbol symbol=Meter type=Meter
 /// @definition.class symbol=Meter
-/// @definition.field symbol=Meter.sink source="private sink: Sink" key=sink type=Sink
+/// @definition.field symbol=Meter.sink source="private sink: Sink" key=sink visibility=private type=Sink
 /// @definition.method symbol=Meter.constructor slot=constructor role=constructor type=<Meter.constructor.P0: Place>(Sink) => Managed<this, Meter.constructor.P0>
 /// @definition.method symbol=Meter.forward slot=forward type=<Meter.forward.'a, Meter.forward.P1: Place>(this: &Meter.forward.'a readonly this) => void
 /// @definition.method symbol=Meter.leak slot=leak type=<Meter.leak.'a, Meter.leak.P1: Place>(this: &Meter.leak.'a readonly this) => void

@@ -605,7 +605,6 @@ declare const pair: ^Pair;
 witness(pair);
 /// @resolution.name source=witness target=witness
 /// @resolution.call source=witness(pair) parameters=(<error>) arguments=(provided(pair) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
-/// @generic.instantiation id=witness<<error>> template=witness arguments=(<error>)
 /// @resolution.name source=pair target=pair
 /// @resolution.place source=pair placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=pair root=pair
@@ -1098,7 +1097,7 @@ struct Holder<T> {
 /// @generic.template symbol=Holder parameters=(in out T)
 /// @type.symbol symbol=Holder type=Holder
 /// @definition.struct symbol=Holder template=(in out T)
-/// @definition.field symbol=Holder.storage source="private storage: ^[T] | undefined = undefined" key=storage type=Owned<Slice<T>> | undefined
+/// @definition.field symbol=Holder.storage source="private storage: ^[T] | undefined = undefined" key=storage visibility=private type=Owned<Slice<T>> | undefined
 /// @definition.method symbol=Holder.isInline slot=isInline role=getter type=<Holder.isInline.'a, Holder.isInline.P1: Place>(this: &Holder.isInline.'a readonly this) => boolean
 /// @type.symbol symbol=Holder.T source=T type=T
 

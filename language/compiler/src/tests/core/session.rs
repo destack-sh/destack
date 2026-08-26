@@ -721,18 +721,6 @@ impl TestSession {
         self.assert_diagnostics(self.dir_exported_key(path), expected);
     }
 
-    /// Assert checked DIR diagnostics for one module.
-    #[track_caller]
-    pub(crate) fn assert_dir_diagnostics(&self, path: &str, expected: &str) {
-        self.print_trace_if_requested("diagnostics");
-
-        // stack checked diagnostics over the declared stage's own
-        self.require_artifact(self.dir_checked_key(path));
-        let keys = [self.dir_declared_key(path), self.dir_checked_key(path)];
-
-        assert_snapshot(self.diagnostic_snapshot_for(&keys), expected);
-    }
-
     /// Assert resolved DIR diagnostics for one module.
     #[track_caller]
     pub(crate) fn assert_dir_resolved_diagnostics(&self, path: &str, expected: &str) {

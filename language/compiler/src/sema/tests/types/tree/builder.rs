@@ -814,5 +814,109 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_diagnostics("main.ds", "");
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+class Panel {
+    label: string = "";
+}
+
+extension of Panel {
+    type Tags = {
+        div: { class?: string };
+        span: {};
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): Panel {
+        return new Panel();
+    }
+}
+
+function render(): Panel {
+    const page: Panel = Panel.element<"div", (Panel,)>("div", { class: "intro" }, (new Panel(),));
+    return page;
+}
+
+=== dir ===
+class Panel {
+/// @type.symbol symbol=Panel type=Panel
+/// @definition.class symbol=Panel
+/// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
+
+    label: string = "";
+    /// @type.symbol symbol=Panel.label source="label: string = \"\"" type=string
+
+}
+
+extension of Panel {
+/// @definition.extension symbol=<module>#2 form=local target=Panel
+/// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; span: {} }
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children: (...unknown[],)>(Tag, this.Tags[Tag], Children) => Panel
+/// @resolution.name source=Panel target=Panel
+
+    type Tags = {
+    /// @type.symbol symbol=Tags type={ div: { class?: string }; span: {} }
+
+        div: { class?: string };
+        /// @type.symbol symbol=Tags.div source="div: { class?: string }" type={ class?: string }
+        /// @type.symbol symbol=Tags.class source="class?: string" type=string
+
+        span: {};
+        /// @type.symbol symbol=Tags.span source="span: {}" type={}
+
+    };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parameters=(const Tag: keyof this.Tags, Children: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children: (...unknown[],)>(Tag, this.Tags[Tag], Children) => Panel
+    /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
+    /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children
+
+        tag: Tag,
+        /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
+        /// @resolution.name source=Tag target=element.Tag
+
+        attributes: this.Tags[Tag],
+        /// @type.symbol symbol=element.attributes source="attributes: this.Tags[Tag]" type=this.Tags[Tag]
+        /// @resolution.name source=Tag target=element.Tag
+
+        children: Children,
+        /// @type.symbol symbol=element.children source="children: Children" type=Children
+        /// @resolution.name source=Children target=element.Children
+
+    ): Panel {
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+}
+
+function render(): Panel {
+/// @type.symbol symbol=render type=() => Panel
+/// @resolution.name source=Panel target=Panel
+
+    const page: Panel = Panel.element("div", { class: "intro" }, (new Panel(),));
+    /// @type.symbol symbol=render.page source=page type=Panel
+    /// @resolution.pattern source=page kind=binding target=render.page
+    /// @resolution.name source=Panel target=Panel
+    /// @resolution.name source=Panel target=Panel
+    /// @resolution.member source=Panel.element receiver=Panel type=<const Tag: keyof this.Tags, Children: (...unknown[],)>(Tag, this.Tags[Tag], Children) => Panel kind=symbol target_receiver=Panel target=element
+    /// @resolution.call source="Panel.element(\"div\", { class: \"intro\" }, (new Panel(),))" parameters=("div", { div: { class?: string }; span: {} }["div"], (Panel,)) arguments=(provided("div") as "div", provided({ class: "intro" }) as { div: { class?: string }; span: {} }["div"], provided((new Panel(),)) as (Panel,)) return=Panel kind=symbol target=element instance="Panel.<extension#1>.element<\"div\", (Panel,)>"
+    /// @generic.instantiation id="element<\"div\", (Panel,)>" template=element arguments=("div", (Panel,))
+    /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+    /// @resolution.name source=Panel target=Panel
+
+    return page;
+    /// @resolution.name source=page target=render.page
+    /// @resolution.place source=page placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=page root=render.page
+
+}
+"#, "");
 }

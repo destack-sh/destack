@@ -447,8 +447,27 @@ const text = identity("x");
         )
         .build();
 
-    compiler.assert_dir_diagnostics(
-        "lib.ds",
+    compiler.assert_dir_and_diagnostics("lib.ds", DirRows::checked(), r#"
+=== annotated ===
+export function identity<T>(value: T) {
+    return value;
+}
+
+=== dir ===
+export function identity<T>(value: T) {
+/// @generic.template symbol=identity parameters=(T)
+/// @type.symbol symbol=identity type=<T>(T) => <error>
+/// @type.symbol symbol=identity.T source=T type=T
+/// @type.symbol symbol=identity.value source="value: T" type=T
+/// @resolution.name source=T target=identity.T
+
+    return value;
+    /// @resolution.name source=value target=identity.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=identity.value
+
+}
+"#,
         r#"
 /// @diagnostic.error id=missing-result-type message="function declaration needs a written result type"
 /// @diagnostic.label line=2 column=17 span="identity" line_source="export function identity<T>(value: T) {"

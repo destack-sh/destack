@@ -191,7 +191,6 @@ extension Forward<T> of Pair<T> {
         /// @type.node source=choose type=(<error>, <error>) => <error>
         /// @resolution.name source=choose target=choose
         /// @resolution.call source="choose(this, other)" parameters=(<error>, <error>) arguments=(provided(this) as <error>, provided(other) as <error>) return=<error> kind=symbol target=choose instance=choose<<error>>
-        /// @generic.instantiation id=choose<<error>> template=choose arguments=(<error>) owner=Forward.choose
         /// @type.node source=this type=&Forward.choose.'a readonly Pair<T#3>
         /// @resolution.receiver source=this kind=this declaration=Forward type=&Forward.choose.'a readonly Pair<T#3>
         /// @resolution.place source=this placement=Forward.choose.P1 lifetime=Forward.choose.'a access="readonly"

@@ -21,7 +21,85 @@ export extension<T> of ^Pack<T> implements From<Iterable<T>> {
 "#,
     );
 
-    session.assert_dir_diagnostics("main.ds", "");
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+shared class Pack<out T> {}
+
+export extension<T> of Pack<T> {
+    static from(values: Iterable<T>): ^Pack<T> {
+        todo("Pack.from" as string | undefined)
+    }
+}
+
+export extension<T> of ^Pack<T> implements From<Iterable<T>> {
+    static from(values: Iterable<T>): ^Pack<T> {
+        Pack.from<T>(values)
+    }
+}
+
+=== dir ===
+shared class Pack<out T> {}
+/// @generic.template symbol=Pack parameters=(out T#1)
+/// @type.symbol symbol=Pack source="shared class Pack<out T> {}" type=Pack
+/// @definition.class symbol=Pack source="shared class Pack<out T> {}" template=(out T#1)
+/// @type.symbol symbol=Pack.T source="out T" type=T#1
+
+export extension<T> of Pack<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#2)
+/// @definition.extension symbol=<module>#2 form=exported target=Pack<T#2>
+/// @definition.method symbol=from#1 slot=from static=true type=(Iterable<T#2>) => Owned<Pack<T#2>>
+/// @type.symbol symbol=T#1 source=T type=T#2
+/// @resolution.name source=Pack target=Pack
+/// @resolution.name source=T target=T#1
+
+    static from(values: Iterable<T>): ^Pack<T> {
+    /// @type.symbol symbol=from#1 type=(Iterable<T#2>) => Owned<Pack<T#2>>
+    /// @type.symbol symbol=from.values#1 source="values: Iterable<T>" type=Iterable<T#2>
+    /// @resolution.name source=Iterable target=Iterable
+    /// @resolution.name source=T target=T#1
+    /// @resolution.name source=Pack target=Pack
+    /// @resolution.name source=T target=T#1
+
+        todo("Pack.from")
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"Pack.from\")" parameters=(string | undefined) arguments=(provided("Pack.from") as string | undefined) return=never kind=symbol target=todo
+
+    }
+}
+
+export extension<T> of ^Pack<T> implements From<Iterable<T>> {
+/// @generic.template symbol=<module>#3 parameters=(T#3)
+/// @definition.extension symbol=<module>#3 form=exported target=Owned<Pack<T#3>>
+/// @definition.implements symbol=<module>#3 source=From<Iterable<T>> target=From<Iterable<T#3>>
+/// @definition.method symbol=from#2 slot=from static=true type=(Iterable<T#3>) => Owned<Pack<T#3>>
+/// @definition.conformance symbol=<module>#3 member=from#2 requirement=From.from
+/// @type.symbol symbol=T#2 source=T type=T#3
+/// @resolution.name source=Pack target=Pack
+/// @resolution.name source=T target=T#2
+/// @resolution.name source=From target=From
+/// @resolution.name source=Iterable target=Iterable
+/// @resolution.name source=T target=T#2
+
+    static from(values: Iterable<T>): ^Pack<T> {
+    /// @type.symbol symbol=from#2 type=(Iterable<T#3>) => Owned<Pack<T#3>>
+    /// @type.symbol symbol=from.values#2 source="values: Iterable<T>" type=Iterable<T#3>
+    /// @resolution.name source=Iterable target=Iterable
+    /// @resolution.name source=T target=T#2
+    /// @resolution.name source=Pack target=Pack
+    /// @resolution.name source=T target=T#2
+
+        Pack.from(values)
+        /// @resolution.name source=Pack target=Pack
+        /// @resolution.member source=Pack.from receiver=Pack type=(Iterable<T#2>) => Owned<Pack<T#2>> kind=symbol target_receiver=Pack target=from#1
+        /// @resolution.call source=Pack.from(values) parameters=(Iterable<T#3>) arguments=(provided(values) as Iterable<T#3>) return=Owned<Pack<T#3>> kind=symbol target=from#1 instance=Pack<T#3>.<extension#1>.from#1
+        /// @generic.instantiation id=from#1<T#3> template=from#1 arguments=(T#3) owner=from#2
+        /// @resolution.name source=values target=from.values#2
+        /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=values root=from.values#2
+
+    }
+}
+"#, "");
 }
 
 /// Place a static `this` result according to its shared declaration.
@@ -41,7 +119,46 @@ const channel: Channel = Channel.new();
 "#,
     );
 
-    session.assert_dir_diagnostics("main.ds", "");
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+shared class Channel {}
+
+export extension of Channel {
+    static new(): this {
+        todo("Channel.new" as string | undefined)
+    }
+}
+
+const channel: Channel = Channel.new();
+
+=== dir ===
+shared class Channel {}
+/// @type.symbol symbol=Channel source="shared class Channel {}" type=Channel
+/// @definition.class symbol=Channel source="shared class Channel {}"
+
+export extension of Channel {
+/// @definition.extension symbol=<module>#2 form=exported target=Channel
+/// @definition.method symbol=new slot=new static=true type=() => this
+/// @resolution.name source=Channel target=Channel
+
+    static new(): this {
+    /// @type.symbol symbol=new type=() => this
+
+        todo("Channel.new")
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"Channel.new\")" parameters=(string | undefined) arguments=(provided("Channel.new") as string | undefined) return=never kind=symbol target=todo
+
+    }
+}
+
+const channel: Channel = Channel.new();
+/// @type.symbol symbol=channel source=channel type=Channel
+/// @resolution.pattern source=channel kind=binding target=channel
+/// @resolution.name source=Channel target=Channel
+/// @resolution.name source=Channel target=Channel
+/// @resolution.member source=Channel.new receiver=Channel type=() => this kind=symbol target_receiver=Channel target=new
+/// @resolution.call source=Channel.new() parameters=() return=Channel kind=symbol target=new
+"#, "");
 }
 
 /// Apply inferred extension arguments to a static `this` result.
@@ -62,7 +179,62 @@ const pack: Pack<int32> = Pack.from(value);
 "#,
     );
 
-    session.assert_dir_diagnostics("main.ds", "");
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+shared class Pack<out T> {}
+
+export extension<T> of Pack<T> {
+    static from(value: T): this {
+        todo("Pack.from" as string | undefined)
+    }
+}
+
+declare const value: int32;
+const pack: Pack<int32> = Pack.from<int32>(value);
+
+=== dir ===
+shared class Pack<out T> {}
+/// @generic.template symbol=Pack parameters=(out T#1)
+/// @type.symbol symbol=Pack source="shared class Pack<out T> {}" type=Pack
+/// @definition.class symbol=Pack source="shared class Pack<out T> {}" template=(out T#1)
+/// @type.symbol symbol=Pack.T source="out T" type=T#1
+
+export extension<T> of Pack<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#2)
+/// @definition.extension symbol=<module>#2 form=exported target=Pack<T#2>
+/// @definition.method symbol=from slot=from static=true type=(T#2) => this
+/// @type.symbol symbol=T source=T type=T#2
+/// @resolution.name source=Pack target=Pack
+/// @resolution.name source=T target=T
+
+    static from(value: T): this {
+    /// @type.symbol symbol=from type=(T#2) => this
+    /// @type.symbol symbol=from.value source="value: T" type=T#2
+    /// @resolution.name source=T target=T
+
+        todo("Pack.from")
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"Pack.from\")" parameters=(string | undefined) arguments=(provided("Pack.from") as string | undefined) return=never kind=symbol target=todo
+
+    }
+}
+
+declare const value: int32;
+/// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
+
+const pack: Pack<int32> = Pack.from(value);
+/// @type.symbol symbol=pack source=pack type=Pack<int32>
+/// @resolution.pattern source=pack kind=binding target=pack
+/// @resolution.name source=Pack target=Pack
+/// @resolution.name source=Pack target=Pack
+/// @resolution.member source=Pack.from receiver=Pack type=(T#2) => this kind=symbol target_receiver=Pack target=from
+/// @resolution.call source=Pack.from(value) parameters=(int32) arguments=(provided(value) as int32) return=Pack<int32> kind=symbol target=from instance=Pack<int32>.<extension#1>.from
+/// @generic.instantiation id=from<int32> template=from arguments=(int32)
+/// @resolution.name source=value target=value
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.access source=value root=value
+"#, "");
 }
 
 /// Preserve explicitly shared static parameters.
@@ -82,8 +254,54 @@ Channel.send(message);
 "#,
     );
 
-    session.assert_dir_diagnostics(
-        "main.ds",
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+struct Message {}
+shared class Channel {}
+
+export extension of Channel {
+    static send(message: &'a readonly shared Message): void {}
+}
+
+declare const message: Message;
+Channel.send<"local">(message);
+
+=== dir ===
+struct Message {}
+/// @type.symbol symbol=Message source="struct Message {}" type=Message
+/// @definition.struct symbol=Message source="struct Message {}"
+
+shared class Channel {}
+/// @type.symbol symbol=Channel source="shared class Channel {}" type=Channel
+/// @definition.class symbol=Channel source="shared class Channel {}"
+
+export extension of Channel {
+/// @definition.extension symbol=<module>#2 form=exported target=Channel
+/// @definition.method symbol=send slot=send static=true type=<send.'a, send.P1: Place>(&send.'a readonly shared Message) => void
+/// @resolution.name source=Channel target=Channel
+
+    static send(message: shared &readonly Message): void { /* intentionally empty */ }
+    /// @generic.template symbol=send parameters=('a, P1: Place)
+    /// @type.symbol symbol=send type=<send.'a, send.P1: Place>(&send.'a readonly shared Message) => void
+    /// @type.symbol symbol=send.message source="message: shared &readonly Message" type=&send.'a readonly shared Message
+    /// @resolution.name source=Message target=Message
+
+}
+
+declare const message: local Message;
+/// @type.symbol symbol=message source=message type=Message
+/// @resolution.pattern source=message kind=binding target=message
+/// @resolution.name source=Message target=Message
+
+Channel.send(message);
+/// @resolution.name source=Channel target=Channel
+/// @resolution.member source=Channel.send receiver=Channel type=<send.'a, send.P1: Place>(&send.'a readonly shared Message) => void kind=symbol target_receiver=Channel target=send
+/// @resolution.call source=Channel.send(message) parameters=(&'frame readonly shared Message) arguments=(provided(message) as &'frame readonly shared Message) return=void kind=symbol target=send instance="Channel.<extension#1>.send<\"local\">"
+/// @generic.instantiation id="send<\"local\">" template=send arguments=("local")
+/// @resolution.name source=message target=message
+/// @resolution.place source=message placement="constant" lifetime="static" access="readonly"
+/// @resolution.access source=message root=message
+"#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type 'Message' is not assignable to parameter of type '&readonly shared Message'"
 /// @diagnostic.label line=10 column=14 span="message" line_source="Channel.send(message);"
@@ -110,8 +328,67 @@ channel.send(message);
 "#,
     );
 
-    session.assert_dir_diagnostics(
-        "main.ds", r#"
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Message {}
+shared class Channel {}
+
+export extension of Channel {
+    send(&this, message: &'b readonly Message): void {}
+}
+
+declare const channel: Channel;
+declare const message: Message;
+channel.send<"shared", "constant">(message as &'static readonly Message);
+
+=== dir ===
+struct Message {}
+/// @type.symbol symbol=Message source="struct Message {}" type=Message
+/// @definition.struct symbol=Message source="struct Message {}"
+
+shared class Channel {}
+/// @type.symbol symbol=Channel source="shared class Channel {}" type=Channel
+/// @definition.class symbol=Channel source="shared class Channel {}"
+
+export extension of Channel {
+/// @definition.extension symbol=<module>#2 form=exported target=Channel
+/// @definition.method symbol=send source="send(&this, message: &readonly Message): void { /* intentionally empty */ }" slot=send type=<send.'a, send.P1: Place, send.'b, send.P3: Place>(this: &send.'a this, &send.'b readonly Message) => void
+/// @resolution.name source=Channel target=Channel
+
+    send(&this, message: &readonly Message): void { /* intentionally empty */ }
+    /// @generic.template symbol=send parameters=('a, P1: Place, 'b, P3: Place)
+    /// @type.symbol symbol=send source="send(&this, message: &readonly Message): void { /* intentionally empty */ }" type=<send.'a, send.P1: Place, send.'b, send.P3: Place>(this: &send.'a this, &send.'b readonly Message) => void
+    /// @type.symbol symbol=send.this source=&this type=&send.'a this
+    /// @type.symbol symbol=send.message source="message: &readonly Message" type=&send.'b readonly Message
+    /// @resolution.name source=Message target=Message
+
+}
+
+declare const channel: Channel;
+/// @type.symbol symbol=channel source=channel type=Channel
+/// @resolution.pattern source=channel kind=binding target=channel
+/// @resolution.name source=Channel target=Channel
+
+declare const message: local Message;
+/// @type.symbol symbol=message source=message type=Message
+/// @resolution.pattern source=message kind=binding target=message
+/// @resolution.name source=Message target=Message
+
+channel.send(message);
+/// @resolution.name source=channel target=channel
+/// @resolution.member source=channel.send receiver=Channel type=<send.'a, send.P1: Place, send.'b, send.P3: Place>(this: &send.'a Channel, &send.'b readonly Message) => void kind=symbol target_receiver=Channel target=send
+/// @resolution.call source=channel.send(message) parameters=(&'static readonly constant Message) arguments=(provided(message) as &'static readonly constant Message) return=void kind=symbol target=send receiver=Channel adjustments=(borrow(&'static shared Channel)) instance="Channel.<extension#1>.send<\"shared\", \"constant\">"
+/// @resolution.place source=channel placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=channel root=channel
+/// @generic.instantiation id="send<\"shared\", \"constant\">" template=send arguments=("shared", "constant")
+/// @resolution.name source=message target=message
+/// @resolution.place source=message placement="constant" lifetime="static" access="readonly"
+/// @resolution.access source=message root=message
+"#,
+        r#"
 
 "#,
     );

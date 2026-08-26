@@ -198,7 +198,6 @@ let key = "id:users";
 parse(key);
 /// @resolution.name source=parse target=parse
 /// @resolution.call source=parse(key) parameters=(`id:${<error>}`) arguments=(provided(key) as `id:${<error>}`) return=<error> kind=symbol target=parse instance=parse<<error>>
-/// @generic.instantiation id=parse<<error>> template=parse arguments=(<error>)
 /// @resolution.name source=key target=key
 /// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=key root=key
@@ -341,7 +340,6 @@ declare function parse<T: number>(value: `${T}`): T;
 parse("no");
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"no\")" parameters=(`${<error>}`) arguments=(provided("no") as `${<error>}`) return=<error> kind=symbol target=parse instance=parse<<error>>
-/// @generic.instantiation id=parse<<error>> template=parse arguments=(<error>)
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '\"no\"' is not assignable to parameter of type '`${_}`'"

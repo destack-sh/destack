@@ -74,8 +74,50 @@ const store = Store {
 "#,
     );
 
-    session.assert_dir_diagnostics(
-        "main.ds",
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+struct Store {
+    read: () => string;
+    write: (arg0: string) => void;
+}
+
+const store: Store = Store {
+    get read(): string {
+        return "ready";
+    },
+    set write(value: string): void {},
+};
+
+=== dir ===
+struct Store {
+/// @type.symbol symbol=Store type=Store
+/// @definition.struct symbol=Store
+/// @definition.field symbol=Store.read source="read: () => string" key=read type=Function<(), string>
+/// @definition.field symbol=Store.write source="write: (value: string) => void" key=write type=Function<(string,), void>
+
+    read: () => string;
+    /// @type.symbol symbol=Store.read source="read: () => string" type=Function<(), string>
+
+    write: (value: string) => void;
+    /// @type.symbol symbol=Store.write source="write: (value: string) => void" type=Function<(string,), void>
+    /// @type.symbol symbol=Store.value source="value: string" type=string
+
+}
+
+const store = Store {
+/// @type.symbol symbol=store source=store type=Store
+/// @resolution.pattern source=store kind=binding target=store
+/// @resolution.name source=Store target=Store
+
+    get read(): string { return "ready"; },
+    /// @type.symbol symbol=symbol7 source="get read(): string { return \"ready\"; }" type=() => string
+
+    set write(value: string): void {},
+    /// @type.symbol symbol=symbol8 source="set write(value: string): void {}" type=(string) => void
+    /// @type.symbol symbol=symbol8.value source="value: string" type=string
+
+};
+"#,
         r#"
 /// @diagnostic.error id=invalid-struct-accessor message="accessors are not valid in struct literals"
 /// @diagnostic.label line=8 column=9 span="read" line_source="get read(): string { return \"ready\"; },"

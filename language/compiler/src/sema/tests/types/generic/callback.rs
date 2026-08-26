@@ -47,14 +47,12 @@ const doubled = parsed.andThen((value) => Result.ok(value * 2));
 /// @resolution.call source="parsed.andThen((value) => Result.ok(value * 2))" parameters=(Function<(int32,), Result<int32, <error>>>) arguments=(provided((value) => Result.ok(value * 2)) as Function<(int32,), Result<int32, <error>>>) return=Result<int32, string | <error>> kind=symbol target=andThen receiver=Result<int32, string> instance="Result<int32, string>.<extension#1>.andThen<int32, <error>>"
 /// @resolution.place source=parsed placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=parsed root=parsed
-/// @generic.instantiation id="andThen<int32, string, int32, <error>>" template=andThen arguments=(int32, string, int32, <error>)
 /// @generic.instantiation id="andThen<int32, string>" template=andThen arguments=(int32, string)
 /// @type.symbol symbol=symbol4 source=(value) => Result.ok(value * 2) type=Function<(int32,), Result<int32, <error>>>
 /// @type.symbol symbol=symbol4.value source=value type=int32
 /// @resolution.name source=Result target=Result
 /// @resolution.member source=Result.ok receiver=Result type=(T#1) => Result<T#1, E#1> kind=symbol target_receiver=Result target=ok#1
 /// @resolution.call source="Result.ok(value * 2)" parameters=(int32) arguments=(provided(value * 2) as int32) return=Result<int32, <error>> kind=symbol target=ok#1 instance="Result<int32, <error>>.<extension#1>.ok#1"
-/// @generic.instantiation id="ok#1<int32, <error>>" template=ok#1 arguments=(int32, <error>)
 /// @resolution.name source=value target=symbol4.value
 /// @resolution.operator source="value * 2" type=int32 operator="*" kind=builtin operands=[value as int32 families=(integer), 2 as int32 families=(integer)]
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -72,7 +70,6 @@ const wrapped = parsed.andThen((value) => Result(Ok { value: value * 2 }));
 /// @type.symbol symbol=symbol7.value source=value type=int32
 /// @resolution.name source=Result target=Result
 /// @resolution.construct source="Result(Ok { value: value * 2 })" parameters=(Ok<int32>) arguments=(provided(Ok { value: value * 2 }) as Ok<int32>) return=Result<int32, <error>> kind=newtype target=Result backing=Ok<int32> instance="Result<int32, <error>>"
-/// @generic.instantiation id="Result<int32, <error>>" template=Result arguments=(int32, <error>)
 /// @resolution.name source=Ok target=Ok
 /// @resolution.name source=value target=symbol7.value
 /// @resolution.operator source="value * 2" type=int32 operator="*" kind=builtin operands=[value as int32 families=(integer), 2 as int32 families=(integer)]
@@ -104,7 +101,6 @@ const unwrapped = parsed.andThen((value) => Ok { value });
 /// @resolution.call source="parsed.andThen((value) => Ok { value })" parameters=(Function<(int32,), Result<<error>, <error>>>) arguments=(provided((value) => Ok { value }) as Function<(int32,), Result<<error>, <error>>>) return=Result<<error>, string | <error>> kind=symbol target=andThen receiver=Result<int32, string> instance="Result<int32, string>.<extension#1>.andThen<<error>, <error>>"
 /// @resolution.place source=parsed placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=parsed root=parsed
-/// @generic.instantiation id="andThen<int32, string, <error>, <error>>" template=andThen arguments=(int32, string, <error>, <error>)
 /// @type.symbol symbol=symbol13 source="(value) => Ok { value }" type=Function<(int32,), <error>>
 /// @type.symbol symbol=symbol13.value source=value type=int32
 /// @resolution.name source=Ok target=Ok

@@ -500,6 +500,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     let member = dir::TypeMember::Field {
                         name,
                         declared_type: Some(declared_type),
+                        visibility: None,
                         is_static: false,
                         is_optional: field.is_optional,
                         is_readonly: !field.access.is_writable(),

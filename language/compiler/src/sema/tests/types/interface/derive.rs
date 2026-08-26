@@ -189,7 +189,6 @@ const total = requireEqual(Sample { label: "a", weight: 1.0 });
 /// @resolution.pattern source=total kind=binding target=total
 /// @resolution.name source=requireEqual target=requireEqual
 /// @resolution.call source="requireEqual(Sample { label: \"a\", weight: 1.0 })" parameters=(<error>) arguments=(provided(Sample { label: "a", weight: 1.0 }) as <error>) return=<error> kind=symbol target=requireEqual instance=requireEqual<<error>>
-/// @generic.instantiation id=requireEqual<<error>> template=requireEqual arguments=(<error>)
 /// @resolution.name source=Sample target=Sample
 "#,
         r#"
@@ -387,7 +386,6 @@ const measure = requireHash(Measure { value: 1.0 });
 /// @resolution.pattern source=measure kind=binding target=measure
 /// @resolution.name source=requireHash target=requireHash
 /// @resolution.call source="requireHash(Measure { value: 1.0 })" parameters=(<error>) arguments=(provided(Measure { value: 1.0 }) as <error>) return=<error> kind=symbol target=requireHash instance=requireHash<<error>>
-/// @generic.instantiation id=requireHash<<error>> template=requireHash arguments=(<error>)
 /// @resolution.name source=Measure target=Measure
 "#,
         r#"
@@ -468,7 +466,6 @@ const value = requireCompare(Point { x: 1, y: 2 });
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=requireCompare target=requireCompare
 /// @resolution.call source="requireCompare(Point { x: 1, y: 2 })" parameters=(<error>) arguments=(provided(Point { x: 1, y: 2 }) as <error>) return=<error> kind=symbol target=requireCompare instance=requireCompare<<error>>
-/// @generic.instantiation id=requireCompare<<error>> template=requireCompare arguments=(<error>)
 /// @resolution.name source=Point target=Point
 "#,
         r#"
@@ -803,13 +800,11 @@ function requireEqual<T: Equal>(value: T): void {}
 requireClone(Point { x: 1 });
 /// @resolution.name source=requireClone target=requireClone
 /// @resolution.call source="requireClone(Point { x: 1 })" parameters=(<error>) arguments=(provided(Point { x: 1 }) as <error>) return=void kind=symbol target=requireClone instance=requireClone<<error>>
-/// @generic.instantiation id=requireClone<<error>> template=requireClone arguments=(<error>)
 /// @resolution.name source=Point target=Point
 
 requireEqual(Point { x: 1 });
 /// @resolution.name source=requireEqual target=requireEqual
 /// @resolution.call source="requireEqual(Point { x: 1 })" parameters=(<error>) arguments=(provided(Point { x: 1 }) as <error>) return=void kind=symbol target=requireEqual instance=requireEqual<<error>>
-/// @generic.instantiation id=requireEqual<<error>> template=requireEqual arguments=(<error>)
 /// @resolution.name source=Point target=Point
 "#, r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Clone'"
@@ -928,7 +923,6 @@ const value = requireEqual(Point { x: 1 });
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=requireEqual target=requireEqual
 /// @resolution.call source="requireEqual(Point { x: 1 })" parameters=(<error>) arguments=(provided(Point { x: 1 }) as <error>) return=<error> kind=symbol target=requireEqual instance=requireEqual<<error>>
-/// @generic.instantiation id=requireEqual<<error>> template=requireEqual arguments=(<error>)
 /// @resolution.name source=Point target=Point
 "#,
         r#"
@@ -1179,8 +1173,91 @@ const cloned = requireClone(hold(), holdBlocker());
 "#,
     );
 
-    session.assert_dir_diagnostics(
-        "main.ds",
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+struct Blocker {
+    run: Function<(), void, "once">;
+}
+
+struct Holder<out Value> {
+    value: Value;
+}
+
+declare function hold<Value>(): Holder<Value>;
+declare function holdBlocker(): Holder<Blocker>;
+
+function requireClone<T: Clone>(value: T, seed: T): T {
+    return value;
+}
+
+const cloned = requireClone(hold<Blocker>(), holdBlocker());
+
+=== dir ===
+struct Blocker {
+/// @type.symbol symbol=Blocker type=Blocker
+/// @definition.struct symbol=Blocker
+/// @definition.field symbol=Blocker.run source="run: Function<(), void, \"once\">" key=run type=Function<(), void, "once">
+
+    run: Function<(), void, "once">;
+    /// @type.symbol symbol=Blocker.run source="run: Function<(), void, \"once\">" type=Function<(), void, "once">
+    /// @resolution.name source=Function target=Function
+
+}
+
+struct Holder<Value> {
+/// @generic.template symbol=Holder parameters=(out Value#1)
+/// @type.symbol symbol=Holder type=Holder
+/// @definition.struct symbol=Holder template=(out Value#1)
+/// @definition.field symbol=Holder.value source="value: Value" key=value type=Value#1
+/// @type.symbol symbol=Holder.Value source=Value type=Value#1
+
+    value: Value;
+    /// @type.symbol symbol=Holder.value source="value: Value" type=Value#1
+    /// @resolution.name source=Value target=Holder.Value
+
+}
+
+declare function hold<Value>(): Holder<Value>;
+/// @generic.template symbol=hold parameters=(Value#2)
+/// @type.symbol symbol=hold source="declare function hold<Value>(): Holder<Value>" type=<Value#2>() => Holder<Value#2>
+/// @type.symbol symbol=hold.Value source=Value type=Value#2
+/// @resolution.name source=Holder target=Holder
+/// @resolution.name source=Value target=hold.Value
+
+declare function holdBlocker(): Holder<Blocker>;
+/// @type.symbol symbol=holdBlocker source="declare function holdBlocker(): Holder<Blocker>" type=() => Holder<Blocker>
+/// @resolution.name source=Holder target=Holder
+/// @resolution.name source=Blocker target=Blocker
+
+function requireClone<T: Clone>(value: T, seed: T): T {
+/// @generic.template symbol=requireClone parameters=(T: Clone)
+/// @type.symbol symbol=requireClone type=<T: Clone>(T, T) => T
+/// @type.symbol symbol=requireClone.T source="T: Clone" type=T
+/// @resolution.name source=Clone target=Clone
+/// @type.symbol symbol=requireClone.value source="value: T" type=T
+/// @resolution.name source=T target=requireClone.T
+/// @type.symbol symbol=requireClone.seed source="seed: T" type=T
+/// @resolution.name source=T target=requireClone.T
+/// @resolution.name source=T target=requireClone.T
+
+    return value;
+    /// @resolution.name source=value target=requireClone.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=requireClone.value
+
+}
+
+const cloned = requireClone(hold(), holdBlocker());
+/// @type.symbol symbol=cloned source=cloned type=<error>
+/// @resolution.pattern source=cloned kind=binding target=cloned
+/// @resolution.name source=requireClone target=requireClone
+/// @resolution.call source="requireClone(hold(), holdBlocker())" parameters=(<error>, <error>) arguments=(provided(hold()) as <error>, provided(holdBlocker()) as <error>) return=<error> kind=symbol target=requireClone instance=requireClone<<error>>
+/// @resolution.name source=hold target=hold
+/// @resolution.call source=hold() parameters=() return=Holder<Blocker> kind=symbol target=hold instance=hold<Blocker>
+/// @generic.instantiation id=hold<Blocker> template=hold arguments=(Blocker)
+/// @resolution.name source=holdBlocker target=holdBlocker
+/// @resolution.call source=holdBlocker() parameters=() return=Holder<Blocker> kind=symbol target=holdBlocker
+"#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Holder<Blocker>' does not satisfy 'Clone'"
 /// @diagnostic.label line=17 column=16 span="requireClone(hold(), holdBlocker())" line_source="const cloned = requireClone(hold(), holdBlocker());"
@@ -1212,8 +1289,80 @@ const cloned = requireClone(held);
 "#,
     );
 
-    session.assert_dir_diagnostics(
-        "main.ds",
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+struct Blocker {
+    run: Function<(), void, "once">;
+}
+
+struct Holder<out Value> {
+    value: Value;
+}
+
+declare const held: Holder<Blocker>;
+
+function requireClone<T: Clone>(value: T): T {
+    return value;
+}
+
+const cloned = requireClone(held);
+
+=== dir ===
+struct Blocker {
+/// @type.symbol symbol=Blocker type=Blocker
+/// @definition.struct symbol=Blocker
+/// @definition.field symbol=Blocker.run source="run: Function<(), void, \"once\">" key=run type=Function<(), void, "once">
+
+    run: Function<(), void, "once">;
+    /// @type.symbol symbol=Blocker.run source="run: Function<(), void, \"once\">" type=Function<(), void, "once">
+    /// @resolution.name source=Function target=Function
+
+}
+
+struct Holder<Value> {
+/// @generic.template symbol=Holder parameters=(out Value)
+/// @type.symbol symbol=Holder type=Holder
+/// @definition.struct symbol=Holder template=(out Value)
+/// @definition.field symbol=Holder.value source="value: Value" key=value type=Value
+/// @type.symbol symbol=Holder.Value source=Value type=Value
+
+    value: Value;
+    /// @type.symbol symbol=Holder.value source="value: Value" type=Value
+    /// @resolution.name source=Value target=Holder.Value
+
+}
+
+declare const held: Holder<Blocker>;
+/// @type.symbol symbol=held source=held type=Holder<Blocker>
+/// @resolution.pattern source=held kind=binding target=held
+/// @resolution.name source=Holder target=Holder
+/// @resolution.name source=Blocker target=Blocker
+
+function requireClone<T: Clone>(value: T): T {
+/// @generic.template symbol=requireClone parameters=(T: Clone)
+/// @type.symbol symbol=requireClone type=<T: Clone>(T) => T
+/// @type.symbol symbol=requireClone.T source="T: Clone" type=T
+/// @resolution.name source=Clone target=Clone
+/// @type.symbol symbol=requireClone.value source="value: T" type=T
+/// @resolution.name source=T target=requireClone.T
+/// @resolution.name source=T target=requireClone.T
+
+    return value;
+    /// @resolution.name source=value target=requireClone.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=requireClone.value
+
+}
+
+const cloned = requireClone(held);
+/// @type.symbol symbol=cloned source=cloned type=<error>
+/// @resolution.pattern source=cloned kind=binding target=cloned
+/// @resolution.name source=requireClone target=requireClone
+/// @resolution.call source=requireClone(held) parameters=(<error>) arguments=(provided(held) as <error>) return=<error> kind=symbol target=requireClone instance=requireClone<<error>>
+/// @resolution.name source=held target=held
+/// @resolution.place source=held placement="constant" lifetime="static" access="readonly"
+/// @resolution.access source=held root=held
+"#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Holder<Blocker>' does not satisfy 'Clone'"
 /// @diagnostic.label line=16 column=16 span="requireClone(held)" line_source="const cloned = requireClone(held);"
@@ -1241,8 +1390,66 @@ const cloned = requireClone(handler);
 "#,
     );
 
-    session.assert_dir_diagnostics(
-        "main.ds", r#"
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Handler {
+    run: () => void;
+}
+
+function requireClone<T: Clone>(value: T): T {
+    return value;
+}
+
+declare const handler: Handler;
+
+const cloned: Handler = requireClone<Handler>(handler);
+
+=== dir ===
+struct Handler {
+/// @type.symbol symbol=Handler type=Handler
+/// @definition.struct symbol=Handler
+/// @definition.field symbol=Handler.run source="run: () => void" key=run type=Function<(), void>
+
+    run: () => void;
+    /// @type.symbol symbol=Handler.run source="run: () => void" type=Function<(), void>
+
+}
+
+function requireClone<T: Clone>(value: T): T {
+/// @generic.template symbol=requireClone parameters=(T: Clone)
+/// @type.symbol symbol=requireClone type=<T: Clone>(T) => T
+/// @type.symbol symbol=requireClone.T source="T: Clone" type=T
+/// @resolution.name source=Clone target=Clone
+/// @type.symbol symbol=requireClone.value source="value: T" type=T
+/// @resolution.name source=T target=requireClone.T
+/// @resolution.name source=T target=requireClone.T
+
+    return value;
+    /// @resolution.name source=value target=requireClone.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=requireClone.value
+
+}
+
+declare const handler: Handler;
+/// @type.symbol symbol=handler source=handler type=Handler
+/// @resolution.pattern source=handler kind=binding target=handler
+/// @resolution.name source=Handler target=Handler
+
+const cloned = requireClone(handler);
+/// @type.symbol symbol=cloned source=cloned type=Handler
+/// @resolution.pattern source=cloned kind=binding target=cloned
+/// @resolution.name source=requireClone target=requireClone
+/// @resolution.call source=requireClone(handler) parameters=(Handler) arguments=(provided(handler) as Handler) return=Handler kind=symbol target=requireClone instance=requireClone<Handler>
+/// @generic.instantiation id=requireClone<Handler> template=requireClone arguments=(Handler)
+/// @resolution.name source=handler target=handler
+/// @resolution.place source=handler placement="constant" lifetime="static" access="readonly"
+/// @resolution.access source=handler root=handler
+"#,
+        r#"
 "#,
     );
 }

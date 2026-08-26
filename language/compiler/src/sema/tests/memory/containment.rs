@@ -832,7 +832,6 @@ publish(cleanEnvelope);
 publish(handle);
 /// @resolution.name source=publish target=publish
 /// @resolution.call source=publish(handle) parameters=(<error>) arguments=(provided(handle) as <error>) return=void kind=symbol target=publish instance=publish<<error>>
-/// @generic.instantiation id=publish<<error>> template=publish arguments=(<error>)
 /// @resolution.name source=handle target=handle
 /// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=handle root=handle
