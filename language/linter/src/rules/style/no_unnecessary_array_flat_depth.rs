@@ -26,6 +26,7 @@ function flatten(values: (int32 | int32[])[]): int32[] {
 }
 "#,
         },
+        provenance: [Unicorn("no-unnecessary-array-flat-depth")],
         category: Style,
         level: Warning,
         fixable: Automatic,

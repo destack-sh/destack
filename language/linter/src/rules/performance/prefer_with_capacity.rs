@@ -48,6 +48,7 @@ function collect(capacity: usize): ^int32[] {
 }
 "#,
         },
+        provenance: [Clippy("reserve_after_initialization")],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

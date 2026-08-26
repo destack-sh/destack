@@ -32,6 +32,7 @@ function isSmall(result: Result<int32, string>): boolean {
 }
 "#,
         },
+        provenance: [Clippy("unnested_or_patterns")],
         category: Style,
         level: Warning,
         fixable: Automatic,

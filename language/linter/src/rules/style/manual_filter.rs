@@ -32,6 +32,7 @@ function positive(values: int32[]): int32[] {
 }
 "#,
         },
+        provenance: [Clippy("manual_filter")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

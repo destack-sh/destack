@@ -29,6 +29,7 @@ interface Store {
 }
 "#,
         },
+        provenance: [Eslint("accessor-pairs")],
         category: Style,
         level: Warning,
         fixable: None,

@@ -28,6 +28,7 @@ function append(target: int32[], source: int32[]): void {
 }
 "#,
         },
+        provenance: [],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

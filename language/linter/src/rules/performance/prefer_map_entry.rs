@@ -32,6 +32,7 @@ function ensureValue(values: Map<string, int32>, key: string): void {
 }
 "#,
         },
+        provenance: [Clippy("map_entry")],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

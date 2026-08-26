@@ -35,6 +35,7 @@ function firstPair(values: int32[]): int32 | undefined {
 }
 "#,
         },
+        provenance: [Clippy("index_refutable_slice")],
         category: Style,
         level: Warning,
         fixable: None,

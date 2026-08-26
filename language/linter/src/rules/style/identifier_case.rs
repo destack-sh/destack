@@ -31,6 +31,7 @@ struct UserRecord {
 }
 "#,
         },
+        provenance: [TypeScriptEslint("naming-convention")],
         category: Style,
         level: Warning,
         fixable: None,

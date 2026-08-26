@@ -29,6 +29,7 @@ function visit(values: int32[]): void {
 }
 "#,
         },
+        provenance: [Clippy("needless_continue")],
         category: Style,
         level: Warning,
         fixable: Automatic,

@@ -35,6 +35,7 @@ function inspect(result: Result<int32, string>): Result<int32, string> {
 }
 "#,
         },
+        provenance: [Clippy("manual_inspect")],
         category: Style,
         level: Warning,
         fixable: Automatic,

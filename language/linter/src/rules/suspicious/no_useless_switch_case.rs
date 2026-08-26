@@ -31,6 +31,7 @@ function classify(value: int32): void {
 }
 "#,
         },
+        provenance: [Unicorn("no-useless-switch-case")],
         category: Suspicious,
         level: Warning,
         fixable: None,

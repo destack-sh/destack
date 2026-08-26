@@ -25,6 +25,7 @@ function reset(values: int32[]): void {
 }
 "#,
         },
+        provenance: [Clippy("clear_with_drain")],
         category: Performance,
         level: Warning,
         fixable: Automatic,

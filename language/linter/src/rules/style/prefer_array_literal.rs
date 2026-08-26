@@ -26,6 +26,11 @@ function values(): int32[] {
 }
 "#,
         },
+        provenance: [
+            Eslint("no-array-constructor"),
+            TypeScriptEslint("no-array-constructor"),
+            Unicorn("no-new-array"),
+        ],
         category: Style,
         level: Warning,
         fixable: Automatic,

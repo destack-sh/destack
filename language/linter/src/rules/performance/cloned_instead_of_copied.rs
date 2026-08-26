@@ -30,6 +30,7 @@ function copy(values: Iterator<&readonly int32>): int32[] {
 }
 "#,
         },
+        provenance: [Clippy("cloned_instead_of_copied")],
         category: Performance,
         level: Warning,
         fixable: Automatic,

@@ -24,6 +24,7 @@ function changed(left: int32, right: int32): boolean {
 }
 "#,
         },
+        provenance: [Eslint("no-self-compare")],
         category: Correctness,
         level: Warning,
         fixable: None,

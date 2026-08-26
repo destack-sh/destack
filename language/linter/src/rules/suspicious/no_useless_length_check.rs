@@ -27,6 +27,7 @@ function allPositive(values: int32[]): boolean {
 }
 "#,
         },
+        provenance: [Unicorn("no-useless-length-check")],
         category: Suspicious,
         level: Warning,
         fixable: Automatic,

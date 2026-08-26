@@ -35,6 +35,10 @@ function ready(): boolean {
 }
 "#,
         },
+        provenance: [
+            Clippy("allow_attributes_without_reason"),
+            TypeScriptEslint("ban-ts-comment"),
+        ],
         category: Style,
         level: Warning,
         fixable: None,

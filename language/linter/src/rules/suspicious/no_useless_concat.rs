@@ -24,6 +24,7 @@ function message(): string {
 }
 "#,
         },
+        provenance: [Eslint("no-useless-concat")],
         category: Suspicious,
         level: Warning,
         fixable: None,

@@ -28,6 +28,7 @@ function consume(values: int32[]): void {
 }
 "#,
         },
+        provenance: [Clippy("unused_peekable")],
         category: Performance,
         level: Warning,
         fixable: Automatic,

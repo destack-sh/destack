@@ -28,6 +28,7 @@ function append(values: int32[], count: isize): void {
 }
 "#,
         },
+        provenance: [Clippy("same_item_push")],
         category: Performance,
         level: Warning,
         fixable: None,

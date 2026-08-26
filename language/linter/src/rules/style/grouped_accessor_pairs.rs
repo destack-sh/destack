@@ -30,6 +30,7 @@ interface Store {
 }
 "#,
         },
+        provenance: [Eslint("grouped-accessor-pairs")],
         category: Style,
         level: Warning,
         fixable: None,

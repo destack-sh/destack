@@ -35,6 +35,7 @@ function ready(): boolean {
 }
 "#,
         },
+        provenance: [TypeScriptEslint("prefer-ts-expect-error")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

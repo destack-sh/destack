@@ -31,6 +31,10 @@ function firstDefined(values: (int32 | undefined)[]): int32 | undefined {
 }
 "#,
         },
+        provenance: [
+            Clippy("filter_map_next"),
+            Clippy("manual_find_map"),
+        ],
         category: Performance,
         level: Warning,
         fixable: Automatic,

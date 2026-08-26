@@ -26,6 +26,7 @@ function append(output: int32[]): void {
 }
 "#,
         },
+        provenance: [Unicorn("no-useless-spread")],
         category: Suspicious,
         level: Warning,
         fixable: Automatic,

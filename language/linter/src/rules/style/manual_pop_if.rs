@@ -26,6 +26,7 @@ function popExpected(values: int32[], expected: int32): int32 | undefined {
 }
 "#,
         },
+        provenance: [Clippy("manual_pop_if")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

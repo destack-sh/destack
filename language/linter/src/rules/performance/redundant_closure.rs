@@ -30,6 +30,7 @@ function squares(values: int32[]): Iterator<int32> {
 }
 "#,
         },
+        provenance: [Clippy("redundant_closure")],
         category: Performance,
         level: Warning,
         fixable: Automatic,

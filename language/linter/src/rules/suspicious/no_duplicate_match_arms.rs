@@ -31,6 +31,7 @@ function describe(value: int32): string {
 }
 "#,
         },
+        provenance: [Clippy("match_same_arms")],
         category: Suspicious,
         level: Warning,
         fixable: None,

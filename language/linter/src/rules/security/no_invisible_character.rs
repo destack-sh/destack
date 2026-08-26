@@ -17,6 +17,12 @@ Instead, you MUST remove them from syntax and comments and escape literal direct
             reported: "const user\u{200c}Name = 1;",
             accepted: "const userName = 1;",
         },
+        provenance: [
+            Clippy("invisible_characters"),
+            Eslint("no-irregular-whitespace"),
+            Rustc("text_direction_codepoint_in_comment"),
+            Rustc("text_direction_codepoint_in_literal"),
+        ],
         category: Security,
         level: Error,
         fixable: None,

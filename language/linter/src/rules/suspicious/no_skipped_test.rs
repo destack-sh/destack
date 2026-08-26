@@ -28,6 +28,7 @@ test("adds values", () => {
 });
 "#,
         },
+        provenance: [Jest("no-disabled-tests"), Playwright("no-skipped-test")],
         category: Suspicious,
         level: Warning,
         fixable: None,

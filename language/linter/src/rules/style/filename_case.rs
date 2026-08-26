@@ -16,6 +16,7 @@ Dot-separated roles such as `.test` and `.d` are checked independently.
             reported: ("UserService.ds", "export const value = 1;"),
             accepted: ("user-service.ds", "export const value = 1;"),
         },
+        provenance: [Unicorn("filename-case")],
         category: Style,
         level: Warning,
         fixable: None,

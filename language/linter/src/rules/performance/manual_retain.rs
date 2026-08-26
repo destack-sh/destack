@@ -30,6 +30,7 @@ function keepPositive(input: ^int32[]): ^int32[] {
 }
 "#,
         },
+        provenance: [Clippy("manual_retain")],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

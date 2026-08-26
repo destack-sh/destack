@@ -26,6 +26,7 @@ function tail(values: int32[]): int32[] {
 }
 "#,
         },
+        provenance: [Unicorn("no-unnecessary-slice-end")],
         category: Style,
         level: Warning,
         fixable: Automatic,

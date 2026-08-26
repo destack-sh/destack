@@ -33,6 +33,7 @@ beforeEach(() => {
 });
 "#,
         },
+        provenance: [Jest("no-duplicate-hooks"), Playwright("no-duplicate-hooks")],
         category: Suspicious,
         level: Warning,
         fixable: None,

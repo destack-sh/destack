@@ -36,6 +36,7 @@ async function gather(): Promise<int32[]> {
 }
 "#,
         },
+        provenance: [Unicorn("no-await-in-promise-methods")],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

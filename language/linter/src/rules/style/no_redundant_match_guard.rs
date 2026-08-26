@@ -32,6 +32,7 @@ function classify(value: int32): string {
 }
 "#,
         },
+        provenance: [Clippy("redundant_guards")],
         category: Style,
         level: Warning,
         fixable: Automatic,

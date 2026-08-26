@@ -30,6 +30,7 @@ function replace(target: &exclusive rc.Rc<int32>, source: &readonly rc.Rc<int32>
 }
 "#,
         },
+        provenance: [Clippy("assigning_clones")],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

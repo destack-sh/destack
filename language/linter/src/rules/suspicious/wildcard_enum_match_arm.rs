@@ -40,6 +40,7 @@ function describe(mode: Mode): string {
 }
 "#,
         },
+        provenance: [Clippy("wildcard_enum_match_arm")],
         category: Suspicious,
         level: Warning,
         fixable: None,

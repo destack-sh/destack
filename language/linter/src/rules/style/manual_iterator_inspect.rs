@@ -39,6 +39,7 @@ function observe(values: Iterator<int32>): Iterator<int32> {
 }
 "#,
         },
+        provenance: [Clippy("manual_inspect")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

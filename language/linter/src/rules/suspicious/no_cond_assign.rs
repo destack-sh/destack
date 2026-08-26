@@ -33,6 +33,7 @@ function select(next: boolean): boolean {
 }
 "#,
         },
+        provenance: [Eslint("no-cond-assign")],
         category: Suspicious,
         level: Warning,
         fixable: None,

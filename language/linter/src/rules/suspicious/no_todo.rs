@@ -24,6 +24,7 @@ function process(): void {
 function process(): void {}
 "#,
         },
+        provenance: [Clippy("todo")],
         category: Suspicious,
         level: Warning,
         fixable: None,

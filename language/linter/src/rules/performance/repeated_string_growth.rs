@@ -37,6 +37,7 @@ function indent(depth: isize): string {
 }
 "#,
         },
+        provenance: [],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

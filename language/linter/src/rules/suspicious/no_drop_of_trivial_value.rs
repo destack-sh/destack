@@ -31,6 +31,7 @@ function unsubscribe(value: Subscription): void {
 }
 "#,
         },
+        provenance: [Clippy("drop_non_drop")],
         category: Suspicious,
         level: Warning,
         fixable: None,

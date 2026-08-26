@@ -29,6 +29,7 @@ function isZero(value: int32): boolean {
 }
 "#,
         },
+        provenance: [],
         category: Style,
         level: Warning,
         fixable: Automatic,

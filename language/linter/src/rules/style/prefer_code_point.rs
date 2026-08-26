@@ -26,6 +26,7 @@ function inspectFirstCharacter(text: string): void {
 }
 "#,
         },
+        provenance: [Unicorn("prefer-code-point")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

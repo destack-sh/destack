@@ -32,6 +32,7 @@ function verify(actual: int32, expected: int32): void {
 }
 "#,
         },
+        provenance: [Clippy("manual_assert_eq")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

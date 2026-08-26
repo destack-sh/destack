@@ -32,6 +32,7 @@ function indexes(values: int32[], output: isize[]): void {
 }
 "#,
         },
+        provenance: [Clippy("explicit_counter_loop")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

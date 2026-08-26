@@ -26,6 +26,7 @@ function greet(name: string): string {
 }
 "#,
         },
+        provenance: [Eslint("no-template-curly-in-string")],
         category: Suspicious,
         level: Warning,
         fixable: Suggestion,

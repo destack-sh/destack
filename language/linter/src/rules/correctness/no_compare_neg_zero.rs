@@ -24,6 +24,7 @@ function isNegativeZero(value: float64): boolean {
 }
 "#,
         },
+        provenance: [Eslint("no-compare-neg-zero")],
         category: Correctness,
         level: Warning,
         fixable: None,

@@ -22,6 +22,7 @@ const word = new RegExp("\\w+", "u");
 const word = /\w+/u;
 "#,
         },
+        provenance: [Eslint("prefer-regex-literals")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

@@ -34,6 +34,7 @@ function digit(value: char): boolean {
 }
 "#,
         },
+        provenance: [Clippy("manual_range_patterns")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

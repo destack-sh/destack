@@ -38,6 +38,7 @@ function classify(value: int32): string {
 }
 "#,
         },
+        provenance: [Eslint("no-lonely-if")],
         category: Style,
         level: Warning,
         fixable: Automatic,

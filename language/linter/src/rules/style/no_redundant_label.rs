@@ -26,6 +26,7 @@ outer: loop {
 }
 "#,
         },
+        provenance: [Eslint("no-extra-label")],
         category: Style,
         level: Warning,
         fixable: Automatic,

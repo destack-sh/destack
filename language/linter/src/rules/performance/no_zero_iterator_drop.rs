@@ -30,6 +30,7 @@ function retain(values: Iterator<int32>): Iterator<int32> {
 }
 "#,
         },
+        provenance: [Clippy("iter_skip_zero")],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

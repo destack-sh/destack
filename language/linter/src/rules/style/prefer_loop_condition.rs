@@ -35,6 +35,7 @@ while (!isDone()) {
 }
 "#,
         },
+        provenance: [Unicorn("prefer-while-loop-condition")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

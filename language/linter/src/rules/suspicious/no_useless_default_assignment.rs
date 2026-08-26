@@ -28,6 +28,7 @@ function name(user: { name: string }): string {
 }
 "#,
         },
+        provenance: [TypeScriptEslint("no-useless-default-assignment")],
         category: Suspicious,
         level: Warning,
         fixable: Automatic,

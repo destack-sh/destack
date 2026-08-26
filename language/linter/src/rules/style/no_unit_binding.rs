@@ -26,6 +26,7 @@ function record(): void {}
 record();
 "#,
         },
+        provenance: [Clippy("let_unit_value")],
         category: Style,
         level: Warning,
         fixable: Automatic,

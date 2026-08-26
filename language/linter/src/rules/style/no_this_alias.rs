@@ -33,6 +33,7 @@ class Service {
 }
 "#,
         },
+        provenance: [TypeScriptEslint("no-this-alias")],
         category: Style,
         level: Warning,
         fixable: None,

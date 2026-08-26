@@ -35,6 +35,7 @@ function classify(value: int32): string {
 }
 "#,
         },
+        provenance: [Eslint("no-dupe-else-if")],
         category: Suspicious,
         level: Warning,
         fixable: None,

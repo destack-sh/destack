@@ -31,6 +31,7 @@ function identity(value: int32): int32 {
 }
 "#,
         },
+        provenance: [Eslint("prefer-const")],
         category: Style,
         level: Warning,
         fixable: Automatic,

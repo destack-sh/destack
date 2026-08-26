@@ -31,6 +31,7 @@ function sign(value: int32): string {
 }
 "#,
         },
+        provenance: [],
         category: Style,
         level: Warning,
         fixable: None,

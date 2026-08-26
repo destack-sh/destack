@@ -26,6 +26,7 @@ function canRead(isOwner: boolean, isShared: boolean): boolean {
 }
 "#,
         },
+        provenance: [Clippy("nonminimal_bool")],
         category: Suspicious,
         level: Warning,
         fixable: Automatic,

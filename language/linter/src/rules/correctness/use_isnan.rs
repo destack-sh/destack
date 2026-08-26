@@ -26,6 +26,7 @@ function isMissing(value: float64): boolean {
 }
 "#,
         },
+        provenance: [Eslint("use-isnan")],
         category: Correctness,
         level: Error,
         fixable: Suggestion,

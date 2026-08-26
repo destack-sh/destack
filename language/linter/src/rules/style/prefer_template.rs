@@ -26,6 +26,7 @@ function greet(name: string): string {
 }
 "#,
         },
+        provenance: [Eslint("prefer-template")],
         category: Style,
         level: Warning,
         fixable: Automatic,

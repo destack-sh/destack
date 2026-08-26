@@ -34,6 +34,7 @@ function consume(values: &readonly [int32]): void {
 }
 "#,
         },
+        provenance: [Clippy("redundant_slicing")],
         category: Style,
         level: Warning,
         fixable: Automatic,

@@ -26,6 +26,10 @@ class Token {
 }
 "#,
         },
+        provenance: [
+            Eslint("no-useless-constructor"),
+            TypeScriptEslint("no-useless-constructor"),
+        ],
         category: Suspicious,
         level: Warning,
         fixable: Automatic,

@@ -28,6 +28,7 @@ function order(values: int32[]): void {
 }
 "#,
         },
+        provenance: [Clippy("unnecessary_sort_by")],
         category: Performance,
         level: Warning,
         fixable: Automatic,

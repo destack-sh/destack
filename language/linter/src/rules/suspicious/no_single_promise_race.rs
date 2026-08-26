@@ -32,6 +32,7 @@ function first(value: Promise<int32>): Promise<int32> {
 }
 "#,
         },
+        provenance: [Unicorn("no-single-promise-in-promise-methods")],
         category: Suspicious,
         level: Warning,
         fixable: Suggestion,

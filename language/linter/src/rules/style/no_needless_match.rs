@@ -30,6 +30,7 @@ function preserve(value: int32): int32 {
 }
 "#,
         },
+        provenance: [Clippy("needless_match")],
         category: Style,
         level: Warning,
         fixable: Automatic,

@@ -28,6 +28,7 @@ function name(user: { name: string }): string {
 }
 "#,
         },
+        provenance: [Eslint("no-useless-rename")],
         category: Suspicious,
         level: Warning,
         fixable: Suggestion,

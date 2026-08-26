@@ -28,6 +28,7 @@ function prefix(text: string, end: isize): string {
 }
 "#,
         },
+        provenance: [Unicorn("prefer-string-slice")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

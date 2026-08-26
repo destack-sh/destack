@@ -30,6 +30,7 @@ function select(values: Iterator<int32>, index: isize): int32 | undefined {
 }
 "#,
         },
+        provenance: [Clippy("iter_skip_next")],
         category: Style,
         level: Warning,
         fixable: Automatic,

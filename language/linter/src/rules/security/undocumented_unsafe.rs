@@ -29,6 +29,7 @@ function execute(): void {
 }
 "#,
         },
+        provenance: [Clippy("undocumented_unsafe_blocks")],
         category: Security,
         level: Warning,
         fixable: None,

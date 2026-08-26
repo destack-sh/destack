@@ -43,6 +43,7 @@ class User {
 }
 "#,
         },
+        provenance: [TypeScriptEslint("prefer-readonly")],
         category: Style,
         level: Warning,
         fixable: Automatic,

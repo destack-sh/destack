@@ -32,6 +32,7 @@ function value(result: Result<int32, string>): int32 {
 }
 "#,
         },
+        provenance: [Clippy("unnecessary_unwrap")],
         category: Style,
         level: Warning,
         fixable: Automatic,

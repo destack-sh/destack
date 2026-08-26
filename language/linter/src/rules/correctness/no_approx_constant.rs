@@ -68,6 +68,7 @@ declare const radius: number;
 const circumference = 2.0 * Math.PI * radius;
 "#,
         },
+        provenance: [Clippy("approx_constant")],
         category: Correctness,
         level: Warning,
         fixable: Suggestion,

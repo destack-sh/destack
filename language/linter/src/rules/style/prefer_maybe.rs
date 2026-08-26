@@ -31,6 +31,7 @@ function value(result: Result<int32, string>): Result<int32, string> {
 }
 "#,
         },
+        provenance: [Clippy("question_mark")],
         category: Style,
         level: Warning,
         fixable: Automatic,

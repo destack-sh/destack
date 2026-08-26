@@ -26,6 +26,7 @@ interface Sequence {
 }
 "#,
         },
+        provenance: [Clippy("len_without_is_empty")],
         category: Style,
         level: Warning,
         fixable: None,

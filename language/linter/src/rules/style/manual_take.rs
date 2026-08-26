@@ -31,6 +31,7 @@ function remove<T: Default>(initial: T): T {
 }
 "#,
         },
+        provenance: [Clippy("manual_take")],
         category: Style,
         level: Warning,
         fixable: None,

@@ -35,6 +35,7 @@ struct Session {
 }
 "#,
         },
+        provenance: [Rustc("missing_docs")],
         category: Style,
         level: Warning,
         fixable: None,

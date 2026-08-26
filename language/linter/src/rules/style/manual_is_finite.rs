@@ -28,6 +28,7 @@ function finite(value: float64): boolean {
 }
 "#,
         },
+        provenance: [Clippy("manual_is_finite")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

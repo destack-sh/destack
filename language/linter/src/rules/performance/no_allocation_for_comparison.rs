@@ -30,6 +30,7 @@ function matches(value: &readonly StringSlice, expected: string): boolean {
 }
 "#,
         },
+        provenance: [Clippy("cmp_owned")],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

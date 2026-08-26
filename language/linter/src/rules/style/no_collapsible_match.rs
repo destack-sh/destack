@@ -35,6 +35,7 @@ function describe(result: Result<int32, string>): string {
 }
 "#,
         },
+        provenance: [Clippy("collapsible_match")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

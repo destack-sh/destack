@@ -21,6 +21,10 @@ function connect(timeout: int32 = 30, retries: int32): void {}
 function connect(retries: int32, timeout: int32 = 30): void {}
 "#,
         },
+        provenance: [
+            Eslint("default-param-last"),
+            TypeScriptEslint("default-param-last"),
+        ],
         category: Style,
         level: Warning,
         fixable: None,

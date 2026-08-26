@@ -22,6 +22,7 @@ module {
 }
 "#,
         },
+        provenance: [],
         category: Suspicious,
         level: Warning,
         fixable: None,

@@ -41,6 +41,7 @@ function consume(): void {
 }
 "#,
         },
+        provenance: [Clippy("while_let_loop")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

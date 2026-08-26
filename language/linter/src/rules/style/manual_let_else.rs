@@ -33,6 +33,7 @@ function value(result: Result<int32, string>): Result<int32, string> {
 }
 "#,
         },
+        provenance: [Clippy("manual_let_else")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

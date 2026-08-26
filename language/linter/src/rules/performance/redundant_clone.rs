@@ -29,6 +29,7 @@ function retain(value: rc.Rc<int32>): rc.Rc<int32> {
 }
 "#,
         },
+        provenance: [Clippy("redundant_clone")],
         category: Performance,
         level: Warning,
         fixable: None,

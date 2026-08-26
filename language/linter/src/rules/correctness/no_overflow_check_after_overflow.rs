@@ -26,6 +26,7 @@ function overflows(left: uint32, right: uint32): boolean {
 }
 "#,
         },
+        provenance: [Clippy("panicking_overflow_checks")],
         category: Correctness,
         level: Error,
         fixable: Suggestion,

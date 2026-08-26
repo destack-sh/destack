@@ -26,6 +26,7 @@ function contains(values: Map<string, int32>, key: string): boolean {
 }
 "#,
         },
+        provenance: [Unicorn("prefer-has-check")],
         category: Performance,
         level: Warning,
         fixable: Automatic,

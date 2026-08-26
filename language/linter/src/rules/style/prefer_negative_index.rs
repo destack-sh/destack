@@ -26,6 +26,7 @@ function penultimate(values: int32[]): int32 | undefined {
 }
 "#,
         },
+        provenance: [Unicorn("prefer-negative-index")],
         category: Style,
         level: Warning,
         fixable: Automatic,

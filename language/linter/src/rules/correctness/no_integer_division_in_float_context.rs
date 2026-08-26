@@ -26,6 +26,7 @@ function ratio(left: int32, right: int32): float64 {
 }
 "#,
         },
+        provenance: [Clippy("integer_division")],
         category: Correctness,
         level: Warning,
         fixable: Suggestion,

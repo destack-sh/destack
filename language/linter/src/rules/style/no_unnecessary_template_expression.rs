@@ -26,6 +26,7 @@ function identity(value: string): string {
 }
 "#,
         },
+        provenance: [TypeScriptEslint("no-unnecessary-template-expression")],
         category: Style,
         level: Warning,
         fixable: Automatic,

@@ -26,6 +26,7 @@ function increment(value: int32): int32 {
 }
 "#,
         },
+        provenance: [Clippy("trivially_copy_pass_by_ref")],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

@@ -28,6 +28,7 @@ function double(value: int32): int32 {
 }
 "#,
         },
+        provenance: [Unicorn("no-static-only-class")],
         category: Style,
         level: Warning,
         fixable: None,

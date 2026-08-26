@@ -26,6 +26,7 @@ function identity(value: int32): int32 {
 }
 "#,
         },
+        provenance: [Clippy("needless_borrow")],
         category: Style,
         level: Warning,
         fixable: Automatic,

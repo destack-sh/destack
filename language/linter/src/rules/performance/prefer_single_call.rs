@@ -29,6 +29,7 @@ function append(values: int32[]): void {
 }
 "#,
         },
+        provenance: [Unicorn("prefer-single-call")],
         category: Performance,
         level: Warning,
         fixable: Automatic,

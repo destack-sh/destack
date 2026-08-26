@@ -26,6 +26,7 @@ function root(value: float64): float64 {
 }
 "#,
         },
+        provenance: [Clippy("suboptimal_flops")],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

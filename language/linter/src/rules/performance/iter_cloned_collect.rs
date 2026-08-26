@@ -34,6 +34,7 @@ function copy(values: &readonly Label[]): Label[] {
 }
 "#,
         },
+        provenance: [Clippy("iter_cloned_collect")],
         category: Performance,
         level: Warning,
         fixable: Automatic,

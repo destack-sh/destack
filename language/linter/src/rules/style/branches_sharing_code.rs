@@ -41,6 +41,7 @@ function finish(condition: boolean): void {
 }
 "#,
         },
+        provenance: [Clippy("branches_sharing_code")],
         category: Style,
         level: Warning,
         fixable: None,

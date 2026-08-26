@@ -26,6 +26,7 @@ function value(result: Result<int32, string>): int32 {
 }
 "#,
         },
+        provenance: [Clippy("unnecessary_lazy_evaluations")],
         category: Performance,
         level: Warning,
         fixable: Automatic,

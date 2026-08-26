@@ -28,6 +28,7 @@ declare function parse(source: string): int32;
 const parseValue = parse;
 "#,
         },
+        provenance: [],
         category: Style,
         level: Warning,
         fixable: None,

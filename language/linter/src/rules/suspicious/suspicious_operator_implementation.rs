@@ -41,6 +41,10 @@ extension of Score implements Add<Score> {
 }
 "#,
         },
+        provenance: [
+            Clippy("suspicious_arithmetic_impl"),
+            Clippy("suspicious_op_assign_impl"),
+        ],
         category: Suspicious,
         level: Warning,
         fixable: None,

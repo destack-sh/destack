@@ -30,6 +30,10 @@ function active(condition: boolean): boolean {
 }
 "#,
         },
+        provenance: [
+            Clippy("needless_bool"),
+            Eslint("no-unneeded-ternary"),
+        ],
         category: Style,
         level: Warning,
         fixable: Automatic,

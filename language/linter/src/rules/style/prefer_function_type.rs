@@ -25,6 +25,7 @@ type Transform = { (value: int32): string };
 type Transform = (value: int32) => string;
 "#,
         },
+        provenance: [TypeScriptEslint("prefer-function-type")],
         category: Style,
         level: Warning,
         fixable: Automatic,

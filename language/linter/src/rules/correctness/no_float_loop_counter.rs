@@ -25,6 +25,7 @@ for (let index: int32 = 0; index < 10; index++) {
 }
 "#,
         },
+        provenance: [Clippy("while_float")],
         category: Correctness,
         level: Warning,
         fixable: None,

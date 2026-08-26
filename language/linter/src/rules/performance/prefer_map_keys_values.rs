@@ -30,6 +30,7 @@ function copy(values: Map<string, int32>, output: int32[]): void {
 }
 "#,
         },
+        provenance: [Clippy("for_kv_map")],
         category: Performance,
         level: Warning,
         fixable: Automatic,

@@ -32,6 +32,7 @@ function copy(values: int32[], output: int32[]): void {
 }
 "#,
         },
+        provenance: [Unicorn("no-for-each")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

@@ -26,6 +26,7 @@ function forward(result: Result<int32, string>): Result<int32, string> {
 }
 "#,
         },
+        provenance: [Clippy("needless_question_mark")],
         category: Style,
         level: Warning,
         fixable: Automatic,

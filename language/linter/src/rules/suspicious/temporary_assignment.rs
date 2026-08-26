@@ -34,6 +34,7 @@ function retain(): Point {
 }
 "#,
         },
+        provenance: [Clippy("temporary_assignment")],
         category: Suspicious,
         level: Warning,
         fixable: None,

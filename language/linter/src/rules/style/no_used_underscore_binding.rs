@@ -24,6 +24,7 @@ function double(value: int32): int32 {
 }
 "#,
         },
+        provenance: [Clippy("used_underscore_binding")],
         category: Style,
         level: Warning,
         fixable: None,

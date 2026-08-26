@@ -26,6 +26,7 @@ function chunks(length: uint32, width: uint32): uint32 {
 }
 "#,
         },
+        provenance: [Clippy("manual_div_ceil")],
         category: Style,
         level: Warning,
         fixable: Automatic,

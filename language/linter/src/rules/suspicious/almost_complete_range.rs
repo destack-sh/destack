@@ -22,6 +22,7 @@ const lowercase = 'a'..'z';
 const lowercase = 'a'..='z';
 "#,
         },
+        provenance: [Clippy("almost_complete_range")],
         category: Suspicious,
         level: Warning,
         fixable: Suggestion,

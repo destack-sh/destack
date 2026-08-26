@@ -24,6 +24,7 @@ function read(value: { name: string }): void {
 }
 "#,
         },
+        provenance: [Eslint("no-empty-pattern")],
         category: Suspicious,
         level: Warning,
         fixable: None,

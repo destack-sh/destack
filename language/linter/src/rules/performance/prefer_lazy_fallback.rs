@@ -29,6 +29,7 @@ function value(result: Result<int32, string>): int32 {
 }
 "#,
         },
+        provenance: [Clippy("or_fun_call")],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

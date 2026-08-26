@@ -42,6 +42,7 @@ function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label
 }
 "#,
         },
+        provenance: [Clippy("iter_overeager_cloned")],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

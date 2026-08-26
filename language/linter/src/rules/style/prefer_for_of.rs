@@ -29,6 +29,7 @@ function copy(values: int32[], output: int32[]): void {
 }
 "#,
         },
+        provenance: [TypeScriptEslint("prefer-for-of")],
         category: Style,
         level: Warning,
         fixable: None,

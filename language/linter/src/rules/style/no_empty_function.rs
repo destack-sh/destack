@@ -23,6 +23,10 @@ function initialize(): void {
 }
 "#,
         },
+        provenance: [
+            Eslint("no-empty-function"),
+            TypeScriptEslint("no-empty-function"),
+        ],
         category: Style,
         level: Warning,
         fixable: None,

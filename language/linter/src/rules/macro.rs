@@ -24,6 +24,9 @@ macro_rules! declare_lint {
                 reported: $reported:tt,
                 accepted: $accepted:tt,
             },
+            provenance: [
+                $($source:ident($rule:literal)),* $(,)?
+            ],
             category: $category:ident,
             level: $level:ident,
             fixable: $fixable:ident,
@@ -43,6 +46,14 @@ macro_rules! declare_lint {
                 reported: $crate::rules::lint_example_source!($reported),
                 accepted: $crate::rules::lint_example_source!($accepted),
             },
+            provenance: &[
+                $(
+                    $crate::LintProvenance {
+                        source: $crate::LintSource::$source,
+                        rule: $rule,
+                    }
+                ),*
+            ],
             category: $crate::LintCategory::$category,
             default_level: destack_repository::LintLevel::$level,
             fixability: $crate::Fixability::$fixable,

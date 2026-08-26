@@ -31,6 +31,7 @@ declare const end: int32;
 const before = start..end;
 "#,
         },
+        provenance: [Clippy("range_minus_one")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

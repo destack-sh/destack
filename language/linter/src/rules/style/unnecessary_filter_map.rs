@@ -26,6 +26,7 @@ function increment(values: int32[]): int32[] {
 }
 "#,
         },
+        provenance: [Clippy("unnecessary_filter_map")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

@@ -30,6 +30,7 @@ function run(): void {
 }
 "#,
         },
+        provenance: [Eslint("no-lone-blocks")],
         category: Style,
         level: Warning,
         fixable: None,

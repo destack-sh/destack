@@ -26,6 +26,7 @@ function square(value: number): number {
 }
 "#,
         },
+        provenance: [Eslint("prefer-exponentiation-operator")],
         category: Style,
         level: Warning,
         fixable: Automatic,

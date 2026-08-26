@@ -29,6 +29,7 @@ function reset(): void {
 }
 "#,
         },
+        provenance: [Eslint("no-multi-assign")],
         category: Style,
         level: Warning,
         fixable: None,

@@ -26,6 +26,10 @@ import { FileMode } from "destack:fs/binding";
 const MODE = FileMode(0o640);
 "#,
         },
+        provenance: [
+            Clippy("non_octal_unix_permissions"),
+            Ruff("bad-file-permissions"),
+        ],
         category: Security,
         level: Warning,
         fixable: None,

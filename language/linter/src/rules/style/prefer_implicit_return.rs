@@ -28,6 +28,7 @@ function double(values: int32[]): int32[] {
 }
 "#,
         },
+        provenance: [Eslint("arrow-body-style")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

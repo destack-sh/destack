@@ -28,6 +28,7 @@ function clear(values: int32[]): void {
 }
 "#,
         },
+        provenance: [Clippy("manual_slice_fill")],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

@@ -30,6 +30,7 @@ class Builder {
 }
 "#,
         },
+        provenance: [TypeScriptEslint("prefer-return-this-type")],
         category: Style,
         level: Warning,
         fixable: Automatic,

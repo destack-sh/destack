@@ -38,6 +38,7 @@ function select(condition: boolean): int32 {
 }
 "#,
         },
+        provenance: [Clippy("needless_late_init")],
         category: Style,
         level: Warning,
         fixable: None,

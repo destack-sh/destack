@@ -26,6 +26,7 @@ function infinite(value: float64): boolean {
 }
 "#,
         },
+        provenance: [Clippy("manual_is_infinite")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

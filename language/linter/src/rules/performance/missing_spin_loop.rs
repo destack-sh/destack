@@ -33,6 +33,7 @@ function wait(ready: &readonly Atomic<boolean>): void {
 }
 "#,
         },
+        provenance: [Clippy("missing_spin_loop")],
         category: Performance,
         level: Warning,
         fixable: None,

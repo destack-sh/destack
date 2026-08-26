@@ -26,6 +26,10 @@ function hasPrefix(text: string, prefix: string): boolean {
 }
 "#,
         },
+        provenance: [
+            TypeScriptEslint("prefer-string-starts-ends-with"),
+            Unicorn("prefer-string-starts-ends-with"),
+        ],
         category: Style,
         level: Warning,
         fixable: Automatic,

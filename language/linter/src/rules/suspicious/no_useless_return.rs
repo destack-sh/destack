@@ -25,6 +25,7 @@ function record(value: int32): void {
 }
 "#,
         },
+        provenance: [Eslint("no-useless-return")],
         category: Suspicious,
         level: Warning,
         fixable: Automatic,

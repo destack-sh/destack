@@ -36,6 +36,7 @@ function packetCode(packet: &readonly Packet): int32 {
 }
 "#,
         },
+        provenance: [Clippy("needless_pass_by_value")],
         category: Performance,
         level: Warning,
         fixable: None,

@@ -30,6 +30,7 @@ function add(value: int32, amount: int32): int32 {
 }
 "#,
         },
+        provenance: [Clippy("misrefactored_assign_op")],
         category: Suspicious,
         level: Warning,
         fixable: Suggestion,

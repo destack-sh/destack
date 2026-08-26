@@ -31,6 +31,7 @@ function firstPositive(values: int32[]): int32 | undefined {
 }
 "#,
         },
+        provenance: [Clippy("manual_find")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

@@ -29,6 +29,7 @@ function aligned(value: uint32, alignment: uint32): boolean {
 }
 "#,
         },
+        provenance: [Clippy("manual_is_multiple_of")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

@@ -30,6 +30,7 @@ function copy(values: int32[], output: int32[]): void {
 }
 "#,
         },
+        provenance: [Clippy("unused_enumerate_index")],
         category: Style,
         level: Warning,
         fixable: Automatic,

@@ -25,6 +25,7 @@ function differs(left: boolean, right: boolean): boolean {
 }
 "#,
         },
+        provenance: [Unicorn("no-negation-in-equality-check")],
         category: Suspicious,
         level: Warning,
         fixable: Suggestion,

@@ -30,6 +30,7 @@ test("adds values", () => {
 });
 "#,
         },
+        provenance: [Jest("no-focused-tests"), Playwright("no-focused-test")],
         category: Suspicious,
         level: Error,
         fixable: Automatic,

@@ -34,6 +34,7 @@ struct Point {
 const point = Point { x: 1, y: 2 };
 "#,
         },
+        provenance: [Clippy("inconsistent_struct_constructor")],
         category: Style,
         level: Warning,
         fixable: None,

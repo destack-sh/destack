@@ -35,6 +35,7 @@ function read(counter: &readonly Counter): int32 {
 }
 "#,
         },
+        provenance: [Clippy("needless_pass_by_ref_mut")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

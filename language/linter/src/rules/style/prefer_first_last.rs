@@ -29,6 +29,7 @@ function first(values: int32[]): int32 | undefined {
 }
 "#,
         },
+        provenance: [Clippy("get_first"), Clippy("get_last_with_len")],
         category: Style,
         level: Warning,
         fixable: Automatic,

@@ -29,6 +29,7 @@ function value<T: Default>(result: Result<T, string>): T {
 }
 "#,
         },
+        provenance: [Clippy("manual_unwrap_or_default")],
         category: Style,
         level: Warning,
         fixable: Automatic,

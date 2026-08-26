@@ -29,6 +29,7 @@ declare function parse(value: int32): string;
 declare function format(value: string): string;
 "#,
         },
+        provenance: [TypeScriptEslint("adjacent-overload-signatures")],
         category: Style,
         level: Warning,
         fixable: None,

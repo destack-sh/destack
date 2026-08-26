@@ -30,6 +30,7 @@ struct Buffer {
 }
 "#,
         },
+        provenance: [Clippy("wrong_self_convention")],
         category: Style,
         level: Warning,
         fixable: None,

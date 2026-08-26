@@ -26,6 +26,7 @@ function choose<T: Display>(left: T, right: T): T {
 }
 "#,
         },
+        provenance: [TypeScriptEslint("no-unnecessary-type-parameters")],
         category: Style,
         level: Warning,
         fixable: None,

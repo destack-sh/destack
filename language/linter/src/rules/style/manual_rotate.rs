@@ -26,6 +26,7 @@ function rotate(value: uint32): uint32 {
 }
 "#,
         },
+        provenance: [Clippy("manual_rotate")],
         category: Style,
         level: Warning,
         fixable: Automatic,

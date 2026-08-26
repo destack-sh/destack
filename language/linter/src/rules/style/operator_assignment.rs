@@ -30,6 +30,7 @@ function advance(value: int32): int32 {
 }
 "#,
         },
+        provenance: [Eslint("operator-assignment")],
         category: Style,
         level: Warning,
         fixable: Automatic,

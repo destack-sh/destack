@@ -28,6 +28,7 @@ function path(): string {
 }
 "#,
         },
+        provenance: [Unicorn("prefer-string-raw")],
         category: Style,
         level: Warning,
         fixable: Automatic,

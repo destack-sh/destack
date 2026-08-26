@@ -29,6 +29,7 @@ function value(result: Result<int32, string>): int32 | undefined {
 }
 "#,
         },
+        provenance: [Clippy("manual_ok_err")],
         category: Style,
         level: Warning,
         fixable: Automatic,

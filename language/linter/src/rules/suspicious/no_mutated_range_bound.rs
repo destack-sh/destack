@@ -33,6 +33,7 @@ function visit(limit: int32): void {
 }
 "#,
         },
+        provenance: [Clippy("mut_range_bound")],
         category: Suspicious,
         level: Warning,
         fixable: None,

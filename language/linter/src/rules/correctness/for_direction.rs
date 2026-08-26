@@ -26,6 +26,7 @@ for (let index: int32 = 0; index < 10; index--) {}
 for (let index: int32 = 0; index < 10; index++) {}
 "#,
         },
+        provenance: [Eslint("for-direction")],
         category: Correctness,
         level: Error,
         fixable: Suggestion,

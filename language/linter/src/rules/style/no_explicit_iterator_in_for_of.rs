@@ -34,6 +34,7 @@ function sum(values: int32[]): int32 {
 }
 "#,
         },
+        provenance: [Clippy("explicit_iter_loop")],
         category: Style,
         level: Warning,
         fixable: Automatic,

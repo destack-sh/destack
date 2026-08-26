@@ -26,6 +26,7 @@ function point(x: int32): { x: int32 } {
 }
 "#,
         },
+        provenance: [Eslint("object-shorthand")],
         category: Style,
         level: Warning,
         fixable: Automatic,

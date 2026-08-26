@@ -28,6 +28,7 @@ function length(values: Iterator<int32>): isize {
 }
 "#,
         },
+        provenance: [Clippy("needless_collect")],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

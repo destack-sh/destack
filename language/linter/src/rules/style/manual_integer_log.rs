@@ -26,6 +26,7 @@ function magnitude(value: uint32): uint32 {
 }
 "#,
         },
+        provenance: [Clippy("manual_ilog2")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

@@ -26,6 +26,7 @@ function answer(): int32 {
 }
 "#,
         },
+        provenance: [Clippy("redundant_closure_call")],
         category: Style,
         level: Warning,
         fixable: Automatic,

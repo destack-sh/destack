@@ -26,6 +26,7 @@ function isReady(state: string): boolean {
 }
 "#,
         },
+        provenance: [Eslint("yoda")],
         category: Style,
         level: Warning,
         fixable: Automatic,

@@ -30,6 +30,7 @@ function mask(offset: int64, width: int64): int64 {
 }
 "#,
         },
+        provenance: [Clippy("precedence")],
         category: Suspicious,
         level: Warning,
         fixable: Automatic,

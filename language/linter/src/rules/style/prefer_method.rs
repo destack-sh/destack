@@ -37,6 +37,7 @@ extension of Counter {
 }
 "#,
         },
+        provenance: [],
         category: Style,
         level: Warning,
         fixable: None,

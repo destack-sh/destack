@@ -26,6 +26,7 @@ function widen(value: int32): int64 | undefined {
 }
 "#,
         },
+        provenance: [Clippy("unnecessary_fallible_conversions")],
         category: Style,
         level: Warning,
         fixable: Automatic,

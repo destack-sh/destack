@@ -28,6 +28,7 @@ function approximatelyEqual(left: float64, right: float64): boolean {
 }
 "#,
         },
+        provenance: [Clippy("float_equality_without_abs")],
         category: Correctness,
         level: Warning,
         fixable: Suggestion,

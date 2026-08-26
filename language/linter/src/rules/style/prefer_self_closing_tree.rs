@@ -70,6 +70,7 @@ function render(): Panel {
 }
 "#,
         },
+        provenance: [React("self-closing-comp")],
         category: Style,
         level: Warning,
         fixable: Automatic,

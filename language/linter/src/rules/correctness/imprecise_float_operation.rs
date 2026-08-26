@@ -26,6 +26,7 @@ function offsetLog(value: float64): float64 {
 }
 "#,
         },
+        provenance: [Clippy("imprecise_flops")],
         category: Correctness,
         level: Warning,
         fixable: Suggestion,

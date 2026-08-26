@@ -26,6 +26,7 @@ function add(left: uint32, right: uint32): uint32 {
 }
 "#,
         },
+        provenance: [Clippy("manual_saturating_arithmetic")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

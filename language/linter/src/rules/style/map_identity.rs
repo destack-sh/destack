@@ -26,6 +26,7 @@ function identity(values: ^int32[]): ^int32[] {
 }
 "#,
         },
+        provenance: [Clippy("map_identity")],
         category: Style,
         level: Warning,
         fixable: Automatic,

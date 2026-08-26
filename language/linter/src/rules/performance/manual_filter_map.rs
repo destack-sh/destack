@@ -26,6 +26,7 @@ declare const values: (int32 | undefined)[];
 const defined = values.filterMap((value) => value);
 "#,
         },
+        provenance: [Clippy("manual_filter_map")],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

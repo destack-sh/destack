@@ -31,6 +31,11 @@ if (ready()) {
 }
 "#,
         },
+        provenance: [
+            Clippy("never_loop"),
+            Eslint("no-unreachable-loop"),
+            SonarJs("no-one-iteration-loop"),
+        ],
         category: Suspicious,
         level: Warning,
         fixable: None,

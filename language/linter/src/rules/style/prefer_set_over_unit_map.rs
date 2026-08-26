@@ -22,6 +22,7 @@ const values = new Map<string, void>();
 const values = new Set<string>();
 "#,
         },
+        provenance: [Clippy("zero_sized_map_values")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

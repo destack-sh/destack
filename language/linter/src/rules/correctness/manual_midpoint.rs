@@ -28,6 +28,7 @@ function middle(left: uint32, right: uint32): uint32 {
 }
 "#,
         },
+        provenance: [Clippy("manual_midpoint")],
         category: Correctness,
         level: Warning,
         fixable: Suggestion,

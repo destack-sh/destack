@@ -26,6 +26,10 @@ function pairs(values: int32[]): int32[] {
 }
 "#,
         },
+        provenance: [
+            Clippy("map_flatten"),
+            Unicorn("prefer-array-flat-map"),
+        ],
         category: Performance,
         level: Warning,
         fixable: Automatic,

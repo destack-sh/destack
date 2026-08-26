@@ -26,6 +26,7 @@ function lowest(value: uint32): uint32 {
 }
 "#,
         },
+        provenance: [Clippy("manual_isolate_lowest_one")],
         category: Style,
         level: Warning,
         fixable: Automatic,

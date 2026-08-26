@@ -28,6 +28,7 @@ function isByte(value: int64): boolean {
 }
 "#,
         },
+        provenance: [Clippy("manual_range_contains")],
         category: Style,
         level: Warning,
         fixable: Automatic,

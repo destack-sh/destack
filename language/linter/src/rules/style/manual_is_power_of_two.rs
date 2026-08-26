@@ -26,6 +26,7 @@ function powerOfTwo(value: uint32): boolean {
 }
 "#,
         },
+        provenance: [Clippy("manual_is_power_of_two")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

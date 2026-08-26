@@ -25,6 +25,7 @@ function exchange(pair: { left: int32; right: int32 }): void {
 }
 "#,
         },
+        provenance: [Clippy("almost_swapped")],
         category: Suspicious,
         level: Warning,
         fixable: None,

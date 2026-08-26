@@ -23,6 +23,7 @@ declare const value: uint32;
 const masked = value & 0xf0;
 "#,
         },
+        provenance: [Clippy("decimal_bitwise_operands")],
         category: Style,
         level: Warning,
         fixable: None,

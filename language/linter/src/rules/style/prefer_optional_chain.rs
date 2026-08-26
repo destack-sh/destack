@@ -36,6 +36,7 @@ function name(user: User | undefined): string | undefined {
 }
 "#,
         },
+        provenance: [TypeScriptEslint("prefer-optional-chain")],
         category: Style,
         level: Warning,
         fixable: Automatic,

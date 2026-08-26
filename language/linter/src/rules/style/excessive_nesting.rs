@@ -52,6 +52,7 @@ function acceptsMail(
 }
 "#,
         },
+        provenance: [Clippy("excessive_nesting")],
         category: Style,
         level: Warning,
         fixable: None,

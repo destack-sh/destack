@@ -31,6 +31,7 @@ function require(active: boolean): boolean {
 }
 "#,
         },
+        provenance: [Clippy("diverging_sub_expression")],
         category: Suspicious,
         level: Warning,
         fixable: None,

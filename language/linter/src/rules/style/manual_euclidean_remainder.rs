@@ -26,6 +26,7 @@ function wrap(value: int32): int32 {
 }
 "#,
         },
+        provenance: [Clippy("manual_rem_euclid")],
         category: Style,
         level: Warning,
         fixable: Automatic,

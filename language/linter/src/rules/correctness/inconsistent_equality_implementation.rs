@@ -33,6 +33,7 @@ struct Key {
 }
 "#,
         },
+        provenance: [Clippy("derived_hash_with_manual_eq")],
         category: Correctness,
         level: Error,
         fixable: None,

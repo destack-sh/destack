@@ -25,6 +25,7 @@ function send(ready: boolean): void {}
 function send(isReady: boolean): void {}
 "#,
         },
+        provenance: [Unicorn("consistent-boolean-name")],
         category: Style,
         level: Warning,
         fixable: None,

@@ -36,6 +36,7 @@ function runWhen(ready: boolean, enabled: boolean): void {
 }
 "#,
         },
+        provenance: [Clippy("collapsible_if")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

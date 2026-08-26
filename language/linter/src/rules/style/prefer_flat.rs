@@ -26,6 +26,7 @@ function flatten(values: int32[][]): int32[] {
 }
 "#,
         },
+        provenance: [Unicorn("prefer-array-flat")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

@@ -33,6 +33,10 @@ function depth(remaining: int32): int32 {
 }
 "#,
         },
+        provenance: [
+            Clippy("only_used_in_recursion"),
+            Oxc("only-used-in-recursion"),
+        ],
         category: Suspicious,
         level: Warning,
         fixable: None,

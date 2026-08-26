@@ -26,6 +26,7 @@ function removePrefix(text: string, prefix: string): string | undefined {
 }
 "#,
         },
+        provenance: [Clippy("manual_strip")],
         category: Style,
         level: Warning,
         fixable: Automatic,

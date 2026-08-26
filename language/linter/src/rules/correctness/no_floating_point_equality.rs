@@ -24,6 +24,7 @@ function same(left: float64, right: float64): boolean {
 }
 "#,
         },
+        provenance: [Clippy("float_cmp")],
         category: Correctness,
         level: Warning,
         fixable: None,

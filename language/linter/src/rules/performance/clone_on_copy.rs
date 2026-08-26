@@ -26,6 +26,7 @@ function duplicate(value: int32): int32 {
 }
 "#,
         },
+        provenance: [Clippy("clone_on_copy")],
         category: Performance,
         level: Warning,
         fixable: Automatic,

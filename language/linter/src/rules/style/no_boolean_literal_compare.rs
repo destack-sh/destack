@@ -26,6 +26,10 @@ function active(value: boolean): boolean {
 }
 "#,
         },
+        provenance: [
+            Clippy("bool_comparison"),
+            TypeScriptEslint("no-unnecessary-boolean-literal-compare"),
+        ],
         category: Style,
         level: Warning,
         fixable: Suggestion,

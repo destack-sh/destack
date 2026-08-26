@@ -27,6 +27,7 @@ function reset(value: int32): int32 {
 }
 "#,
         },
+        provenance: [Eslint("no-return-assign")],
         category: Suspicious,
         level: Warning,
         fixable: None,

@@ -28,6 +28,7 @@ function removeAll(values: &exclusive int32[]): int32[] {
 }
 "#,
         },
+        provenance: [Clippy("drain_collect")],
         category: Performance,
         level: Warning,
         fixable: None,

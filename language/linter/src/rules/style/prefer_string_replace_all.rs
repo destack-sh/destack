@@ -28,6 +28,7 @@ function redact(text: string): string {
 }
 "#,
         },
+        provenance: [Unicorn("prefer-string-replace-all")],
         category: Style,
         level: Warning,
         fixable: Automatic,

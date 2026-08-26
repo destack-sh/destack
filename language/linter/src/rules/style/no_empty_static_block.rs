@@ -30,6 +30,7 @@ class Registry {
 }
 "#,
         },
+        provenance: [Eslint("no-empty-static-block")],
         category: Style,
         level: Warning,
         fixable: Automatic,

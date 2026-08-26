@@ -28,6 +28,7 @@ function retain(value: int32): int32 {
 }
 "#,
         },
+        provenance: [Clippy("self_assignment"), Eslint("no-self-assign")],
         category: Suspicious,
         level: Warning,
         fixable: None,

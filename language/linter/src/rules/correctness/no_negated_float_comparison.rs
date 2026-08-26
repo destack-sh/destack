@@ -24,6 +24,7 @@ function isAtLeast(left: float64, right: float64): boolean {
 }
 "#,
         },
+        provenance: [Clippy("neg_cmp_op_on_partial_ord")],
         category: Correctness,
         level: Warning,
         fixable: None,

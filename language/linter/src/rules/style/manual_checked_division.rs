@@ -30,6 +30,7 @@ function divide(value: uint32, divisor: uint32): uint32 | undefined {
 }
 "#,
         },
+        provenance: [Clippy("manual_checked_ops")],
         category: Style,
         level: Warning,
         fixable: None,

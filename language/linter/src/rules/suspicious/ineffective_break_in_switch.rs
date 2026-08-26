@@ -42,6 +42,7 @@ function visit(values: int32[]): void {
 }
 "#,
         },
+        provenance: [Unicorn("no-break-in-nested-loop")],
         category: Suspicious,
         level: Warning,
         fixable: None,

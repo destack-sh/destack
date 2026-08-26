@@ -24,6 +24,7 @@ const enabled: boolean = true;
 const enabled = true;
 "#,
         },
+        provenance: [TypeScriptEslint("no-inferrable-types")],
         category: Style,
         level: Warning,
         fixable: Automatic,

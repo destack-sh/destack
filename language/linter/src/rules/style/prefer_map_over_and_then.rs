@@ -26,6 +26,7 @@ function length(result: Result<string, int32>): Result<isize, int32> {
 }
 "#,
         },
+        provenance: [Clippy("bind_instead_of_map")],
         category: Style,
         level: Warning,
         fixable: Automatic,

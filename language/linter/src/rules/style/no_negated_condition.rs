@@ -26,6 +26,7 @@ function status(isReady: boolean): string {
 }
 "#,
         },
+        provenance: [Eslint("no-negated-condition")],
         category: Style,
         level: Warning,
         fixable: Automatic,

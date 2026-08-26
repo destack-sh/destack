@@ -30,6 +30,7 @@ function first(values: &readonly [int32]): int32 {
 }
 "#,
         },
+        provenance: [Clippy("ptr_arg")],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

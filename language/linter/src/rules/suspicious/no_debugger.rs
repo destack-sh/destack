@@ -27,6 +27,7 @@ if (active) {
 }
 "#,
         },
+        provenance: [Eslint("no-debugger")],
         category: Suspicious,
         level: Warning,
         fixable: Automatic,

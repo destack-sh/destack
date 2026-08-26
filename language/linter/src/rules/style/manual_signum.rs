@@ -26,6 +26,7 @@ function sign(value: int32): int32 {
 }
 "#,
         },
+        provenance: [],
         category: Style,
         level: Warning,
         fixable: Automatic,

@@ -28,6 +28,7 @@ function containsPositive(values: int32[]): boolean {
 }
 "#,
         },
+        provenance: [Clippy("unnecessary_fold")],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

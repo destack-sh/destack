@@ -26,6 +26,7 @@ if (ready()) {
 }
 "#,
         },
+        provenance: [Eslint("no-empty")],
         category: Style,
         level: Warning,
         fixable: None,

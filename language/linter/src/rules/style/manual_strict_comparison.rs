@@ -28,6 +28,7 @@ function isAfter(left: int32, right: int32): boolean {
 }
 "#,
         },
+        provenance: [Clippy("int_plus_one")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

@@ -34,6 +34,7 @@ struct Packet {
 newtype Message = int32 | Box<Packet>;
 "#,
         },
+        provenance: [Clippy("large_enum_variant")],
         category: Performance,
         level: Warning,
         fixable: None,

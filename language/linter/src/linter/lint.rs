@@ -42,6 +42,70 @@ impl fmt::Display for LintCategory {
     }
 }
 
+/// A project whose lint informed this lint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LintSource {
+    /// Biome.
+    Biome,
+    /// Clippy.
+    Clippy,
+    /// ESLint.
+    Eslint,
+    /// eslint-plugin-jest.
+    Jest,
+    /// Oxc.
+    Oxc,
+    /// eslint-plugin-playwright.
+    Playwright,
+    /// eslint-plugin-react.
+    React,
+    /// Ruff.
+    Ruff,
+    /// rustc.
+    Rustc,
+    /// eslint-plugin-sonarjs.
+    SonarJs,
+    /// typescript-eslint.
+    TypeScriptEslint,
+    /// eslint-plugin-unicorn.
+    Unicorn,
+}
+
+impl LintSource {
+    /// Return the project name.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Biome => "Biome",
+            Self::Clippy => "Clippy",
+            Self::Eslint => "ESLint",
+            Self::Jest => "eslint-plugin-jest",
+            Self::Oxc => "Oxc",
+            Self::Playwright => "eslint-plugin-playwright",
+            Self::React => "eslint-plugin-react",
+            Self::Ruff => "Ruff",
+            Self::Rustc => "rustc",
+            Self::SonarJs => "eslint-plugin-sonarjs",
+            Self::TypeScriptEslint => "typescript-eslint",
+            Self::Unicorn => "eslint-plugin-unicorn",
+        }
+    }
+}
+
+impl fmt::Display for LintSource {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.name())
+    }
+}
+
+/// One earlier lint that informed this lint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct LintProvenance {
+    /// The project that defines the earlier lint.
+    pub source: LintSource,
+    /// The earlier rule name.
+    pub rule: &'static str,
+}
+
 /// The IR tier inspected by one lint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LintTier {
@@ -215,6 +279,8 @@ pub struct Lint {
     pub explanation: Cow<'static, str>,
     /// The canonical reported and accepted source pair.
     pub example: LintExample,
+    /// The earlier lints that informed this lint, ordered by source and rule.
+    pub provenance: &'static [LintProvenance],
     /// The diagnostic category.
     pub category: LintCategory,
     /// The default level.

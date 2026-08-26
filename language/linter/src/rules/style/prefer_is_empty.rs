@@ -26,6 +26,7 @@ function empty(values: int32[]): boolean {
 }
 "#,
         },
+        provenance: [Clippy("len_zero")],
         category: Style,
         level: Warning,
         fixable: Automatic,

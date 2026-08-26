@@ -29,6 +29,7 @@ function advance(): int32 {
 }
 "#,
         },
+        provenance: [Clippy("mixed_read_write_in_expression")],
         category: Suspicious,
         level: Warning,
         fixable: None,

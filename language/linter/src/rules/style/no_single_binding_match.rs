@@ -31,6 +31,7 @@ function double(value: int32): int32 {
 }
 "#,
         },
+        provenance: [Clippy("match_single_binding")],
         category: Style,
         level: Warning,
         fixable: Automatic,

@@ -36,6 +36,7 @@ function sum(values: Iterator<int32>): Result<int32, string> {
 }
 "#,
         },
+        provenance: [Clippy("manual_try_fold")],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

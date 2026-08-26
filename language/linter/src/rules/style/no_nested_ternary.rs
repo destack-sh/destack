@@ -30,6 +30,7 @@ function classify(value: int32): string {
 }
 "#,
         },
+        provenance: [Eslint("no-nested-ternary")],
         category: Style,
         level: Warning,
         fixable: None,

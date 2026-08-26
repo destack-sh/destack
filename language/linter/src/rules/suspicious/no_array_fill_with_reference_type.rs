@@ -34,6 +34,7 @@ function cells(): Cell[] {
 }
 "#,
         },
+        provenance: [Unicorn("no-array-fill-with-reference-type")],
         category: Suspicious,
         level: Warning,
         fixable: None,

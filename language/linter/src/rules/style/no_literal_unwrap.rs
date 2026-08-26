@@ -25,6 +25,7 @@ function identity(value: int32): int32 {
 }
 "#,
         },
+        provenance: [Clippy("unnecessary_literal_unwrap")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

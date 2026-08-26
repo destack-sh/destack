@@ -27,6 +27,7 @@ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
 }
 "#,
         },
+        provenance: [Clippy("manual_memcpy")],
         category: Performance,
         level: Warning,
         fixable: None,

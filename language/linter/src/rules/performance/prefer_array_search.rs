@@ -31,6 +31,12 @@ function firstPositive(values: int32[]): int32 | undefined {
 }
 "#,
         },
+        provenance: [
+            TypeScriptEslint("prefer-find"),
+            TypeScriptEslint("prefer-includes"),
+            Unicorn("prefer-array-index-of"),
+            Unicorn("prefer-array-some"),
+        ],
         category: Performance,
         level: Warning,
         fixable: Suggestion,

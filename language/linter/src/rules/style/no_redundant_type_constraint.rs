@@ -25,6 +25,7 @@ function identity<T>(value: T): T {
 }
 "#,
         },
+        provenance: [TypeScriptEslint("no-unnecessary-type-constraint")],
         category: Style,
         level: Warning,
         fixable: Automatic,

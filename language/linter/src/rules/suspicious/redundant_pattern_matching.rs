@@ -29,6 +29,7 @@ function succeeded(result: Result<int32, string>): boolean {
 }
 "#,
         },
+        provenance: [Clippy("redundant_pattern_matching")],
         category: Suspicious,
         level: Warning,
         fixable: Suggestion,

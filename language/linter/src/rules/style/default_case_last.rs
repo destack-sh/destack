@@ -34,6 +34,7 @@ function classify(value: int32): string {
 }
 "#,
         },
+        provenance: [Eslint("default-case-last")],
         category: Style,
         level: Warning,
         fixable: None,

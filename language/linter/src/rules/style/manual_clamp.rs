@@ -28,6 +28,7 @@ function bounded(value: int32, minimum: int32, maximum: int32): int32 {
 }
 "#,
         },
+        provenance: [Clippy("manual_clamp")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

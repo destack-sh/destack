@@ -26,6 +26,7 @@ function name(user: { name: string }): string {
 }
 "#,
         },
+        provenance: [Eslint("dot-notation"), TypeScriptEslint("dot-notation")],
         category: Style,
         level: Warning,
         fixable: Automatic,

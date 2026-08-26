@@ -24,6 +24,7 @@ function retain(value: int32): int32 {
 }
 "#,
         },
+        provenance: [Clippy("erasing_op")],
         category: Suspicious,
         level: Warning,
         fixable: None,

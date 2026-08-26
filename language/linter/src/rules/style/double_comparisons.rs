@@ -26,6 +26,7 @@ function atMost(left: int32, right: int32): boolean {
 }
 "#,
         },
+        provenance: [Clippy("double_comparisons")],
         category: Style,
         level: Warning,
         fixable: Automatic,

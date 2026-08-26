@@ -39,6 +39,7 @@ function increment(value: int32): int32 {
 }
 "#,
         },
+        provenance: [SonarJs("no-identical-functions")],
         category: Suspicious,
         level: Warning,
         fixable: None,

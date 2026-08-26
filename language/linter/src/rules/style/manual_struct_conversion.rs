@@ -50,6 +50,7 @@ function convert(input: Input): Point {
 }
 "#,
         },
+        provenance: [],
         category: Style,
         level: Warning,
         fixable: None,

@@ -37,6 +37,7 @@ function equals(left: Point, right: Point): boolean {
 }
 "#,
         },
+        provenance: [Clippy("suspicious_operation_groupings")],
         category: Suspicious,
         level: Warning,
         fixable: None,

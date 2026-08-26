@@ -36,6 +36,7 @@ function swap(left: int32, right: int32): (int32, int32) {
 }
 "#,
         },
+        provenance: [Clippy("manual_swap")],
         category: Style,
         level: Warning,
         fixable: Suggestion,

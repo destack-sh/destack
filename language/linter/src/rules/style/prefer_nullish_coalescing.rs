@@ -26,6 +26,7 @@ function select(value: string | undefined, fallback: string): string {
 }
 "#,
         },
+        provenance: [TypeScriptEslint("prefer-nullish-coalescing")],
         category: Style,
         level: Warning,
         fixable: Automatic,

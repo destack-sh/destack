@@ -28,6 +28,7 @@ function firstMatch(text: string): unknown {
 }
 "#,
         },
+        provenance: [TypeScriptEslint("prefer-regexp-exec")],
         category: Style,
         level: Warning,
         fixable: Automatic,

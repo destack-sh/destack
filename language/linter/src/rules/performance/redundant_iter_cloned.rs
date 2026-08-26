@@ -50,6 +50,7 @@ function lengths(values: Iterator<&readonly Label>): Iterator<isize> {
 }
 "#,
         },
+        provenance: [Clippy("redundant_iter_cloned")],
         category: Performance,
         level: Warning,
         fixable: Automatic,

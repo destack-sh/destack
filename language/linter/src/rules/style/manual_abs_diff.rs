@@ -26,6 +26,7 @@ function distance(left: uint32, right: uint32): uint32 {
 }
 "#,
         },
+        provenance: [Clippy("manual_abs_diff")],
         category: Style,
         level: Warning,
         fixable: Automatic,

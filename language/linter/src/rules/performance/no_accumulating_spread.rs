@@ -38,6 +38,10 @@ function copy(source: int32[]): int32[] {
 }
 "#,
         },
+        provenance: [
+            Biome("noAccumulatingSpread"),
+            Oxc("no-accumulating-spread"),
+        ],
         category: Performance,
         level: Warning,
         fixable: None,

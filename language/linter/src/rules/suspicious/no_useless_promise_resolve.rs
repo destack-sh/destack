@@ -30,6 +30,7 @@ function retain(value: Promise<int32>): Promise<int32> {
 }
 "#,
         },
+        provenance: [Unicorn("no-useless-promise-resolve-reject")],
         category: Suspicious,
         level: Warning,
         fixable: Automatic,

@@ -24,6 +24,7 @@ function bounded(value: int32): int32 {
 }
 "#,
         },
+        provenance: [],
         category: Correctness,
         level: Error,
         fixable: None,

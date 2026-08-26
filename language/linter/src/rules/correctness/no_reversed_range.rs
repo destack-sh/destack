@@ -24,6 +24,7 @@ function values(): Range<int32> {
 }
 "#,
         },
+        provenance: [Clippy("reversed_empty_ranges")],
         category: Correctness,
         level: Error,
         fixable: None,

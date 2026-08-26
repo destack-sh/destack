@@ -49,6 +49,7 @@ const OPTIONS = FileOpenOptions {
 };
 "#,
         },
+        provenance: [Clippy("nonsensical_open_options")],
         category: Suspicious,
         level: Warning,
         fixable: None,

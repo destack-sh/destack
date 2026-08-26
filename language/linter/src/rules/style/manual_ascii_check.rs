@@ -26,6 +26,7 @@ function isLowercase(character: char): boolean {
 }
 "#,
         },
+        provenance: [Clippy("manual_is_ascii_check")],
         category: Style,
         level: Warning,
         fixable: Automatic,

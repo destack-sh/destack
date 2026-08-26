@@ -26,6 +26,7 @@ function negate(value: int32): int32 {
 }
 "#,
         },
+        provenance: [Clippy("neg_multiply"), Unicorn("prefer-unary-minus")],
         category: Style,
         level: Warning,
         fixable: Automatic,

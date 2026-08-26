@@ -36,6 +36,7 @@ function divide(value: int32, divisor: int32): int32 {
 }
 "#,
         },
+        provenance: [Clippy("manual_assert")],
         category: Style,
         level: Warning,
         fixable: None,

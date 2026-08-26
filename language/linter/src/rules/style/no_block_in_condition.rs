@@ -26,6 +26,7 @@ function choose(isReady: boolean): string {
 }
 "#,
         },
+        provenance: [Clippy("blocks_in_conditions")],
         category: Style,
         level: Warning,
         fixable: Automatic,

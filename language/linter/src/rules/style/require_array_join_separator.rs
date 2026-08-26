@@ -26,6 +26,7 @@ function commaSeparated(values: string[]): string {
 }
 "#,
         },
+        provenance: [Unicorn("require-array-join-separator")],
         category: Style,
         level: Warning,
         fixable: Automatic,

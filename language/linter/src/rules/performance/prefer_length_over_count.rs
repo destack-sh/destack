@@ -26,6 +26,7 @@ function length(values: int32[]): isize {
 }
 "#,
         },
+        provenance: [Clippy("iter_count")],
         category: Performance,
         level: Warning,
         fixable: Automatic,

@@ -26,6 +26,7 @@ function append(values: int32[], output: int32[]): void {
 }
 "#,
         },
+        provenance: [SonarJs("no-ignored-return")],
         category: Suspicious,
         level: Warning,
         fixable: Suggestion,
