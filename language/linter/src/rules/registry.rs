@@ -266,8 +266,13 @@ static LINTS: &[&Lint] = &[
 ];
 
 impl Lint {
+    /// Return the registered lints.
+    pub(crate) const fn registry() -> &'static [&'static Self] {
+        LINTS
+    }
+
     /// Iterate registered lints.
     pub fn all() -> impl Iterator<Item = &'static Self> {
-        LINTS.iter().copied()
+        Self::registry().iter().copied()
     }
 }

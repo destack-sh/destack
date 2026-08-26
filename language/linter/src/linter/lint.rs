@@ -269,7 +269,7 @@ fn trim_source_frame(source: &str) -> &str {
 }
 
 /// A lint.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Lint {
     /// The lint id.
     pub id: Cow<'static, str>,

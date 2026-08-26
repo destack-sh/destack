@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use destack_artifact::{DiagnosticAnchor, DiagnosticControlIndex, IndexKind};
 use destack_core::{FxIndexSet, StringId};
 use destack_repository::{LintLevel, LinterOptions};
@@ -14,61 +12,62 @@ use crate::LinterError;
 /// Lints selected for one module or program.
 #[derive(Debug)]
 pub(crate) struct LintSet {
-    /// The lint registry.
-    registry: Arc<[Lint]>,
-    /// The selected lint indices and configured severities.
-    selected: Vec<(usize, Option<DiagnosticSeverity>)>,
+    /// The selected lints and configured severities.
+    selected: Vec<(&'static Lint, Option<DiagnosticSeverity>)>,
     /// Configuration errors found while resolving this set.
     errors: Box<[LinterError]>,
 }
 
 impl LintSet {
+    /// Select one warning-level lint for an isolated test run.
+    #[cfg(test)]
+    pub(crate) fn single(lint: &'static Lint) -> Self {
+        Self {
+            selected: vec![(lint, Some(DiagnosticSeverity::Warning))],
+            errors: Box::new([]),
+        }
+    }
+
     /// Resolve the lints selected by one package configuration.
-    pub(crate) fn resolve(package: PackageId, options: &LinterOptions, lints: Arc<[Lint]>) -> Self {
-        let mut levels = lints
-            .iter()
-            .map(|lint| lint.default_level)
-            .collect::<Vec<_>>();
-        let mut selected = vec![options.only.is_empty(); lints.len()];
-        let mut unknown = FxIndexSet::default();
-
-        // resolve each exclusive selection by exact lint id
-        for id in &options.only {
-            let Some(index) = lints.iter().position(|lint| lint.id.as_ref() == id) else {
-                unknown.insert(id.clone());
-
-                continue;
-            };
-
-            selected[index] = true;
-        }
-
-        // resolve each sparse override by exact lint id
-        for (id, level) in &options.rules {
-            let Some(index) = lints.iter().position(|lint| lint.id.as_ref() == id) else {
-                unknown.insert(id.clone());
-
-                continue;
-            };
-
-            levels[index] = *level;
-        }
+    pub(crate) fn resolve(package: PackageId, options: &LinterOptions) -> Self {
+        let lints = Lint::registry();
+        let capacity = if options.only.is_empty() {
+            lints.len()
+        } else {
+            options.only.len()
+        };
+        let mut selected = Vec::with_capacity(capacity);
 
         // select implementations independently of checked source controls
-        let mut selected_lints = Vec::new();
-        for (index, (level, is_selected)) in levels.into_iter().zip(selected).enumerate() {
+        for lint in lints {
+            let is_selected =
+                options.only.is_empty() || options.only.iter().any(|id| id == lint.id.as_ref());
+            if !options.enabled || !is_selected {
+                continue;
+            }
+
+            let level = options
+                .rules
+                .get(lint.id.as_ref())
+                .copied()
+                .unwrap_or(lint.default_level);
             let severity = match level {
                 LintLevel::Off => None,
                 LintLevel::Warning => Some(DiagnosticSeverity::Warning),
                 LintLevel::Error => Some(DiagnosticSeverity::Error),
             };
-            if options.enabled && is_selected {
-                selected_lints.push((index, severity));
-            }
+
+            selected.push((*lint, severity));
         }
 
         // report each unknown id once in configuration order
-        let errors = unknown
+        let errors = options
+            .only
+            .iter()
+            .chain(options.rules.keys())
+            .filter(|id| lints.iter().all(|lint| lint.id.as_ref() != id.as_str()))
+            .cloned()
+            .collect::<FxIndexSet<_>>()
             .into_iter()
             .map(|lint| LinterError::UnknownConfiguredLint {
                 anchor: DiagnosticAnchor::Package(package),
@@ -77,16 +76,15 @@ impl LintSet {
             .collect::<Vec<_>>();
 
         Self {
-            registry: lints,
-            selected: selected_lints,
+            selected,
             errors: errors.into_boxed_slice(),
         }
     }
 
     /// Retain lints enabled by configuration or checked source controls.
     pub(crate) fn retain_active(&mut self, controls: &DiagnosticControlIndex<'_>) {
-        self.selected.retain(|(index, severity)| {
-            let diagnostic = StringId::for_text(self.registry[*index].id.as_ref());
+        self.selected.retain(|(lint, severity)| {
+            let diagnostic = StringId::for_text(lint.id.as_ref());
             let is_activated = controls
                 .iter()
                 .any(|(_, table)| table.activates(diagnostic));
@@ -183,8 +181,65 @@ impl LintSet {
 
     /// Iterate selected lints and configured severities.
     fn iter(&self) -> impl Iterator<Item = (&Lint, Option<DiagnosticSeverity>)> {
-        self.selected
+        self.selected.iter().copied()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::rules::NO_DEBUGGER;
+
+    /// Apply exclusive selection and its explicit level.
+    #[test]
+    fn test_resolves_selection_and_level() {
+        let mut options = LinterOptions {
+            only: vec![NO_DEBUGGER.id.to_string()],
+            ..LinterOptions::default()
+        };
+        options
+            .rules
+            .insert(NO_DEBUGGER.id.to_string(), LintLevel::Error);
+
+        let lints = LintSet::resolve(PackageId::new(4), &options);
+        let selected = lints
             .iter()
-            .map(|(index, severity)| (&self.registry[*index], *severity))
+            .map(|(lint, severity)| (lint.id.as_ref(), severity))
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            selected,
+            vec![("no-debugger", Some(DiagnosticSeverity::Error))]
+        );
+        assert_eq!(lints.errors(), &[]);
+    }
+
+    /// Report unknown ids once in their first configured order.
+    #[test]
+    fn test_reports_unknown_ids_once() {
+        let mut options = LinterOptions {
+            only: vec!["missing-first".to_string(), "missing-second".to_string()],
+            ..LinterOptions::default()
+        };
+        options
+            .rules
+            .insert("missing-first".to_string(), LintLevel::Off);
+        let package = PackageId::new(7);
+
+        let lints = LintSet::resolve(package, &options);
+
+        assert_eq!(
+            lints.errors(),
+            &[
+                LinterError::UnknownConfiguredLint {
+                    anchor: DiagnosticAnchor::Package(package),
+                    lint: "missing-first".to_string(),
+                },
+                LinterError::UnknownConfiguredLint {
+                    anchor: DiagnosticAnchor::Package(package),
+                    lint: "missing-second".to_string(),
+                },
+            ]
+        );
     }
 }

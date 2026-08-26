@@ -8,6 +8,8 @@ use destack_repository::{
 use destack_source::{ModuleId, PackageId};
 
 use super::LintSet;
+
+#[cfg(test)]
 use crate::Lint;
 
 /// Linter for one repository.
@@ -15,8 +17,9 @@ use crate::Lint;
 pub struct Linter {
     /// The repository.
     pub(super) repository: Arc<Repository>,
-    /// The lints.
-    pub(super) lints: Arc<[Lint]>,
+    /// The single lint selected by an isolated test run.
+    #[cfg(test)]
+    lint: Option<&'static Lint>,
 }
 
 impl fmt::Debug for Linter {
@@ -24,7 +27,6 @@ impl fmt::Debug for Linter {
         formatter
             .debug_struct("Linter")
             .field("repository", &"...")
-            .field("lints", &self.lints.len())
             .finish()
     }
 }
@@ -32,11 +34,19 @@ impl fmt::Debug for Linter {
 impl Linter {
     /// Create a linter.
     pub fn new(repository: Arc<Repository>) -> Self {
-        let lints = Lint::all().cloned().collect::<Vec<_>>();
-
         Self {
             repository,
-            lints: lints.into(),
+            #[cfg(test)]
+            lint: None,
+        }
+    }
+
+    /// Create a linter that runs one implementation in an isolated test.
+    #[cfg(test)]
+    pub(crate) fn with_lint(repository: Arc<Repository>, lint: &'static Lint) -> Self {
+        Self {
+            repository,
+            lint: Some(lint),
         }
     }
 
@@ -62,6 +72,11 @@ impl Linter {
         context: &dyn ProviderContext,
         package: PackageId,
     ) -> Result<LintSet, ProviderError> {
+        #[cfg(test)]
+        if let Some(lint) = self.lint {
+            return Ok(LintSet::single(lint));
+        }
+
         let revision = context.revision();
         let config = self
             .repository
@@ -69,7 +84,7 @@ impl Linter {
             .map_err(|error| ProviderError::internal(error.to_string()))?;
         let defaults = LinterOptions::default();
         let options = config.as_ref().map_or(&defaults, |config| &config.linter);
-        let lints = LintSet::resolve(package, options, self.lints.clone());
+        let lints = LintSet::resolve(package, options);
 
         Ok(lints)
     }
