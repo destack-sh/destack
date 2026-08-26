@@ -702,6 +702,11 @@ impl DirModule<'_> {
                 return Ok(None);
             }
 
+            // write targets carry their member resolution inside the assignment
+            if self.decisions.assignment_decision(global).is_some() {
+                return Ok(None);
+            }
+
             return Err(ProviderError::internal(format!(
                 "checked member expression {} in module {:?} has no member resolution",
                 node.id, self.id
