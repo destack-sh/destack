@@ -1,4 +1,5 @@
 mod branch;
+mod build;
 mod error;
 mod format;
 mod message;

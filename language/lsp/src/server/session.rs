@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_artifact::{ArtifactCache, BuildId};
+use destack_artifact::ArtifactCache;
 use destack_lsp_server::{Client, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
@@ -58,9 +58,7 @@ impl ServerSession {
             // read process inputs
             let file_system =
                 trace.span("file_system.open", || Arc::new(PhysicalFileSystem::new()));
-            let build_id = trace
-                .span("build_id.read", BuildId::current)
-                .map_err(internal_error)?;
+            let build_id = Workspace::BUILD_ID;
             let environment = trace.span("environment.capture", Environment::capture_process);
 
             // resolve persistent storage

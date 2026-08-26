@@ -47,6 +47,9 @@ fs2 = { workspace = true }
 # language
 destack_program = { workspace = true }
 
+[build-dependencies]
+blake3 = { workspace = true }
+
 [features]
 default = ["native"]
 native = ["destack_compiler/native", "destack_session/native"]

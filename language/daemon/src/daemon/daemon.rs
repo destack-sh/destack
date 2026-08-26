@@ -113,7 +113,12 @@ impl Daemon {
 
         // publish the live endpoint
         let websocket_address = websocket.local_address();
-        let metadata = DaemonMetadata::new(&self.endpoint, websocket_address, &websocket_token)?;
+        let metadata = DaemonMetadata::new(
+            &self.endpoint,
+            websocket_address,
+            &websocket_token,
+            self.workspaces.build_id(),
+        )?;
         self.endpoint.write_metadata(&metadata)?;
 
         self.serve_connections(ipc, websocket)

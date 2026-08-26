@@ -1539,6 +1539,7 @@ dependencies = [
 name = "destack_workspace"
 version = "0.55.4"
 dependencies = [
+ "blake3",
  "crossbeam-channel",
  "dashmap",
  "destack_artifact",

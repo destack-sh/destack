@@ -1,13 +1,14 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactCache, BuildId};
-use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Environment, Host, Repository, RepositoryError, Settings,
-};
+use destack_repository::{DestackLayoutOverride, Environment, Repository, Settings};
 use destack_session::Executor;
 use destack_source::Edit;
 
+#[cfg(not(target_arch = "wasm32"))]
+use destack_artifact::ArtifactCache;
+#[cfg(not(target_arch = "wasm32"))]
+use destack_repository::{DestackLayout, Host, RepositoryError};
 #[cfg(not(target_arch = "wasm32"))]
 use destack_source::PhysicalFileSystem;
 
@@ -25,9 +26,7 @@ impl Workspace {
         let cwd = environment.cwd.as_deref().unwrap_or(&path);
         let settings = Settings::default();
         let home = DestackLayout::resolve_home(cwd, &environment, None);
-        let build_id = BuildId::current().map_err(|error| RepositoryError::InvalidArtifact {
-            message: format!("failed to identify Destack build: {error}"),
-        })?;
+        let build_id = Self::BUILD_ID;
         let artifact_cache =
             DestackLayout::resolve_cache(cwd, &home, &environment, &settings, None);
         let artifact_cache =
@@ -51,6 +50,7 @@ impl Workspace {
         let root = root.into();
         let (repository, physical) = Repository::memory(
             root,
+            Self::BUILD_ID,
             edits,
             Environment::default(),
             Settings::default(),

@@ -3,7 +3,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::ArtifactPayload;
+use destack_artifact::{ArtifactPayload, BuildId};
 use destack_core::Blob;
 use destack_repository as repository;
 use destack_repository::{Commit, DestackLayoutOverride, Host, Repository, Revision, Settings};
@@ -68,6 +68,11 @@ impl WorkspaceRegistry {
             layout,
             registrations: Arc::new(RwLock::new(registrations)),
         })
+    }
+
+    /// Return the Destack build shared by every hosted workspace.
+    pub(crate) fn build_id(&self) -> BuildId {
+        self.host.build_id()
     }
 
     /// Open one physical workspace and return its shared instance.

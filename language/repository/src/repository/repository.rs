@@ -66,6 +66,7 @@ impl Repository {
     /// Open one repository and return its imported in-memory revision.
     pub fn memory(
         root: PathBuf,
+        build_id: BuildId,
         edits: Vec<source::Edit>,
         environment: Environment,
         settings: Settings,
@@ -96,9 +97,6 @@ impl Repository {
         }
 
         // keep source Blobs and derived artifacts in memory
-        let build_id = BuildId::current().map_err(|error| RepositoryError::InvalidArtifact {
-            message: format!("failed to identify Destack build: {error}"),
-        })?;
         let host = Host::new(build_id, environment, file_system);
         Self::open(root, host, settings, layout_override)
     }

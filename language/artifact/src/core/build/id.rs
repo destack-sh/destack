@@ -16,6 +16,11 @@ pub(super) static CURRENT_BUILD_ID: OnceLock<BuildId> = OnceLock::new();
 pub struct BuildId([u8; BUILD_ID_BYTES]);
 
 impl BuildId {
+    /// Create an id from its canonical bytes.
+    pub const fn new(bytes: [u8; BUILD_ID_BYTES]) -> Self {
+        Self(bytes)
+    }
+
     /// Create an id from exact producer identity bytes.
     pub fn from_bytes(bytes: &[u8]) -> Self {
         let hash = blake3::hash(bytes);

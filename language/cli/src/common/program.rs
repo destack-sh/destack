@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use clap::{Args, ValueEnum};
-use destack_artifact::{ArtifactCache, BuildId};
+use destack_artifact::ArtifactCache;
 use destack_daemon::{
     DaemonConnectOptions, DaemonConnection, DaemonEndpoint, DaemonLaunch, DaemonLaunchCommand,
     OpenWorkspaceRequest,
@@ -342,9 +342,7 @@ impl ProgramArgs {
         })?;
 
         // discover and import the repository in one step
-        let build_id = BuildId::current().map_err(|error| {
-            ConsoleError::message(format!("failed to identify Destack build: {error}"))
-        })?;
+        let build_id = Workspace::BUILD_ID;
         let artifact_cache = DestackLayout::resolve_cache(
             &cwd,
             &home,

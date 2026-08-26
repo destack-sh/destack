@@ -26,7 +26,7 @@ pub struct DaemonMetadata {
     pub process_id: u32,
     /// Exact RPC wire grammar.
     pub rpc_version: u16,
-    /// Exact executable build identity.
+    /// Destack toolchain build identity.
     pub build_id: String,
     /// Daemon package version.
     pub version: String,
@@ -40,12 +40,13 @@ impl DaemonMetadata {
         endpoint: &DaemonEndpoint,
         websocket_address: SocketAddr,
         websocket_token: &str,
+        build_id: BuildId,
     ) -> Result<Self, DaemonEndpointError> {
         let started_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(DaemonEndpointError::Time)?
             .as_secs();
-        let build_id = BuildId::current()?.to_string();
+        let build_id = build_id.to_string();
 
         Ok(Self {
             schema_version: 1,
