@@ -4,23 +4,21 @@ use std::iter;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use destack_core::StableHasher;
 use destack_lsp_server::{Client, LogRecord, jsonrpc};
 use destack_lsp_types as lsp;
+use destack_session::ArtifactPriority;
 use destack_source::{
     Diagnostic, DiagnosticLabel, DiagnosticReference, DiagnosticSeverity, DiagnosticTag,
     DiagnosticTarget,
 };
-use destack_workspace::{DiagnosticsRequest, FileDiagnostics, Workspace};
+use destack_workspace::{FileDiagnostics, Workspace};
 use parking_lot::{Mutex, RwLock};
 
 use super::{Document, DocumentSet, ToLspUri};
 use crate::server::{ProjectSet, internal_error, workspace_error};
-
-/// Delay used to replace superseded diagnostic work.
-pub(crate) const DIAGNOSTIC_DELAY: Duration = Duration::from_millis(150);
 
 /// Diagnostic delivery selected from client capabilities.
 #[derive(Debug)]
@@ -59,12 +57,11 @@ impl DiagnosticDelivery {
         workspace: Arc<Workspace>,
         projects: Arc<RwLock<ProjectSet>>,
         client: Client,
-        delay: Duration,
     ) {
         match &self.mode {
-            DiagnosticDeliveryMode::Pull(diagnostics) => diagnostics.schedule(client, delay),
+            DiagnosticDeliveryMode::Pull(diagnostics) => diagnostics.schedule(client),
             DiagnosticDeliveryMode::Push(diagnostics) => {
-                diagnostics.schedule(workspace, projects, client, delay)
+                diagnostics.schedule(workspace, projects, client)
             }
         }
     }
@@ -72,9 +69,7 @@ impl DiagnosticDelivery {
     /// Remove diagnostics owned by one workspace root.
     pub(crate) async fn remove_root(&self, root: &Path, client: &Client) {
         match &self.mode {
-            DiagnosticDeliveryMode::Pull(diagnostics) => {
-                diagnostics.schedule(client.clone(), Duration::ZERO)
-            }
+            DiagnosticDeliveryMode::Pull(diagnostics) => diagnostics.schedule(client.clone()),
             DiagnosticDeliveryMode::Push(diagnostics) => {
                 diagnostics.remove_root(root, client).await
             }
@@ -84,9 +79,7 @@ impl DiagnosticDelivery {
     /// Remove diagnostics owned by one source file.
     pub(crate) async fn remove_file(&self, uri: lsp::Uri, client: &Client) {
         match &self.mode {
-            DiagnosticDeliveryMode::Pull(diagnostics) => {
-                diagnostics.schedule(client.clone(), Duration::ZERO)
-            }
+            DiagnosticDeliveryMode::Pull(diagnostics) => diagnostics.schedule(client.clone()),
             DiagnosticDeliveryMode::Push(diagnostics) => diagnostics.remove_file(uri, client).await,
         }
     }
@@ -363,24 +356,14 @@ impl PullDiagnostics {
         }
     }
 
-    /// Request one diagnostic refresh after the selected delay.
-    fn schedule(&self, client: Client, delay: Duration) {
+    /// Request one diagnostic refresh.
+    fn schedule(&self, client: Client) {
         if !self.is_refresh_supported {
             return;
         }
 
         let cancelled_client = client.clone();
         let task = tokio::spawn(async move {
-            // report the scheduled refresh before its debounce delay
-            client.log(
-                LogRecord::new("diagnostics.scheduled")
-                    .field("mode", "pull")
-                    .field("delay_ms", delay.as_millis()),
-            );
-            if !delay.is_zero() {
-                tokio::time::sleep(delay).await;
-            }
-
             // request fresh diagnostics from the client
             client.log(LogRecord::new("diagnostics.refresh.started").field("mode", "pull"));
             let started = Instant::now();
@@ -403,7 +386,9 @@ impl PullDiagnostics {
         });
 
         // replace the superseded refresh
-        if let Some(previous) = self.task.lock().replace(task) {
+        if let Some(previous) = self.task.lock().replace(task)
+            && !previous.is_finished()
+        {
             previous.abort();
             cancelled_client.log(
                 LogRecord::new("diagnostics.cancelled")
@@ -441,7 +426,6 @@ impl PushDiagnostics {
         workspace: Arc<Workspace>,
         projects: Arc<RwLock<ProjectSet>>,
         client: Client,
-        delay: Duration,
     ) {
         let root = workspace.root().to_path_buf();
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
@@ -450,19 +434,15 @@ impl PushDiagnostics {
         let task_root = root.clone();
         let cancelled_client = client.clone();
         let handle = tokio::spawn(async move {
-            // report the scheduled publication before its delay
+            // report the scheduled publication
             client.log(
                 LogRecord::new("diagnostics.scheduled")
                     .field("mode", "push")
                     .field("task_id", id)
-                    .field("root", task_root.display())
-                    .field("delay_ms", delay.as_millis()),
+                    .field("root", task_root.display()),
             );
-            if !delay.is_zero() {
-                tokio::time::sleep(delay).await;
-            }
 
-            // schedule diagnostic artifacts after the selected delay
+            // schedule diagnostic artifacts for the current revision
             let started = Instant::now();
             let revision = { projects.read().revision(workspace.root()) };
             let revision = match revision {
@@ -474,7 +454,7 @@ impl PushDiagnostics {
                 }
                 None => return,
             };
-            let run = match workspace.start_diagnostics(revision, DiagnosticsRequest::All) {
+            let run = match workspace.start_diagnostics(revision, ArtifactPriority::Background) {
                 Ok(run) => run,
                 Err(error) => {
                     client.report_error("diagnostics.schedule", workspace_error(error));
@@ -484,13 +464,11 @@ impl PushDiagnostics {
             };
             let revision = run.revision();
             let artifact_run_id = run.artifact_run_id();
-            let mut record = LogRecord::new("diagnostics.started")
+            let record = LogRecord::new("diagnostics.started")
                 .field("mode", "push")
                 .field("task_id", id)
-                .field("revision", revision);
-            if let Some(artifact_run_id) = artifact_run_id {
-                record = record.field("run_id", artifact_run_id);
-            }
+                .field("revision", revision)
+                .field("run_id", artifact_run_id);
             client.log(record);
 
             // wait cooperatively for the scheduled diagnostics
@@ -557,14 +535,11 @@ impl PushDiagnostics {
             } else {
                 "error"
             };
-            let mut record = LogRecord::new("diagnostics.finished")
+            let record = LogRecord::new("diagnostics.finished")
                 .field("mode", "push")
                 .field("task_id", id)
-                .field("revision", revision);
-            if let Some(artifact_run_id) = artifact_run_id {
-                record = record.field("run_id", artifact_run_id);
-            }
-            let record = record
+                .field("revision", revision)
+                .field("run_id", artifact_run_id)
                 .field("status", status)
                 .field("files", files)
                 .field("failures", failures)
@@ -581,8 +556,10 @@ impl PushDiagnostics {
             .lock()
             .insert(root, DiagnosticTask { id, handle });
 
-        // abort the superseded debounce or artifact wait
-        if let Some(previous) = previous {
+        // abort the superseded artifact wait
+        if let Some(previous) = previous
+            && !previous.handle.is_finished()
+        {
             previous.handle.abort();
             cancelled_client.log(
                 LogRecord::new("diagnostics.cancelled")

@@ -2,13 +2,13 @@ use std::collections::HashMap;
 use std::iter;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use destack_lsp_server::{Client, LanguageServer, LogRecord, LspService, Server, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
 use destack_repository::{Clock, Revision, Trace, TraceLevel, TraceReport, TraceView};
-use destack_session::Executor;
+use destack_session::{ArtifactPriority, Executor};
 use destack_source::{FileId, PatchSet, TextRange};
 use destack_workspace::{
     DiagnosticRun, DiagnosticsRequest, FileDiagnostics, FileEdit, QueryFile, QueryRun,
@@ -21,8 +21,8 @@ use super::{
     workspace_error,
 };
 use crate::query::{
-    CodeActionContext, DIAGNOSTIC_DELAY, DiagnosticDelivery, DiagnosticPublisher, Document,
-    DocumentSet, IntoLsp, IntoSource, QueryContinuation, SemanticTokenStream,
+    CodeActionContext, DiagnosticDelivery, DiagnosticPublisher, Document, DocumentSet, IntoLsp,
+    IntoSource, QueryContinuation, SemanticTokenStream,
 };
 
 /// Slow artifact attempts included in verbose LSP traces.
@@ -308,9 +308,19 @@ impl DestackLanguageServer {
         request: DiagnosticsRequest,
     ) -> jsonrpc::Result<(Revision, Vec<FileDiagnostics>)> {
         let revision = self.session()?.workspace_revision(workspace.as_ref())?;
-        let run = workspace
-            .start_diagnostics(revision, request)
-            .map_err(workspace_error)?;
+        let run = match request {
+            DiagnosticsRequest::All => Some(
+                workspace
+                    .start_diagnostics(revision, ArtifactPriority::Foreground)
+                    .map_err(workspace_error)?,
+            ),
+            DiagnosticsRequest::File(path) => workspace
+                .start_file_diagnostics(revision, &path, ArtifactPriority::Foreground)
+                .map_err(workspace_error)?,
+        };
+        let Some(run) = run else {
+            return Ok((revision, Vec::new()));
+        };
 
         self.wait_diagnostics(workspace, run).await
     }
@@ -323,12 +333,10 @@ impl DestackLanguageServer {
     ) -> jsonrpc::Result<(Revision, Vec<FileDiagnostics>)> {
         let revision = run.revision();
         let artifact_run_id = run.artifact_run_id();
-        let mut record = LogRecord::new("diagnostics.started")
+        let record = LogRecord::new("diagnostics.started")
             .field("mode", "pull")
-            .field("revision", revision);
-        if let Some(artifact_run_id) = artifact_run_id {
-            record = record.field("run_id", artifact_run_id);
-        }
+            .field("revision", revision)
+            .field("run_id", artifact_run_id);
         self.client.log(record);
 
         // complete and report the exact diagnostic operation
@@ -337,13 +345,10 @@ impl DestackLanguageServer {
         let files = outcome.diagnostics.len();
         let failures = outcome.failures.len();
         let status = if failures == 0 { "ok" } else { "error" };
-        let mut record = LogRecord::new("diagnostics.finished")
+        let record = LogRecord::new("diagnostics.finished")
             .field("mode", "pull")
-            .field("revision", revision);
-        if let Some(artifact_run_id) = artifact_run_id {
-            record = record.field("run_id", artifact_run_id);
-        }
-        let record = record
+            .field("revision", revision)
+            .field("run_id", artifact_run_id)
             .field("status", status)
             .field("files", files)
             .field("failures", failures)
@@ -418,17 +423,9 @@ impl DestackLanguageServer {
     }
 
     /// Schedule diagnostics for one semantic workspace.
-    fn schedule_diagnostics(
-        &self,
-        workspace: Arc<Workspace>,
-        delay: Duration,
-    ) -> jsonrpc::Result<()> {
-        self.diagnostics()?.schedule(
-            workspace,
-            self.session()?.projects(),
-            self.client.clone(),
-            delay,
-        );
+    fn schedule_diagnostics(&self, workspace: Arc<Workspace>) -> jsonrpc::Result<()> {
+        self.diagnostics()?
+            .schedule(workspace, self.session()?.projects(), self.client.clone());
 
         Ok(())
     }
@@ -436,19 +433,26 @@ impl DestackLanguageServer {
     /// Schedule diagnostics for every semantic workspace.
     fn schedule_workspace_diagnostics(&self) -> jsonrpc::Result<()> {
         for workspace in self.session()?.workspaces() {
-            self.schedule_diagnostics(workspace, Duration::ZERO)?;
+            self.schedule_diagnostics(workspace)?;
         }
 
         Ok(())
     }
 
+    /// Prime one workspace's current revision at background priority.
+    fn prime_workspace(&self, workspace: &Workspace) -> jsonrpc::Result<Revision> {
+        let revision = self.session()?.workspace_revision(workspace)?;
+        workspace.prime(revision).map_err(workspace_error)?;
+
+        Ok(revision)
+    }
+
     /// Prime every open workspace at background priority.
     fn prime_workspaces(&self) -> jsonrpc::Result<()> {
-        // start one background run for each physical revision
+        // start one background run for each current revision
         for workspace in self.session()?.workspaces() {
-            let revision = workspace.revision().map_err(workspace_error)?;
             let started = Instant::now();
-            workspace.prime(revision).map_err(workspace_error)?;
+            let revision = self.prime_workspace(workspace.as_ref())?;
             self.client.log(
                 LogRecord::new("workspace.prime.scheduled")
                     .field("revision", revision)
@@ -463,6 +467,7 @@ impl DestackLanguageServer {
     async fn change_configuration(&self) -> jsonrpc::Result<()> {
         self.settings()?.refresh(&self.client).await?;
         self.reload_workspace()?;
+        self.prime_workspaces()?;
 
         self.schedule_workspace_diagnostics()
     }
@@ -483,9 +488,9 @@ impl DestackLanguageServer {
             self.session()?
                 .open_document(&path, uri, version, content, trace.as_ref())
         })?;
-        let revision = self.session()?.workspace_revision(workspace.as_ref())?;
+        let revision = trace.span("workspace.prime", || self.prime_workspace(&workspace))?;
         let result = trace.span("diagnostics.schedule", || {
-            self.schedule_diagnostics(workspace.clone(), DIAGNOSTIC_DELAY)
+            self.schedule_diagnostics(workspace.clone())
         });
         trace.finish();
         self.report_trace(
@@ -530,9 +535,9 @@ impl DestackLanguageServer {
             self.session()?
                 .change_document(&path, &uri, version, &changes, trace.as_ref())
         })?;
-        let revision = self.session()?.workspace_revision(workspace.as_ref())?;
+        let revision = trace.span("workspace.prime", || self.prime_workspace(&workspace))?;
         let result = trace.span("diagnostics.schedule", || {
-            self.schedule_diagnostics(workspace.clone(), DIAGNOSTIC_DELAY)
+            self.schedule_diagnostics(workspace.clone())
         });
         trace.finish();
         self.report_trace(
@@ -563,9 +568,9 @@ impl DestackLanguageServer {
             self.session()?
                 .save_document(&path, params.text, trace.as_ref())
         })?;
-        let revision = self.session()?.workspace_revision(workspace.as_ref())?;
+        let revision = trace.span("workspace.prime", || self.prime_workspace(&workspace))?;
         let result = trace.span("diagnostics.schedule", || {
-            self.schedule_diagnostics(workspace.clone(), Duration::ZERO)
+            self.schedule_diagnostics(workspace.clone())
         });
         trace.finish();
         self.report_trace(
@@ -607,7 +612,9 @@ impl DestackLanguageServer {
         }
         // refresh the project still owned by another folder or document
         else {
-            self.schedule_diagnostics(workspace, Duration::ZERO)
+            self.prime_workspace(&workspace)?;
+
+            self.schedule_diagnostics(workspace)
         }
     }
 
@@ -648,8 +655,8 @@ impl DestackLanguageServer {
             })?;
             trace.finish();
             if let Some(workspace) = workspace {
-                let revision = self.session()?.workspace_revision(workspace.as_ref())?;
-                self.schedule_diagnostics(workspace.clone(), Duration::ZERO)?;
+                let revision = self.prime_workspace(&workspace)?;
+                self.schedule_diagnostics(workspace.clone())?;
                 self.report_trace(
                     "project.open",
                     LogRecord::new("project.opened").field("path", path.display()),
@@ -694,7 +701,8 @@ impl DestackLanguageServer {
         let workspaces = self.session()?.reconcile(paths)?;
         let project_count = workspaces.len();
         for workspace in workspaces {
-            self.schedule_diagnostics(workspace, Duration::ZERO)?;
+            self.prime_workspace(&workspace)?;
+            self.schedule_diagnostics(workspace)?;
         }
         self.client.log(
             LogRecord::new("files.changed")
@@ -1361,6 +1369,7 @@ impl LanguageServer for DestackLanguageServer {
         match params.command.as_str() {
             "destack.reload" => {
                 self.reload_workspace()?;
+                self.prime_workspaces()?;
                 self.schedule_workspace_diagnostics()?;
 
                 Ok(None)
