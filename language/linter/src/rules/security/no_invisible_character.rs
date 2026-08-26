@@ -11,7 +11,7 @@ declare_lint! {
         summary: "Disallow invisible and misleading characters in source text",
         explanation: r#"
 Invisible characters can conceal differences between identifiers or reorder displayed source.
-Instead, you MUST remove them from syntax and comments and escape literal directional controls.
+Instead, you MUST remove them from syntax and comments and escape invisible characters inside literals.
 "#,
         example: {
             reported: "const user\u{200c}Name = 1;",
@@ -54,7 +54,12 @@ impl InvisibleCharacter {
             return Some(Self::Direction);
         }
 
-        // retain arbitrary Unicode inside authored literal values
+        // require inherently invisible format characters to be escaped
+        if matches!(character, '\u{00AD}' | '\u{200B}' | '\u{2060}') {
+            return Some(Self::Invisible);
+        }
+
+        // retain other arbitrary Unicode inside authored literal values
         if is_literal {
             return None;
         }
@@ -62,7 +67,14 @@ impl InvisibleCharacter {
         // reject invisible and irregular whitespace outside literals
         matches!(
             character,
-            '\u{000B}' | '\u{000C}' | '\u{0085}' | '\u{00A0}' | '\u{1680}' | '\u{180E}' | '\u{2000}'
+            '\u{000B}'
+                | '\u{000C}'
+                | '\u{0085}'
+                | '\u{00A0}'
+                | '\u{00AD}'
+                | '\u{1680}'
+                | '\u{180E}'
+                | '\u{2000}'
                 ..='\u{200D}'
                     | '\u{2028}'
                     | '\u{2029}'
@@ -151,6 +163,76 @@ warning[no-invisible-character]: text-direction control U+202E appears in source
 1 │ // hidden {direction}
   │           ^
 2 │ const enabled = true;
+  │
+"#,
+        );
+
+        session.assert_diagnostics(&expected);
+    }
+
+    /// Report a text-direction control inside a literal.
+    #[test]
+    fn test_reports_direction_control_in_literal() {
+        let direction = '\u{202e}';
+        let source = format!("const value = \"{direction}\";");
+        let session = TestSession::dir(&NO_INVISIBLE_CHARACTER, &source);
+        let expected = format!(
+            r#"
+warning[no-invisible-character]: text-direction control U+202E appears in source
+ ──▶ main.ds:1:16
+  │
+1 │ const value = "{direction}";
+  │                ^
+  │
+"#,
+        );
+
+        session.assert_diagnostics(&expected);
+    }
+
+    /// Report invisible format characters inside literals.
+    #[test]
+    fn test_reports_invisible_characters_in_literals() {
+        let soft_hyphen = '\u{00ad}';
+        let zero_width_space = '\u{200b}';
+        let word_joiner = '\u{2060}';
+        let source = format!(
+            r#"const softHyphen = "soft{soft_hyphen}hyphen";
+
+const zeroWidthSpace = "zero{zero_width_space}width";
+
+const wordJoiner = "word{word_joiner}joiner";"#,
+        );
+        let session = TestSession::dir(&NO_INVISIBLE_CHARACTER, &source);
+        let expected = format!(
+            r#"
+warning[no-invisible-character]: invisible character U+00AD appears in source
+ ──▶ main.ds:1:25
+  │
+1 │ const softHyphen = "soft{soft_hyphen}hyphen";
+  │                         ^
+2 │
+3 │ const zeroWidthSpace = "zero{zero_width_space}width";
+  │
+
+warning[no-invisible-character]: invisible character U+200B appears in source
+ ──▶ main.ds:3:29
+  │
+1 │ const softHyphen = "soft{soft_hyphen}hyphen";
+2 │
+3 │ const zeroWidthSpace = "zero{zero_width_space}width";
+  │                             ^
+4 │
+5 │ const wordJoiner = "word{word_joiner}joiner";
+  │
+
+warning[no-invisible-character]: invisible character U+2060 appears in source
+ ──▶ main.ds:5:25
+  │
+3 │ const zeroWidthSpace = "zero{zero_width_space}width";
+4 │
+5 │ const wordJoiner = "word{word_joiner}joiner";
+  │                         ^
   │
 "#,
         );
