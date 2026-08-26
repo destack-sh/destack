@@ -18,6 +18,11 @@ impl Symbol {
         Self(name.raw())
     }
 
+    /// Create the symbol of one declaration, distinguished by its declaring identity.
+    pub fn declared(name: StringId, identity: u64) -> Self {
+        TypeHasher::declared(name, identity)
+    }
+
     /// Derive one generic instance symbol from its concrete arguments.
     pub fn instantiate(self, arguments: &[StaticId], tree: &Tree) -> Self {
         TypeHasher::symbol(self, arguments, tree)

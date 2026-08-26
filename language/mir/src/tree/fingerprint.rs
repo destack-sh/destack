@@ -41,6 +41,16 @@ impl TypeHasher {
         Symbol::from_raw(hasher.hasher.finish_u64())
     }
 
+    /// Derive one declaration symbol from its name and declaring identity.
+    pub(super) fn declared(name: StringId, identity: u64) -> Symbol {
+        let mut hasher = StableHasher::new();
+        hasher.update_len_prefixed(b"destack.mir.declaration.v1");
+        hasher.write_u64(name.raw());
+        hasher.write_u64(identity);
+
+        Symbol::from_raw(hasher.finish_u64())
+    }
+
     /// Create a type fingerprint hasher.
     fn new() -> Self {
         let mut hasher = StableHasher::new();
