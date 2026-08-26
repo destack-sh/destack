@@ -7,7 +7,7 @@ impl From<DaemonError> for Status {
     /// Convert one daemon service failure into a terminal RPC status.
     fn from(error: DaemonError) -> Self {
         match error {
-            DaemonError::Workspace(error) => error.into(),
+            DaemonError::Workspace(error) => (*error).into(),
             DaemonError::Watch(error) => Status::new(Code::Unavailable, error.to_string()),
             DaemonError::Blob(error @ BlobStoreError::Missing { .. }) => {
                 Status::new(Code::NotFound, error.to_string())

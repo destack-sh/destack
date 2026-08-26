@@ -29,7 +29,7 @@ pub enum DaemonError {
     /// Immutable Blob storage failed.
     Blob(BlobStoreError),
     /// Workspace initialization failed.
-    Workspace(workspace::Error),
+    Workspace(Box<workspace::Error>),
     /// A daemon thread panicked.
     Thread,
     /// Multiple failures occurred while terminating daemon owners.
@@ -128,7 +128,7 @@ impl error::Error for DaemonError {
             Self::Connection(error) => Some(error),
             Self::Watch(error) => Some(error),
             Self::Blob(error) => Some(error),
-            Self::Workspace(error) => Some(error),
+            Self::Workspace(error) => Some(error.as_ref()),
             Self::Thread => None,
             Self::Shutdown { failures } => failures
                 .first()
@@ -268,6 +268,6 @@ impl From<BlobStoreError> for DaemonError {
 impl From<workspace::Error> for DaemonError {
     /// Convert one workspace initialization failure.
     fn from(error: workspace::Error) -> Self {
-        Self::Workspace(error)
+        Self::Workspace(Box::new(error))
     }
 }
