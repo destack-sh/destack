@@ -1,6 +1,5 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::Span;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -11,8 +10,8 @@ declare_lint! {
         id: "undocumented-unsafe",
         summary: "Require a safety rationale for every unsafe declaration and expression",
         explanation: r#"
-Unsafe declarations impose obligations on their callers, and local unsafe regions rely on invariants the checker cannot verify.
-Instead, you SHOULD document caller obligations under `# Safety` and justify local regions with an immediately preceding `SAFETY:` comment or a nonempty `@unsafe` reason.
+Unsafe callables impose obligations on their callers, while unsafe implementations and local regions rely on invariants the checker cannot verify.
+Instead, you SHOULD document caller obligations under `# Safety` and justify implementations and local regions with an immediately preceding `SAFETY:` comment or a nonempty `@unsafe` reason.
 "#,
         example: {
             reported: r#"
@@ -29,7 +28,10 @@ function execute(): void {
 }
 "#,
         },
-        provenance: [Clippy("undocumented_unsafe_blocks")],
+        provenance: [
+            Clippy("missing_safety_doc"),
+            Clippy("undocumented_unsafe_blocks"),
+        ],
         category: Security,
         level: Warning,
         fixable: None,
@@ -56,12 +58,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let decorator = application.source.local_id;
         let span = module.source_extent(decorator.into_any())?;
 
-        // require unsafe declarations to document their caller obligations
-        if module
-            .bindings
-            .declaration_symbol(application.owner)
-            .is_some()
-        {
+        // require unsafe callables to document their caller obligations
+        if module.callable_parameters(owner).is_some() {
             if !has_safety_section(module, owner) {
                 let diagnostic = lint
                     .diagnostic("unsafe declaration has no `# Safety` section", span)
@@ -71,12 +69,19 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // require local unsafe regions to carry an associated rationale
-        if has_reason(module, application)? || has_safety_comment(module, span)? {
+        // require unsafe implementations and local regions to carry a rationale
+        if has_reason(module, application)? || has_safety_comment(module, owner)? {
             continue;
         }
+        let noun = match owner.ty {
+            dir::NodeType::Declaration
+            | dir::NodeType::Member
+            | dir::NodeType::Property
+            | dir::NodeType::TypeMember => "unsafe implementation",
+            _ => "unsafe region",
+        };
         let diagnostic = lint
-            .diagnostic("unsafe region has no safety rationale", span)
+            .diagnostic(format!("{noun} has no safety rationale"), span)
             .help("add an immediately preceding `SAFETY:` comment or an `@unsafe` reason");
         output.report(diagnostic);
     }
@@ -126,39 +131,63 @@ fn has_reason(
     Ok(has_reason)
 }
 
-/// Return whether a safety comment is attached immediately before one decorator.
-fn has_safety_comment(module: &DirModule<'_>, decorator: Span) -> Result<bool, ProviderError> {
-    let file = module.file(decorator.file)?;
-    let parsed = module.parsed.file(decorator.file).ok_or_else(|| {
+/// Return whether a safety comment is attached immediately before one decorator list.
+fn has_safety_comment(
+    module: &DirModule<'_>,
+    owner: dir::LocalNodeIdAny,
+) -> Result<bool, ProviderError> {
+    let first = module
+        .view()
+        .get_decorators_any(owner)
+        .into_iter()
+        .next()
+        .ok_or_else(|| {
+            ProviderError::internal(format!(
+                "unsafe decorator owner {owner:?} has no authored decorators"
+            ))
+        })?;
+    let first = module.source_extent(first.into_any())?;
+    let file = module.file(first.file)?;
+    let parsed = module.parsed.file(first.file).ok_or_else(|| {
         ProviderError::internal(format!(
             "source file {:?} is absent from parsed lint module {:?}",
-            decorator.file, module.id
+            first.file, module.id
         ))
     })?;
 
-    // require the parser's exact leading-comment attachment
-    for comment in &parsed.comments {
-        if comment.following_token_start() != Some(decorator.start) {
+    let (decorator_line, _) = file.get_position(first.start).ok_or_else(|| {
+        ProviderError::internal(format!("decorator span {first:?} has no source position"))
+    })?;
+    let mut following_line = decorator_line;
+
+    // inspect the contiguous leading comment group from bottom to top
+    for comment in parsed.comments.iter().rev() {
+        if comment.following_token_start() != Some(first.start) {
             continue;
         }
-        let (comment_line, _) = file.get_position(comment.span.end).ok_or_else(|| {
+        let (start_line, _) = file.get_position(comment.span.start).ok_or_else(|| {
             ProviderError::internal(format!(
                 "comment span {:?} has no source position",
                 comment.span
             ))
         })?;
-        let (decorator_line, _) = file.get_position(decorator.start).ok_or_else(|| {
+        let (end_line, _) = file.get_position(comment.span.end).ok_or_else(|| {
             ProviderError::internal(format!(
-                "decorator span {decorator:?} has no source position"
+                "comment span {:?} has no source position",
+                comment.span
             ))
         })?;
-        if decorator_line != comment_line + 1 {
-            continue;
+        if end_line + 1 != following_line {
+            break;
         }
-        let content = module.source(comment.content_span())?;
-        if content.trim_start().starts_with("SAFETY:") {
+        if comment
+            .text(file.text())
+            .trim_start()
+            .starts_with("SAFETY:")
+        {
             return Ok(true);
         }
+        following_line = start_line;
     }
 
     Ok(false)
@@ -291,6 +320,42 @@ function run(): void {
         session.assert_no_diagnostics();
     }
 
+    /// Accept a local unsafe block with a multiline safety comment.
+    #[test]
+    fn test_accepts_unsafe_block_with_multiline_safety_comment() {
+        let session = TestSession::dir(
+            &UNDOCUMENTED_UNSAFE,
+            r#"
+function run(): void {
+    // SAFETY:
+    // no unsafe operation escapes this empty tracer
+    @unsafe
+    {}
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept a safety comment above the complete decorator list.
+    #[test]
+    fn test_accepts_safety_comment_above_decorators() {
+        let session = TestSession::dir(
+            &UNDOCUMENTED_UNSAFE,
+            r#"
+function run(): void {
+    // SAFETY: no unsafe operation escapes this empty tracer
+    @cold
+    @unsafe
+    {}
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
     /// Reject a detached safety comment separated by a blank line.
     #[test]
     fn test_reports_unsafe_block_with_detached_safety_comment() {
@@ -334,6 +399,57 @@ function run(): void {
     @unsafe("no unsafe operation escapes this empty tracer")
     {}
 }
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Report an unsafe implementation without a rationale.
+    #[test]
+    fn test_reports_unsafe_implementation_without_rationale() {
+        let session = TestSession::dir(
+            &UNDOCUMENTED_UNSAFE,
+            r#"
+import { Unpin } from "destack:memory";
+
+newtype Handle = uint32;
+
+@unsafe
+export extension of Handle implements Unpin {}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[undocumented-unsafe]: unsafe implementation has no safety rationale
+ ──▶ main.ds:5:1
+  │
+3 │ newtype Handle = uint32;
+4 │
+5 │ @unsafe
+  │ ^^^^^^^
+6 │ export extension of Handle implements Unpin {}
+  │
+
+ = help: add an immediately preceding `SAFETY:` comment or an `@unsafe` reason
+"#,
+        );
+    }
+
+    /// Accept an unsafe implementation with an attached rationale.
+    #[test]
+    fn test_accepts_unsafe_implementation_with_rationale() {
+        let session = TestSession::dir(
+            &UNDOCUMENTED_UNSAFE,
+            r#"
+import { Unpin } from "destack:memory";
+
+newtype Handle = uint32;
+
+// SAFETY: handle stores no self-references
+@unsafe
+export extension of Handle implements Unpin {}
 "#,
         );
 
