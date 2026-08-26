@@ -254,9 +254,6 @@ impl<'a> StaticEvaluator<'a> {
             "test" => {
                 StaticValue::Term(dir::Literal::Boolean(conditions.contains_mode("test")).into())
             }
-            "bench" => {
-                StaticValue::Term(dir::Literal::Boolean(conditions.contains_mode("bench")).into())
-            }
             "lint" => {
                 StaticValue::Term(dir::Literal::Boolean(conditions.contains_mode("lint")).into())
             }

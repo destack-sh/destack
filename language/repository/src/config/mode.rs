@@ -36,12 +36,6 @@ impl Mode {
         description: "Test mode.",
     };
 
-    /// Benchmark source graph mode.
-    pub const BENCH: Self = Self {
-        name: "bench",
-        description: "Benchmark mode.",
-    };
-
     /// Fuzzing source graph mode.
     pub const FUZZ: Self = Self {
         name: "fuzz",
@@ -66,7 +60,6 @@ impl Mode {
         Self::DEBUG,
         Self::PROD,
         Self::TEST,
-        Self::BENCH,
         Self::FUZZ,
         Self::SIM,
         Self::LINT,

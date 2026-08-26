@@ -121,8 +121,6 @@ export interface ImportMeta {
     readonly prod: boolean;
     /// True when the test mode is active.
     readonly test: boolean;
-    /// True when the benchmark mode is active.
-    readonly bench: boolean;
     /// True when the lint mode is active.
     readonly lint: boolean;
     /// Environment variables (from build configuration).
