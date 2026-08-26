@@ -233,12 +233,25 @@ impl CheckState<'_> {
                     parameters.join(", ")
                 )
             }
-            dir::Type::Function(function) => {
-                self.format_depth_at(module, function.signature, next)?
-            }
-            dir::Type::FunctionPointer(function) => {
-                self.format_function_pointer_at(module, &function, next)?
-            }
+            dir::Type::Function(function) => match function.multiplicity {
+                dir::Multiplicity::Repeatable => {
+                    self.format_depth_at(module, function.signature, next)?
+                }
+                dir::Multiplicity::Once => self.format_callable_application_at(
+                    module,
+                    "Function",
+                    function.signature,
+                    Some("\"once\""),
+                    next,
+                )?,
+            },
+            dir::Type::FunctionPointer(function) => self.format_callable_application_at(
+                module,
+                "FunctionPointer",
+                function.signature,
+                None,
+                next,
+            )?,
 
             dir::Type::Union(union) => {
                 let union_elements = self.type_ids(id.module_id, union.elements)?;
@@ -377,19 +390,24 @@ impl CheckState<'_> {
         Ok(format!("<{}>", parameters.join(", ")))
     }
 
-    /// Format one function pointer type relative to an optional source module.
-    fn format_function_pointer_at(
+    /// Format one callable application relative to an optional source module.
+    fn format_callable_application_at(
         &self,
         module: Option<ModuleId>,
-        function: &dir::FunctionPointerType,
+        head: &str,
+        signature: dir::GlobalTypeId,
+        tail: Option<&str>,
         depth: usize,
     ) -> CompilerResult<String> {
-        // read the signature the pointer applies
-        let signature_id = self.shallow_resolve(function.signature)?;
+        // read the signature the callable applies
+        let signature_id = self.shallow_resolve(signature)?;
         let Some(signature) = self.signature_head(signature_id)? else {
-            let signature = self.format_depth_at(module, function.signature, depth)?;
+            let signature = self.format_depth_at(module, signature, depth)?;
 
-            return Ok(format!("FunctionPointer<{signature}>"));
+            return Ok(match tail {
+                Some(tail) => format!("{head}<{signature}, {tail}>"),
+                None => format!("{head}<{signature}>"),
+            });
         };
         let signature_parameters =
             self.signature_parameters(signature_id.module_id, signature.parameters)?;
@@ -416,7 +434,10 @@ impl CheckState<'_> {
             None => "void".to_string(),
         };
 
-        Ok(format!("FunctionPointer<{parameters}, {result}>"))
+        Ok(match tail {
+            Some(tail) => format!("{head}<{parameters}, {result}, {tail}>"),
+            None => format!("{head}<{parameters}, {result}>"),
+        })
     }
 
     /// Format one function signature parameter relative to an optional source module.

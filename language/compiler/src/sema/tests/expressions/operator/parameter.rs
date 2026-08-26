@@ -745,7 +745,7 @@ function square<T: Multiply<T>>(value: T): T.Output {
     /// @resolution.operator source="value * value" type=T.Output operator="*" kind=call parameters=(T) arguments=(provided(value) as T) return=T.Output kind=symbol target=Multiply.multiply receiver=T instance=Multiply<T>.multiply
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=square.value
-    /// @generic.instantiation id=Multiply.multiply<T> template=Multiply.multiply arguments=(T) owner=square
+    /// @generic.instantiation id="Multiply.multiply<T, T>" template=Multiply.multiply arguments=(T) owner=square
     /// @resolution.name source=value target=square.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=square.value

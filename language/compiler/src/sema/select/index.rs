@@ -353,12 +353,18 @@ impl BodyState<'_, '_> {
         let index = self.infer_node_type(index_site, PlaceUse::Read)?;
 
         // read the receiver's value, apparent type, and member space
-        let receiver_value = Value {
-            ty: receiver,
-            ..receiver_value
-        };
         let receiver_type = self.readable_value(target)?;
         let space = self.member_receiver_space(receiver_node, target)?;
+
+        // open the physical receiver behind the chain operand, keeping its projection
+        let narrowed_steps = self.project_narrowed_receiver(origin, receiver, target)?;
+        let receiver_value = Value {
+            ty: match narrowed_steps.is_empty() {
+                true => receiver,
+                false => target,
+            },
+            ..receiver_value
+        };
 
         // select the subscript operation for both operands
         let Some(selection) = self.select_subscript(
@@ -397,7 +403,8 @@ impl BodyState<'_, '_> {
                 message: "subscript read selection has no read resolution".to_string(),
             })?;
         let is_stored_read = selection.is_stored_read();
-        if let Some(decision) = selection.into_decision() {
+        if let Some(mut decision) = selection.into_decision() {
+            project_subscript_receiver(&mut decision, receiver, &narrowed_steps);
             self.commit_decision(node, decision)?;
         }
 
@@ -1324,7 +1331,7 @@ impl BodyState<'_, '_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!(
                     "selected IndexSet member {:?} has no callable type",
-                    candidate.selection.symbol
+                    candidate.key.symbol
                 ),
             })?;
         let Some((callable, signature)) = self.callable_signature_type(origin, callable_type)?
@@ -1356,7 +1363,7 @@ impl BodyState<'_, '_> {
             return Err(CompilerError::Internal {
                 message: format!(
                     "selected IndexSet member {:?} has no checked return type",
-                    candidate.selection.symbol
+                    candidate.key.symbol
                 ),
             });
         };
@@ -1367,14 +1374,14 @@ impl BodyState<'_, '_> {
                 function: dir::FunctionTarget {
                     receiver: Some(receiver.clone()),
                     generic_scope: Some(candidate.owner),
-                    selection: candidate.selection.clone(),
+                    key: candidate.key.clone(),
                 },
                 dispatch: dir::FunctionDispatch::Direct,
             },
             dir::MemberReceiver::Dynamic(dispatch) => dir::CallableTarget::Dynamic {
                 dispatch: dispatch.clone(),
-                function: dir::DynamicFunction::Symbol(candidate.selection.symbol),
-                generic_arguments: candidate.selection.arguments.clone(),
+                function: dir::DynamicFunction::Symbol(candidate.key.symbol),
+                generic_arguments: candidate.key.arguments.clone(),
             },
         };
 
@@ -1495,5 +1502,99 @@ impl BodyState<'_, '_> {
         let value_verdict = self.decide_relation(origin, relation, value_type, input)?;
 
         Ok(key_verdict.and(value_verdict))
+    }
+}
+
+/// Attach the physical receiver projection to one selected subscript decision.
+fn project_subscript_receiver(
+    decision: &mut dir::Decision,
+    receiver: dir::GlobalTypeId,
+    steps: &[dir::ReceiverAdjustment],
+) {
+    if steps.is_empty() {
+        return;
+    }
+    let dir::Decision::Subscript(resolution) = decision else {
+        return;
+    };
+    let arms: &mut [dir::Subscript] = match resolution {
+        dir::OperationResolution::One(subscript) => std::slice::from_mut(subscript),
+        dir::OperationResolution::Union { arms, .. } => arms,
+    };
+    for subscript in arms {
+        match &mut subscript.target {
+            dir::SubscriptTarget::Call(call) => project_call_receiver(call, receiver, steps),
+            dir::SubscriptTarget::Index(index) => {
+                project_call_receiver(&mut index.call, receiver, steps)
+            }
+            dir::SubscriptTarget::Member(access) => {
+                access.receiver = receiver;
+                project_member_target(&mut access.target, receiver, steps);
+            }
+        }
+    }
+}
+
+/// Attach the physical receiver projection to one selected member target.
+fn project_member_target(
+    target: &mut dir::MemberTarget,
+    receiver: dir::GlobalTypeId,
+    steps: &[dir::ReceiverAdjustment],
+) {
+    match target {
+        dir::MemberTarget::Projection {
+            receiver: adjusted, ..
+        } => project_adjusted_receiver(adjusted, receiver, steps),
+        dir::MemberTarget::Field(field) => {
+            project_member_receiver(&mut field.receiver, receiver, steps)
+        }
+        dir::MemberTarget::Index(index) => {
+            project_member_receiver(&mut index.receiver, receiver, steps)
+        }
+        dir::MemberTarget::Symbol(candidate) => {
+            project_member_receiver(&mut candidate.receiver, receiver, steps)
+        }
+        dir::MemberTarget::Call(call) => project_call_receiver(call, receiver, steps),
+        dir::MemberTarget::OverloadSet(targets) | dir::MemberTarget::Intersection(targets) => {
+            for target in targets {
+                project_member_target(target, receiver, steps);
+            }
+        }
+    }
+}
+
+/// Attach the physical receiver projection to one selected member receiver.
+fn project_member_receiver(
+    member: &mut dir::MemberReceiver,
+    receiver: dir::GlobalTypeId,
+    steps: &[dir::ReceiverAdjustment],
+) {
+    if let dir::MemberReceiver::Direct(adjusted) = member {
+        project_adjusted_receiver(adjusted, receiver, steps);
+    }
+}
+
+/// Attach the physical receiver projection to one selected call receiver.
+fn project_call_receiver(
+    call: &mut dir::Call,
+    receiver: dir::GlobalTypeId,
+    steps: &[dir::ReceiverAdjustment],
+) {
+    if let dir::CallableTarget::Symbol { function, .. } = &mut call.target
+        && let Some(adjusted) = &mut function.receiver
+    {
+        project_adjusted_receiver(adjusted, receiver, steps);
+    }
+}
+
+/// Attach the physical receiver projection to one adjusted receiver.
+fn project_adjusted_receiver(
+    adjusted: &mut dir::AdjustedReceiver,
+    receiver: dir::GlobalTypeId,
+    steps: &[dir::ReceiverAdjustment],
+) {
+    adjusted.source = receiver;
+    for step in steps.iter().rev() {
+        adjusted.adjustments.insert(0, step.clone());
     }
 }

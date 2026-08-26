@@ -169,6 +169,25 @@ impl CheckState<'_> {
         Ok(parameters)
     }
 
+    /// Return whether one symbol's template and its owners declare region parameters only.
+    pub(in crate::sema) fn symbol_template_is_region_only(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        let Some(template) = self.symbol_template(symbol)? else {
+            return Ok(true);
+        };
+
+        let mut parameters = self.generic_template_parameters(template)?;
+        parameters.extend(self.owner_template_parameters(template)?);
+
+        Ok(parameters.iter().all(|parameter| {
+            self.generic_parameter(*parameter).is_some_and(|binding| {
+                binding.memory_parameter() == Some(dir::MemoryParameter::Region)
+            })
+        }))
+    }
+
     /// Return the owner parameters enclosing one member template.
     pub(in crate::sema) fn owner_template_parameters(
         &mut self,
@@ -450,6 +469,7 @@ impl CheckState<'_> {
             kind,
             is_variadic,
             is_const,
+            conformances: dir::AutoInterfaceSet::new(),
         };
 
         // allocate the parameter in its template's working segment
@@ -663,7 +683,7 @@ impl CheckState<'_> {
         // classify a memory parameter from the constraint it declares
         let current =
             self.generic_parameter(parameter)
-                .copied()
+                .cloned()
                 .ok_or_else(|| CompilerError::Internal {
                     message: format!("generic parameter {parameter:?} is not bound"),
                 })?;
@@ -890,7 +910,7 @@ impl CheckState<'_> {
         if arguments.len() == parameters.len() {
             let bindings = parameters
                 .iter()
-                .copied()
+                .cloned()
                 .zip(arguments.iter().copied())
                 .map(|(parameter, argument)| dir::GenericArgumentBinding::new(parameter, argument))
                 .collect();
@@ -905,7 +925,7 @@ impl CheckState<'_> {
         let mut substitution = TypeSubstitution::default();
         let mut cursor = 0usize;
         for parameter in parameters.iter().copied() {
-            let binding = self.generic_parameter(parameter).copied().ok_or_else(|| {
+            let binding = self.generic_parameter(parameter).cloned().ok_or_else(|| {
                 CompilerError::Internal {
                     message: format!("generic parameter {parameter:?} is missing"),
                 }

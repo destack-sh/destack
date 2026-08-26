@@ -52,7 +52,7 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     /// @generic.instance id="FilterIterator<Iterator<int32 | undefined>, int32 | undefined>" template=FilterIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
     /// @generic.instance id="FromIterator.fromIterator<int32 | undefined>" template=FromIterator.fromIterator arguments=(int32 | undefined)
     /// @generic.instance id="InspectIterator<Iterator<int32 | undefined>, int32 | undefined>" template=InspectIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id="Iterator.collect<int32 | undefined, Owned<int32 | undefined[]>>" template=Iterator.collect arguments=(int32 | undefined, Owned<int32 | undefined[]>)
+    /// @generic.instance id="Iterator.collect<Iterator<int32 | undefined>, int32 | undefined, Owned<int32 | undefined[]>>" template=Iterator.collect arguments=(int32 | undefined, Owned<int32 | undefined[]>)
     /// @generic.instance id="Iterator.find<int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>>" template=Iterator.find arguments=(int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>)
     /// @generic.instance id="Iterator<int32 | undefined>" template=Iterator arguments=(int32 | undefined)
     /// @generic.instance id="IteratorResult<int32 | undefined, Iterator<int32 | undefined>.Return>" template=IteratorResult arguments=(int32 | undefined, Iterator<int32 | undefined>.Return)
@@ -254,9 +254,9 @@ use(source);
 /// @type.node source=use(source) type=void
 /// @resolution.name source=use target=use
 /// @resolution.call source=use(source) parameters=(Function<(unknown,), void>) arguments=(provided(source) as Function<(unknown,), void>) return=void kind=symbol target=use
-/// @type.node source=source type=(unknown | undefined?) => void
+/// @type.node source=source type=Function<(unknown | undefined?,), void>
 /// @resolution.name source=source target=source
-/// @resolution.function source=source type=(unknown | undefined?) => void target=source
+/// @resolution.function source=source type=Function<(unknown | undefined?,), void> target=source
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '(value: unknown | undefined) => void' is not assignable to parameter of type '(value: unknown) => void'"

@@ -159,6 +159,7 @@ function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8 {
     /// @resolution.call source=iter.next() parameters=() return=I.Item kind=symbol target=Iterator.next receiver=I
     /// @resolution.place source=iter placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=iter root=nextByte.iter
+    /// @generic.instantiation id=Iterator.next<I> template=Iterator.next arguments=() owner=nextByte
 
 }
 "#,
@@ -331,6 +332,7 @@ function nextDefault<I: Iterator>(iter: I): uint8 {
     /// @resolution.call source=iter.next() parameters=() return=I.Item kind=symbol target=Iterator.next receiver=I
     /// @resolution.place source=iter placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=iter root=nextDefault.iter
+    /// @generic.instantiation id=Iterator.next<I> template=Iterator.next arguments=() owner=nextDefault
 
 }
 "#,

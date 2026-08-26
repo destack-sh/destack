@@ -1,6 +1,6 @@
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
-use destack_dir::{SelectionVisit, TypeFold};
+use destack_dir::{InstanceKeyVisit, TypeFold};
 
 use crate::sema::{CheckModuleState, CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
@@ -107,7 +107,6 @@ impl CheckState<'_> {
         self.resolve_segment_types(dir::CaptureSegment::new(module), |state| {
             &mut state.captures
         })?;
-        self.resolve_segment_types(dir::AutoSegment::new(module), |state| &mut state.auto)?;
         self.resolve_segment_types(dir::GenericSegment::new(module), |state| {
             &mut state.generics_tail
         })?;
@@ -126,21 +125,26 @@ impl CheckState<'_> {
         let mut seen = FxIndexSet::default();
         let mut instantiations = Vec::new();
         for (node, decision) in self.module.decisions.decision_entries() {
-            decision.visit_selections(&mut |selection| {
-                if selection.arguments.is_empty() {
+            decision.visit_instance_keys(&mut |selection| {
+                if selection.arguments.is_empty() && selection.receiver.is_none() {
                     return;
                 }
 
                 // dedup governed selections mentioned from several nodes
                 let owner = self.governing_template_symbol(node);
-                let key = (owner, selection.symbol, selection.arguments.clone());
+                let key = (
+                    owner,
+                    selection.symbol,
+                    selection.receiver,
+                    selection.arguments.clone(),
+                );
                 if !seen.insert(key) {
                     return;
                 }
 
                 instantiations.push(dir::Instantiation {
                     owner,
-                    selection: selection.clone(),
+                    key: selection.clone(),
                     source: node,
                 });
             });
@@ -163,7 +167,7 @@ impl CheckState<'_> {
 
                 instantiations.push(dir::Instantiation {
                     owner: self.governing_template_symbol(node),
-                    selection: dir::Selection::new(symbol, arguments.clone()),
+                    key: dir::InstanceKey::new(symbol, arguments.clone()),
                     source: node,
                 });
             }

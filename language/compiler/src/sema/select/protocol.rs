@@ -857,7 +857,7 @@ impl BodyState<'_, '_> {
             owner: candidate.owner,
             access_type: candidate.access_type,
             callable_type: candidate.callable,
-            selection: dir::Selection::new(symbol, generic_arguments.clone()),
+            key: dir::InstanceKey::new(symbol, generic_arguments.clone()),
         });
         let access = dir::MemberAccess::new(receiver, target, candidate.access_type);
         let resolution = dir::OperationResolution::One(access);
@@ -1119,7 +1119,9 @@ impl BodyState<'_, '_> {
         };
 
         let arguments = self.bind_argument_sources(origin, &signature, argument_sources)?;
-        let call = signature.member_call(resolution, candidate.owner, symbol, arguments);
+        let key_receiver = self.interface_member_receiver(candidate.owner, signature.callable)?;
+        let call =
+            signature.member_call(resolution, candidate.owner, symbol, key_receiver, arguments);
         let resolution = dir::OperationResolution::One(call);
 
         Ok(Some(ProtocolCall {

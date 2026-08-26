@@ -2579,6 +2579,7 @@ impl CheckState<'_> {
             | dir::AutoInterface::SuspendSafe
             | dir::AutoInterface::StrictEqual
             | dir::AutoInterface::Unpin
+            | dir::AutoInterface::Drop
             | dir::AutoInterface::Zeroable => {
                 let error = CheckError::ConstraintNotSatisfied {
                     anchor,

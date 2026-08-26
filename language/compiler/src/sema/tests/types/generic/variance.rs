@@ -889,7 +889,7 @@ take(increment);
 /// @resolution.name source=take target=take
 /// @resolution.call source=take(increment) parameters=(Function<(int32,), int32 | undefined>) arguments=(provided(increment) as Function<(int32,), int32 | undefined>) return=void kind=symbol target=take
 /// @resolution.name source=increment target=increment
-/// @resolution.function source=increment type=(int32) => int32 target=increment
+/// @resolution.function source=increment type=Function<(int32,), int32> target=increment
 "#,
         r#"
 "#,

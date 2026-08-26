@@ -1072,7 +1072,7 @@ impl WalkState<'_, '_> {
         let mut substitution = TypeSubstitution::default();
         let mut cursor = 0;
         for parameter in parameters.iter().copied() {
-            let Some(binding) = self.check.generic_parameter(parameter).copied() else {
+            let Some(binding) = self.check.generic_parameter(parameter).cloned() else {
                 return Err(CompilerError::Internal {
                     message: "written type application names a missing generic parameter"
                         .to_string(),

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::sema::{
-    CauseKind, GenericParameterId, GenericTemplateId, InducedParameterOwner, Origin, ElisionSite,
+    CauseKind, ElisionSite, GenericParameterId, GenericTemplateId, InducedParameterOwner, Origin,
     ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};

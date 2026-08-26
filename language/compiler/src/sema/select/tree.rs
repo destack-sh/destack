@@ -653,7 +653,7 @@ impl BodyState<'_, '_> {
                 function: dir::FunctionTarget {
                     receiver: None,
                     generic_scope: None,
-                    selection: dir::Selection::new(symbol, selection.generic_arguments.clone()),
+                    key: dir::InstanceKey::new(symbol, selection.generic_arguments.clone()),
                 },
                 dispatch: dir::FunctionDispatch::Direct,
             },
@@ -775,7 +775,7 @@ impl BodyState<'_, '_> {
         let generic_arguments = selection.generic_arguments.clone();
         let construct = dir::ConstructDecision::new(
             dir::ConstructTarget::Class {
-                selection: dir::Selection::new(symbol, generic_arguments),
+                key: dir::InstanceKey::new(symbol, generic_arguments),
                 constructor: constructor.constructor,
             },
             vec![dir::ArgumentBinding {

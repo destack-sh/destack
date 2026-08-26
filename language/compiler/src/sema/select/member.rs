@@ -109,6 +109,31 @@ impl BodyState<'_, '_> {
         Ok(space)
     }
 
+    /// Return the receiver closing one this-polymorphic interface member, absent elsewhere.
+    pub(in crate::sema) fn interface_member_receiver(
+        &mut self,
+        owner: dir::GlobalSymbolId,
+        callable: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // interface members close their receiver into the instance identity
+        let is_interface = matches!(self.definition(owner)?, Some(dir::Definition::Interface(_)));
+        if !is_interface {
+            return Ok(None);
+        }
+
+        // read the closed receiver off the substituted this parameter
+        let Some(this_parameter) = self
+            .signature_head(callable)?
+            .and_then(|signature| signature.this_parameter)
+        else {
+            return Ok(None);
+        };
+        let origin = Origin::Symbol(owner);
+        let receiver = self.strip_form(origin, this_parameter)?;
+
+        Ok(Some(receiver))
+    }
+
     /// Return the declaration one receiver expression names.
     fn receiver_declaration(&self, receiver: dir::GlobalNodeIdAny) -> Option<dir::GlobalSymbolId> {
         match self.name_decision(receiver) {
@@ -533,7 +558,9 @@ impl BodyState<'_, '_> {
         };
 
         let arguments = self.bind_argument_sources(origin, &signature, &[])?;
-        let resolution = signature.member_call(resolution, candidate.owner, symbol, arguments);
+        let key_receiver = self.interface_member_receiver(candidate.owner, signature.callable)?;
+        let resolution =
+            signature.member_call(resolution, candidate.owner, symbol, key_receiver, arguments);
 
         Ok(Some(resolution))
     }
@@ -588,7 +615,9 @@ impl BodyState<'_, '_> {
         };
 
         let arguments = self.bind_argument_sources(origin, &signature, &sources)?;
-        let resolution = signature.member_call(resolution, candidate.owner, symbol, arguments);
+        let key_receiver = self.interface_member_receiver(candidate.owner, signature.callable)?;
+        let resolution =
+            signature.member_call(resolution, candidate.owner, symbol, key_receiver, arguments);
 
         Ok(resolution)
     }

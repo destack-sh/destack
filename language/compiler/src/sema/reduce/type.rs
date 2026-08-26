@@ -432,7 +432,7 @@ impl CheckState<'_> {
                 if let Some(template) = self.symbol_template(reference.symbol)? {
                     let parameters = self.generic_template_parameters(template)?;
                     for parameter in parameters {
-                        let Some(binding) = self.generic_parameter(parameter).copied() else {
+                        let Some(binding) = self.generic_parameter(parameter).cloned() else {
                             continue;
                         };
                         if binding.is_writable()

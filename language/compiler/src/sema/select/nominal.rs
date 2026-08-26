@@ -185,7 +185,7 @@ impl BodyState<'_, '_> {
             dir::PatternDecision::Destructure(Box::new(
                 dir::PatternDestructureResolution::Nominal(
                     dir::PatternNominalDestructureResolution {
-                        selection: dir::Selection::new(instance.symbol, generic_arguments),
+                        key: dir::InstanceKey::new(instance.symbol, generic_arguments),
                         fields,
                         rest: rest.map(Box::new),
                     },

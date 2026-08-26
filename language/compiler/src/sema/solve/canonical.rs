@@ -436,7 +436,7 @@ impl CheckState<'_> {
             };
             let parameter = *parameter;
             next += 1;
-            let Some(binding) = self.generic_parameter(parameter).copied() else {
+            let Some(binding) = self.generic_parameter(parameter).cloned() else {
                 return Err(CompilerError::Internal {
                     message: format!("renamed parameter {parameter:?} has no declared binding"),
                 });

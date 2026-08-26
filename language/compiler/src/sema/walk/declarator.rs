@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::sema::{
-    CheckState, ExpectedType, FlowPredicate, Obligation, PatternCoverage,
-    PatternCoverageObligation, ElisionSite, WalkState,
+    CheckState, ElisionSite, ExpectedType, FlowPredicate, Obligation, PatternCoverage,
+    PatternCoverageObligation, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 

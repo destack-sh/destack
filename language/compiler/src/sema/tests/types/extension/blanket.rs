@@ -109,6 +109,7 @@ extension<I: Loud> of I implements Quiet {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=I
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
+        /// @generic.instantiation id=Loud.shout<I> template=Loud.shout arguments=() owner=whisper
 
     }
 }
@@ -270,6 +271,7 @@ extension<I: Loud> of I implements Quiet {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=I
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
+        /// @generic.instantiation id=Loud.shout<I> template=Loud.shout arguments=() owner=whisper#1
 
     }
 }
@@ -413,6 +415,7 @@ extension<I: Loud> of I implements Quiet {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=I
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
+        /// @generic.instantiation id=Loud.shout<I> template=Loud.shout arguments=() owner=whisper
 
     }
 }
@@ -1254,6 +1257,7 @@ extension<T: Loud> of T implements Quiet {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=T#1
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
+        /// @generic.instantiation id=Loud.shout<T#1> template=Loud.shout arguments=() owner=whisper#1
 
     }
 }
@@ -1279,6 +1283,7 @@ extension<T: Bright> of T implements Quiet {
         /// @resolution.receiver source=this kind=this declaration=<module>#3 type=T#2
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
+        /// @generic.instantiation id=Bright.shine<T#2> template=Bright.shine arguments=() owner=whisper#2
 
     }
 }

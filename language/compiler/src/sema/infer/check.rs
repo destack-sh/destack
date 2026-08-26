@@ -244,6 +244,9 @@ impl BodyState<'_, '_> {
             dir::Expression::Const { body } => {
                 self.check_transparent_expression(site, body, expectation)
             }
+            dir::Expression::Chain { expression } => {
+                self.check_chain_expression(site, expression, expectation)
+            }
             dir::Expression::Satisfies { expression, .. } => {
                 self.check_transparent_expression(site, expression, expectation)
             }

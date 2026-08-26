@@ -118,22 +118,22 @@ impl FieldLookup {
 
         let target = match self {
             Self::Structural {
-                receiver: selection,
+                receiver: lookup,
                 owner,
                 ..
             } => dir::MemberTarget::Field(dir::FieldResolution {
-                receiver: selection.resolve(receiver),
+                receiver: lookup.resolve(receiver),
                 target: dir::FieldTarget::Structural { owner: *owner, key },
                 ty,
             }),
             Self::Projection {
-                receiver: selection,
+                receiver: lookup,
                 projection,
             } => dir::MemberTarget::Projection {
                 key,
                 receiver: dir::AdjustedReceiver {
                     source: receiver,
-                    adjustments: selection.adjustments().clone(),
+                    adjustments: lookup.adjustments().clone(),
                 },
                 projection: projection.clone(),
             },
@@ -664,7 +664,7 @@ impl MemberCandidate {
             owner: self.owner,
             access_type: ty,
             callable_type: self.callable,
-            selection: dir::Selection::new(self.symbol, self.generic_arguments.clone()),
+            key: dir::InstanceKey::new(self.symbol, self.generic_arguments.clone()),
         }
     }
 
@@ -1059,8 +1059,7 @@ impl BodyState<'_, '_> {
 
             // contextual this looks through its assumed bounds
             dir::Type::This => {
-                let bounds =
-                    self.assumed_bounds(origin, |ty| matches!(ty, dir::Type::This))?;
+                let bounds = self.assumed_bounds(origin, |ty| matches!(ty, dir::Type::This))?;
 
                 self.lookup_bound_member(
                     origin, module, receiver, &bounds, space, key, extensions, active,

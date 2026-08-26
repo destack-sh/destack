@@ -78,6 +78,7 @@ newtype interface Sized {
         /// @resolution.operator source="this.length() == 0" type=boolean operator="==" kind=builtin operands=[this.length() as int32 families=(integer), 0 as int32 families=(integer)]
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
+        /// @generic.instantiation id=Sized.length<this> template=Sized.length arguments=()
 
     }
 }
@@ -224,6 +225,7 @@ newtype interface Sized {
         /// @resolution.operator source="this.length() == 0" type=boolean operator="==" kind=builtin operands=[this.length() as int32 families=(integer), 0 as int32 families=(integer)]
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
+        /// @generic.instantiation id=Sized.length<this> template=Sized.length arguments=()
 
     }
 }

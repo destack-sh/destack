@@ -1043,7 +1043,7 @@ const values = Deque.from([1, 2, 3]);
 /// @generic.instance id="EnumeratedIterator<Iterator<int64>, int64>" template=EnumeratedIterator arguments=(Iterator<int64>, int64)
 /// @generic.instance id="FilterIterator<Iterator<int64>, int64>" template=FilterIterator arguments=(Iterator<int64>, int64)
 /// @generic.instance id="InspectIterator<Iterator<int64>, int64>" template=InspectIterator arguments=(Iterator<int64>, int64)
-/// @generic.instance id="Iterator.collect<int64, Owned<int64[]>>" template=Iterator.collect arguments=(int64, Owned<int64[]>)
+/// @generic.instance id="Iterator.collect<Iterator<int64>, int64, Owned<int64[]>>" template=Iterator.collect arguments=(int64, Owned<int64[]>)
 /// @generic.instance id="IteratorResult<int64, Iterator<int64>.Return>" template=IteratorResult arguments=(int64, Iterator<int64>.Return)
 /// @generic.instance id="IteratorResult<int64, void>" template=IteratorResult arguments=(int64, void)
 /// @generic.instance id="PeekableIterator<Iterator<int64>, int64>" template=PeekableIterator arguments=(Iterator<int64>, int64)

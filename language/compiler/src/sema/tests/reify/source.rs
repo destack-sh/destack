@@ -577,10 +577,10 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         else {
             return Ok(());
         };
-        let dir::ConstructTarget::Newtype { selection, .. } = &resolution.target else {
+        let dir::ConstructTarget::Newtype { key, .. } = &resolution.target else {
             return Ok(());
         };
-        let symbol = selection.symbol;
+        let symbol = key.symbol;
 
         self.anchor((*left).into_any());
         let Some(reified) = self.types.reify_symbol_expression(symbol) else {
@@ -643,7 +643,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             dir::Call {
                 target: dir::CallableTarget::Symbol { function, .. },
                 ..
-            } => function.selection.arguments.clone(),
+            } => function.key.arguments.clone(),
         };
         if arguments.is_empty() {
             return Ok(());
@@ -713,8 +713,9 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         };
 
         let arguments = match &resolution.target {
-            dir::ConstructTarget::Class { selection, .. }
-            | dir::ConstructTarget::Newtype { selection, .. } => selection.arguments.clone(),
+            dir::ConstructTarget::Class { key, .. } | dir::ConstructTarget::Newtype { key, .. } => {
+                key.arguments.clone()
+            }
             dir::ConstructTarget::Dynamic { .. } => Vec::new(),
         };
         if arguments.is_empty() {

@@ -1099,6 +1099,10 @@ impl BodyState<'_, '_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // expose the value domain behind computation heads before joining
+        let left = self.check.normalize_computation(origin, left)?;
+        let right = self.check.normalize_computation(origin, right)?;
+
         // interval operands widen to their base scalar under arithmetic
         let left = self.operand_as_base_scalar(left)?;
         let right = self.operand_as_base_scalar(right)?;

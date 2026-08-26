@@ -842,37 +842,6 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // reuse the winner the receiver's owning module already decided
-        let owner = match self.ty(receiver)? {
-            dir::Type::Application(applied) if applied.arguments.is_empty() => Some(applied.symbol),
-            _ => None,
-        };
-        let decided = owner
-            .filter(|_| relation == Relation::Satisfies)
-            .filter(|owner| !self.check.is_own_module(owner.module_id))
-            .and_then(|owner| {
-                let external = self.check.external_modules.get(&owner.module_id)?;
-                let auto = external.auto.as_ref()?;
-
-                auto.selected(owner, instance.symbol).flatten()
-            });
-        if excluded.is_none()
-            && let Some(winner) = decided
-            && self.is_extension_visible(winner, module)?
-        {
-            let is_confirmed = self.confirm_extension_implementation(
-                origin,
-                relation,
-                instance_module,
-                receiver,
-                &instance,
-                winner,
-            )?;
-            if is_confirmed {
-                return Ok(Verdict::Holds);
-            }
-        }
-
         // break inductive applicability cycles: goals reached from themselves fail
         let active = (relation, receiver, interface_type);
         if !self.check.deciding.insert(active) {
@@ -999,55 +968,6 @@ impl BodyState<'_, '_> {
         })
     }
 
-    /// Confirm one known extension implementation, committing the inference it binds.
-    fn confirm_extension_implementation(
-        &mut self,
-        origin: Origin,
-        relation: Relation,
-        interface_module: ModuleId,
-        receiver: dir::GlobalTypeId,
-        interface: &dir::GenericApplication,
-        extension_symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<bool> {
-        let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)? else {
-            return Ok(false);
-        };
-
-        // read the declaration's target and implemented interfaces
-        let interfaces = extension
-            .implements
-            .iter()
-            .map(|conformance| conformance.interface)
-            .collect::<SmallVec<[_; 2]>>();
-        let target_type = extension.target.r#type();
-        let template = self.symbol_template(extension_symbol)?;
-
-        // instantiate the match, committing the inference it binds
-        self.check.counters.extension_probes += 1;
-        let matched = self.confirm_candidate(|state| {
-            let matched = state.match_extension_implementation(
-                origin,
-                relation,
-                interface_module,
-                receiver,
-                receiver,
-                interface,
-                template,
-                target_type,
-                &interfaces,
-                OpenBounds::Probe,
-            )?;
-            Ok(match matched {
-                ExtensionMatch::Matched(..) => CandidateOutcome::Accepted(()),
-                ExtensionMatch::Unmatched | ExtensionMatch::Unproven => {
-                    CandidateOutcome::Rejected(())
-                }
-            })
-        })?;
-
-        Ok(matched.is_some())
-    }
-
     /// Decide whether any visible extension satisfies one applicability goal.
     fn decide_visible_extensions(
         &mut self,
@@ -1100,7 +1020,7 @@ impl BodyState<'_, '_> {
         let mut speculative = Vec::new();
         let mut is_unproven = false;
         for entry in &entries {
-            let (extension_symbol, template, target_type, interfaces) = entry;
+            let (_, template, target_type, interfaces) = entry;
             let trail_from = self.check.infer.trail.len();
             let variables = self.check.infer.variable_count();
             let mut solves_outer = false;
@@ -1137,7 +1057,6 @@ impl BodyState<'_, '_> {
             if let Some((target, matched_interface)) = matched {
                 return Ok(Implementation {
                     verdict: Verdict::Holds,
-                    winner: Some(*extension_symbol),
                     target: Some(target),
                     interface: Some(matched_interface),
                 });
@@ -1150,7 +1069,7 @@ impl BodyState<'_, '_> {
         }
 
         // a sole speculative candidate selects, committing its inference
-        if let [(extension_symbol, template, target_type, interfaces)] = speculative.as_slice() {
+        if let [(_, template, target_type, interfaces)] = speculative.as_slice() {
             self.check.counters.extension_probes += 1;
             let matched = self.confirm_candidate(|state| {
                 let matched = state.match_extension_implementation(
@@ -1181,7 +1100,6 @@ impl BodyState<'_, '_> {
             if let Some((target, matched_interface)) = matched {
                 return Ok(Implementation {
                     verdict: Verdict::Holds,
-                    winner: Some(*extension_symbol),
                     target: Some(target),
                     interface: Some(matched_interface),
                 });
@@ -1197,7 +1115,6 @@ impl BodyState<'_, '_> {
 
         Ok(Implementation {
             verdict,
-            winner: None,
             target: None,
             interface: None,
         })
@@ -2119,7 +2036,7 @@ impl BodyState<'_, '_> {
                     let fresh = match reopened_parameters.get(&erased) {
                         Some(fresh) => *fresh,
                         None => {
-                            let _binding = *self.require_generic_parameter(erased)?;
+                            let _binding = self.require_generic_parameter(erased)?.clone();
                             let variable = self.open_variable(
                                 origin,
                                 VariableRole::Instantiation { parameter: erased },

@@ -3,8 +3,8 @@ use destack_dir as dir;
 use std::ptr::NonNull;
 
 use crate::sema::{
-    CauseKind, FlowState, GenericTemplateId, InducedParameterOwner, Origin, Receiver,
-    ReceiverBinding, ElisionSite, Relation, ValueUse, WalkState,
+    CauseKind, ElisionSite, FlowState, GenericTemplateId, InducedParameterOwner, Origin, Receiver,
+    ReceiverBinding, Relation, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 

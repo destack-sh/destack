@@ -104,8 +104,6 @@ pub(in crate::sema) enum Answer {
 pub(in crate::sema) struct Implementation {
     /// The decided verdict.
     pub(in crate::sema) verdict: Verdict,
-    /// The winning implementation, absent on disproof.
-    pub(in crate::sema) winner: Option<dir::GlobalSymbolId>,
     /// The winner's substituted target, constrained by each goal site's receiver.
     pub(in crate::sema) target: Option<dir::GlobalTypeId>,
     /// The winner's matched interface application, related to each goal site's request.

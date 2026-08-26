@@ -115,7 +115,10 @@ function fallback(): &readonly int32 {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 const shared: int32 = 1;
 
@@ -137,8 +140,10 @@ function fallback(): &readonly int32 {
     /// @resolution.access source=shared root=shared
 
 }
-"#, r#"
-"#);
+"#,
+        r#"
+"#,
+    );
 }
 
 #[test]

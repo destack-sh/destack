@@ -112,7 +112,7 @@ impl BodyState<'_, '_> {
                     target: dir::CallableTarget::Symbol { function, .. },
                     ..
                 })) => {
-                    let selection = &function.selection;
+                    let selection = &function.key;
                     let arguments =
                         dir::GenericArgumentBinding::values(&selection.arguments).collect();
 

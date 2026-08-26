@@ -4,9 +4,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    CauseKind, CheckError, CheckState, FunctionHeader, GenericTemplateId, InducedParameterOwner,
-    Origin, Receiver, ReceiverBinding, ElisionSite, Relation, TypeSubstitution, VariableRole,
-    WalkState,
+    CauseKind, CheckError, CheckState, ElisionSite, FunctionHeader, GenericTemplateId,
+    InducedParameterOwner, Origin, Receiver, ReceiverBinding, Relation, TypeSubstitution,
+    VariableRole, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -437,6 +437,7 @@ impl WalkState<'_, '_> {
                 backing: value,
                 constructors: Vec::new(),
                 members: Vec::new(),
+                conformances: dir::AutoInterfaceSet::new(),
             })
         } else {
             self.commit_symbol_type(symbol, value)?;
@@ -497,6 +498,7 @@ impl WalkState<'_, '_> {
                 backing: value,
                 constructors: Vec::new(),
                 members: Vec::new(),
+                conformances: dir::AutoInterfaceSet::new(),
             });
             self.check.insert_definition(symbol, source, definition)?;
 
@@ -658,6 +660,7 @@ impl WalkState<'_, '_> {
             derives,
             implements,
             members,
+            conformances: dir::AutoInterfaceSet::new(),
         });
         self.check.insert_definition(symbol, source, definition)?;
 
@@ -756,6 +759,7 @@ impl WalkState<'_, '_> {
             implements,
             constructors,
             members,
+            conformances: dir::AutoInterfaceSet::new(),
         });
         self.check.insert_definition(symbol, source, definition)?;
 
@@ -997,6 +1001,7 @@ impl WalkState<'_, '_> {
             backing: backing.unwrap_or(dir::EnumBackingType::DEFAULT),
             implements,
             members,
+            conformances: dir::AutoInterfaceSet::new(),
         });
         self.check.insert_definition(symbol, source, definition)?;
 

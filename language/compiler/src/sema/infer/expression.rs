@@ -648,6 +648,20 @@ impl BodyState<'_, '_> {
             None => self.symbol_type(*symbol)?,
         };
 
+        // declared function reads produce fat callable values over their signatures
+        let ty = if matches!(self.symbol_kind(*symbol)?, dir::SymbolKind::Function)
+            && matches!(self.ty(ty)?, dir::Type::FunctionSignature(_))
+        {
+            let place = self.check.local_place()?;
+            self.intern_type(dir::Type::Function(dir::FunctionType {
+                signature: ty,
+                multiplicity: dir::Multiplicity::Repeatable,
+                place,
+            }))?
+        } else {
+            ty
+        };
+
         // binding reads commit their runtime access path
         if self.symbol_kind(*symbol)?.is_binding() {
             self.commit_access(site.node, dir::AccessPath::symbol(*symbol))?;
@@ -661,7 +675,7 @@ impl BodyState<'_, '_> {
                     function: dir::FunctionTarget {
                         receiver: None,
                         generic_scope: None,
-                        selection: dir::Selection::new(*symbol, Vec::new()),
+                        key: dir::InstanceKey::new(*symbol, Vec::new()),
                     },
                     dispatch: dir::FunctionDispatch::Direct,
                 },

@@ -561,11 +561,7 @@ fn add_member_access_fields(
             row.field("target", builder.member_candidate_label(candidate))
                 .optional_field(
                     "instance",
-                    generic_instance_label(
-                        builder,
-                        candidate.selection.symbol,
-                        &candidate.selection.arguments,
-                    ),
+                    generic_instance_label(builder, candidate.key.symbol, &candidate.key.arguments),
                 )
         }
         dir::MemberTarget::OverloadSet(candidates) => row.field("kind", "overload-set").list_field(
@@ -607,9 +603,7 @@ fn add_function_decision_row(
 
         // render explicitly applied selections with their instance
         let applied = match &value.target {
-            dir::CallableTarget::Symbol { function, .. }
-                if !function.selection.arguments.is_empty() =>
-            {
+            dir::CallableTarget::Symbol { function, .. } if !function.key.arguments.is_empty() => {
                 Some(function)
             }
             _ => None,
@@ -929,12 +923,12 @@ fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projecti
                 builder.global_type_label(*ty)
             )
         }
-        dir::Projection::NewtypePayload { selection, ty } => {
-            let arguments = projection_generic_arguments_label(builder, &selection.arguments);
+        dir::Projection::NewtypePayload { key, ty } => {
+            let arguments = projection_generic_arguments_label(builder, &key.arguments);
 
             format!(
                 "newtype.payload({}{}, {})",
-                builder.symbol_path_label(selection.symbol),
+                builder.symbol_path_label(key.symbol),
                 arguments,
                 builder.global_type_label(*ty)
             )
@@ -1395,14 +1389,11 @@ fn add_construct_decision_row(
         .type_field("return", builder.global_type_label(resolution.return_type));
 
     let row = match &resolution.target {
-        dir::ConstructTarget::Class {
-            selection,
-            constructor,
-        } => {
-            add_class_construct_fields(builder, row.field("kind", "class"), selection, constructor)
+        dir::ConstructTarget::Class { key, constructor } => {
+            add_class_construct_fields(builder, row.field("kind", "class"), key, constructor)
         }
-        dir::ConstructTarget::Newtype { selection, backing } => {
-            add_newtype_construct_fields(builder, row.field("kind", "newtype"), selection, *backing)
+        dir::ConstructTarget::Newtype { key, backing } => {
+            add_newtype_construct_fields(builder, row.field("kind", "newtype"), key, *backing)
         }
         dir::ConstructTarget::Dynamic { dispatch, function } => row
             .field("kind", "dynamic")
@@ -1490,9 +1481,8 @@ fn construct_target_label(
     target: &dir::ConstructTarget,
 ) -> String {
     match target {
-        dir::ConstructTarget::Class { selection, .. }
-        | dir::ConstructTarget::Newtype { selection, .. } => {
-            builder.symbol_path_label(selection.symbol)
+        dir::ConstructTarget::Class { key, .. } | dir::ConstructTarget::Newtype { key, .. } => {
+            builder.symbol_path_label(key.symbol)
         }
         dir::ConstructTarget::Dynamic { function, .. } => dynamic_function_label(builder, function),
     }
@@ -1699,17 +1689,10 @@ fn add_pattern_destructure_fields(
                     .map(|rest| pattern_rest_label(builder, segment, rest)),
             ),
         dir::PatternDestructureResolution::Nominal(nominal) => row
-            .field(
-                "target",
-                builder.symbol_path_label(nominal.selection.symbol),
-            )
+            .field("target", builder.symbol_path_label(nominal.key.symbol))
             .optional_field(
                 "instance",
-                generic_instance_label(
-                    builder,
-                    nominal.selection.symbol,
-                    &nominal.selection.arguments,
-                ),
+                generic_instance_label(builder, nominal.key.symbol, &nominal.key.arguments),
             )
             .object_field(
                 "fields",
@@ -1886,9 +1869,9 @@ fn receiver_adjustment_label(
             format!("borrow({})", builder.global_type_label(*ty))
         }
         dir::ReceiverAdjustment::Dereference(resolution) => dereference_label(builder, resolution),
-        dir::ReceiverAdjustment::NewtypePayload { selection, ty } => format!(
+        dir::ReceiverAdjustment::NewtypePayload { key, ty } => format!(
             "newtype.payload({}, {})",
-            builder.symbol_path_label(selection.symbol),
+            builder.symbol_path_label(key.symbol),
             builder.global_type_label(*ty)
         ),
         dir::ReceiverAdjustment::UnionPayload { union, arm, ty } => format!(
@@ -1923,14 +1906,14 @@ fn dynamic_function_label(
 fn add_class_construct_fields(
     builder: &DirSnapshotBuilder<'_>,
     row: SnapshotRow,
-    selection: &dir::Selection,
+    key: &dir::InstanceKey,
     constructor: &dir::ClassConstructor,
 ) -> SnapshotRow {
-    row.field("target", builder.symbol_path_label(selection.symbol))
+    row.field("target", builder.symbol_path_label(key.symbol))
         .optional_field("constructor", class_constructor_label(builder, constructor))
         .optional_field(
             "instance",
-            generic_instance_label(builder, selection.symbol, &selection.arguments),
+            generic_instance_label(builder, key.symbol, &key.arguments),
         )
 }
 
@@ -1956,14 +1939,14 @@ fn class_constructor_label(
 fn add_newtype_construct_fields(
     builder: &DirSnapshotBuilder<'_>,
     row: SnapshotRow,
-    selection: &dir::Selection,
+    key: &dir::InstanceKey,
     backing: dir::GlobalTypeId,
 ) -> SnapshotRow {
-    row.field("target", builder.symbol_path_label(selection.symbol))
+    row.field("target", builder.symbol_path_label(key.symbol))
         .type_field("backing", builder.global_type_label(backing))
         .optional_field(
             "instance",
-            generic_instance_label(builder, selection.symbol, &selection.arguments),
+            generic_instance_label(builder, key.symbol, &key.arguments),
         )
 }
 
@@ -1987,30 +1970,19 @@ fn function_target_instance_label(
     function: &dir::FunctionTarget,
 ) -> Option<String> {
     let Some(owner) = function.generic_scope else {
-        return generic_instance_label(
-            builder,
-            function.selection.symbol,
-            &function.selection.arguments,
-        );
+        return generic_instance_label(builder, function.key.symbol, &function.key.arguments);
     };
 
-    let owner_arguments = generic_instance_arguments(builder, owner, &function.selection.arguments);
-    let member_arguments = generic_instance_arguments(
-        builder,
-        function.selection.symbol,
-        &function.selection.arguments,
-    );
+    let owner_arguments = generic_instance_arguments(builder, owner, &function.key.arguments);
+    let member_arguments =
+        generic_instance_arguments(builder, function.key.symbol, &function.key.arguments);
     if owner_arguments.is_empty() && member_arguments.is_empty() {
         return None;
     }
 
-    let owner_label = function_target_owner_label(
-        builder,
-        owner,
-        &owner_arguments,
-        &function.selection.arguments,
-    );
-    let member_label = function_target_member_label(builder, owner, function.selection.symbol);
+    let owner_label =
+        function_target_owner_label(builder, owner, &owner_arguments, &function.key.arguments);
+    let member_label = function_target_member_label(builder, owner, function.key.symbol);
     let member_label = match member_arguments.as_slice() {
         [] => member_label,
         _ => format!(

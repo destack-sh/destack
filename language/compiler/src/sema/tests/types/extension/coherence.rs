@@ -91,7 +91,7 @@ function describe<T: Show>(value: &readonly T): string {
     /// @resolution.call source=value.show() parameters=() return=string kind=symbol target=Show.show receiver=&describe.'a readonly T instance=Show.show<describe.P2>
     /// @resolution.place source=value placement=describe.P2 lifetime=describe.'a access="readonly"
     /// @resolution.access source=value root=describe.value
-    /// @generic.instantiation id=Show.show<describe.P2> template=Show.show arguments=(describe.P2) owner=describe
+    /// @generic.instantiation id="Show.show<T, describe.P2>" template=Show.show arguments=(describe.P2) owner=describe
 
 }
 

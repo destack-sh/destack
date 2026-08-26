@@ -53,7 +53,7 @@ impl SnapshotTable for dir::GenericSegment {
 
         // render the instantiations the checked bodies recorded
         for instantiation in self.iter_instantiations() {
-            let arguments = selection_arguments(&instantiation.selection);
+            let arguments = selection_arguments(&instantiation.key);
             let row = SnapshotRow::new(
                 builder.anchor_node(instantiation.source),
                 "generic",
@@ -61,11 +61,14 @@ impl SnapshotTable for dir::GenericSegment {
             )
             .field(
                 "id",
-                builder.generic_instance_label(instantiation.selection.symbol, &arguments),
+                builder.generic_instance_label(
+                    instantiation.key.symbol,
+                    &selection_types(&instantiation.key),
+                ),
             )
             .field(
                 "template",
-                builder.symbol_path_label(instantiation.selection.symbol),
+                builder.symbol_path_label(instantiation.key.symbol),
             )
             .verbatim_field(
                 "arguments",
@@ -83,14 +86,11 @@ impl SnapshotTable for dir::GenericSegment {
 
         // render the instances this segment closed, with the types they evaluated
         for (instance_id, instance) in self.iter_instances() {
-            let arguments = selection_arguments(&instance.selection);
+            let arguments = selection_arguments(&instance.key);
             let mut row =
                 SnapshotRow::new(builder.anchor_node(instance.source), "generic", "instance")
                     .field("id", instance_label(builder, instance))
-                    .field(
-                        "template",
-                        builder.symbol_path_label(instance.selection.symbol),
-                    )
+                    .field("template", builder.symbol_path_label(instance.key.symbol))
                     .verbatim_field(
                         "arguments",
                         builder.generic_instance_arguments_label(&arguments),
@@ -131,18 +131,22 @@ impl SnapshotTable for dir::GenericSegment {
 
 /// Return one closed generic instance label.
 fn instance_label(builder: &DirSnapshotBuilder<'_>, instance: &dir::Instance) -> String {
-    builder.generic_instance_label(
-        instance.selection.symbol,
-        &selection_arguments(&instance.selection),
-    )
+    builder.generic_instance_label(instance.key.symbol, &selection_types(&instance.key))
 }
 
-/// Return the argument types one selection binds.
-fn selection_arguments(selection: &dir::Selection) -> Vec<dir::GlobalTypeId> {
-    selection
-        .arguments
+/// Return the argument types one key binds.
+fn selection_arguments(key: &dir::InstanceKey) -> Vec<dir::GlobalTypeId> {
+    key.arguments
         .iter()
         .map(|argument| argument.argument)
+        .collect()
+}
+
+/// Return the receiver and argument types one key closes, receiver first.
+fn selection_types(key: &dir::InstanceKey) -> Vec<dir::GlobalTypeId> {
+    key.receiver
+        .into_iter()
+        .chain(key.arguments.iter().map(|argument| argument.argument))
         .collect()
 }
 

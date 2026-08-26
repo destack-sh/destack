@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::sema::{AssignedPlace, ConditionBranch, FlowBranch, PlaceUse, ElisionSite, WalkState};
+use crate::sema::{AssignedPlace, ConditionBranch, ElisionSite, FlowBranch, PlaceUse, WalkState};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {

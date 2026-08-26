@@ -6,9 +6,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, Cause, CauseKind, ConditionBranch, ControlTargetForm, Expectation, ExpectedType,
-    FlowSite, GeneratorTargets, InferMode, Obligation, Origin, PatternCoverage,
-    PatternCoverageObligation, PlaceUse, ElisionSite, Relation, RelationCheck, Value, ValueUse,
+    BodyState, Cause, CauseKind, ConditionBranch, ControlTargetForm, ElisionSite, Expectation,
+    ExpectedType, FlowBranch, FlowSite, GeneratorTargets, InferMode, Obligation, Origin,
+    PatternCoverage, PatternCoverageObligation, PlaceUse, Relation, RelationCheck, Value, ValueUse,
     VariableRole, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
@@ -381,6 +381,8 @@ impl BodyState<'_, '_> {
         let body_site = self.check.visit_site(body.into_global_any(module))?;
         self.attempt_node(body_site, PlaceUse::Read, None)?;
         self.check.restore_flow(before_body);
+        let continues = self.check.take_current_continue_branches();
+        self.commit_single_pass_loop(node, body, &continues)?;
 
         // collect the normal exit through the false condition
         self.check
@@ -393,6 +395,24 @@ impl BodyState<'_, '_> {
         // complete the loop with void when the condition fails
         let void = self.check.intern_type(dir::Type::Void)?;
         self.check.commit_node_type(node, void)?;
+
+        Ok(())
+    }
+
+    /// Record one loop whose body never reaches another iteration.
+    pub(in crate::sema) fn commit_single_pass_loop(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        body: dir::LocalNodeId<dir::Block>,
+        continues: &[FlowBranch],
+    ) -> CompilerResult<()> {
+        let repeats = !continues.is_empty() || self.check.block_can_complete_normally(body);
+        if !repeats {
+            self.check
+                .module_mut(node.module_id)
+                .flows
+                .set_single_pass(node.local_id);
+        }
 
         Ok(())
     }
@@ -423,6 +443,8 @@ impl BodyState<'_, '_> {
         let body_site = self.check.visit_site(body.into_global_any(module))?;
         self.attempt_node(body_site, PlaceUse::Read, None)?;
         self.check.restore_flow(before_body);
+        let continues = self.check.take_current_continue_branches();
+        self.commit_single_pass_loop(node, body, &continues)?;
 
         // restore only branches that leave the loop
         let branches = self.check.leave_control_target();
@@ -487,12 +509,14 @@ impl BodyState<'_, '_> {
         self.attempt_node(body_site, PlaceUse::Read, None)?;
 
         // check the increment under the joined flows reaching the next iteration
+        let continues = self.check.take_current_continue_branches();
+        self.commit_single_pass_loop(node, body, &continues)?;
         if let Some(increment) = increment {
             let body_flow = self
                 .check
                 .block_can_complete_normally(body)
                 .then(|| self.check.collect_flow_branch(before_body));
-            let mut reaching = self.check.take_current_continue_branches();
+            let mut reaching = continues;
             reaching.extend(body_flow);
 
             // reset to the pre-body flow when no path reaches the increment

@@ -351,9 +351,7 @@ impl WalkState<'_, '_> {
                             .set_cardinality(parameter.local_id, cardinality);
                     }
                     // body value reads consume the value the signature must fix
-                    else if self.is_body
-                        && self.check.resolved_cardinality(parameter).is_none()
-                    {
+                    else if self.is_body && self.check.resolved_cardinality(parameter).is_none() {
                         self.check.report_value_read_not_fixed(
                             expression.into_global_any(self.module),
                             parameter,

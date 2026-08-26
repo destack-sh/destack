@@ -247,3 +247,109 @@ const both = left & right;
 "#,
     );
 }
+
+#[test]
+fn test_select_the_standard_bigint_and_operation() {
+    let session = TestSession::single(
+        r#"
+function retain(value: bigint): bigint {
+    return value & -1n;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+function retain(value: bigint): bigint {
+    return value & -1n;
+}
+
+=== dir ===
+function retain(value: bigint): bigint {
+/// @type.symbol symbol=retain type=(bigint) => bigint
+/// @type.symbol symbol=retain.value source="value: bigint" type=bigint
+
+    return value & -1n;
+    /// @resolution.name source=value target=retain.value
+    /// @resolution.operator source="value & -1n" type=bigint operator="&" kind=builtin operands=[value as bigint families=(bigint), -1n as bigint families=(bigint)]
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=retain.value
+    /// @resolution.operator source=-1n type=-1n operator="-" kind=builtin operands=[1n as 1n families=(bigint)]
+
+}
+"#, r#"
+
+"#);
+}
+
+#[test]
+fn test_call_the_standard_bigint_and_method() {
+    let session = TestSession::single(
+        r#"
+function retain(value: bigint): bigint {
+    return value.and(-1n);
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+function retain(value: bigint): bigint {
+    return value.and<"local">(-1n);
+}
+
+=== dir ===
+function retain(value: bigint): bigint {
+/// @type.symbol symbol=retain type=(bigint) => bigint
+/// @type.symbol symbol=retain.value source="value: bigint" type=bigint
+
+    return value.and(-1n);
+    /// @resolution.name source=value target=retain.value
+    /// @resolution.member source=value.and receiver=bigint type=<and.'a, and.P1: Place>(this: Borrowed<bigint, and.'a & and.P1, "readonly">, bigint) => bigint.Output kind=symbol target_receiver=bigint target=and
+    /// @resolution.call source=value.and(-1n) parameters=(bigint) arguments=(provided(-1n) as bigint) return=bigint.Output kind=symbol target=and receiver=bigint adjustments=(borrow(&'frame readonly bigint)) instance="bigint.<extension#2>.and<\"local\">"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=retain.value
+    /// @generic.instantiation id="and<\"local\">" template=and arguments=("local")
+    /// @resolution.operator source=-1n type=-1n operator="-" kind=builtin operands=[1n as 1n families=(bigint)]
+
+}
+"#, r#"
+
+"#);
+}
+
+#[test]
+fn test_select_the_standard_bigint_and_operation_between_values() {
+    let session = TestSession::single(
+        r#"
+function retain(value: bigint, other: bigint): bigint {
+    return value & other;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+function retain(value: bigint, other: bigint): bigint {
+    return value & other;
+}
+
+=== dir ===
+function retain(value: bigint, other: bigint): bigint {
+/// @type.symbol symbol=retain type=(bigint, bigint) => bigint
+/// @type.symbol symbol=retain.value source="value: bigint" type=bigint
+/// @type.symbol symbol=retain.other source="other: bigint" type=bigint
+
+    return value & other;
+    /// @resolution.name source=value target=retain.value
+    /// @resolution.operator source="value & other" type=bigint operator="&" kind=builtin operands=[value as bigint families=(bigint), other as bigint families=(bigint)]
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=retain.value
+    /// @resolution.name source=other target=retain.other
+    /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=other root=retain.other
+
+}
+"#, r#"
+"#);
+}

@@ -23,7 +23,7 @@ impl SnapshotTable for dir::DecoratorSegment {
             .type_field("type", builder.global_type_label(resolution.ty));
             let row = match &resolution.selection {
                 dir::DecoratorSelection::Newtype {
-                    selection,
+                    key,
                     backing,
                     arguments,
                 } => {
@@ -37,7 +37,7 @@ impl SnapshotTable for dir::DecoratorSegment {
                         )
                         .optional_field("arguments", builder.argument_bindings_label(arguments));
 
-                    builder.add_newtype_selection(row, selection, *backing)
+                    builder.add_newtype_selection(row, key, *backing)
                 }
                 dir::DecoratorSelection::Derive { interfaces } => {
                     row.field("kind", "derive").list_field(
@@ -78,14 +78,14 @@ impl DirSnapshotBuilder<'_> {
     fn add_newtype_selection(
         &self,
         row: SnapshotRow,
-        selection: &dir::Selection,
+        key: &dir::InstanceKey,
         backing: dir::GlobalTypeId,
     ) -> SnapshotRow {
-        row.field("newtype", self.symbol_path_label(selection.symbol))
+        row.field("newtype", self.symbol_path_label(key.symbol))
             .type_field("backing", self.global_type_label(backing))
             .optional_field(
                 "generic_arguments",
-                self.generic_arguments_label(&selection.arguments),
+                self.generic_arguments_label(&key.arguments),
             )
     }
 }

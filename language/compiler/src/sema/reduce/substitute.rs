@@ -659,6 +659,47 @@ impl CheckState<'_> {
         self.substitute_graph(target, id, rule)
     }
 
+    /// Return whether one type applies the replaced declaration with equal arguments.
+    fn replaces_application(
+        &self,
+        from: dir::GlobalTypeId,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        // match distinct interned forms of one application
+        let dir::Type::Application(application) = self.ty_raw(id)? else {
+            return Ok(false);
+        };
+        let dir::Type::Application(from_application) = self.ty_raw(from)? else {
+            return Ok(false);
+        };
+        if from_application.symbol != application.symbol {
+            return Ok(false);
+        }
+
+        // compare the arguments elementwise
+        let from_arguments = self
+            .type_ids(from.module_id, from_application.arguments)?
+            .to_vec();
+        let arguments = self.type_ids(id.module_id, application.arguments)?.to_vec();
+        if from_arguments.len() != arguments.len() {
+            return Ok(false);
+        }
+        for (from_argument, argument) in from_arguments.iter().zip(&arguments) {
+            if from_argument == argument {
+                continue;
+            }
+            let matched = match (self.ty_raw(*from_argument)?, self.ty_raw(*argument)?) {
+                (dir::Type::Parameter(left), dir::Type::Parameter(right)) => left == right,
+                _ => false,
+            };
+            if !matched {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
     /// Replace one type id inside another type graph.
     pub(in crate::sema) fn replace_type(
         &mut self,
@@ -709,8 +750,12 @@ impl CheckState<'_> {
         let hit = match (ty, rule) {
             // a normalize pass rebuilds every node
             _ if matches!(rule, SubstitutionRule::Normalize { .. }) => true,
-            // a replace pass hits its own source id
-            _ if matches!(rule, SubstitutionRule::Replace { from, .. } if from == id) => true,
+            // a replace pass hits its own source id or an equal application
+            _ if matches!(rule, SubstitutionRule::Replace { from, .. }
+                if from == id || self.replaces_application(from, id)?) =>
+            {
+                true
+            }
             // a bare reference to a conditional-infer binder
             (dir::Type::Application(instance), _)
                 if instance.arguments.is_empty()
@@ -808,9 +853,9 @@ impl CheckState<'_> {
         affected: &FxIndexMap<dir::GlobalTypeId, bool>,
         substituting: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // replace one matched type id
+        // replace one matched type id or an equal application
         if let SubstitutionRule::Replace { from, to } = rule
-            && id == from
+            && (id == from || self.replaces_application(from, id)?)
         {
             return Ok(to);
         }

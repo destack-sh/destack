@@ -1377,6 +1377,7 @@ function twice<T>(value: T): int32 where T: Doubling {
     /// @resolution.call source=value.double() parameters=() return=int32 kind=symbol target=Doubling.double receiver=T
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=twice.value
+    /// @generic.instantiation id=Doubling.double<T> template=Doubling.double arguments=() owner=twice
 
 }
 "#,

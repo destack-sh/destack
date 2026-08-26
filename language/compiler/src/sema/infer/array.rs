@@ -700,8 +700,8 @@ impl BodyState<'_, '_> {
         elements: Vec<dir::GlobalNodeIdAny>,
     ) -> CompilerResult<()> {
         // select the constructor over the element type
-        let selection = self.array_pack_selection(element)?;
-        let symbol = selection.symbol;
+        let key = self.array_pack_selection(element)?;
+        let symbol = key.symbol;
 
         // bind the elements against the constructor's slice parameter
         let Some(callable) = self.check.adopt_symbol_type_maybe(symbol)? else {
@@ -738,7 +738,7 @@ impl BodyState<'_, '_> {
                 function: dir::FunctionTarget {
                     receiver: None,
                     generic_scope: None,
-                    selection,
+                    key,
                 },
                 dispatch: dir::FunctionDispatch::Direct,
             },

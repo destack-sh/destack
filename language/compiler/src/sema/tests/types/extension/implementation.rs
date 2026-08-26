@@ -376,6 +376,7 @@ function compare<T: PartialEqual<T>>(left: T, right: T): boolean {
     /// @resolution.call source=left.equal(right) parameters=(T#3) arguments=(provided(right) as T#3) return=boolean kind=symbol target=PartialEqual.equal receiver=T#3 instance=PartialEqual<T#3>.equal
     /// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=left root=compare.left
+    /// @generic.instantiation id="PartialEqual.equal<T#3, T#3>" template=PartialEqual.equal arguments=(T#3) owner=compare
     /// @generic.instantiation id=PartialEqual.equal<T#3> template=PartialEqual.equal arguments=(T#3) owner=compare
     /// @resolution.name source=right target=compare.right
     /// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
@@ -389,6 +390,7 @@ const ok = compare(Badge {}, Badge {});
 /// @resolution.name source=compare target=compare
 /// @resolution.call source="compare(Badge {}, Badge {})" parameters=(Badge, Badge) arguments=(provided(Badge {}) as Badge, provided(Badge {}) as Badge) return=boolean kind=symbol target=compare instance=compare<Badge>
 /// @generic.instantiation id=compare<Badge> template=compare arguments=(Badge)
+/// @generic.instance id="PartialEqual.equal<Badge, Badge>" template=PartialEqual.equal arguments=(Badge)
 /// @generic.instance id=PartialEqual.equal<Badge> template=PartialEqual.equal arguments=(Badge)
 /// @generic.instance id=compare<Badge> template=compare arguments=(Badge)
 /// @resolution.name source=Badge target=Badge
@@ -2850,6 +2852,7 @@ function measure<T: Sized>(value: T): isize {
     /// @resolution.call source=value.size() parameters=() return=isize kind=symbol target=Sized.size receiver=T
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=measure.value
+    /// @generic.instantiation id=Sized.size<T> template=Sized.size arguments=() owner=measure
 
 }
 

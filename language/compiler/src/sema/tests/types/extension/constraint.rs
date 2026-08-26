@@ -123,7 +123,7 @@ extension<T> of Box<T> where T: Readable {
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=read.P1 lifetime=read.'a access="readonly"
         /// @resolution.access source=this.value root=this keys=[value]
-        /// @generic.instantiation id=Readable.read<read.P1> template=Readable.read arguments=(read.P1) owner=read
+        /// @generic.instantiation id="Readable.read<T#2, read.P1>" template=Readable.read arguments=(read.P1) owner=read
 
     }
 }
@@ -145,8 +145,8 @@ const text = boxed.read();
 /// @resolution.access source=boxed root=boxed
 /// @generic.instantiation id="read<Document, \"constant\">" template=read arguments=(Document, "constant")
 /// @generic.instantiation id=read<Document> template=read arguments=(Document)
-/// @generic.instance id="Readable.read<\"constant\">" template=Readable.read arguments=("constant")
-/// @generic.instance id="Readable.read<\"local\">" template=Readable.read arguments=("local")
+/// @generic.instance id="Readable.read<Document, \"constant\">" template=Readable.read arguments=("constant")
+/// @generic.instance id="Readable.read<Document, \"local\">" template=Readable.read arguments=("local")
 /// @generic.instance id="read<Document, \"constant\">" template=read arguments=(Document, "constant")
 /// @generic.instance id="read<Document, \"local\">" template=read arguments=(Document, "local")
 "#,
@@ -260,6 +260,7 @@ extension<T> of Box<T> where T: Readable {
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=read.P1 lifetime=read.'a access="readonly"
         /// @resolution.access source=this.value root=this keys=[value]
+        /// @generic.instantiation id=Readable.read<T#2> template=Readable.read arguments=() owner=read
 
     }
 }
@@ -736,6 +737,7 @@ extension<T, I: Give<Box<T>>> of I {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.give().value placement="local" lifetime="frame" access="exclusive"
+        /// @generic.instantiation id="Give.give<I, Box<T#3>>" template=Give.give arguments=(Box<T#3>) owner=unwrap
         /// @generic.instantiation id=Give.give<Box<T#3>> template=Give.give arguments=(Box<T#3>) owner=unwrap
 
     }
@@ -779,6 +781,7 @@ function open(value: Token): boolean {
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=open.value
     /// @generic.instantiation id="unwrap<boolean, Token>" template=unwrap arguments=(boolean, Token)
+    /// @generic.instance id="Give.give<Token, Box<boolean>>" template=Give.give arguments=(Box<boolean>)
     /// @generic.instance id="unwrap<boolean, Token>" template=unwrap arguments=(boolean, Token)
     /// @generic.instance id=Give.give<Box<boolean>> template=Give.give arguments=(Box<boolean>)
 

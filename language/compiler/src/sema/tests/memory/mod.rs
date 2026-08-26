@@ -16,7 +16,7 @@ mod owned;
 mod placement;
 mod reader;
 mod receiver;
-mod r#return;
 mod reduction;
+mod r#return;
 mod r#type;
 mod view;

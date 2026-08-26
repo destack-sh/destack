@@ -14,6 +14,33 @@ pub(in crate::sema) enum TryProjection {
 }
 
 impl CheckState<'_> {
+    /// Return whether one type holds only nullish members.
+    pub(in crate::sema) fn is_nullish_type(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let root = self.normalize(origin, ty)?;
+        let elements = match self.union_leaves(origin, root)? {
+            Some(leaves) => leaves,
+            None => SmallVec::from_slice(&[root]),
+        };
+        for element in elements {
+            let resolved = self.normalize(origin, element)?;
+            if !matches!(
+                self.ty(resolved)?,
+                dir::Type::Null
+                    | dir::Type::Undefined
+                    | dir::Type::Never
+                    | dir::Type::Literal(dir::Literal::Null | dir::Literal::Undefined)
+            ) {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
     /// Project the success or residual type of one tried value.
     pub(super) fn reduce_try_projection(
         &mut self,

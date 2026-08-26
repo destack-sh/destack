@@ -42,7 +42,7 @@ pub(in crate::sema) enum NewtypeMatch {
 #[derive(Debug, Clone)]
 pub(in crate::sema) struct NewtypeSignature {
     /// The selected newtype declaration and its generic arguments.
-    pub(in crate::sema) selection: dir::Selection,
+    pub(in crate::sema) key: dir::InstanceKey,
     /// The selected instantiated backing alternative.
     pub(in crate::sema) backing: dir::GlobalTypeId,
     /// The selected backing signature.
@@ -63,7 +63,7 @@ pub(in crate::sema) enum NewtypeRejection {
 #[derive(Debug, Clone)]
 pub(in crate::sema) struct NewtypeInstance {
     /// The decided backing without per-site coercions.
-    pub(in crate::sema) selection: NewtypeSignature,
+    pub(in crate::sema) signature: NewtypeSignature,
 }
 
 impl dir::TypeFold for NewtypeInstance {
@@ -72,9 +72,9 @@ impl dir::TypeFold for NewtypeInstance {
         &mut self,
         map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
     ) -> Result<(), E> {
-        self.selection.selection.map_types(map)?;
-        self.selection.backing.map_types(map)?;
-        self.selection.signature.map_types(map)
+        self.signature.key.map_types(map)?;
+        self.signature.backing.map_types(map)?;
+        self.signature.signature.map_types(map)
     }
 }
 
@@ -134,7 +134,7 @@ impl BodyState<'_, '_> {
                 .instantiate_response(origin, canonical, &response)?
             {
                 Dispatch::Newtype(instance) => {
-                    self.apply_newtype_instance(origin, instance.selection, &arguments)?
+                    self.apply_newtype_instance(origin, instance.signature, &arguments)?
                 }
                 _ => None,
             };
@@ -278,11 +278,8 @@ impl BodyState<'_, '_> {
                     is_return_mismatch = true;
                 }
                 // a sole alternative reports its own invocation rejection
-                SignatureMatch::Invalid {
-                    selection,
-                    rejection,
-                } if is_single_candidate => {
-                    selected = Some((candidate, selection, Some(rejection)));
+                SignatureMatch::Invalid { key, rejection } if is_single_candidate => {
+                    selected = Some((candidate, key, Some(rejection)));
                 }
                 // a sole alternative reports its own precise refusal
                 SignatureMatch::Inapplicable(rejection)
@@ -317,7 +314,7 @@ impl BodyState<'_, '_> {
 
         // build the selected signature over the substituted backing
         let signature = NewtypeSignature {
-            selection: dir::Selection::new(symbol, signature.generic_arguments.clone()),
+            key: dir::InstanceKey::new(symbol, signature.generic_arguments.clone()),
             backing,
             signature,
         };
@@ -342,7 +339,7 @@ impl BodyState<'_, '_> {
                 goal,
                 canonical,
                 checks_before,
-                Dispatch::Newtype(NewtypeInstance { selection: stored }),
+                Dispatch::Newtype(NewtypeInstance { signature: stored }),
                 Answer::Selection,
             )?;
         }

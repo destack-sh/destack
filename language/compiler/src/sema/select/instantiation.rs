@@ -68,7 +68,7 @@ impl CheckState<'_> {
         let mut substitution = TypeSubstitution::default();
         let mut cursor = 0;
         for parameter in parameters.iter().copied() {
-            let binding = *self.require_generic_parameter(parameter)?;
+            let binding = self.require_generic_parameter(parameter)?.clone();
             let is_explicit = matches!(binding.origin, dir::GenericParameterOrigin::Explicit);
             if binding.is_writable()
                 && cursor < written.len()
@@ -137,7 +137,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            let binding = *self.require_generic_parameter(parameter)?;
+            let binding = self.require_generic_parameter(parameter)?.clone();
             if binding.is_writable()
                 && cursor < written.len()
                 && self.argument_fills_parameter(&binding, written[cursor])?
@@ -363,7 +363,7 @@ impl BodyState<'_, '_> {
                 function: dir::FunctionTarget {
                     receiver: None,
                     generic_scope: None,
-                    selection: dir::Selection::new(symbol, arguments),
+                    key: dir::InstanceKey::new(symbol, arguments),
                 },
                 dispatch: dir::FunctionDispatch::Direct,
             },

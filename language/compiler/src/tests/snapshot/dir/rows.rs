@@ -15,6 +15,8 @@ pub(crate) struct DirRows {
     pub(super) type_references: bool,
     /// Whether to render static table rows.
     pub(super) statics: bool,
+    /// Whether to render conformance rows.
+    pub(super) conformances: bool,
     /// Whether to render resolution table rows.
     pub(super) resolution: bool,
     /// Whether to render generic table rows.
@@ -50,6 +52,7 @@ impl DirRows {
             type_nodes: false,
             type_references: false,
             statics: false,
+            conformances: false,
             resolution: false,
             generics: false,
             definitions: false,
@@ -119,6 +122,12 @@ impl DirRows {
     /// Include flow table rows.
     pub(crate) const fn with_flows(mut self) -> Self {
         self.flow = true;
+        self
+    }
+
+    /// Include conformance rows.
+    pub(crate) const fn with_conformances(mut self) -> Self {
+        self.conformances = true;
         self
     }
 

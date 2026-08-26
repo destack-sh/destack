@@ -8,7 +8,7 @@ impl CheckState<'_> {
     /// Evaluate one selected decorator application.
     pub(in crate::sema) fn evaluate_decorator(
         &mut self,
-        selection: SelectedDecorator,
+        selected: SelectedDecorator,
     ) -> CompilerResult<
         Result<
             (
@@ -22,7 +22,7 @@ impl CheckState<'_> {
         let SelectedDecorator {
             application,
             resolution,
-        } = selection;
+        } = selected;
         let module = application.owner.module_id;
 
         let value = match &resolution.selection {

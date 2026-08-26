@@ -82,8 +82,6 @@ pub(in crate::sema) struct CheckModuleState {
     pub(in crate::sema) decorators_tail: dir::DecoratorSegment,
 
     // pass-only segments with no committed base
-    /// Auto-derived implementations.
-    pub(in crate::sema) auto: dir::AutoSegment,
     /// Checked node resolutions.
     pub(in crate::sema) resolutions: dir::ResolutionSegment,
     /// Decisions inference made this pass.
@@ -311,7 +309,6 @@ impl CheckModuleState {
         let members_tail = dir::MemberSegment::new(module.id);
 
         // open the remaining segments and this module's diagnostic controls
-        let auto = dir::AutoSegment::new(module.id);
         let resolutions = dir::ResolutionSegment::new(module.id);
         let decisions = dir::DecisionSegment::new(module.id);
         let coercions = dir::CoercionSegment::new(module.id);
@@ -353,7 +350,6 @@ impl CheckModuleState {
             generics,
             generics_tail,
             decorators_tail,
-            auto,
             resolutions,
             decisions,
             coercions,

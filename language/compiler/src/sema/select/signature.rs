@@ -53,7 +53,7 @@ pub(in crate::sema) struct SignatureInstance {
     /// The selected overload position within the callee's candidates.
     pub(in crate::sema) overload: usize,
     /// The instantiated selection, leaving coercions to each call site.
-    pub(in crate::sema) selection: SignatureSelection,
+    pub(in crate::sema) key: SignatureSelection,
 }
 
 /// One invocation constrained against a candidate signature.
@@ -75,7 +75,7 @@ pub(in crate::sema) enum SignatureMatch {
     /// The selected signature rejects one invocation constraint.
     Invalid {
         /// The selected signature.
-        selection: SignatureSelection,
+        key: SignatureSelection,
         /// The rejected invocation constraint.
         rejection: SignatureRejection,
     },
@@ -91,9 +91,7 @@ impl SignatureMatch {
         self,
     ) -> CandidateOutcome<SignatureSelection, SignatureRejection> {
         match self {
-            Self::Selected(selection) | Self::ReturnMismatch(selection) => {
-                CandidateOutcome::Accepted(selection)
-            }
+            Self::Selected(key) | Self::ReturnMismatch(key) => CandidateOutcome::Accepted(key),
             Self::Invalid { rejection, .. } | Self::Inapplicable(rejection) => {
                 CandidateOutcome::Rejected(rejection)
             }
@@ -165,6 +163,7 @@ impl SignatureSelection {
         mut receiver: dir::MemberReceiver,
         owner: dir::GlobalSymbolId,
         symbol: dir::GlobalSymbolId,
+        key_receiver: Option<dir::GlobalTypeId>,
         arguments: Vec<dir::ArgumentBinding>,
     ) -> dir::Call {
         if let Some(steps) = &self.receiver_steps {
@@ -181,7 +180,8 @@ impl SignatureSelection {
                 function: dir::FunctionTarget {
                     receiver: Some(receiver),
                     generic_scope: Some(owner),
-                    selection: dir::Selection::new(symbol, generic_arguments),
+                    key: dir::InstanceKey::new(symbol, generic_arguments)
+                        .with_receiver(key_receiver),
                 },
                 dispatch: dir::FunctionDispatch::Direct,
             },
@@ -410,7 +410,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         rest: dir::GlobalTypeId,
         element: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::Selection>> {
+    ) -> CompilerResult<Option<dir::InstanceKey>> {
         // slice parameters pack in place
         let reduced = self.check.deeply_resolve(origin, rest)?;
         if matches!(self.ty(reduced)?, dir::Type::Slice(_)) {
@@ -424,7 +424,7 @@ impl BodyState<'_, '_> {
     pub(in crate::sema) fn array_pack_selection(
         &mut self,
         element: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::Selection> {
+    ) -> CompilerResult<dir::InstanceKey> {
         // read the element parameter of the array pack constructor
         let symbol = self
             .check
@@ -442,7 +442,7 @@ impl BodyState<'_, '_> {
         };
         let binding = dir::GenericArgumentBinding::new(parameter, element);
 
-        Ok(dir::Selection::new(symbol, vec![binding]))
+        Ok(dir::InstanceKey::new(symbol, vec![binding]))
     }
 
     /// Return the element type one rest parameter accepts per tail argument.
@@ -724,7 +724,7 @@ impl BodyState<'_, '_> {
         };
 
         // build the selection from whatever the invocation resolved
-        let mut selection = self.signature_selection(
+        let mut key = self.signature_selection(
             origin,
             signature_module,
             function,
@@ -733,16 +733,13 @@ impl BodyState<'_, '_> {
             receiver.map(|receiver| receiver.ty),
             receiver_steps,
         )?;
-        selection.coercions = coercions;
+        key.coercions = coercions;
 
         // classify the candidate by what rejected it, if anything
         let matched = match rejection {
-            Some(rejection) => SignatureMatch::Invalid {
-                selection,
-                rejection,
-            },
-            None if is_return_mismatch => SignatureMatch::ReturnMismatch(selection),
-            None => SignatureMatch::Selected(selection),
+            Some(rejection) => SignatureMatch::Invalid { key, rejection },
+            None if is_return_mismatch => SignatureMatch::ReturnMismatch(key),
+            None => SignatureMatch::Selected(key),
         };
 
         Ok(matched)
@@ -1229,7 +1226,7 @@ impl dir::TypeFold for SignatureInstance {
         &mut self,
         map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
     ) -> Result<(), E> {
-        self.selection.map_types(map)
+        self.key.map_types(map)
     }
 }
 

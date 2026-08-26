@@ -452,7 +452,7 @@ const text: (value: string) => string = render;
 /// @resolution.pattern source=text kind=binding target=text
 /// @type.symbol symbol=value source="value: string" type=string
 /// @resolution.name source=render target=[render#1, render#2]
-/// @resolution.function source=render type=(string) => string target=render#2
+/// @resolution.function source=render type=Function<(string,), string> target=render#2
 "#,
     );
 }
@@ -568,7 +568,7 @@ function sum(values: Iterator<int32>): Result<int32, string> {
 /// @generic.instance id="EnumeratedIterator<Iterator<int32>, int32>" template=EnumeratedIterator arguments=(Iterator<int32>, int32)
 /// @generic.instance id="FilterIterator<Iterator<int32>, int32>" template=FilterIterator arguments=(Iterator<int32>, int32)
 /// @generic.instance id="InspectIterator<Iterator<int32>, int32>" template=InspectIterator arguments=(Iterator<int32>, int32)
-/// @generic.instance id="Iterator.collect<int32, Owned<int32[]>>" template=Iterator.collect arguments=(int32, Owned<int32[]>)
+/// @generic.instance id="Iterator.collect<Iterator<int32>, int32, Owned<int32[]>>" template=Iterator.collect arguments=(int32, Owned<int32[]>)
 /// @generic.instance id="IteratorResult<int32, Iterator<int32>.Return>" template=IteratorResult arguments=(int32, Iterator<int32>.Return)
 /// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
 /// @generic.instance id="PeekableIterator<Iterator<int32>, int32>" template=PeekableIterator arguments=(Iterator<int32>, int32)

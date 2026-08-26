@@ -24,6 +24,15 @@ impl SnapshotTable for dir::FlowTable<'_> {
             builder.push(row);
         }
 
+        // render the loops flow proves run their body at most once
+        for node in self.single_pass_nodes() {
+            let node = node.into_global(self.module_id);
+            let row = SnapshotRow::new(builder.anchor_node(node), "flow", "single_pass")
+                .optional_field("source", builder.node_source(node));
+
+            builder.push(row);
+        }
+
         // render the recorded symbol uses
         for (symbol, binding_use) in self.binding_uses() {
             let symbol = dir::GlobalSymbolId {

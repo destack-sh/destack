@@ -54,9 +54,9 @@ impl BodyState<'_, '_> {
             NewtypeOverload::Unambiguous,
             ValueUse::Const,
         )?;
-        let (selection, backing, signature) = match matched {
+        let (key, backing, signature) = match matched {
             NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => {
-                (signature.selection, signature.backing, signature.signature)
+                (signature.key, signature.backing, signature.signature)
             }
             NewtypeMatch::Invalid { rejection, .. } => {
                 self.report_decorator_rejection(
@@ -107,7 +107,7 @@ impl BodyState<'_, '_> {
         let resolution = dir::DecoratorResolution {
             target,
             selection: dir::DecoratorSelection::Newtype {
-                selection,
+                key,
                 backing,
                 arguments,
             },

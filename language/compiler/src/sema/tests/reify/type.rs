@@ -640,12 +640,11 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                             Some(spaces) => {
                                 let place = self.check.shallow_resolve(spaces)?;
                                 let is_induced = match self.check.ty(place)? {
-                                    dir::Type::Parameter(parameter) => self
-                                        .check
-                                        .generic_parameter(parameter)
-                                        .is_some_and(|binding| {
-                                            binding.induced_memory_parameter().is_some()
-                                        }),
+                                    dir::Type::Parameter(parameter) => {
+                                        self.check.generic_parameter(parameter).is_some_and(
+                                            |binding| binding.induced_memory_parameter().is_some(),
+                                        )
+                                    }
                                     _ => false,
                                 };
 

@@ -468,10 +468,7 @@ impl BodyState<'_, '_> {
                         &forms,
                     );
                 }
-                SignatureMatch::Invalid {
-                    selection,
-                    rejection,
-                } if is_single_candidate => {
+                SignatureMatch::Invalid { key, rejection } if is_single_candidate => {
                     self.report_signature_rejection(origin, rejection)?;
                     let produced = self.commit_construct(
                         node,
@@ -480,7 +477,7 @@ impl BodyState<'_, '_> {
                         argument_nodes,
                         &instance,
                         constructor.constructor,
-                        selection,
+                        key,
                         &forms,
                     )?;
 
@@ -776,7 +773,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<ValueCheck> {
         let module = origin.module();
         let NewtypeSignature {
-            selection,
+            key,
             backing,
             signature,
         } = signature;
@@ -787,7 +784,7 @@ impl BodyState<'_, '_> {
         }
 
         // commit the construction over the selected newtype backing
-        let target = dir::ConstructTarget::Newtype { selection, backing };
+        let target = dir::ConstructTarget::Newtype { key, backing };
         let resolution = dir::ConstructDecision::new(
             target,
             self.selected_argument_bindings(node, module, argument_nodes, &signature)?,
@@ -835,7 +832,7 @@ impl BodyState<'_, '_> {
 
         // select the class and the constructor this construction runs
         let target = dir::ConstructTarget::Class {
-            selection: dir::Selection::new(instance.symbol, generic_arguments),
+            key: dir::InstanceKey::new(instance.symbol, generic_arguments),
             constructor,
         };
 
@@ -942,7 +939,7 @@ impl BodyState<'_, '_> {
             )?;
 
             match attempt {
-                SignatureMatch::Selected(selection) | SignatureMatch::ReturnMismatch(selection) => {
+                SignatureMatch::Selected(key) | SignatureMatch::ReturnMismatch(key) => {
                     return self.commit_dynamic_construct(
                         node,
                         module,
@@ -950,15 +947,12 @@ impl BodyState<'_, '_> {
                         constraint,
                         signature.source,
                         argument_nodes,
-                        selection,
+                        key,
                         forms,
                     );
                 }
                 // report a lone signature's rejection but keep its committed shape
-                SignatureMatch::Invalid {
-                    selection,
-                    rejection,
-                } if is_single_candidate => {
+                SignatureMatch::Invalid { key, rejection } if is_single_candidate => {
                     self.report_signature_rejection(origin, rejection)?;
 
                     return self.commit_dynamic_construct(
@@ -968,7 +962,7 @@ impl BodyState<'_, '_> {
                         constraint,
                         signature.source,
                         argument_nodes,
-                        selection,
+                        key,
                         forms,
                     );
                 }
@@ -1124,10 +1118,7 @@ impl BodyState<'_, '_> {
             match attempt {
                 SignatureMatch::Selected(signature)
                 | SignatureMatch::ReturnMismatch(signature)
-                | SignatureMatch::Invalid {
-                    selection: signature,
-                    ..
-                } => {
+                | SignatureMatch::Invalid { key: signature, .. } => {
                     return self.commit_super_construct(
                         node,
                         module,
@@ -1183,7 +1174,7 @@ impl BodyState<'_, '_> {
         // initialize this through a super call, which produces void
         let produced = self.intern_type(dir::Type::Void)?;
         let target = dir::ConstructTarget::Class {
-            selection: dir::Selection::new(instance.symbol, generic_arguments),
+            key: dir::InstanceKey::new(instance.symbol, generic_arguments),
             constructor,
         };
         let resolution = dir::ConstructDecision::new(

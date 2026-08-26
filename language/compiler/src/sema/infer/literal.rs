@@ -222,7 +222,7 @@ impl BodyState<'_, '_> {
 
         let keeps_literals = match self.infer.variable_role(destination)? {
             VariableRole::Instantiation { parameter } => {
-                let binding = *self.require_generic_parameter(parameter)?;
+                let binding = self.require_generic_parameter(parameter)?.clone();
                 let mut keeps = self.parameter_keeps_literals(origin, parameter)?;
                 let template =
                     dir::GlobalGenericTemplateId::new(parameter.module_id, binding.template);

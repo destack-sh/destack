@@ -75,6 +75,7 @@ impl CallableCandidate {
         &self,
         signature: &SignatureSelection,
         receiver: Option<dir::AdjustedReceiver>,
+        key_receiver: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::FunctionTarget> {
         let CallableTarget::Symbol(symbol) = &self.target else {
             return Err(CompilerError::Internal {
@@ -85,7 +86,8 @@ impl CallableCandidate {
         Ok(dir::FunctionTarget {
             receiver,
             generic_scope: self.generic_scope,
-            selection: dir::Selection::new(*symbol, signature.generic_arguments.clone()),
+            key: dir::InstanceKey::new(*symbol, signature.generic_arguments.clone())
+                .with_receiver(key_receiver),
         })
     }
 }
@@ -384,7 +386,7 @@ impl BodyState<'_, '_> {
             receiver,
             member_space: Some(candidate.space),
             ty,
-            generic_arguments: candidate.selection.arguments.clone(),
+            generic_arguments: candidate.key.arguments.clone(),
         };
 
         Ok(Some(candidate))
@@ -395,13 +397,13 @@ impl BodyState<'_, '_> {
         &mut self,
         candidate: &dir::MemberCandidate,
     ) -> CompilerResult<CallableTarget> {
-        match self.symbol_kind(candidate.selection.symbol)? {
+        match self.symbol_kind(candidate.key.symbol)? {
             dir::SymbolKind::AssociatedConst => Ok(CallableTarget::Expression),
-            dir::SymbolKind::Function => Ok(CallableTarget::Symbol(candidate.selection.symbol)),
+            dir::SymbolKind::Function => Ok(CallableTarget::Symbol(candidate.key.symbol)),
             kind => Err(CompilerError::Internal {
                 message: format!(
                     "callable member {:?} has non-callable symbol kind {kind:?}",
-                    candidate.selection.symbol
+                    candidate.key.symbol
                 ),
             }),
         }
@@ -654,7 +656,7 @@ impl BodyState<'_, '_> {
         })
     }
 
-    /// Apply one decided selection at a call site, converting each argument.
+    /// Apply one decided signature at a call site, converting each argument.
     pub(super) fn apply_signature_instance(
         &mut self,
         origin: Origin,
@@ -756,7 +758,7 @@ impl BodyState<'_, '_> {
                 function: dir::FunctionTarget {
                     receiver: None,
                     generic_scope: candidate.generic_scope,
-                    selection: dir::Selection::new(*symbol, candidate.generic_arguments.clone()),
+                    key: dir::InstanceKey::new(*symbol, candidate.generic_arguments.clone()),
                 },
                 dispatch: dir::FunctionDispatch::Direct,
             },
@@ -1077,11 +1079,11 @@ impl BodyState<'_, '_> {
             {
                 Dispatch::Callable(mut instance) if instance.overload < candidates.len() => {
                     // re-relate the receiver, adopting this site's projection steps
-                    let callable = match self.check.ty(instance.selection.callable)? {
+                    let callable = match self.check.ty(instance.key.callable)? {
                         dir::Type::Function(function) => {
                             self.check.signature_head(function.signature)?
                         }
-                        _ => self.check.signature_head(instance.selection.callable)?,
+                        _ => self.check.signature_head(instance.key.callable)?,
                     };
                     let is_accepted = match (
                         &candidates[instance.overload].receiver,
@@ -1091,7 +1093,7 @@ impl BodyState<'_, '_> {
                         (Some(receiver), Some(this_parameter)) => {
                             match self.constrain_receiver(origin, receiver.value, this_parameter)? {
                                 Some(steps) => {
-                                    instance.selection.receiver_steps = Some(steps);
+                                    instance.key.receiver_steps = Some(steps);
 
                                     true
                                 }
@@ -1102,7 +1104,7 @@ impl BodyState<'_, '_> {
                         (Some(_), None) | (None, _) => true,
                     };
                     if is_accepted {
-                        self.apply_signature_instance(origin, instance.selection, &arguments)?
+                        self.apply_signature_instance(origin, instance.key, &arguments)?
                             .map(|signature| (instance.overload, signature))
                     } else {
                         None
@@ -1192,7 +1194,7 @@ impl BodyState<'_, '_> {
                     stored.receiver_steps = None;
                     let value = Dispatch::Callable(SignatureInstance {
                         overload: position,
-                        selection: stored,
+                        key: stored,
                     });
 
                     // serve argument-independent answers under the blind goal
@@ -1256,17 +1258,14 @@ impl BodyState<'_, '_> {
                     });
                 }
                 // a sole candidate reports its own invocation rejection
-                SignatureMatch::Invalid {
-                    selection,
-                    rejection,
-                } if is_single_candidate => {
+                SignatureMatch::Invalid { key, rejection } if is_single_candidate => {
                     self.report_signature_rejection(origin, rejection)?;
                     let source = self.commit_callable_signature(
                         node,
                         callee,
                         candidate,
                         argument_nodes,
-                        selection,
+                        key,
                     )?;
                     let target = expectation.map_or(source, |expectation| expectation.target);
 
@@ -1405,10 +1404,8 @@ impl BodyState<'_, '_> {
             argument_types,
             expectation,
         )? {
-            CallMatch::Selected(selection) => (selection, CheckOutcome::Holds),
-            CallMatch::ReturnMismatch(selection) => {
-                (selection, CheckOutcome::Fails(CheckFailure::Relation))
-            }
+            CallMatch::Selected(key) => (key, CheckOutcome::Holds),
+            CallMatch::ReturnMismatch(key) => (key, CheckOutcome::Fails(CheckFailure::Relation)),
             CallMatch::Inapplicable(rejection) => {
                 let argument_types = self.infer_argument_types(site, argument_nodes)?;
                 self.report_no_matching_call(origin, &argument_types, &[rejection])?;
@@ -1553,24 +1550,36 @@ impl BodyState<'_, '_> {
                 generic_arguments: signature.generic_arguments.clone(),
             },
             // drop the receiver static members were selected through
-            CallableTarget::Symbol(symbol) => match candidate
-                .selected_receiver(signature)
-                .filter(|_| candidate.member_space != Some(dir::MemberSpace::Static))
-            {
-                Some(dir::MemberReceiver::Direct(receiver)) => dir::CallableTarget::Symbol {
-                    function: candidate.function_target(signature, Some(receiver))?,
-                    dispatch: dir::FunctionDispatch::Direct,
-                },
-                Some(dir::MemberReceiver::Dynamic(dispatch)) => dir::CallableTarget::Dynamic {
-                    dispatch,
-                    function: dir::DynamicFunction::Symbol(*symbol),
-                    generic_arguments: signature.generic_arguments.clone(),
-                },
-                None => dir::CallableTarget::Symbol {
-                    function: candidate.function_target(signature, None)?,
-                    dispatch: dir::FunctionDispatch::Direct,
-                },
-            },
+            CallableTarget::Symbol(symbol) => {
+                // interface members close their receiver into the instance identity
+                let key_receiver = match candidate.generic_scope {
+                    Some(owner) => self.interface_member_receiver(owner, signature.callable)?,
+                    None => None,
+                };
+
+                match candidate
+                    .selected_receiver(signature)
+                    .filter(|_| candidate.member_space != Some(dir::MemberSpace::Static))
+                {
+                    Some(dir::MemberReceiver::Direct(receiver)) => dir::CallableTarget::Symbol {
+                        function: candidate.function_target(
+                            signature,
+                            Some(receiver),
+                            key_receiver,
+                        )?,
+                        dispatch: dir::FunctionDispatch::Direct,
+                    },
+                    Some(dir::MemberReceiver::Dynamic(dispatch)) => dir::CallableTarget::Dynamic {
+                        dispatch,
+                        function: dir::DynamicFunction::Symbol(*symbol),
+                        generic_arguments: signature.generic_arguments.clone(),
+                    },
+                    None => dir::CallableTarget::Symbol {
+                        function: candidate.function_target(signature, None, key_receiver)?,
+                        dispatch: dir::FunctionDispatch::Direct,
+                    },
+                }
+            }
             // fail loudly on a constructor that reached ordinary call resolution
             CallableTarget::Newtype(_) => {
                 return Err(CompilerError::Internal {

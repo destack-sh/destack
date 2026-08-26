@@ -3,10 +3,10 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, Cause, CauseKind, CheckAttempt, CheckOutcome, ConditionBranch, ControlTargetForm,
-    Expectation, ExpectedType, FlowBranch, FlowSite, ForInSourceObligation, InferMode, Obligation,
-    Origin, PatternArm, PatternCoverage, PatternCoverageObligation, PlaceUse, Relation,
-    RelationCheck, ValueCheck, ValueUse,
+    BodyState, CandidateOutcome, Cause, CauseKind, CheckAttempt, CheckOutcome, ConditionBranch,
+    ControlTargetForm, Expectation, ExpectedType, FlowBranch, FlowSite, ForInSourceObligation,
+    InferMode, Obligation, Origin, PatternArm, PatternCoverage, PatternCoverageObligation,
+    PlaceUse, Relation, RelationCheck, ValueCheck, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -51,6 +51,79 @@ impl BodyState<'_, '_> {
         self.check.commit_chain_access(node)?;
 
         Ok(())
+    }
+
+    /// Check one optional chain by contextualizing its accesses behind the nullish members.
+    ///
+    /// The context only guides inference: a chain whose value meets the target adopts it,
+    /// and every other chain infers on its own and converts at its use.
+    pub(in crate::sema) fn check_chain_expression(
+        &mut self,
+        site: FlowSite,
+        inner: dir::LocalNodeId<dir::Expression>,
+        expectation: Expectation,
+    ) -> CompilerResult<CheckAttempt> {
+        let node = site.node;
+        let module = node.module_id;
+        let inner_site = self.visit_site(inner.into_global_any(module))?;
+
+        // the value arms of the chain meet the target behind its nullish members
+        let inner_target = self
+            .split_nullish_type(site.origin(), expectation.target)?
+            .map_or(expectation.target, |split| split.value);
+        let inner_expectation = Expectation {
+            target: inner_target,
+            ..expectation
+        };
+
+        // adopt the context only when the chain's value holds under it
+        let verdict = self.probe_candidate(|state| {
+            let check = state.check_node(inner_site, inner_expectation)?;
+
+            Ok(
+                match matches!(check.outcome, CheckOutcome::Holds | CheckOutcome::Pending) {
+                    true => CandidateOutcome::<(), ()>::Accepted(()),
+                    false => CandidateOutcome::Rejected(()),
+                },
+            )
+        })?;
+        if verdict != Verdict::Holds {
+            return Ok(CheckAttempt::NotApplicable);
+        }
+        let check = self.check_node(inner_site, inner_expectation)?;
+
+        // add undefined where the chain can short circuit
+        let result = match self.chain_short_circuits(site.origin(), module, inner)? {
+            true => {
+                let undefined = self.check.intern_type(dir::Type::Undefined)?;
+
+                self.check
+                    .normalized_union_type([check.source, undefined])?
+            }
+            false => check.source,
+        };
+        self.check.commit_node_type(node, result)?;
+        self.check.commit_chain_access(node)?;
+
+        // leave the joined result to convert at its use
+        let source = self.flow_type_at(site, result)?;
+        let value = self.expression_value(site, source)?;
+        let converted = self.convert_value(
+            site,
+            expectation.cause,
+            expectation.relation,
+            value,
+            expectation.target,
+            expectation.use_,
+            expectation.mode,
+        )?;
+
+        Ok(CheckAttempt::Checked(ValueCheck {
+            source: result,
+            stored: result,
+            outcome: converted.outcome,
+            target: expectation.target,
+        }))
     }
 
     /// Return whether one optional chain drops a nullish receiver.
@@ -908,6 +981,8 @@ impl BodyState<'_, '_> {
         let body_site = self.visit_site(body.into_global_any(module))?;
         self.attempt_node(body_site, PlaceUse::Read, None)?;
         self.check.restore_flow(before_body);
+        let continues = self.check.take_current_continue_branches();
+        self.commit_single_pass_loop(site.node, body, &continues)?;
 
         // merge break branches with the normal exit
         let normal_flow = self.check.collect_flow_branch(before_body);

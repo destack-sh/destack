@@ -356,6 +356,67 @@ impl<'a> DirSnapshotBuilder<'a> {
         if selection.flow {
             self.add_table(&checked.flow_table(declared, elaborated));
         }
+
+        if selection.conformances {
+            self.add_conformance_rows(
+                &checked.definition_table(declared, elaborated),
+                &checked.generic_table(declared, elaborated),
+            );
+        }
+    }
+
+    /// Add committed conformance rows for definitions, instances, and parameters.
+    fn add_conformance_rows(
+        &mut self,
+        definitions: &dir::DefinitionTable<'_>,
+        generics: &dir::GenericTable<'_>,
+    ) {
+        // render the committed set of each nominal declaration
+        for (symbol, definition) in definitions.iter_definitions() {
+            let Some(conformances) = definition.conformances() else {
+                continue;
+            };
+            if conformances.is_empty() {
+                continue;
+            }
+            let row = SnapshotRow::new(self.anchor_symbol(symbol), "conformance", "definition")
+                .field("symbol", self.symbol_path_label(symbol))
+                .verbatim_field("conformances", conformance_label(conformances));
+            self.push(row);
+        }
+
+        // render the committed set of each closed nominal instance
+        for (_, instance) in generics.iter_instances() {
+            if instance.conformances.is_empty() {
+                continue;
+            }
+            let arguments: Vec<_> =
+                dir::GenericArgumentBinding::values(&instance.key.arguments).collect();
+            let row =
+                SnapshotRow::new(self.anchor_node(instance.source), "conformance", "instance")
+                    .field(
+                        "id",
+                        self.generic_instance_label(instance.key.symbol, &arguments),
+                    )
+                    .verbatim_field("conformances", conformance_label(&instance.conformances));
+            self.push(row);
+        }
+
+        // render the assumed set of each constrained parameter
+        for (_, binding) in generics.iter_parameters() {
+            if binding.conformances.is_empty() {
+                continue;
+            }
+            let name = match binding.symbol {
+                Some(symbol) => self.symbol_label(symbol),
+                None => continue,
+            };
+            let row =
+                SnapshotRow::new(self.anchor_node(binding.source), "conformance", "parameter")
+                    .field("parameter", name)
+                    .verbatim_field("conformances", conformance_label(&binding.conformances));
+            self.push(row);
+        }
     }
 
     /// Add selected rows for a materialized DIR artifact.
@@ -401,6 +462,13 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         if selection.definitions {
             self.add_table(materialized.definitions.as_ref());
+        }
+
+        if selection.conformances {
+            self.add_conformance_rows(
+                &materialized.definition_table(declared, elaborated, checked),
+                &materialized.generic_table(declared, elaborated, checked),
+            );
         }
     }
 
@@ -462,7 +530,7 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
     }
 
-    /// Return the debug label for one checked generic parameter key.
+    /// Return the debug label for one checked generic parameter selection.
     pub(super) fn generic_parameter_key_label(&self, key: dir::GenericParameterKey) -> String {
         match key {
             dir::GenericParameterKey::Symbol(symbol) => self.symbol_path_label(symbol),
@@ -840,7 +908,7 @@ impl<'a> DirSnapshotBuilder<'a> {
         scope.map(|scope| self.scope_cursor_label(scope))
     }
 
-    /// Render one static key.
+    /// Render one static selection.
     pub(crate) fn static_key(&self, key: dir::StaticKey) -> String {
         match key {
             dir::StaticKey::Name(name) => self.strings.get(name).to_string(),
@@ -868,12 +936,12 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Render one member candidate label.
     pub(crate) fn member_candidate_label(&self, candidate: &dir::MemberCandidate) -> String {
-        self.symbol_path_label(candidate.selection.symbol)
+        self.symbol_path_label(candidate.key.symbol)
     }
 
     /// Render one function target label.
     pub(crate) fn function_target_label(&self, function: &dir::FunctionTarget) -> String {
-        self.symbol_path_label(function.selection.symbol)
+        self.symbol_path_label(function.key.symbol)
     }
 
     /// Render one static term label.
@@ -1365,4 +1433,14 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         result
     }
+}
+
+/// Render one committed conformance set label.
+fn conformance_label(conformances: &dir::AutoInterfaceSet) -> String {
+    let names: Vec<_> = conformances
+        .iter()
+        .map(|interface| interface.name())
+        .collect();
+
+    format!("({})", names.join(", "))
 }

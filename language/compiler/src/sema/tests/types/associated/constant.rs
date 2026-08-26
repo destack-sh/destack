@@ -99,7 +99,7 @@ class Class {
 
     const Computed = 1 + 2;
     /// @type.symbol symbol=Class.Computed source="const Computed = 1 + 2" type=3
-    /// @static.symbol symbol=Class.Computed source="const Computed = 1 + 2" value="1 + 2"
+    /// @static.symbol symbol=Class.Computed source="const Computed = 1 + 2" value=3
 
 }
 
@@ -239,6 +239,7 @@ function readHeader<T: RegisterBlock<const Width = 16>>(block: T): [uint8; 16] {
     /// @resolution.call source=block.read() parameters=() return=FixedArray<uint8, T.Width> kind=symbol target=RegisterBlock.read receiver=T
     /// @resolution.place source=block placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=block root=readHeader.block
+    /// @generic.instantiation id=RegisterBlock.read<T> template=RegisterBlock.read arguments=() owner=readHeader
 
 }
 "#,

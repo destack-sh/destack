@@ -601,7 +601,7 @@ impl BodyState<'_, '_> {
     }
 
     /// Select the runtime projections from one receiver to its flow-narrowed type.
-    fn project_narrowed_receiver(
+    pub(in crate::sema) fn project_narrowed_receiver(
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,

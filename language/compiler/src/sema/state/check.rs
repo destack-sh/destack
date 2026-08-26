@@ -238,6 +238,9 @@ pub(in crate::sema) struct CheckState<'a> {
     /// Canonical member bindings per owner and space.
     pub(in crate::sema) member_bindings:
         FxIndexMap<(dir::GlobalSymbolId, dir::MemberSpace), Option<Arc<Vec<dir::MemberBinding>>>>,
+    /// The declaring interface self type per interface member.
+    pub(in crate::sema) interface_owners:
+        FxIndexMap<dir::GlobalSymbolId, Option<dir::GlobalTypeId>>,
     /// Decided auto interface conformances per canonical type and assuming template.
     pub(in crate::sema) conformances: FxIndexMap<
         (
@@ -357,6 +360,7 @@ impl<'a> CheckState<'a> {
             argument_ranks: FxIndexMap::default(),
             heritages: FxIndexMap::default(),
             member_bindings: FxIndexMap::default(),
+            interface_owners: FxIndexMap::default(),
             conformances: FxIndexMap::default(),
             drop_conformers: FxIndexMap::default(),
             visible_extensions: FxIndexMap::default(),
@@ -1057,6 +1061,9 @@ impl CheckState<'_> {
             dir::Type::FunctionSignature(signature) => {
                 Ok(Some(self.type_signature(id.module_id, signature)?))
             }
+            // fat callables and pointers carry their signature behind the value head
+            dir::Type::Function(function) => self.signature_head(function.signature),
+            dir::Type::FunctionPointer(function) => self.signature_head(function.signature),
             _ => Ok(None),
         }
     }

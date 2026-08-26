@@ -345,6 +345,8 @@ function pick(flag: boolean): int32 {
     }
 
     loop {
+    /// @flow.single_pass
+
         break;
         /// @flow.diverging source=break
 
@@ -352,6 +354,87 @@ function pick(flag: boolean): int32 {
 
     return 2;
     /// @flow.diverging source="return 2"
+
+}
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Loops whose body never reaches another iteration record the single-pass fact.
+#[test]
+fn test_record_single_pass_loops_in_the_flow_segment() {
+    let session = TestSession::single(
+        r#"
+function consume(limit: int32): int32 {
+    let end = limit;
+    for (const value of 0..end) {
+        end -= value;
+        break;
+    }
+
+    while (end > 0) {
+        end -= 1;
+    }
+
+    return end;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::none().with_flows(),
+        r#"
+=== annotated ===
+function consume(limit: int32): int32 {
+    let end: int32 = limit;
+    for (const value of 0..end) {
+        end -= value;
+        break;
+    }
+
+    while (end > 0) {
+        end -= 1;
+    }
+
+    return end;
+}
+
+=== dir ===
+function consume(limit: int32): int32 {
+/// @flow.use symbol=limit uses=read
+
+    let end = limit;
+    /// @flow.use symbol=end uses=read+written
+    /// @flow.access source=limit root=consume.limit uses=read
+
+    for (const value of 0..end) {
+    /// @flow.single_pass
+    /// @flow.use symbol=value uses=read
+    /// @flow.access source=end root=consume.end uses=read
+
+        end -= value;
+        /// @flow.access source=end root=consume.end uses=written
+        /// @flow.access source=value root=consume.value uses=read
+
+        break;
+        /// @flow.diverging source=break
+
+    }
+
+    while (end > 0) {
+    /// @flow.access source=end root=consume.end uses=read
+
+        end -= 1;
+        /// @flow.access source=end root=consume.end uses=written
+
+    }
+
+    return end;
+    /// @flow.diverging source="return end"
+    /// @flow.access source=end root=consume.end uses=read
 
 }
 "#,
