@@ -306,7 +306,7 @@ let promise: Promise<string>;
 }
 
 #[test]
-fn test_resolve_records_referenced_builtin_language_symbol_names() {
+fn test_resolve_records_referenced_prelude_symbols() {
     let compiler = TestSession::builder()
         .module(
             "main.ds",

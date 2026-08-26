@@ -1529,8 +1529,7 @@ impl TestSession {
         let reader = self.repository.artifact_reader(self.revision());
         if let Ok(environment) = reader.read::<EnvironmentBound>(entry.profile) {
             let language = environment.language.items_by_symbol.keys().copied();
-            let builtins = environment.language.symbols.values().copied();
-            for symbol in language.chain(builtins) {
+            for symbol in language {
                 if symbol.module_id != entry.module.id {
                     modules.insert(symbol.module_id);
                 }

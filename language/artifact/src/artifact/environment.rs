@@ -1,4 +1,3 @@
-use destack_core::StringId;
 use destack_dir::{ExportResolution, GlobalSymbolId, LanguageItem, StaticKey, TypeRoot};
 use destack_serde::Reflect;
 use destack_source::ModuleId;
@@ -12,8 +11,6 @@ pub struct LanguageEnvironment {
     pub symbol_by_item: IndexMap<LanguageItem, GlobalSymbolId>,
     /// Language items by symbol id.
     pub items_by_symbol: IndexMap<GlobalSymbolId, LanguageItem>,
-    /// Builtin symbols by export name.
-    pub symbols: IndexMap<StringId, GlobalSymbolId>,
 }
 
 impl LanguageEnvironment {
@@ -33,11 +30,6 @@ impl LanguageEnvironment {
     /// Return one language symbol item.
     pub fn item(&self, symbol: GlobalSymbolId) -> Option<LanguageItem> {
         self.items_by_symbol.get(&symbol).copied()
-    }
-
-    /// Return one builtin symbol by export name.
-    pub fn symbol_by_name(&self, name: &str) -> Option<GlobalSymbolId> {
-        self.symbols.get(&StringId::for_text(name)).copied()
     }
 }
 
@@ -75,11 +67,6 @@ impl EnvironmentBound {
             .items_by_symbol
             .keys()
             .map(|symbol| symbol.module_id);
-        let builtins = self
-            .language
-            .symbols
-            .values()
-            .map(|symbol| symbol.module_id);
         let globals = self
             .global_resolutions_by_key
             .values()
@@ -92,7 +79,6 @@ impl EnvironmentBound {
 
         let mut modules = configured
             .chain(language)
-            .chain(builtins)
             .chain(globals)
             .collect::<Vec<_>>();
 

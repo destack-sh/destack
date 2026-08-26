@@ -101,11 +101,6 @@ impl Compiler {
         let global_symbol = symbol_id.into_global(module);
         self.define_language_item(environment, item, global_symbol)?;
 
-        // bind symbol name
-        if let Some(name) = symbol.name() {
-            environment.symbols.entry(name).or_insert(global_symbol);
-        }
-
         Ok(())
     }
 

@@ -22,8 +22,7 @@ impl ResolveState<'_> {
         // globals resolve through the profile's precomputed table
         self.resolve_profile_globals(environment)?;
 
-        // source-visible language globals and namespace paths follow
-        self.resolve_language_globals(&environment.language)?;
+        // resolve source paths after globals
         self.resolve_path_references()?;
 
         // resolve language item symbols after profile globals

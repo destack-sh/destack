@@ -27,48 +27,6 @@ impl ResolveState<'_> {
         Ok(())
     }
 
-    /// Resolve source-visible language globals.
-    ///
-    /// Example:
-    /// ```ds
-    /// const value = Array.from(items);
-    /// // Array can come from the language environment when no local or profile global wins
-    /// ```
-    pub(in crate::resolve) fn resolve_language_globals(
-        &mut self,
-        language: &LanguageEnvironment,
-    ) -> CompilerResult<()> {
-        let keys = self.global_keys.iter().copied().collect::<Vec<_>>();
-
-        for key in keys {
-            self.resolve_language_global(language, key);
-        }
-
-        Ok(())
-    }
-
-    /// Resolve one source-visible language global when no profile global won.
-    ///
-    /// Example:
-    /// ```ds
-    /// const value = String(value);
-    /// ```
-    fn resolve_language_global(&mut self, language: &LanguageEnvironment, key: dir::StaticKey) {
-        if self.imports.global_resolution_by_key.contains_key(&key) {
-            return;
-        }
-        let dir::StaticKey::Name(name) = key else {
-            return;
-        };
-        let Some(symbol) = language.symbols.get(&name).copied() else {
-            return;
-        };
-
-        let target = dir::ExportTarget::symbol(symbol);
-        self.imports
-            .push_global_resolution(key, dir::ExportResolution::direct(target));
-    }
-
     /// Resolve one used language item to its symbol.
     ///
     /// Example:
