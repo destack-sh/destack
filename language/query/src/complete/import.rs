@@ -1,21 +1,18 @@
 use std::collections::hash_map::Entry;
 
-use destack_artifact::PackageDependency;
-use destack_core::StringId;
+use destack_core::{FxIndexMap, StringId};
 use destack_dir as dir;
-use destack_repository::RepositoryError;
 use destack_source::{FileId, ModuleId, Span};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::source::extract_string_literal_prefix;
 use crate::{
     CompletionCandidate, CompletionCandidates, CompletionItemKind, CompletionOrigin,
-    ExportCandidate, ExportDeclaration, ImportOrder, ImportPathOrder, MatchOrder,
+    ExportCandidate, ExportDeclaration, ImportOrder, ImportPathOrder, MatchKind, MatchOrder,
     ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult, SymbolUse, match_quality,
 };
 
-use super::builtin::length_ordering_text;
-use super::{AutoImportContext, CompletionCollector, CompletionContext};
+use super::{AutoImportContext, CompletionCollector, CompletionContext, PartialImportPath};
 
 // auto import completion thresholds
 const AUTO_IMPORT_MIN_PREFIX: usize = 2;
@@ -85,12 +82,16 @@ impl ModuleQueryContext<'_> {
                 && span.contains(offset)
             {
                 let partial_path = extract_string_literal_prefix(source, span, offset)?;
-                return Ok(Some(CompletionContext::ImportPath { partial_path }));
+                let path = PartialImportPath::new(partial_path);
+
+                return Ok(Some(CompletionContext::ImportPath { path }));
             }
 
             if let Some(span) = self.import_path_token_span(file_id, import_span, offset)? {
                 let partial_path = extract_string_literal_prefix(source, span, offset)?;
-                return Ok(Some(CompletionContext::ImportPath { partial_path }));
+                let path = PartialImportPath::new(partial_path);
+
+                return Ok(Some(CompletionContext::ImportPath { path }));
             }
 
             // detect import clause completions inside the brace list
@@ -278,28 +279,43 @@ impl CompletionCollector<'_, '_, '_> {
             });
         }
 
-        // collect unresolved exports and import paths before reading declaration DIR
+        // match unresolved exports before reading paths or declaration DIR
         let current_module_id = self.module.module_id();
         let visible_names =
             self.collect_visible_names(context.scope, context.symbol_use, prefix)?;
-        let mut candidates = Vec::new();
-        let mut import_paths = FxHashMap::default();
         let exports = self
             .program
             .search_export_candidates(prefix, Some(current_module_id))?;
-
+        let mut matches = Vec::new();
         for export in exports {
             let name = StringId::for_text(export.binding.name());
             if visible_names.contains(&name) {
                 continue;
             }
 
-            let lexical = match_quality(export.binding.name(), prefix)
-                .ok_or(QueryError::invalid(format!(
+            let lexical = match_quality(export.binding.name(), prefix).ok_or(
+                QueryError::invalid(format!(
                     "auto import candidate does not match: name={}, prefix={prefix}",
                     export.binding.name()
-                )))?
-                .order();
+                )),
+            )?;
+            let lexical = lexical.order();
+
+            matches.push((export, lexical));
+        }
+
+        // omit loose subsequences when a boundary or prefix match exists
+        let has_stronger_match = matches
+            .iter()
+            .any(|(_, lexical)| lexical.kind() > MatchKind::Subsequence);
+        if has_stronger_match {
+            matches.retain(|(_, lexical)| lexical.kind() > MatchKind::Subsequence);
+        }
+
+        // expand matched exports through their addressable import paths
+        let mut candidates = Vec::new();
+        let mut import_paths = FxHashMap::default();
+        for (export, lexical) in matches {
             let module_id = export.module;
             if let Entry::Vacant(entry) = import_paths.entry(module_id) {
                 let path_order = ImportPathOrder::between(
@@ -482,67 +498,45 @@ impl CompletionCollector<'_, '_, '_> {
         Ok(results)
     }
 
-    /// Collect relative paths and package names.
+    /// Collect every module path addressable from the current module.
     pub(super) fn collect_import_paths(
         &self,
-        partial: &str,
+        path: &PartialImportPath,
     ) -> QueryResult<Vec<CompletionCandidate>> {
-        let mut results = Vec::new();
+        let current_module = self.module.module_id();
+        let mut completions = FxIndexMap::default();
 
-        if partial.starts_with("./") || partial.starts_with("../") {
-            results.extend(self.collect_relative_path(partial)?);
-        } else if partial.is_empty() {
-            results.push(
-                CompletionCandidate::new(
-                    "./",
-                    CompletionItemKind::Folder,
-                    CompletionOrigin::Contextual,
-                )
-                .with_description("relative"),
-            );
-            results.push(
-                CompletionCandidate::new(
-                    "../",
-                    CompletionItemKind::Folder,
-                    CompletionOrigin::Contextual,
-                )
-                .with_description("parent"),
-            );
-            results.extend(self.collect_package_names()?);
-        } else {
-            results.extend(self.collect_package_names()?);
-        }
-
-        Ok(results)
-    }
-
-    /// Collect package names from the active package graph.
-    fn collect_package_names(&self) -> QueryResult<Vec<CompletionCandidate>> {
-        let mut results = Vec::new();
-
-        let repository = self.module.repository();
-        let revision = self.module.revision();
-        let module_id = self.module.module_id();
-        let module = repository
-            .module(revision, module_id)?
-            .ok_or(RepositoryError::MissingModule { module: module_id })?;
-        let package = self.program.package_node(module.package_id)?;
-
-        // offer only loaded direct dependencies from the active profile
-        for (name, dependency) in &package.dependencies {
-            if !matches!(dependency, PackageDependency::Resolved(_)) {
+        // project every valid module specifier to its next lexical component
+        for specifier in self.program.addressable_specifiers(current_module)? {
+            let Some((label, kind)) = path.completion(&specifier) else {
                 continue;
+            };
+
+            // prefer an exact module when the same text is also a path prefix
+            let folder = format!("{label}/");
+            if let Some(existing) = completions.get_mut(&label) {
+                if kind == CompletionItemKind::Module {
+                    *existing = kind;
+                }
+            } else if kind == CompletionItemKind::Folder
+                && label.ends_with('/')
+                && completions.contains_key(label.trim_end_matches('/'))
+            {
+                continue;
+            } else {
+                if kind == CompletionItemKind::Module {
+                    completions.shift_remove(&folder);
+                }
+                completions.insert(label, kind);
             }
-            let completion = CompletionCandidate::new(
-                name.clone(),
-                CompletionItemKind::Module,
-                CompletionOrigin::Builtin,
-            )
-            .with_ordering_text(length_ordering_text(name));
-            results.push(completion);
         }
 
-        Ok(results)
+        Ok(completions
+            .into_iter()
+            .map(|(label, kind)| {
+                CompletionCandidate::new(label, kind, CompletionOrigin::Contextual)
+            })
+            .collect())
     }
 }
 
@@ -561,48 +555,5 @@ impl AutoImportCandidate {
             .then(self.specifier.cmp(&other.specifier))
             .then(self.export.binding.name().cmp(other.export.binding.name()))
             .then(self.export.target.cmp(&other.export.target))
-    }
-}
-
-impl CompletionCollector<'_, '_, '_> {
-    /// Collect relative import paths from modules in the queried revision.
-    fn collect_relative_path(&self, partial: &str) -> QueryResult<Vec<CompletionCandidate>> {
-        let split = partial.rfind('/').map_or(0, |index| index + 1);
-        let directory = &partial[..split];
-        let current_module = self.module.module_id();
-        let mut completions = Vec::new();
-        let mut seen = FxHashSet::default();
-
-        // project every same-package module specifier to its next path segment
-        for target_module in self.program.module_ids() {
-            if target_module.package_id != current_module.package_id
-                || *target_module == current_module
-            {
-                continue;
-            }
-            for specifier in self
-                .program
-                .import_specifiers(current_module, *target_module)?
-            {
-                let Some(remainder) = specifier.strip_prefix(directory) else {
-                    continue;
-                };
-                let (name, kind) = match remainder.split_once('/') {
-                    Some((segment, _)) => (format!("{segment}/"), CompletionItemKind::Folder),
-                    None => (remainder.to_string(), CompletionItemKind::Module),
-                };
-                if !seen.insert((name.clone(), kind)) {
-                    continue;
-                }
-
-                completions.push(CompletionCandidate::new(
-                    name,
-                    kind,
-                    CompletionOrigin::Contextual,
-                ));
-            }
-        }
-
-        Ok(completions)
     }
 }

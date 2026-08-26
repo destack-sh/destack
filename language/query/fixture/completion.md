@@ -254,6 +254,34 @@ const result = legacy;
 
 Profile globals participate in ordinary value completion.
 
+```json destack.json
+{
+  "name": "@test/query",
+  "compiler": {
+    "globals": ["global.ds"]
+  },
+  "targets": {
+    "default": {
+      "include": ["**/*.ds"]
+    }
+  },
+  "defaultTarget": "default"
+}
+```
+
+```ds library.ds
+export struct Context {}
+
+/// Return the current execution context.
+export declare function currentContext(): Context;
+```
+
+```ds global.ds
+global {
+    export { Context, currentContext } from "./library.ds";
+}
+```
+
 ```ds main.ds
 const context = currentContex;
                 ^^^^^^^^^^^^^ prefix
@@ -907,14 +935,14 @@ function identity<Value>(value: Value): Value {
 Type details preserve a general lifetime parameter in borrowed forms.
 
 ```ds main.ds
+type BorrowedFields<T, const L: Lifetime> = T;
+
 type Alias<const L: Lifetime> = BorrowedFields<unknown, L>;
                                 ^^^^^^^^^^^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=BorrowedFields kind=type_alias replace=main.ds#prefix suffix="<T, const L: Lifetime>" declaration="export type BorrowedFields<T, const L: Lifetime> = { [K in keyof T]: WithLifetime<&T[K], L> }" documentation="Rebase each field of `T` into borrowed form." matches=0,1,2,3,4,5,6,7,8,9,10,11,12,13
-@completion.item label=ReadonlyBorrowedFields kind=type_alias replace=main.ds#prefix suffix="<T, const L: Lifetime>" declaration="export type ReadonlyBorrowedFields<T, const L: Lifetime> = { [K in keyof T]: ReadonlyBorrowed<T[K], L> }" documentation="Rebase each field of `T` into readonly borrowed form." matches=8,9,10,11,12,13,14,15,16,17,18,19,20,21
-@completion.item label=ExclusiveBorrowedFields kind=type_alias replace=main.ds#prefix suffix="<T, const L: Lifetime>" declaration="export type ExclusiveBorrowedFields<T, const L: Lifetime> = { [K in keyof T]: ExclusiveBorrowed<T[K], L> }" documentation="Rebase each field of `T` into exclusive borrowed form." matches=9,10,11,12,13,14,15,16,17,18,19,20,21,22
+@completion.item label=BorrowedFields kind=type_alias replace=main.ds#prefix suffix="<T, const L: Lifetime>" declaration="type BorrowedFields<T, const L: Lifetime> = T" matches=0,1,2,3,4,5,6,7,8,9,10,11,12,13
 ```
 
 ### Complete an imported type through a re-export
@@ -1370,21 +1398,21 @@ import { pack } from "./library.ds";
 Auto import completion returns the symbol and import patch together.
 
 ```ds library.ds
-export function greet(): void {}
+export function greetFixture(): void {}
 ```
 
 ```ds main.ds
 
 ^ insertion
 function main(): void {
-    gre;
-    ^^^ prefix
+    greetFix;
+    ^^^^^^^^ prefix
 }
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" description="from ./library" insert="greet()" auto_import=true matches=0,1,2
-@completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
+@completion.item label=greetFixture kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greetFixture(): void" description="from ./library" insert="greetFixture()" auto_import=true matches=0,1,2,3,4,5,6,7
+@completion.additional_edit item=0 range=main.ds#insertion text="import { greetFixture } from \"./library\";\n"
 ```
 
 ### Auto import a star re-exported symbol
@@ -1392,7 +1420,7 @@ function main(): void {
 A name visible only through `export *` still completes with its import patch.
 
 ```ds core.ds
-export function greet(): void {}
+export function starredGreeting(): void {}
 ```
 
 ```ds library.ds
@@ -1403,16 +1431,16 @@ export * from "./core";
 
 ^ insertion
 function main(): void {
-    gre;
-    ^^^ prefix
+    starredGree;
+    ^^^^^^^^^^^ prefix
 }
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" description="from ./core" insert="greet()" auto_import=true matches=0,1,2
-@completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./core\";\n"
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" description="from ./library" insert="greet()" auto_import=true matches=0,1,2
-@completion.additional_edit item=1 range=main.ds#insertion text="import { greet } from \"./library\";\n"
+@completion.item label=starredGreeting kind=function replace=main.ds#prefix suffix="(): void" declaration="export function starredGreeting(): void" description="from ./core" insert="starredGreeting()" auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10
+@completion.additional_edit item=0 range=main.ds#insertion text="import { starredGreeting } from \"./core\";\n"
+@completion.item label=starredGreeting kind=function replace=main.ds#prefix suffix="(): void" declaration="export function starredGreeting(): void" description="from ./library" insert="starredGreeting()" auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10
+@completion.additional_edit item=1 range=main.ds#insertion text="import { starredGreeting } from \"./library\";\n"
 ```
 
 ### Shadow a star re-export with a nearer named export
@@ -1420,28 +1448,28 @@ function main(): void {
 A re-exporting module's own declaration hides the starred name behind it.
 
 ```ds core.ds
-export function greet(): void {}
+export function shadowedGreeting(): void {}
 ```
 
 ```ds library.ds
 export * from "./core";
-export function greet(): void {}
+export function shadowedGreeting(): void {}
 ```
 
 ```ds main.ds
 
 ^ insertion
 function main(): void {
-    gre;
-    ^^^ prefix
+    shadowedGree;
+    ^^^^^^^^^^^^ prefix
 }
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" description="from ./core" insert="greet()" auto_import=true matches=0,1,2
-@completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./core\";\n"
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" description="from ./library" insert="greet()" auto_import=true matches=0,1,2
-@completion.additional_edit item=1 range=main.ds#insertion text="import { greet } from \"./library\";\n"
+@completion.item label=shadowedGreeting kind=function replace=main.ds#prefix suffix="(): void" declaration="export function shadowedGreeting(): void" description="from ./core" insert="shadowedGreeting()" auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10,11
+@completion.additional_edit item=0 range=main.ds#insertion text="import { shadowedGreeting } from \"./core\";\n"
+@completion.item label=shadowedGreeting kind=function replace=main.ds#prefix suffix="(): void" declaration="export function shadowedGreeting(): void" description="from ./library" insert="shadowedGreeting()" auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10,11
+@completion.additional_edit item=1 range=main.ds#insertion text="import { shadowedGreeting } from \"./library\";\n"
 ```
 
 ### Refresh completion with a longer prefix
@@ -1640,7 +1668,7 @@ type Selected = $;
 An explicit extension keeps the target module unambiguous.
 
 ```ds library.ds
-export function greet(): void {}
+export function extensionGreeting(): void {}
 ```
 
 ```ds library.d.ds
@@ -1650,13 +1678,13 @@ export type LibraryDeclaration = string;
 ```ds main.ds
 
 ^ insertion
-gre
-^^^ prefix
+extensionGree
+^^^^^^^^^^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="export function greet(): void" description="from ./library.ds" insert="greet()" auto_import=true matches=0,1,2
-@completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library.ds\";\n"
+@completion.item label=extensionGreeting kind=function replace=main.ds#prefix suffix="(): void" declaration="export function extensionGreeting(): void" description="from ./library.ds" insert="extensionGreeting()" auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10,11,12
+@completion.additional_edit item=0 range=main.ds#insertion text="import { extensionGreeting } from \"./library.ds\";\n"
 ```
 
 ### Auto-import a type declaration
@@ -1681,12 +1709,30 @@ type Alias = Widget;
 @completion.additional_edit item=0 range=main.ds#insertion text="import { Widget } from \"./library\";\n"
 ```
 
+### Auto-import a public builtin type
+
+Builtin modules follow their public package exports.
+
+```ds main.ds
+
+^ insertion
+declare const variable: ContextV;
+                        ^^^^^^^^ prefix
+```
+
+```query completion main.ds#prefix@end include_auto_imports=true
+@completion.item label=ContextVar kind=class replace=main.ds#prefix suffix="<T: Copy>" declaration="export class ContextVar<T: Copy>" description="from destack:" documentation="One dynamically scoped execution value." auto_import=true matches=0,1,2,3,4,5,6,7
+@completion.additional_edit item=0 range=main.ds#insertion text="import { ContextVar } from \"destack:\";\n"
+@completion.item label=ContextVar kind=class replace=main.ds#prefix suffix="<T: Copy>" declaration="export class ContextVar<T: Copy>" description="from destack:context" documentation="One dynamically scoped execution value." auto_import=true matches=0,1,2,3,4,5,6,7
+@completion.additional_edit item=1 range=main.ds#insertion text="import { ContextVar } from \"destack:context\";\n"
+```
+
 ### Auto-import a default declaration
 
 A default export produces a default import rather than a named import.
 
 ```ds library.ds
-export default function greet(name: string): string {
+export default function defaultGreeting(name: string): string {
     return name;
 }
 ```
@@ -1694,13 +1740,32 @@ export default function greet(name: string): string {
 ```ds main.ds
 
 ^ insertion
-const message = gre;
-                ^^^ prefix
+const message = defaultGree;
+                ^^^^^^^^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(name: string): string" declaration="export default function greet(name: string): string" description="from ./library" insert="greet(${1:name})$0" snippet=true auto_import=true matches=0,1,2
-@completion.additional_edit item=0 range=main.ds#insertion text="import greet from \"./library\";\n"
+@completion.item label=defaultGreeting kind=function replace=main.ds#prefix suffix="(name: string): string" declaration="export default function defaultGreeting(name: string): string" description="from ./library" insert="defaultGreeting(${1:name})$0" snippet=true auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10
+@completion.additional_edit item=0 range=main.ds#insertion text="import defaultGreeting from \"./library\";\n"
+```
+
+### Omit an already imported default declaration
+
+A default export already imported under a local name cannot add a second binding.
+
+```ds library.ds
+export default function fixtureDefaultConstruction(): void {}
+```
+
+```ds main.ds
+import existingConstruction from "./library";
+
+const value = fixtureDefaultConstruction;
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^ prefix
+```
+
+```query completion main.ds#prefix@end include_auto_imports=true
+@completion.none
 ```
 
 ### Auto-import an overload family once
@@ -1734,18 +1799,18 @@ const value = parseFixtur;
 A visible binding wins without a redundant import candidate.
 
 ```ds library.ds
-export function greet(): void {}
+export function visibleGreeting(): void {}
 ```
 
 ```ds main.ds
-function greet(): void {}
+function visibleGreeting(): void {}
 
-gre
-^^^ prefix
+visibleGree
+^^^^^^^^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(): void" declaration="function greet(): void" insert="greet()" matches=0,1,2
+@completion.item label=visibleGreeting kind=function replace=main.ds#prefix suffix="(): void" declaration="function visibleGreeting(): void" insert="visibleGreeting()" matches=0,1,2,3,4,5,6,7,8,9,10
 ```
 
 ### Auto-import a public package export
@@ -1809,6 +1874,83 @@ const value = Button;
 ```query completion packages/app/main.ds#prefix@end include_auto_imports=true
 @completion.item label=Button kind=struct replace=packages/app/main.ds#prefix declaration="export struct Button" description="from @acme/ui/button" insert="Button {}" auto_import=true matches=0,1,2,3,4,5
 @completion.additional_edit item=0 range=packages/app/main.ds#insertion text="import { Button } from \"@acme/ui/button\";\n"
+```
+
+### Auto-import a boundary name match
+
+Auto-import search uses the same ordered name matching as the completion list.
+
+```ds library.ds
+export function fixtureRenderStatusMessage(): string {
+    return "ready";
+}
+```
+
+```ds main.ds
+
+^ insertion
+const message = fRSM;
+                ^^^^ prefix
+```
+
+```query completion main.ds#prefix@end include_auto_imports=true
+@completion.item label=fixtureRenderStatusMessage kind=function replace=main.ds#prefix suffix="(): string" declaration="export function fixtureRenderStatusMessage(): string" description="from ./library" insert="fixtureRenderStatusMessage()" auto_import=true matches=0,7,13,19
+@completion.additional_edit item=0 range=main.ds#insertion text="import { fixtureRenderStatusMessage } from \"./library\";\n"
+```
+
+### Omit an undeclared package export
+
+Public exports require an active direct dependency.
+
+```json destack.json
+{
+    "workspace": {
+        "packages": ["packages/*"]
+    }
+}
+```
+
+```json packages/app/destack.json
+{
+    "name": "app",
+    "targets": {
+        "default": {
+            "include": ["**/*.ds"]
+        }
+    },
+    "defaultTarget": "default"
+}
+```
+
+```json packages/ui/destack.json
+{
+    "name": "@acme/ui",
+    "exports": {
+        "./button": {
+            "kind": "module",
+            "path": "src/button.ds"
+        }
+    },
+    "targets": {
+        "default": {
+            "include": ["**/*.ds"]
+        }
+    },
+    "defaultTarget": "default"
+}
+```
+
+```ds packages/ui/src/button.ds
+export struct Button {}
+```
+
+```ds packages/app/main.ds
+Button
+^^^^^^ prefix
+```
+
+```query completion packages/app/main.ds#prefix@end include_auto_imports=true
+@completion.none
 ```
 
 ### Omit an ambiguous package export
@@ -1987,7 +2129,7 @@ const value = beta;
 An auto import adds the default binding before the existing named clause.
 
 ```ds library.ds
-export default function build(): void {}
+export default function fixtureBuilder(): void {}
 export function value(): void {}
 ```
 
@@ -1995,13 +2137,13 @@ export function value(): void {}
 import { value } from "./library";
        ^ insertion
 
-const result = build;
-               ^^^^^ prefix
+const result = fixtureBuil;
+               ^^^^^^^^^^^ prefix
 ```
 
 ```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=build kind=function replace=main.ds#prefix suffix="(): void" declaration="export default function build(): void" description="from ./library" insert="build()" auto_import=true matches=0,1,2,3,4
-@completion.additional_edit item=0 range=main.ds#insertion text="build, "
+@completion.item label=fixtureBuilder kind=function replace=main.ds#prefix suffix="(): void" declaration="export default function fixtureBuilder(): void" description="from ./library" insert="fixtureBuilder()" auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10
+@completion.additional_edit item=0 range=main.ds#insertion text="fixtureBuilder, "
 ```
 
 ### Insert a new import after an earlier import
@@ -2116,6 +2258,204 @@ import {} from "./utilities/a";
 
 ```query completion main.ds#prefix@end
 @completion.item label=arrays kind=module replace=main.ds#prefix matches=0
+```
+
+### Complete public package paths
+
+Package path completion follows the direct dependency's public exports.
+
+```json destack.json
+{
+    "workspace": {
+        "packages": ["packages/*"]
+    }
+}
+```
+
+```json packages/app/destack.json
+{
+    "name": "app",
+    "dependencies": {
+        "@acme/ui": {
+            "source": "workspace"
+        }
+    },
+    "targets": {
+        "default": {
+            "include": ["**/*.ds"]
+        }
+    },
+    "defaultTarget": "default"
+}
+```
+
+```json packages/ui/destack.json
+{
+    "name": "@acme/ui",
+    "exports": {
+        ".": {
+            "kind": "module",
+            "path": "src/main.ds"
+        },
+        "./*": {
+            "kind": "module",
+            "path": "src/*.ds"
+        }
+    },
+    "targets": {
+        "default": {
+            "include": ["**/*.ds"]
+        }
+    },
+    "defaultTarget": "default"
+}
+```
+
+```ds packages/ui/src/main.ds
+export const ui = 1;
+```
+
+```ds packages/ui/src/button.ds
+export struct Button {}
+```
+
+```ds packages/ui/src/forms/input.ds
+export struct Input {}
+```
+
+```ds packages/app/main.ds
+import {} from "@acme/u";
+                ^^^^^^^ root_prefix
+
+import {} from "@acme/ui/b";
+                         ^ button_prefix
+
+import {} from "@acme/ui/f";
+                         ^ folder_prefix
+
+import {} from "@acme/ui/forms/i";
+                               ^ input_prefix
+```
+
+```query completion packages/app/main.ds#root_prefix@end
+@completion.item label=@acme/ui kind=module replace=packages/app/main.ds#root_prefix matches=0,1,2,3,4,5,6
+```
+
+```query completion packages/app/main.ds#button_prefix@end
+@completion.item label=button kind=module replace=packages/app/main.ds#button_prefix matches=0
+```
+
+```query completion packages/app/main.ds#folder_prefix@end
+@completion.item label=forms/ kind=folder replace=packages/app/main.ds#folder_prefix matches=0
+```
+
+```query completion packages/app/main.ds#input_prefix@end
+@completion.item label=input kind=module replace=packages/app/main.ds#input_prefix matches=0
+```
+
+### Complete public builtin paths
+
+Builtin path completion follows the builtin package's public exports.
+
+```ds main.ds
+import {} from "destack:conte";
+                        ^^^^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=context kind=module replace=main.ds#prefix matches=0,1,2,3,4
+```
+
+### Omit paths from undeclared packages
+
+Package path completion excludes workspace packages outside the active dependency graph.
+
+```json destack.json
+{
+    "workspace": {
+        "packages": ["packages/*"]
+    }
+}
+```
+
+```json packages/app/destack.json
+{
+    "name": "app",
+    "targets": {
+        "default": {
+            "include": ["**/*.ds"]
+        }
+    },
+    "defaultTarget": "default"
+}
+```
+
+```json packages/ui/destack.json
+{
+    "name": "@acme/ui",
+    "exports": {
+        "./button": {
+            "kind": "module",
+            "path": "src/button.ds"
+        }
+    },
+    "targets": {
+        "default": {
+            "include": ["**/*.ds"]
+        }
+    },
+    "defaultTarget": "default"
+}
+```
+
+```ds packages/ui/src/button.ds
+export struct Button {}
+```
+
+```ds packages/app/main.ds
+import {} from "@acme/u";
+                ^^^^^^^ prefix
+```
+
+```query completion packages/app/main.ds#prefix@end
+@completion.none
+```
+
+## Decorators
+
+### Complete a decorator
+
+Decorator heads complete callable declarations in the active global environment.
+
+```ds main.ds
+@depre
+ ^^^^^ prefix
+export function legacy(): void {}
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=deprecated kind=constructor replace=main.ds#prefix suffix="(string): deprecated" declaration="export newtype deprecated = (string,) | ()" documentation="Marks a declaration as deprecated and warns when it is used." insert="deprecated(${1})$0" snippet=true matches=0,1,2,3,4
+@completion.item label=deprecated kind=constructor replace=main.ds#prefix suffix="(): deprecated" declaration="export newtype deprecated = (string,) | ()" documentation="Marks a declaration as deprecated and warns when it is used." insert="deprecated()" matches=0,1,2,3,4
+@completion.item label=deprecated kind=constructor replace=main.ds#prefix suffix="((string,) | ()): deprecated" declaration="export newtype deprecated = (string,) | ()" documentation="Marks a declaration as deprecated and warns when it is used." insert="deprecated(${1})$0" snippet=true matches=0,1,2,3,4
+```
+
+## Labels
+
+### Complete an enclosing control label
+
+A control transfer completes labels from its enclosing control targets.
+
+```ds main.ds
+function choose(): void {
+    outer: loop {
+        break ou;
+              ^^ prefix
+    }
+}
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=outer kind=label replace=main.ds#prefix matches=0,1
 ```
 
 ## Statements

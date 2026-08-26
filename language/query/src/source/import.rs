@@ -3,10 +3,7 @@ use destack_core::StringId;
 use destack_dir as dir;
 use destack_source::{FileId, ModuleId, Patch, Span};
 
-use crate::source::{
-    canonical_module_path, export_keys_selecting_module, package_specifier, path_text,
-    relative_path,
-};
+use crate::source::{builtin_specifier, package_specifier, relative_module_specifier};
 use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
 
 /// One binding introduced by an auto import.
@@ -142,13 +139,13 @@ impl ModuleQueryContext<'_> {
         Ok(item.local_import_alias_name())
     }
 
-    /// Build edits that add an import for one symbol.
+    /// Build edits that introduce one available import binding.
     pub(crate) fn build_import_edits(
         &self,
         file_id: FileId,
         binding: &ImportBinding,
         import_path: &str,
-    ) -> QueryResult<Vec<Patch>> {
+    ) -> QueryResult<Option<Vec<Patch>>> {
         let existing_imports = self.collect_existing_imports(file_id)?;
 
         if let Some(existing) = existing_imports
@@ -159,29 +156,29 @@ impl ModuleQueryContext<'_> {
                 // retain an existing default import or add one before its remaining bindings
                 ImportBinding::Default { name } => {
                     if existing.default_name.as_deref() == Some(name) {
-                        return Ok(Vec::new());
+                        return Ok(None);
                     }
                     if existing.default_name.is_some() {
-                        return Ok(Vec::new());
+                        return Ok(None);
                     }
                     if let Some(position) = existing.default_offset {
                         let text = format!("{name}, ");
 
-                        return Ok(vec![Patch::insert(file_id, position, text)]);
+                        return Ok(Some(vec![Patch::insert(file_id, position, text)]));
                     }
                 }
 
                 // retain an existing named import or add one inside its clause
                 ImportBinding::Named { name } => {
                     if existing.contains_named(name) {
-                        return Ok(Vec::new());
+                        return Ok(None);
                     }
                     if !existing.is_namespace
                         && let Some(offset) = existing.named_end
                     {
                         let text = format!(", {name}");
 
-                        return Ok(vec![Patch::insert(file_id, offset, text)]);
+                        return Ok(Some(vec![Patch::insert(file_id, offset, text)]));
                     }
                     if !existing.is_namespace
                         && existing.default_name.is_some()
@@ -189,14 +186,14 @@ impl ModuleQueryContext<'_> {
                     {
                         let text = format!(", {{ {name} }}");
 
-                        return Ok(vec![Patch::insert(file_id, position, text)]);
+                        return Ok(Some(vec![Patch::insert(file_id, position, text)]));
                     }
                     if !existing.is_namespace
                         && let Some(position) = existing.named_offset
                     {
                         let text = format!(" {name} ");
 
-                        return Ok(vec![Patch::insert(file_id, position, text)]);
+                        return Ok(Some(vec![Patch::insert(file_id, position, text)]));
                     }
                 }
             }
@@ -228,7 +225,7 @@ impl ModuleQueryContext<'_> {
             (0, format!("{declaration}\n"))
         };
 
-        Ok(vec![Patch::insert(file_id, position, text)])
+        Ok(Some(vec![Patch::insert(file_id, position, text)]))
     }
 
     /// Resolve the bounds for a complete import clause.
@@ -383,6 +380,66 @@ impl ModuleQueryContext<'_> {
 }
 
 impl ProgramQueryContext<'_> {
+    /// Return every module specifier addressable from one source module.
+    pub(crate) fn addressable_specifiers(
+        &self,
+        source_module_id: ModuleId,
+    ) -> QueryResult<Vec<String>> {
+        let repository = self.repository();
+        let revision = self.revision();
+        let source_module = repository
+            .module(revision, source_module_id)?
+            .ok_or_else(|| {
+                QueryError::missing(format!("repository module: {source_module_id:?}"))
+            })?;
+        let source_path = source_module
+            .path
+            .as_deref()
+            .ok_or_else(|| QueryError::missing(format!("module path: {source_module_id:?}")))?;
+        let source_package = self.package_node(source_module.package_id)?;
+        let mut specifiers = Vec::new();
+        let mut builtin_packages = Vec::new();
+
+        // collect relative modules and implicit builtin packages
+        for target_module_id in self.module_ids() {
+            let package_id = target_module_id.package_id;
+            if package_id == source_module.package_id && *target_module_id != source_module_id {
+                if let Some(specifier) =
+                    relative_module_specifier(repository, revision, source_path, *target_module_id)?
+                {
+                    specifiers.push(specifier);
+                }
+            } else if repository.is_builtin_package(package_id)
+                && !builtin_packages.contains(&package_id)
+            {
+                builtin_packages.push(package_id);
+            }
+        }
+
+        // collect public specifiers from implicit builtin packages
+        for package_id in builtin_packages {
+            for (key, _) in self.package_module_exports(package_id)? {
+                specifiers.push(builtin_specifier(&key)?);
+            }
+        }
+
+        // collect public specifiers through each resolved direct dependency
+        for (alias, dependency) in &source_package.dependencies {
+            let PackageDependency::Resolved(package_id) = dependency else {
+                continue;
+            };
+            for (key, _) in self.package_module_exports(*package_id)? {
+                specifiers.push(package_specifier(alias, &key)?);
+            }
+        }
+
+        // provide one stable canonical list
+        specifiers.sort();
+        specifiers.dedup();
+
+        Ok(specifiers)
+    }
+
     /// Return every valid import specifier between two exact modules.
     pub(crate) fn import_specifiers(
         &self,
@@ -401,28 +458,36 @@ impl ProgramQueryContext<'_> {
                 .ok_or(QueryError::missing(format!(
                     "repository module: {source_module_id:?}"
                 )))?;
-        // invert public exports of the resolved dependency across packages
+        // invert public exports across packages
         if source_module.package_id != target_module_id.package_id {
             let source_node = self.package_node(source_module.package_id)?;
+            let target_package_id = target_module_id.package_id;
             let mut specifiers = Vec::new();
+
+            // invert the implicitly addressable builtin package
+            if repository.is_builtin_package(target_package_id) {
+                let exports = self.package_module_exports(target_package_id)?;
+                for (key, module_id) in &exports {
+                    if *module_id != target_module_id {
+                        continue;
+                    }
+                    specifiers.push(builtin_specifier(key)?);
+                }
+            }
 
             // invert each alias resolving to the target package
             for (alias, dependency) in &source_node.dependencies {
                 let PackageDependency::Resolved(dependency) = dependency else {
                     continue;
                 };
-                if *dependency != target_module_id.package_id {
+                if *dependency != target_package_id {
                     continue;
                 }
-                let dependency_node = self.package_node(*dependency)?;
-                let keys = export_keys_selecting_module(
-                    repository,
-                    revision,
-                    *dependency,
-                    &dependency_node,
-                    target_module_id,
-                )?;
-                for key in &keys {
+                let exports = self.package_module_exports(*dependency)?;
+                for (key, module_id) in &exports {
+                    if *module_id != target_module_id {
+                        continue;
+                    }
                     specifiers.push(package_specifier(alias, key)?);
                 }
             }
@@ -434,28 +499,16 @@ impl ProgramQueryContext<'_> {
             return Ok(specifiers);
         }
 
-        // skip modules that have no exact default import path
-        let Some(target_path) = canonical_module_path(repository, revision, target_module_id)?
-        else {
-            return Ok(Vec::new());
-        };
+        // build the canonical relative specifier inside one package
         let source_path = source_module
             .path
             .as_deref()
             .ok_or(QueryError::missing(format!(
                 "module path: {source_module_id:?}"
             )))?;
-        let source_directory = source_path.parent().ok_or(QueryError::invalid(format!(
-            "module import base: {source_module_id:?}"
-        )))?;
-        let relative = relative_path(source_directory, &target_path).ok_or(QueryError::invalid(
-            format!("relative module path: {source_module_id:?} -> {target_module_id:?}"),
-        ))?;
-        let mut specifier = path_text(&relative)?;
-        if !specifier.starts_with("./") && !specifier.starts_with("../") {
-            specifier = format!("./{specifier}");
-        }
+        let specifier =
+            relative_module_specifier(repository, revision, source_path, target_module_id)?;
 
-        Ok(vec![specifier])
+        Ok(specifier.into_iter().collect())
     }
 }

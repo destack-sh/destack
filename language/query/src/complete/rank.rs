@@ -89,8 +89,8 @@ impl CompletionRanker<'_> {
             .then(left.ordinal.cmp(&right.ordinal))
     }
 
-    /// Return whether the language context recommends this candidate.
-    fn recommends(&self, candidate: &CompletionCandidate) -> bool {
+    /// Return whether this candidate has the exact expected type.
+    fn is_exact_type_match(&self, candidate: &CompletionCandidate) -> bool {
         let expected_type = self.context.expected_type();
 
         expected_type.is_some() && candidate.type_id == expected_type
@@ -133,6 +133,9 @@ impl CompletionRanker<'_> {
             CompletionContext::ImportClause { .. } => completion.kind.import_clause_order(),
             CompletionContext::MemberAccess { .. } => completion.kind.member_access_order(),
             CompletionContext::ImportPath { .. } => completion.kind.import_path_order(),
+            CompletionContext::ControlLabel { .. } => {
+                u8::from(completion.kind != CompletionItemKind::Label)
+            }
             _ => completion.kind.value_position_order(),
         }
     }
@@ -283,9 +286,9 @@ impl CompletionCandidates {
 
         // rank every matching candidate
         matches.sort_by(|left, right| ranker.compare(left, right));
-        let is_recommended = matches
+        let first_has_expected_type = matches
             .first()
-            .is_some_and(|completion| ranker.recommends(&completion.candidate));
+            .is_some_and(|completion| ranker.is_exact_type_match(&completion.candidate));
         let mut items = matches
             .into_iter()
             .map(|completion| {
@@ -296,8 +299,8 @@ impl CompletionCandidates {
             })
             .collect::<Vec<_>>();
 
-        // preselect the candidate recommended by the language context
-        if is_recommended && let Some(first) = items.first_mut() {
+        // preselect the first candidate when its type exactly matches the expectation
+        if first_has_expected_type && let Some(first) = items.first_mut() {
             first.preselect = true;
         }
 

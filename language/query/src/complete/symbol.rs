@@ -127,7 +127,7 @@ impl CompletionCollector<'_, '_, '_> {
         &self,
         mut completion: CompletionCandidate,
         replacement: Span,
-    ) -> QueryResult<CompletionItem> {
+    ) -> QueryResult<Option<CompletionItem>> {
         // read the selected declaration once
         if let Some(symbol) = completion.symbol() {
             completion = self.resolve_symbol(completion, symbol)?;
@@ -146,15 +146,12 @@ impl CompletionCollector<'_, '_, '_> {
 
         // build an import edit when this candidate needs one
         if let Some(import) = completion.take_import() {
-            let edits =
+            let Some(edits) =
                 self.module
-                    .build_import_edits(self.file_id, &import.binding, &import.specifier)?;
-            if edits.is_empty() {
-                return Err(QueryError::invalid(format!(
-                    "auto import produces no edit: {}, {:?}",
-                    import.specifier, import.binding
-                )));
-            }
+                    .build_import_edits(self.file_id, &import.binding, &import.specifier)?
+            else {
+                return Ok(None);
+            };
             completion = completion.with_additional_edits(edits);
         }
 
@@ -257,6 +254,6 @@ impl CompletionCollector<'_, '_, '_> {
             completion = completion.with_label_suffix(format!(": {type_text}"));
         }
 
-        completion.into_item(replacement)
+        completion.into_item(replacement).map(Some)
     }
 }

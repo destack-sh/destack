@@ -84,10 +84,11 @@ impl ProgramQueryContext<'_> {
         exclude_module: Option<ModuleId>,
     ) -> QueryResult<Vec<ExportCandidate>> {
         let mut entries = Vec::new();
-        let query = query.to_lowercase();
 
         // collect exact exports from modules reached by matching names
-        let ordinals = self.modules_matching_name(&self.export_postings()?.names, &query);
+        let ordinals = self.modules_matching(&self.export_postings()?.names, |name| {
+            match_quality(name, query).is_some()
+        });
         for ordinal in ordinals {
             let (module, index) = self.export_index_at(ordinal)?;
             if Some(module) == exclude_module {
@@ -95,9 +96,7 @@ impl ProgramQueryContext<'_> {
             }
 
             for export in index.entries() {
-                if export.name == "default"
-                    || (!query.is_empty() && !export.name.to_lowercase().contains(&query))
-                {
+                if export.name == "default" || match_quality(&export.name, query).is_none() {
                     continue;
                 }
 
@@ -112,8 +111,8 @@ impl ProgramQueryContext<'_> {
         }
 
         // expose named declarations exported through the default key
-        let default_ordinals =
-            self.modules_matching_name(&self.export_postings()?.names, "default");
+        let default_name = "default".to_string();
+        let default_ordinals = self.export_postings()?.names.get(&default_name).to_vec();
         for ordinal in default_ordinals {
             let (module, index) = self.export_index_at(ordinal)?;
             if Some(module) == exclude_module {
@@ -136,7 +135,7 @@ impl ProgramQueryContext<'_> {
                         .find(|entry| entry.symbol == symbol)
                         .ok_or(QueryError::missing(format!("program symbol: {symbol:?}")))?;
                     if !is_simple_identifier(&symbol.name)
-                        || (!query.is_empty() && !symbol.name.to_lowercase().contains(&query))
+                        || match_quality(&symbol.name, query).is_none()
                     {
                         continue;
                     }
@@ -526,13 +525,6 @@ impl ProgramQueryContext<'_> {
                 entry.is_alias,
             )
         });
-    }
-
-    /// Return module ordinals whose string keys contain the query.
-    fn modules_matching_name(&self, postings: &dir::Postings<String>, query: &str) -> Vec<u32> {
-        self.modules_matching(postings, |name| {
-            query.is_empty() || name.to_lowercase().contains(query)
-        })
     }
 
     /// Return module ordinals reached by matching posting keys.

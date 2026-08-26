@@ -257,14 +257,18 @@ impl ModuleQueryContext<'_> {
                     break 'candidates;
                 }
 
-                // retain one preselected result after candidate expansion
-                let mut completion = completion;
-                if completion.preselect {
-                    completion.preselect = !has_preselected;
+                // omit candidates that cannot introduce their import binding
+                let Some(mut item) = collector.resolve(completion, replacement)? else {
+                    continue;
+                };
+
+                // retain one preselected result after expansion and import planning
+                if item.preselect {
+                    item.preselect = !has_preselected;
                     has_preselected = true;
                 }
 
-                items.push(collector.resolve(completion, replacement)?);
+                items.push(item);
             }
         }
 

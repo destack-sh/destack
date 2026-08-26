@@ -50,6 +50,13 @@ pub(crate) struct MatchOrder {
     pub(crate) score: Reverse<u32>,
 }
 
+impl MatchOrder {
+    /// Return the coarse lexical tier.
+    pub(crate) fn kind(self) -> MatchKind {
+        self.kind.0
+    }
+}
+
 /// One lexical query scored against one candidate.
 struct LexicalQuery<'a> {
     /// The candidate text being scored.

@@ -52,9 +52,9 @@ diagnostics none
 @code_actions.none
 ```
 
-### Import an exported type
+### Return user and builtin type imports
 
-A missing type reference offers a named import that preserves its type symbol space.
+A missing type reference offers every addressable declaration with the nearer source first.
 
 ```ds library.ds
 export type Options = {
@@ -74,6 +74,9 @@ diagnostic unresolved-reference main.ds#range
 @code_actions.action index=0 title="Import Options from \"./library\"" kind=quick_fix applicability=automatic preferred=true
 @code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
 @code_actions.patch action=0 range=main.ds#insertion text="import { Options } from \"./library\";\n"
+@code_actions.action index=1 title="Import Options from \"destack:test\"" kind=quick_fix applicability=automatic
+@code_actions.diagnostic action=1 id=unresolved-reference location=main.ds#range
+@code_actions.patch action=1 range=main.ds#insertion text="import { Options } from \"destack:test\";\n"
 ```
 
 ### Return every import candidate
@@ -159,16 +162,16 @@ diagnostic unresolved-reference main.ds#range
 An unambiguous case correction is safe to apply directly.
 
 ```ds main.ds
-const value = 1;
-const copy = Value;
-             ^^^^^ range
+const fixtureValue = 1;
+const copy = FixtureValue;
+             ^^^^^^^^^^^^ range
 ```
 
 ```query code_actions main.ds#range only=quick_fix
 diagnostic unresolved-reference main.ds#range
-@code_actions.action index=0 title="rename to 'value'" kind=quick_fix applicability=automatic preferred=true
+@code_actions.action index=0 title="rename to 'fixtureValue'" kind=quick_fix applicability=automatic preferred=true
 @code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
-@code_actions.patch action=0 range=main.ds#range text=value
+@code_actions.patch action=0 range=main.ds#range text=fixtureValue
 ```
 
 ### Offer a correction that requires review

@@ -6,8 +6,8 @@ use destack_repository::{
 };
 use destack_source::{DESTACK_FILE_TYPES, FileId, ModuleId, PackageId};
 
-use crate::source::path_text;
-use crate::{QueryError, QueryResult};
+use crate::source::{path_text, relative_path};
+use crate::{ProgramQueryContext, QueryError, QueryResult};
 
 /// Return the shortest exact import target path for one module.
 pub(crate) fn canonical_module_path(
@@ -48,61 +48,107 @@ pub(crate) fn canonical_module_path(
     }
 }
 
-/// Return public export keys of one dependency package selecting one module.
-pub(crate) fn export_keys_selecting_module(
+/// Return the shortest relative specifier from one module path to another module.
+pub(crate) fn relative_module_specifier(
     repository: &Repository,
     revision: Revision,
-    package_id: PackageId,
-    package: &PackageNode,
-    module_id: ModuleId,
-) -> QueryResult<Vec<String>> {
-    let Some(package_root) = package.root.as_deref() else {
-        return Ok(Vec::new());
+    source_path: &Path,
+    target_module_id: ModuleId,
+) -> QueryResult<Option<String>> {
+    let Some(target_path) = canonical_module_path(repository, revision, target_module_id)? else {
+        return Ok(None);
     };
-    let mut keys = Vec::new();
-
-    // resolve each exact export once
-    for (key, target) in &package.exports.exact {
-        let path = package_root.join(&target.path);
-        let resolved = resolve_export_module(repository, revision, package_id, target, &path)?;
-        if resolved == Some(module_id) {
-            keys.push(key.clone());
-        }
+    let source_directory = source_path.parent().ok_or(QueryError::invalid(format!(
+        "module import base: {source_path:?}"
+    )))?;
+    let relative = relative_path(source_directory, &target_path).ok_or(QueryError::invalid(
+        format!("relative module path: {source_path:?} -> {target_module_id:?}"),
+    ))?;
+    let mut specifier = path_text(&relative)?;
+    if !specifier.starts_with("./") && !specifier.starts_with("../") {
+        specifier = format!("./{specifier}");
     }
 
-    // invert pattern exports through the module's addressable paths
-    let module = repository
-        .module(revision, module_id)?
-        .ok_or_else(|| QueryError::missing(format!("repository module: {module_id:?}")))?;
-    if let Some(module_path) = module.path.as_deref() {
-        for pattern in &package.exports.patterns {
-            let target_pattern = package_root.join(&pattern.target.path);
+    Ok(Some(specifier))
+}
 
-            // exclude targets rejected by normal forward import resolution
-            let Some(target_pattern) = normalize_workspace_path(target_pattern) else {
-                continue;
-            };
-            let target_pattern = path_text(&target_pattern)?;
+impl ProgramQueryContext<'_> {
+    /// Return every active package export and its selected program module.
+    pub(crate) fn package_module_exports(
+        &self,
+        package_id: PackageId,
+    ) -> QueryResult<Vec<(String, ModuleId)>> {
+        let repository = self.repository();
+        let revision = self.revision();
+        let package = self.package_node(package_id)?;
 
-            for module_path in module_match_paths(module_path)? {
-                let Some(replacement) = wildcard_replacement(&target_pattern, &module_path) else {
+        // resolve implicit builtin exports through their canonical specifiers
+        if repository.is_builtin_package(package_id) {
+            let mut exports = Vec::new();
+            for (key, target) in &package.exports.exact {
+                if !target.is_module {
                     continue;
-                };
-                let key = format!("{}{}{}", pattern.prefix, replacement, pattern.suffix);
-                let Some(export) = package.exports.get(&key) else {
-                    continue;
-                };
-                let path = package_root.join(export.path.as_ref());
-                let resolved =
-                    resolve_export_module(repository, revision, package_id, export.target, &path)?;
-                if resolved == Some(module_id) && !keys.contains(&key) {
-                    keys.push(key);
                 }
+                let specifier = builtin_specifier(key)?;
+                let uri = repository
+                    .builtin_module_uri_for_specifier(revision, &specifier)?
+                    .ok_or_else(|| {
+                        QueryError::invalid(format!(
+                            "builtin package export {key:?} has no module URI"
+                        ))
+                    })?;
+                let selected = repository
+                    .module_id_for_uri(revision, &uri)?
+                    .ok_or_else(|| QueryError::missing(format!("builtin export module: {uri}")))?;
+                exports.push((key.clone(), selected));
+            }
+
+            return Ok(exports);
+        }
+
+        let Some(package_root) = package.root.as_deref() else {
+            return Err(QueryError::missing(format!("package root: {package_id:?}")));
+        };
+        let mut exports = Vec::new();
+
+        // resolve every exact export once
+        for (key, target) in &package.exports.exact {
+            let path = package_root.join(&target.path);
+            if let Some(module_id) =
+                resolve_export_module(repository, revision, package_id, target, &path)?
+            {
+                exports.push((key.clone(), module_id));
             }
         }
-    }
 
-    Ok(keys)
+        // invert pattern exports through each package module once
+        for module_id in self.module_ids() {
+            if module_id.package_id != package_id {
+                continue;
+            }
+            let module = repository
+                .module(revision, *module_id)?
+                .ok_or_else(|| QueryError::missing(format!("repository module: {module_id:?}")))?;
+            let Some(module_path) = module.path.as_deref() else {
+                continue;
+            };
+            for key in pattern_export_keys(
+                repository,
+                revision,
+                package_id,
+                &package,
+                package_root,
+                *module_id,
+                module_path,
+            )? {
+                exports.push((key, *module_id));
+            }
+        }
+        exports.sort();
+        exports.dedup();
+
+        Ok(exports)
+    }
 }
 
 /// Build one external package specifier from a package name and export key.
@@ -121,6 +167,26 @@ pub(crate) fn package_specifier(package_name: &str, export_key: &str) -> QueryRe
     else {
         Err(QueryError::invalid(format!(
             "invalid public package export key: {export_key:?}"
+        )))
+    }
+}
+
+/// Build one builtin package specifier from a public export key.
+pub(crate) fn builtin_specifier(export_key: &str) -> QueryResult<String> {
+    // package root
+    if export_key == "." {
+        Ok("destack:".to_string())
+    }
+    // package subpath
+    else if let Some(export_path) = export_key.strip_prefix("./")
+        && !export_path.is_empty()
+    {
+        Ok(format!("destack:{export_path}"))
+    }
+    // invalid public key
+    else {
+        Err(QueryError::invalid(format!(
+            "invalid builtin package export key: {export_key:?}"
         )))
     }
 }
@@ -175,6 +241,46 @@ fn resolve_export_module(
     }
 
     Ok(None)
+}
+
+/// Return pattern export keys selecting one exact module.
+fn pattern_export_keys(
+    repository: &Repository,
+    revision: Revision,
+    package_id: PackageId,
+    package: &PackageNode,
+    package_root: &Path,
+    module_id: ModuleId,
+    module_path: &Path,
+) -> QueryResult<Vec<String>> {
+    let mut keys = Vec::new();
+
+    // invert each pattern through the module's addressable paths
+    for pattern in &package.exports.patterns {
+        let target_pattern = package_root.join(&pattern.target.path);
+        let Some(target_pattern) = normalize_workspace_path(target_pattern) else {
+            continue;
+        };
+        let target_pattern = path_text(&target_pattern)?;
+
+        for module_path in module_match_paths(module_path)? {
+            let Some(replacement) = wildcard_replacement(&target_pattern, &module_path) else {
+                continue;
+            };
+            let key = format!("{}{}{}", pattern.prefix, replacement, pattern.suffix);
+            let Some(export) = package.exports.get(&key) else {
+                continue;
+            };
+            let path = package_root.join(export.path.as_ref());
+            let resolved =
+                resolve_export_module(repository, revision, package_id, export.target, &path)?;
+            if resolved == Some(module_id) {
+                keys.push(key);
+            }
+        }
+    }
+
+    Ok(keys)
 }
 
 /// Resolve one path without retaining the query-side probes.

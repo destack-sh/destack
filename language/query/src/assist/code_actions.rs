@@ -405,10 +405,11 @@ impl ModuleQueryContext<'_> {
                 }
 
                 // build one action for this exact import
-                let patches = self.build_import_edits(file, &candidate.binding, &specifier)?;
-                if patches.is_empty() {
+                let Some(patches) =
+                    self.build_import_edits(file, &candidate.binding, &specifier)?
+                else {
                     continue;
-                }
+                };
                 let order = ImportOrder::new(path.clone(), &specifier, name);
                 imports.push(ImportAction {
                     order,

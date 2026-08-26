@@ -93,9 +93,8 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
             CompletionContext::NewExpression { scope } => {
                 self.collect_new_expression(*scope, prefix)?
             }
-            CompletionContext::ImportPath { partial_path } => {
-                self.collect_import_paths(partial_path)?
-            }
+            CompletionContext::ControlLabel { labels } => self.collect_labels(labels, prefix),
+            CompletionContext::ImportPath { path } => self.collect_import_paths(path)?,
             CompletionContext::ImportClause {
                 target_module,
                 existing_names,
@@ -152,6 +151,26 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
         Ok(results)
     }
 
+    /// Collect labels visible to one control transfer.
+    fn collect_labels(&self, labels: &[dir::StringId], prefix: &str) -> Vec<CompletionCandidate> {
+        let mut results = Vec::new();
+
+        // retain enclosing labels that match the authored prefix
+        for label in labels {
+            let name = self.module.strings().get(*label);
+            if match_quality(name, prefix).is_none() {
+                continue;
+            }
+            results.push(CompletionCandidate::new(
+                name.to_string(),
+                CompletionItemKind::Label,
+                CompletionOrigin::Local,
+            ));
+        }
+
+        results
+    }
+
     /// Resolve one visible binding to its target declaration and completion kind.
     fn resolve_binding(
         &self,
@@ -180,7 +199,7 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
         })
     }
 
-    /// Return visible lexical, profile, and language bindings by precedence.
+    /// Return visible lexical and profile bindings by precedence.
     pub(super) fn visible_bindings(
         &self,
         scope: dir::LocalScope,
@@ -243,27 +262,6 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
 
                     break;
                 }
-            }
-        }
-
-        // add language globals not shadowed by lexical or profile bindings
-        let language = &environment.language;
-        for (name, symbol) in &language.symbols {
-            let key = dir::StaticKey::Name(*name);
-            if match_quality(self.module.strings().get(*name), prefix).is_none() {
-                continue;
-            }
-            if visible.contains_key(&key)
-                || environment.global_resolutions_by_key.contains_key(&key)
-            {
-                continue;
-            }
-            let module = self.program.module(symbol.module_id)?;
-            let binding = module.bindings()?.get_symbol(symbol.local_id);
-            if symbol_use.accepts_symbol_kind(binding.kind) {
-                let completion =
-                    self.resolve_binding(*symbol, binding, CompletionOrigin::Builtin)?;
-                visible.insert(key, completion);
             }
         }
 

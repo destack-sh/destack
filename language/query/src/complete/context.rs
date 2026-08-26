@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::{EnclosingSpan, FileId, ModuleId, NodeSpanRegion};
 
 use crate::source::token_text;
-use crate::{ModuleQueryContext, QueryError, QueryResult, SymbolUse};
+use crate::{CompletionItemKind, ModuleQueryContext, QueryError, QueryResult, SymbolUse};
 
 /// Describes the context for a completion request.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,10 +51,15 @@ pub(crate) enum CompletionContext {
         /// The scope used for visible symbols.
         scope: dir::LocalScope,
     },
+    /// Control label position after `break` or `continue`.
+    ControlLabel {
+        /// The enclosing labels ordered nearest first.
+        labels: Vec<dir::StringId>,
+    },
     /// Import path context inside string literals.
     ImportPath {
         /// The partial path typed so far.
-        partial_path: String,
+        path: PartialImportPath,
     },
     /// Import clause context inside `{ ... }` import lists.
     ImportClause {
@@ -91,6 +96,15 @@ pub(crate) struct CursorToken {
     pub(crate) start: u32,
     /// The end offset of the token.
     pub(crate) end: u32,
+}
+
+/// One partially authored import path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PartialImportPath {
+    /// The authored path before the cursor.
+    text: String,
+    /// The byte offset of the editable path segment.
+    segment_start: usize,
 }
 
 /// One completion context and its optional identifier prefix.
@@ -164,9 +178,7 @@ impl ModuleQueryContext<'_> {
         // import strings have their own completion language
         if let Some(context) = self.classify_import(file_id, source, offset)? {
             let token = match &context {
-                CompletionContext::ImportPath { partial_path } => {
-                    Some(CursorToken::from_import_path(partial_path, offset)?)
-                }
+                CompletionContext::ImportPath { path } => Some(path.cursor_token(offset)?),
                 _ => token,
             };
 
@@ -176,6 +188,11 @@ impl ModuleQueryContext<'_> {
         // ordinary comments and literals never contain language completions
         if self.is_lexically_suppressed(file_id, offset)? {
             return Ok(None);
+        }
+
+        // select the label namespace after control transfer keywords
+        if let Some(context) = self.classify_control_label(file_id, token.as_ref(), offset)? {
+            return Ok(Some(CompletionCursor { context, token }));
         }
 
         // member access stays first because it is the most specific value position context
@@ -244,22 +261,159 @@ impl ModuleQueryContext<'_> {
     }
 }
 
-impl CursorToken {
-    /// Build the editable final segment of one partial import path.
-    fn from_import_path(partial_path: &str, offset: u32) -> QueryResult<Self> {
-        let text = partial_path
-            .rsplit_once('/')
-            .map_or(partial_path, |(_, text)| text)
-            .to_string();
+impl ModuleQueryContext<'_> {
+    /// Classify a control label completion position.
+    fn classify_control_label(
+        &self,
+        file_id: FileId,
+        token: Option<&CursorToken>,
+        offset: u32,
+    ) -> QueryResult<Option<CompletionContext>> {
+        let label_start = token.map_or(offset, |token| token.start);
+        let Some(previous) = self.previous_significant_token(file_id, label_start)? else {
+            return Ok(None);
+        };
+        if !matches!(
+            previous.token.keyword(),
+            Some(dir::Keyword::Break | dir::Keyword::Continue)
+        ) {
+            return Ok(None);
+        }
+
+        let view = self.view()?;
+        let mut labels = Vec::new();
+
+        // collect labels from enclosing control targets, nearest first
+        for enclosing in self.enclosing_spans_at_cursor(file_id, offset)? {
+            let Some(node) = view.get_node_id_by_source_id(enclosing.source_id) else {
+                continue;
+            };
+            if node.ty != dir::NodeType::Expression {
+                continue;
+            }
+            let expression = view.get(dir::LocalNodeId::<dir::Expression>::new(node.id));
+            let Some(label) = expression.control_label() else {
+                continue;
+            };
+            if !labels.contains(&label) {
+                labels.push(label);
+            }
+        }
+
+        Ok(Some(CompletionContext::ControlLabel { labels }))
+    }
+}
+
+impl PartialImportPath {
+    /// Parse one authored import path prefix.
+    pub(crate) fn new(text: String) -> Self {
+        let slash_count = text.bytes().filter(|byte| *byte == b'/').count();
+        let root_is_incomplete = text.starts_with('@') && slash_count <= 1;
+        let separator = if text.starts_with("destack:") {
+            text.rfind([':', '/'])
+        } else if root_is_incomplete {
+            None
+        } else {
+            text.rfind('/')
+        };
+        let segment_start = separator.map_or(0, |index| index + 1);
+
+        Self {
+            text,
+            segment_start,
+        }
+    }
+
+    /// Build the editable path segment at one source offset.
+    pub(crate) fn cursor_token(&self, offset: u32) -> QueryResult<CursorToken> {
+        let text = self.text[self.segment_start..].to_string();
         let start = offset
             .checked_sub(text.len() as u32)
             .ok_or(QueryError::invalid("import path completion range"))?;
 
-        Ok(Self {
+        Ok(CursorToken {
             text,
             start,
             end: offset,
         })
+    }
+
+    /// Project one addressable specifier to its next completion.
+    pub(crate) fn completion(&self, specifier: &str) -> Option<(String, CompletionItemKind)> {
+        // project relative paths one segment at a time
+        if specifier.starts_with("./") || specifier.starts_with("../") {
+            if !self.text.is_empty()
+                && !self.text.starts_with("./")
+                && !self.text.starts_with("../")
+            {
+                return None;
+            }
+
+            return self.segment_completion(specifier);
+        }
+
+        // project the builtin root before its public subpaths
+        if specifier.starts_with("destack:") {
+            return self.package_completion("destack:", specifier);
+        }
+
+        // project an external package root before its public subpaths
+        let package_end = if specifier.starts_with('@') {
+            let scope_end = specifier.find('/')?;
+            specifier[scope_end + 1..]
+                .find('/')
+                .map_or(specifier.len(), |index| scope_end + index + 1)
+        } else {
+            specifier.find('/').unwrap_or(specifier.len())
+        };
+        let package = &specifier[..package_end];
+
+        self.package_completion(package, specifier)
+    }
+
+    /// Project one package root or subpath.
+    fn package_completion(
+        &self,
+        package: &str,
+        specifier: &str,
+    ) -> Option<(String, CompletionItemKind)> {
+        // complete an unfinished package root as one lexical unit
+        if package.starts_with(&self.text) {
+            let is_module = package == specifier;
+            let mut label = package.to_string();
+            if !is_module && !label.ends_with(':') {
+                label.push('/');
+            }
+            let kind = if is_module {
+                CompletionItemKind::Module
+            } else {
+                CompletionItemKind::Folder
+            };
+
+            return Some((label, kind));
+        }
+
+        // complete only subpaths below the exact package root
+        let subpath = self.text.strip_prefix(package)?;
+        if !subpath.starts_with('/') && !(package.ends_with(':') && !subpath.is_empty()) {
+            return None;
+        }
+
+        self.segment_completion(specifier)
+    }
+
+    /// Project one specifier through the current path directory.
+    fn segment_completion(&self, specifier: &str) -> Option<(String, CompletionItemKind)> {
+        let directory = &self.text[..self.segment_start];
+        let remainder = specifier.strip_prefix(directory)?;
+        if remainder.is_empty() {
+            return None;
+        }
+
+        match remainder.split_once('/') {
+            Some((segment, _)) => Some((format!("{segment}/"), CompletionItemKind::Folder)),
+            None => Some((remainder.to_string(), CompletionItemKind::Module)),
+        }
     }
 }
 
