@@ -871,7 +871,14 @@ impl LanguageServer for DestackLanguageServer {
             workspace_symbol_provider: Some(lsp::OneOf::Left(true)),
             document_highlight_provider: Some(lsp::OneOf::Left(true)),
             completion_provider: Some(lsp::CompletionOptions {
-                trigger_characters: Some(vec![".".to_string(), ":".to_string()]),
+                trigger_characters: Some(vec![
+                    ".".to_string(),
+                    ":".to_string(),
+                    "\"".to_string(),
+                    "'".to_string(),
+                    "/".to_string(),
+                    "@".to_string(),
+                ]),
                 resolve_provider: None,
                 completion_item: Some(lsp::CompletionOptionsCompletionItem {
                     label_details_support: Some(true),
