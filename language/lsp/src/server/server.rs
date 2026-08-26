@@ -1001,7 +1001,7 @@ impl LanguageServer for DestackLanguageServer {
     }
 
     async fn shutdown(&self) -> jsonrpc::Result<()> {
-        self.session()?.flush_artifact_cache()?;
+        self.session()?.shutdown()?;
         self.client.log(LogRecord::new("server.shutdown"));
 
         Ok(())

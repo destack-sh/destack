@@ -111,8 +111,13 @@ impl ServerSession {
         })
     }
 
-    /// Wait for every persistent artifact write scheduled by this server.
-    pub(super) fn flush_artifact_cache(&self) -> jsonrpc::Result<()> {
+    /// Close every workspace and flush artifact cache writes.
+    pub(super) fn shutdown(&self) -> jsonrpc::Result<()> {
+        // close workspaces before flushing their artifact writes
+        for workspace in self.workspaces() {
+            workspace.close();
+        }
+
         self.host.flush_artifact_cache().map_err(internal_error)
     }
 
