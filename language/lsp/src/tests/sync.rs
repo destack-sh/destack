@@ -184,16 +184,11 @@ async fn test_query_incomplete_binding_before_language_item() {
         .assert_diagnostics(
             &document,
             version,
-            vec![lsp::Diagnostic {
-                range: range(insertion_line + 1, 0, insertion_line + 1, 1),
-                severity: Some(lsp::DiagnosticSeverity::ERROR),
-                code: Some(lsp::NumberOrString::String(
-                    "expected-declarator".to_string(),
-                )),
-                source: Some("destack".to_string()),
-                message: "expected declarator".to_string(),
-                ..lsp::Diagnostic::default()
-            }],
+            vec![document.error(
+                range(insertion_line + 1, 0, insertion_line + 1, 1),
+                "expected-declarator",
+                "expected declarator",
+            )],
         )
         .await;
 
@@ -295,63 +290,6 @@ async fn test_apply_incremental_document_changes() {
     };
     server
         .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
-        .await;
-}
-
-/// Publish parser diagnostics when checking fails.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_publish_parser_diagnostics_before_check_failure() {
-    let valid = "struct Report {}\nclass Foo {}\n";
-    let invalid = "struct Report {}\nclass Foo {\n    @;\n    like\n}\n";
-    let mut server = TestServer::new("parser-diagnostics-before-check-failure");
-    let document = server.write("main.ds", valid);
-    server
-        .initialize(lsp::ClientCapabilities::default(), None)
-        .await
-        .unwrap();
-    server.initialized().await;
-
-    // begin from one valid checked revision
-    server.open(&document, 1, valid).await;
-    server.assert_diagnostics(&document, 1, Vec::new()).await;
-
-    // retain parser diagnostics when the edited field also fails checking
-    server
-        .change(&document, 2, [replace_document(invalid)])
-        .await;
-    server
-        .assert_diagnostics(
-            &document,
-            2,
-            vec![
-                lsp::Diagnostic {
-                    range: range(3, 4, 3, 8),
-                    severity: Some(lsp::DiagnosticSeverity::ERROR),
-                    code: Some(lsp::NumberOrString::String(
-                        "missing-type-annotation".to_string(),
-                    )),
-                    source: Some("destack".to_string()),
-                    message: "missing type annotation".to_string(),
-                    ..lsp::Diagnostic::default()
-                },
-                lsp::Diagnostic {
-                    range: range(2, 5, 2, 6),
-                    severity: Some(lsp::DiagnosticSeverity::ERROR),
-                    code: Some(lsp::NumberOrString::String("unexpected-token".to_string())),
-                    source: Some("destack".to_string()),
-                    message: "unexpected ;".to_string(),
-                    ..lsp::Diagnostic::default()
-                },
-                lsp::Diagnostic {
-                    range: range(2, 5, 2, 6),
-                    severity: Some(lsp::DiagnosticSeverity::ERROR),
-                    code: Some(lsp::NumberOrString::String("expected-member".to_string())),
-                    source: Some("destack".to_string()),
-                    message: "expected member".to_string(),
-                    ..lsp::Diagnostic::default()
-                },
-            ],
-        )
         .await;
 }
 

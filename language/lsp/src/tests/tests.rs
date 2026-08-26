@@ -447,6 +447,32 @@ impl TestServer {
         assert_eq!(published.diagnostics, expected);
     }
 
+    /// Require the current diagnostics returned for one document.
+    pub(super) async fn assert_document_diagnostics(
+        &mut self,
+        document: &TestDocument,
+        expected: Vec<lsp::Diagnostic>,
+    ) {
+        let response = self
+            .request::<lsp::request::DocumentDiagnosticRequest>(document.diagnostics())
+            .await
+            .unwrap();
+        let lsp::DocumentDiagnosticReportResult::Report(lsp::DocumentDiagnosticReport::Full(
+            report,
+        )) = response
+        else {
+            panic!("document diagnostics did not return a full report");
+        };
+        let mut diagnostics = report.full_document_diagnostic_report.items;
+
+        // omit the private payload used to resolve later code actions
+        for diagnostic in &mut diagnostics {
+            diagnostic.data = None;
+        }
+
+        assert_eq!(diagnostics, expected);
+    }
+
     /// Require the server to have sent no further protocol message.
     pub(super) fn assert_no_message(&mut self) {
         if let Some(message) = self.messages.pop_front() {
@@ -601,6 +627,33 @@ impl TestDocument {
         &self.uri
     }
 
+    /// Build one exact error diagnostic for this document.
+    pub(super) fn error(&self, range: lsp::Range, code: &str, message: &str) -> lsp::Diagnostic {
+        lsp::Diagnostic {
+            range,
+            severity: Some(lsp::DiagnosticSeverity::ERROR),
+            code: Some(lsp::NumberOrString::String(code.to_string())),
+            source: Some("destack".to_string()),
+            message: message.to_string(),
+            ..lsp::Diagnostic::default()
+        }
+    }
+
+    /// Build one exact related location in this document.
+    pub(super) fn related(
+        &self,
+        range: lsp::Range,
+        message: &str,
+    ) -> lsp::DiagnosticRelatedInformation {
+        lsp::DiagnosticRelatedInformation {
+            location: lsp::Location {
+                uri: self.uri.clone(),
+                range,
+            },
+            message: message.to_string(),
+        }
+    }
+
     /// Build an LSP document identifier.
     pub(super) fn identifier(&self) -> lsp::TextDocumentIdentifier {
         lsp::TextDocumentIdentifier {
@@ -710,6 +763,17 @@ impl TestDocument {
     pub(super) fn outline(&self) -> lsp::DocumentSymbolParams {
         lsp::DocumentSymbolParams {
             text_document: self.identifier(),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+            partial_result_params: lsp::PartialResultParams::default(),
+        }
+    }
+
+    /// Build current document diagnostic parameters.
+    pub(super) fn diagnostics(&self) -> lsp::DocumentDiagnosticParams {
+        lsp::DocumentDiagnosticParams {
+            text_document: self.identifier(),
+            identifier: None,
+            previous_result_id: None,
             work_done_progress_params: lsp::WorkDoneProgressParams::default(),
             partial_result_params: lsp::PartialResultParams::default(),
         }
