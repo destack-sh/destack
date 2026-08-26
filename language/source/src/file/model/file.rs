@@ -83,8 +83,27 @@ pub struct File {
     pub blob: Blob,
     /// Retained immutable byte memory.
     memory: Arc<BlobMemory>,
-    /// Shared line index for text content.
-    line_index: Option<Arc<[u32]>>,
+    /// Precomputed line starts for text content.
+    line_index: Option<LineIndex>,
+}
+
+/// Precomputed line starts retained by one text File.
+#[derive(Debug, Clone)]
+enum LineIndex {
+    /// Build-owned line starts.
+    Static(&'static [u32]),
+    /// Runtime-owned line starts.
+    Shared(Arc<[u32]>),
+}
+
+impl AsRef<[u32]> for LineIndex {
+    /// Borrow the line starts.
+    fn as_ref(&self) -> &[u32] {
+        match self {
+            Self::Static(offsets) => offsets,
+            Self::Shared(offsets) => offsets,
+        }
+    }
 }
 
 impl PartialEq for File {
@@ -146,12 +165,12 @@ impl File {
             len: 0,
             blob: memory.blob(),
             memory,
-            line_index: Some(Arc::from([0_u32])),
+            line_index: Some(LineIndex::Shared(Arc::from([0_u32]))),
         }
     }
 
-    /// Precompute line start byte offsets for constant-time line access.
-    fn precompute_line_start_offsets(content: &str) -> Vec<u32> {
+    /// Return every line start byte offset in source text.
+    pub fn line_starts(content: &str) -> Vec<u32> {
         let mut line_start_offsets = vec![0];
         for (offset, character) in content.char_indices() {
             if character == '\n' {
@@ -180,7 +199,7 @@ impl File {
         path: Option<PathBuf>,
         ty: FileType,
         memory: Arc<BlobMemory>,
-        line_index: Option<Arc<[u32]>>,
+        line_index: Option<LineIndex>,
     ) -> Result<Self, FileError> {
         // enforce source coordinate bounds
         let blob = memory.blob();
@@ -218,10 +237,29 @@ impl File {
         } else {
             let text = str::from_utf8(memory.bytes()).map_err(FileError::Utf8)?;
 
-            Some(Arc::<[u32]>::from(Self::precompute_line_start_offsets(
+            Some(LineIndex::Shared(Arc::<[u32]>::from(Self::line_starts(
                 text,
-            )))
+            ))))
         };
+
+        Self::from_memory(id, name, uri, path, ty, memory, line_index)
+    }
+
+    /// Build one text File from retained memory and build-owned line starts.
+    ///
+    /// # Safety
+    ///
+    /// The retained bytes must be valid UTF-8 and `line_start_offsets` must describe them exactly.
+    pub unsafe fn from_indexed_text(
+        id: FileId,
+        name: String,
+        uri: Uri,
+        path: Option<PathBuf>,
+        ty: FileType,
+        memory: Arc<BlobMemory>,
+        line_start_offsets: &'static [u32],
+    ) -> Result<Self, FileError> {
+        let line_index = Some(LineIndex::Static(line_start_offsets));
 
         Self::from_memory(id, name, uri, path, ty, memory, line_index)
     }
@@ -237,11 +275,13 @@ impl File {
     ) -> Result<Self, FileError> {
         // normalize and index the provided text
         let content = Self::normalize_line_endings(content);
-        let line_index = Arc::<[u32]>::from(Self::precompute_line_start_offsets(&content));
+        let line_index = Arc::<[u32]>::from(Self::line_starts(&content));
 
         // retain the normalized bytes
         let bytes = content.into_bytes();
         let memory = Arc::new(BlobMemory::from_bytes(bytes));
+
+        let line_index = LineIndex::Shared(line_index);
 
         Self::from_memory(id, name, uri, path, ty, memory, Some(line_index))
     }
@@ -290,7 +330,7 @@ impl File {
 
     /// Return shared line start offsets when present.
     pub fn line_start_offsets(&self) -> Option<&[u32]> {
-        self.line_index.as_deref()
+        self.line_index.as_ref().map(AsRef::as_ref)
     }
 
     /// Return whether the file starts with a hashbang line.
