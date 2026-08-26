@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::Error;
 use crate::workspace::{Workspace, WorkspacePin};
 
-/// Selection for one diagnostic read.
+/// Diagnostics selected from one workspace.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum DiagnosticsRequest {
     /// Return diagnostics for this workspace.
@@ -63,8 +63,8 @@ impl DiagnosticOutcome {
 }
 
 impl FileDiagnostics {
-    /// Read diagnostics for one exact file.
-    fn read(
+    /// Create diagnostics for one exact file.
+    fn new(
         session: &WorkspacePin,
         file_id: FileId,
         diagnostics: Vec<Diagnostic>,
@@ -79,12 +79,16 @@ impl FileDiagnostics {
     }
 }
 
-/// One scheduled diagnostic read at an exact workspace revision.
+/// One scheduled diagnostic run at an exact workspace revision.
 pub struct DiagnosticRun {
-    /// The exact workspace revision selected by this request.
-    revision: Revision,
-    /// The scheduled read, absent when a requested file is not tracked.
-    read: Option<DiagnosticRead>,
+    /// Pinned workspace revision.
+    session: WorkspacePin,
+    /// Files selected from this workspace.
+    selection: DiagnosticSelection,
+    /// Exact diagnostic artifact roots.
+    artifact_keys: Vec<ArtifactKey>,
+    /// Artifact run providing the roots.
+    artifact_run: ArtifactRun,
 }
 
 impl std::fmt::Debug for DiagnosticRun {
@@ -92,68 +96,45 @@ impl std::fmt::Debug for DiagnosticRun {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("DiagnosticRun")
-            .field("revision", &self.revision)
-            .field("is_scheduled", &self.read.is_some())
+            .field("revision", &self.session.revision())
+            .field("artifact_run", &self.artifact_run.id())
             .finish()
     }
 }
 
 impl DiagnosticRun {
-    /// Return the exact workspace revision pinned by this diagnostic run.
-    pub fn revision(&self) -> Revision {
-        self.revision
-    }
-
-    /// Return the artifact run providing diagnostics when scheduled.
-    pub fn artifact_run_id(&self) -> Option<ArtifactRunId> {
-        self.read.as_ref().map(|read| read.artifact_run.id())
-    }
-
-    /// Complete the scheduled read and return its diagnostics and failures.
-    pub async fn wait(self) -> DiagnosticOutcome {
-        match self.read {
-            Some(read) => read.wait().await,
-            None => DiagnosticOutcome::default(),
-        }
-    }
-}
-
-/// One exact workspace diagnostic read.
-struct DiagnosticRead {
-    /// Pinned source and diagnostic state.
-    session: WorkspacePin,
-    /// Files selected from this workspace.
-    selection: DiagnosticSelection,
-    /// Exact diagnostic artifact roots for this workspace.
-    artifact_keys: Vec<ArtifactKey>,
-    /// Foreground provisioning for the diagnostic artifacts.
-    artifact_run: ArtifactRun,
-}
-
-impl DiagnosticRead {
-    /// Schedule one exact workspace diagnostic read.
+    /// Schedule diagnostics for selected modules.
     fn new(
         session: WorkspacePin,
         selection: DiagnosticSelection,
         modules: &[Module],
-    ) -> Result<Self, Error> {
+        priority: ArtifactPriority,
+    ) -> Self {
         let artifact_keys = session.diagnostic_artifacts(modules);
-        let artifact_run = session.session().provide(
-            session.revision(),
-            &artifact_keys,
-            ArtifactPriority::Foreground,
-        );
+        let artifact_run = session
+            .session()
+            .provide(session.revision(), &artifact_keys, priority);
 
-        Ok(Self {
+        Self {
             session,
             selection,
             artifact_keys,
             artifact_run,
-        })
+        }
     }
 
-    /// Complete this workspace read and return its diagnostics and failures.
-    async fn wait(self) -> DiagnosticOutcome {
+    /// Return the exact workspace revision pinned by this diagnostic run.
+    pub fn revision(&self) -> Revision {
+        self.session.revision()
+    }
+
+    /// Return the artifact run providing diagnostics.
+    pub fn artifact_run_id(&self) -> ArtifactRunId {
+        self.artifact_run.id()
+    }
+
+    /// Complete this run and return its diagnostics and failures.
+    pub async fn wait(self) -> DiagnosticOutcome {
         let Self {
             session,
             selection,
@@ -163,12 +144,14 @@ impl DiagnosticRead {
         let revision = session.revision();
         let repository = session.repository();
 
-        // finish every requested phase, then read all completed diagnostics
+        // complete every requested artifact
         let mut outcome = DiagnosticOutcome::default();
         if let Err(error) = artifact_run.complete().await {
             outcome.failures.push(error.into());
         }
         session.persist_artifacts();
+
+        // read every completed diagnostic
         let diagnostics = match repository.diagnostics_for_keys(revision, &artifact_keys) {
             Ok(diagnostics) => diagnostics,
             Err(error) => {
@@ -179,10 +162,10 @@ impl DiagnosticRead {
         };
         let mut diagnostics_by_file = diagnostics.group_by_file();
 
-        // retain only the requested file when this is a file read
+        // retain only the requested file
         if let DiagnosticSelection::File(file_id) = selection {
             let diagnostics = diagnostics_by_file.remove(&file_id).unwrap_or_default();
-            match FileDiagnostics::read(&session, file_id, diagnostics) {
+            match FileDiagnostics::new(&session, file_id, diagnostics) {
                 Ok(file) => outcome.diagnostics.push(file),
                 Err(error) => outcome.failures.push(error),
             }
@@ -192,7 +175,7 @@ impl DiagnosticRead {
 
         // build stable workspace diagnostics
         for (file_id, file_diagnostics) in diagnostics_by_file {
-            let file = match FileDiagnostics::read(&session, file_id, file_diagnostics) {
+            let file = match FileDiagnostics::new(&session, file_id, file_diagnostics) {
                 Ok(file) => file,
                 Err(error) => {
                     outcome.failures.push(error);
@@ -225,28 +208,33 @@ enum DiagnosticSelection {
 }
 
 impl Workspace {
-    /// Schedule exact diagnostics selected by one request.
+    /// Schedule exact diagnostics for this workspace.
     pub fn start_diagnostics(
         &self,
         revision: Revision,
-        request: DiagnosticsRequest,
+        priority: ArtifactPriority,
     ) -> Result<DiagnosticRun, Error> {
         let session = self.pin(revision)?;
-        let revision = session.revision();
-        let read = match request {
-            DiagnosticsRequest::All => Some(self.start_all_diagnostics(session)?),
-            DiagnosticsRequest::File(path) => self.start_file_diagnostics(session, &path)?,
-        };
+        let repository = session.repository();
+        let module_ids = repository.module_ids(session.revision())?;
+        let modules = session.selected_modules(&module_ids)?;
 
-        Ok(DiagnosticRun { revision, read })
+        Ok(DiagnosticRun::new(
+            session,
+            DiagnosticSelection::All,
+            &modules,
+            priority,
+        ))
     }
 
     /// Schedule exact diagnostics for one file path.
-    fn start_file_diagnostics(
+    pub fn start_file_diagnostics(
         &self,
-        session: WorkspacePin,
+        revision: Revision,
         path: &Path,
-    ) -> Result<Option<DiagnosticRead>, Error> {
+        priority: ArtifactPriority,
+    ) -> Result<Option<DiagnosticRun>, Error> {
+        let session = self.pin(revision)?;
         let revision = session.revision();
         let repository = session.repository();
 
@@ -259,30 +247,14 @@ impl Workspace {
             .transpose()?
             .into_iter()
             .collect::<Vec<_>>();
-        self.schedule_program_indexes(&session)?;
+        let run = DiagnosticRun::new(
+            session,
+            DiagnosticSelection::File(file_id),
+            &modules,
+            priority,
+        );
 
-        let read = DiagnosticRead::new(session, DiagnosticSelection::File(file_id), &modules)?;
-
-        Ok(Some(read))
-    }
-
-    /// Schedule exact diagnostics for this workspace.
-    fn start_all_diagnostics(&self, session: WorkspacePin) -> Result<DiagnosticRead, Error> {
-        let revision = session.revision();
-        let repository = session.repository();
-        let module_ids = repository.module_ids(revision)?;
-        let modules = session.selected_modules(&module_ids)?;
-        self.schedule_program_indexes(&session)?;
-
-        DiagnosticRead::new(session, DiagnosticSelection::All, &modules)
-    }
-
-    /// Schedule program indexes for one selected revision.
-    fn schedule_program_indexes(&self, session: &WorkspacePin) -> Result<(), Error> {
-        let artifacts = session.program_indexes()?;
-        self.provide_background(session.revision(), &artifacts)?;
-
-        Ok(())
+        Ok(Some(run))
     }
 
     /// Return exact diagnostics selected by one request.
@@ -291,9 +263,18 @@ impl Workspace {
         revision: Revision,
         request: DiagnosticsRequest,
     ) -> Result<Vec<FileDiagnostics>, Error> {
-        self.start_diagnostics(revision, request)?
-            .wait()
-            .await
-            .into_result()
+        let run = match request {
+            DiagnosticsRequest::All => {
+                Some(self.start_diagnostics(revision, ArtifactPriority::Foreground)?)
+            }
+            DiagnosticsRequest::File(path) => {
+                self.start_file_diagnostics(revision, &path, ArtifactPriority::Foreground)?
+            }
+        };
+        let Some(run) = run else {
+            return Ok(Vec::new());
+        };
+
+        run.wait().await.into_result()
     }
 }
