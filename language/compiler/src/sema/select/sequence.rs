@@ -22,6 +22,12 @@ impl BodyState<'_, '_> {
             return self.commit_rejected_pattern(node);
         }
 
+        // tuple sources destructure positionally like written tuple patterns
+        let subject = self.shallow_resolve(scrutinee)?;
+        if matches!(self.ty(subject)?, dir::Type::Tuple(_)) {
+            return self.select_tuple_pattern(node, origin, flow, scope, subject, fields);
+        }
+
         // reject non-sequence sources before projecting fields
         let Some((sequence, _length)) = self.select_sequence_length(origin, scrutinee)? else {
             self.report_pattern_source_not_sequence_shaped(origin, scrutinee)?;
