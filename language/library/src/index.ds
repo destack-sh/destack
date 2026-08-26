@@ -37,7 +37,6 @@ export * as range from "./range";
 export * as regexp from "./regexp";
 export * as runtime from "./runtime";
 export * as serde from "./serde";
-export * as simulation from "./simulation";
 export * as stream from "./stream";
 export * as sync from "./sync";
 export * as test from "./test";
