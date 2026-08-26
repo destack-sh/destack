@@ -34,7 +34,7 @@ pub struct Workspace {
     pub(crate) session: Arc<Session>,
     /// Serialized workspace lifecycle and mutation state.
     pub(crate) state: Arc<Mutex<State>>,
-    /// Semantic watch state.
+    /// Workspace watch state.
     pub(crate) watch: Arc<Mutex<WatchState>>,
     /// Latest proactive editor artifact run.
     pub(crate) background_run: Mutex<Option<BackgroundRun>>,

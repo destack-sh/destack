@@ -77,19 +77,25 @@ impl Workspace {
         Ok(state)
     }
 
-    /// Close this workspace and its dependent state.
+    /// Close this workspace.
     pub fn close(&self) {
-        let mut state = self.state.lock();
-        if state.lifecycle == Lifecycle::Closed {
-            return;
-        }
-        state.lifecycle = Lifecycle::Closed;
+        // mark the workspace closed and detach its background run
+        let background_run = {
+            let mut state = self.state.lock();
+            if state.lifecycle == Lifecycle::Closed {
+                return;
+            }
+            state.lifecycle = Lifecycle::Closed;
 
-        // cancel background work and terminate semantic subscriptions
-        let background_run = self.background_run.lock().take();
+            self.background_run.lock().take()
+        };
+
+        // finish background work after releasing workspace state
         if let Some(run) = background_run {
             run.finish();
         }
+
+        // close workspace watches
         self.watch.lock().close();
     }
 
@@ -114,7 +120,7 @@ impl Workspace {
         )
     }
 
-    /// Publish one committed transition to semantic watches.
+    /// Publish one committed transition to workspace watches.
     pub(crate) fn publish(&self, branch: Option<&str>, commit: &Commit, after: RevisionPin) {
         if commit.before != commit.after {
             self.watch.lock().publish(branch, commit, after);
@@ -127,20 +133,24 @@ impl Workspace {
         revision: Revision,
         artifacts: &[ArtifactKey],
     ) -> Result<(), Error> {
-        let _state = self.lock()?;
-        let run = if artifacts.is_empty() {
-            None
-        } else {
-            let session = self.pin(revision)?;
-            let run = self
-                .session
-                .provide(revision, artifacts, ArtifactPriority::Background);
+        // install the new run while the workspace remains open
+        let previous = {
+            let _state = self.lock()?;
+            let run = if artifacts.is_empty() {
+                None
+            } else {
+                let session = self.pin(revision)?;
+                let run = self
+                    .session
+                    .provide(revision, artifacts, ArtifactPriority::Background);
 
-            Some(BackgroundRun::new(run, session))
+                Some(BackgroundRun::new(run, session))
+            };
+
+            std::mem::replace(&mut *self.background_run.lock(), run)
         };
-        let previous = std::mem::replace(&mut *self.background_run.lock(), run);
 
-        // cancel obsolete work after publishing its replacement
+        // finish obsolete work after releasing workspace state
         if let Some(run) = previous {
             run.finish();
         }
@@ -148,7 +158,7 @@ impl Workspace {
         Ok(())
     }
 
-    /// Terminate semantic subscriptions after one host watch failure.
+    /// Fail workspace watches after one host watch failure.
     pub fn fail_watch(&self, detail: String) -> Result<(), Error> {
         let _state = self.lock()?;
         self.watch.lock().fail(detail);
@@ -156,7 +166,7 @@ impl Workspace {
         Ok(())
     }
 
-    /// Resume semantic watches after host observation becomes active.
+    /// Resume workspace watches after host observation becomes active.
     pub fn resume_watch(&self) -> Result<(), Error> {
         let _state = self.lock()?;
         self.watch.lock().recover();

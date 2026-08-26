@@ -61,10 +61,7 @@ impl WorkspacePin {
             return false;
         };
         let state = state.lock();
-        let is_physical = state.lifecycle == super::Lifecycle::Open
-            && state.physical.revision() == self.revision.revision();
-        drop(state);
-        if !is_physical {
+        if state.physical.revision() != self.revision.revision() {
             return false;
         }
 
