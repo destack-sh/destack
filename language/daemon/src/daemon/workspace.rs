@@ -106,10 +106,19 @@ impl WorkspaceRegistry {
             .drain()
             .map(|(_, registration)| registration)
             .collect::<Vec<_>>();
-        let failures = registrations
+        let mut failures = registrations
             .into_iter()
             .filter_map(|registration| registration.close().err())
-            .collect();
+            .collect::<Vec<_>>();
+
+        // wait for writes queued by the released workspace revisions
+        let cache_result = self
+            .host
+            .flush_artifact_cache()
+            .map_err(repository::RepositoryError::from)
+            .map_err(workspace::Error::from)
+            .map_err(DaemonError::from);
+        failures.extend(cache_result.err());
 
         match DaemonError::combine(failures) {
             Some(error) => Err(error),
