@@ -98,6 +98,9 @@ export function defaultConsole(): Console {
     todo("console.default")
 }
 
+/// The default process console.
+export const console: Console = defaultConsole();
+
 /// Write a line to stdout.
 export function log(...values: unknown[]): Result<void, HostError> {
     defaultConsole().log(...values)

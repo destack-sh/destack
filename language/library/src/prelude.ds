@@ -187,6 +187,8 @@ global {
     } from "destack:json";
 
     // destack:random
+    export { console } from "destack:console";
+
     export { Random, RandomSeed } from "destack:random";
 
     // destack:async
