@@ -125,9 +125,7 @@ fn select_eager_fallback(
         return Ok(None);
     };
     let value_type = module.adjusted_type_id(value.into_any())?;
-    if !module.is_speculatable_expression(value)?
-        || !module.satisfies_copy(value.into_any(), value_type)?
-    {
+    if !module.is_speculatable_expression(value)? || !module.satisfies_copy(value_type)? {
         return Ok(None);
     }
 

@@ -58,6 +58,11 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
 
+        // accept bound mutations inside a loop that never runs another iteration
+        if module.flows.is_single_pass(expression.into_any()) {
+            continue;
+        }
+
         // collect the most specific storage read by either range bound
         let bound_accesses = collect_bound_accesses(module, &occurrences, *start, *end);
 

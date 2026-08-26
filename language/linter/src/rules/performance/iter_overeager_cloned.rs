@@ -201,7 +201,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 "checked Iterator.cloned call has no element type argument",
             ));
         };
-        if module.satisfies_copy(operation.receiver.into_any(), element.argument)? {
+        if module.satisfies_copy(element.argument)? {
             continue;
         }
 

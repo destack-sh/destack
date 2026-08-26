@@ -37,8 +37,6 @@ pub struct DirModule<'a> {
     pub statics: &'a dir::StaticTable<'static>,
     /// The checked decorator table.
     pub decorators: &'a dir::DecoratorTable<'static>,
-    /// The auto implementation table.
-    pub auto: &'a dir::AutoTable<'static>,
     /// The resolution table.
     pub resolutions: &'a dir::ResolutionTable<'static>,
     /// The decision table.
@@ -88,8 +86,6 @@ pub(super) struct DirModuleStorage {
     pub(super) statics: dir::StaticTable<'static>,
     /// The checked decorator table.
     pub(super) decorators: dir::DecoratorTable<'static>,
-    /// The auto implementation table.
-    auto: dir::AutoTable<'static>,
     /// The resolution table.
     resolutions: dir::ResolutionTable<'static>,
     /// The decision table.
@@ -130,7 +126,6 @@ impl<'a> DirModule<'a> {
             types: &storage.types,
             statics: &storage.statics,
             decorators: &storage.decorators,
-            auto: &storage.auto,
             resolutions: &storage.resolutions,
             decisions: &storage.decisions,
             generics: &storage.generics,
@@ -153,29 +148,151 @@ impl<'a> DirModule<'a> {
     }
 
     /// Return whether the value one node carries copies by value.
-    pub(crate) fn satisfies_copy(
-        &self,
-        node: dir::LocalNodeIdAny,
-        ty: dir::GlobalTypeId,
-    ) -> Result<bool, ProviderError> {
+    pub(crate) fn satisfies_copy(&self, ty: dir::GlobalTypeId) -> Result<bool, ProviderError> {
         let ty = self.dir.strip_form(ty)?;
 
-        Ok(self
-            .auto
-            .conforms(ty, self.template_at(node), dir::AutoInterface::Copy))
+        self.conforms(ty, dir::AutoInterface::Copy)
     }
 
-    /// Return the generic template governing one node's scope.
-    pub(crate) fn template_at(
+    /// Return whether one checked type satisfies an auto interface through the committed tables.
+    pub(crate) fn conforms(
         &self,
-        node: dir::LocalNodeIdAny,
-    ) -> Option<dir::GlobalGenericTemplateId> {
-        let scope = self.bindings.scope_for_node(node.into_global(self.id))?.id;
+        ty: dir::GlobalTypeId,
+        interface: dir::AutoInterface,
+    ) -> Result<bool, ProviderError> {
+        match self.dir.get_type(ty)? {
+            // applied nominals read the committed declaration or instance conformances
+            dir::Type::Application(application) => {
+                let arguments = self.dir.read_types(ty.module_id, |types| {
+                    Ok(types.type_ids(application.arguments).to_vec())
+                })?;
+                if arguments.is_empty() {
+                    return self.definition_conforms(application.symbol, interface);
+                }
 
-        std::iter::once(scope)
-            .chain(self.bindings.scope_ancestors(scope).map(|scope| scope.id))
-            .find_map(|scope| self.generics.template_by_scope(scope))
-            .map(|template| template.into_global(self.id))
+                self.instance_conforms(application.symbol, &arguments, interface)
+            }
+            // declaration references read the committed declaration conformances
+            dir::Type::Reference(reference) => {
+                self.definition_conforms(reference.symbol, interface)
+            }
+            // parameters read the interface closure their bounds committed
+            dir::Type::Parameter(parameter) => {
+                let conformances = self.dir.read_generics(parameter.module_id, |generics| {
+                    Ok(generics
+                        .get_parameter(parameter.local_id)
+                        .conformances
+                        .clone())
+                })?;
+
+                Ok(conformances.contains(interface))
+            }
+            // scalars and singleton values copy by their machine representation
+            dir::Type::Primitive(_)
+            | dir::Type::Literal(_)
+            | dir::Type::Range(_)
+            | dir::Type::Null
+            | dir::Type::Undefined
+            | dir::Type::Never
+            | dir::Type::Void => Ok(matches!(interface, dir::AutoInterface::Copy)),
+            // unions satisfy component interfaces when every alternative does
+            dir::Type::Union(union) => {
+                let elements = self.dir.read_types(ty.module_id, |types| {
+                    Ok(types.type_ids(union.elements).to_vec())
+                })?;
+                for element in elements {
+                    if !self.conforms(element, interface)? {
+                        return Ok(false);
+                    }
+                }
+
+                Ok(true)
+            }
+            // object values ride managed handles, deeper interfaces decide property-wise
+            dir::Type::Object(shape) => {
+                if matches!(interface, dir::AutoInterface::Copy) {
+                    return Ok(true);
+                }
+                let stores = self.dir.read_types(ty.module_id, |types| {
+                    Ok(types
+                        .properties(shape.properties)
+                        .iter()
+                        .map(|property| property.access.store())
+                        .collect::<Vec<_>>())
+                })?;
+                for store in stores {
+                    if !self.conforms(store, interface)? {
+                        return Ok(false);
+                    }
+                }
+
+                Ok(true)
+            }
+            // tuples satisfy component interfaces when every element does
+            dir::Type::Tuple(tuple) => {
+                let elements = self.dir.read_types(ty.module_id, |types| {
+                    Ok(types
+                        .elements(tuple.elements)
+                        .iter()
+                        .map(|element| element.ty)
+                        .collect::<Vec<_>>())
+                })?;
+                for element in elements {
+                    if !self.conforms(element, interface)? {
+                        return Ok(false);
+                    }
+                }
+
+                Ok(true)
+            }
+
+            _ => Ok(false),
+        }
+    }
+
+    /// Return whether one declaration's committed conformances include an interface.
+    fn definition_conforms(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        interface: dir::AutoInterface,
+    ) -> Result<bool, ProviderError> {
+        self.dir
+            .read_declaration_tables(symbol.module_id, |_, definitions| {
+                let conformances = definitions
+                    .definition(symbol)
+                    .and_then(|definition| definition.conformances().cloned());
+
+                Ok(conformances.is_some_and(|conformances| conformances.contains(interface)))
+            })
+    }
+
+    /// Return whether one materialized nominal instance satisfies an auto interface.
+    fn instance_conforms(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        arguments: &[dir::GlobalTypeId],
+        interface: dir::AutoInterface,
+    ) -> Result<bool, ProviderError> {
+        // find the materialized instance whose key matches the applied arguments
+        for (_, instance) in self.generics.iter_instances() {
+            if instance.key.symbol != symbol {
+                continue;
+            }
+            let bound: Vec<_> =
+                dir::GenericArgumentBinding::values(&instance.key.arguments).collect();
+            if bound.len() != arguments.len() {
+                continue;
+            }
+            let mut is_match = true;
+            for (argument, bound) in arguments.iter().zip(&bound) {
+                is_match &= self.dir.types_match(*argument, *bound)?;
+            }
+            if is_match {
+                return Ok(instance.conformances.contains(interface));
+            }
+        }
+
+        Ok(false)
     }
 
     /// Return whether one node cannot complete normally.
@@ -352,7 +469,6 @@ impl DirModuleStorage {
         let types = checked.type_table(&bound, &expanded, &declared, &elaborated);
         let statics = checked.static_table(&bound, &expanded, &declared, &elaborated);
         let decorators = checked.decorator_table(&elaborated);
-        let auto = checked.auto_table(&elaborated);
         let resolutions = checked.resolution_table(&declared, &elaborated);
         let decisions = checked.decision_table(&declared, &elaborated);
         let generics = checked.generic_table(&declared, &elaborated);
@@ -376,7 +492,6 @@ impl DirModuleStorage {
             types,
             statics,
             decorators,
-            auto,
             resolutions,
             decisions,
             generics,

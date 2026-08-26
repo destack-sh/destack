@@ -126,12 +126,7 @@ fn arm_preserves_value(
     let dir::PatternDestructureResolution::Nominal(nominal) = destructure.as_ref() else {
         return Ok(false);
     };
-    let Some(variant) = module
-        .dir
-        .environment
-        .language
-        .item(nominal.selection.symbol)
-    else {
+    let Some(variant) = module.dir.environment.language.item(nominal.key.symbol) else {
         return Ok(false);
     };
     let constructor = match variant {

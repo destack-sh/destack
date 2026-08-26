@@ -698,8 +698,30 @@ impl<'a> Dir<'a> {
         })
     }
 
+    /// Read the generic table that owns one module's templates and instances.
+    pub(super) fn read_generics<T>(
+        &self,
+        module: ModuleId,
+        read: impl FnOnce(&dir::GenericTable<'_>) -> Result<T, ProviderError>,
+    ) -> Result<T, ProviderError> {
+        // read the table already loaded for direct inspection
+        if let Some(module) = self.modules.get(&module) {
+            return read(&module.generics);
+        }
+
+        // compose the foreign table from its checked DIR
+        let declared = self.artifacts.read::<DirDeclared>((module, self.profile))?;
+        let elaborated = self
+            .artifacts
+            .read::<DirElaborated>((module, self.profile))?;
+        let checked = self.artifacts.read::<DirChecked>((module, self.profile))?;
+        let generics = checked.generic_table(&declared, &elaborated);
+
+        read(&generics)
+    }
+
     /// Read the type table that owns globally addressed DIR types.
-    fn read_types<T>(
+    pub(super) fn read_types<T>(
         &self,
         module: ModuleId,
         read: impl FnOnce(&dir::TypeTable<'_>) -> Result<T, ProviderError>,

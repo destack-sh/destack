@@ -28,16 +28,15 @@ impl DirModule<'_> {
 
             // nominal destructuring
             dir::PatternDecision::Destructure(destructure) => match destructure.as_ref() {
-                dir::PatternDestructureResolution::Nominal(nominal) => nominal.selection.symbol,
+                dir::PatternDestructureResolution::Nominal(nominal) => nominal.key.symbol,
                 _ => return Ok(None),
             },
 
             // newtype payload projection
             dir::PatternDecision::Project(project) => match &project.projection {
-                dir::OperationResolution::One(dir::Projection::NewtypePayload {
-                    selection,
-                    ..
-                }) => selection.symbol,
+                dir::OperationResolution::One(dir::Projection::NewtypePayload { key, .. }) => {
+                    key.symbol
+                }
                 _ => return Ok(None),
             },
             _ => return Ok(None),

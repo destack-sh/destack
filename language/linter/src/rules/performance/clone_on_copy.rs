@@ -53,7 +53,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // require the cloned value itself to satisfy Copy
         let receiver_type = module.adjusted_type_id(call.receiver.into_any())?;
-        if !module.satisfies_copy(call.receiver.into_any(), receiver_type)? {
+        if !module.satisfies_copy(receiver_type)? {
             continue;
         }
 

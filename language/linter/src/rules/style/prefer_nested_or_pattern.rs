@@ -64,7 +64,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         for alternative in patterns {
             let alternative_selection = match module.pattern_decision(*alternative)? {
                 dir::PatternDecision::Destructure(destructure) => match destructure.as_ref() {
-                    dir::PatternDestructureResolution::Nominal(nominal) => &nominal.selection,
+                    dir::PatternDestructureResolution::Nominal(nominal) => &nominal.key,
                     _ => {
                         is_shared = false;
                         break;
@@ -72,9 +72,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 },
                 dir::PatternDecision::Project(project) => match &project.projection {
                     dir::OperationResolution::One(dir::Projection::NewtypePayload {
-                        selection,
-                        ..
-                    }) => selection,
+                        key, ..
+                    }) => key,
                     _ => {
                         is_shared = false;
                         break;

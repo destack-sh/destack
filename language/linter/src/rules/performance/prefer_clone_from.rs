@@ -68,7 +68,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let source_type = module.adjusted_type_id(clone.receiver.into_any())?;
         let source_type = module.dir.strip_form(source_type)?;
         if target_type != source_type
-            || module.satisfies_copy(clone.receiver.into_any(), source_type)?
+            || module.satisfies_copy(source_type)?
             || module
                 .coercions
                 .coercion(assignment.value.into_global_any(module.id))

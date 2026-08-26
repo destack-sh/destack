@@ -75,7 +75,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // replace the repeated lookup when moving the key remains valid
         let key_type = module.adjusted_type_id(insertion.key.into_any())?;
-        if !module.satisfies_copy(insertion.key.into_any(), key_type)? {
+        if !module.satisfies_copy(key_type)? {
             continue;
         }
         let span = module.source_extent(expression.into_any())?;

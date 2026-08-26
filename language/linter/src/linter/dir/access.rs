@@ -121,12 +121,91 @@ impl DirModule<'_> {
             let adjusted = self.adjusted_type_id(occurrence.node)?;
             if !is_explicit_readonly
                 && self.dir.borrow_access(adjusted)? != Some(dir::Access::Readonly)
+                && self.consumer_borrow_access(occurrence.node)? != Some(dir::Access::Readonly)
             {
                 return Ok(false);
             }
         }
 
         Ok(true)
+    }
+
+    /// Return the borrow access the consuming operation requires from one place expression.
+    fn consumer_borrow_access(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Result<Option<dir::Access>, ProviderError> {
+        let view = self.view();
+        let Ok(mut current) = node.try_into_typed::<dir::Expression>() else {
+            return Ok(None);
+        };
+
+        // walk stored projections out to the operation that takes the place
+        loop {
+            let Some(parent) = view
+                .get_parent_for(current)
+                .and_then(|parent| parent.try_into_typed::<dir::Expression>().ok())
+            else {
+                return Ok(None);
+            };
+            match view.get(parent) {
+                // member projections continue to their own consumer
+                dir::Expression::Member { left, .. } if *left == current => {
+                    let Some(dir::OperationResolution::One(access)) =
+                        self.member_decision(parent)?
+                    else {
+                        return Ok(None);
+                    };
+                    match &access.target {
+                        // stored projections read in place
+                        dir::MemberTarget::Field(_)
+                        | dir::MemberTarget::Projection { .. }
+                        | dir::MemberTarget::Index(_) => current = parent,
+                        // accessors take the receiver through their selected call
+                        dir::MemberTarget::Call(call) => {
+                            return self.call_receiver_borrow_access(call);
+                        }
+                        // methods take the receiver at the enclosing call
+                        dir::MemberTarget::Symbol(_) | dir::MemberTarget::OverloadSet(_) => {
+                            current = parent;
+                        }
+                        dir::MemberTarget::Intersection(_) => return Ok(None),
+                    }
+                }
+                // calls take a member callee's receiver through the selected call
+                dir::Expression::Call { left, .. } if *left == current => {
+                    let Some(dir::OperationResolution::One(call)) = self.call_decision(parent)?
+                    else {
+                        return Ok(None);
+                    };
+
+                    return self.call_receiver_borrow_access(call);
+                }
+                _ => return Ok(None),
+            }
+        }
+    }
+
+    /// Return the receiver borrow access one selected call records.
+    fn call_receiver_borrow_access(
+        &self,
+        call: &dir::Call,
+    ) -> Result<Option<dir::Access>, ProviderError> {
+        let adjustments = match &call.target {
+            dir::CallableTarget::Symbol { function, .. } => match &function.receiver {
+                Some(receiver) => &receiver.adjustments,
+                None => return Ok(None),
+            },
+            dir::CallableTarget::Dynamic { dispatch, .. } => &dispatch.receiver.adjustments,
+            dir::CallableTarget::Expression { .. } => return Ok(None),
+        };
+        for adjustment in adjustments {
+            if let dir::ReceiverAdjustment::Borrow { ty } = adjustment {
+                return self.dir.borrow_access(*ty);
+            }
+        }
+
+        Ok(None)
     }
 
     /// Return the strongest access granted through one checked place.

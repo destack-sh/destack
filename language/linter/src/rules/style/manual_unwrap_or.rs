@@ -290,7 +290,7 @@ fn suggestion(
     let is_eager =
         if fallback.is_single_value && module.is_speculatable_expression(fallback.value)? {
             let value_type = module.node_type_id(fallback.value.into_any())?;
-            module.satisfies_copy(fallback.value.into_any(), value_type)?
+            module.satisfies_copy(value_type)?
         } else {
             false
         };
