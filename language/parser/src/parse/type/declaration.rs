@@ -102,12 +102,16 @@ impl Parser {
         // alias assignment
         self.eat_token(TokenType::Assign)?;
 
+        // backing visibility ahead of a newtype value
+        let backing_visibility = self.parse_visibility_if_present();
+
         // alias value
         let value_id = self.parse_type_alias_value(TypeStop::default())?;
 
         // declaration node
         let declaration = Declaration::Type(TypeDeclaration {
             name,
+            backing_visibility,
             export: header.export,
             place: header.place,
             is_ambient: header.is_ambient,

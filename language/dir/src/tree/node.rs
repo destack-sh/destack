@@ -563,8 +563,8 @@ pub trait Node: Sized {
     const TYPE: NodeType;
 }
 
-/// A Visibility is the visibility of an item.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+/// The declared visibility of one member.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Visibility {
     /// Public to everything.
     Public,
@@ -572,6 +572,17 @@ pub enum Visibility {
     Protected,
     /// Private to the closest module scope.
     Private,
+}
+
+impl Visibility {
+    /// Return this visibility's written keyword.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Public => "public",
+            Self::Protected => "protected",
+            Self::Private => "private",
+        }
+    }
 }
 
 /// The asynchrony of a function.

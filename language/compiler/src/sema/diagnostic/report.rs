@@ -4,6 +4,7 @@ use destack_dir as dir;
 use destack_source::{
     Applicability, DiagnosticSuggestion, FilePatch, ModuleId, Patch, PatchSet, Span,
 };
+use smallvec::SmallVec;
 
 use crate::sema::{
     BoundSide, CauseKind, CheckFailure, CheckState, FailedCheck, MixedObjectSignature,
@@ -74,6 +75,18 @@ impl CheckState<'_> {
     ) {
         let anchor = self.diagnostic_anchor(module, source);
         let diagnostic = CheckError::MissingTypeAnnotation { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
+    /// Report a written visibility modifier on one interface member.
+    pub(in crate::sema) fn report_interface_member_visibility(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::InterfaceMemberVisibility { anchor, module };
 
         self.report(module, diagnostic);
     }
@@ -892,6 +905,7 @@ impl CheckState<'_> {
         }
 
         self.report(module, diagnostic);
+        self.record_reported_origin(origin)?;
 
         Ok(())
     }
@@ -925,6 +939,7 @@ impl CheckState<'_> {
         let error = CheckError::CannotInferType { anchor, module };
 
         self.report(module, error);
+        self.record_reported_node(source);
 
         Ok(())
     }
@@ -1013,6 +1028,44 @@ impl CheckState<'_> {
             key,
         };
 
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report one member access denied by its declared visibility.
+    pub(in crate::sema) fn report_inaccessible_member(
+        &mut self,
+        origin: Origin,
+        key: String,
+        visibility: dir::Visibility,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::InaccessibleMember {
+            anchor,
+            module,
+            key,
+            visibility: visibility.label().to_string(),
+        };
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report one newtype use denied by its declared backing visibility.
+    pub(in crate::sema) fn report_inaccessible_newtype_backing(
+        &mut self,
+        origin: Origin,
+        name: String,
+        visibility: dir::Visibility,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::InaccessibleNewtypeBacking {
+            anchor,
+            module,
+            name,
+            visibility: visibility.label().to_string(),
+        };
         self.report(module, error);
 
         Ok(())
@@ -2051,8 +2104,45 @@ impl CheckState<'_> {
         let diagnostic = self.format_cause(diagnostic, cause, &anchor, blame.as_ref())?;
 
         self.report(module, diagnostic);
+        self.record_reported_origin(origin)?;
 
         Ok(true)
+    }
+
+    /// Record one reported origin's source node and its structural ancestors.
+    pub(in crate::sema) fn record_reported_origin(&mut self, origin: Origin) -> CompilerResult<()> {
+        let reported = self
+            .origin_source_node(origin)?
+            .into_global(origin.module());
+        self.record_reported_node(reported);
+
+        Ok(())
+    }
+
+    /// Record one reported source node and its structural ancestors.
+    pub(in crate::sema) fn record_reported_node(&mut self, node: dir::GlobalNodeIdAny) {
+        let lineage = self.node_lineage(node);
+        self.reported_nodes.extend(lineage);
+    }
+
+    /// Collect one node and its structural ancestors.
+    pub(in crate::sema) fn node_lineage(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> SmallVec<[dir::GlobalNodeIdAny; 8]> {
+        let mut lineage = SmallVec::new();
+        lineage.push(node);
+        if node.module_id != self.module_id {
+            return lineage;
+        }
+        let tree = &self.module.parsed.tree;
+        let mut current = node.local_id.id;
+        while let Some(parent) = tree.get_parent(current) {
+            lineage.push(parent.into_global(node.module_id));
+            current = parent.id;
+        }
+
+        lineage
     }
 
     /// Build the diagnostic for one unstable overwrite.

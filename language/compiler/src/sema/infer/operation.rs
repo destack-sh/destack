@@ -5,7 +5,7 @@ use super::InferMode;
 use crate::CompilerResult;
 use crate::sema::{
     BodyState, Cause, CauseKind, ConditionBranch, Expectation, FlowSite, Obligation, PlaceUse,
-    RangeElementObligation, Relation, RelationCheck, Value, ValueUse, VariableRole,
+    RangeElementObligation, Relation, RelationCheck, Value, ValueUse, VariableRole, Verdict,
 };
 
 impl BodyState<'_, '_> {
@@ -124,9 +124,25 @@ impl BodyState<'_, '_> {
         let check = self.check_node(value_site, expectation)?;
         let value_type = check.source;
 
-        // warn when the cast target equals the operand's resolved type
+        // resolve both sides of the cast
+        let origin = value_site.origin();
         let value_root = self.check.shallow_resolve(value_type)?;
         let target_root = self.check.shallow_resolve(target)?;
+
+        // deny an unwrap the newtype's backing visibility rejects
+        if value_root != target_root
+            && let Some(instance) = self.check.decompose_newtype(origin, value_root)?
+            && self.check.decide_relation(
+                origin,
+                Relation::Castable,
+                instance.backing,
+                target_root,
+            )? == Verdict::Holds
+        {
+            self.check_backing_access(origin, instance.symbol)?;
+        }
+
+        // warn when the cast target equals the operand's resolved type
         if value_root == target_root && self.check.type_variables(value_root)?.is_empty() {
             self.check.report_redundant_cast(
                 node.into_any(),

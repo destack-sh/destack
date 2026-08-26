@@ -324,6 +324,7 @@ impl WalkState<'_, '_> {
                     } else {
                         dir::MemberSpace::Instance
                     },
+                    visibility: member.visibility().unwrap_or(dir::Visibility::Public),
                     symbol,
                     source: id.into_global_any(self.module),
                     key,
@@ -432,6 +433,7 @@ impl WalkState<'_, '_> {
                     } else {
                         dir::MemberSpace::Instance
                     },
+                    visibility: member.visibility().unwrap_or(dir::Visibility::Public),
                     symbol,
                     source,
                     slot,
@@ -600,6 +602,12 @@ impl WalkState<'_, '_> {
         let _receiver = self.enter_receiver_scope(receiver_scope);
         let source = id.into_global_any(self.module);
 
+        // reject a visibility modifier written on a type member
+        if member.visibility().is_some() {
+            self.check
+                .report_interface_member_visibility(self.module, id.into_any());
+        }
+
         match member {
             // field: T
             dir::TypeMember::Field {
@@ -644,6 +652,7 @@ impl WalkState<'_, '_> {
                     } else {
                         dir::MemberSpace::Instance
                     },
+                    visibility: dir::Visibility::Public,
                     symbol,
                     source,
                     key,
@@ -731,6 +740,7 @@ impl WalkState<'_, '_> {
                     } else {
                         dir::MemberSpace::Instance
                     },
+                    visibility: dir::Visibility::Public,
                     symbol,
                     source,
                     slot,

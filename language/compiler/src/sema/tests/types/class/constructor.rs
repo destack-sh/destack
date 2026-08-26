@@ -890,8 +890,71 @@ const broken: new (value: int32) => Counter = build;
 "#,
     );
 
-    session.assert_dir_diagnostics(
-        "main.ds",
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+class Counter {
+    value: int32;
+
+    constructor(value: int32) {
+        this.value = value;
+    }
+}
+
+declare function build(value: int32): Counter;
+
+const make: new (arg0: int32) => Counter = Counter;
+const broken: new (arg0: int32) => Counter = build;
+
+=== dir ===
+class Counter {
+/// @type.symbol symbol=Counter type=Counter
+/// @definition.class symbol=Counter
+/// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
+/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=<Counter.constructor.P0: Place>(int32) => Managed<this, Counter.constructor.P0>
+
+    value: int32;
+    /// @type.symbol symbol=Counter.value source="value: int32" type=int32
+
+    constructor(value: int32) {
+    /// @generic.template symbol=Counter.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=Counter.constructor type=<Counter.constructor.P0: Place>(int32) => Managed<this, Counter.constructor.P0>
+    /// @type.symbol symbol=Counter.constructor.this type=Counter
+    /// @type.symbol symbol=Counter.constructor.value source="value: int32" type=int32
+
+        this.value = value;
+        /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.access source=this.value root=this keys=[value]
+        /// @resolution.assignment source=this.value write="receiver=Counter, target=field(receiver=Counter, target=Counter.value, type=int32), type=int32" type=int32
+        /// @resolution.name source=value target=Counter.constructor.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=Counter.constructor.value
+
+    }
+}
+
+declare function build(value: int32): Counter;
+/// @type.symbol symbol=build source="declare function build(value: int32): Counter" type=(int32) => Counter
+/// @type.symbol symbol=build.value source="value: int32" type=int32
+/// @resolution.name source=Counter target=Counter
+
+const make: new (value: int32) => Counter = Counter;
+/// @type.symbol symbol=make source=make type=new (int32) => Counter
+/// @resolution.pattern source=make kind=binding target=make
+/// @type.symbol symbol=value#1 source="value: int32" type=int32
+/// @resolution.name source=Counter target=Counter
+/// @resolution.name source=Counter target=Counter
+
+const broken: new (value: int32) => Counter = build;
+/// @type.symbol symbol=broken source=broken type=new (int32) => Counter
+/// @resolution.pattern source=broken kind=binding target=broken
+/// @type.symbol symbol=value#2 source="value: int32" type=int32
+/// @resolution.name source=Counter target=Counter
+/// @resolution.name source=build target=build
+/// @resolution.function source=build type=Function<(int32,), Counter> target=build
+"#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '(value: int32) => Counter' is not assignable to type 'new (value: int32) => Counter'"
 /// @diagnostic.label line=13 column=47 span="build" line_source="const broken: new (value: int32) => Counter = build;"

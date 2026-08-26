@@ -5,7 +5,7 @@ use crate::{
     Expression, FunctionSignature, GenericArgument, GenericParameter, Literal, LocalNodeId,
     MemberSlot, MemberSpace, Mutability, Name, Node, NodeFold, NodeType, Parameter, Path, RangeEnd,
     ScopeKind, StaticKey, StringId, SymbolKind, ThisForm, TupleElement, TupleForm, TypeLiteral,
-    VarianceBound, WhereClause,
+    VarianceBound, Visibility, WhereClause,
 };
 
 /// One type-surface member.
@@ -15,6 +15,7 @@ pub enum TypeMember {
     Field {
         name: Name,
         declared_type: Option<LocalNodeId<TypeExpression>>,
+        visibility: Option<Visibility>,
         is_static: bool,
         is_optional: bool,
         is_readonly: bool,
@@ -24,6 +25,7 @@ pub enum TypeMember {
         name: Name,
         signature: FunctionSignature,
         body: Option<LocalNodeId<Expression>>,
+        visibility: Option<Visibility>,
         is_static: bool,
         is_optional: bool,
     },
@@ -69,6 +71,19 @@ impl Node for TypeMember {
 }
 
 impl TypeMember {
+    /// Return this type member's written visibility.
+    pub fn visibility(&self) -> Option<Visibility> {
+        match self {
+            Self::Field { visibility, .. } | Self::Method { visibility, .. } => *visibility,
+            Self::CallSignature { .. }
+            | Self::ConstructSignature { .. }
+            | Self::IndexSignature { .. }
+            | Self::AssociatedType { .. }
+            | Self::AssociatedConst { .. }
+            | Self::Error => None,
+        }
+    }
+
     /// Return the slot occupied by this type member.
     pub fn slot(&self) -> Option<MemberSlot> {
         match self {

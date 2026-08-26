@@ -7,7 +7,7 @@ use crate::sema::{CheckState, Origin};
 /// One newtype instance with its declared backing substituted.
 pub(in crate::sema) struct NewtypeInstance {
     /// The applied newtype symbol.
-    symbol: dir::GlobalSymbolId,
+    pub(in crate::sema) symbol: dir::GlobalSymbolId,
     /// The applied generic arguments.
     generic_arguments: Vec<dir::GenericArgumentBinding>,
     /// The substituted backing type.

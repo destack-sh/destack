@@ -146,7 +146,11 @@ fn add_newtype_row(
                 .template
                 .and_then(|template| template_label(builder, symbol, template)),
         )
-        .type_field("backing", builder.global_type_label(definition.backing));
+        .type_field("backing", builder.global_type_label(definition.backing))
+        .optional_field(
+            "backing_visibility",
+            visibility_label(definition.backing_visibility),
+        );
     let row = add_representation_fields(row, definition.representation);
     let row = if definition.constructors.is_empty() {
         row
@@ -382,6 +386,7 @@ fn add_field(
         .optional_field("source", builder.node_source(field.source))
         .field("key", builder.static_key(field.key))
         .optional_field("static", static_label(field.space))
+        .optional_field("visibility", visibility_label(field.visibility))
         .optional_field("abstract", field.is_abstract.then(|| "true".to_string()))
         .optional_field("override", field.is_override.then(|| "true".to_string()))
         .optional_field(
@@ -411,6 +416,7 @@ fn add_method(
         .optional_field("source", builder.node_source(method.source))
         .field("slot", member_slot_label(method.slot, builder))
         .optional_field("static", static_label(method.space))
+        .optional_field("visibility", visibility_label(method.visibility))
         .optional_field("role", method.role.map(DirSnapshotBuilder::variant_label))
         .optional_field("abstraction", abstraction)
         .optional_field("override", method.is_override.then(|| "true".to_string()))
@@ -514,6 +520,14 @@ fn add_index_signature(
         .type_field("type", builder.global_type_label(signature.value_type));
 
     builder.push(row);
+}
+
+/// Return the label of one protected or private visibility.
+fn visibility_label(visibility: dir::Visibility) -> Option<String> {
+    match visibility {
+        dir::Visibility::Public => None,
+        visibility => Some(visibility.label().to_string()),
+    }
 }
 
 /// Return one static-space marker label.

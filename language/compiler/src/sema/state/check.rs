@@ -244,6 +244,9 @@ pub(in crate::sema) struct CheckState<'a> {
     /// The declaring interface self type per interface member.
     pub(in crate::sema) interface_owners:
         FxIndexMap<dir::GlobalSymbolId, Option<dir::GlobalTypeId>>,
+    /// The declaring owner and visibility per member symbol.
+    pub(in crate::sema) member_visibilities:
+        FxIndexMap<dir::GlobalSymbolId, Option<(dir::GlobalSymbolId, dir::Visibility)>>,
     /// Decided auto interface conformances per canonical type and assuming template.
     pub(in crate::sema) conformances: FxIndexMap<
         (
@@ -285,6 +288,10 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) fresh_bindings: FxIndexSet<dir::GlobalSymbolId>,
     /// Constructor exit branches per initialized class, filled at check.
     pub(in crate::sema) constructor_branches: FxIndexMap<dir::GlobalSymbolId, Vec<FlowBranch>>,
+    /// Reported nodes and their structural ancestors.
+    pub(in crate::sema) reported_nodes: FxIndexSet<dir::GlobalNodeIdAny>,
+    /// Nodes whose own inference variables poisoned, with their ancestors.
+    pub(in crate::sema) poisoned_nodes: FxIndexSet<dir::GlobalNodeIdAny>,
 
     // stats
     /// Work counters for the provider trace.
@@ -365,6 +372,9 @@ impl<'a> CheckState<'a> {
             heritages: FxIndexMap::default(),
             member_bindings: FxIndexMap::default(),
             interface_owners: FxIndexMap::default(),
+            member_visibilities: FxIndexMap::default(),
+            reported_nodes: FxIndexSet::default(),
+            poisoned_nodes: FxIndexSet::default(),
             conformances: FxIndexMap::default(),
             drop_conformers: FxIndexMap::default(),
             visible_extensions: FxIndexMap::default(),
@@ -1354,6 +1364,49 @@ impl CheckState<'_> {
         }
 
         Ok(())
+    }
+
+    /// Return one member symbol's declaring owner and visibility.
+    pub(in crate::sema) fn member_visibility(
+        &mut self,
+        member: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<(dir::GlobalSymbolId, dir::Visibility)>> {
+        // serve the memo
+        if let Some(entry) = self.member_visibilities.get(&member) {
+            return Ok(*entry);
+        }
+
+        // import the member's foreign module before the scan
+        if !self.is_own_module(member.module_id) {
+            self.import_external_module(member.module_id)?;
+        }
+
+        // find the declaring owner in the member's own or loaded foreign module
+        let entry = if self.is_own_module(member.module_id) {
+            self.module
+                .iter_definitions()
+                .find_map(|(owner, definition)| {
+                    definition
+                        .member_visibility(member)
+                        .map(|visibility| (owner, visibility))
+                })
+        } else {
+            self.external_modules
+                .get(&member.module_id)
+                .and_then(|external| {
+                    external
+                        .definitions
+                        .iter_definitions()
+                        .find_map(|(owner, definition)| {
+                            definition
+                                .member_visibility(member)
+                                .map(|visibility| (owner, visibility))
+                        })
+                })
+        };
+        self.member_visibilities.insert(member, entry);
+
+        Ok(entry)
     }
 
     /// Return one definition, importing the symbol's module as needed.

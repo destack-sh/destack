@@ -363,6 +363,7 @@ impl Matcher<'_, '_> {
                 dir::TypeMember::Field {
                     name: pattern_name,
                     declared_type: pattern_type,
+                    visibility: pattern_visibility,
                     is_static: pattern_static,
                     is_optional: pattern_optional,
                     is_readonly: pattern_readonly,
@@ -370,6 +371,7 @@ impl Matcher<'_, '_> {
                 dir::TypeMember::Field {
                     name: candidate_name,
                     declared_type: candidate_type,
+                    visibility: candidate_visibility,
                     is_static: candidate_static,
                     is_optional: candidate_optional,
                     is_readonly: candidate_readonly,
@@ -378,6 +380,7 @@ impl Matcher<'_, '_> {
                 if pattern_static != candidate_static
                     || pattern_optional != candidate_optional
                     || pattern_readonly != candidate_readonly
+                    || pattern_visibility != candidate_visibility
                     || !self.match_name(
                         nodes,
                         pattern_any,
@@ -397,6 +400,7 @@ impl Matcher<'_, '_> {
                     name: pattern_name,
                     signature: pattern_signature,
                     body: pattern_body,
+                    visibility: pattern_visibility,
                     is_static: pattern_static,
                     is_optional: pattern_optional,
                 },
@@ -404,12 +408,14 @@ impl Matcher<'_, '_> {
                     name: candidate_name,
                     signature: candidate_signature,
                     body: candidate_body,
+                    visibility: candidate_visibility,
                     is_static: candidate_static,
                     is_optional: candidate_optional,
                 },
             ) => {
                 if pattern_static != candidate_static
                     || pattern_optional != candidate_optional
+                    || pattern_visibility != candidate_visibility
                     || !self.match_name(
                         nodes,
                         pattern_any,

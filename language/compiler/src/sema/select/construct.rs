@@ -444,6 +444,11 @@ impl BodyState<'_, '_> {
 
         // confirm the selected declaration outside any probe
         if let Some(constructor) = selected {
+            // deny a construction the constructor's declared visibility rejects
+            if let Some(symbol) = constructor.constructor.call_symbol() {
+                self.check_symbol_access(origin, symbol, "constructor")?;
+            }
+
             let attempt = self.probe_construct(
                 origin,
                 target.module_id,
@@ -777,6 +782,9 @@ impl BodyState<'_, '_> {
             backing,
             signature,
         } = signature;
+
+        // deny a construction the backing's declared visibility rejects
+        self.check_backing_access(origin, key.symbol)?;
 
         // commit conversions only after the backing has been selected
         for (source, coercion) in &signature.coercions {

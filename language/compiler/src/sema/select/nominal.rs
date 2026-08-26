@@ -33,6 +33,10 @@ impl BodyState<'_, '_> {
         let Some(instance) = self.newtype_payload(origin, head)? else {
             return self.report_rejected_pattern(node, origin, head);
         };
+
+        // deny an unwrap the backing's declared visibility rejects
+        self.check_backing_access(origin, instance.symbol)?;
+
         let backing = instance.backing;
         let projection = instance.into_projection();
 

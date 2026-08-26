@@ -118,6 +118,14 @@ impl Parser {
         }
     }
 
+    /// Consume the visibility keyword when present.
+    pub(crate) fn parse_visibility_if_present(&mut self) -> Option<Visibility> {
+        let visibility = self.peek_visibility()?;
+        self.bump();
+
+        Some(visibility)
+    }
+
     /// Return true when the next token can start a member name.
     pub(crate) fn peek_next_member_name(&self) -> bool {
         let peek_next_token = self.peek_next_token();

@@ -10,7 +10,7 @@ use crate::{
     IntegerType, LanguageItem, Literal, LocalCaptureFrameId, LocalGenericParameterId,
     LocalGenericTemplateId, LocalNodeId, LocalScopeId, MemberKind, MemberOrigin, MemberRole,
     MemberSlot, MemberSpace, MethodAbstraction, Node, PrimitiveType, RangeEnd, ScalarFamilySet,
-    Space, StaticKey, UnaryOperator,
+    Space, StaticKey, UnaryOperator, Visibility,
 };
 
 /// Rewrite every type id one checked value embeds.
@@ -183,6 +183,7 @@ type_fold_leaves!(
     Space,
     StaticKey,
     UnaryOperator,
+    Visibility,
 );
 
 // source signatures name their checked types through their own nodes

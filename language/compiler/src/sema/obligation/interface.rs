@@ -464,7 +464,7 @@ impl CheckState<'_> {
         // keep the public members, a visible one declared beside its target
         let mut kept = Vec::with_capacity(candidates.len());
         for candidate in candidates {
-            if !self.is_public_member(candidate.symbol) {
+            if !self.is_public_member(candidate.symbol)? {
                 continue;
             }
             if is_visible
@@ -483,23 +483,13 @@ impl CheckState<'_> {
     }
 
     /// Return whether one member is part of its declaration's public membership.
-    fn is_public_member(&self, symbol: dir::GlobalSymbolId) -> bool {
-        !matches!(
-            self.member_visibility(symbol),
-            Some(dir::Visibility::Private | dir::Visibility::Protected)
-        )
-    }
+    fn is_public_member(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<bool> {
+        let visibility = self.member_visibility(symbol)?;
 
-    /// Return one member symbol's declared visibility.
-    fn member_visibility(&self, symbol: dir::GlobalSymbolId) -> Option<dir::Visibility> {
-        let state = self.module_maybe(symbol.module_id)?;
-        let declaration = state
-            .binding_table()
-            .get_symbol(symbol.local_id)
-            .declaration?;
-        let member = declaration.local_id.try_into_typed::<dir::Member>().ok()?;
-
-        state.view().get(member).visibility()
+        Ok(!matches!(
+            visibility,
+            Some((_, dir::Visibility::Private | dir::Visibility::Protected))
+        ))
     }
 
     /// Check whether one type satisfies one compiler-known auto interface.

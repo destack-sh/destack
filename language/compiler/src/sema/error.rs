@@ -199,21 +199,6 @@ pub enum CheckError {
         module: ModuleId,
     },
 
-    /// Parsed type form falls outside the language model.
-    ///
-    /// ```ds
-    /// let value: object;
-    /// ```
-    #[diagnostic(id = "unsupported-source-type", message = "unsupported type: {name}")]
-    UnsupportedType {
-        /// Report the unsupported type.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The unsupported type written form.
-        name: String,
-    },
-
     /// Generic application supplies more arguments than the declaration takes.
     ///
     /// ```ds
@@ -902,6 +887,44 @@ pub enum CheckError {
         key: String,
         /// The declared visibility.
         visibility: String,
+    },
+
+    /// Newtype backing is not accessible from the current scope.
+    ///
+    /// ```ds
+    /// newtype Token = private string;
+    /// ```
+    #[diagnostic(
+        id = "inaccessible-newtype-backing",
+        message = "the backing of '{name}' is {visibility}"
+    )]
+    InaccessibleNewtypeBacking {
+        /// Report the construction or unwrap.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The newtype name.
+        name: String,
+        /// The declared backing visibility.
+        visibility: String,
+    },
+
+    /// Interface member has a written visibility modifier.
+    ///
+    /// ```ds
+    /// interface Reader {
+    ///     private read(): string;
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "interface-member-visibility",
+        message = "interface members are always public"
+    )]
+    InterfaceMemberVisibility {
+        /// Report the member carrying the modifier.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
     },
 
     /// No operator overload matches the supplied operands.
@@ -2324,22 +2347,6 @@ pub enum CheckError {
     )]
     PatternAlternativeBindingMismatch {
         /// Report the union pattern.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-    },
-
-    /// Destructuring assignment is used with a compound assignment operator.
-    ///
-    /// ```ds
-    /// [left, right] += values;
-    /// ```
-    #[diagnostic(
-        id = "destructuring-assignment-requires-plain-assignment",
-        message = "destructuring assignment only supports plain '='"
-    )]
-    DestructuringAssignmentRequiresPlainAssignment {
-        /// Report the assignment pattern.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,

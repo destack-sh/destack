@@ -295,6 +295,13 @@ impl FlowState {
         self.functions.last()
     }
 
+    /// Return the current function receiver.
+    pub(in crate::sema) fn current_function_receiver(&self) -> Option<&ReceiverBinding> {
+        self.functions
+            .last()
+            .and_then(|function| function.receiver.as_ref())
+    }
+
     /// Return the current function symbol.
     pub(in crate::sema) fn current_function_symbol(&self) -> Option<dir::GlobalSymbolId> {
         self.functions.last().map(|function| function.symbol)

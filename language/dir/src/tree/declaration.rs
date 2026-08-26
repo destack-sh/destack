@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     ExportKind, Expression, FunctionSignature, GenericParameter, Keyword, LocalNodeId, Member,
     Mutability, Name, Node, NodeFold, NodeType, ScopeKind, Space, SymbolKind, SymbolRole,
-    TypeExpression, TypeMember, WhereClause,
+    TypeExpression, TypeMember, Visibility, WhereClause,
 };
 
 /// Explicit source placement modifier.
@@ -65,6 +65,8 @@ pub struct TypeDeclaration {
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the declaration.
     pub where_clauses: Vec<LocalNodeId<WhereClause>>,
+    /// The backing visibility written ahead of a newtype value.
+    pub backing_visibility: Option<Visibility>,
     /// The declared type expression.
     pub value: LocalNodeId<TypeExpression>,
     /// Whether the declaration is ambient.

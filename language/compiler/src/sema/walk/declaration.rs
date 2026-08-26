@@ -435,6 +435,9 @@ impl WalkState<'_, '_> {
                 representation: dir::Representation::default(),
                 derives: self.declared_derives(id)?.0,
                 backing: value,
+                backing_visibility: declaration
+                    .backing_visibility
+                    .unwrap_or(dir::Visibility::Public),
                 constructors: Vec::new(),
                 members: Vec::new(),
                 conformances: dir::AutoInterfaceSet::new(),
@@ -496,6 +499,7 @@ impl WalkState<'_, '_> {
                 representation: dir::Representation::default(),
                 derives: None,
                 backing: value,
+                backing_visibility: dir::Visibility::Public,
                 constructors: Vec::new(),
                 members: Vec::new(),
                 conformances: dir::AutoInterfaceSet::new(),

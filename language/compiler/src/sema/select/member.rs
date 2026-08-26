@@ -109,6 +109,103 @@ impl BodyState<'_, '_> {
         Ok(space)
     }
 
+    /// Check every selected member arm's visibility at its access site.
+    pub(in crate::sema) fn check_member_access(
+        &mut self,
+        origin: Origin,
+        resolution: &dir::MemberDecision,
+        key: &str,
+    ) -> CompilerResult<()> {
+        for access in resolution.arms() {
+            let Some(member) = access.target.symbol() else {
+                continue;
+            };
+            self.check_symbol_access(origin, member, key)?;
+        }
+
+        Ok(())
+    }
+
+    /// Check one selected member symbol's visibility at its access site.
+    pub(in crate::sema) fn check_symbol_access(
+        &mut self,
+        origin: Origin,
+        member: dir::GlobalSymbolId,
+        key: &str,
+    ) -> CompilerResult<()> {
+        let Some((owner, visibility)) = self.check.member_visibility(member)? else {
+            return Ok(());
+        };
+
+        match visibility {
+            // public members admit every site
+            dir::Visibility::Public => Ok(()),
+            // protected members admit the owner and its derived declarations
+            dir::Visibility::Protected => {
+                if self.protected_access_admits(owner)? {
+                    return Ok(());
+                }
+
+                self.check
+                    .report_inaccessible_member(origin, key.to_string(), visibility)
+            }
+            // private members admit their declaring module
+            dir::Visibility::Private => {
+                if member.module_id == self.check.module_id {
+                    return Ok(());
+                }
+
+                self.check
+                    .report_inaccessible_member(origin, key.to_string(), visibility)
+            }
+        }
+    }
+
+    /// Check one newtype's backing visibility at a construction or unwrap site.
+    pub(in crate::sema) fn check_backing_access(
+        &mut self,
+        origin: Origin,
+        newtype: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        let Some(dir::Definition::Newtype(definition)) = self.definition(newtype)? else {
+            return Ok(());
+        };
+        let visibility = definition.backing_visibility;
+
+        // admit the sites the declared backing visibility allows
+        let admits = match visibility {
+            dir::Visibility::Public => true,
+            dir::Visibility::Protected => self.protected_access_admits(newtype)?,
+            dir::Visibility::Private => newtype.module_id == self.check.module_id,
+        };
+        if admits {
+            return Ok(());
+        }
+
+        let name = self.check.format_symbol(newtype);
+
+        self.check
+            .report_inaccessible_newtype_backing(origin, name, visibility)
+    }
+
+    /// Return whether the checking scope derives from one protected owner.
+    fn protected_access_admits(&mut self, owner: dir::GlobalSymbolId) -> CompilerResult<bool> {
+        // find the declaring construct enclosing this site
+        let declaration = self
+            .check
+            .flow
+            .current_function_receiver()
+            .and_then(|binding| binding.receiver.declaration);
+        let Some(declaration) = declaration else {
+            return Ok(false);
+        };
+        if declaration == owner {
+            return Ok(true);
+        }
+
+        self.check.reaches_heritage(declaration, owner)
+    }
+
     /// Return the receiver closing one this-polymorphic interface member, absent elsewhere.
     pub(in crate::sema) fn interface_member_receiver(
         &mut self,
@@ -730,6 +827,9 @@ impl BodyState<'_, '_> {
 
             return self.report_rejected_member(node, origin, receiver.ty, written_key);
         };
+
+        // check the selected arms' visibility from this site
+        self.check_member_access(origin, &resolution, &written_key)?;
 
         // reject instance methods read as values outside call positions
         let extracts_method = resolution

@@ -13,6 +13,7 @@ use crate::declaration::signature::{
     write_grouped_parameters_with_return_type, write_signature_hug_parameter_list_with_this,
     write_signature_parameter_list_with_this, write_signature_return_type,
 };
+use crate::declaration::write_visibility_prefix;
 use crate::expression::format_type_template_literal;
 use crate::file::{
     ignore_ranges_for_nodes, node_has_ignore_directive, node_has_trailing_line_ignore_directive,
@@ -3134,10 +3135,13 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
                 is_static,
                 is_optional,
                 is_readonly,
+                visibility,
                 name,
                 declared_type,
                 ..
             } => {
+                write_visibility_prefix(f, *visibility)?;
+
                 if *is_static {
                     write!(f, [Keyword::Static, space()])?;
                 }
@@ -3168,10 +3172,13 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
             TypeMember::Method {
                 is_static,
                 is_optional,
+                visibility,
                 name,
                 signature,
                 body,
             } => {
+                write_visibility_prefix(f, *visibility)?;
+
                 if *is_static {
                     write!(f, [Keyword::Static, space()])?;
                 }

@@ -703,6 +703,8 @@ impl BodyState<'_, '_> {
         use_: PlaceUse,
         candidates: Vec<MemberCandidate>,
     ) -> CompilerResult<Option<MemberAssignmentSelection>> {
+        let written_key = self.format_static_key(&key);
+
         // split the candidates by the role each declares
         let fields = candidates
             .iter()
@@ -719,14 +721,16 @@ impl BodyState<'_, '_> {
 
         // reject a key that several candidates would write
         if fields.len() > 1 || setters.len() > 1 || (fields.len() == 1 && setters.len() == 1) {
-            let key = self.format_static_key(&key);
-            self.report_ambiguous_member(origin, key)?;
+            self.report_ambiguous_member(origin, written_key)?;
 
             return Ok(None);
         }
 
         // write a field into its own storage directly
         if let Some(field) = fields.into_iter().next() {
+            // deny a write the field's declared visibility rejects
+            self.check_symbol_access(origin, field.symbol, &written_key)?;
+
             let read_type = field.read_type(self)?;
             let read = match (use_, read_type) {
                 (PlaceUse::Write, _) | (_, None) => None,
@@ -745,12 +749,15 @@ impl BodyState<'_, '_> {
         // otherwise the write goes through a setter call
         let Some(setter) = setters.into_iter().next() else {
             if !getters.is_empty() {
-                let key = self.format_static_key(&key);
-                self.report_readonly_member(origin, key)?;
+                self.report_readonly_member(origin, written_key)?;
             }
 
             return Ok(None);
         };
+
+        // deny a write the setter's declared visibility rejects
+        self.check_symbol_access(origin, setter.symbol, &written_key)?;
+
         let call = self.select_setter_call(origin, receiver, setter)?;
         let write = dir::MemberAccess::new(
             receiver.ty,
@@ -761,6 +768,9 @@ impl BodyState<'_, '_> {
         let read = match use_ {
             PlaceUse::Update => match getters.as_slice() {
                 [getter] => {
+                    // deny the update's read when the getter's visibility rejects it
+                    self.check_symbol_access(origin, getter.symbol, &written_key)?;
+
                     let Some(call) = self.select_getter_call(origin, receiver, getter)? else {
                         return Ok(None);
                     };
@@ -773,14 +783,12 @@ impl BodyState<'_, '_> {
                     Some(dir::OperationResolution::One(read))
                 }
                 [] => {
-                    let key = self.format_static_key(&key);
-                    self.report_write_only_member(origin, key)?;
+                    self.report_write_only_member(origin, written_key)?;
 
                     return Ok(None);
                 }
                 _ => {
-                    let key = self.format_static_key(&key);
-                    self.report_ambiguous_member(origin, key)?;
+                    self.report_ambiguous_member(origin, written_key)?;
 
                     return Ok(None);
                 }

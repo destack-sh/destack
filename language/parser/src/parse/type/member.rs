@@ -306,6 +306,14 @@ impl Parser {
             return Err(ParserError::unexpected(self.peek_token_span()));
         }
 
+        // read a visibility keyword only ahead of a same-line member name,
+        //  keeping a bare keyword name as the member itself
+        let visibility = if self.peek_next_same_line_member_name() {
+            self.parse_visibility_if_present()
+        } else {
+            None
+        };
+
         // static
         let is_static = if self.peek_is_keyword(Keyword::Static) && self.peek_next_member_name() {
             self.bump();
@@ -487,6 +495,7 @@ impl Parser {
                 (Some(name), _) => TypeMember::Method {
                     is_static,
                     is_optional,
+                    visibility,
                     name,
                     signature,
                     body,
@@ -570,6 +579,7 @@ impl Parser {
             is_static,
             is_optional,
             is_readonly,
+            visibility,
             name,
             declared_type,
         };
@@ -633,6 +643,7 @@ impl Parser {
                 is_static: false,
                 is_optional,
                 is_readonly: false,
+                visibility: None,
                 name,
                 declared_type: Some(declared_type),
             },

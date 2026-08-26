@@ -536,6 +536,7 @@ pub fn walk_type_member<V: NodeVisitor + ?Sized>(
             is_static: _,
             is_optional: _,
             is_readonly: _,
+            visibility: _,
             name: _,
             declared_type,
         } => {
@@ -547,6 +548,7 @@ pub fn walk_type_member<V: NodeVisitor + ?Sized>(
         TypeMember::Method {
             is_static: _,
             is_optional: _,
+            visibility: _,
             name: _,
             signature,
             body,

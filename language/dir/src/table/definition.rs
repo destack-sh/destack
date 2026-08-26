@@ -10,7 +10,7 @@ use crate::{
     AutoInterface, AutoInterfaceSet, EnumBackingType, EnumVariantValue, FunctionRole,
     GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberKind,
     MemberSlot, MemberSpace, MethodAbstraction, PrimitiveType, SegmentView, Space, StaticKey,
-    TypeFold,
+    TypeFold, Visibility,
 };
 
 /// Cumulative declaration definitions for one DIR module.
@@ -642,6 +642,8 @@ pub struct NewtypeDefinition {
     pub representation: Representation,
     /// The nominal backing type.
     pub backing: GlobalTypeId,
+    /// The backing visibility, gating construction and unwrapping outside the module.
+    pub backing_visibility: Visibility,
     /// The constructable backing alternatives in selection order.
     pub constructors: Vec<NewtypeConstructor>,
     /// The written derive list replacing the auto set, if any.
@@ -848,6 +850,8 @@ pub struct MemberConformance {
 pub struct FieldDefinition {
     /// The member space declaring the field.
     pub space: MemberSpace,
+    /// The member visibility.
+    pub visibility: Visibility,
     /// The field symbol.
     pub symbol: GlobalSymbolId,
     /// The source member node.
@@ -873,6 +877,8 @@ pub struct FieldDefinition {
 pub struct MethodDefinition {
     /// The member space declaring the method.
     pub space: MemberSpace,
+    /// The member visibility.
+    pub visibility: Visibility,
     /// The method symbol.
     pub symbol: GlobalSymbolId,
     /// The source member node.
@@ -1192,6 +1198,15 @@ impl Definition {
             Self::Newtype(definition) => definition.template,
             Self::Extension(extension) => extension.template,
         }
+    }
+
+    /// Return one declared member's visibility.
+    pub fn member_visibility(&self, member: GlobalSymbolId) -> Option<Visibility> {
+        self.members().iter().find_map(|declared| match declared {
+            DefinitionMember::Field(field) if field.symbol == member => Some(field.visibility),
+            DefinitionMember::Method(method) if method.symbol == member => Some(method.visibility),
+            _ => None,
+        })
     }
 
     /// Return the members in declaration order.
