@@ -1,5 +1,6 @@
 mod cache;
 mod codec;
+mod collection;
 mod error;
 mod manifest;
 mod pack;

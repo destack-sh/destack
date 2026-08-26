@@ -133,4 +133,10 @@ impl<R> ArtifactCacheManifest<R> {
     pub(crate) fn belongs_to(&self, repository: &Path) -> bool {
         self.repository == repository
     }
+
+    /// Return the canonical repository path owning this manifest.
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    pub(crate) fn repository(&self) -> &Path {
+        &self.repository
+    }
 }

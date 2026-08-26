@@ -1,8 +1,10 @@
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
-use destack_source::FileSystem;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use std::fs::{File, OpenOptions};
+
+use destack_source::{FileSystem, PhysicalFileSystem};
 use serde::de::DeserializeOwned;
 
 use crate::{
@@ -22,55 +24,39 @@ const PACK_COMPARE_BYTES: usize = 64 * 1024;
 pub struct ArtifactCache {
     /// Destack build accepted by this cache instance.
     build_id: BuildId,
-    /// Physical file system used for persistent cache state.
-    files: Arc<dyn FileSystem>,
+    /// Machine-local cache directory.
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    pub(super) directory: PathBuf,
     /// Build-specific cache directory.
-    directory: PathBuf,
+    pub(super) build_directory: PathBuf,
+    /// Maximum retained cache size when bounded.
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    pub(super) maximum_bytes: Option<u64>,
 }
 
-impl ArtifactCache {
-    /// Open one build-specific persistent artifact cache.
-    pub fn open(
-        build_id: BuildId,
-        files: Arc<dyn FileSystem>,
-        directory: impl Into<PathBuf>,
-    ) -> Result<Self, ArtifactCacheError> {
-        // FUGU #Incomplete: prune old builds and unreferenced packs against configured limits
-        let directory = directory.into().join(build_id.to_string());
-        Self::create_directory(files.as_ref(), &directory.join("packs"))?;
-        Self::create_directory(files.as_ref(), &directory.join("manifests"))?;
+/// Exclusive access to one artifact cache publication.
+#[derive(Debug)]
+pub struct ArtifactCachePublication<'a> {
+    /// Cache receiving this publication.
+    cache: &'a ArtifactCache,
+    /// Cache lock retained for the publication lifetime.
+    _lock: ArtifactCacheLock,
+}
 
-        Ok(Self {
-            build_id,
-            files,
-            directory,
-        })
-    }
-
-    /// Return the Destack build accepted by this cache.
+impl ArtifactCachePublication<'_> {
+    /// Return the Destack build producing this publication.
     pub fn build_id(&self) -> BuildId {
-        self.build_id
-    }
-
-    /// Load one repository generation when present.
-    pub fn load<R: DeserializeOwned>(
-        &self,
-        repository: &Path,
-        worker_count: usize,
-    ) -> Result<Option<(ArtifactCacheManifest<R>, Vec<ArtifactPack>)>, ArtifactCacheError> {
-        let loaded = self.load_generation(repository, worker_count);
-
-        self.discard_invalid(repository, loaded)
+        self.cache.build_id()
     }
 
     /// Load one repository manifest when present.
-    pub fn manifest<R: DeserializeOwned>(
+    pub fn load_manifest<R: DeserializeOwned>(
         &self,
         repository: &Path,
     ) -> Result<Option<ArtifactCacheManifest<R>>, ArtifactCacheError> {
-        let loaded = self.read_manifest(repository);
+        let loaded = self.cache.read_manifest(repository);
 
-        self.discard_invalid(repository, loaded)
+        self.cache.discard_invalid(repository, loaded)
     }
 
     /// Write one immutable artifact pack.
@@ -79,21 +65,7 @@ impl ArtifactCache {
         version: ArtifactPackVersion,
         bytes: Vec<u8>,
     ) -> Result<u32, ArtifactCacheError> {
-        let checksum = crc32fast::hash(&bytes);
-        let path = self.pack_path(version);
-
-        // retain an equal immutable pack already published by another writer
-        if Self::exists(self.files.as_ref(), &path)? {
-            if !Self::file_matches(self.files.as_ref(), &path, &bytes)? {
-                return Err(ArtifactCacheError::Invalid(format!(
-                    "pack {version} has conflicting bytes"
-                )));
-            }
-        } else {
-            Self::write_file(self.files.as_ref(), &path, &bytes)?;
-        }
-
-        Ok(checksum)
+        self.cache.write_pack(version, bytes)
     }
 
     /// Atomically publish one repository manifest after its packs.
@@ -102,10 +74,134 @@ impl ArtifactCache {
         repository: &Path,
         manifest: &ArtifactCacheManifest<R>,
     ) -> Result<(), ArtifactCacheError> {
+        self.cache.write_manifest(repository, manifest)
+    }
+}
+
+/// Operating-system lock retained around cache reads or mutation.
+#[derive(Debug)]
+pub(super) struct ArtifactCacheLock {
+    /// Locked cache file on native hosts.
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    _file: File,
+}
+
+/// Access mode held by one artifact cache lock.
+#[derive(Debug, Clone, Copy)]
+pub(super) enum ArtifactCacheLockMode {
+    /// Concurrent cache restoration.
+    Shared,
+    /// Exclusive cache mutation.
+    Exclusive,
+}
+
+impl ArtifactCache {
+    /// Open one build-specific persistent artifact cache.
+    pub fn open(
+        build_id: BuildId,
+        directory: impl Into<PathBuf>,
+        maximum_bytes: Option<u64>,
+    ) -> Result<Self, ArtifactCacheError> {
+        let directory = directory.into();
+        let build_directory = directory.join("builds").join(build_id.to_string());
+        Self::create_directory(&build_directory.join("packs"))?;
+        Self::create_directory(&build_directory.join("manifests"))?;
+
+        #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+        let _ = maximum_bytes;
+
+        Ok(Self {
+            build_id,
+            #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+            directory,
+            build_directory,
+            #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+            maximum_bytes,
+        })
+    }
+
+    /// Return the Destack build accepted by this cache.
+    pub fn build_id(&self) -> BuildId {
+        self.build_id
+    }
+
+    /// Begin one exclusive artifact cache publication.
+    pub fn publish(&self) -> Result<ArtifactCachePublication<'_>, ArtifactCacheError> {
+        let lock = self.lock(ArtifactCacheLockMode::Exclusive)?;
+
+        Ok(ArtifactCachePublication {
+            cache: self,
+            _lock: lock,
+        })
+    }
+
+    /// Load one repository generation when present.
+    pub fn load<R: DeserializeOwned>(
+        &self,
+        repository: &Path,
+        worker_count: usize,
+    ) -> Result<Option<(ArtifactCacheManifest<R>, Vec<ArtifactPack>)>, ArtifactCacheError> {
+        let lock = self.lock(ArtifactCacheLockMode::Shared)?;
+        let loaded = self.load_generation(repository, worker_count);
+
+        // revalidate invalid records under exclusive access before removing them
+        if loaded
+            .as_ref()
+            .is_err_and(ArtifactCacheError::is_invalid_record)
+        {
+            drop(lock);
+            let _lock = self.lock(ArtifactCacheLockMode::Exclusive)?;
+            let loaded = self.load_generation(repository, worker_count);
+            let loaded = self.discard_invalid(repository, loaded)?;
+            if loaded.is_some() {
+                self.touch_manifest(repository)?;
+            }
+
+            return Ok(loaded);
+        }
+
+        // update repository recency after one successful restoration
+        let loaded = loaded?;
+        if loaded.is_some() {
+            self.touch_manifest(repository)?;
+        }
+
+        Ok(loaded)
+    }
+
+    /// Write one immutable artifact pack.
+    fn write_pack(
+        &self,
+        version: ArtifactPackVersion,
+        bytes: Vec<u8>,
+    ) -> Result<u32, ArtifactCacheError> {
+        let checksum = crc32fast::hash(&bytes);
+        let path = self.pack_path(version);
+
+        // retain an equal immutable pack already published by another writer
+        if Self::exists(&path)? {
+            if !Self::file_matches(&path, &bytes)? {
+                return Err(ArtifactCacheError::Invalid(format!(
+                    "pack {version} has conflicting bytes"
+                )));
+            }
+        } else {
+            Self::write_file(&path, &bytes)?;
+        }
+
+        Ok(checksum)
+    }
+
+    /// Atomically publish one repository manifest after its packs.
+    fn write_manifest<R: serde::Serialize>(
+        &self,
+        repository: &Path,
+        manifest: &ArtifactCacheManifest<R>,
+    ) -> Result<(), ArtifactCacheError> {
         let bytes = destack_serde::to_vec(manifest)?;
         let path = self.manifest_path(repository);
 
-        Self::write_file(self.files.as_ref(), &path, &bytes)
+        Self::write_file(&path, &bytes)
     }
 
     /// Load and validate one repository manifest and every selected pack.
@@ -164,7 +260,7 @@ impl ArtifactCache {
     ) -> Result<ArtifactPack, ArtifactCacheError> {
         let version = selected.version;
         let path = self.pack_path(version);
-        let bytes = Self::read_file(self.files.as_ref(), &path)?;
+        let bytes = Self::read_file(&path)?;
         let checksum = crc32fast::hash(&bytes);
         if checksum != selected.checksum {
             let error =
@@ -204,10 +300,10 @@ impl ArtifactCache {
         repository: &Path,
     ) -> Result<Option<ArtifactCacheManifest<R>>, ArtifactCacheError> {
         let path = self.manifest_path(repository);
-        if !Self::exists(self.files.as_ref(), &path)? {
+        if !Self::exists(&path)? {
             return Ok(None);
         }
-        let bytes = Self::read_file(self.files.as_ref(), &path)?;
+        let bytes = Self::read_file(&path)?;
         let manifest: ArtifactCacheManifest<R> = destack_serde::from_slice(&bytes)
             .map_err(ArtifactCacheError::from)
             .map_err(|error| error.record(&path))?;
@@ -223,7 +319,7 @@ impl ArtifactCache {
 
         // require every immutable pack selected by this manifest
         for selected in &manifest.packs {
-            if !Self::exists(self.files.as_ref(), &self.pack_path(selected.version))? {
+            if !Self::exists(&self.pack_path(selected.version))? {
                 let error = ArtifactCacheError::Invalid(format!(
                     "manifest references missing pack {}",
                     selected.version
@@ -249,12 +345,12 @@ impl ArtifactCache {
                 let record = error.record_path().map(Path::to_path_buf);
                 if let Some(record) = record
                     && record != manifest
-                    && Self::exists(self.files.as_ref(), &record)?
+                    && Self::exists(&record)?
                 {
-                    Self::remove_file(self.files.as_ref(), &record)?;
+                    Self::remove_file(&record)?;
                 }
-                if Self::exists(self.files.as_ref(), &manifest)? {
-                    Self::remove_file(self.files.as_ref(), &manifest)?;
+                if Self::exists(&manifest)? {
+                    Self::remove_file(&manifest)?;
                 }
 
                 Err(error)
@@ -264,28 +360,97 @@ impl ArtifactCache {
     }
 
     /// Resolve one versioned pack path.
-    fn pack_path(&self, version: ArtifactPackVersion) -> PathBuf {
-        self.directory
+    pub(super) fn pack_path(&self, version: ArtifactPackVersion) -> PathBuf {
+        self.build_directory
             .join("packs")
             .join(format!("{version}.{PACK_EXTENSION}"))
     }
 
     /// Resolve one repository manifest path.
-    fn manifest_path(&self, repository: &Path) -> PathBuf {
+    pub(super) fn manifest_path(&self, repository: &Path) -> PathBuf {
         let repository = repository.to_string_lossy();
         let mut hasher = blake3::Hasher::new();
         hasher.update(&(repository.len() as u64).to_le_bytes());
         hasher.update(repository.as_bytes());
         let id = hasher.finalize().to_hex();
 
-        self.directory
+        self.build_directory
             .join("manifests")
             .join(format!("{id}.{MANIFEST_EXTENSION}"))
     }
 
+    /// Lock this cache for shared reads or exclusive mutation.
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    pub(super) fn lock(
+        &self,
+        mode: ArtifactCacheLockMode,
+    ) -> Result<ArtifactCacheLock, ArtifactCacheError> {
+        let path = self.directory.join("lock");
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&path)
+            .map_err(|error| ArtifactCacheError::FileSystem {
+                operation: "open lock",
+                path: path.clone(),
+                message: error.to_string(),
+            })?;
+
+        // coordinate every process sharing this machine cache
+        let result = match mode {
+            ArtifactCacheLockMode::Shared => fs2::FileExt::lock_shared(&file),
+            ArtifactCacheLockMode::Exclusive => fs2::FileExt::lock_exclusive(&file),
+        };
+        result.map_err(|error| ArtifactCacheError::FileSystem {
+            operation: "lock",
+            path,
+            message: error.to_string(),
+        })?;
+
+        Ok(ArtifactCacheLock { _file: file })
+    }
+
+    /// Return an inert cache lock where persistent storage is unavailable.
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    pub(super) fn lock(
+        &self,
+        _mode: ArtifactCacheLockMode,
+    ) -> Result<ArtifactCacheLock, ArtifactCacheError> {
+        Ok(ArtifactCacheLock {})
+    }
+
+    /// Record one successful repository cache restoration.
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    fn touch_manifest(&self, repository: &Path) -> Result<(), ArtifactCacheError> {
+        let path = self.manifest_path(repository);
+        let file = OpenOptions::new()
+            .write(true)
+            .open(&path)
+            .map_err(|error| ArtifactCacheError::FileSystem {
+                operation: "open manifest",
+                path: path.clone(),
+                message: error.to_string(),
+            })?;
+        let times = std::fs::FileTimes::new().set_modified(std::time::SystemTime::now());
+        file.set_times(times)
+            .map_err(|error| ArtifactCacheError::FileSystem {
+                operation: "touch manifest",
+                path,
+                message: error.to_string(),
+            })
+    }
+
+    /// Ignore cache access time where persistent storage is unavailable.
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    fn touch_manifest(&self, _repository: &Path) -> Result<(), ArtifactCacheError> {
+        Ok(())
+    }
+
     /// Create one cache directory recursively.
-    fn create_directory(files: &dyn FileSystem, path: &Path) -> Result<(), ArtifactCacheError> {
-        files
+    pub(super) fn create_directory(path: &Path) -> Result<(), ArtifactCacheError> {
+        PhysicalFileSystem
             .create_dir_all(path)
             .map_err(|error| ArtifactCacheError::FileSystem {
                 operation: "create directory",
@@ -295,8 +460,8 @@ impl ArtifactCache {
     }
 
     /// Return whether one cache path exists.
-    fn exists(files: &dyn FileSystem, path: &Path) -> Result<bool, ArtifactCacheError> {
-        files
+    pub(super) fn exists(path: &Path) -> Result<bool, ArtifactCacheError> {
+        PhysicalFileSystem
             .exists(path)
             .map_err(|error| ArtifactCacheError::FileSystem {
                 operation: "stat",
@@ -306,8 +471,8 @@ impl ArtifactCache {
     }
 
     /// Read one complete cache file.
-    fn read_file(files: &dyn FileSystem, path: &Path) -> Result<Vec<u8>, ArtifactCacheError> {
-        files
+    pub(super) fn read_file(path: &Path) -> Result<Vec<u8>, ArtifactCacheError> {
+        PhysicalFileSystem
             .read(path)
             .map_err(|error| ArtifactCacheError::FileSystem {
                 operation: "read",
@@ -317,18 +482,15 @@ impl ArtifactCache {
     }
 
     /// Compare one file with exact bytes without loading a second complete buffer.
-    fn file_matches(
-        files: &dyn FileSystem,
-        path: &Path,
-        bytes: &[u8],
-    ) -> Result<bool, ArtifactCacheError> {
-        let mut file = files
-            .open(path)
-            .map_err(|error| ArtifactCacheError::FileSystem {
-                operation: "open",
-                path: path.to_path_buf(),
-                message: error.to_string(),
-            })?;
+    fn file_matches(path: &Path, bytes: &[u8]) -> Result<bool, ArtifactCacheError> {
+        let mut file =
+            PhysicalFileSystem
+                .open(path)
+                .map_err(|error| ArtifactCacheError::FileSystem {
+                    operation: "open",
+                    path: path.to_path_buf(),
+                    message: error.to_string(),
+                })?;
         let mut buffer = [0; PACK_COMPARE_BYTES];
         let mut offset = 0;
 
@@ -355,12 +517,8 @@ impl ArtifactCache {
     }
 
     /// Atomically write one complete cache file.
-    fn write_file(
-        files: &dyn FileSystem,
-        path: &Path,
-        bytes: &[u8],
-    ) -> Result<(), ArtifactCacheError> {
-        files
+    pub(super) fn write_file(path: &Path, bytes: &[u8]) -> Result<(), ArtifactCacheError> {
+        PhysicalFileSystem
             .write(path, bytes)
             .map_err(|error| ArtifactCacheError::FileSystem {
                 operation: "write",
@@ -370,8 +528,8 @@ impl ArtifactCache {
     }
 
     /// Remove one exact cache file.
-    fn remove_file(files: &dyn FileSystem, path: &Path) -> Result<(), ArtifactCacheError> {
-        files
+    pub(super) fn remove_file(path: &Path) -> Result<(), ArtifactCacheError> {
+        PhysicalFileSystem
             .remove_file(path)
             .map_err(|error| ArtifactCacheError::FileSystem {
                 operation: "remove",

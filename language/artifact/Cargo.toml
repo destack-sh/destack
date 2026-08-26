@@ -35,6 +35,9 @@ serde = { workspace = true, features = ["derive", "rc"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
 schemars = { workspace = true, optional = true }
 
+[target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
+fs2 = { workspace = true }
+
 [target.'cfg(any(target_os = "android", target_os = "linux", target_os = "macos"))'.dependencies]
 libc = { workspace = true }
 
