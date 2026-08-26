@@ -436,8 +436,27 @@ just test
 
 ### Commits
 
-- Typically, agents aren't supposed to commit or merge directly without being explicitly instructed to.
-- For commit message format, follow `CONTRIBUTING.md#commit-style`.
+- Typically, agents aren't supposed to commit or merge directly without _first_ being explicitly instructed to (they may present suggested commit slices after re-reviewing their own work thoroughly).
 - We typically work with branches and worktrees off a main branch.
 - We try to frequently rebase off main and merge back into main.
 - When merging into main, try to fast-forward or cherry-pick to retain the commit history (except when there are a _lot_ of small commits, feel free to squash then).
+
+- Use conventional commits for all repository changes in present tense, simplified technical english, verb-shaped.
+- In case of doubt, look at the past 50 or so commit messages for common style.
+- Do not mention non-human authors or contributors in commit messages. No co-authors, no bylines. Nothing.
+
+- Follow `type(scope): verb noun` with an imperative summary and keep it under 100 characters.
+- Use the full scope (sometimes stylisied) like `language/ast`, `language/compiler/analyze`, `library/ui`, ...
+- If the commit touches multiple scopes either use the highest most, use `all`, or (if large enough) break into multiple smaller commits
+- For large packages / crates, we may want to use subscopes like `language/compiler/sema`.
+- Use one of the following types (in rough order of coelescing, most to least):
+  - `feat`: extend, generalise, or add non-trivial model changes
+  - `refactor`: replace or reshape the model in some non-trivial way
+  - `fix`: correct model in some non-trivial sense that didn't require a refactor
+  - `test`: extend, update, bless, or otherwise modify the tests 
+  - `chore`: modify or adapt in a semantically trivial way (format, trivial API adaptation, ..)
+  - `docs`: edit the docs (in code or otherwise)
+  - `dev`: make some meta change about the dev setup
+
+- Do *not* mention the "meta" in commits in any way, commits are strictly about the *actual* changes to the repository (do not say stuff like "part 1", "landed feature X") 
+- When possible and sensible try to mention specific code concepts like `add SiteTable, rename Foo -> Bar` is nice and specific
