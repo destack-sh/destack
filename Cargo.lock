@@ -1165,7 +1165,6 @@ dependencies = [
  "destack_source",
  "destack_unicode",
  "futures",
- "serde_json",
 ]
 
 [[package]]

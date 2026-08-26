@@ -3,26 +3,30 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use destack_artifact::{
     ArtifactKey, BuildId, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
-    MirLowered, ToDiagnostic,
+    DiagnosticLike, DiagnosticRecord, MirLowered, ToDiagnostic,
 };
 use destack_mir as mir;
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Repository, Revision,
-    RevisionPin, Settings,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, ProviderContext,
+    Repository, Revision, RevisionPin, Settings,
 };
-use destack_session::{Executor, Session};
+use destack_session::{ArtifactPriority, Executor, Session};
 use destack_source::{
-    Applicability, DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, DiagnosticTarget,
-    DiffOptions, File, FileId, FilePatch, FileType, MemoryFileSystem, ModuleId, PackageId,
-    PrintOptions, ProfileId, TargetId, Uri, apply_file_patch, format_diff, print_diagnostics,
+    Applicability, Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity,
+    DiagnosticTarget, DiffOptions, File, FileId, FilePatch, FileType, MemoryFileSystem, ModuleId,
+    PackageId, PrintOptions, ProfileId, TargetId, Uri, apply_file_patch, format_diff,
+    print_diagnostics,
 };
 use futures::executor::block_on;
-use serde_json::{Map, Value, json};
 
-use crate::{Fixability, Lint, LintCheck, LintScope, LintTier, MirModule};
+use crate::{Fixability, Lint, LintCheck, LintTier, Linter, MirModule};
 
 const SOURCE_PATH: &str = "main.ds";
+const WARMUP_PATH: &str = "__warm.ds";
 const TARGET_NAME: &str = "native";
+const DEFAULT_DESTACK_JSON: &str = r#"{
+  "name": "@test/app"
+}"#;
 
 /// One isolated lint test session.
 pub(crate) struct TestSession {
@@ -38,15 +42,34 @@ pub(crate) struct TestSession {
     path: String,
 }
 
+/// One complete fixture for an isolated lint run.
+struct LintFixture {
+    /// The lint under test.
+    lint: &'static Lint,
+    /// The source repository.
+    repository: Arc<Repository>,
+    /// The checked revision.
+    revision: RevisionPin,
+    /// The artifact session.
+    session: Session,
+    /// The entry module.
+    module: ModuleId,
+    /// The active profile.
+    profile: ProfileId,
+    /// The selected lint artifact key.
+    key: ArtifactKey,
+    /// The displayed fixture file.
+    file: Arc<File>,
+    /// The displayed fixture path.
+    path: String,
+    /// Diagnostics emitted by the lint.
+    diagnostics: Mutex<Vec<Diagnostic>>,
+}
+
 /// Source available to one lint test session.
 enum TestSource {
     /// One repository revision.
-    Revision {
-        /// The source repository.
-        repository: Arc<Repository>,
-        /// The checked revision.
-        revision: Revision,
-    },
+    Revision(RevisionPin),
     /// One standalone source file.
     File(Arc<File>),
 }
@@ -55,11 +78,8 @@ impl TestSource {
     /// Return one source file.
     fn file(&self, id: FileId) -> Option<Arc<File>> {
         match self {
-            Self::Revision {
-                repository,
-                revision,
-            } => repository
-                .file(*revision, id)
+            Self::Revision(revision) => revision
+                .file(id)
                 .expect("lint diagnostic source should be readable"),
             Self::File(file) => (id == file.id).then(|| file.clone()),
         }
@@ -131,13 +151,8 @@ impl TestSession {
     /// Assert that one MIR lint's documentation examples pass check.
     fn assert_mir_example_sources(lint: &'static Lint) {
         for example in [&lint.example.reported, &lint.example.accepted] {
-            let checked = Self::source(
-                lint,
-                example.path(),
-                example.source(),
-                &[],
-                |module, profile, _| ArtifactKey::dir_checked(module, profile),
-            );
+            let fixture = LintFixture::new(lint, example.path(), example.source(), &[]);
+            let checked = fixture.check();
             checked.assert_no_diagnostics();
         }
     }
@@ -159,104 +174,9 @@ impl TestSession {
         source: &str,
         additional_sources: &[(&str, &str)],
     ) -> Self {
-        Self::source(
-            lint,
-            path,
-            source,
-            additional_sources,
-            |module, profile, target| match lint.check.scope() {
-                LintScope::Module => ArtifactKey::module_linted(module, profile, target),
-                LintScope::Program => ArtifactKey::program_linted(profile, target),
-            },
-        )
-    }
+        let fixture = LintFixture::new(lint, path, source, additional_sources);
 
-    /// Run one source fixture through the selected artifact.
-    fn source(
-        lint: &'static Lint,
-        path: &str,
-        source: &str,
-        additional_sources: &[(&str, &str)],
-        artifact: impl FnOnce(ModuleId, ProfileId, TargetId) -> ArtifactKey,
-    ) -> Self {
-        let (repository, base) = shared_repository();
-        let configuration = lint_configuration(lint);
-        let configuration = repository
-            .retain_blob(configuration.as_bytes())
-            .expect("lint configuration Blob should store");
-        let source = repository
-            .retain_blob(trim_source_frame(source).as_bytes())
-            .expect("lint source Blob should store");
-        let mut edits = vec![
-            Edit::add_file("destack.json", configuration),
-            Edit::add_file(path, source),
-        ];
-
-        // add the remaining fixture files
-        for (additional_path, additional_source) in additional_sources {
-            let source = repository
-                .retain_blob(trim_source_frame(additional_source).as_bytes())
-                .expect("additional lint source Blob should store");
-            edits.push(Edit::add_file(*additional_path, source));
-        }
-
-        // commit and retain the complete fixture revision
-        let revision = repository
-            .edit(base.revision(), edits)
-            .expect("lint test revision should commit")
-            .after;
-        let revision_pin = repository
-            .pin(revision)
-            .expect("lint test revision should remain live");
-        let revision = revision_pin.revision();
-
-        // resolve the source module and target
-        let module = repository
-            .module_id_for_path(revision, Path::new(path))
-            .expect("lint test module should resolve")
-            .expect("lint test module should exist");
-        let module = repository
-            .module(revision, module)
-            .expect("lint test module should be readable")
-            .expect("lint test module should exist");
-        let target = TargetId::new(module.package_id, TARGET_NAME);
-        let profile = repository
-            .profile_for_module_target(revision, module.id, target)
-            .expect("lint test profile should resolve")
-            .id();
-
-        // provide the lint artifact through one private session
-        let session =
-            Session::new(repository.clone(), executor()).expect("lint test session should open");
-        let key = artifact(module.id, profile, target);
-        if let Err(error) = block_on(session.require(revision, key)) {
-            let diagnostics = repository
-                .diagnostics(revision, None)
-                .expect("lint test diagnostics should be readable");
-            let diagnostics = render_diagnostics(repository, revision, &diagnostics);
-
-            panic!("lint test artifact failed: {error}\n\n{diagnostics}");
-        }
-
-        // collect the emitted diagnostics and entry source
-        let diagnostics = repository
-            .diagnostics_for_keys(revision, &[key])
-            .expect("lint test diagnostics should be readable");
-        let file = repository
-            .file(revision, module.file_id)
-            .expect("lint test source should be readable")
-            .expect("lint test source should exist");
-
-        Self {
-            lint,
-            diagnostics,
-            source: TestSource::Revision {
-                repository: repository.clone(),
-                revision,
-            },
-            file,
-            path: path.to_string(),
-        }
+        fixture.lint()
     }
 
     /// Run one isolated MIR module lint fixture.
@@ -420,6 +340,257 @@ impl TestSession {
     }
 }
 
+impl LintFixture {
+    /// Build one isolated lint fixture.
+    fn new(
+        lint: &'static Lint,
+        path: &str,
+        source: &str,
+        additional_sources: &[(&str, &str)],
+    ) -> Self {
+        let (repository, base) = shared_repository_revision();
+        let source = repository
+            .retain_blob(trim_source_frame(source).as_bytes())
+            .expect("lint source Blob should store");
+        let mut edits = vec![Edit::set_file(path, source)];
+
+        // add the remaining fixture files
+        for (additional_path, additional_source) in additional_sources {
+            let source = repository
+                .retain_blob(trim_source_frame(additional_source).as_bytes())
+                .expect("additional lint source Blob should store");
+            edits.push(Edit::set_file(*additional_path, source));
+        }
+
+        // commit and retain the complete fixture revision
+        let revision = repository
+            .edit(base.revision(), edits)
+            .expect("lint test revision should commit")
+            .after;
+        let revision = repository
+            .pin(revision)
+            .expect("lint test revision should remain live");
+        let revision_id = revision.revision();
+        let session =
+            Session::new(repository.clone(), executor()).expect("lint test session should open");
+
+        // resolve the source module and target
+        let module = repository
+            .module_id_for_path(revision_id, Path::new(path))
+            .expect("lint test module should resolve")
+            .expect("lint test module should exist");
+        let module = repository
+            .module(revision_id, module)
+            .expect("lint test module should be readable")
+            .expect("lint test module should exist");
+        let target = TargetId::new(module.package_id, TARGET_NAME);
+        let profile = repository
+            .profile_for_module_target(revision_id, module.id, target)
+            .expect("lint test profile should resolve")
+            .id();
+        let key = match lint.check {
+            LintCheck::DirModule(_) | LintCheck::MirModule(_) => {
+                ArtifactKey::module_linted(module.id, profile, target)
+            }
+            LintCheck::DirProgram(_) | LintCheck::MirProgram(_) => {
+                ArtifactKey::program_linted(profile, target)
+            }
+        };
+        let file = repository
+            .file(revision_id, module.file_id)
+            .expect("lint test source should be readable")
+            .expect("lint test source should exist");
+
+        Self {
+            lint,
+            repository: repository.clone(),
+            revision,
+            session,
+            module: module.id,
+            profile,
+            key,
+            file,
+            path: path.to_string(),
+            diagnostics: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// Check one fixture without running a lint.
+    fn check(self) -> TestSession {
+        let key = ArtifactKey::dir_checked(self.module, self.profile);
+        self.require(&[key]);
+        let diagnostics = self.read_diagnostics(&[key]);
+
+        self.finish(diagnostics)
+    }
+
+    /// Run exactly one selected lint over this fixture.
+    fn lint(self) -> TestSession {
+        let linter = Linter::with_lint(self.repository.clone(), self.lint);
+        let dependencies = self.require_lint_dependencies(&linter);
+        let required = dependencies
+            .requirements
+            .iter()
+            .map(|requirement| requirement.artifact_key())
+            .collect::<Vec<_>>();
+
+        // execute the selected lint after its compiler artifacts are ready
+        linter
+            .provide(&self)
+            .unwrap_or_else(|error| panic!("lint test provider failed: {error}"));
+        let mut diagnostics = self.read_diagnostics(&required);
+        diagnostics.diagnostics.extend(
+            self.diagnostics
+                .lock()
+                .expect("lint fixture diagnostics should lock")
+                .iter()
+                .cloned(),
+        );
+
+        self.finish(diagnostics)
+    }
+
+    /// Resolve and require the selected lint's complete dependency set.
+    fn require_lint_dependencies(
+        &self,
+        linter: &Linter,
+    ) -> destack_artifact::ArtifactDependencySet {
+        loop {
+            let mut dependencies = linter
+                .collect(self)
+                .unwrap_or_else(|error| panic!("lint test collection failed: {error}"));
+            dependencies.normalize();
+            let required = dependencies
+                .requirements
+                .iter()
+                .map(|requirement| requirement.artifact_key())
+                .collect::<Vec<_>>();
+            self.require(&required);
+
+            if !dependencies.is_partial {
+                return dependencies;
+            }
+        }
+    }
+
+    /// Require fixture artifacts.
+    fn require(&self, keys: &[ArtifactKey]) {
+        let run =
+            self.session
+                .provide(self.revision.revision(), keys, ArtifactPriority::Foreground);
+        if let Err(error) = block_on(run.wait()) {
+            let repository = self.revision.repository();
+            let diagnostics = repository
+                .diagnostics(self.revision.revision(), None)
+                .expect("lint test diagnostics should be readable");
+            let diagnostics =
+                render_diagnostics(repository, self.revision.revision(), &diagnostics);
+
+            panic!("lint test artifact failed: {error}\n\n{diagnostics}");
+        }
+    }
+
+    /// Return diagnostics produced by one fixture artifact.
+    fn read_diagnostics(&self, keys: &[ArtifactKey]) -> DiagnosticCollection {
+        self.revision
+            .repository()
+            .diagnostics_for_keys(self.revision.revision(), keys)
+            .expect("lint test diagnostics should be readable")
+    }
+
+    /// Finish one lint test session from this checked fixture.
+    fn finish(self, diagnostics: DiagnosticCollection) -> TestSession {
+        TestSession {
+            lint: self.lint,
+            diagnostics,
+            source: TestSource::Revision(self.revision),
+            file: self.file,
+            path: self.path,
+        }
+    }
+}
+
+impl DiagnosticContext for LintFixture {
+    /// Resolve one lint diagnostic source label.
+    fn label(
+        &self,
+        anchor: &DiagnosticAnchor,
+        message: Option<String>,
+    ) -> Result<DiagnosticLabel, DiagnosticError> {
+        let target = match anchor {
+            DiagnosticAnchor::Span(span) => DiagnosticTarget::Span(*span),
+            DiagnosticAnchor::File(file) => DiagnosticTarget::File(*file),
+            _ => {
+                return Err(DiagnosticError::InvalidAnchor {
+                    message: format!("lint test provider received {anchor:?}"),
+                });
+            }
+        };
+        let file = target.file();
+        let blob = self
+            .revision
+            .repository()
+            .file_blob(self.revision.revision(), file)
+            .map_err(|error| DiagnosticError::InvalidAnchor {
+                message: format!("failed to read lint diagnostic source: {error}"),
+            })?
+            .ok_or_else(|| DiagnosticError::InvalidAnchor {
+                message: format!("lint diagnostic source {file:?} is missing"),
+            })?;
+
+        Ok(DiagnosticLabel {
+            blob,
+            target,
+            message,
+        })
+    }
+
+    /// Report unsupported diagnostic display values.
+    fn display(&self, display: DiagnosticDisplay) -> Result<String, DiagnosticError> {
+        Err(DiagnosticError::InvalidDiagnostic {
+            message: format!("lint test provider cannot display {display:?}"),
+        })
+    }
+}
+
+impl ProviderContext for LintFixture {
+    /// Return the checked revision.
+    fn revision(&self) -> Revision {
+        self.revision.revision()
+    }
+
+    /// Return the selected lint artifact key.
+    fn artifact_key(&self) -> ArtifactKey {
+        self.key
+    }
+
+    /// Add already-resolved diagnostics.
+    fn emit_diagnostics(&self, diagnostics: Vec<DiagnosticRecord>) {
+        let mut output = self
+            .diagnostics
+            .lock()
+            .expect("lint provider diagnostics should lock");
+        for record in diagnostics {
+            assert!(
+                record.references.is_empty(),
+                "lint fixture received deferred diagnostic labels"
+            );
+            output.push(record.diagnostic);
+        }
+    }
+
+    /// Resolve and add one lint diagnostic.
+    fn emit(&self, diagnostic: &dyn DiagnosticLike) -> Result<(), DiagnosticError> {
+        let diagnostic = diagnostic.to_diagnostic(self)?;
+        self.diagnostics
+            .lock()
+            .expect("lint provider diagnostics should lock")
+            .push(diagnostic);
+
+        Ok(())
+    }
+}
+
 /// Diagnostic context for one raw MIR file.
 struct MirDiagnosticContext {
     /// The raw MIR file.
@@ -494,59 +665,115 @@ fn render_diagnostics_with(
         .join("\n")
 }
 
-/// Build a configuration that enables only the selected lint.
-fn lint_configuration(selected: &Lint) -> String {
-    let rules = [(
-        selected.id.to_string(),
-        Value::String("warning".to_string()),
-    )]
-    .into_iter()
-    .collect::<Map<_, _>>();
-    let configuration = json!({
-        "name": "@test/app",
-        "linter": {
-            "only": [selected.id],
-            "rules": rules,
-        },
-    });
+/// Return the shared linter test repository and its warmed revision.
+fn shared_repository_revision() -> &'static (Arc<Repository>, RevisionPin) {
+    static BASE: OnceLock<(Arc<Repository>, RevisionPin)> = OnceLock::new();
 
-    serde_json::to_string_pretty(&configuration).expect("lint test configuration should serialize")
-}
+    BASE.get_or_init(|| {
+        let (repository, revision) = cold_repository_revision();
 
-/// Return the shared linter test repository and its empty revision.
-pub(super) fn shared_repository() -> &'static (Arc<Repository>, RevisionPin) {
-    static REPOSITORY: OnceLock<(Arc<Repository>, RevisionPin)> = OnceLock::new();
-
-    REPOSITORY.get_or_init(|| {
-        let root = PathBuf::new();
-        let environment = Environment::default();
-        let settings = Settings::default();
-        let layout = DestackLayout::resolve(
-            &root,
-            &root,
-            &environment,
-            &settings,
-            &DestackLayoutOverride::default(),
-            None,
-        );
-        let host = Host::new(
-            BuildId::test(),
-            environment,
-            Arc::new(MemoryFileSystem::new()),
-        )
-        .with_execution(Execution::Cooperative);
-        let (repository, revision) = Repository::new(root, host, settings, layout);
-        let repository = Arc::new(repository);
+        // anchor the workspace package while its builtin modules warm
+        let source = repository
+            .retain_blob(b"")
+            .expect("warmup source Blob should store");
         let revision = repository
-            .pin(revision)
+            .edit(revision, [Edit::set_file(WARMUP_PATH, source)])
+            .expect("warmup source should commit")
+            .after;
+
+        // start one session for the complete warmup
+        let session = Session::new(repository.clone(), executor())
+            .expect("library warmup session should start");
+
+        // resolve the builtin library profile
+        let package = repository.embedded_builtin();
+        let library_target = TargetId::new(package.package_id(), TARGET_NAME);
+        let library_profile = repository
+            .profile_for_target(revision, library_target)
+            .expect("builtin library profile should resolve")
+            .id();
+
+        // resolve the workspace profile used by lint fixtures
+        let module = repository
+            .module_id_for_path(revision, WARMUP_PATH.as_ref())
+            .expect("warmup module should resolve")
+            .expect("warmup module should exist");
+        let workspace = repository
+            .module(revision, module)
+            .expect("warmup module should load")
+            .expect("warmup module should exist")
+            .package_id;
+        let workspace_target = TargetId::new(workspace, TARGET_NAME);
+        let workspace_profile = repository
+            .profile_for_target(revision, workspace_target)
+            .expect("lint fixture profile should resolve")
+            .id();
+
+        // check builtin modules under both profiles once
+        let keys = package
+            .module_ids()
+            .flat_map(|module| {
+                [
+                    ArtifactKey::dir_checked(module, library_profile),
+                    ArtifactKey::dir_checked(module, workspace_profile),
+                ]
+            })
+            .collect::<Vec<_>>();
+        let run = session.provide(revision, &keys, ArtifactPriority::Foreground);
+        block_on(run.wait()).expect("builtin library warmup should check");
+
+        // remove the temporary module from the fixture base
+        let base = repository
+            .edit(revision, [Edit::remove_file(WARMUP_PATH)])
+            .expect("warmup module should retire")
+            .after;
+        let base = repository
+            .pin(base)
             .expect("shared linter test revision should remain live");
 
-        (repository, revision)
+        (repository, base)
     })
 }
 
+/// Build one fresh linter test repository at its default revision.
+fn cold_repository_revision() -> (Arc<Repository>, Revision) {
+    // resolve the in-memory repository layout
+    let root = PathBuf::new();
+    let environment = Environment::default();
+    let settings = Settings::default();
+    let layout = DestackLayout::resolve(
+        &root,
+        &root,
+        &environment,
+        &settings,
+        &DestackLayoutOverride::default(),
+        None,
+    );
+
+    // create the cooperative repository
+    let host = Host::new(
+        BuildId::test(),
+        environment,
+        Arc::new(MemoryFileSystem::new()),
+    )
+    .with_execution(Execution::Cooperative);
+    let (repository, revision) = Repository::new(root, host, settings, layout);
+    let repository = Arc::new(repository);
+
+    // commit the default package configuration
+    let configuration = repository
+        .retain_blob(DEFAULT_DESTACK_JSON.as_bytes())
+        .expect("default lint configuration Blob should store");
+    let revision = repository
+        .edit(revision, [Edit::set_file("destack.json", configuration)])
+        .expect("default lint configuration should commit")
+        .after;
+
+    (repository, revision)
+}
+
 /// Return the artifact executor for one linter test session.
-pub(super) fn executor() -> Arc<Executor> {
+fn executor() -> Arc<Executor> {
     // cooperative hosts execute inline, so each session schedules alone
     Executor::new(Execution::Cooperative, 1).expect("linter test artifact executor should start")
 }
