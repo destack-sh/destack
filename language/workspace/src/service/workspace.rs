@@ -7,10 +7,10 @@ use futures::{FutureExt, pin_mut, select_biased};
 
 use super::*;
 use crate::{
-    BenchOutput, Branch, BuildOutput, CacheOutput, CheckOutput, CleanOutput, CommandProgress,
-    DocOutput, DoctorOutput, ExportResult, FileImage, FormatOutput, InfoOutput, ProgressEvent,
-    QueryOutput, RewriteOutput, RunQueryResponse, SettingsOutput, TargetsOutput, TaskOutput,
-    TestOutput, Watch, WatchEvent, Workspace,
+    Branch, BuildOutput, CacheOutput, CheckOutput, CleanOutput, CommandProgress, DocOutput,
+    DoctorOutput, ExportResult, FileImage, FormatOutput, InfoOutput, ProgressEvent, QueryOutput,
+    RewriteOutput, RunQueryResponse, SettingsOutput, TargetsOutput, TaskOutput, TestOutput, Watch,
+    WatchEvent, Workspace,
 };
 
 /// RPC operations over one Destack workspace.
@@ -127,10 +127,6 @@ pub trait WorkspaceService {
     /// Generate workspace documentation.
     #[rpc(name = "Doc", response_stream(ProgressEvent))]
     fn doc(request: DocRequest) -> DocOutput;
-
-    /// Run workspace benchmarks.
-    #[rpc(name = "Bench", response_stream(ProgressEvent))]
-    fn bench(request: BenchRequest) -> BenchOutput;
 
     // =============================================================================
     // Configuration
@@ -512,20 +508,6 @@ impl WorkspaceService for Workspace {
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
         let command = Workspace::doc(self, request.input, Some(progress));
-
-        events.forward(responses, command).await
-    }
-
-    /// Run workspace benchmarks.
-    async fn bench(
-        &self,
-        request: Request<BenchRequest>,
-        responses: ResponseSender<ProgressEvent>,
-    ) -> Result<Response<BenchOutput>, Status> {
-        let request = request.value;
-        self.resolve_root(&request.root)?;
-        let (progress, events) = CommandProgress::channel();
-        let command = Workspace::bench(self, request.input, Some(progress));
 
         events.forward(responses, command).await
     }

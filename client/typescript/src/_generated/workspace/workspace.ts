@@ -43,41 +43,11 @@ const artifactMethodResponse: Decoder<artifactPayload.ArtifactPayload> = {
 const artifactMethod: Method<workspaceServiceArtifact.ArtifactRequest, artifactPayload.ArtifactPayload, never, never> = {
     service: 5221210015570525267n,
     method: 10319401099963147929n,
-    fingerprint: 165935153968673773082235400628028985078n,
+    fingerprint: 140320109428659163710912724195015653969n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: artifactMethodRequest,
     response: artifactMethodResponse,
-};
-
-const benchMethodRequest: Encoder<workspaceServiceCommand.BenchRequest> = {
-    encode(writer, value: workspaceServiceCommand.BenchRequest): void {
-        workspaceServiceCommand.encodeBenchRequest(writer, value);
-    },
-};
-
-const benchMethodResponse: Decoder<workspaceCommandOutput.BenchOutput> = {
-    decode(reader): workspaceCommandOutput.BenchOutput {
-        return workspaceCommandOutput.decodeBenchOutput(reader);
-    },
-};
-
-const benchMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
-    decode(reader): workspaceCommandCommon.ProgressEvent {
-        return workspaceCommandCommon.decodeProgressEvent(reader);
-    },
-};
-
-/** Descriptor for the bench RPC method. */
-const benchMethod: Method<workspaceServiceCommand.BenchRequest, workspaceCommandOutput.BenchOutput, never, workspaceCommandCommon.ProgressEvent> = {
-    service: 5221210015570525267n,
-    method: 16323609511680098962n,
-    fingerprint: 170484800841727377046336364869951836539n,
-    kind: "serverStreaming",
-    idempotency: "unknown",
-    request: benchMethodRequest,
-    response: benchMethodResponse,
-    output: benchMethodOutput,
 };
 
 const blobMethodRequest: Encoder<workspaceServiceArtifact.ArtifactRequest> = {
@@ -787,7 +757,7 @@ const runQueryMethodResponse: Decoder<workspaceQuery.RunQueryResponse> = {
 const runQueryMethod: Method<workspaceServiceQuery.RunQueryRequest, workspaceQuery.RunQueryResponse, never, never> = {
     service: 5221210015570525267n,
     method: 3642248314147070001n,
-    fingerprint: 246858867408008530263929003886272291980n,
+    fingerprint: 102888163394782786105480222703962212060n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: runQueryMethodRequest,
@@ -839,7 +809,7 @@ const settingsMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const settingsMethod: Method<workspaceServiceCommand.SettingsRequest, workspaceCommandOutput.SettingsOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 15716122537260110462n,
-    fingerprint: 138164997054719120704712025741195375554n,
+    fingerprint: 186805041152560388768458308719306247334n,
     kind: "serverStreaming",
     idempotency: "noSideEffects",
     request: settingsMethodRequest,
@@ -1005,7 +975,6 @@ export class WorkspaceClient {
     constructor(connection: Connection) {
         this.#connection = connection;
         connection.bind(artifactMethod);
-        connection.bind(benchMethod);
         connection.bind(blobMethod);
         connection.bind(branchRevisionMethod);
         connection.bind(buildMethod);
@@ -1046,11 +1015,6 @@ export class WorkspaceClient {
     /** Call the artifact workspace method. */
     artifact(request: RequestValue<workspaceServiceArtifact.ArtifactRequest>): Promise<RpcResponse<artifactPayload.ArtifactPayload>> {
         return this.#connection.call(artifactMethod, request);
-    }
-
-    /** Call the bench workspace method. */
-    bench(request: RequestValue<workspaceServiceCommand.BenchRequest>): Call<workspaceCommandOutput.BenchOutput, never, workspaceCommandCommon.ProgressEvent> {
-        return this.#connection.start(benchMethod, request);
     }
 
     /** Call the blob workspace method. */

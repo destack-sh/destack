@@ -1,4 +1,3 @@
-pub mod bench;
 pub mod build;
 pub mod cache;
 pub mod check;
@@ -24,7 +23,6 @@ pub mod test;
 pub mod update;
 pub mod version;
 
-pub use bench::BenchArgs;
 pub use build::BuildArgs;
 pub use cache::CacheArgs;
 pub use check::CheckArgs;

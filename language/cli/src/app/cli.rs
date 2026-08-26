@@ -3,8 +3,8 @@ use clap::builder::styling::{AnsiColor, Style, Styles};
 use clap::{Args, CommandFactory, Parser, ValueEnum};
 
 use crate::{
-    bench, build, cache, check, clean, completions, console, doc, doctor, explain, fmt, info, init,
-    lint, lsp, query, rewrite, settings, targets, task, test, update, version,
+    build, cache, check, clean, completions, console, doc, doctor, explain, fmt, info, init, lint,
+    lsp, query, rewrite, settings, targets, task, test, update, version,
 };
 
 #[cfg(feature = "dev")]
@@ -12,9 +12,9 @@ use crate::command::DevCommand;
 #[cfg(feature = "dev")]
 use crate::command::dev::{VersionCommands, release, stats};
 use crate::command::{
-    BenchArgs, BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, DaemonArgs, DocArgs,
-    DoctorArgs, ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs, QueryArgs,
-    RewriteArgs, SettingsArgs, TargetsArgs, TaskArgs, TestArgs, UpdateArgs, VersionArgs,
+    BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, DaemonArgs, DocArgs, DoctorArgs,
+    ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs, QueryArgs, RewriteArgs,
+    SettingsArgs, TargetsArgs, TaskArgs, TestArgs, UpdateArgs, VersionArgs,
 };
 
 /// Base help template for CLI output.
@@ -150,9 +150,6 @@ pub enum Command {
     /// Run tests.
     Test(TestArgs),
 
-    /// Run benchmarks.
-    Bench(BenchArgs),
-
     /// Generate documentation.
     Doc(DocArgs),
 
@@ -193,7 +190,6 @@ impl Command {
             Self::Explain(args) => explain::run(&args),
             Self::Doctor(args) => doctor::run(&args).await,
             Self::Test(args) => test::run(&args).await,
-            Self::Bench(args) => bench::run(&args).await,
             Self::Doc(args) => doc::run(&args).await,
             Self::Task(args) => task::run(&args).await,
             Self::Lsp(args) => lsp::run(&args),
@@ -327,12 +323,6 @@ fn build_commands_help(color_enabled: bool) -> String {
         },
         CommandEntry {
             name: "test",
-            example: "",
-            help: None,
-            group: 1,
-        },
-        CommandEntry {
-            name: "bench",
             example: "",
             help: None,
             group: 1,

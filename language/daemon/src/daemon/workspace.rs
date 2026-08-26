@@ -420,17 +420,6 @@ impl WorkspaceService for DaemonPeer {
         WorkspaceService::doc(&workspace, request, responses).await
     }
 
-    /// Run workspace benchmarks.
-    async fn bench(
-        &self,
-        request: Request<workspace::BenchRequest>,
-        responses: ResponseSender<ProgressEvent>,
-    ) -> Result<Response<workspace::BenchOutput>, Status> {
-        let workspace = self.workspace(&request.value.root)?;
-
-        WorkspaceService::bench(&workspace, request, responses).await
-    }
-
     /// Return workspace information.
     async fn info(
         &self,

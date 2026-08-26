@@ -1,4 +1,3 @@
-mod bench;
 mod build;
 mod cache;
 mod check;
@@ -21,7 +20,6 @@ mod targets;
 mod task;
 mod test;
 
-pub use bench::*;
 pub use build::*;
 pub use cache::*;
 pub use check::*;

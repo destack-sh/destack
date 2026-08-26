@@ -14,12 +14,12 @@ use parking_lot::Mutex;
 
 use super::{BackgroundRun, Lifecycle, State, WorkspacePin};
 use crate::{
-    BenchInput, BenchOptions, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOptions,
-    CacheOutput, CheckInput, CheckOutput, CleanInput, CleanOptions, CleanOutput, CommandContext,
-    CommandError, CommandOptions, CommandOutcome, CommandProgress, CommandResult, CommandRevision,
-    DocInput, DocOptions, DocOutput, DoctorInput, DoctorOptions, DoctorOutput, Error, ExportInput,
-    ExportResult, ExportedFile, FormatInput, FormatOutput, InfoInput, InfoOptions, InfoOutput,
-    Output, OutputBuffer, QueryInput, QueryOutput, RewriteInput, RewriteOutput, SettingsInput,
+    BuildInput, BuildOutput, CacheInput, CacheOptions, CacheOutput, CheckInput, CheckOutput,
+    CleanInput, CleanOptions, CleanOutput, CommandContext, CommandError, CommandOptions,
+    CommandOutcome, CommandProgress, CommandResult, CommandRevision, DocInput, DocOptions,
+    DocOutput, DoctorInput, DoctorOptions, DoctorOutput, Error, ExportInput, ExportResult,
+    ExportedFile, FormatInput, FormatOutput, InfoInput, InfoOptions, InfoOutput, Output,
+    OutputBuffer, QueryInput, QueryOutput, RewriteInput, RewriteOutput, SettingsInput,
     SettingsOptions, SettingsOutput, TargetsInput, TargetsOptions, TargetsOutput, TaskInput,
     TaskOptions, TaskOutput, TestInput, TestOptions, TestOutput, WatchState,
 };
@@ -334,22 +334,6 @@ impl Workspace {
 
             self.run_command(&common, request.revision, progress, move |context| {
                 Box::pin(async move { context.run_doc_command(&DocOptions::default()).await })
-            })
-            .await
-        })
-    }
-
-    /// Run workspace benchmarks.
-    pub fn bench<'a>(
-        &'a self,
-        request: BenchInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<BenchOutput, CommandError>> {
-        Box::pin(async move {
-            let common = request.command_options();
-
-            self.run_command(&common, request.revision, progress, move |context| {
-                Box::pin(async move { context.run_bench_command(&BenchOptions::default()) })
             })
             .await
         })

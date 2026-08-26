@@ -11,7 +11,6 @@ import {
 import type { DiagnosticsRequest } from "../_generated/workspace/diagnostic/file.js";
 import type { ArtifactRequest, ExportRequest } from "../_generated/workspace/service/artifact.js";
 import type {
-    BenchRequest,
     BuildRequest,
     CacheRequest,
     CheckRequest,
@@ -208,11 +207,6 @@ export class Workspace {
     /** Generate documentation for this root. */
     doc(input: DocRequest["input"]) {
         return this.client.doc({ root: this.root, input });
-    }
-
-    /** Run benchmarks in this root. */
-    bench(input: BenchRequest["input"]) {
-        return this.client.bench({ root: this.root, input });
     }
 
     /** Return information about this root. */

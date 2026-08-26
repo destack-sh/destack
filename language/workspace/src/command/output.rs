@@ -150,7 +150,6 @@ impl<T> CommandOutput for Output<T> {
     }
 }
 
-command_output!(BenchOutput, CommandMessagePayload);
 command_output!(BuildOutput, BuildPayload);
 command_output!(CacheOutput, CachePayload);
 command_output!(CheckOutput, ());

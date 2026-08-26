@@ -4,8 +4,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BenchInput, BuildInput, CacheInput, CheckInput, CleanInput, DocInput, DoctorInput, FormatInput,
-    InfoInput, QueryInput, RewriteInput, SettingsInput, TargetsInput, TaskInput, TestInput,
+    BuildInput, CacheInput, CheckInput, CleanInput, DocInput, DoctorInput, FormatInput, InfoInput,
+    QueryInput, RewriteInput, SettingsInput, TargetsInput, TaskInput, TestInput,
 };
 
 /// Request to check one workspace root.
@@ -69,15 +69,6 @@ pub struct DocRequest {
     pub root: PathBuf,
     /// Documentation input.
     pub input: DocInput,
-}
-
-/// Request to run workspace benchmarks.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct BenchRequest {
-    /// Workspace root containing the benchmarks.
-    pub root: PathBuf,
-    /// Benchmark input.
-    pub input: BenchInput,
 }
 
 /// Request for workspace information.
