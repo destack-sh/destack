@@ -195,6 +195,8 @@ impl CheckState<'_> {
     /// Convert materialized state into one materialized DIR module.
     pub(in crate::sema) fn into_materialized(mut self) -> CompilerResult<DirMaterialized> {
         self.write_back()?;
+        let module = self.module_id;
+        self.commit_instance_conformances(module)?;
 
         // take the tail segments this pass wrote
         let parsed = Arc::clone(&self.module.parsed);

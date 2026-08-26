@@ -330,7 +330,7 @@ newtype interface Duplicate {
         /// @resolution.call source=source.clone() parameters=() return=Owned<&Duplicate.cloneFrom.'b readonly this> kind=symbol target=Duplicate.clone receiver=&Duplicate.cloneFrom.'b readonly this adjustments=(&Duplicate.cloneFrom.'b readonly this => direct -> this, borrow(&Duplicate.cloneFrom.'b readonly this)) instance=Duplicate.clone<Duplicate.cloneFrom.P3>
         /// @resolution.place source=source placement=Duplicate.cloneFrom.P3 lifetime=Duplicate.cloneFrom.'b access="readonly"
         /// @resolution.access source=source root=Duplicate.cloneFrom.source
-        /// @generic.instantiation id=Duplicate.clone<Duplicate.cloneFrom.P3> template=Duplicate.clone arguments=(Duplicate.cloneFrom.P3)
+        /// @generic.instantiation id="Duplicate.clone<this, Duplicate.cloneFrom.P3>" template=Duplicate.clone arguments=(Duplicate.cloneFrom.P3)
 
     }
 }
@@ -383,7 +383,7 @@ newtype interface Values<T> {
         /// @resolution.call source=this.pick<T>() parameters=() return=T kind=symbol target=Values.pick receiver=this instance=Values<T>.pick<T>
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @generic.instantiation id="Values.pick<T, T>" template=Values.pick arguments=(T, T) owner=Values
+        /// @generic.instantiation id="Values.pick<this, T, T>" template=Values.pick arguments=(T, T) owner=Values
         /// @generic.instantiation id=Values.pick<T> template=Values.pick arguments=(T) owner=Values
         /// @resolution.name source=T target=Values.T
 

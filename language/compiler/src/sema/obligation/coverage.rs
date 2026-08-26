@@ -886,7 +886,7 @@ impl CheckState<'_> {
                 }
 
                 // newtype patterns project their payload, nominal patterns destructure it
-                let selection = match &resolution {
+                let key = match &resolution {
                     dir::PatternDecision::Destructure(resolution) => {
                         let dir::PatternDestructureResolution::Nominal(nominal) =
                             resolution.as_ref()
@@ -898,15 +898,15 @@ impl CheckState<'_> {
                             });
                         };
 
-                        nominal.selection.clone()
+                        nominal.key.clone()
                     }
                     dir::PatternDecision::Project(projection)
                         if let dir::OperationResolution::One(dir::Projection::NewtypePayload {
-                            selection,
+                            key,
                             ..
                         }) = &projection.projection =>
                     {
-                        selection.clone()
+                        key.clone()
                     }
                     resolution => {
                         return Err(CompilerError::Internal {
@@ -921,12 +921,12 @@ impl CheckState<'_> {
                 match self.ty(value)? {
                     dir::Type::Application(value_instance) => {
                         // inherited constructors cover through heritage
-                        if value_instance.symbol != selection.symbol {
+                        if value_instance.symbol != key.symbol {
                             let closure = self.heritage_closure(origin, value)?;
                             let mut inherits = false;
                             for application in &closure.applications {
                                 let (_, instance) = self.nominal_application(application.ty)?;
-                                if instance.symbol == selection.symbol {
+                                if instance.symbol == key.symbol {
                                     inherits = true;
                                     break;
                                 }

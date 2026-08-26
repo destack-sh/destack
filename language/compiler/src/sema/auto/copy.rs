@@ -46,6 +46,13 @@ impl CheckState<'_> {
             };
         }
 
+        // callable handles copy only while they stay repeatable
+        if let dir::Type::Function(function) = kind {
+            return Ok(Verdict::decided(
+                function.multiplicity == dir::Multiplicity::Repeatable,
+            ));
+        }
+
         // managed defaults copy their compact runtime handles
         if self.default_ownership(origin, ty)? == Some(dir::Ownership::Managed) {
             return Ok(Verdict::Holds);
@@ -85,6 +92,8 @@ impl CheckState<'_> {
             | dir::Type::Primitive(_)
             | dir::Type::Literal(_)
             | dir::Type::Range(_) => Ok(Verdict::Holds),
+            // copy callable values as their compact runtime handles
+            dir::Type::FunctionSignature(_) => Ok(Verdict::Holds),
             // decide variants through their owning enum
             dir::Type::Variant(member) => self.decide_copy(origin, member.owner, active),
             // refuse opaque and callable storage
@@ -92,7 +101,6 @@ impl CheckState<'_> {
             | dir::Type::Intrinsic
             | dir::Type::Member(_)
             | dir::Type::Operation(_)
-            | dir::Type::FunctionSignature(_)
             | dir::Type::Dynamic(_)
             | dir::Type::Function(_)
             | dir::Type::Reference(_) => Ok(Verdict::Fails),
@@ -231,6 +239,25 @@ impl CheckState<'_> {
         ) || item.is_some_and(|item| item.scalar_domain().is_some())
         {
             return Ok(Verdict::Holds);
+        }
+
+        // copy transparent payload intrinsics through their first type argument
+        if matches!(
+            item,
+            Some(
+                dir::LanguageItem::UnsafeCell
+                    | dir::LanguageItem::ManuallyDrop
+                    | dir::LanguageItem::MaybeUninit
+                    | dir::LanguageItem::Wrapping
+                    | dir::LanguageItem::Pin
+            )
+        ) {
+            let arguments = self.type_ids(instance_module, instance.arguments)?;
+            let Some(argument) = arguments.first().copied() else {
+                return Ok(Verdict::Fails);
+            };
+
+            return self.decide_copy(origin, argument, active);
         }
 
         // move an instance whose symbol declares no definition

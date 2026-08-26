@@ -55,6 +55,40 @@ impl CheckState<'_> {
         Ok(verdict)
     }
 
+    /// Decide one judgment over the component types, stopping at the first acceptance.
+    pub(in crate::sema) fn decide_any(
+        &mut self,
+        ids: impl IntoIterator<Item = dir::GlobalTypeId>,
+        mut decide: impl FnMut(&mut Self, dir::GlobalTypeId) -> CompilerResult<Verdict>,
+    ) -> CompilerResult<Verdict> {
+        let mut verdict = Verdict::Fails;
+        for id in ids {
+            verdict = verdict.or(decide(self, id)?);
+            if verdict == Verdict::Holds {
+                return Ok(Verdict::Holds);
+            }
+        }
+
+        Ok(verdict)
+    }
+
+    /// Decide one judgment over the component types of one nominal instance, accepting any.
+    pub(in crate::sema) fn decide_any_applied(
+        &mut self,
+        instance_module: ModuleId,
+        instance: &dir::GenericApplication,
+        ids: impl IntoIterator<Item = dir::GlobalTypeId>,
+        mut decide: impl FnMut(&mut Self, dir::GlobalTypeId) -> CompilerResult<Verdict>,
+    ) -> CompilerResult<Verdict> {
+        let substitution = self.instance_substitution(instance_module, instance)?;
+
+        self.decide_any(ids, |state, id| {
+            let applied = state.substitute_type(id, &substitution)?;
+
+            decide(state, applied)
+        })
+    }
+
     /// Decide one judgment over every component type of one nominal instance.
     pub(in crate::sema) fn decide_all_applied(
         &mut self,

@@ -1029,8 +1029,8 @@ const same = a == b;
 /// @resolution.operator source="a == b" type=boolean operator="==" kind=call parameters=(&'static readonly constant Point) arguments=(provided(b) as &'static readonly constant Point) return=boolean kind=symbol target=PartialEqual.equal receiver=Point adjustments=(borrow(&'static readonly constant Point)) instance="PartialEqual<Point>.equal<\"constant\", \"constant\">"
 /// @resolution.place source=a placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=a root=a
-/// @generic.instantiation id="PartialEqual.equal<Point, \"constant\", \"constant\">" template=PartialEqual.equal arguments=(Point, "constant", "constant")
-/// @generic.instance id="PartialEqual.equal<Point, \"constant\", \"constant\">" template=PartialEqual.equal arguments=(Point, "constant", "constant")
+/// @generic.instantiation id="PartialEqual.equal<Point, Point, \"constant\", \"constant\">" template=PartialEqual.equal arguments=(Point, "constant", "constant")
+/// @generic.instance id="PartialEqual.equal<Point, Point, \"constant\", \"constant\">" template=PartialEqual.equal arguments=(Point, "constant", "constant")
 /// @resolution.name source=b target=b
 /// @resolution.place source=b placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=b root=b
@@ -1059,8 +1059,8 @@ const csame = s1 == s2;
 /// @resolution.operator source="s1 == s2" type=boolean operator="==" kind=call parameters=(&'static readonly Session) arguments=(provided(s2) as &'static readonly Session) return=boolean kind=symbol target=PartialEqual.equal receiver=Session adjustments=(borrow(&'static readonly Session)) instance="PartialEqual<Session>.equal<\"local\", \"local\">"
 /// @resolution.place source=s1 placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=s1 root=s1
-/// @generic.instantiation id="PartialEqual.equal<Session, \"local\", \"local\">" template=PartialEqual.equal arguments=(Session, "local", "local")
-/// @generic.instance id="PartialEqual.equal<Session, \"local\", \"local\">" template=PartialEqual.equal arguments=(Session, "local", "local")
+/// @generic.instantiation id="PartialEqual.equal<Session, Session, \"local\", \"local\">" template=PartialEqual.equal arguments=(Session, "local", "local")
+/// @generic.instance id="PartialEqual.equal<Session, Session, \"local\", \"local\">" template=PartialEqual.equal arguments=(Session, "local", "local")
 /// @resolution.name source=s2 target=s2
 /// @resolution.place source=s2 placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=s2 root=s2
@@ -1161,7 +1161,7 @@ fn test_reject_a_clone_bound_on_a_type_argument_inferred_later() {
     let session = TestSession::single(
         r#"
 struct Blocker {
-    run: () => void;
+    run: Function<(), void, "once">;
 }
 
 struct Holder<Value> {
@@ -1189,13 +1189,13 @@ const cloned = requireClone(hold(), holdBlocker());
     );
 }
 
-/// A Clone bound on a struct holding a function field reports a diagnostic.
+/// A Clone bound on a struct holding a once function field reports a diagnostic.
 #[test]
-fn test_reject_a_clone_bound_on_a_struct_with_a_function_field() {
+fn test_reject_a_clone_bound_on_a_struct_with_a_once_function_field() {
     let session = TestSession::single(
         r#"
 struct Blocker {
-    run: () => void;
+    run: Function<(), void, "once">;
 }
 
 struct Holder<Value> {
@@ -1218,6 +1218,31 @@ const cloned = requireClone(held);
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Holder<Blocker>' does not satisfy 'Clone'"
 /// @diagnostic.label line=16 column=16 span="requireClone(held)" line_source="const cloned = requireClone(held);"
 /// @diagnostic.related line=12 column=23 span="T" line_source="function requireClone<T: Clone>(value: T): T {" message="required by this bound on 'T'"
+"#,
+    );
+}
+
+/// A Clone bound on a struct holding a repeatable function field resolves.
+#[test]
+fn test_accept_a_clone_bound_on_a_struct_with_a_repeatable_function_field() {
+    let session = TestSession::single(
+        r#"
+struct Handler {
+    run: () => void;
+}
+
+function requireClone<T: Clone>(value: T): T {
+    return value;
+}
+
+declare const handler: Handler;
+
+const cloned = requireClone(handler);
+"#,
+    );
+
+    session.assert_dir_diagnostics(
+        "main.ds", r#"
 "#,
     );
 }

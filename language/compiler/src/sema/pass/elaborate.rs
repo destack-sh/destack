@@ -26,15 +26,19 @@ impl CheckState<'_> {
                 state.apply_decorators()
             })?;
 
-            // derive variances, constructor entries, and marker conformances
+            // derive variances and constructor entries
             let module = state.module_id;
             state.derive_module_variances(module)?;
             state.derive_native_cardinalities(module)?;
             state.derive_module_constructors(module)?;
-            state.derive_module_conformances(module)?;
 
             // check every declaration against its declared shape
-            state.check_declarations(module)
+            state.check_declarations(module)?;
+
+            // commit conformances once the declared conformance selections landed
+            state.commit_definition_conformances(module)?;
+            state.commit_parameter_conformances(module)?;
+            state.commit_instance_conformances(module)
         })
     }
 

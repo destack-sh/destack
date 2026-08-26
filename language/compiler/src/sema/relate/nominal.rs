@@ -159,6 +159,18 @@ impl CheckState<'_> {
             return self.constrain_type(origin, cause, relation, member.owner, target);
         }
 
+        // nullish try residuals satisfy an including return type by absorption
+        if let dir::Type::Application(instance) = self.ty(target)?
+            && matches!(
+                self.language_item(instance.symbol)?,
+                Some(dir::LanguageItem::FromResidual)
+            )
+            && let [residual] = *self.type_ids(target.module_id, instance.arguments)?
+            && self.is_nullish_type(origin, residual)?
+        {
+            return self.decide_relation(origin, Relation::Assignable, residual, source);
+        }
+
         // union sources must satisfy the target through every element
         if let dir::Type::Union(union) = self.ty(source)? {
             let elements: SmallVec<[_; 8]> =

@@ -23,6 +23,7 @@ impl CheckState<'_> {
         module: ModuleId,
     ) -> CompilerResult<(DirDeclared, Vec<DiagnosticRecord>)> {
         self.write_back()?;
+        self.commit_parameter_conformances(module)?;
 
         let recorder = self.recorder;
         ArtifactAttemptRecorder::breakdown_maybe(recorder, "write", || self.write_module(module))?;

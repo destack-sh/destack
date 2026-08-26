@@ -358,7 +358,7 @@ impl CheckState<'_> {
 
         // reject declared type parameters outside the constrained set
         for parameter in self.generic_template_parameters(template)? {
-            let Some(binding) = self.generic_parameter(parameter).copied() else {
+            let Some(binding) = self.generic_parameter(parameter).cloned() else {
                 continue;
             };
 

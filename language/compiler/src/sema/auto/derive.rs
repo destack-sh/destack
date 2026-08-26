@@ -107,6 +107,15 @@ impl CheckState<'_> {
             // decide a variant through its owning enum
             dir::Type::Variant(member) => self.decide_derivable(origin, member.owner, interface),
 
+            // clone callable values by duplicating their repeatable handles
+            dir::Type::FunctionSignature(_) | dir::Type::FunctionPointer(_)
+                if interface == dir::AutoInterface::Clone =>
+            {
+                Ok(Verdict::Holds)
+            }
+            dir::Type::Function(function) if interface == dir::AutoInterface::Clone => Ok(
+                Verdict::decided(function.multiplicity == dir::Multiplicity::Repeatable),
+            ),
             // decide opaque and callable forms by unpin alone
             dir::Type::Unknown
             | dir::Type::Intrinsic

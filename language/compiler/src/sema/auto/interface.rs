@@ -3,17 +3,10 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{Cause, CauseKind, CheckState, Origin, Relation, TypeSubstitution, Verdict};
+use crate::sema::{
+    CandidateOutcome, Cause, CauseKind, CheckState, Origin, Relation, TypeSubstitution, Verdict,
+};
 use crate::{CompilerError, CompilerResult};
-
-/// Whether one candidate type must decide every representation marker.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum MarkerDecision {
-    /// Every marker decides, as a concrete declaration leaves nothing open.
-    Required,
-    /// A marker may stay undecided while an open type awaits its solutions.
-    Optional,
-}
 
 impl CheckState<'_> {
     /// Decide one applied compiler-known interface intrinsically.
@@ -163,6 +156,7 @@ impl CheckState<'_> {
                 .is_scalar_domain_only(origin, ty, dir::ScalarDomain::Float)
                 .map(Verdict::decided),
             dir::AutoInterface::Copy => self.decide_copy(origin, ty, &mut active),
+            dir::AutoInterface::Drop => self.decide_drop(origin, ty, &mut active),
             dir::AutoInterface::SharedSafe => self.is_shared_safe(origin, ty).map(Verdict::decided),
             dir::AutoInterface::SuspendSafe => {
                 self.is_suspend_safe(origin, ty).map(Verdict::decided)
@@ -287,77 +281,40 @@ impl CheckState<'_> {
         Ok(is_only_domain)
     }
 
-    /// Commit the representation markers every committed type of one module holds.
-    ///
-    /// A type open in parameters or `this` decides under the template governing its site.
-    pub(in crate::sema) fn commit_conformances(&mut self, module: ModuleId) -> CompilerResult<()> {
-        // collect the committed node types of this module at their sites
-        let mut targets = FxIndexSet::default();
-        for node in self.node_types.nodes() {
-            if node.module_id != module {
-                continue;
-            }
+    /// Decide the auto interfaces one closed type satisfies.
+    fn decided_conformances(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::AutoInterfaceSet> {
+        // reduce compiler-known applications to the representations they decide as
+        let ty = self.normalize(origin, ty)?;
 
-            if let Some(ty) = self.node_types.get(&node) {
-                targets.insert((ty, node));
-            }
-        }
+        // record each decided conformance, leaving undecided interfaces unset
+        let mut conformances = dir::AutoInterfaceSet::new();
+        for interface in dir::AutoInterface::ALL {
+            // decide without committing bindings or reports
+            let mut verdict = Verdict::Fails;
+            self.probe_candidate(|state| {
+                verdict = state.decide_auto_interface(origin, ty, interface)?;
 
-        // collect the argument types of committed instances and instantiations at their sites
-        for (_, instance) in self.module(module).generics_tail.iter_instances() {
-            for binding in &instance.selection.arguments {
-                targets.insert((binding.argument, instance.source));
-            }
-        }
-
-        for instantiation in self.module(module).generics_tail.iter_instantiations() {
-            for binding in &instantiation.selection.arguments {
-                targets.insert((binding.argument, instantiation.source));
+                Ok(CandidateOutcome::<(), ()>::Rejected(()))
+            })?;
+            if verdict == Verdict::Holds {
+                conformances.insert(interface);
             }
         }
 
-        // decide each value type against the representation markers
-        for (target, site) in targets {
-            // skip the types still awaiting solutions
-            let flags = self.type_flags(target)?;
-            if flags.has_variable() || flags.has_hole() {
-                continue;
-            }
-
-            // skip heads outside value decision
-            if matches!(
-                self.ty(target)?,
-                dir::Type::Reference(_)
-                    | dir::Type::Erased(_)
-                    | dir::Type::Rigid(_)
-                    | dir::Type::Key(_)
-                    | dir::Type::Operation(_)
-                    | dir::Type::Member(_)
-                    | dir::Type::Error
-            ) {
-                continue;
-            }
-
-            // assume the bounds of the template governing an open type's site
-            let scope = match flags.has_parameter() || flags.has_this() {
-                true => self.template_at_node(site),
-                false => None,
-            };
-            let origin = Origin::Node(site, scope);
-
-            self.commit_representation(module, target, scope, origin, MarkerDecision::Optional)?;
-        }
-
-        Ok(())
+        Ok(conformances)
     }
 
-    /// Commit the representation markers each concrete nominal declaration of one module holds.
-    pub(in crate::sema) fn derive_module_conformances(
+    /// Commit the auto conformances of each instantiation-invariant nominal declaration.
+    pub(in crate::sema) fn commit_definition_conformances(
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<()> {
-        // collect every concrete nominal declaration in the module
-        let mut nominals = Vec::new();
+        // collect the nominal declarations whose conformances stay instantiation-invariant
+        let mut candidates = Vec::new();
         for (symbol, definition) in self.module(module).iter_definitions() {
             let is_nominal = matches!(
                 definition,
@@ -366,55 +323,161 @@ impl CheckState<'_> {
                     | dir::Definition::Enum(_)
                     | dir::Definition::Newtype(_)
             );
-            if is_nominal && definition.template().is_none() {
+            if is_nominal {
+                candidates.push((symbol, definition.template()));
+            }
+        }
+
+        // conformances are region and space invariant, so memory-only templates commit here
+        let mut nominals = Vec::new();
+        for (symbol, template) in candidates {
+            let is_invariant = match template {
+                None => true,
+                Some(template) => {
+                    let template = dir::GlobalGenericTemplateId::new(module, template);
+                    self.generic_template_parameters(template)?
+                        .iter()
+                        .all(|parameter| {
+                            self.generic_parameter(*parameter)
+                                .is_some_and(|row| row.memory_parameter().is_some())
+                        })
+                }
+            };
+            if is_invariant {
                 nominals.push(symbol);
             }
         }
 
-        // commit the held markers on each nominal's own instance
+        // decide and commit the satisfied set on each declaration
         for symbol in nominals {
             let instance = self.declaration_instance(symbol)?;
             let target = self.intern_type(dir::Type::Application(instance))?;
             let origin = Origin::Symbol(symbol);
-
-            self.commit_representation(module, target, None, origin, MarkerDecision::Required)?;
+            let conformances = self.decided_conformances(origin, target)?;
+            if let Some(definition) = self.module_mut(module).definition_mut(symbol) {
+                definition.set_conformances(conformances);
+            }
         }
 
         Ok(())
     }
 
-    /// Commit the representation markers one candidate type holds into one module's auto table.
-    fn commit_representation(
+    /// Commit the assumed auto conformances of each declared generic parameter.
+    pub(in crate::sema) fn commit_parameter_conformances(
         &mut self,
         module: ModuleId,
-        target: dir::GlobalTypeId,
-        scope: Option<dir::GlobalGenericTemplateId>,
-        origin: Origin,
-        decision: MarkerDecision,
     ) -> CompilerResult<()> {
-        // commit the markers this type holds, deciding each once
-        // NOTE #Performance: foreign-owned targets decide again in every asking module
-        for interface in dir::AutoInterface::REPRESENTATION {
-            // skip a marker already committed
-            if self.module(module).auto.conforms(target, scope, interface) {
+        // collect the constrained parameters of the pass segment
+        let mut constrained = Vec::new();
+        for (parameter_id, binding) in self.module(module).generics_tail.iter_parameters() {
+            if let Some(constraint) = binding.constraint {
+                constrained.push((parameter_id, binding.source, constraint));
+            }
+        }
+
+        // commit the interface closure each written bound assumes
+        for (parameter_id, source, constraint) in constrained {
+            let origin = Origin::Node(source, None);
+            let conformances = self.assumed_auto_interfaces(origin, constraint)?;
+            self.module_mut(module)
+                .generics_tail
+                .set_parameter_conformances(parameter_id, conformances);
+        }
+
+        Ok(())
+    }
+
+    /// Collect the auto interfaces one written bound assumes, closing over interface heritage.
+    fn assumed_auto_interfaces(
+        &mut self,
+        origin: Origin,
+        constraint: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::AutoInterfaceSet> {
+        let mut conformances = dir::AutoInterfaceSet::new();
+        let mut pending = vec![constraint];
+        let mut visited = FxIndexSet::default();
+
+        // walk each bound and the interfaces it inherits
+        while let Some(ty) = pending.pop() {
+            let ty = self.normalize(origin, ty)?;
+            match self.ty(ty)? {
+                // intersection bounds assume every element
+                dir::Type::Intersection(intersection) => {
+                    pending.extend(self.type_ids(ty.module_id, intersection.elements)?);
+                }
+                // applied interfaces assume their identity and their heritage
+                dir::Type::Application(dir::GenericApplication { symbol, .. })
+                | dir::Type::Reference(dir::TypeReference { symbol }) => {
+                    if !visited.insert(symbol) {
+                        continue;
+                    }
+                    if let Some(item) = self.language_item(symbol)?
+                        && let Some(interface) = dir::AutoInterface::from_language_item(item)
+                    {
+                        conformances.insert(interface);
+                    }
+                    if let Some(dir::Definition::Interface(definition)) = self.definition(symbol)? {
+                        let inherited: Vec<_> = definition
+                            .extends
+                            .iter()
+                            .map(|heritage| heritage.ty)
+                            .collect();
+                        pending.extend(inherited);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        Ok(conformances)
+    }
+
+    /// Commit the auto conformances of each nominal instance this pass materialized.
+    pub(in crate::sema) fn commit_instance_conformances(
+        &mut self,
+        module: ModuleId,
+    ) -> CompilerResult<()> {
+        // collect the nominal instances of the pass segment
+        let mut nominals = Vec::new();
+        for (instance_id, instance) in self.module(module).generics_tail.iter_instances() {
+            nominals.push((instance_id, instance.key.clone(), instance.source));
+        }
+
+        // decide and commit the satisfied set on each closed nominal
+        for (instance_id, key, source) in nominals {
+            let is_nominal = matches!(
+                self.definition(key.symbol)?,
+                Some(
+                    dir::Definition::Struct(_)
+                        | dir::Definition::Class(_)
+                        | dir::Definition::Enum(_)
+                        | dir::Definition::Newtype(_)
+                )
+            );
+            if !is_nominal {
                 continue;
             }
 
-            // commit a held marker
-            let verdict = self.decide_auto_interface(origin, target, interface)?;
-            if verdict == Verdict::Holds {
-                self.module_mut(module)
-                    .auto
-                    .push_conformance(target, scope, interface);
+            // apply the declaration at the instance's closed type arguments
+            let mut arguments = Vec::with_capacity(key.arguments.len());
+            for binding in &key.arguments {
+                let is_induced = self
+                    .generic_parameter(binding.parameter)
+                    .is_some_and(|row| row.induced_memory_parameter().is_some());
+                if !is_induced {
+                    arguments.push(binding.argument);
+                }
             }
-            // reject an undecided marker on a type that owes a decision
-            else if verdict == Verdict::Ambiguous && decision == MarkerDecision::Required {
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "declaration instance {target:?} left {interface:?} conformance ambiguous"
-                    ),
-                });
-            }
+            let arguments = self.intern_type_ids(&arguments)?;
+            let target = self.intern_type(dir::Type::Application(dir::GenericApplication {
+                symbol: key.symbol,
+                arguments,
+            }))?;
+            let origin = Origin::Node(source, None);
+            let conformances = self.decided_conformances(origin, target)?;
+            self.module_mut(module)
+                .generics_tail
+                .set_instance_conformances(instance_id, conformances);
         }
 
         Ok(())

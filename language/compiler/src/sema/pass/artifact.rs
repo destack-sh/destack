@@ -5,7 +5,7 @@ use destack_dir as dir;
 use destack_repository::ArtifactAttemptRecorder;
 use destack_source::ModuleId;
 
-use crate::sema::{Answer, CheckModuleState, CheckState, Goal, Relation, Verdict};
+use crate::sema::{CheckModuleState, CheckState};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -81,12 +81,9 @@ impl CheckState<'_> {
 
     /// Convert flattened state into one elaborated DIR module.
     pub(in crate::sema) fn into_elaborated(
-        mut self,
+        self,
         module: ModuleId,
     ) -> CompilerResult<DirElaborated> {
-        // persist the implementation winners this pass decided
-        self.commit_selected_implementations(module)?;
-
         // mix the declared fingerprint so base changes reach this identity
         let inherited = self
             .module
@@ -97,7 +94,6 @@ impl CheckState<'_> {
         let members = self.module.members_tail;
         let bindings = self.module.bindings_tail;
         let types = self.module.types_tail.finish();
-        let auto = self.module.auto;
         let generics = self.module.generics_tail;
         let decorators = self.module.decorators_tail;
         let statics = self.module.statics_tail;
@@ -115,7 +111,6 @@ impl CheckState<'_> {
             &bindings,
             types.content_digest(),
             &members,
-            &auto,
             &generics,
             &definitions,
             &decorators,
@@ -137,7 +132,6 @@ impl CheckState<'_> {
             bindings: Arc::new(bindings),
             types: Arc::new(types),
             members: Arc::new(members),
-            auto: Arc::new(auto),
             generics: Arc::new(generics),
             definitions: Arc::new(definitions),
             decorators: Arc::new(decorators),
@@ -147,82 +141,6 @@ impl CheckState<'_> {
             decisions: Arc::new(decisions),
             flows: Arc::new(flows),
         })
-    }
-
-    /// Commit the most general implementations this pass selected for its own owners.
-    fn commit_selected_implementations(&mut self, module: ModuleId) -> CompilerResult<()> {
-        // collect every implementation goal this pass answered
-        let goals: Vec<_> = self
-            .answers
-            .iter()
-            .filter_map(|(goal, answer)| match (goal.goal, answer) {
-                (Goal::Implementation(relation), Answer::Implement(response)) => Some((
-                    relation,
-                    goal.operands,
-                    response.value.verdict,
-                    response.value.winner,
-                )),
-                _ => None,
-            })
-            .collect();
-
-        for (relation, operands, verdict, winner) in goals {
-            // keep the decided goals this module's own concrete owners answered
-            if relation != Relation::Satisfies || verdict != Verdict::Holds {
-                continue;
-            }
-            let [source, target] = *self.type_ids(module, operands)? else {
-                return Err(CompilerError::Internal {
-                    message: "an implementation goal lost its operand pair".to_string(),
-                });
-            };
-            let Some(owner) = self.concrete_owner(module, source)? else {
-                continue;
-            };
-            let dir::Type::Application(instance) = self.ty(target)? else {
-                continue;
-            };
-
-            // commit the winner of the most general application, whose arguments all stay holes
-            let arguments = self.type_ids(target.module_id, instance.arguments)?;
-            let mut is_general = true;
-            for argument in arguments {
-                is_general &= matches!(self.ty(*argument)?, dir::Type::Hole(_));
-            }
-            if is_general {
-                self.module
-                    .auto
-                    .set_selected(owner, instance.symbol, winner);
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Return the concrete declared owner one canonical type names in one module.
-    fn concrete_owner(
-        &mut self,
-        module: ModuleId,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        // owners name themselves through argument-free applications and references
-        let symbol = match self.ty(ty)? {
-            dir::Type::Application(instance) if instance.arguments.is_empty() => instance.symbol,
-            dir::Type::Reference(reference) => reference.symbol,
-            _ => return Ok(None),
-        };
-
-        // keep the owners this module declares
-        if symbol.module_id != module {
-            return Ok(None);
-        }
-
-        // generic owners decide under their parameters, which stay per-site
-        if self.symbol_template(symbol)?.is_some() {
-            return Ok(None);
-        }
-
-        Ok(Some(symbol))
     }
 
     /// Convert solved state into one checked DIR module.
@@ -247,7 +165,6 @@ impl CheckState<'_> {
             coercions,
             captures,
             flows,
-            auto,
             references,
             ..
         } = self.module;
@@ -274,7 +191,6 @@ impl CheckState<'_> {
                     &coercions,
                     &captures,
                     &flows,
-                    &auto,
                 ))
                 .map_err(|error| CompilerError::Internal {
                     message: format!(
@@ -299,7 +215,6 @@ impl CheckState<'_> {
             coercions: Arc::new(coercions),
             captures: Arc::new(captures),
             flows: Arc::new(flows),
-            auto: Arc::new(auto),
         })
     }
 }

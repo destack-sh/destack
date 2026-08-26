@@ -995,5 +995,4 @@ impl CheckState<'_> {
 
         Ok(is_one)
     }
-
 }

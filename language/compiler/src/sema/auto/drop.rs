@@ -1,7 +1,9 @@
 use destack_dir as dir;
 
+use smallvec::SmallVec;
+
 use crate::CompilerResult;
-use crate::sema::CheckState;
+use crate::sema::{CheckState, Origin, Verdict};
 
 impl CheckState<'_> {
     /// Return the drop hook member one nominal's Drop conformance selects.
@@ -191,5 +193,92 @@ impl CheckState<'_> {
         }
 
         Ok(None)
+    }
+
+    /// Decide whether one type runs a drop hook when its owned storage ends.
+    pub(in crate::sema) fn decide_drop(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
+    ) -> CompilerResult<Verdict> {
+        self.decide_guarded(
+            origin,
+            ty,
+            dir::AutoInterface::Drop,
+            active,
+            |state, ty, active| state.decide_drop_type(origin, ty, active),
+        )
+    }
+
+    /// Decide the drop requirement for one active type.
+    fn decide_drop_type(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
+    ) -> CompilerResult<Verdict> {
+        // owned payloads drop through their value, views and handles keep theirs
+        if let dir::Type::Form(form) = self.ty(ty)? {
+            return match form.form {
+                dir::Form::Owned => self.decide_drop(origin, form.value, active),
+                dir::Form::Managed { .. }
+                | dir::Form::Borrowed(_)
+                | dir::Form::Raw
+                | dir::Form::Readonly => Ok(Verdict::Fails),
+            };
+        }
+
+        // managed defaults hand their storage to the runtime
+        if self.default_ownership(origin, ty)? == Some(dir::Ownership::Managed) {
+            return Ok(Verdict::Fails);
+        }
+
+        match self.ty(ty)? {
+            // leave an open variable or canonical hole undecided
+            dir::Type::Variable(_) | dir::Type::Hole(_) => Ok(Verdict::Ambiguous),
+            // hooks declared on the nominal drop, else any stored member drops
+            dir::Type::Application(instance) => {
+                if self.drop_hook_member(instance.symbol)?.is_some() {
+                    return Ok(Verdict::Holds);
+                }
+                let fields = match self.definition(instance.symbol)?.cloned() {
+                    Some(definition) => self.stored_field_types(definition.members())?,
+                    None => SmallVec::new(),
+                };
+
+                self.decide_any_applied(ty.module_id, &instance, fields, |state, id| {
+                    state.decide_drop(origin, id, active)
+                })
+            }
+            // fixed arrays drop through their element
+            dir::Type::FixedArray(array) => self.decide_drop(origin, array.element, active),
+            // tuples drop when any element drops
+            dir::Type::Tuple(tuple) => {
+                let ids: Vec<_> = self
+                    .tuple_elements(ty.module_id, tuple.elements)?
+                    .iter()
+                    .map(|element| element.ty)
+                    .collect();
+
+                self.decide_any(ids, |state, id| state.decide_drop(origin, id, active))
+            }
+            // unions drop when any alternative drops
+            dir::Type::Union(union) => {
+                let ids: Vec<_> = self.type_ids(ty.module_id, union.elements)?.to_vec();
+
+                self.decide_any(ids, |state, id| state.decide_drop(origin, id, active))
+            }
+            // refinements drop through their base
+            dir::Type::Refined(refined) => {
+                let refined = self.type_refined(ty.module_id, refined)?;
+
+                self.decide_drop(origin, refined.base, active)
+            }
+            // variants drop through their owning enum
+            dir::Type::Variant(member) => self.decide_drop(origin, member.owner, active),
+            // every remaining representation stores no hook
+            _ => Ok(Verdict::Fails),
+        }
     }
 }

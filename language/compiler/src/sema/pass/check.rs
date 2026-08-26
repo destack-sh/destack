@@ -36,7 +36,7 @@ impl CheckState<'_> {
         // commit conformances and the module, then collect its diagnostics
         let recorder = self.recorder;
         ArtifactAttemptRecorder::breakdown_maybe(recorder, "write", || {
-            self.commit_conformances(module)?;
+            self.commit_instance_conformances(module)?;
 
             self.write_module(module)
         })?;
