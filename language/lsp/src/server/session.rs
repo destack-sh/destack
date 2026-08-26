@@ -64,9 +64,10 @@ impl ServerSession {
                 Settings::load_from_home(file_system.as_ref(), &home).map_err(internal_error)?;
             let artifact_cache =
                 DestackLayout::resolve_cache(cwd, &home, &environment, &settings, None);
-            let artifact_cache = ArtifactCache::open(build_id, file_system.clone(), artifact_cache)
-                .map(Arc::new)
-                .map_err(internal_error)?;
+            let artifact_cache =
+                ArtifactCache::open(build_id, artifact_cache, settings.cache.maximum_bytes)
+                    .map(Arc::new)
+                    .map_err(internal_error)?;
 
             Ok::<_, jsonrpc::Error>(
                 Host::new(build_id, environment, file_system)
