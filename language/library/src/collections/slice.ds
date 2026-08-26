@@ -41,7 +41,7 @@ export extension<T> of Slice<T> implements Default {
 
     /// Return the number of elements.
     get size(&readonly this): isize {
-        return sliceLength<T>(this) as isize;
+        return sliceLength<T>(this).truncate<isize>();
     }
 
     /// Return the number of elements.
@@ -274,7 +274,7 @@ export extension<T, R: RangeBounds<isize>, const A: Access = "readonly"> of Slic
     index(this: WithAccess<&[T], A>, range: R): WithAccess<&[T], A> {
         let (start, length) = this.rangeSpan(&readonly range);
 
-        this.subslice(start as usize, length as usize)
+        this.subslice(start.truncate<usize>(), length.truncate<usize>())
     }
 }
 

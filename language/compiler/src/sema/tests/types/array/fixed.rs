@@ -118,7 +118,9 @@ const size = bytes.size;
 /// @resolution.place source=bytes placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=bytes root=bytes
 /// @generic.instantiation id="size<uint8, 4, \"constant\">" template=size arguments=(uint8, 4, "constant")
+/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
 /// @generic.instance id="size<uint8, 4, \"constant\">" template=size arguments=(uint8, 4, "constant")
+/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 "#,
     );
 }

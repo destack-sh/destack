@@ -112,7 +112,7 @@ function unicorn(): string {
             r#"
 class Encoding {
     charCodeAt(index: isize): uint16 {
-        return index as uint16;
+        return index.truncate<uint16>();
     }
 }
 function encode(value: Encoding): uint16 {

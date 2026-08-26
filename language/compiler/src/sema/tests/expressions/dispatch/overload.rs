@@ -535,7 +535,7 @@ function sum(values: Iterator<int32>): Result<int32, string> {
     return values.reduce((result, value, index) => {
         const total = result?;
 
-        Result.ok(total + value + (index as int32))
+        Result.ok(total + value + index.truncate<int32>())
     }, Result.ok(0));
 }
 "#,
@@ -551,7 +551,7 @@ function sum(values: Iterator<int32>): Result<int32, string> {
         (result: Result<int32, string>, value: int32, index: isize): Result<int32, string> => {
             const total: int32 = result?;
 
-            Result.ok<int32, string>(total + value + (index as int32))
+            Result.ok<int32, string>(total + value + index.truncate<int32>())
         },
         Result.ok<int32, string>(0),
     );
@@ -619,26 +619,33 @@ function sum(values: Iterator<int32>): Result<int32, string> {
         /// @resolution.access source=result root=sum.symbol5.result
         /// @resolution.residual source=result? target=callable residual=TryResidual<Result<int32, string>>
 
-        Result.ok(total + value + (index as int32))
-        /// @type.node source="Result.ok(total + value + (index as int32))" type=Result<int32, string>
+        Result.ok(total + value + index.truncate<int32>())
+        /// @type.node source="Result.ok(total + value + index.truncate<int32>())" type=Result<int32, string>
         /// @type.node source=Result.ok type=(T#1) => Result<T#1, E#1>
         /// @resolution.name source=Result target=Result
         /// @resolution.member source=Result.ok receiver=Result type=(T#1) => Result<T#1, E#1> kind=symbol target_receiver=Result target=ok#1
-        /// @resolution.call source="Result.ok(total + value + (index as int32))" parameters=(int32) arguments=(provided(total + value + (index as int32)) as int32) return=Result<int32, string> kind=symbol target=ok#1 instance="Result<int32, string>.<extension#1>.ok#1"
-        /// @type.node source="total + value + (index as int32)" type=int32
+        /// @resolution.call source="Result.ok(total + value + index.truncate<int32>())" parameters=(int32) arguments=(provided(total + value + index.truncate<int32>()) as int32) return=Result<int32, string> kind=symbol target=ok#1 instance="Result<int32, string>.<extension#1>.ok#1"
+        /// @type.node source="total + value + index.truncate<int32>()" type=int32
         /// @type.node source="total + value" type=int32
         /// @resolution.name source=total target=sum.symbol5.total
-        /// @resolution.operator source="total + value + (index as int32)" type=int32 operator="+" kind=builtin operands=[total + value as int32 families=(integer), index as int32 as int32 families=(integer)]
+        /// @resolution.operator source="total + value + index.truncate<int32>()" type=int32 operator="+" kind=builtin operands=[total + value as int32 families=(integer), index.truncate<int32>() as int32 families=(integer)]
         /// @resolution.operator source="total + value" type=int32 operator="+" kind=builtin operands=[total as int32 families=(integer), value as int32 families=(integer)]
         /// @resolution.place source=total placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=total root=sum.symbol5.total
         /// @resolution.name source=value target=sum.symbol5.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=sum.symbol5.value
-        /// @type.node source="index as int32" type=int32
+        /// @type.node source=index.truncate type=<Cast.truncate.U: Integer>(this: isize) => Cast.truncate.U
+        /// @type.node source=index.truncate<int32>() type=int32
         /// @resolution.name source=index target=sum.symbol5.index
+        /// @resolution.member source=index.truncate receiver=isize type=<Cast.truncate.U: Integer>(this: isize) => Cast.truncate.U kind=symbol target_receiver=isize target=Cast.truncate
+        /// @resolution.call source=index.truncate<int32>() parameters=() return=int32 kind=symbol target=Cast.truncate receiver=isize instance=Cast<isize>.truncate<int32>
         /// @resolution.place source=index placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=index root=sum.symbol5.index
+        /// @generic.instantiation id="Cast.truncate<isize, int32>" template=Cast.truncate arguments=(isize, int32)
+        /// @generic.instantiation id=Cast.truncate<isize> template=Cast.truncate arguments=(isize)
+        /// @generic.instance id="Cast.truncate<isize, int32>" template=Cast.truncate arguments=(isize, int32)
+        /// @generic.instance id="truncateInt<isize, int32>" template=truncateInt arguments=(isize, int32)
 
     }, Result.ok(0));
     /// @type.node source=Result.ok type=(T#1) => Result<T#1, E#1>

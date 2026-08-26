@@ -28,8 +28,11 @@ entry(v0: int32, v1: uint32):
 fn test_truncate_when_narrowing_an_integer() {
     let session = TestSession::single(
         r#"
+@intrinsic("math.cast.int.truncate")
+declare function truncateInt(value: int64): int8;
+
 function narrow(value: int64): int8 {
-    return value as int8;
+    return truncateInt(value);
 }
 "#,
     );
@@ -40,6 +43,31 @@ function narrow(value: int64): int8 {
 function test.main.narrow(v0: int64): int8 {
 entry(v0: int64):
     v1: int8 = cast.truncate v0 -> int8
+    return v1
+}
+"#,
+    );
+}
+
+#[test]
+fn test_reinterpret_when_truncating_at_the_same_width() {
+    let session = TestSession::single(
+        r#"
+@intrinsic("math.cast.int.truncate")
+declare function truncateInt(value: usize): isize;
+
+function reinterpret(value: usize): isize {
+    return truncateInt(value);
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+function test.main.reinterpret(v0: usize): isize {
+entry(v0: usize):
+    v1: isize = cast.bit v0 -> isize
     return v1
 }
 "#,
@@ -74,8 +102,11 @@ entry(v0: uint32, v1: int32):
 fn test_saturate_when_converting_a_float_to_integer() {
     let session = TestSession::single(
         r#"
+@intrinsic("math.cast.floatToInt.saturating")
+declare function saturateFloat(value: float64): int32;
+
 function whole(value: float64): int32 {
-    return value as int32;
+    return saturateFloat(value);
 }
 "#,
     );

@@ -676,11 +676,9 @@ impl IntrinsicInstruction {
             "error.debug.breakpoint" => Self::Breakpoint,
             "math.cast.int.truncate" => Self::Cast(CastOperator::Truncate),
             "math.cast.int.saturate" => Self::Cast(CastOperator::Saturate),
-            "math.cast.floatToSignedInt.saturating" => {
+            // the target sign decides the operator, the lowering refines it
+            "math.cast.floatToInt.saturating" => {
                 Self::Cast(CastOperator::FloatToSignedIntSaturating)
-            }
-            "math.cast.floatToUnsignedInt.saturating" => {
-                Self::Cast(CastOperator::FloatToUnsignedIntSaturating)
             }
             "collections.slice.fromRaw" => Self::SliceFromRaw,
             "collections.slice.get" => Self::SliceGet,

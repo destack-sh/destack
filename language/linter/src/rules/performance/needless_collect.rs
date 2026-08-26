@@ -264,7 +264,7 @@ function inspect(first: int32[], second: int32[]): boolean {
         index;
     });
 
-    return second.iterator().toArray().some((value, index) => value > (index as int32));
+    return second.iterator().toArray().some((value, index) => value > index.truncate<int32>());
 }
 
 function findIndex(values: int32[]): isize | undefined {
@@ -289,7 +289,7 @@ function inspect(first: int32[], second: int32[]): boolean {
         index;
     });
 
-    return second.iterator().some((value, index) => value > (index as int32));
+    return second.iterator().some((value, index) => value > index.truncate<int32>());
 }
 
 function findIndex(values: int32[]): isize | undefined {

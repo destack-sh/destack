@@ -339,6 +339,8 @@ extension<T: Bright> of T implements Quiet {} // ERROR: conflicts when some decl
 ## Enums
 
 Enums are nominal aliases to a set of constants, just like in TypeScript, but in Destack, enums do _not_ implicitly cast to their backing type and explicit conversions are required for the backing value type.
+This holds for every backing: a string-backed enum member requires an explicit cast to reach a raw string.
+Explicit casts project a written member to its declared value (`Direction.Up as "UP"`, `Mode.Read as uint8`), while a value typed at the whole enum projects to the backing type alone (`mode as uint8`).
 Like other nominal types, enums can carry instance and static members, and of course can also receive extensions.
 
 ```ds

@@ -311,7 +311,7 @@ impl CheckState<'_> {
     }
 
     /// Collect the exact scalar formats admitted by one builtin constraint.
-    fn collect_builtin_scalar_formats(
+    pub(in crate::sema) fn collect_builtin_scalar_formats(
         &mut self,
         origin: Origin,
         target: dir::GlobalTypeId,

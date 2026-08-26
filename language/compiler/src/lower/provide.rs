@@ -64,7 +64,10 @@ impl Compiler {
             }
             Err(error) => return Err(error.into()),
         };
-        let reachable = graph.reachable(&[module])?;
+
+        // seed the global modules so prelude extension instantiations resolve
+        let roots = self.lowering_roots(module, profile, context)?;
+        let reachable = graph.reachable(&roots)?;
         for current in reachable.iter().copied() {
             dependencies
                 .require_projection(graph_key, ArtifactProjectionKey::ModuleGraphEdges(current));
@@ -77,6 +80,19 @@ impl Compiler {
             .collect();
 
         Ok(modules)
+    }
+
+    /// Return one module's reachability roots, seeded with the global modules.
+    fn lowering_roots(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<Vec<ModuleId>> {
+        let mut roots = vec![module];
+        roots.extend(self.load_global_module_ids(profile, context)?);
+
+        Ok(roots)
     }
 
     /// Lower one module for one target.
@@ -126,11 +142,12 @@ impl Compiler {
             .read::<DirMaterialized>((module, profile))
             .map_err(CompilerError::from)?;
 
-        // resolve this module's import closure
+        // resolve the import closure seeded with the global modules
         let graph = artifacts
             .module_graph_reader(profile)
             .map_err(CompilerError::from)?;
-        let reachable = graph.reachable(&[module])?;
+        let roots = self.lowering_roots(module, profile, context)?;
+        let reachable = graph.reachable(&roots)?;
 
         // load the state of every other reachable module
         let mut modules = FxIndexMap::default();

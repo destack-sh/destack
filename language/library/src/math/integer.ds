@@ -146,7 +146,7 @@ export extension<T: Integer> of T {
 
     /// Count the zero bits.
     countZeros(): uint32 {
-        ((sizeOf<T>() * 8) as uint32) - this.countOnes()
+        (sizeOf<T>() * 8).truncate<uint32>() - this.countOnes()
     }
 
     /// Reverse the byte order.

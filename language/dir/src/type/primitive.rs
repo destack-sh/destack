@@ -70,6 +70,10 @@ impl PrimitiveType {
         match (self, target) {
             // integers widen into wider integers that hold every inhabitant
             (Self::Integer(source), Self::Integer(target)) => source.widens_to(target),
+            // characters widen into integers that hold every unicode scalar
+            (Self::Character, Self::Integer(target)) => {
+                IntegerType::CHARACTER_MAGNITUDE.widens_to(target)
+            }
             // fixed integers widen into floats that represent them exactly
             (Self::Integer(source), Self::Float(target)) => source.widens_to_float(target),
             // floats widen into formats with at least their mantissa and exponent
@@ -220,6 +224,18 @@ impl IntegerType {
         is_signed: true,
     };
 
+    /// The narrowest width a pointer-sized integer can have on any target.
+    pub const MINIMUM_POINTER_WIDTH: u16 = 32;
+
+    /// The widest width a pointer-sized integer can have on any target.
+    pub const MAXIMUM_POINTER_WIDTH: u16 = 64;
+
+    /// The unsigned magnitude holding every unicode scalar value.
+    pub const CHARACTER_MAGNITUDE: Self = Self::Fixed {
+        width: 21,
+        is_signed: false,
+    };
+
     /// Return whether this integer type widens losslessly into another.
     pub fn widens_to(self, target: IntegerType) -> bool {
         match (self, target) {
@@ -244,7 +260,24 @@ impl IntegerType {
                     false
                 }
             }
-            _ => false,
+            // a pointer-sized target holds at least its narrowest guaranteed width
+            (IntegerType::Fixed { .. }, IntegerType::Pointer { is_signed }) => {
+                self.widens_to(IntegerType::Fixed {
+                    width: Self::MINIMUM_POINTER_WIDTH,
+                    is_signed,
+                })
+            }
+            // a pointer-sized source requires room for its widest possible width
+            (IntegerType::Pointer { is_signed }, IntegerType::Fixed { .. }) => IntegerType::Fixed {
+                width: Self::MAXIMUM_POINTER_WIDTH,
+                is_signed,
+            }
+            .widens_to(target),
+            // pointer-sized integers widen only at matching signedness
+            (
+                IntegerType::Pointer { is_signed: source },
+                IntegerType::Pointer { is_signed: target },
+            ) => source == target,
         }
     }
 

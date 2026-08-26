@@ -478,6 +478,9 @@ const d = wide.saturate<uint8>(); // explicit: clamp into range
 const e = wide.tryInto<uint8>();  // explicit: uint8 | undefined
 ```
 
+Losslessness is decided against every supported target: pointer-sized integers are guaranteed at least 32 and at most 64 bits wide, so `int32 as isize` and `usize as uint64` hold everywhere while `usize as isize` does not.
+Characters widen into any integer type that holds every Unicode scalar (`letter as uint32`), and floats convert to integers through explicit clamping (`ratio.saturate<int32>()`).
+
 Similarly, mixed-type arithmetic (different widths or int/float mixes) requires explicit conversion to a common type first; the only implicit numeric flow is literal typing as described in [Primitives](./types.md#primitives).
 
 ## Ranges

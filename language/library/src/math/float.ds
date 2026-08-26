@@ -2,6 +2,7 @@ import { todo } from "destack:error";
 import { Concrete } from "destack:memory";
 
 import { One, Zero } from "./identity.ds";
+import { Integer } from "./integer.ds";
 
 /// Marker for float literals and builtin float types.
 @languageItem("math.FloatDomain")
@@ -197,6 +198,11 @@ export extension<T: Float> of T {
         roundTiesAway(this)
     }
 
+    /// Convert to `U`, saturating into the destination range.
+    saturate<U: Integer>(): U {
+        saturateFloat<T, U>(this)
+    }
+
     /// Return the angle from the positive x-axis to this y-coordinate and `x`.
     atan2(x: T): T {
         atan2(this, x)
@@ -239,6 +245,10 @@ declare function midpoint<T: Float>(left: T, right: T): T;
 /// Traps when the bounds are inverted or either bound is NaN.
 @intrinsic("math.arithmetic.clamp")
 declare function clamp<T: Float>(value: T, minimum: T, maximum: T): T;
+
+/// Convert one floating-point value to an integer, saturating into the destination range.
+@intrinsic("math.cast.floatToInt.saturating")
+declare function saturateFloat<T: Float, U: Integer>(value: T): U;
 
 /// Test whether a floating-point value is finite.
 @intrinsic("math.float.isFinite")

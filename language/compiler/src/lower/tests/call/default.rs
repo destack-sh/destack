@@ -164,11 +164,11 @@ entry:
 fn test_lower_rest_arguments_pack_an_array() {
     let session = TestSession::single(
         r#"
-function total(...values: int32[]): int32 {
-    return values.length as int32;
+function total(...values: int32[]): isize {
+    return values.length;
 }
 
-function main(): int32 {
+function main(): isize {
     return total(1, 2, 3);
 }
 "#,
@@ -190,15 +190,14 @@ type String {
 
 constant string.0: String = "arrayFromSlice"
 
-function test.main.total(v0: ref<Array<int32>, managed, mutable, local>): int32 {
+function test.main.total(v0: ref<Array<int32>, managed, mutable, local>): isize {
 entry(v0: ref<Array<int32>, managed, mutable, local>):
     v1: ref<Array<int32>, borrowed, 'frame, readonly, local> = cast.bit v0 -> ref<Array<int32>, borrowed, 'frame, readonly, local>
     v2: isize = call length<int32>(v1): <'a>(ref<Array<int32>, borrowed, 'a, readonly, local>) => isize
-    v3: int32 = cast.truncate v2 -> int32
-    return v3
+    return v2
 }
 
-function test.main.main(): int32 {
+function test.main.main(): isize {
     local l0: [int32; 3], readonly
 
 entry:
@@ -214,7 +213,7 @@ entry:
     v8: slice<int32, borrowed, 'l0, readonly, local> = cast.bit v7 -> slice<int32, borrowed, 'l0, readonly, local>
     v9: Array<int32> = call arrayFromSlice<int32>(v8): <'a>(slice<int32, borrowed, 'a, readonly, local>) => Array<int32>
     v10: ref<Array<int32>, managed, mutable, local> = cast.bit v9 -> ref<Array<int32>, managed, mutable, local>
-    v11: int32 = call test.main.total(v10): (ref<Array<int32>, managed, mutable, local>) => int32
+    v11: isize = call test.main.total(v10): (ref<Array<int32>, managed, mutable, local>) => isize
     return v11
 }
 

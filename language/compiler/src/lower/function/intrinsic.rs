@@ -275,7 +275,34 @@ impl FunctionLowerer<'_, '_, '_> {
         operator: mir::CastOperator,
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
-        let operand = self.argument_value(resolution, 0)?;
+        let source = self.argument_expression(resolution, 0)?;
+        let operand = self.lower_expression(source)?;
+
+        // read the instantiated scalar formats on both sides
+        let source_type = self.node_type_id(source)?;
+        let source_type = self.lowerer.instance_type(self.instance, source_type)?;
+        let source_type = self.lowerer.ty(source_type)?;
+        let source_format = self.lowerer.scalar_type(&source_type)?;
+        let target_type = self
+            .lowerer
+            .instance_type(self.instance, resolution.return_type)?;
+        let target_type = self.lowerer.ty(target_type)?;
+        let target_format = self.lowerer.scalar_type(&target_type)?;
+
+        // hand the value through unchanged when it already carries the target
+        if source_format == target_format {
+            return Ok(Some(operand));
+        }
+
+        // refine the declared conversion intent to the instantiated formats
+        let operator = match operator {
+            mir::CastOperator::Truncate
+            | mir::CastOperator::FloatToSignedIntSaturating
+            | mir::CastOperator::FloatToUnsignedIntSaturating => {
+                self.cast_operator(&source_format, &target_format)?
+            }
+            operator => operator,
+        };
         let target = self.lower_type(resolution.return_type)?;
 
         Ok(Some(self.builder.cast(operator, operand, target)))

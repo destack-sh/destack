@@ -11,7 +11,7 @@ export shared class Semaphore {
 
     /// Create a semaphore with `permits` available permits.
     constructor(permits: usize) {
-        this.state = Atomic.new(permits as isize);
+        this.state = Atomic.new(permits.truncate<isize>());
     }
 
     /// Return the number of immediately available permits.

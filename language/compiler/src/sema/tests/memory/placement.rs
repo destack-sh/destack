@@ -755,7 +755,7 @@ fn test_read_length_on_a_rest_parameter() {
     let session = TestSession::single(
         r#"
 function total(...values: int32[]): int32 {
-    return values.length as int32;
+    return values.length.truncate<int32>();
 }
 
 function main(): int32 {
@@ -770,7 +770,7 @@ function main(): int32 {
         r#"
 === annotated ===
 function total(...values: int32[]): int32 {
-    return values.length as int32;
+    return values.length.truncate<int32>();
 }
 
 function main(): int32 {
@@ -782,12 +782,16 @@ function total(...values: int32[]): int32 {
 /// @type.symbol symbol=total type=(...int32[]) => int32
 /// @type.symbol symbol=total.values source="...values: int32[]" type=int32[]
 
-    return values.length as int32;
+    return values.length.truncate<int32>();
     /// @resolution.name source=values target=total.values
     /// @resolution.member source=values.length receiver=int32[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
+    /// @resolution.member source=values.length.truncate receiver=isize type=<Cast.truncate.U: Integer>(this: isize) => Cast.truncate.U kind=symbol target_receiver=isize target=Cast.truncate
+    /// @resolution.call source=values.length.truncate<int32>() parameters=() return=int32 kind=symbol target=Cast.truncate receiver=isize instance=Cast<isize>.truncate<int32>
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=total.values
+    /// @generic.instantiation id="Cast.truncate<isize, int32>" template=Cast.truncate arguments=(isize, int32)
     /// @generic.instantiation id="length<int32, \"local\">" template=length arguments=(int32, "local")
+    /// @generic.instantiation id=Cast.truncate<isize> template=Cast.truncate arguments=(isize)
 
 }
 
@@ -848,7 +852,6 @@ function first<T>(values: Slice<T>): Slice<T> {
     /// @resolution.call source="values.subslice(0, 1)" parameters=(usize, usize) arguments=(provided(0) as usize, provided(1) as usize) return=WithAccess<Borrowed<Slice<T>, <error> & <error>, "mutable">, <error>> kind=symbol target=subslice receiver=Slice<T> adjustments=(borrow(Borrowed<Slice<T>, <error> & <error>, <error>>)) instance="Slice<T>.<extension#1>.subslice<<error>, \"local\">"
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=first.values
-    /// @generic.instantiation id="subslice<T, <error>, \"local\">" template=subslice arguments=(T, <error>, "local") owner=first
     /// @generic.instantiation id=subslice<T> template=subslice arguments=(T) owner=first
 
 }
