@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Arena, Argument, ArgumentBinding, AutoInterface, Decorator, Expression, GenericArgument,
     GlobalNodeId, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId, LanguageItem,
-    LocalNodeId, SegmentView, Selection, TypeFold,
+    LocalNodeId, SegmentView, InstanceKey, TypeFold,
 };
 
 /// Cumulative decorator applications for one DIR module.
@@ -308,7 +308,7 @@ pub struct DecoratorResolution {
     /// The resolved decorator declaration.
     pub target: DecoratorTarget,
     /// The selection used to construct the decorator value.
-    pub selection: DecoratorSelection,
+    pub key: DecoratorSelection,
     /// The nominal decorator value type.
     pub ty: GlobalTypeId,
 }
@@ -340,13 +340,13 @@ impl DecoratorTarget {
     }
 }
 
-/// Selection used to construct one checked decorator value.
+/// InstanceKey used to construct one checked decorator value.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum DecoratorSelection {
     /// Arguments matched against one newtype backing.
     Newtype {
         /// The selected newtype declaration and its generic arguments.
-        selection: Selection,
+        key: InstanceKey,
         /// The selected instantiated backing alternative.
         backing: GlobalTypeId,
         /// The source arguments bound to the selected parameters.

@@ -1,14 +1,8 @@
-use std::sync::Arc;
-
-use destack_core::FxIndexMap as IndexMap;
 use destack_serde::Reflect;
-use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 
-use crate::{
-    GlobalGenericTemplateId, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem,
-    SegmentView, TypeFold,
-};
+use crate::LanguageItem;
 
 /// Interface whose implementation can be provided by compiler rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -35,6 +29,8 @@ pub enum AutoInterface {
     Deserialize,
     /// Runtime erasure marker for `Dynamic<T>`.
     DynamicSafe,
+    /// Owned values that run a hook when their storage ends.
+    Drop,
     /// Equality interface.
     Equal,
     /// Builtin float marker for any float format.
@@ -67,7 +63,7 @@ pub enum AutoInterface {
 
 impl AutoInterface {
     /// Every auto interface in declaration order.
-    const ALL: [Self; 25] = [
+    pub const ALL: [Self; 26] = [
         Self::AtomicSafe,
         Self::SuspendSafe,
         Self::Compare,
@@ -79,6 +75,7 @@ impl AutoInterface {
         Self::Default,
         Self::Deserialize,
         Self::DynamicSafe,
+        Self::Drop,
         Self::Equal,
         Self::Float,
         Self::FloatDomain,
@@ -95,19 +92,11 @@ impl AutoInterface {
         Self::Zeroable,
     ];
 
-    /// The representation markers sealed on every concrete nominal.
-    pub const REPRESENTATION: [Self; 5] = [
-        Self::Copy,
-        Self::SharedSafe,
-        Self::SuspendSafe,
-        Self::OverwriteStable,
-        Self::DynamicSafe,
-    ];
-
     /// Return the auto interface named by one language item.
     pub fn from_language_item(item: LanguageItem) -> Option<Self> {
         match item {
             LanguageItem::AtomicSafe => Some(Self::AtomicSafe),
+            LanguageItem::Drop => Some(Self::Drop),
             LanguageItem::SuspendSafe => Some(Self::SuspendSafe),
             LanguageItem::Compare => Some(Self::Compare),
             LanguageItem::Concrete => Some(Self::Concrete),
@@ -150,6 +139,7 @@ impl AutoInterface {
             Self::Deserialize => "Deserialize",
             Self::Display => "Display",
             Self::DynamicSafe => "DynamicSafe",
+            Self::Drop => "Drop",
             Self::Equal => "Equal",
             Self::Float => "Float",
             Self::FloatDomain => "FloatDomain",
@@ -190,6 +180,7 @@ impl AutoInterface {
             | Self::Default
             | Self::Deserialize
             | Self::Display
+            | Self::Drop
             | Self::Equal
             | Self::Hash
             | Self::PartialCompare
@@ -225,6 +216,7 @@ impl AutoInterface {
             | Self::IntegerDomain
             | Self::Float
             | Self::FloatDomain
+            | Self::Drop
             | Self::Concrete => false,
         }
     }
@@ -309,6 +301,7 @@ impl From<AutoInterface> for LanguageItem {
             AutoInterface::Deserialize => Self::Deserialize,
             AutoInterface::Display => Self::Display,
             AutoInterface::DynamicSafe => Self::DynamicSafe,
+            AutoInterface::Drop => Self::Drop,
             AutoInterface::Equal => Self::Equal,
             AutoInterface::Float => Self::Float,
             AutoInterface::FloatDomain => Self::FloatDomain,
@@ -327,212 +320,47 @@ impl From<AutoInterface> for LanguageItem {
     }
 }
 
-/// Generated implementation for one auto interface.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
-pub struct AutoDerivedImplementation {
-    /// The source node that requested this implementation.
-    pub source: GlobalNodeIdAny,
-    /// The generated interface.
-    pub interface: AutoInterface,
-    /// The implemented type.
-    pub target: GlobalTypeId,
-    /// The generated members.
-    pub members: Vec<AutoImplementationMember>,
+/// The auto interfaces one closed declaration or instance satisfies.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct AutoInterfaceSet {
+    /// The satisfied interfaces in declaration order.
+    interfaces: SmallVec<[AutoInterface; 8]>,
 }
 
-/// Member generated for one auto-derived implementation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
-pub struct AutoImplementationMember {
-    /// The source node that owns the generated member.
-    pub source: GlobalNodeIdAny,
-    /// The generated member symbol.
-    pub symbol: GlobalSymbolId,
-    /// The generated member type.
-    pub ty: GlobalTypeId,
-}
-
-/// Cumulative auto-derived implementations for one DIR module.
-#[derive(Debug, Clone)]
-pub struct AutoTable<'a> {
-    /// The module id of the auto table.
-    pub module_id: ModuleId,
-    /// The ordered auto table segments.
-    segments: SegmentView<'a, AutoSegment>,
-}
-
-impl AutoTable<'static> {
-    /// Create an auto table from ordered segments.
-    pub fn from_segments(segments: Vec<Arc<AutoSegment>>) -> Self {
-        let segments = SegmentView::from_segments(segments);
-
-        Self::from_view(segments)
-    }
-
-    /// Create an auto table from one segment.
-    pub fn from_segment(segment: Arc<AutoSegment>) -> Self {
-        Self::from_segments(vec![segment])
-    }
-}
-
-impl<'a> AutoTable<'a> {
-    /// Create an auto table from a segment view.
-    pub fn from_view(segments: SegmentView<'a, AutoSegment>) -> Self {
-        let first = segments
-            .first()
-            .unwrap_or_else(|| panic!("auto table needs at least one segment"));
-        let module_id = first.module_id;
-
-        // require a single module owner
-        for segment in segments.iter() {
-            assert_eq!(
-                segment.module_id, module_id,
-                "auto table segment belongs to a different module"
-            );
-        }
-
-        Self {
-            module_id,
-            segments,
-        }
-    }
-
-    /// Create an auto table by appending a borrowed tail segment.
-    pub fn with_tail<'b>(&'b self, tail: &'b AutoSegment) -> AutoTable<'b> {
-        AutoTable::from_view(self.segments.with_tail(tail))
-    }
-
-    /// Return whether one type satisfies one marker interface under the given assuming template.
-    pub fn conforms(
-        &self,
-        target: GlobalTypeId,
-        scope: Option<GlobalGenericTemplateId>,
-        interface: AutoInterface,
-    ) -> bool {
-        self.segments
-            .iter()
-            .any(|segment| segment.conforms(target, scope, interface))
-    }
-
-    /// Iterate visible auto-derived implementations.
-    pub fn implementations(&self) -> impl Iterator<Item = &AutoDerivedImplementation> + '_ {
-        self.segments
-            .iter()
-            .flat_map(|segment| segment.implementations())
-    }
-
-    /// Return whether this table has no auto-derived implementations.
-    pub fn is_empty(&self) -> bool {
-        self.segments.iter().all(|segment| segment.is_empty())
-    }
-}
-
-/// Auto-derived implementations added by one DIR phase.
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct AutoSegment {
-    /// The module id of the auto segment.
-    pub module_id: ModuleId,
-    /// Auto-derived implementations in emission order.
-    implementations: Vec<AutoDerivedImplementation>,
-    /// The satisfied marker interfaces per conforming type, under the template whose bounds
-    /// a type open in parameters assumes.
-    conformances: IndexMap<(GlobalTypeId, Option<GlobalGenericTemplateId>), Vec<AutoInterface>>,
-    /// The selected implementation per concrete declared owner and interface root.
-    selected: IndexMap<(GlobalSymbolId, GlobalSymbolId), Option<GlobalSymbolId>>,
-}
-
-impl AutoSegment {
-    /// Create an empty auto segment.
-    pub fn new(module_id: ModuleId) -> Self {
-        Self {
-            module_id,
-            implementations: Vec::new(),
-            conformances: IndexMap::default(),
-            selected: IndexMap::default(),
-        }
-    }
-
-    /// Record the selected implementation of one declared owner at one interface root.
-    pub fn set_selected(
-        &mut self,
-        owner: GlobalSymbolId,
-        root: GlobalSymbolId,
-        implementation: Option<GlobalSymbolId>,
-    ) {
-        self.selected.insert((owner, root), implementation);
-    }
-
-    /// Return the selected implementation of one declared owner at one interface root.
-    pub fn selected(
-        &self,
-        owner: GlobalSymbolId,
-        root: GlobalSymbolId,
-    ) -> Option<Option<GlobalSymbolId>> {
-        self.selected.get(&(owner, root)).copied()
-    }
-
-    /// Record one checked marker conformance, under the assuming template of an open type.
-    pub fn push_conformance(
-        &mut self,
-        target: GlobalTypeId,
-        scope: Option<GlobalGenericTemplateId>,
-        interface: AutoInterface,
-    ) {
-        let interfaces = self.conformances.entry((target, scope)).or_default();
-        if !interfaces.contains(&interface) {
-            interfaces.push(interface);
-        }
-    }
-
-    /// Record one generated implementation.
-    pub fn push_implementation(&mut self, implementation: AutoDerivedImplementation) {
-        self.implementations.push(implementation);
-    }
-
-    /// Return whether one type satisfies one marker interface in this segment under the given
-    /// assuming template, a closed type's conformance holding in every scope.
-    pub fn conforms(
-        &self,
-        target: GlobalTypeId,
-        scope: Option<GlobalGenericTemplateId>,
-        interface: AutoInterface,
-    ) -> bool {
-        [scope, None].iter().any(|scope| {
-            self.conformances
-                .get(&(target, *scope))
-                .is_some_and(|interfaces| interfaces.contains(&interface))
-        })
-    }
-
-    /// Iterate auto-derived implementations in insertion order.
-    pub fn implementations(&self) -> impl Iterator<Item = &AutoDerivedImplementation> + '_ {
-        self.implementations.iter()
-    }
-
-    /// Return whether this segment carries no entries.
-    pub fn is_empty(&self) -> bool {
-        self.implementations.is_empty() && self.conformances.is_empty() && self.selected.is_empty()
-    }
-}
-
-impl TypeFold for AutoSegment {
+impl crate::TypeFold for AutoInterfaceSet {
     fn map_types<E>(
         &mut self,
-        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+        _map: &mut impl FnMut(crate::GlobalTypeId) -> Result<crate::GlobalTypeId, E>,
     ) -> Result<(), E> {
-        let conformances = std::mem::take(&mut self.conformances);
-        for ((mut target, scope), interfaces) in conformances {
-            target.map_types(map)?;
-            let entries = self.conformances.entry((target, scope)).or_default();
-            for interface in interfaces {
-                if !entries.contains(&interface) {
-                    entries.push(interface);
-                }
-            }
-        }
-        for implementation in &mut self.implementations {
-            implementation.map_types(map)?;
-        }
-
         Ok(())
+    }
+}
+
+impl AutoInterfaceSet {
+    /// Create an empty set.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Record one satisfied interface.
+    pub fn insert(&mut self, interface: AutoInterface) {
+        if !self.interfaces.contains(&interface) {
+            self.interfaces.push(interface);
+        }
+    }
+
+    /// Return whether one interface is satisfied.
+    pub fn contains(&self, interface: AutoInterface) -> bool {
+        self.interfaces.contains(&interface)
+    }
+
+    /// Return whether no interface is satisfied.
+    pub fn is_empty(&self) -> bool {
+        self.interfaces.is_empty()
+    }
+
+    /// Iterate the satisfied interfaces in declaration order.
+    pub fn iter(&self) -> impl Iterator<Item = AutoInterface> + '_ {
+        self.interfaces.iter().copied()
     }
 }

@@ -1543,6 +1543,16 @@ impl StaticBinaryOperator {
         use Literal;
         use StaticBinaryOperator as Operator;
 
+        // bigint pairs evaluate over their shared integer payload and rewrap
+        if let (Literal::Bigint(left), Literal::Bigint(right)) = (left, right) {
+            let evaluated = self.apply(Literal::Integer(left), Literal::Integer(right))?;
+
+            return Ok(match evaluated {
+                Literal::Integer(value) => Literal::Bigint(value),
+                evaluated => evaluated,
+            });
+        }
+
         let literal = match (self, left, right) {
             // integer arithmetic is checked
             (Operator::Add, Literal::Integer(left), Literal::Integer(right)) => Literal::Integer(
@@ -1764,6 +1774,25 @@ impl StaticUnaryOperator {
     /// Return whether this operator yields a boolean result.
     pub fn yields_boolean(self) -> bool {
         matches!(self, Self::Not)
+    }
+
+    /// Evaluate this operator over one scalar literal.
+    pub fn apply(self, target: Literal) -> Result<Literal, &'static str> {
+        let literal = match (self, target) {
+            (Self::Not, Literal::Boolean(value)) => Literal::Boolean(!value),
+            (Self::Negate, Literal::Integer(value)) => {
+                Literal::Integer(value.checked_neg().ok_or("integer negation overflows")?)
+            }
+            (Self::Negate, Literal::Float(value)) => Literal::Float(-value),
+            (Self::Negate, Literal::Bigint(value)) => {
+                Literal::Bigint(value.checked_neg().ok_or("bigint negation overflows")?)
+            }
+            (Self::BitwiseNot, Literal::Integer(value)) => Literal::Integer(!value),
+            (Self::BitwiseNot, Literal::Bigint(value)) => Literal::Bigint(!value),
+            _ => return Err("static operator does not apply to its operand kind"),
+        };
+
+        Ok(literal)
     }
 }
 

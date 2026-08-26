@@ -15,7 +15,7 @@ pub fn node_fold(input: TokenStream) -> TokenStream {
 }
 
 /// Derive one structural selection visit.
-#[proc_macro_derive(SelectionVisit)]
+#[proc_macro_derive(InstanceKeyVisit)]
 pub fn selection_visit(input: TokenStream) -> TokenStream {
     traversal::expand_selection(input)
 }

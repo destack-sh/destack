@@ -3,8 +3,9 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    AutoInterfaceSet,
     GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem, LocalNodeIdAny, LocalScopeId,
-    Selection, SelectionVisit, StringId, TypeFold, VarianceModifier, WhereRelation,
+    InstanceKey, InstanceKeyVisit, StringId, TypeFold, VarianceModifier, WhereRelation,
 };
 
 /// Unique identifier for generic templates.
@@ -274,7 +275,7 @@ impl TypeFold for WherePredicate {
 /// <T: Serializable = string>
 /// <const Size: usize>
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct GenericParameterBinding {
     /// The generic template that owns this parameter.
     pub template: LocalGenericTemplateId,
@@ -300,6 +301,8 @@ pub struct GenericParameterBinding {
     pub is_variadic: bool,
     /// Whether type inference preserves exact argument literals.
     pub is_const: bool,
+    /// The auto interfaces the declared bounds assume for this parameter.
+    pub conformances: AutoInterfaceSet,
 }
 
 impl TypeFold for GenericParameterBinding {
@@ -358,11 +361,13 @@ pub struct GlobalInstanceId {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct Instance {
     /// The closed declaration and its generic arguments, in parameter order.
-    pub selection: Selection,
+    pub key: InstanceKey,
     /// One source node that closes this instance.
     pub source: GlobalNodeIdAny,
     /// The source that introduced this instance.
     pub origin: InstanceOrigin,
+    /// The auto interfaces this closed nominal satisfies, empty on callables.
+    pub conformances: AutoInterfaceSet,
 }
 
 /// One source introducing a generic instance.
@@ -389,7 +394,7 @@ pub struct Instantiation {
     /// The enclosing template whose instances close this instantiation, module-level when none.
     pub owner: Option<GlobalSymbolId>,
     /// The instantiated declaration and its generic arguments.
-    pub selection: Selection,
+    pub key: InstanceKey,
     /// The source node performing the instantiation.
     pub source: GlobalNodeIdAny,
 }
@@ -475,7 +480,7 @@ impl GenericArgumentBinding {
 
 /// One selected parameter bound to its runtime argument source.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
 )]
 pub struct ArgumentBinding {
     /// The complete parameter type after static substitutions.
@@ -499,7 +504,7 @@ impl ArgumentBinding {
 
 /// Source argument bound to one selected parameter slot.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit,
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
 )]
 pub enum ArgumentSource {
     /// One source argument was supplied.
@@ -515,6 +520,6 @@ pub enum ArgumentSource {
         /// The packed source arguments in call order.
         elements: Vec<GlobalNodeIdAny>,
         /// The selected pack constructor, absent for slice parameters.
-        pack: Option<Selection>,
+        pack: Option<InstanceKey>,
     },
 }

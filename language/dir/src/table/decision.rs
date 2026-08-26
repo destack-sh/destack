@@ -12,11 +12,11 @@ use crate::{
     CallDecision, ConstructDecision, Expression, FunctionDecision, GlobalNodeId, GlobalNodeIdAny,
     GlobalSymbolId, GlobalTypeId, GuardDecision, MemberAccess, MemberDecision, OperationResolution,
     OperatorDecision, Pattern, PatternDecision, PlaceResolution, ReceiverDecision, SegmentView,
-    Selection, SelectionVisit, SubscriptDecision, SubscriptTarget, TreeDecision, TypeFold,
+    InstanceKey, InstanceKeyVisit, SubscriptDecision, SubscriptTarget, TreeDecision, TypeFold,
 };
 
 /// The one decision inference made for a DIR node.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, SelectionVisit)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
 pub enum Decision {
     /// Resolved contextual receiver.
     Receiver(ReceiverDecision),
@@ -74,8 +74,8 @@ pub enum ResidualTarget {
     Callable,
 }
 
-impl SelectionVisit for ResidualDecision {
-    fn visit_selections(&self, _visit: &mut dyn FnMut(&Selection)) {}
+impl InstanceKeyVisit for ResidualDecision {
+    fn visit_instance_keys(&self, _visit: &mut dyn FnMut(&InstanceKey)) {}
 }
 
 impl TypeFold for ResidualDecision {
@@ -98,8 +98,8 @@ pub struct CoverageDecision {
     pub redundant: Vec<GlobalNodeId<Pattern>>,
 }
 
-impl SelectionVisit for CoverageDecision {
-    fn visit_selections(&self, _visit: &mut dyn FnMut(&Selection)) {}
+impl InstanceKeyVisit for CoverageDecision {
+    fn visit_instance_keys(&self, _visit: &mut dyn FnMut(&InstanceKey)) {}
 }
 
 impl TypeFold for CoverageDecision {

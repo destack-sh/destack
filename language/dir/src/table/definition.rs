@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 use crate::{
-    AutoInterface, EnumBackingType, EnumVariantValue, FunctionRole, GlobalNodeIdAny,
+    AutoInterface, AutoInterfaceSet, EnumBackingType, EnumVariantValue, FunctionRole, GlobalNodeIdAny,
     GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberKind, MemberSlot,
     MemberSpace, MethodAbstraction, PrimitiveType, SegmentView, Space, StaticKey, TypeFold,
 };
@@ -496,6 +496,8 @@ pub struct StructDefinition {
     pub derives: Option<Vec<AutoInterface>>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
+    /// The auto interfaces this nominal satisfies, sealed on template-free declarations.
+    pub conformances: AutoInterfaceSet,
 }
 
 /// Checked declaration data for one nominal class.
@@ -521,6 +523,8 @@ pub struct ClassDefinition {
     pub constructors: Vec<ClassConstructorDefinition>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
+    /// The auto interfaces this nominal satisfies, sealed on template-free declarations.
+    pub conformances: AutoInterfaceSet,
 }
 
 impl ClassDefinition {
@@ -622,6 +626,8 @@ pub struct EnumDefinition {
     pub derives: Option<Vec<AutoInterface>>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
+    /// The auto interfaces this nominal satisfies, sealed on template-free declarations.
+    pub conformances: AutoInterfaceSet,
 }
 
 /// Checked declaration data for one nominal type alias.
@@ -641,6 +647,8 @@ pub struct NewtypeDefinition {
     pub derives: Option<Vec<AutoInterface>>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
+    /// The auto interfaces this nominal satisfies, sealed on template-free declarations.
+    pub conformances: AutoInterfaceSet,
 }
 
 /// One constructable newtype backing alternative.
@@ -1219,6 +1227,28 @@ impl Definition {
             Self::Enum(definition) => definition.derives.as_deref(),
             Self::Newtype(definition) => definition.derives.as_deref(),
             Self::TypeAlias(_) | Self::Interface(_) | Self::Extension(_) => None,
+        }
+    }
+
+    /// Return the sealed auto interface conformances, empty outside nominals.
+    pub fn conformances(&self) -> Option<&AutoInterfaceSet> {
+        match self {
+            Self::Struct(definition) => Some(&definition.conformances),
+            Self::Class(definition) => Some(&definition.conformances),
+            Self::Enum(definition) => Some(&definition.conformances),
+            Self::Newtype(definition) => Some(&definition.conformances),
+            Self::TypeAlias(_) | Self::Interface(_) | Self::Extension(_) => None,
+        }
+    }
+
+    /// Replace the sealed auto interface conformances of one nominal.
+    pub fn set_conformances(&mut self, conformances: AutoInterfaceSet) {
+        match self {
+            Self::Struct(definition) => definition.conformances = conformances,
+            Self::Class(definition) => definition.conformances = conformances,
+            Self::Enum(definition) => definition.conformances = conformances,
+            Self::Newtype(definition) => definition.conformances = conformances,
+            Self::TypeAlias(_) | Self::Interface(_) | Self::Extension(_) => {}
         }
     }
 

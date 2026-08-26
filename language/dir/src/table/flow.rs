@@ -155,6 +155,13 @@ impl<'a> FlowTable<'a> {
             .any(|segment| segment.diverging.contains(&node))
     }
 
+    /// Return whether flow proves one loop runs its body at most once.
+    pub fn is_single_pass(&self, node: LocalNodeIdAny) -> bool {
+        self.segments
+            .iter()
+            .any(|segment| segment.single_pass.contains(&node))
+    }
+
     /// Iterate the recorded module symbol uses.
     pub fn binding_uses(&self) -> impl Iterator<Item = (LocalSymbolId, BindingUse)> {
         let mut recorded = BTreeMap::new();
@@ -220,6 +227,19 @@ impl<'a> FlowTable<'a> {
 
         nodes.into_iter()
     }
+
+    /// Iterate the loops flow proves run their body at most once.
+    pub fn single_pass_nodes(&self) -> impl Iterator<Item = LocalNodeIdAny> {
+        let mut nodes = self
+            .segments
+            .iter()
+            .flat_map(|segment| segment.single_pass.iter().copied())
+            .collect::<Vec<_>>();
+        nodes.sort_unstable();
+        nodes.dedup();
+
+        nodes.into_iter()
+    }
 }
 
 /// Flow conclusions added by one DIR phase.
@@ -231,6 +251,8 @@ pub struct FlowSegment {
     unreachable: FxIndexSet<LocalNodeIdAny>,
     /// Nodes flow proves never return.
     diverging: FxIndexSet<LocalNodeIdAny>,
+    /// Loops flow proves run their body at most once.
+    single_pass: FxIndexSet<LocalNodeIdAny>,
     /// Proved binding uses.
     binding_occurrences: FxIndexSet<BindingOccurrence>,
     /// Proved stable access uses.
@@ -263,7 +285,7 @@ pub struct AccessOccurrence {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FlowMark {
     /// The per-collection lengths at the mark.
-    lengths: [usize; 4],
+    lengths: [usize; 5],
 }
 
 impl FlowSegment {
@@ -273,6 +295,7 @@ impl FlowSegment {
             module_id,
             unreachable: FxIndexSet::default(),
             diverging: FxIndexSet::default(),
+            single_pass: FxIndexSet::default(),
             binding_occurrences: FxIndexSet::default(),
             access_occurrences: FxIndexSet::default(),
         }
@@ -291,6 +314,11 @@ impl FlowSegment {
     /// Set one node diverging.
     pub fn set_diverging(&mut self, node: LocalNodeIdAny) {
         self.diverging.insert(node);
+    }
+
+    /// Set one loop running its body at most once.
+    pub fn set_single_pass(&mut self, node: LocalNodeIdAny) {
+        self.single_pass.insert(node);
     }
 
     /// Commit one proved binding use.
@@ -316,6 +344,7 @@ impl FlowSegment {
             lengths: [
                 self.unreachable.len(),
                 self.diverging.len(),
+                self.single_pass.len(),
                 self.binding_occurrences.len(),
                 self.access_occurrences.len(),
             ],
@@ -327,11 +356,13 @@ impl FlowSegment {
         let [
             unreachable,
             diverging,
+            single_pass,
             binding_occurrences,
             access_occurrences,
         ] = mark.lengths;
         self.unreachable.truncate(unreachable);
         self.diverging.truncate(diverging);
+        self.single_pass.truncate(single_pass);
         self.binding_occurrences.truncate(binding_occurrences);
         self.access_occurrences.truncate(access_occurrences);
     }

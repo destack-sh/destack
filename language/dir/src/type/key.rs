@@ -23,25 +23,41 @@ use crate::{
 /// Box<int32>           // symbol: Box, arguments: (int32)
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct Selection {
+pub struct InstanceKey {
     /// The selected declaration.
     pub symbol: GlobalSymbolId,
+    /// The receiver closing a this-polymorphic interface member, absent elsewhere.
+    pub receiver: Option<GlobalTypeId>,
     /// The selected generic argument bindings.
     pub arguments: Vec<GenericArgumentBinding>,
 }
 
-impl Selection {
-    /// Create a selection.
+impl InstanceKey {
+    /// Create an instance key without a receiver.
     pub fn new(symbol: GlobalSymbolId, arguments: Vec<GenericArgumentBinding>) -> Self {
-        Self { symbol, arguments }
+        Self {
+            symbol,
+            receiver: None,
+            arguments,
+        }
+    }
+
+    /// Return this key closed under one receiver.
+    pub fn with_receiver(mut self, receiver: Option<GlobalTypeId>) -> Self {
+        self.receiver = receiver;
+
+        self
     }
 }
 
-impl TypeFold for Selection {
+impl TypeFold for InstanceKey {
     fn map_types<E>(
         &mut self,
         map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
     ) -> Result<(), E> {
+        if let Some(receiver) = &mut self.receiver {
+            *receiver = map(*receiver)?;
+        }
         for binding in &mut self.arguments {
             binding.map_types(map)?;
         }
@@ -51,86 +67,86 @@ impl TypeFold for Selection {
 }
 
 /// Visit every selection one checked value records.
-pub trait SelectionVisit {
+pub trait InstanceKeyVisit {
     /// Visit every selection this value records.
-    fn visit_selections(&self, visit: &mut dyn FnMut(&Selection));
+    fn visit_instance_keys(&self, visit: &mut dyn FnMut(&InstanceKey));
 }
 
-impl SelectionVisit for Selection {
-    fn visit_selections(&self, visit: &mut dyn FnMut(&Selection)) {
+impl InstanceKeyVisit for InstanceKey {
+    fn visit_instance_keys(&self, visit: &mut dyn FnMut(&InstanceKey)) {
         visit(self);
     }
 }
 
-impl<T: SelectionVisit> SelectionVisit for Option<T> {
-    fn visit_selections(&self, visit: &mut dyn FnMut(&Selection)) {
+impl<T: InstanceKeyVisit> InstanceKeyVisit for Option<T> {
+    fn visit_instance_keys(&self, visit: &mut dyn FnMut(&InstanceKey)) {
         if let Some(value) = self {
-            value.visit_selections(visit);
+            value.visit_instance_keys(visit);
         }
     }
 }
 
-impl<T: SelectionVisit> SelectionVisit for Box<T> {
-    fn visit_selections(&self, visit: &mut dyn FnMut(&Selection)) {
-        self.as_ref().visit_selections(visit);
+impl<T: InstanceKeyVisit> InstanceKeyVisit for Box<T> {
+    fn visit_instance_keys(&self, visit: &mut dyn FnMut(&InstanceKey)) {
+        self.as_ref().visit_instance_keys(visit);
     }
 }
 
-impl<T: SelectionVisit> SelectionVisit for Vec<T> {
-    fn visit_selections(&self, visit: &mut dyn FnMut(&Selection)) {
+impl<T: InstanceKeyVisit> InstanceKeyVisit for Vec<T> {
+    fn visit_instance_keys(&self, visit: &mut dyn FnMut(&InstanceKey)) {
         for value in self {
-            value.visit_selections(visit);
+            value.visit_instance_keys(visit);
         }
     }
 }
 
-impl<T: SelectionVisit, const N: usize> SelectionVisit for [T; N] {
-    fn visit_selections(&self, visit: &mut dyn FnMut(&Selection)) {
+impl<T: InstanceKeyVisit, const N: usize> InstanceKeyVisit for [T; N] {
+    fn visit_instance_keys(&self, visit: &mut dyn FnMut(&InstanceKey)) {
         for value in self {
-            value.visit_selections(visit);
+            value.visit_instance_keys(visit);
         }
     }
 }
 
-impl<A: Array> SelectionVisit for SmallVec<A>
+impl<A: Array> InstanceKeyVisit for SmallVec<A>
 where
-    A::Item: SelectionVisit,
+    A::Item: InstanceKeyVisit,
 {
-    fn visit_selections(&self, visit: &mut dyn FnMut(&Selection)) {
+    fn visit_instance_keys(&self, visit: &mut dyn FnMut(&InstanceKey)) {
         for value in self {
-            value.visit_selections(visit);
+            value.visit_instance_keys(visit);
         }
     }
 }
 
-impl<A: SelectionVisit, B: SelectionVisit> SelectionVisit for (A, B) {
-    fn visit_selections(&self, visit: &mut dyn FnMut(&Selection)) {
-        self.0.visit_selections(visit);
-        self.1.visit_selections(visit);
+impl<A: InstanceKeyVisit, B: InstanceKeyVisit> InstanceKeyVisit for (A, B) {
+    fn visit_instance_keys(&self, visit: &mut dyn FnMut(&InstanceKey)) {
+        self.0.visit_instance_keys(visit);
+        self.1.visit_instance_keys(visit);
     }
 }
 
-impl<T: Node> SelectionVisit for GlobalNodeId<T> {
-    fn visit_selections(&self, _visit: &mut dyn FnMut(&Selection)) {}
+impl<T: Node> InstanceKeyVisit for GlobalNodeId<T> {
+    fn visit_instance_keys(&self, _visit: &mut dyn FnMut(&InstanceKey)) {}
 }
 
-impl<T: Node> SelectionVisit for LocalNodeId<T> {
-    fn visit_selections(&self, _visit: &mut dyn FnMut(&Selection)) {}
+impl<T: Node> InstanceKeyVisit for LocalNodeId<T> {
+    fn visit_instance_keys(&self, _visit: &mut dyn FnMut(&InstanceKey)) {}
 }
 
-/// Declare the values one selection visit passes over.
-macro_rules! selection_visit_leaves {
+/// Declare the values one instance key visit passes over.
+macro_rules! instance_key_visit_leaves {
     ($($ty:ty),* $(,)?) => {
         $(
-            impl SelectionVisit for $ty {
-                fn visit_selections(&self, _visit: &mut dyn FnMut(&Selection)) {}
+            impl InstanceKeyVisit for $ty {
+                fn visit_instance_keys(&self, _visit: &mut dyn FnMut(&InstanceKey)) {}
             }
         )*
     };
 }
 
 // scalars, identifiers, types, bindings, and checked tags record no selection
-selection_visit_leaves!(
+instance_key_visit_leaves!(
     bool,
     u32,
     u64,

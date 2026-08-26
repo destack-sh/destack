@@ -12,7 +12,7 @@ enum Traversal {
     /// Authored tree node ids.
     Node,
     /// Checked selections.
-    Selection,
+    InstanceKey,
 }
 
 /// Expand one `TypeFold` derive invocation.
@@ -25,9 +25,9 @@ pub(crate) fn expand_node(input: TokenStream) -> TokenStream {
     expand(input, Traversal::Node)
 }
 
-/// Expand one `SelectionVisit` derive invocation.
+/// Expand one `InstanceKeyVisit` derive invocation.
 pub(crate) fn expand_selection(input: TokenStream) -> TokenStream {
-    expand(input, Traversal::Selection)
+    expand(input, Traversal::InstanceKey)
 }
 
 /// Expand one recursive derive invocation.
@@ -48,7 +48,7 @@ fn expand_input(input: DeriveInput, traversal: Traversal) -> syn::Result<TokenSt
     let trait_ident = match traversal {
         Traversal::Type => quote!(destack_dir::TypeFold),
         Traversal::Node => quote!(destack_dir::NodeFold),
-        Traversal::Selection => quote!(destack_dir::SelectionVisit),
+        Traversal::InstanceKey => quote!(destack_dir::InstanceKeyVisit),
     };
 
     // require recursive support for each generic type parameter
@@ -89,13 +89,13 @@ fn expand_input(input: DeriveInput, traversal: Traversal) -> syn::Result<TokenSt
                 }
             }
         },
-        Traversal::Selection => quote! {
-            impl #impl_generics destack_dir::SelectionVisit
+        Traversal::InstanceKey => quote! {
+            impl #impl_generics destack_dir::InstanceKeyVisit
                 for #ident #type_generics #where_clause
             {
-                fn visit_selections(
+                fn visit_instance_keys(
                     &self,
-                    visit: &mut dyn FnMut(&destack_dir::Selection),
+                    visit: &mut dyn FnMut(&destack_dir::InstanceKey),
                 ) {
                     #body
                 }
@@ -121,7 +121,7 @@ fn body(data: &Data, traversal: Traversal) -> syn::Result<TokenStream2> {
                 };
                 let place = match traversal {
                     Traversal::Type | Traversal::Node => quote!(&mut #place),
-                    Traversal::Selection => quote!(&#place),
+                    Traversal::InstanceKey => quote!(&#place),
                 };
 
                 apply(place, traversal)
@@ -177,8 +177,8 @@ fn apply(place: TokenStream2, traversal: Traversal) -> TokenStream2 {
     match traversal {
         Traversal::Type => quote!(destack_dir::TypeFold::map_types(#place, map)?;),
         Traversal::Node => quote!(destack_dir::NodeFold::map_nodes(#place, map)?;),
-        Traversal::Selection => {
-            quote!(destack_dir::SelectionVisit::visit_selections(#place, visit);)
+        Traversal::InstanceKey => {
+            quote!(destack_dir::InstanceKeyVisit::visit_instance_keys(#place, visit);)
         }
     }
 }
