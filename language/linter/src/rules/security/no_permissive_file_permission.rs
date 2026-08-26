@@ -18,12 +18,12 @@ Instead, you SHOULD grant only the required permissions and write mode literals 
             reported: r#"
 import { FileMode } from "destack:fs/binding";
 
-const MODE = FileMode(0o666);
+const mode = FileMode(0o666);
 "#,
             accepted: r#"
 import { FileMode } from "destack:fs/binding";
 
-const MODE = FileMode(0o640);
+const mode = FileMode(0o640);
 "#,
         },
         provenance: [
@@ -42,24 +42,23 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect expressions whose checked representation is FileMode
-    for (expression, node) in view.iter_nodes::<dir::Expression>() {
-        if !matches!(node, dir::Expression::Call { .. }) {
-            continue;
-        }
-        if module.representation_item(expression.into_any())? != Some(dir::LanguageItem::FileMode) {
-            continue;
-        }
+    // inspect canonical FileMode constructions
+    for (expression, _) in view.iter_nodes::<dir::Expression>() {
         let Some((value, literal)) =
             module.newtype_integral(expression, dir::LanguageItem::FileMode)?
         else {
             continue;
         };
-        let source = module.source(module.source_extent(literal.into_any())?)?;
-        let is_decimal = source.as_bytes().first().is_some_and(u8::is_ascii_digit)
-            && !source.starts_with("0o")
-            && !source.starts_with("0x")
-            && !source.starts_with("0b");
+        let span = module.source_extent(literal.into_any())?;
+        let token = module.token(span)?;
+        let is_decimal = value != 0
+            && matches!(
+                token.literal(),
+                Some(dir::TokenLiteral::Int {
+                    base: dir::NumberBase::Decimal,
+                    ..
+                })
+            );
         let is_world_writable = value & OTHER_WRITE != 0;
         if !is_decimal && !is_world_writable {
             continue;
@@ -107,7 +106,7 @@ mod tests {
             r#"
 import { FileMode } from "destack:fs/binding";
 
-const MODE = FileMode(416);
+const mode = FileMode(416);
 "#,
         );
 
@@ -117,7 +116,7 @@ const MODE = FileMode(416);
   │
 1 │ import { FileMode } from "destack:fs/binding";
 2 │
-3 │ const MODE = FileMode(416);
+3 │ const mode = FileMode(416);
   │              ^^^^^^^^^^^^^
   │
 
@@ -134,7 +133,7 @@ const MODE = FileMode(416);
             r#"
 import { FileMode } from "destack:fs/binding";
 
-const MODE = FileMode(438);
+const mode = FileMode(438);
 "#,
         );
 
@@ -144,7 +143,7 @@ const MODE = FileMode(438);
   │
 1 │ import { FileMode } from "destack:fs/binding";
 2 │
-3 │ const MODE = FileMode(438);
+3 │ const mode = FileMode(438);
   │              ^^^^^^^^^^^^^
   │
 
@@ -153,12 +152,24 @@ const MODE = FileMode(438);
         );
     }
 
-    /// Accept a restricted octal permission.
+    /// Accept explicit safe mode values, mode components, and zero.
     #[test]
-    fn test_accepts_restricted_mode() {
+    fn test_accepts_explicit_mode_values() {
         let session = TestSession::dir(
             &NO_PERMISSIVE_FILE_PERMISSION,
-            NO_PERMISSIVE_FILE_PERMISSION.example.accepted.source(),
+            r#"
+import { FileMode } from "destack:fs/binding";
+
+const empty = FileMode(0);
+
+const restricted = FileMode(0o640);
+
+const upperOctal = FileMode(0O640);
+
+const typeMask = FileMode(0Xf000);
+
+const readBit = FileMode(0B100);
+"#,
         );
 
         session.assert_no_diagnostics();
@@ -191,7 +202,7 @@ import { FileMode } from "destack:fs/binding";
 
 declare function mode(value: uint32): FileMode;
 
-const MODE = mode(438);
+const fileMode = mode(438);
 "#,
         );
 
