@@ -31,10 +31,25 @@ where
         AsyncFnOnce(&'a Workspace, Option<CommandProgress>) -> ConsoleResult<CommandResult>,
 {
     let workspace = program.workspace()?;
+    let host = workspace.session().repository().host().clone();
+    let result = run_with_progress(workspace.as_ref(), progress, run).await;
 
-    let result = run_with_progress(workspace.as_ref(), progress, run).await?;
+    // release workspace revisions before waiting for their queued writes
+    workspace.close();
+    drop(workspace);
+    let cache_result = host.flush_artifact_cache();
 
-    Ok(result)
+    // preserve the command and cache outcomes
+    match (result, cache_result) {
+        (Ok(result), Ok(())) => Ok(result),
+        (Err(error), Ok(())) => Err(error),
+        (Ok(_), Err(error)) => Err(ConsoleError::message(format!(
+            "artifact cache flush failed: {error}"
+        ))),
+        (Err(error), Err(cache_error)) => Err(ConsoleError::message(format!(
+            "{error}; artifact cache flush failed: {cache_error}"
+        ))),
+    }
 }
 
 /// Execute a workspace command or emit a CLI error report.

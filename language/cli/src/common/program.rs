@@ -352,11 +352,12 @@ impl ProgramArgs {
             &settings,
             layout_override.cache.as_deref(),
         );
-        let artifact_cache = ArtifactCache::open(build_id, file_system.clone(), artifact_cache)
-            .map(Arc::new)
-            .map_err(|error| {
-                ConsoleError::message(format!("failed to open artifact cache: {error}"))
-            })?;
+        let artifact_cache =
+            ArtifactCache::open(build_id, artifact_cache, settings.cache.maximum_bytes)
+                .map(Arc::new)
+                .map_err(|error| {
+                    ConsoleError::message(format!("failed to open artifact cache: {error}"))
+                })?;
         let host = Host::new(build_id, environment, file_system)
             .with_artifact_cache(artifact_cache, self.workers as usize);
         let (repository, revision) =
