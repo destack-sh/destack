@@ -70,7 +70,6 @@ impl Workspace {
         executor: Arc<Executor>,
     ) -> Result<Self, Error> {
         let root = repository.path().to_path_buf();
-        repository.restore_artifacts(physical, executor.worker_count())?;
         let physical = repository.pin(physical)?;
         let session = Arc::new(Session::new(repository.clone(), executor)?);
         Ok(Self {

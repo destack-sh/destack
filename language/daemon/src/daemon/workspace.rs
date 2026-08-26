@@ -95,6 +95,12 @@ impl WorkspaceRegistry {
         )
         .map_err(workspace::Error::from)?;
         let repository = Arc::new(repository);
+
+        // restore cached artifacts valid at this revision
+        repository
+            .restore_artifacts(physical, self.executor.worker_count())
+            .map_err(workspace::Error::from)?;
+
         let workspace = Workspace::new(repository, physical, self.executor.clone())?;
         let workspace = Arc::new(workspace);
         let registration = WorkspaceRegistration::new(workspace.clone())?;

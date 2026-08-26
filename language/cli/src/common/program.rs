@@ -368,6 +368,13 @@ impl ProgramArgs {
             .root(revision)
             .map_err(|error| ConsoleError::message(format!("failed to derive root: {error}")))?;
 
+        // restore cached artifacts valid at this revision
+        repository
+            .restore_artifacts(revision, self.workers as usize)
+            .map_err(|error| {
+                ConsoleError::message(format!("artifact cache restore failed: {error}"))
+            })?;
+
         Ok((repository, revision))
     }
 

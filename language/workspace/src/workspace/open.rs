@@ -38,6 +38,9 @@ impl Workspace {
         let (repository, physical) =
             Repository::open(path, host, settings, DestackLayoutOverride::default())?;
 
+        // restore cached artifacts valid at this revision
+        repository.restore_artifacts(physical, executor.worker_count())?;
+
         Self::new(Arc::new(repository), physical, executor)
     }
 

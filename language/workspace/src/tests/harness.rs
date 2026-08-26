@@ -109,6 +109,12 @@ impl TestWorkspace {
         .expect("failed to import repository from physical fs");
         let repository = Arc::new(repository);
         let executor = Executor::new(Execution::Threaded, 1).expect("create executor");
+
+        // restore cached artifacts valid at this revision
+        repository
+            .restore_artifacts(physical, executor.worker_count())
+            .expect("restore artifact cache");
+
         Workspace::new(repository, physical, executor).expect("expected workspace")
     }
 

@@ -32,6 +32,7 @@ impl Project {
         host: Host,
         executor: Arc<Executor>,
     ) -> jsonrpc::Result<Self> {
+        // import the physical repository
         let (repository, physical) = Repository::open(
             root,
             host,
@@ -39,8 +40,16 @@ impl Project {
             DestackLayoutOverride::default(),
         )
         .map_err(internal_error)?;
-        let workspace =
-            Workspace::new(Arc::new(repository), physical, executor).map_err(internal_error)?;
+        let repository = Arc::new(repository);
+
+        // restore cached artifacts valid at this revision
+        repository
+            .restore_artifacts(physical, executor.worker_count())
+            .map_err(internal_error)?;
+
+        // construct live workspace state
+        let workspace = Workspace::new(repository, physical, executor)
+            .map_err(internal_error)?;
 
         // create the private branch used by every editor document
         let revision = workspace.revision().map_err(workspace_error)?;
