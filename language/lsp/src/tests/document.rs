@@ -174,9 +174,7 @@ const origin: Point = { x: 0,  };
     server.open(&document, 1, source).await;
 
     // accept the missing-property diagnostic of the incomplete literal
-    let diagnostics = server
-        .receive_notification::<lsp::notification::PublishDiagnostics>()
-        .await;
+    let diagnostics = server.receive_diagnostics(&document, 1).await;
     let codes: Vec<String> = diagnostics
         .diagnostics
         .iter()
@@ -244,15 +242,7 @@ const sent = context.send(1);
     server.initialize(capabilities, None).await.unwrap();
     server.initialized().await;
     server.open(&document, 1, source).await;
-    server
-        .assert_notification::<lsp::notification::PublishDiagnostics>(
-            lsp::PublishDiagnosticsParams {
-                uri: document.uri().clone(),
-                diagnostics: Vec::new(),
-                version: Some(1),
-            },
-        )
-        .await;
+    server.assert_diagnostics(&document, 1, Vec::new()).await;
 
     // show the exact declaration beside one type completion
     server
@@ -387,15 +377,7 @@ const doubled = answer + answer;
         .unwrap();
     server.initialized().await;
     server.open(&document, 1, source).await;
-    server
-        .assert_notification::<lsp::notification::PublishDiagnostics>(
-            lsp::PublishDiagnosticsParams {
-                uri: document.uri().clone(),
-                diagnostics: Vec::new(),
-                version: Some(1),
-            },
-        )
-        .await;
+    server.assert_diagnostics(&document, 1, Vec::new()).await;
 
     // rename the declaration from a use site across the selector chain
     let params = document.rename(position(2, 16), "result");
@@ -581,15 +563,7 @@ async fn test_return_resolved_document_links() {
 
     // map the authored specifier to its exact source identity
     server.open(&document, 1, source).await;
-    server
-        .assert_notification::<lsp::notification::PublishDiagnostics>(
-            lsp::PublishDiagnosticsParams {
-                uri: document.uri().clone(),
-                diagnostics: Vec::new(),
-                version: Some(1),
-            },
-        )
-        .await;
+    server.assert_diagnostics(&document, 1, Vec::new()).await;
     let expected = Some(vec![lsp::DocumentLink {
         range: range(0, 22, 0, 36),
         target: Some(library.uri().clone()),
@@ -746,15 +720,7 @@ async fn test_hover_expression_documentation() {
 
     // return the expression documentation without a symbol declaration
     server.open(&document, 1, source).await;
-    server
-        .assert_notification::<lsp::notification::PublishDiagnostics>(
-            lsp::PublishDiagnosticsParams {
-                uri: document.uri().clone(),
-                diagnostics: Vec::new(),
-                version: Some(1),
-            },
-        )
-        .await;
+    server.assert_diagnostics(&document, 1, Vec::new()).await;
     let params = document.hover(position(2, 4));
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown("Computed value.")),
@@ -779,15 +745,7 @@ async fn test_run_concurrent_document_queries() {
 
     // establish one valid semantic revision
     server.open(&document, 1, source).await;
-    server
-        .assert_notification::<lsp::notification::PublishDiagnostics>(
-            lsp::PublishDiagnosticsParams {
-                uri: document.uri().clone(),
-                diagnostics: Vec::new(),
-                version: Some(1),
-            },
-        )
-        .await;
+    server.assert_diagnostics(&document, 1, Vec::new()).await;
 
     // execute overlapping program and diagnostic roots concurrently
     let action_context = lsp::CodeActionContext {

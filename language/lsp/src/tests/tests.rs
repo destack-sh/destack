@@ -211,15 +211,7 @@ impl TestServer {
             .unwrap();
         server.initialized().await;
         server.open(&document, 1, source).await;
-        server
-            .assert_notification::<lsp::notification::PublishDiagnostics>(
-                lsp::PublishDiagnosticsParams {
-                    uri: document.uri().clone(),
-                    diagnostics: Vec::new(),
-                    version: Some(1),
-                },
-            )
-            .await;
+        server.assert_diagnostics(&document, 1, Vec::new()).await;
 
         (server, document)
     }
@@ -399,29 +391,43 @@ impl TestServer {
         PendingNotification { call }
     }
 
-    /// Receive one typed server notification.
-    pub(super) async fn receive_notification<N>(&mut self) -> N::Params
-    where
-        N: lsp::notification::Notification,
-    {
-        let message = self.receive().await;
-        let (method, id, params) = message.into_parts();
-        assert_eq!(id, None);
-        assert_eq!(method, N::METHOD);
-        let params = params.unwrap_or_else(|| panic!("{} omitted its parameters", N::METHOD));
+    /// Receive diagnostics for one exact document revision.
+    pub(super) async fn receive_diagnostics(
+        &mut self,
+        document: &TestDocument,
+        version: i32,
+    ) -> lsp::PublishDiagnosticsParams {
+        let mut unmatched = VecDeque::new();
 
-        from_value(params).unwrap()
-    }
+        // select the requested document revision
+        loop {
+            let message = self.receive().await;
+            if message.method() != lsp::notification::PublishDiagnostics::METHOD {
+                unmatched.push_back(message);
 
-    /// Require one exact typed server notification.
-    pub(super) async fn assert_notification<N>(&mut self, expected: N::Params)
-    where
-        N: lsp::notification::Notification,
-        N::Params: Debug + PartialEq,
-    {
-        let params = self.receive_notification::<N>().await;
+                continue;
+            }
 
-        assert_eq!(params, expected);
+            // decode one diagnostic publication
+            let (_, id, params) = message.into_parts();
+            assert_eq!(id, None);
+            let params = params.unwrap_or_else(|| {
+                panic!(
+                    "{} omitted its parameters",
+                    lsp::notification::PublishDiagnostics::METHOD
+                )
+            });
+            let published = from_value::<lsp::PublishDiagnosticsParams>(params).unwrap();
+            if published.uri != document.uri || published.version != Some(version) {
+                continue;
+            }
+
+            // restore unrelated protocol messages
+            unmatched.append(&mut self.messages);
+            self.messages = unmatched;
+
+            return published;
+        }
     }
 
     /// Require the user-facing diagnostics published for one document revision.
@@ -431,11 +437,7 @@ impl TestServer {
         version: i32,
         expected: Vec<lsp::Diagnostic>,
     ) {
-        let mut published = self
-            .receive_notification::<lsp::notification::PublishDiagnostics>()
-            .await;
-        assert_eq!(published.uri, document.uri);
-        assert_eq!(published.version, Some(version));
+        let mut published = self.receive_diagnostics(document, version).await;
 
         // omit the private payload used to resolve later code actions
         for diagnostic in &mut published.diagnostics {

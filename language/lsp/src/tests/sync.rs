@@ -60,16 +60,8 @@ async fn test_publish_latest_document_revision() {
         .change(&document, 4, [replace_document(fourth)])
         .await;
 
-    // publish only the current valid revision
-    server
-        .assert_notification::<lsp::notification::PublishDiagnostics>(
-            lsp::PublishDiagnosticsParams {
-                uri: document.uri().clone(),
-                diagnostics: Vec::new(),
-                version: Some(4),
-            },
-        )
-        .await;
+    // publish the current valid revision
+    server.assert_diagnostics(&document, 4, Vec::new()).await;
 
     // query the same current revision
     let params = document.hover(position(0, 16));
@@ -291,15 +283,7 @@ async fn test_apply_incremental_document_changes() {
         .await;
 
     // require the edited document to remain valid
-    server
-        .assert_notification::<lsp::notification::PublishDiagnostics>(
-            lsp::PublishDiagnosticsParams {
-                uri: document.uri().clone(),
-                diagnostics: Vec::new(),
-                version: Some(2),
-            },
-        )
-        .await;
+    server.assert_diagnostics(&document, 2, Vec::new()).await;
 
     // observe the renamed parameter through a semantic query
     let params = document.hover(position(0, 16));
