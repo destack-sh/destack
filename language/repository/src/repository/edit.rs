@@ -72,25 +72,6 @@ impl Edit {
             to: normalize_logical_path(to),
         }
     }
-
-    /// Return concrete file ids changed by this edit.
-    pub(crate) fn changed_file_ids(&self) -> impl Iterator<Item = FileId> + '_ {
-        let (first, second) = self.changed_logical_paths();
-        let first = FileId::from_logical_str(first);
-        let second = second.map(FileId::from_logical_str);
-
-        [Some(first), second].into_iter().flatten()
-    }
-
-    /// Return logical file paths changed by this edit.
-    pub(crate) fn changed_logical_paths(&self) -> (&str, Option<&str>) {
-        match self {
-            Self::AddFile { logical_path, .. }
-            | Self::SetFile { logical_path, .. }
-            | Self::RemoveFile { logical_path } => (logical_path, None),
-            Self::MoveFile { from, to } => (from, Some(to)),
-        }
-    }
 }
 
 impl Repository {
@@ -102,6 +83,15 @@ impl Repository {
         let before_state = self.revision(before)?;
         let before_files = before_state.files();
         let (after_files, changed_files, mut delta) = self.apply(before, before_files, edits)?;
+
+        // retain the exact revision when every file binding is unchanged
+        if after_files == before_files {
+            return Ok(Commit {
+                before,
+                after: before,
+                changes: Vec::new(),
+            });
+        }
 
         // invalidate repository discovery observations only when their values changed
         match delta.discovery() {
@@ -197,8 +187,6 @@ impl Repository {
         let mut discovery = Discovery::None;
 
         for edit in edits {
-            changed_files.extend(edit.changed_file_ids());
-
             match edit {
                 // add one new file binding
                 Edit::AddFile { logical_path, blob } => {
@@ -217,6 +205,7 @@ impl Repository {
                     };
                     discovery = discovery.merge(change);
                     self.observe_module_path(before, file, &mut invalidated)?;
+                    changed_files.push(file);
 
                     let logical_path = self.intern_logical_path(logical_path);
                     files = self
@@ -231,6 +220,11 @@ impl Repository {
                     let logical_path = normalize_logical_path(&logical_path);
                     let file = FileId::from_logical_str(&logical_path);
                     let previous = self.file_tree.get(files, &file);
+
+                    // skip the unchanged binding
+                    if previous.is_some_and(|previous| previous.blob == blob) {
+                        continue;
+                    }
                     let change = if is_package_config_path(&logical_path) {
                         Discovery::Config
                     } else if previous.is_none() {
@@ -246,6 +240,7 @@ impl Repository {
                     if let Some(previous) = previous {
                         invalidated.push(SourceDependency::file(file, previous.blob.id));
                     }
+                    changed_files.push(file);
 
                     let logical_path = self.intern_logical_path(logical_path);
                     files = self
@@ -270,6 +265,7 @@ impl Repository {
                     discovery = discovery.merge(change);
                     invalidated.push(SourceDependency::file(file, previous.blob.id));
                     self.observe_module_path(before, file, &mut invalidated)?;
+                    changed_files.push(file);
 
                     files = self.file_tree.remove(files, &file);
                 }
@@ -301,6 +297,7 @@ impl Repository {
                     invalidated.push(SourceDependency::file(source, source_entry.blob.id));
                     self.observe_module_path(before, source, &mut invalidated)?;
                     self.observe_module_path(before, destination, &mut invalidated)?;
+                    changed_files.extend([source, destination]);
 
                     files = self.file_tree.remove(files, &source);
                     let to = self.intern_logical_path(to);
