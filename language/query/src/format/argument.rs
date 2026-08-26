@@ -23,10 +23,17 @@ impl Formatter<'_, '_, '_> {
         return_type: dir::GlobalTypeId,
     ) -> QueryResult<AppliedSignature> {
         let mut arguments = Vec::with_capacity(generic_arguments.len());
+
+        // format source-declared generic arguments
         for binding in generic_arguments {
-            let argument = self.global_type(binding.argument)?;
-            arguments.push(argument);
+            let module = self.program.module(binding.parameter.module_id)?;
+            let parameter = module.generics()?.get_parameter(binding.parameter.local_id);
+            if parameter.origin == dir::GenericParameterOrigin::Explicit {
+                let argument = self.global_type(binding.argument)?;
+                arguments.push(argument);
+            }
         }
+
         let generics = if arguments.is_empty() {
             String::new()
         } else {

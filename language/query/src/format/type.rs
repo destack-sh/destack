@@ -403,11 +403,19 @@ impl Formatter<'_, '_, '_> {
         })
     }
 
-    /// Format one placement form, keeping every written space.
+    /// Format one placement form.
     fn placed_form(&self, type_id: dir::GlobalTypeId, value: &str) -> QueryResult<String> {
         match self.space_literal(type_id)? {
+            // elide the default local space
+            Some(dir::Space::Local) => Ok(value.to_string()),
+
+            // retain explicit nonlocal spaces
             Some(space) => Ok(format!("{} {value}", space.text())),
-            // render parametric places through the full managed application
+
+            // elide places induced by checked memory forms
+            None if self.is_induced_memory_term(type_id)? => Ok(value.to_string()),
+
+            // retain explicit parametric places
             None => {
                 let place = self.global_type(type_id)?;
 
