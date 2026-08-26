@@ -1,3 +1,5 @@
+/// Default maximum artifact cache size.
+pub(crate) const DEFAULT_CACHE_MAXIMUM_BYTES: u64 = 10 * 1024 * 1024 * 1024;
 /// Default package directory below the Destack home.
 pub(crate) const DEFAULT_PACKAGE_DIRECTORY: &str = "packages";
 /// Default vendor directory below a workspace.

@@ -3,9 +3,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactCache, ArtifactCacheError, ArtifactCacheManifest, ArtifactDependency, ArtifactEntry,
-    ArtifactOutcome, ArtifactPack, ArtifactPackReference, ArtifactPackVersion, ArtifactVersion,
-    SourceDependency,
+    ArtifactCache, ArtifactCacheError, ArtifactCacheManifest, ArtifactCachePublication,
+    ArtifactDependency, ArtifactEntry, ArtifactOutcome, ArtifactPack, ArtifactPackReference,
+    ArtifactPackVersion, ArtifactVersion, SourceDependency,
 };
 use destack_core::{BlobStore, StringPool, stable_hash_value};
 use destack_source::PackageId;
@@ -102,7 +102,8 @@ impl ArtifactCacheWrite {
         let entries_by_pack = entries_by_pack.into_iter().collect::<Vec<_>>();
 
         // index the preceding artifact pack references
-        let manifest = cache.manifest::<Revision>(&self.repository)?;
+        let publication = cache.publish()?;
+        let manifest = publication.load_manifest::<Revision>(&self.repository)?;
         let cached = manifest
             .iter()
             .flat_map(|manifest| manifest.packs.iter().copied())
@@ -126,12 +127,13 @@ impl ArtifactCacheWrite {
         if worker_count == 1 {
             for (index, package, version) in changed {
                 let entries = &entries_by_pack[index].1;
-                selected[index] = Some(self.write_pack(cache, package, version, entries)?);
+                selected[index] = Some(self.write_pack(&publication, package, version, entries)?);
             }
         } else {
             std::thread::scope(|scope| -> Result<(), ArtifactCacheError> {
                 let entries_by_pack = &entries_by_pack;
                 let changed = &changed;
+                let publication = &publication;
                 let mut handles = Vec::with_capacity(worker_count);
                 for worker in 0..worker_count {
                     let changes = changed.iter().skip(worker).step_by(worker_count);
@@ -139,7 +141,7 @@ impl ArtifactCacheWrite {
                         let mut completed = Vec::new();
                         for &(index, package, version) in changes {
                             let entries = &entries_by_pack[index].1;
-                            let pack = self.write_pack(cache, package, version, entries)?;
+                            let pack = self.write_pack(publication, package, version, entries)?;
                             completed.push((index, pack));
                         }
 
@@ -179,7 +181,7 @@ impl ArtifactCacheWrite {
         // publish the manifest only after every selected pack exists
         let manifest =
             ArtifactCacheManifest::new(cache.build_id(), &self.repository, self.revision, selected);
-        cache.write_manifest(&self.repository, &manifest)?;
+        publication.write_manifest(&self.repository, &manifest)?;
 
         Ok(generation)
     }
@@ -202,7 +204,7 @@ impl ArtifactCacheWrite {
     /// Write one self-contained pack from successful artifact entries.
     fn write_pack(
         &self,
-        cache: &ArtifactCache,
+        cache: &ArtifactCachePublication<'_>,
         package: Option<PackageId>,
         version: ArtifactPackVersion,
         entries: &[&ArtifactEntry],
@@ -231,15 +233,7 @@ impl Repository {
         let Some(cache) = self.artifact_cache() else {
             return Ok(0);
         };
-        let loaded = match cache.load::<Revision>(self.path(), worker_count) {
-            Ok(loaded) => loaded,
-            Err(error) if error.is_invalid_record() => {
-                eprintln!("event=artifact_cache.discarded error={error}");
-
-                return Ok(0);
-            }
-            Err(error) => return Err(error.into()),
-        };
+        let loaded = cache.load::<Revision>(self.path(), worker_count)?;
         let Some((manifest, packs)) = loaded else {
             return Ok(0);
         };

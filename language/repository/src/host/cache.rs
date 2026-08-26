@@ -78,14 +78,8 @@ impl ArtifactCacheWriter {
             let Some(write) = self.queue.next() else {
                 return false;
             };
-            let result = write.write(&self.cache, self.worker_count);
-            if let Err(error) = &result {
-                eprintln!("event=artifact_cache.failed error={error}");
-            }
+            let result = Self::persist(&self.cache, &write, self.worker_count);
             let persisted_generation = result.as_ref().ok().copied();
-            if let Some(generation) = persisted_generation {
-                write.mark_persisted(generation);
-            }
             self.queue
                 .finish(&write, persisted_generation, result.err());
 
@@ -103,20 +97,27 @@ impl ArtifactCacheWriter {
     fn run(cache: Arc<ArtifactCache>, queue: Arc<ArtifactCacheWriteQueue>, worker_count: usize) {
         while let Some(write) = queue.next() {
             // persist outside the queue lock
-            let result = write.write(&cache, worker_count);
-            if let Err(error) = &result {
-                eprintln!("event=artifact_cache.failed error={error}");
-            }
-
-            // retain the newest generation represented by the published manifest
-            let persisted_generation = result.as_ref().ok().copied();
-            if let Some(generation) = persisted_generation {
-                write.mark_persisted(generation);
-            }
+            let result = Self::persist(&cache, &write, worker_count);
 
             // publish completion to waiters
+            let persisted_generation = result.as_ref().ok().copied();
             queue.finish(&write, persisted_generation, result.err());
         }
+    }
+
+    /// Persist one artifact selection and perform due cache collection.
+    fn persist(
+        cache: &ArtifactCache,
+        write: &ArtifactCacheWrite,
+        worker_count: usize,
+    ) -> Result<u64, ArtifactCacheError> {
+        let generation = write.write(cache, worker_count)?;
+        write.mark_persisted(generation);
+
+        // collect obsolete cache records outside artifact publication
+        cache.collect_if_due::<Revision>(write.repository())?;
+
+        Ok(generation)
     }
 }
 

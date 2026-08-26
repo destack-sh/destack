@@ -66,15 +66,25 @@ pub struct PackageSettings {
 }
 
 /// Cache directory and retention settings.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
 pub struct CacheSettings {
     /// Cache directory.
     pub path: Option<PathBuf>,
-    /// Maximum cache size in bytes before pruning is requested.
+    /// Maximum retained cache size in bytes.
     pub maximum_bytes: Option<u64>,
+}
+
+impl Default for CacheSettings {
+    /// Return the default machine-local cache settings.
+    fn default() -> Self {
+        Self {
+            path: None,
+            maximum_bytes: Some(crate::DEFAULT_CACHE_MAXIMUM_BYTES),
+        }
+    }
 }
 
 /// Registry settings.
