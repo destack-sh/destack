@@ -629,7 +629,7 @@ impl WalkState<'_, '_> {
             // missing paths fail at the type query site
             Some(dir::Reference::Missing) => {
                 self.check
-                    .report_unresolved_reference(self.module, id.into_any(), &path);
+                    .report_unresolved_reference(self.module, id.into_any(), &path)?;
 
                 Ok(true)
             }
@@ -738,7 +738,7 @@ impl WalkState<'_, '_> {
             })
             | Some(dir::Reference::Missing) => {
                 self.check
-                    .report_unresolved_reference(self.module, id.into_any(), path);
+                    .report_unresolved_reference(self.module, id.into_any(), path)?;
             }
             None => {
                 return Err(CompilerError::Internal {
@@ -801,7 +801,7 @@ impl WalkState<'_, '_> {
             })
             | Some(dir::Reference::Missing) => {
                 self.check
-                    .report_unresolved_reference(self.module, id.into_any(), path);
+                    .report_unresolved_reference(self.module, id.into_any(), path)?;
 
                 self.intern_type(dir::Type::Error)
             }

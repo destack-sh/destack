@@ -149,6 +149,38 @@ const second = sibling;
 }
 
 #[test]
+fn test_suggest_import_for_an_unresolved_sibling_type() {
+    let session = TestSession::builder()
+        .module(
+            "util.ds",
+            r#"
+export type Helper = string;
+export type Sibling = int32;
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { Helper } from "./util.ds";
+
+type First = Helper;
+type Second = Sibling;
+"#,
+        )
+        .build();
+
+    session.assert_dir_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=unresolved-reference message="cannot find 'Sibling'"
+/// @diagnostic.label line=5 column=15 span="Sibling" line_source="type Second = Sibling;"
+/// @diagnostic.related file="util.ds" line=3 column=13 span="Sibling" line_source="export type Sibling = int32;" message="'Sibling' is declared here"
+/// @diagnostic.help message="import 'Sibling' from its module"
+"#,
+    );
+}
+
+#[test]
 fn test_export_transcribable_literals_without_annotations() {
     let session = TestSession::single(
         r#"

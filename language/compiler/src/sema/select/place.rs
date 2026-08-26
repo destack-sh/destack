@@ -920,7 +920,7 @@ impl BodyState<'_, '_> {
                 Ok(None)
             }
             Some(dir::Reference::Missing) | None => {
-                self.report_unresolved_reference(source.module_id, source.local_id, path);
+                self.report_unresolved_reference(source.module_id, source.local_id, path)?;
                 self.commit_error_node(source)?;
 
                 Ok(None)

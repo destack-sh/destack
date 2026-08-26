@@ -326,14 +326,14 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
         path: &dir::Path,
-    ) {
-        // keep the failed path so quickfixes can plan imports
+    ) -> CompilerResult<()> {
+        // retain the failed path for code actions
         let node = source.into_global(module);
         self.module_mut(module)
             .resolutions
             .set_unresolved_reference(node, path.clone());
 
-        self.emit_unresolved_reference(module, source, path);
+        self.emit_unresolved_reference(module, source, path)
     }
 
     /// Report one argument leaving a value-consumed parameter unfixed.
@@ -406,7 +406,7 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
         path: &dir::Path,
-    ) {
+    ) -> CompilerResult<()> {
         let anchor = self.diagnostic_anchor(module, source);
         let name = self.path_label(path);
         let best = self.closest_reference_name(module, source, path);
@@ -417,7 +417,7 @@ impl CheckState<'_> {
             suggestion: best.as_ref().map(|best| best.candidate.clone()),
         };
 
-        // attach the name suggestion and any matching imported declaration
+        // attach the closest visible name
         let mut diagnostic = DiagnosticBuilder::new(error);
         if let Some(suggestion) = best
             .as_ref()
@@ -425,13 +425,17 @@ impl CheckState<'_> {
         {
             diagnostic = diagnostic.suggestion(suggestion);
         }
-        if let Some(declaration) = self.imported_declaration(module, path) {
+
+        // attach an import candidate
+        if let Some(declaration) = self.find_import_candidate(module, path)? {
             diagnostic = diagnostic
                 .declaration(declaration, format!("'{name}' is declared here"))
                 .help(format!("import '{name}' from its module"));
         }
 
         self.report(module, diagnostic);
+
+        Ok(())
     }
 
     /// Report an ambiguous reference at one source node.

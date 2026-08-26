@@ -9,6 +9,7 @@ use destack_source::{ModuleId, PackageId, ProfileId, StringId};
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 
+use crate::export::ExportResolver;
 use crate::sema::{
     Answer, BoundSet, CanonicalEntry, CanonicalGoal, Cause, CauseId, CheckCounters,
     CheckModuleState, CheckTrace, DecoratorApplication, ExternalModuleTable, FlowBranch, FlowState,
@@ -188,6 +189,8 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) instantiation_depth: u32,
 
     // memos
+    /// Export lookups reused by import suggestions.
+    pub(in crate::sema) exports: ExportResolver,
     /// Decided answers per canonical goal, instantiated on later goals.
     pub(in crate::sema) answers: FxIndexMap<CanonicalGoal, Answer>,
     /// Canonical operand pairs per interned operands and assuming scope.
@@ -345,6 +348,7 @@ impl<'a> CheckState<'a> {
             deciding: FxIndexSet::default(),
             instantiation_depth: 0,
             // memos
+            exports: ExportResolver::new(profile),
             answers: FxIndexMap::default(),
             canonical_entries: FxIndexMap::default(),
             bound_sets: FxIndexSet::default(),

@@ -2,8 +2,9 @@ use destack_core::{NameMatch, find_best_match};
 use destack_dir as dir;
 use destack_source::{DiagnosticSuggestion, ModuleId};
 
+use crate::export::ExportLookup;
 use crate::sema::CheckState;
-use crate::{DiagnosticAnchor, diagnostic_suggestion_distance, rename_suggestion};
+use crate::{CompilerResult, DiagnosticAnchor, diagnostic_suggestion_distance, rename_suggestion};
 
 impl CheckState<'_> {
     /// Return a human readable path label.
@@ -22,48 +23,39 @@ impl CheckState<'_> {
         label
     }
 
-    /// Return one imported declaration matching an unresolved name.
-    pub(in crate::sema) fn imported_declaration(
-        &self,
+    /// Find one import candidate from modules named by explicit imports.
+    pub(in crate::sema) fn find_import_candidate(
+        &mut self,
         module: ModuleId,
         path: &dir::Path,
-    ) -> Option<dir::GlobalSymbolId> {
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
         let [name] = path.segments.as_slice() else {
-            return None;
+            return Ok(None);
         };
-        let name = self.strings().get(*name);
 
-        // collect the modules this file already imports from
-        let mut imported = Vec::new();
-        for target in self.module_maybe(module)?.resolved.imports.targets() {
-            let target = target.module();
-            if target != module && !imported.contains(&target) {
-                imported.push(target);
+        let key = dir::ExportKey::named(dir::StaticKey::Name(*name));
+
+        // search exports from explicitly imported modules
+        let resolved = self.module(module).resolved.clone();
+        for resolution in resolved.imports.resolution_by_symbol.values() {
+            for declaration in resolution.declarations() {
+                let candidate_module = declaration.module();
+                if candidate_module != module {
+                    let lookup = self.exports.resolve_export_target(
+                        self.artifacts,
+                        candidate_module,
+                        key,
+                    )?;
+                    if let ExportLookup::Found(resolution) = lookup
+                        && let Some(symbol) = resolution.declaration.single_symbol()
+                    {
+                        return Ok(Some(symbol));
+                    }
+                }
             }
         }
 
-        // find an exact declaration in one module scope
-        let declaration = |bindings: &dir::BindingTable<'_>| {
-            let scope = bindings.module_scope();
-            bindings
-                .get_scope(scope)
-                .named_symbols_up_to(scope.mark)
-                .find_map(|(key, symbol)| {
-                    matches!(key, dir::StaticKey::Name(key) if self.strings().get(key) == name)
-                        .then_some(symbol)
-                })
-        };
-
-        // select the first matching imported declaration
-        for imported in imported {
-            let external = self.external_module(imported);
-            let symbol = declaration(&external.bindings);
-            if let Some(symbol) = symbol {
-                return Some(symbol.into_global(imported));
-            }
-        }
-
-        None
+        Ok(None)
     }
 
     /// Return the closest visible name for one unresolved single-segment path.

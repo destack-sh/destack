@@ -133,7 +133,7 @@ impl WalkState<'_, '_> {
                             self.module,
                             target.into_any(),
                             &path,
-                        );
+                        )?;
 
                         None
                     }
@@ -151,7 +151,7 @@ impl WalkState<'_, '_> {
             }
             dir::Reference::TypeLiteral(_) | dir::Reference::Missing => {
                 self.check
-                    .report_unresolved_reference(self.module, target.into_any(), &path);
+                    .report_unresolved_reference(self.module, target.into_any(), &path)?;
 
                 None
             }

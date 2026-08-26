@@ -839,7 +839,7 @@ impl BodyState<'_, '_> {
                         segments: smallvec::smallvec![name],
                     });
                 self.check
-                    .report_unresolved_reference(module, source.local_id, &path);
+                    .report_unresolved_reference(module, source.local_id, &path)?;
                 self.commit_error_node(source)?;
 
                 Ok(None)
@@ -855,7 +855,7 @@ impl BodyState<'_, '_> {
                         segments: smallvec::smallvec![name],
                     });
                 self.check
-                    .report_unresolved_reference(module, source.local_id, &path);
+                    .report_unresolved_reference(module, source.local_id, &path)?;
                 self.commit_error_node(source)?;
 
                 Ok(None)
