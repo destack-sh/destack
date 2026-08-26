@@ -3,6 +3,8 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::{env, fs, io};
 
+use destack_core::Blob;
+use destack_source::{File, FileId, ModuleId, PackageId, Uri};
 use serde::Deserialize;
 
 const BUILTIN_SCHEME: &str = "destack://";
@@ -72,7 +74,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let manifest = load_manifest(&manifest_path)?;
     let files = collect_builtin_files(&library_source_directory)?;
-    let output = render_builtin_table(&files, &manifest);
+    let output =
+        render_builtin_table(&files, &manifest, &library_source_directory, &manifest_path)?;
     fs::write(output_path, output)?;
 
     Ok(())
@@ -134,15 +137,27 @@ fn collect_builtin_files_from_directory(
 }
 
 /// Render the embedded builtin file table.
-fn render_builtin_table(files: &[String], manifest: &PackageManifest) -> String {
+fn render_builtin_table(
+    files: &[String],
+    manifest: &PackageManifest,
+    source_directory: &Path,
+    manifest_path: &Path,
+) -> Result<String, Box<dyn Error>> {
+    let package_name = manifest.name.as_deref().unwrap_or("destack");
+    let package_id = PackageId::from_uri(&Uri::from_string(package_name));
     let mut output = String::new();
     output.push_str("pub(crate) const BUILTINS: &[BuiltinFile] = &[\n");
 
     for file in files {
-        render_builtin_file(&mut output, file);
+        let content = fs::read_to_string(source_directory.join(file))?;
+        ensure_canonical_line_endings(file, &content)?;
+        let builtin = render_builtin_file(file, &content, package_id, LIBRARY_SOURCE_DIRECTORY);
+        output.push_str(&builtin);
+        output.push_str(",\n");
     }
 
     output.push_str("];\n");
+    render_builtin_file_ids(&mut output, files);
     output.push_str("pub(crate) const BUILTIN_EXPORTS: &[BuiltinExport] = &[\n");
 
     for (specifier, export) in &manifest.exports {
@@ -150,36 +165,104 @@ fn render_builtin_table(files: &[String], manifest: &PackageManifest) -> String 
     }
 
     output.push_str("];\n");
-    output.push_str("pub(crate) const BUILTIN_MANIFEST_FILE: BuiltinFile = BuiltinFile {\n");
-    output.push_str("    uri: \"destack://destack.json\",\n");
-    output.push_str("    path: \"destack.json\",\n");
-    output.push_str(
-        "    content: include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/../library/destack.json\")),\n",
+    let manifest_content = fs::read_to_string(manifest_path)?;
+    ensure_canonical_line_endings(MANIFEST_FILE, &manifest_content)?;
+    let manifest = render_builtin_file(
+        MANIFEST_FILE,
+        &manifest_content,
+        package_id,
+        LIBRARY_DIRECTORY,
     );
-    output.push_str("};\n");
-    output.push_str("pub(crate) const BUILTIN_PACKAGE_NAME: &str = ");
-    output.push_str(&rust_string(manifest.name.as_deref().unwrap_or("destack")));
+    output.push_str("pub(crate) const BUILTIN_MANIFEST_FILE: BuiltinFile = ");
+    output.push_str(&manifest);
     output.push_str(";\n");
+    output.push_str("pub(crate) const BUILTIN_PACKAGE_NAME: &str = ");
+    output.push_str(&rust_string(package_name));
+    output.push_str(";\n");
+    output.push_str("pub(crate) const BUILTIN_PACKAGE_ID: PackageId = PackageId::new(");
+    output.push_str(&package_id.0.to_string());
+    output.push_str(");\n");
 
-    output
+    Ok(output)
 }
 
 /// Render one builtin file entry.
-fn render_builtin_file(output: &mut String, file: &str) {
-    let include_path = format!("/{LIBRARY_SOURCE_DIRECTORY}/{file}");
+fn render_builtin_file(
+    file: &str,
+    content: &str,
+    package_id: PackageId,
+    include_directory: &str,
+) -> String {
+    let include_path = format!("/{include_directory}/{file}");
     let uri = builtin_uri(file);
+    let file_id = FileId::from_logical_str(&uri);
+    let module_id = ModuleId::from_path(package_id, Path::new(file), None);
+    let blob = Blob::for_bytes(content.as_bytes());
+    let line_starts = File::line_starts(content);
+    let file_id = file_id.0;
+    let package_id = module_id.package_id.0;
+    let module_key = module_id.module_key.raw();
+    let blob_id = blob.id.bytes();
+    let blob_len = blob.byte_len;
+    let uri = rust_string(&uri);
+    let path = rust_string(file);
+    let include_path = rust_string(&include_path);
 
-    output.push_str("    BuiltinFile {\n");
-    output.push_str("        uri: ");
-    output.push_str(&rust_string(&uri));
-    output.push_str(",\n");
-    output.push_str("        path: ");
-    output.push_str(&rust_string(file));
-    output.push_str(",\n");
-    output.push_str("        content: include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), ");
-    output.push_str(&rust_string(&include_path));
-    output.push_str(")),\n");
-    output.push_str("    },\n");
+    format!(
+        concat!(
+            "BuiltinFile {{\n",
+            "    file_id: FileId::new({file_id}),\n",
+            "    module_id: ModuleId::new(PackageId::new({package_id}), {module_key}),\n",
+            "    blob: Blob::new(BlobId::new({blob_id:?}), {blob_len}),\n",
+            "    uri: {uri},\n",
+            "    path: {path},\n",
+            "    content: include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), ",
+            "{include_path})),\n",
+            "    line_starts: &{line_starts:?},\n",
+            "}}",
+        ),
+        file_id = file_id,
+        package_id = package_id,
+        module_key = module_key,
+        blob_id = blob_id,
+        blob_len = blob_len,
+        uri = uri,
+        path = path,
+        include_path = include_path,
+        line_starts = line_starts,
+    )
+}
+
+/// Render source-table positions ordered by FileId.
+fn render_builtin_file_ids(output: &mut String, files: &[String]) {
+    let mut ids = files
+        .iter()
+        .enumerate()
+        .map(|(index, file)| (FileId::from_logical_str(&builtin_uri(file)), index))
+        .collect::<Vec<_>>();
+    ids.sort_by_key(|(file_id, _)| *file_id);
+
+    output.push_str("pub(crate) const BUILTIN_FILE_IDS: &[(FileId, usize)] = &[\n");
+    for (file_id, index) in ids {
+        output.push_str("    (FileId::new(");
+        output.push_str(&file_id.0.to_string());
+        output.push_str("), ");
+        output.push_str(&index.to_string());
+        output.push_str("),\n");
+    }
+    output.push_str("];\n");
+}
+
+/// Require embedded sources to retain their exact build-time bytes.
+fn ensure_canonical_line_endings(file: &str, content: &str) -> io::Result<()> {
+    if content.contains('\r') {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("builtin source uses non-LF line endings: {file}"),
+        ));
+    }
+
+    Ok(())
 }
 
 /// Render one builtin package export.

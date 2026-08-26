@@ -19,7 +19,7 @@ fn test_lower_library() {
     let keys: Vec<_> = package
         .files()
         .iter()
-        .map(|file| ArtifactKey::mir_lowered(file.module_id(package_id), profile, target))
+        .map(|file| ArtifactKey::mir_lowered(file.module_id(), profile, target))
         .collect();
     if let Err(error) = session.require_all(keys.iter().copied()) {
         panic!("{error}");
@@ -44,7 +44,7 @@ fn test_report_library_lowering_inventory() {
         .id();
 
     for file in package.files() {
-        let key = ArtifactKey::mir_lowered(file.module_id(package_id), profile, target);
+        let key = ArtifactKey::mir_lowered(file.module_id(), profile, target);
         let Err(error) = session.require_all([key]) else {
             println!("ok {}", file.path);
 
@@ -92,7 +92,7 @@ fn test_report_module_check_timing() {
         let keys = package
             .files()
             .iter()
-            .map(|file| ArtifactKey::dir_checked(file.module_id(package_id), profile))
+            .map(|file| ArtifactKey::dir_checked(file.module_id(), profile))
             .collect::<Vec<_>>();
         let started = std::time::Instant::now();
         session
@@ -124,7 +124,7 @@ fn test_dump_module_mir() {
             continue;
         }
         matched = true;
-        let key = ArtifactKey::mir_lowered(file.module_id(package_id), profile, target);
+        let key = ArtifactKey::mir_lowered(file.module_id(), profile, target);
         match session.require_all([key]) {
             Ok(()) => println!("{}", session.render_mir_snapshot(key)),
             Err(_) => println!("{}", session.render_terminal_diagnostics_for(&[key])),
