@@ -55,24 +55,40 @@ impl ServerSession {
         })?;
 
         let host = trace.span("host.open", || {
-            let file_system = Arc::new(PhysicalFileSystem::new());
-            let build_id = BuildId::current().map_err(internal_error)?;
-            let environment = Environment::capture_process();
+            // read process inputs
+            let file_system =
+                trace.span("file_system.open", || Arc::new(PhysicalFileSystem::new()));
+            let build_id = trace
+                .span("build_id.read", BuildId::current)
+                .map_err(internal_error)?;
+            let environment = trace.span("environment.capture", Environment::capture_process);
+
+            // resolve persistent storage
             let cwd = environment.cwd.as_deref().unwrap_or_else(|| Path::new("."));
             let home = DestackLayout::resolve_home(cwd, &environment, None);
-            let settings =
-                Settings::load_from_home(file_system.as_ref(), &home).map_err(internal_error)?;
+            let settings = trace
+                .span("settings.load", || {
+                    Settings::load_from_home(file_system.as_ref(), &home)
+                })
+                .map_err(internal_error)?;
             let artifact_cache =
                 DestackLayout::resolve_cache(cwd, &home, &environment, &settings, None);
-            let artifact_cache =
-                ArtifactCache::open(build_id, artifact_cache, settings.cache.maximum_bytes)
-                    .map(Arc::new)
-                    .map_err(internal_error)?;
+            let artifact_cache = trace
+                .span("artifact_cache.open", || {
+                    ArtifactCache::open(build_id, artifact_cache, settings.cache.maximum_bytes)
+                })
+                .map(Arc::new)
+                .map_err(internal_error)?;
 
-            Ok::<_, jsonrpc::Error>(
+            // create shared host state
+            let host = trace.span("host.create", || {
                 Host::new(build_id, environment, file_system)
-                    .with_artifact_cache(artifact_cache, worker_count),
-            )
+            });
+            let host = trace.span("artifact_cache_writer.start", || {
+                host.with_artifact_cache(artifact_cache, worker_count)
+            });
+
+            Ok::<_, jsonrpc::Error>(host)
         })?;
         let executor = trace.span("executor.open", || {
             Executor::new(Execution::Threaded, worker_count).map_err(internal_error)
