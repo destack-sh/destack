@@ -120,6 +120,20 @@ impl Workspace {
         )
     }
 
+    /// Prime diagnostic and program index artifacts for one revision.
+    pub fn prime(&self, revision: Revision) -> Result<(), Error> {
+        let session = self.pin(revision)?;
+        let repository = session.repository();
+        let module_ids = repository.module_ids(revision)?;
+        let modules = session.selected_modules(&module_ids)?;
+        let mut artifacts = session.diagnostic_artifacts(&modules);
+        artifacts.extend(session.program_indexes()?);
+        artifacts.sort_unstable();
+        artifacts.dedup();
+
+        self.provide_background(revision, &artifacts)
+    }
+
     /// Publish one committed transition to workspace watches.
     pub(crate) fn publish(&self, branch: Option<&str>, commit: &Commit, after: RevisionPin) {
         if commit.before != commit.after {

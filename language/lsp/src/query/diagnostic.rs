@@ -20,7 +20,7 @@ use super::{Document, DocumentSet, ToLspUri};
 use crate::server::{ProjectSet, internal_error, workspace_error};
 
 /// Delay used to replace superseded diagnostic work.
-const DIAGNOSTIC_DELAY: Duration = Duration::from_millis(150);
+pub(crate) const DIAGNOSTIC_DELAY: Duration = Duration::from_millis(150);
 
 /// Diagnostic delivery selected from client capabilities.
 #[derive(Debug)]
@@ -59,11 +59,12 @@ impl DiagnosticDelivery {
         workspace: Arc<Workspace>,
         projects: Arc<RwLock<ProjectSet>>,
         client: Client,
+        delay: Duration,
     ) {
         match &self.mode {
-            DiagnosticDeliveryMode::Pull(diagnostics) => diagnostics.schedule(client),
+            DiagnosticDeliveryMode::Pull(diagnostics) => diagnostics.schedule(client, delay),
             DiagnosticDeliveryMode::Push(diagnostics) => {
-                diagnostics.schedule(workspace, projects, client)
+                diagnostics.schedule(workspace, projects, client, delay)
             }
         }
     }
@@ -71,7 +72,9 @@ impl DiagnosticDelivery {
     /// Remove diagnostics owned by one workspace root.
     pub(crate) async fn remove_root(&self, root: &Path, client: &Client) {
         match &self.mode {
-            DiagnosticDeliveryMode::Pull(diagnostics) => diagnostics.schedule(client.clone()),
+            DiagnosticDeliveryMode::Pull(diagnostics) => {
+                diagnostics.schedule(client.clone(), Duration::ZERO)
+            }
             DiagnosticDeliveryMode::Push(diagnostics) => {
                 diagnostics.remove_root(root, client).await
             }
@@ -81,7 +84,9 @@ impl DiagnosticDelivery {
     /// Remove diagnostics owned by one source file.
     pub(crate) async fn remove_file(&self, uri: lsp::Uri, client: &Client) {
         match &self.mode {
-            DiagnosticDeliveryMode::Pull(diagnostics) => diagnostics.schedule(client.clone()),
+            DiagnosticDeliveryMode::Pull(diagnostics) => {
+                diagnostics.schedule(client.clone(), Duration::ZERO)
+            }
             DiagnosticDeliveryMode::Push(diagnostics) => diagnostics.remove_file(uri, client).await,
         }
     }
@@ -358,8 +363,8 @@ impl PullDiagnostics {
         }
     }
 
-    /// Request one debounced diagnostic refresh.
-    fn schedule(&self, client: Client) {
+    /// Request one diagnostic refresh after the selected delay.
+    fn schedule(&self, client: Client, delay: Duration) {
         if !self.is_refresh_supported {
             return;
         }
@@ -370,9 +375,11 @@ impl PullDiagnostics {
             client.log(
                 LogRecord::new("diagnostics.scheduled")
                     .field("mode", "pull")
-                    .field("delay_ms", DIAGNOSTIC_DELAY.as_millis()),
+                    .field("delay_ms", delay.as_millis()),
             );
-            tokio::time::sleep(DIAGNOSTIC_DELAY).await;
+            if !delay.is_zero() {
+                tokio::time::sleep(delay).await;
+            }
 
             // request fresh diagnostics from the client
             client.log(LogRecord::new("diagnostics.refresh.started").field("mode", "pull"));
@@ -416,7 +423,7 @@ impl Drop for PullDiagnostics {
     }
 }
 
-/// Debounces and replaces diagnostic publications by workspace root.
+/// Replaces diagnostic publications by workspace root.
 #[derive(Debug, Default)]
 struct PushDiagnostics {
     /// Next diagnostic task identity.
@@ -434,6 +441,7 @@ impl PushDiagnostics {
         workspace: Arc<Workspace>,
         projects: Arc<RwLock<ProjectSet>>,
         client: Client,
+        delay: Duration,
     ) {
         let root = workspace.root().to_path_buf();
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
@@ -442,17 +450,19 @@ impl PushDiagnostics {
         let task_root = root.clone();
         let cancelled_client = client.clone();
         let handle = tokio::spawn(async move {
-            // report the scheduled publication before its debounce delay
+            // report the scheduled publication before its delay
             client.log(
                 LogRecord::new("diagnostics.scheduled")
                     .field("mode", "push")
                     .field("task_id", id)
                     .field("root", task_root.display())
-                    .field("delay_ms", DIAGNOSTIC_DELAY.as_millis()),
+                    .field("delay_ms", delay.as_millis()),
             );
-            tokio::time::sleep(DIAGNOSTIC_DELAY).await;
+            if !delay.is_zero() {
+                tokio::time::sleep(delay).await;
+            }
 
-            // schedule diagnostic artifacts after the debounce interval
+            // schedule diagnostic artifacts after the selected delay
             let started = Instant::now();
             let revision = { projects.read().revision(workspace.root()) };
             let revision = match revision {
