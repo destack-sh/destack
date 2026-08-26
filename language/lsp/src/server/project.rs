@@ -31,24 +31,33 @@ impl Project {
         root: PathBuf,
         host: Host,
         executor: Arc<Executor>,
+        trace: &Trace,
     ) -> jsonrpc::Result<Self> {
         // import the physical repository
-        let (repository, physical) = Repository::open(
-            root,
-            host,
-            Settings::default(),
-            DestackLayoutOverride::default(),
-        )
-        .map_err(internal_error)?;
+        let (repository, physical) = trace
+            .span("repository.open", || {
+                Repository::open(
+                    root,
+                    host,
+                    Settings::default(),
+                    DestackLayoutOverride::default(),
+                )
+            })
+            .map_err(internal_error)?;
         let repository = Arc::new(repository);
 
         // restore cached artifacts valid at this revision
-        repository
-            .restore_artifacts(physical, executor.worker_count())
+        trace
+            .span("artifact_cache.restore", || {
+                repository.restore_artifacts(physical, executor.worker_count())
+            })
             .map_err(internal_error)?;
 
         // construct live workspace state
-        let workspace = Workspace::new(repository, physical, executor)
+        let workspace = trace
+            .span("workspace.create", || {
+                Workspace::new(repository, physical, executor)
+            })
             .map_err(internal_error)?;
 
         // create the private branch used by every editor document

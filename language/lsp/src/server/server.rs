@@ -617,8 +617,22 @@ impl DestackLanguageServer {
 
         // open declared source roots selected by added editor folders
         for path in added {
-            if let Some(workspace) = self.session()?.open_editor_folder(&path)? {
-                self.schedule_diagnostics(workspace)?;
+            let trace = self.start_trace()?;
+            let workspace = trace.span("project.open", || {
+                self.session()?.open_editor_folder(&path, trace.as_ref())
+            })?;
+            trace.finish();
+            if let Some(workspace) = workspace {
+                let revision = self.session()?.workspace_revision(workspace.as_ref())?;
+                self.schedule_diagnostics(workspace.clone())?;
+                self.report_trace(
+                    "project.open",
+                    LogRecord::new("project.opened").field("path", path.display()),
+                    workspace.as_ref(),
+                    revision,
+                    trace,
+                )
+                .await?;
             }
         }
 

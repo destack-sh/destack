@@ -109,7 +109,9 @@ impl ServerSession {
 
         // register editor folders and open their declared source roots
         for folder in folders {
-            trace.span("project.open", || session.open_editor_folder(&folder))?;
+            trace.span("project.open", || {
+                session.open_editor_folder(&folder, trace)
+            })?;
         }
 
         Ok(session)
@@ -166,7 +168,7 @@ impl ServerSession {
                 .map(PathBuf::from)
                 .map_err(internal_error)?;
             let root = Self::canonicalize(&root)?;
-            let project = Project::open(root, self.host.clone(), self.executor.clone())?;
+            let project = Project::open(root, self.host.clone(), self.executor.clone(), trace)?;
             self.projects.write().insert(project);
         }
 
@@ -291,6 +293,7 @@ impl ServerSession {
     pub(super) fn open_editor_folder(
         &self,
         path: &Path,
+        trace: &Trace,
     ) -> jsonrpc::Result<Option<Arc<Workspace>>> {
         let path = Self::canonicalize(path)?;
         let workspace = self.projects.read().select(&path).map(Project::workspace);
@@ -302,7 +305,7 @@ impl ServerSession {
             match root {
                 SourceRoot::Declared(root) => {
                     let root = Self::canonicalize(&root)?;
-                    Some(self.open_root(root)?)
+                    Some(self.open_root(root, trace)?)
                 }
                 SourceRoot::Implicit(_) => None,
             }
@@ -315,13 +318,13 @@ impl ServerSession {
     }
 
     /// Open one project from its exact source root.
-    fn open_root(&self, root: PathBuf) -> jsonrpc::Result<Arc<Workspace>> {
+    fn open_root(&self, root: PathBuf, trace: &Trace) -> jsonrpc::Result<Arc<Workspace>> {
         if let Some(project) = self.projects.read().get(&root) {
             return Ok(project.workspace());
         }
 
         // build the project outside the shared project lock
-        let project = Project::open(root, self.host.clone(), self.executor.clone())?;
+        let project = Project::open(root, self.host.clone(), self.executor.clone(), trace)?;
 
         // retain the first project opened concurrently for this root
         let workspace = self.projects.write().insert(project).workspace();
