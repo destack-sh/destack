@@ -107,9 +107,9 @@ impl TypeLowerer<'_, '_> {
             let base_instance = match arguments.is_empty() {
                 true => None,
                 false => {
-                    let specialization = self
-                        .lowerer
-                        .specialization_of(application.symbol, &arguments)?;
+                    let specialization =
+                        self.lowerer
+                            .specialization_of(application.symbol, None, &arguments)?;
                     if specialization.is_none() {
                         let path = self.lowerer.symbol_path(application.symbol)?;
 
@@ -176,8 +176,7 @@ impl TypeLowerer<'_, '_> {
                     .parameters
                     .iter()
                     .any(|parameter| {
-                        generics.get_parameter(*parameter).kind
-                            != dir::GenericParameterKind::Memory(dir::MemoryParameter::Region)
+                        generics.get_parameter(*parameter).kind == dir::GenericParameterKind::Type
                     });
                 if is_generic {
                     continue;

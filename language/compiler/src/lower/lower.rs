@@ -25,9 +25,13 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(in crate::lower) strings: &'a StringPool,
     /// The state of every reachable module.
     pub(in crate::lower) modules: FxIndexMap<ModuleId, LowerModuleState>,
-    /// The sema instance behind each closed selection, keyed by its fingerprinted arguments.
+    /// The sema instance behind each closed selection, keyed by its fingerprinted receiver and arguments.
     pub(in crate::lower) specializations: FxIndexMap<
-        (dir::GlobalSymbolId, Vec<dir::TypeFingerprint>),
+        (
+            dir::GlobalSymbolId,
+            Option<dir::TypeFingerprint>,
+            Vec<dir::TypeFingerprint>,
+        ),
         (ModuleId, dir::LocalInstanceId),
     >,
 
@@ -61,6 +65,8 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(in crate::lower) language: mir::LanguageTable,
     /// The authored drop hook member declared beside each Drop-conforming nominal.
     pub(in crate::lower) drop_hooks: FxIndexMap<dir::GlobalSymbolId, dir::GlobalSymbolId>,
+    /// The synthesized builtin clone bodies and their copied value types.
+    pub(in crate::lower) synthesized_clones: Vec<(mir::FunctionId, mir::TypeId)>,
     /// The constant String object and value type per collected literal content.
     pub(in crate::lower) string_literals:
         FxIndexMap<StringId, Lowered<(mir::GlobalId, mir::LocalNodeId<mir::Type>)>>,
@@ -98,6 +104,7 @@ impl<'a> ModuleLowerer<'a> {
             specializations: FxIndexMap::default(),
             // queues
             synthesized_constructors: Vec::new(),
+            synthesized_clones: Vec::new(),
             // memos
             representations: FxIndexMap::default(),
             constraints: FxIndexMap::default(),
@@ -125,24 +132,34 @@ impl<'a> ModuleLowerer<'a> {
         for (module, state) in &self.modules {
             for (instance, entry) in state.generics.iter_instances() {
                 let arguments: Vec<_> = entry
-                    .selection
+                    .key
                     .arguments
                     .iter()
                     .map(|binding| binding.argument)
                     .collect();
-                entries.push((entry.selection.symbol, arguments, *module, instance));
+                entries.push((
+                    entry.key.symbol,
+                    entry.key.receiver,
+                    arguments,
+                    *module,
+                    instance,
+                ));
             }
         }
 
         // key each instance by the fingerprints of its arguments
         let mut specializations = FxIndexMap::default();
-        for (symbol, arguments, module, instance) in entries {
+        for (symbol, receiver, arguments, module, instance) in entries {
+            let receiver = match receiver {
+                Some(receiver) => Some(self.type_fingerprint(receiver)?),
+                None => None,
+            };
             let mut keys = Vec::with_capacity(arguments.len());
             for argument in arguments {
                 keys.push(self.type_fingerprint(argument)?);
             }
             specializations
-                .entry((symbol, keys))
+                .entry((symbol, receiver, keys))
                 .or_insert((module, instance));
         }
 
@@ -155,14 +172,19 @@ impl<'a> ModuleLowerer<'a> {
     pub(in crate::lower) fn specialization_of(
         &self,
         symbol: dir::GlobalSymbolId,
+        receiver: Option<dir::GlobalTypeId>,
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Option<(ModuleId, dir::LocalInstanceId)>> {
+        let receiver = match receiver {
+            Some(receiver) => Some(self.type_fingerprint(receiver)?),
+            None => None,
+        };
         let mut keys = Vec::with_capacity(arguments.len());
         for argument in arguments {
             keys.push(self.type_fingerprint(*argument)?);
         }
 
-        Ok(self.specializations.get(&(symbol, keys)).copied())
+        Ok(self.specializations.get(&(symbol, receiver, keys)).copied())
     }
 
     /// Map one dir space to its mir space.
@@ -240,7 +262,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Return whether one type denotes a lifetime.
-    fn type_is_lifetime(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+    pub(in crate::lower) fn type_is_lifetime(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
         self.type_is_lifetime_guarded(ty, &mut Vec::new())
     }
 
@@ -251,6 +273,8 @@ impl<'a> ModuleLowerer<'a> {
         visiting: &mut Vec<dir::GlobalTypeId>,
     ) -> CompilerResult<bool> {
         Ok(match self.ty(ty)? {
+            // region terms name lifetimes directly
+            dir::Type::Region(_) => true,
             // memory literals name lifetimes as strings
             dir::Type::Literal(dir::Literal::String(name)) => {
                 matches!(self.strings.get(name), "static" | "frame")
@@ -303,6 +327,82 @@ impl<'a> ModuleLowerer<'a> {
         }
     }
 
+    /// Return whether sema committed one auto conformance for a closed nominal type.
+    pub(in crate::lower) fn nominal_conformance(
+        &self,
+        ty: dir::GlobalTypeId,
+        interface: dir::AutoInterface,
+    ) -> CompilerResult<bool> {
+        match self.ty(ty)? {
+            // instantiation-invariant declarations read the committed definition conformances
+            dir::Type::Application(application)
+                if application.arguments.is_empty()
+                    || self.template_is_memory_only(application.symbol)? =>
+            {
+                self.definition_conformance(application.symbol, interface)
+            }
+            dir::Type::Reference(reference) => {
+                self.definition_conformance(reference.symbol, interface)
+            }
+            // generic applications read the committed instance conformances
+            dir::Type::Application(application) => {
+                let arguments = self
+                    .types(ty.module_id)?
+                    .type_ids(application.arguments)
+                    .to_vec();
+                let Some((module, instance)) =
+                    self.specialization_of(application.symbol, None, &arguments)?
+                else {
+                    return Ok(false);
+                };
+                let conformances = &self
+                    .state(module)?
+                    .generics
+                    .get_instance(instance)
+                    .conformances;
+
+                Ok(conformances.contains(interface))
+            }
+
+            _ => Ok(false),
+        }
+    }
+
+    /// Return whether one declaration's template holds only memory parameters.
+    fn template_is_memory_only(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<bool> {
+        let Some(template) = self
+            .definition(symbol)?
+            .and_then(|definition| definition.template())
+        else {
+            return Ok(true);
+        };
+
+        // read each declared parameter's solving representation
+        let state = self.state(symbol.module_id)?;
+        let parameters = state.generics.get_template(template).parameters.clone();
+        for parameter in parameters {
+            let binding = state.generics.get_parameter(parameter);
+            if binding.memory_parameter().is_none() {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
+    /// Return whether one declaration's committed conformances include an interface.
+    fn definition_conformance(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        interface: dir::AutoInterface,
+    ) -> CompilerResult<bool> {
+        let conformances = self
+            .definition(symbol)?
+            .and_then(|definition| definition.conformances());
+
+        Ok(conformances.is_some_and(|conformances| conformances.contains(interface)))
+    }
+
     /// Index the drop hook member each loaded Drop-conforming nominal declares.
     ///
     /// Drop conformances bind in the nominal's own module: inline on the declaration,
@@ -350,11 +450,6 @@ impl<'a> ModuleLowerer<'a> {
         Ok(())
     }
 
-    /// Return whether one nominal declares a Drop conformance.
-    pub(in crate::lower) fn declares_drop(&self, symbol: dir::GlobalSymbolId) -> bool {
-        self.drop_hooks.contains_key(&symbol)
-    }
-
     /// Register each Drop-conforming nominal's authored hook beside its lowered storage.
     ///
     /// Sema closes hook instances beside their nominals, so the bodies arrive through
@@ -374,30 +469,35 @@ impl<'a> ModuleLowerer<'a> {
             let Some(member) = self.drop_hooks.get(&key.symbol).copied() else {
                 continue;
             };
-            let storage = match state {
-                NominalState::Declared { storage, .. } => *storage,
-                NominalState::Lowered(nominal) => nominal.storage,
+            let (storage, value) = match state {
+                NominalState::Declared { storage, value } => (*storage, *value),
+                NominalState::Lowered(nominal) => (nominal.storage, nominal.value),
             };
 
-            // an unparameterized extension hook closes without the nominal's arguments
-            let mut hook = GenericInstanceKey {
+            let hook = GenericInstanceKey {
                 symbol: member,
+                receiver: None,
                 arguments: key.arguments.clone(),
             };
-            if !self.functions.contains_key(&hook) && !hook.arguments.is_empty() {
-                hook = GenericInstanceKey {
-                    symbol: member,
-                    arguments: Vec::new(),
-                };
-            }
-
-            entries.push((hook, storage));
+            entries.push((hook, storage, value));
         }
 
-        for (key, storage_type) in entries {
-            // declare an unreferenced imported hook
-            if !self.functions.contains_key(&key) && key.arguments.is_empty() {
-                match self.declare_imported_function(builder, key.symbol) {
+        for (mut key, storage_type, value_type) in entries {
+            // an unparameterized extension hook closes without the nominal's arguments
+            if !self.functions.contains_key(&key) && !key.arguments.is_empty() {
+                let unparameterized = GenericInstanceKey {
+                    symbol: key.symbol,
+                    receiver: None,
+                    arguments: Vec::new(),
+                };
+                if self.functions.contains_key(&unparameterized) {
+                    key = unparameterized;
+                }
+            }
+
+            // import the foreign hook instance the local declarations never close
+            if !self.functions.contains_key(&key) {
+                match self.import_drop_hook(builder, &key, storage_type, value_type) {
                     Ok(()) => {}
                     Err(CompilerError::Diagnostic(diagnostic)) => {
                         errors.push(diagnostic);
@@ -470,6 +570,16 @@ impl<'a> ModuleLowerer<'a> {
                 specialization,
                 function,
             ) {
+                Ok(()) => {}
+                Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
+                Err(error) => return Err(error),
+            }
+        }
+
+        // lower the synthesized builtin clones to receiver copies
+        let synthesized = std::mem::take(&mut self.synthesized_clones);
+        for (function, result) in synthesized {
+            match FunctionLowerer::lower_builtin_clone(self, &mut builder, function, result) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
                 Err(error) => return Err(error),

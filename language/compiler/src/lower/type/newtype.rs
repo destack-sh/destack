@@ -12,6 +12,7 @@ impl TypeLowerer<'_, '_> {
         definition: dir::NewtypeDefinition,
         ty: mir::LocalNodeId<mir::Type>,
         arguments: &[dir::GlobalTypeId],
+        copy: mir::Copy,
     ) -> CompilerResult<Vec<NominalField>> {
         // take the intrinsic representation for compiler-known newtypes
         if matches!(self.lowerer.ty(definition.backing)?, dir::Type::Intrinsic) {
@@ -20,13 +21,8 @@ impl TypeLowerer<'_, '_> {
             return Ok(Vec::new());
         }
 
-        // wrap the backing type transparently, a Drop conformance forbids copy
+        // wrap the backing type transparently under the checked copy conformance
         let inner = self.lower(definition.backing)?;
-        let copy = if self.lowerer.declares_drop(symbol) {
-            mir::Copy::No
-        } else {
-            self.tree.get(inner).copy(self.tree)
-        };
         self.tree
             .define_type(ty, mir::Type::Newtype { inner, copy });
 

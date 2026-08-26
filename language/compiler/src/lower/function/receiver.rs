@@ -144,7 +144,7 @@ impl FunctionLowerer<'_, '_, '_> {
                         message: "a protocol dereference selected no direct method".to_string(),
                     });
                 };
-                let target = self.selection_function(&function.selection)?;
+                let target = self.selection_function(&function.key)?;
                 let result = self.builder.call_function(target, vec![value]);
 
                 result.ok_or_else(|| CompilerError::Internal {

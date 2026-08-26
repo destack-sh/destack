@@ -41,7 +41,7 @@ function bend(value: int32): int32 {
     session.assert_mir_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error id=unsupported-lower-construct message="MIR lowering does not support the 'time.warp' intrinsic"
+/// @diagnostic.error id=unsupported-lower-construct message="unsupported construct: the 'time.warp' intrinsic"
 /// @diagnostic.label file="main.ds"
 "#,
     );

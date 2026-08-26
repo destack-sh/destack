@@ -219,6 +219,15 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                     None => "an anonymous template".to_string(),
                 };
 
+                // an open parameter outside any instance marks an uninstantiated context
+                if self.instance.is_none() {
+                    return Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: format!("a generic type of '{path}' outside its instance"),
+                    }
+                    .into());
+                }
+
                 Err(CompilerError::Internal {
                     message: format!("a type parameter of '{path}' was never materialized"),
                 })
@@ -392,10 +401,23 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
     pub(in crate::lower) fn generic_instance_key(
         &mut self,
         symbol: dir::GlobalSymbolId,
+        receiver: Option<dir::GlobalTypeId>,
         types: &[dir::GlobalTypeId],
     ) -> CompilerResult<GenericInstanceKey> {
+        let receiver = match receiver {
+            Some(ty) => {
+                let ty = self.lower(ty)?;
+                Some(self.tree.intern_static(mir::Static::Type(ty)))
+            }
+            None => None,
+        };
         let mut arguments = Vec::with_capacity(types.len());
         for ty in types {
+            // lifetime arguments never shape a specialization
+            if self.lowerer.type_is_lifetime(*ty)? {
+                continue;
+            }
+
             match self.lowerer.place_space(*ty)? {
                 // local place arguments canonicalize onto the plain declaration
                 Some(dir::Space::Local) => {}
@@ -412,7 +434,11 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             }
         }
 
-        Ok(GenericInstanceKey { symbol, arguments })
+        Ok(GenericInstanceKey {
+            symbol,
+            receiver,
+            arguments,
+        })
     }
 }
 
@@ -428,7 +454,7 @@ impl<'module> ModuleLowerer<'module> {
     }
 
     /// Return the value argument when one instance applies a memory form item.
-    fn memory_form_value(
+    pub(in crate::lower) fn memory_form_value(
         &self,
         id: dir::GlobalTypeId,
         instance: &dir::GenericApplication,

@@ -634,7 +634,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // take the subject from the first generic argument the call selects
         let bindings = self
             .lowerer
-            .instance_bindings(&function.selection.arguments, self.instance)?;
+            .instance_bindings(&function.key.arguments, self.instance)?;
         let Some(subject) = bindings.first().map(|binding| binding.argument) else {
             return Err(CompilerError::Internal {
                 message: "a layout intrinsic without a subject type".to_string(),

@@ -152,7 +152,6 @@ function make(name: &[uint8]): void {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-@copy
 type Entry<'a> {
     name: slice<uint8, borrowed, 'a, mutable, local>;
 }

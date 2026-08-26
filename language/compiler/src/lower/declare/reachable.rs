@@ -11,7 +11,7 @@ use crate::{CompilerError, CompilerResult};
 #[derive(Default)]
 pub(in crate::lower) struct Reachable {
     /// Generic instances to declare, in reference order.
-    pub(in crate::lower) instances: Vec<(dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>)>,
+    pub(in crate::lower) instances: Vec<dir::InstanceKey>,
     /// Foreign callables to declare as imports.
     pub(in crate::lower) imports: FxIndexSet<dir::GlobalSymbolId>,
     /// Sealed bindings to declare as dotted host externs.
@@ -145,35 +145,28 @@ impl ModuleLowerer<'_> {
             // queue a synthesized constructor for default constructions with field initializers
             if let Some(resolution) = state.decisions.construct_decision(node)
                 && let dir::ConstructTarget::Class {
-                    selection,
+                    key,
                     constructor: dir::ClassConstructor::Default,
                 } = &resolution.target
-                && self.class_has_field_initializers(selection.symbol)?
+                && self.class_has_field_initializers(key.symbol)?
             {
-                let bindings = self.instance_bindings(&selection.arguments, instance)?;
+                let bindings = self.instance_bindings(&key.arguments, instance)?;
                 if reachable
                     .default_constructors
-                    .insert((selection.symbol, bindings.clone()))
+                    .insert((key.symbol, bindings.clone()))
                 {
                     let arguments: Vec<_> =
                         bindings.iter().map(|binding| binding.argument).collect();
-                    let specialization = self.specialization_of(selection.symbol, &arguments)?;
-                    self.collect_constructor_initializers(
-                        selection.symbol,
-                        specialization,
-                        reachable,
-                    )?;
+                    let specialization = self.specialization_of(key.symbol, None, &arguments)?;
+                    self.collect_constructor_initializers(key.symbol, specialization, reachable)?;
                 }
             }
 
             // import plain foreign declared constructors; generic ones declare from their instances
             if let Some(resolution) = state.decisions.construct_decision(node)
-                && let dir::ConstructTarget::Class {
-                    selection,
-                    constructor,
-                } = &resolution.target
+                && let dir::ConstructTarget::Class { key, constructor } = &resolution.target
                 && let dir::ClassConstructor::Declared { symbol } = constructor
-                && selection.arguments.is_empty()
+                && key.arguments.is_empty()
                 && symbol.module_id != self.module
             {
                 reachable.imports.insert(*symbol);
@@ -353,7 +346,7 @@ impl ModuleLowerer<'_> {
             .types(ty.module_id)?
             .type_ids(instance.arguments)
             .to_vec();
-        let specialization = self.specialization_of(instance.symbol, &arguments)?;
+        let specialization = self.specialization_of(instance.symbol, None, &arguments)?;
         for field in fields {
             if written.contains(&field.key) {
                 continue;
@@ -492,11 +485,10 @@ impl ModuleLowerer<'_> {
             .decisions
             .function_decision(node)
             .is_some_and(|decision| {
-                decision.arms().iter().any(|value| {
-                    value
-                        .selection()
-                        .is_some_and(|selection| !selection.arguments.is_empty())
-                })
+                decision
+                    .arms()
+                    .iter()
+                    .any(|value| value.key().is_some_and(|key| !key.arguments.is_empty()))
             })
         {
             return Ok(());
@@ -642,7 +634,9 @@ impl ModuleLowerer<'_> {
                     continue;
                 };
                 let implementing = self.implementing_method(class.symbol, name)?;
-                reachable.instances.push((implementing, Vec::new()));
+                reachable
+                    .instances
+                    .push(dir::InstanceKey::new(implementing, Vec::new()));
             }
 
             // queue the inherited interfaces the constraint extends
@@ -694,10 +688,10 @@ impl ModuleLowerer<'_> {
         };
 
         // route intrinsic and binding callables without an instance
-        match self.callable_implementation(function.selection.symbol)? {
+        match self.callable_implementation(function.key.symbol)? {
             // declare dotted host externs for bindings
             Some(CallableImplementation::Binding { .. }) => {
-                reachable.bindings.insert(function.selection.symbol);
+                reachable.bindings.insert(function.key.symbol);
 
                 return Ok(());
             }
@@ -707,10 +701,10 @@ impl ModuleLowerer<'_> {
         }
 
         // parameter-binding calls declare from their instances; plain foreign calls import
-        if function.selection.symbol.module_id != self.module
-            && !self.selects_parameters(&function.selection.arguments)?
+        if function.key.symbol.module_id != self.module
+            && !self.selects_parameters(&function.key.arguments)?
         {
-            reachable.imports.insert(function.selection.symbol);
+            reachable.imports.insert(function.key.symbol);
         }
 
         Ok(())

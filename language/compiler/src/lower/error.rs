@@ -28,7 +28,7 @@ pub enum LowerError {
     /// Construct is not supported by MIR lowering.
     #[diagnostic(
         id = "unsupported-lower-construct",
-        message = "MIR lowering does not support {construct}"
+        message = "unsupported construct: {construct}"
     )]
     Unsupported {
         /// Anchor the error to the unsupported construct.

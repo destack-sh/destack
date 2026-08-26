@@ -32,10 +32,9 @@ impl FunctionLowerer<'_, '_, '_> {
             // wrap a raw value: Meters(5)
             dir::ConstructTarget::Newtype { .. } => self.lower_newtype_construct(resolution),
             // construct a declared class: new User("ada")
-            dir::ConstructTarget::Class {
-                selection,
-                constructor,
-            } => self.lower_class_construct(resolution, selection, constructor),
+            dir::ConstructTarget::Class { key, constructor } => {
+                self.lower_class_construct(resolution, key, constructor)
+            }
             // reject construction through a class value: new classValue(1)
             dir::ConstructTarget::Dynamic { .. } => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -51,7 +50,7 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::ConstructDecision,
     ) -> CompilerResult<mir::Value> {
         let dir::ConstructTarget::Class {
-            selection,
+            key: selection,
             constructor,
         } = &resolution.target
         else {
@@ -134,7 +133,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_class_construct(
         &mut self,
         resolution: &dir::ConstructDecision,
-        selection: &dir::Selection,
+        selection: &dir::InstanceKey,
         constructor: &dir::ClassConstructor,
     ) -> CompilerResult<mir::Value> {
         // adapt the arguments against the declared constructor header
@@ -218,7 +217,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     .lowerer
                     .instance_bindings(generic_arguments, self.instance)?;
                 let instance: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
-                let key = self.generic_instance_key(*symbol, &instance)?;
+                let key = self.generic_instance_key(*symbol, None, &instance)?;
                 let function = self.function(&key)?;
                 let receiver = self.constructed_receiver(storage, pointee)?;
 
@@ -249,7 +248,7 @@ impl FunctionLowerer<'_, '_, '_> {
                         .instance_bindings(generic_arguments, self.instance)?;
                     let instance: Vec<_> =
                         bindings.iter().map(|binding| binding.argument).collect();
-                    let key = self.generic_instance_key(class, &instance)?;
+                    let key = self.generic_instance_key(class, None, &instance)?;
                     let function = self.function(&key)?;
                     let receiver = self.constructed_receiver(storage, pointee)?;
                     self.builder.call_function(function, vec![receiver]);
@@ -577,7 +576,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .to_vec();
         let specialization = self
             .lowerer
-            .specialization_of(instance.symbol, &arguments)?;
+            .specialization_of(instance.symbol, None, &arguments)?;
         let value =
             self.lower_foreign_expression(initializer.module_id, specialization, expression)?;
 

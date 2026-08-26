@@ -29,15 +29,12 @@ impl FunctionLowerer<'_, '_, '_> {
                 dispatch: dir::FunctionDispatch::Direct,
             } => {
                 // route intrinsic and binding callables before declared functions
-                match self
-                    .lowerer
-                    .callable_implementation(function.selection.symbol)?
-                {
+                match self.lowerer.callable_implementation(function.key.symbol)? {
                     Some(CallableImplementation::Intrinsic { name }) => {
                         return self.lower_intrinsic_call(expression, name, call);
                     }
                     Some(CallableImplementation::Binding { .. }) => {
-                        return self.lower_binding_call(function.selection.symbol, call);
+                        return self.lower_binding_call(function.key.symbol, call);
                     }
                     None => {}
                 }
@@ -52,7 +49,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
                 // local or imported (...)
                 else {
-                    self.lower_function_call(function.selection.symbol, call)
+                    self.lower_function_call(function.key.symbol, call)
                 }
             }
             // value(...)
@@ -73,7 +70,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Return whether one function target binds generic arguments beyond lifetimes.
     fn has_instance_arguments(&self, function: &dir::FunctionTarget) -> CompilerResult<bool> {
         // any argument beyond a region parameter selects a concrete instance
-        for binding in &function.selection.arguments {
+        for binding in &function.key.arguments {
             let parameter = binding.parameter;
             let generics = &self.lowerer.state(parameter.module_id)?.generics;
             let declared = generics.get_parameter(parameter.local_id);
@@ -199,7 +196,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         elements: &[dir::GlobalNodeIdAny],
         element_type: dir::GlobalTypeId,
-        pack: Option<&dir::Selection>,
+        pack: Option<&dir::InstanceKey>,
     ) -> CompilerResult<mir::Value> {
         // materialize the elements into fixed stack storage
         let element = self.lower_type(element_type)?;
@@ -334,7 +331,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let receiver = self.lower_adjusted_receiver(receiver, adjusted)?;
 
         // resolve the declared function behind the selected method instance
-        let function = self.selection_function(&function.selection)?;
+        let function = self.selection_function(&function.key)?;
         let parameters = self.function_parameters(function);
         let Some((_, parameters)) = parameters.split_first() else {
             return Err(CompilerError::Internal {
@@ -356,31 +353,37 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         // select the declared instance from the substituted arguments
-        let function = self.selection_function(&function.selection)?;
+        let function = self.selection_function(&function.key)?;
         let parameters = self.function_parameters(function);
         let values = self.lower_call_arguments(&resolution.arguments, &parameters, None)?;
 
         Ok(self.builder.call_function(function, values))
     }
 
-    /// Return the instance key one symbol takes under a selection's arguments.
+    /// Return the instance key one symbol takes under one selection's arguments.
     pub(in crate::lower) fn selection_key(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        selection: &dir::Selection,
+        selection: &dir::InstanceKey,
     ) -> CompilerResult<GenericInstanceKey> {
         let bindings = self
             .lowerer
             .instance_bindings(&selection.arguments, self.instance)?;
         let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
 
-        self.generic_instance_key(symbol, &arguments)
+        // resolve the receiver through the enclosing instance's types
+        let receiver = match selection.receiver {
+            Some(receiver) => Some(self.lowerer.instance_type(self.instance, receiver)?),
+            None => None,
+        };
+
+        self.generic_instance_key(symbol, receiver, &arguments)
     }
 
     /// Return the declared function behind one selection's instance.
     pub(in crate::lower) fn selection_function(
         &mut self,
-        selection: &dir::Selection,
+        selection: &dir::InstanceKey,
     ) -> CompilerResult<mir::FunctionId> {
         let key = self.selection_key(selection.symbol, selection)?;
 

@@ -353,9 +353,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     .into());
                 };
 
-                Ok(Some(
-                    self.union_member_case(scrutinee, nominal.selection.symbol)?,
-                ))
+                Ok(Some(self.union_member_case(scrutinee, nominal.key.symbol)?))
             }
 
             other => Err(LowerError::Unsupported {

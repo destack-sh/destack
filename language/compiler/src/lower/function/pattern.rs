@@ -287,7 +287,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.builder.variant_switch(
                     value,
                     Some(present_block),
-                    vec![(absent as u32, absent_block)],
+                    vec![(absent, absent_block)],
                 );
 
                 // collect the cases that carry a payload

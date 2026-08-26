@@ -228,6 +228,50 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         Ok(())
     }
 
+    /// Lower one synthesized builtin clone to a copy of its receiver's pointee.
+    pub(in crate::lower) fn lower_builtin_clone(
+        lowerer: &mut ModuleLowerer<'_>,
+        builder: &mut mir::ModuleBuilder,
+        function: mir::FunctionId,
+        result: mir::TypeId,
+    ) -> CompilerResult<()> {
+        // open the synthesized body and stand up the lowering state around it
+        let module = lowerer.module;
+        let builder = builder
+            .function_body(function)
+            .map_err(|error| CompilerError::Internal {
+                message: format!("function body start failed: {error}"),
+            })?;
+        let mut lowering = FunctionLowerer {
+            lowerer,
+            builder,
+            source: module,
+            instance: None,
+            lifetime_parameters: LifetimeParameters::default(),
+            values: FxIndexMap::default(),
+            frames: FxIndexMap::default(),
+            this: None,
+            constructs: None,
+            controls: Vec::new(),
+        };
+
+        // copy the borrowed receiver's value and return it
+        let entry = lowering.builder.block();
+        lowering.builder.switch_to_block(entry);
+        let receiver = lowering.builder.function_parameter(0);
+        let value = lowering.builder.load(receiver, result);
+        lowering.builder.return_(Some(value));
+        lowering.builder.seal_all_blocks();
+        lowering
+            .builder
+            .finish()
+            .map_err(|error| CompilerError::Internal {
+                message: format!("function build failed: {error}"),
+            })?;
+
+        Ok(())
+    }
+
     /// Lower the module initializer storing each runtime binding.
     pub(in crate::lower) fn lower_initializer(
         lowerer: &mut ModuleLowerer<'_>,
@@ -403,10 +447,24 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
     pub(in crate::lower) fn generic_instance_key(
         &mut self,
         symbol: dir::GlobalSymbolId,
+        receiver: Option<dir::GlobalTypeId>,
         types: &[dir::GlobalTypeId],
     ) -> CompilerResult<GenericInstanceKey> {
+        let receiver = match receiver {
+            Some(ty) => {
+                let node = self.lower_type(ty)?;
+                let ty = mir::TypeId::from(node);
+                Some(self.builder.tree_mut().intern_static(mir::Static::Type(ty)))
+            }
+            None => None,
+        };
         let mut arguments = Vec::with_capacity(types.len());
         for ty in types {
+            // lifetime arguments never shape a specialization
+            if self.lowerer.type_is_lifetime(*ty)? {
+                continue;
+            }
+
             match self.lowerer.place_space(*ty)? {
                 // local place arguments canonicalize onto the plain declaration
                 Some(dir::Space::Local) => {}
@@ -431,7 +489,11 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             }
         }
 
-        Ok(GenericInstanceKey { symbol, arguments })
+        Ok(GenericInstanceKey {
+            symbol,
+            receiver,
+            arguments,
+        })
     }
 
     /// Return the nominal instance beneath one value type, lowering it at first read.

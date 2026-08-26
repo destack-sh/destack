@@ -307,10 +307,16 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // inject the converted source at the union's shared reference representation
         let value = self.materialize_coercion_value(value, source)?;
+
+        // reach the representation transparent newtypes wrap
+        let mut stored = representation;
+        while let mir::Type::Newtype { inner, .. } = self.builder.tree().get(stored) {
+            stored = *inner;
+        }
         if self
             .builder
             .tree()
-            .get(representation)
+            .get(stored)
             .is_reference_representation()
         {
             return self.adapt_to_representation(value, representation);
@@ -367,7 +373,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // build the shared target case around the converted payload
             let target_member = first.target;
-            require_union_case(&target_members, first.index, target_member)?;
+            self.require_union_case(&target_members, first.index, target_member)?;
             let payload = self.union_payload(CoercionValue::Runtime(value), target_member)?;
 
             return Ok(self
@@ -382,7 +388,7 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
         let target_member = case.target;
-        require_union_case(&target_members, case.index, target_member)?;
+        self.require_union_case(&target_members, case.index, target_member)?;
 
         // convert the source value before inserting its target case
         let value = self.lower_adjustments(value, source, &case.adjustments)?;
@@ -428,7 +434,7 @@ impl FunctionLowerer<'_, '_, '_> {
             let source_value =
                 self.lower_adjustments(source_value, source_member, &mapping.adjustments)?;
             let target_member = mapping.target;
-            require_union_case(&target_members, mapping.index, target_member)?;
+            self.require_union_case(&target_members, mapping.index, target_member)?;
             let payload = self.union_payload(source_value, target_member)?;
             let converted = self
                 .builder
@@ -547,15 +553,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
-        // resolve the union behind owned forms and transparent aliases
-        let mut stored = self.lowerer.peel_owned(ty)?;
-        while let dir::Type::Application(instance) = self.lowerer.ty(stored)? {
-            let defined = match self.lowerer.definition(instance.symbol)? {
-                Some(dir::Definition::TypeAlias(alias)) => alias.value,
-                _ => break,
-            };
-            stored = self.lowerer.peel_owned(defined)?;
-        }
+        let stored = self.union_stored(ty)?;
 
         // require the resolved type to be a union
         let dir::Type::Union(union) = self.lowerer.ty(stored)? else {
@@ -569,6 +567,25 @@ impl FunctionLowerer<'_, '_, '_> {
             .types(stored.module_id)?
             .type_ids(union.elements)
             .to_vec())
+    }
+
+    /// Resolve the stored type one union name denotes, unfolding transparent aliases.
+    pub(in crate::lower) fn union_stored(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // resolve the union behind owned forms and transparent aliases
+        let mut stored = self.lowerer.peel_owned(ty)?;
+        while let dir::Type::Application(instance) = self.lowerer.ty(stored)? {
+            let defined = match self.lowerer.definition(instance.symbol)? {
+                Some(dir::Definition::TypeAlias(alias)) => alias.value,
+                _ => break,
+            };
+
+            stored = self.lowerer.peel_owned(defined)?;
+        }
+
+        Ok(stored)
     }
 
     /// Return one indexed source case as a coercion value.
@@ -960,19 +977,20 @@ impl FunctionLowerer<'_, '_, '_> {
             message: format!("missing a declared global behind the constant '{path}'"),
         })
     }
-}
 
-/// Require one selected union case to name its declared member at its index.
-fn require_union_case(
-    members: &[dir::GlobalTypeId],
-    index: u32,
-    member: dir::GlobalTypeId,
-) -> CompilerResult<()> {
-    if members.get(index as usize) != Some(&member) {
-        return Err(CompilerError::Internal {
-            message: "a union conversion selecting an absent target member".to_string(),
-        });
+    /// Require one selected union case to name its declared member at its index.
+    fn require_union_case(
+        &self,
+        members: &[dir::GlobalTypeId],
+        index: u32,
+        member: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        if members.get(index as usize) != Some(&member) {
+            return Err(CompilerError::Internal {
+                message: "a union conversion selecting an absent target member".to_string(),
+            });
+        }
+
+        Ok(())
     }
-
-    Ok(())
 }

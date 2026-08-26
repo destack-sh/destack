@@ -205,9 +205,30 @@ impl TypeLowerer<'_, '_> {
             });
         };
 
+        // forward a transparent rename to the nominal identity its value names
+        if let dir::Definition::TypeAlias(alias) = &definition
+            && self.lowerer.alias_form(symbol)?.is_none()
+        {
+            let specialization =
+                self.lowerer
+                    .specialization_of(symbol, None, &arguments.type_arguments)?;
+            let value = self.lowerer.instance_type(specialization, alias.value)?;
+            let is_nominal = match self.lowerer.ty(value)? {
+                dir::Type::Reference(_) => true,
+                dir::Type::Application(instance) => {
+                    self.lowerer.memory_form_value(value, &instance)?.is_none()
+                }
+                _ => false,
+            };
+            if is_nominal {
+                return self.lower_nominal(value);
+            }
+        }
+
         // name the instance and reserve its identity
         let path = self.lowerer.symbol_path(symbol)?;
-        let base = mir::Symbol::named(self.lowerer.strings.intern(&path));
+        let name = self.lowerer.strings.intern(&path);
+        let base = mir::Symbol::declared(name, ModuleLowerer::symbol_identity(symbol));
         let instance = base.instantiate(&arguments.key.arguments, self.tree);
         let ty = self.tree.reserve_type(instance);
 
@@ -254,11 +275,20 @@ impl TypeLowerer<'_, '_> {
             NominalState::Declared { storage: ty, value },
         );
 
+        // adopt the Copy conformance sema committed for this closed instance
+        let copy = match self
+            .lowerer
+            .nominal_conformance(source, dir::AutoInterface::Copy)?
+        {
+            true => mir::Copy::Yes,
+            false => mir::Copy::No,
+        };
+
         // fill the reserved representation through the nominal's own rows
         let fields = {
-            let specialization = self
-                .lowerer
-                .specialization_of(symbol, &arguments.type_arguments)?;
+            let specialization =
+                self.lowerer
+                    .specialization_of(symbol, None, &arguments.type_arguments)?;
             if specialization.is_none() && !arguments.type_arguments.is_empty() {
                 let path = self.lowerer.symbol_path(symbol)?;
                 self.lowerer.nominal_states.shift_remove(&arguments.key);
@@ -279,11 +309,13 @@ impl TypeLowerer<'_, '_> {
             types.space = declared_space.unwrap_or(mir::Space::Local);
 
             match definition {
-                dir::Definition::Struct(definition) => types.lower_struct(symbol, definition, ty),
-                dir::Definition::Newtype(definition) => {
-                    types.lower_newtype(symbol, definition, ty, &arguments.type_arguments)
+                dir::Definition::Struct(definition) => {
+                    types.lower_struct(symbol, definition, ty, copy)
                 }
-                dir::Definition::Enum(definition) => types.lower_enum(symbol, definition, ty),
+                dir::Definition::Newtype(definition) => {
+                    types.lower_newtype(symbol, definition, ty, &arguments.type_arguments, copy)
+                }
+                dir::Definition::Enum(definition) => types.lower_enum(symbol, definition, ty, copy),
                 dir::Definition::Class(definition) => types.lower_class(symbol, definition, ty),
                 dir::Definition::TypeAlias(definition) => types.lower_alias(&definition, ty),
                 dir::Definition::Interface(definition) => types.lower_interface(definition, ty),
@@ -475,7 +507,7 @@ impl TypeLowerer<'_, '_> {
         // key the instance on its type arguments and the template's lifetime slots
         let template = template_id.into_global(template_module);
         let lifetime_parameters = LifetimeParameters::from_template(self.lowerer, template)?;
-        let key = self.generic_instance_key(symbol, &type_arguments)?;
+        let key = self.generic_instance_key(symbol, None, &type_arguments)?;
 
         Ok(NominalArguments {
             key,
@@ -497,7 +529,7 @@ impl TypeLowerer<'_, '_> {
         let row = self.lowerer.state(module)?.generics.get_instance(instance);
 
         Ok(row
-            .selection
+            .key
             .arguments
             .iter()
             .find(|binding| binding.parameter == parameter)

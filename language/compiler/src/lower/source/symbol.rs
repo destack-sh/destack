@@ -1,3 +1,6 @@
+use std::hash::Hasher;
+
+use destack_core::StableHasher;
 use destack_dir as dir;
 
 use crate::lower::{LowerError, ModuleLowerer};
@@ -24,6 +27,17 @@ impl ModuleLowerer<'_> {
         let bindings = &self.state(symbol.module_id)?.bindings;
 
         Ok(bindings.get_symbol(symbol.local_id).name())
+    }
+
+    /// Return the stable identity bits of one declared symbol.
+    pub(in crate::lower) fn symbol_identity(symbol: dir::GlobalSymbolId) -> u64 {
+        let mut hasher = StableHasher::new();
+        hasher.update_len_prefixed(b"destack.lower.symbol.v1");
+        hasher.write_u64(symbol.module_id.package_id.0);
+        hasher.write_u64(symbol.module_id.module_key.0);
+        hasher.write_u64(u64::from(symbol.local_id.id));
+
+        hasher.finish_u64()
     }
 
     /// Return the module-qualified lexical path of one symbol.

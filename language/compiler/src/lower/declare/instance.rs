@@ -7,7 +7,7 @@ use crate::lower::{
     CallableImplementation, FunctionDefinition, LifetimeParameters, ModuleLowerer, Reachable,
     insert_reference_type,
 };
-use crate::{CompilerError, CompilerResult};
+use crate::{CompilerError, CompilerResult, LowerError};
 
 /// The declaration outcome behind one callable instance key.
 pub(in crate::lower) enum FunctionDeclaration {
@@ -22,6 +22,8 @@ pub(in crate::lower) enum FunctionDeclaration {
 pub(in crate::lower) struct GenericInstanceKey {
     /// The instantiated declaration.
     pub(in crate::lower) symbol: dir::GlobalSymbolId,
+    /// The concrete receiver closing an interface member's `this`.
+    pub(in crate::lower) receiver: Option<mir::StaticId>,
     /// The concrete generic arguments.
     pub(in crate::lower) arguments: Vec<mir::StaticId>,
 }
@@ -31,6 +33,7 @@ impl GenericInstanceKey {
     pub(in crate::lower) fn non_generic(symbol: dir::GlobalSymbolId) -> Self {
         Self {
             symbol,
+            receiver: None,
             arguments: Vec::new(),
         }
     }
@@ -63,7 +66,9 @@ impl ModuleLowerer<'_> {
                 && !self.owner_has_instance_parameters(owner)?
                 && !self.signature_has_parameters_beyond_memory(self.symbol_type(member)?)?
             {
-                reachable.instances.push((member, Vec::new()));
+                reachable
+                    .instances
+                    .push(dir::InstanceKey::new(member, Vec::new()));
             }
         }
 
@@ -75,18 +80,21 @@ impl ModuleLowerer<'_> {
             .filter(|(_, instance)| instance.origin == dir::InstanceOrigin::Instantiation)
             .map(|(_, instance)| {
                 (
-                    instance.selection.symbol,
-                    instance.selection.arguments.clone(),
+                    instance.key.symbol,
+                    instance.key.receiver,
+                    instance.key.arguments.clone(),
                 )
             })
             .collect();
         // key instances like call sites: regions erase from the selection
         let closed: Vec<_> = closed
             .into_iter()
-            .map(|(symbol, arguments)| Ok((symbol, self.instance_bindings(&arguments, None)?)))
+            .map(|(symbol, receiver, arguments)| {
+                Ok((symbol, receiver, self.instance_bindings(&arguments, None)?))
+            })
             .collect::<CompilerResult<_>>()?;
         // keep the callable instances; nominal ones declare through their representations
-        for (template, arguments) in closed {
+        for (template, receiver, arguments) in closed {
             let Some(ty) = self.types(template.module_id)?.get_symbol_type_id(template) else {
                 continue;
             };
@@ -104,7 +112,9 @@ impl ModuleLowerer<'_> {
                     reachable.bindings.insert(template);
                 }
                 Some(CallableImplementation::Intrinsic { .. }) => {}
-                None => reachable.instances.push((template, arguments)),
+                None => reachable
+                    .instances
+                    .push(dir::InstanceKey::new(template, arguments).with_receiver(receiver)),
             }
         }
 
@@ -142,28 +152,34 @@ impl ModuleLowerer<'_> {
         let mut instances = Vec::new();
         let mut index = 0;
         while index < reachable.instances.len() {
-            let (symbol, bindings) = reachable.instances[index].clone();
+            let key = reachable.instances[index].clone();
             index += 1;
-            let body = match self.declare_instance(builder, symbol, &bindings) {
-                Ok(Some(body)) => body,
-                Ok(None) => continue,
-                Err(CompilerError::Diagnostic(diagnostic)) => {
-                    self.bank_failed_callable(Some(symbol), diagnostic, errors);
+            let body =
+                match self.declare_instance(builder, key.symbol, key.receiver, &key.arguments) {
+                    Ok(Some(body)) => body,
+                    Ok(None) => continue,
+                    Err(CompilerError::Diagnostic(diagnostic)) => {
+                        self.bank_failed_callable(Some(key.symbol), diagnostic, errors);
 
-                    continue;
-                }
-                Err(error) => return Err(error),
-            };
+                        continue;
+                    }
+                    Err(error) => return Err(error),
+                };
 
             if let Some(owner) = body.constructs {
                 self.collect_constructor_initializers(owner, body.instance, &mut reachable)?;
             }
             for default in body.defaults.iter().flatten() {
-                self.collect_body(symbol.module_id, *default, body.instance, &mut reachable)?;
+                self.collect_body(
+                    key.symbol.module_id,
+                    *default,
+                    body.instance,
+                    &mut reachable,
+                )?;
             }
 
             match self.collect_body(
-                symbol.module_id,
+                key.symbol.module_id,
                 body.expression,
                 body.instance,
                 &mut reachable,
@@ -183,11 +199,21 @@ impl ModuleLowerer<'_> {
         &mut self,
         builder: &mut mir::ModuleBuilder,
         symbol: dir::GlobalSymbolId,
+        receiver: Option<dir::GlobalTypeId>,
         bindings: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<Option<FunctionDefinition>> {
         // find the sema instance materializing this body's types
         let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
-        let specialization = self.specialization_of(symbol, &arguments)?;
+        let specialization = self.specialization_of(symbol, receiver, &arguments)?;
+
+        // require the materialized instance behind every generic selection
+        if specialization.is_none() && !arguments.is_empty() {
+            let path = self.symbol_path(symbol)?;
+
+            return Err(CompilerError::Internal {
+                message: format!("an instance of '{path}' was never materialized"),
+            });
+        }
 
         // key the instance by its runtime representation
         let pointer_bytes = builder.pointer_bytes();
@@ -195,7 +221,7 @@ impl ModuleLowerer<'_> {
         let key = self
             .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
             .with_instance(specialization)
-            .generic_instance_key(symbol, &arguments)?;
+            .generic_instance_key(symbol, receiver, &arguments)?;
 
         // skip an instance whose representation is already declared
         if self.functions.contains_key(&key) {
@@ -204,10 +230,8 @@ impl ModuleLowerer<'_> {
 
         // declare under the instance's concrete types and polymorphic lifetimes
         let lifetime_parameters = self.lifetime_parameters(self.symbol_type(symbol)?)?;
-        let declared =
-            self.declare_instance_header(builder, &key, specialization, &lifetime_parameters);
 
-        declared.map(Some)
+        self.declare_instance_header(builder, &key, specialization, &lifetime_parameters)
     }
 
     /// Declare the header of one generic instance and queue its body.
@@ -217,7 +241,7 @@ impl ModuleLowerer<'_> {
         key: &GenericInstanceKey,
         specialization: Option<(ModuleId, dir::LocalInstanceId)>,
         lifetime_parameters: &LifetimeParameters,
-    ) -> CompilerResult<FunctionDefinition> {
+    ) -> CompilerResult<Option<FunctionDefinition>> {
         let symbol = key.symbol;
 
         // find the declaration's source function in its defining module's tree
@@ -234,7 +258,20 @@ impl ModuleLowerer<'_> {
 
         // declare member callables through their owner's receiver
         if let Ok(member) = declaration.local_id.try_into_typed::<dir::Member>() {
-            return self.declare_member_instance_header(
+            return self
+                .declare_member_instance_header(
+                    builder,
+                    key,
+                    specialization,
+                    lifetime_parameters,
+                    member,
+                )
+                .map(Some);
+        }
+
+        // declare interface members through their declared receiver
+        if let Ok(member) = declaration.local_id.try_into_typed::<dir::TypeMember>() {
+            return self.declare_interface_instance_header(
                 builder,
                 key,
                 specialization,
@@ -246,7 +283,10 @@ impl ModuleLowerer<'_> {
         // require a plain function declaration for everything else
         let Ok(declaration) = declaration.local_id.try_into_typed::<dir::Declaration>() else {
             return Err(CompilerError::Internal {
-                message: "an instantiated non-declaration callable".to_string(),
+                message: format!(
+                    "instantiated callable {symbol:?} declares through {:?} instead of a declaration",
+                    declaration.local_id
+                ),
             });
         };
 
@@ -307,6 +347,185 @@ impl ModuleLowerer<'_> {
             None,
             defaults,
         )
+        .map(Some)
+    }
+
+    /// Declare the header of one instantiated interface member and queue its default body.
+    fn declare_interface_instance_header(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+        key: &GenericInstanceKey,
+        specialization: Option<(ModuleId, dir::LocalInstanceId)>,
+        lifetime_parameters: &LifetimeParameters,
+        member: dir::LocalNodeId<dir::TypeMember>,
+    ) -> CompilerResult<Option<FunctionDefinition>> {
+        let symbol = key.symbol;
+
+        // resolve the interface member's signature and default body
+        let state = self.state(symbol.module_id)?;
+        let dir::TypeMember::Method {
+            signature,
+            body,
+            is_static,
+            ..
+        } = state.tree().get(member)
+        else {
+            return Err(CompilerError::Internal {
+                message: "an instantiated non-method interface member".to_string(),
+            });
+        };
+        let is_static = *is_static;
+        let body = *body;
+        let parameter_nodes = signature.parameters.to_vec();
+
+        // synthesize the builtin implementation behind a bodiless requirement
+        let Some(expression) = body else {
+            return self
+                .declare_builtin_member_instance(builder, key, specialization, lifetime_parameters)
+                .map(|()| None);
+        };
+
+        // collect each parameter's default expression and declared symbol
+        let mut symbols = Vec::with_capacity(parameter_nodes.len());
+        let mut defaults = Vec::with_capacity(parameter_nodes.len());
+        for parameter in parameter_nodes {
+            defaults.push(
+                self.state(symbol.module_id)?
+                    .tree()
+                    .get(parameter)
+                    .default_value(),
+            );
+            let node = parameter.into_global_any(symbol.module_id);
+            let Some(parameter_symbol) = self.symbol_declared_at(node)? else {
+                return Err(CompilerError::Internal {
+                    message: "missing a symbol for one parameter".to_string(),
+                });
+            };
+            symbols.push(parameter_symbol.local_id);
+        }
+
+        // lower the signature at the instance's concrete types
+        let declared = self.instance_type(specialization, self.symbol_type(symbol)?)?;
+        let (mut parameters, result) =
+            self.lower_signature(builder, declared, specialization, lifetime_parameters)?;
+        if parameters.len() != symbols.len() {
+            return Err(CompilerError::Internal {
+                message: "instance parameters disagree with the declared signature".to_string(),
+            });
+        }
+
+        // prepend the declared receiver of instance members
+        let has_this = !is_static;
+        if has_this {
+            let this = self.declared_receiver_type(
+                builder,
+                declared,
+                specialization,
+                lifetime_parameters,
+            )?;
+            parameters.insert(0, this);
+        }
+
+        self.declare_instance_function(
+            builder,
+            key,
+            specialization,
+            parameters,
+            result,
+            symbols,
+            has_this,
+            lifetime_parameters,
+            expression,
+            None,
+            defaults,
+        )
+        .map(Some)
+    }
+
+    /// Declare one bodiless interface requirement through its builtin implementation.
+    fn declare_builtin_member_instance(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+        key: &GenericInstanceKey,
+        specialization: Option<(ModuleId, dir::LocalInstanceId)>,
+        lifetime_parameters: &LifetimeParameters,
+    ) -> CompilerResult<()> {
+        let symbol = key.symbol;
+
+        // recognize the canonical member the requirement declares
+        let member = self.declared_language_member(symbol)?;
+        if member != Some(dir::LanguageItem::Clone.member("clone")) {
+            return Err(LowerError::Unsupported {
+                anchor: self.module.into(),
+                construct: "an instantiated bodiless interface member".to_string(),
+            }
+            .into());
+        }
+
+        // lower the clone signature at the instance's concrete receiver
+        let declared = self.instance_type(specialization, self.symbol_type(symbol)?)?;
+        let (mut parameters, result) =
+            self.lower_signature(builder, declared, specialization, lifetime_parameters)?;
+        let this =
+            self.declared_receiver_type(builder, declared, specialization, lifetime_parameters)?;
+        parameters.insert(0, this);
+
+        // declare the header under its instantiated symbol
+        let name = self.symbol_path(symbol)?;
+        let mut display = match specialization {
+            Some((module, instance)) => {
+                self.specialized_display_arguments(builder, key, module, instance)?
+            }
+            None => key.arguments.clone(),
+        };
+        // name the closed receiver ahead of the type arguments
+        if let Some(receiver) = key.receiver {
+            display.insert(0, receiver);
+        }
+        let base = mir::Symbol::declared(builder.intern(&name), Self::symbol_identity(symbol));
+        let instance = base.instantiate(&display, builder.tree());
+        let header = builder
+            .function_header(&name)
+            .arguments(display)
+            .symbol(instance);
+        let header = lifetime_parameters.declare(header);
+        let header = header.parameters(parameters).result(result);
+        let function = builder.declare_function(header);
+        self.index_language_declaration(function, symbol)?;
+        self.functions
+            .insert(key.clone(), FunctionDeclaration::Declared(function));
+
+        // queue the receiver copy the conformance supplies
+        self.synthesized_clones.push((function, result));
+
+        Ok(())
+    }
+
+    /// Lower the receiver type one instantiated signature declares.
+    fn declared_receiver_type(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+        declared: dir::GlobalTypeId,
+        specialization: Option<(ModuleId, dir::LocalInstanceId)>,
+        lifetime_parameters: &LifetimeParameters,
+    ) -> CompilerResult<mir::TypeId> {
+        let (declared_signature, signature_module) = self.signature(declared)?;
+        let declared_this = self
+            .types(signature_module)?
+            .signature(declared_signature)
+            .this_parameter;
+        let Some(this_type) = declared_this else {
+            return Err(CompilerError::Internal {
+                message: "an instance method without a receiver".to_string(),
+            });
+        };
+        let pointer_bytes = builder.pointer_bytes();
+        let this = self
+            .type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
+            .with_instance(specialization)
+            .lower(this_type)?;
+
+        Ok(this)
     }
 
     /// Declare the header of one member instance and queue its body.
@@ -417,23 +636,12 @@ impl ModuleLowerer<'_> {
                 ))
             }
             // pass this at the declared receiver type
-            _ => {
-                let (declared_signature, signature_module) = self.signature(declared)?;
-                let declared_this = self
-                    .types(signature_module)?
-                    .signature(declared_signature)
-                    .this_parameter;
-                let Some(this_type) = declared_this else {
-                    return Err(CompilerError::Internal {
-                        message: "an instance method without a receiver".to_string(),
-                    });
-                };
-                Some(
-                    self.type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
-                        .with_instance(specialization)
-                        .lower(this_type)?,
-                )
-            }
+            _ => Some(self.declared_receiver_type(
+                builder,
+                declared,
+                specialization,
+                lifetime_parameters,
+            )?),
         };
         let has_this = this.is_some();
         if let Some(this) = this {
@@ -479,15 +687,19 @@ impl ModuleLowerer<'_> {
         let name = self.symbol_path(symbol)?;
 
         // name every specialized memory argument explicitly
-        let display = match specialization {
+        let mut display = match specialization {
             Some((module, instance)) => {
                 self.specialized_display_arguments(builder, key, module, instance)?
             }
             None => key.arguments.clone(),
         };
+        // name the closed receiver ahead of the type arguments
+        if let Some(receiver) = key.receiver {
+            display.insert(0, receiver);
+        }
 
         // declare the header under its instantiated symbol
-        let base = mir::Symbol::named(builder.intern(&name));
+        let base = mir::Symbol::declared(builder.intern(&name), Self::symbol_identity(symbol));
         let instance = base.instantiate(&display, builder.tree());
         let header = builder
             .function_header(&name)
@@ -526,7 +738,7 @@ impl ModuleLowerer<'_> {
         let pairs = {
             let row = self.state(module)?.generics.get_instance(instance);
 
-            row.selection
+            row.key
                 .arguments
                 .iter()
                 .map(|binding| (binding.parameter, binding.argument))
@@ -549,6 +761,11 @@ impl ModuleLowerer<'_> {
         for (kind, argument) in bindings {
             match kind {
                 Some(dir::MemoryParameter::Place | dir::MemoryParameter::Space) => {
+                    // lifetime halves of a place erase like regions
+                    if self.type_is_lifetime(argument)? {
+                        continue;
+                    }
+
                     let Some(space) = self.place_space(argument)? else {
                         return Err(CompilerError::Internal {
                             message: "an instance carries an unplaced space argument".to_string(),
@@ -632,7 +849,7 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<()> {
         // find the sema instance materializing the class's types
         let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
-        let specialization = self.specialization_of(class, &arguments)?;
+        let specialization = self.specialization_of(class, None, &arguments)?;
 
         // key the constructor by the class's runtime representation
         let pointer_bytes = builder.pointer_bytes();
@@ -640,7 +857,7 @@ impl ModuleLowerer<'_> {
         let key = self
             .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
             .with_instance(specialization)
-            .generic_instance_key(class, &arguments)?;
+            .generic_instance_key(class, None, &arguments)?;
 
         // skip a constructor whose representation is already declared
         if self.functions.contains_key(&key) {
@@ -670,7 +887,7 @@ impl ModuleLowerer<'_> {
         }
 
         // define generic instances and own-class constructors locally
-        let base = mir::Symbol::named(builder.intern(&name));
+        let base = mir::Symbol::declared(builder.intern(&name), Self::symbol_identity(class));
         let instance = base.instantiate(&key.arguments, builder.tree());
         let header = builder
             .function_header(&name)

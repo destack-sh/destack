@@ -84,7 +84,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             .into());
         };
-        let id = self.selection_function(&function.selection)?;
+        let id = self.selection_function(&function.key)?;
         let value = self.builder.call_function(id, values);
 
         value.ok_or_else(|| CompilerError::Internal {
@@ -246,11 +246,7 @@ impl FunctionLowerer<'_, '_, '_> {
         construct: &dir::ConstructDecision,
         resolution: &dir::TreeDecision,
     ) -> CompilerResult<mir::Value> {
-        let dir::ConstructTarget::Class {
-            selection,
-            constructor,
-        } = &construct.target
-        else {
+        let dir::ConstructTarget::Class { key, constructor } = &construct.target else {
             return Err(CompilerError::Internal {
                 message: "tree component constructed a non-class target".to_string(),
             });
@@ -266,7 +262,7 @@ impl FunctionLowerer<'_, '_, '_> {
         self.lower_class_instance(
             construct.return_type,
             constructor,
-            &selection.arguments,
+            &key.arguments,
             vec![props],
         )
     }

@@ -8,9 +8,10 @@ impl TypeLowerer<'_, '_> {
     /// Lower one value enum declaration to its variant type.
     pub(in crate::lower) fn lower_enum(
         &mut self,
-        symbol: dir::GlobalSymbolId,
+        _symbol: dir::GlobalSymbolId,
         definition: dir::EnumDefinition,
         ty: mir::LocalNodeId<mir::Type>,
+        copy: mir::Copy,
     ) -> CompilerResult<Vec<NominalField>> {
         // require an integer representation
         let dir::EnumBackingType::Integer(integer) = definition.backing else {
@@ -63,12 +64,6 @@ impl TypeLowerer<'_, '_> {
             });
         }
 
-        // carry only the copyable integer discriminant, a Drop conformance forbids copy
-        let copy = if self.lowerer.declares_drop(symbol) {
-            mir::Copy::No
-        } else {
-            mir::Copy::Yes
-        };
         self.tree.define_type(
             ty,
             mir::Type::Variant {

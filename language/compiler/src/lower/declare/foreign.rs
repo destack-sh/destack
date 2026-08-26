@@ -181,6 +181,47 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
+    /// Import one foreign drop hook at its instantiated instance identity.
+    pub(in crate::lower) fn import_drop_hook(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+        key: &GenericInstanceKey,
+        storage: mir::LocalNodeId<mir::Type>,
+        value: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<()> {
+        // mirror the owner's instantiated instance identity
+        let symbol = key.symbol;
+        let path = self.symbol_path(symbol)?;
+        let base = mir::Symbol::declared(self.strings.intern(&path), Self::symbol_identity(symbol));
+        let instance = base.instantiate(&key.arguments, builder.tree());
+
+        // the hook receives an exclusive borrow of the dropped storage
+        let receiver_storage = nominal_receiver_storage(builder.tree(), value);
+        let receiver = builder.tree_mut().intern_type(mir::Type::Reference {
+            kind: mir::ReferenceKind::Borrowed,
+            lifetime: mir::Lifetime::empty(),
+            storage: receiver_storage,
+            access: mir::Access::Exclusive,
+            pointee: storage,
+            nullability: mir::Nullability::None,
+        });
+
+        // declare the extern at the hook's fixed drop shape
+        let name = self.qualified_name(symbol.module_id, &path)?;
+        let void = builder.tree_mut().intern_type(mir::Type::Void);
+        let header = builder
+            .function_header(&name)
+            .arguments(key.arguments.iter().cloned())
+            .symbol(instance)
+            .parameters(vec![mir::TypeId::from(receiver)])
+            .result(void);
+        let function = builder.external_function(header);
+        self.functions
+            .insert(key.clone(), FunctionDeclaration::Declared(function));
+
+        Ok(())
+    }
+
     /// Return one imported member's qualified name and receiver type.
     fn imported_member_header(
         &mut self,
@@ -221,8 +262,12 @@ impl ModuleLowerer<'_> {
                     });
                 };
 
+                // resolve the receiver through the member's materialized instance
+                let specialization = self.specialization_of(symbol, None, &[])?;
+
                 Some(
                     self.type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
+                        .with_instance(specialization)
                         .lower(declared)?,
                 )
             }

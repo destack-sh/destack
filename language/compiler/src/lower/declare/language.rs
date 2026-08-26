@@ -126,7 +126,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Return the canonical language member declared by one member symbol.
-    fn declared_language_member(
+    pub(in crate::lower) fn declared_language_member(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::LanguageMember>> {

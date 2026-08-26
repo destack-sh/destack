@@ -623,6 +623,42 @@ impl FunctionLowerer<'_, '_, '_> {
             _ => {}
         }
 
+        // compare a nullish literal with the variant case tag carrying it
+        let variant_nullish = match (&left, &right) {
+            (
+                LoweredOperand::Variant {
+                    value,
+                    representation,
+                },
+                LoweredOperand::Null,
+            )
+            | (
+                LoweredOperand::Null,
+                LoweredOperand::Variant {
+                    value,
+                    representation,
+                },
+            ) => Some((*value, *representation, dir::Type::Null)),
+            (
+                LoweredOperand::Variant {
+                    value,
+                    representation,
+                },
+                LoweredOperand::Undefined,
+            )
+            | (
+                LoweredOperand::Undefined,
+                LoweredOperand::Variant {
+                    value,
+                    representation,
+                },
+            ) => Some((*value, *representation, dir::Type::Undefined)),
+            _ => None,
+        };
+        if let Some((value, representation, nullish)) = variant_nullish {
+            return self.lower_variant_nullish_equality(value, representation, nullish, is_equal);
+        }
+
         // materialize nullish niches at the compared address representation
         let (left, right) = match (left, right) {
             (LoweredOperand::Address(left), LoweredOperand::Address(right)) => (left, right),
@@ -648,6 +684,49 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         Ok(self.builder.binary(operator, left, right))
+    }
+
+    /// Lower equality between one variant value and the nullish case it may hold.
+    fn lower_variant_nullish_equality(
+        &mut self,
+        value: mir::Value,
+        representation: dir::GlobalTypeId,
+        nullish: dir::Type,
+        is_equal: bool,
+    ) -> CompilerResult<mir::Value> {
+        // select the union case declaring the compared nullish type
+        let members = self.union_members(representation)?;
+        let mut selected = None;
+        for (index, member) in members.iter().enumerate() {
+            if self.lowerer.ty(*member)? == nullish {
+                selected = Some(index);
+
+                break;
+            }
+        }
+        let Some(index) = selected else {
+            return Err(CompilerError::Internal {
+                message: "a nullish comparison outside the variant's declared cases".to_string(),
+            });
+        };
+
+        // compare the discriminant with the selected case index
+        let tag = self.builder.variant_tag(value);
+        let tag_type = self.value_representation(tag)?;
+        let mir::Type::Int { width, is_signed } = *self.builder.tree().get(tag_type) else {
+            return Err(CompilerError::Internal {
+                message: "a lowered discriminant tag is not an integer".to_string(),
+            });
+        };
+        let expected = self.builder.iconst(index as i128, width, is_signed);
+        let equal = self
+            .builder
+            .binary(mir::BinaryOperator::Equal, tag, expected);
+
+        match is_equal {
+            true => Ok(equal),
+            false => Ok(self.builder.unary(mir::UnaryOperator::Not, equal)),
+        }
     }
 
     /// Materialize one nullish operand at an address value's representation.

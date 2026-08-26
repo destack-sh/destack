@@ -4,8 +4,7 @@ use crate::tests::TestSession;
 fn test_lower_dynamic_newtype_to_its_erased_type() {
     let session = TestSession::single(
         r#"
-@languageItem("memory.Dynamic")
-newtype Dynamic<T> = intrinsic;
+import { Dynamic } from "destack:memory";
 
 interface Meter {
     read(&readonly this): int32;
@@ -20,14 +19,12 @@ newtype Reading = Dynamic<Meter>;
         r#"
 type Meter { }
 
-type Dynamic<dynamic<Meter, managed, mutable, local>> = dynamic<Meter, managed, mutable, local>;
-
 @copy
-type Reading = newtype<Dynamic<dynamic<Meter, managed, mutable, local>>>;
+type Reading = newtype<dynamic<Meter, managed, mutable, local>>;
 
 /// @layout.struct name=Meter size=0 align=1
 
-/// @dispatch.shape constraint=type@1
+/// @dispatch.shape constraint=type@1 function=read
 "#,
     );
 }
@@ -57,8 +54,7 @@ type Counter = newtype<Atomic<int32>>;
 fn test_lower_unsafe_cell_transparently_over_its_value() {
     let session = TestSession::single(
         r#"
-@languageItem("memory.UnsafeCell")
-newtype UnsafeCell<T> = intrinsic;
+import { UnsafeCell } from "destack:memory";
 
 newtype Slot = UnsafeCell<int32>;
 "#,

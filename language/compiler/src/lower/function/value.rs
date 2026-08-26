@@ -28,7 +28,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         let bindings = self.lowerer.instance_bindings(arguments, self.instance)?;
         let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
-        let key = self.generic_instance_key(symbol, &arguments)?;
+        let key = self.generic_instance_key(symbol, None, &arguments)?;
         let ty = self.lower_type(target)?;
 
         match self.bind_function_value(ty, &key, None)? {
@@ -52,7 +52,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .decisions
             .function_decision(node)
             .and_then(|decision| match decision {
-                dir::OperationResolution::One(value) => value.selection().cloned(),
+                dir::OperationResolution::One(value) => value.key().cloned(),
                 dir::OperationResolution::Union { .. } => None,
             });
 
@@ -84,7 +84,13 @@ impl FunctionLowerer<'_, '_, '_> {
                 .instance_bindings(&selection.arguments, self.instance)?;
             let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
 
-            return self.generic_instance_key(symbol, &arguments);
+            // resolve the receiver through the enclosing instance's types
+            let receiver = match selection.receiver {
+                Some(receiver) => Some(self.lowerer.instance_type(self.instance, receiver)?),
+                None => None,
+            };
+
+            return self.generic_instance_key(symbol, receiver, &arguments);
         }
 
         // reject a generic reference whose instantiating coercion selected no instance
