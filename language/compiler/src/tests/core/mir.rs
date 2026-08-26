@@ -12,7 +12,7 @@ use destack_program::Object;
 use destack_repository::{ProviderContext, Revision};
 use destack_source::{
     DiagnosticLabel, DiagnosticSeverity, DiagnosticTarget, File, FileId, FileType, ModuleId,
-    PackageId, ProfileId, Span, TargetId, Uri,
+    PackageId, ProfileId, TargetId, Uri,
 };
 
 #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
@@ -253,17 +253,21 @@ impl DiagnosticContext for TestMirProvider {
         anchor: &DiagnosticAnchor,
         message: Option<String>,
     ) -> Result<DiagnosticLabel, DiagnosticError> {
-        let span = match anchor {
-            DiagnosticAnchor::Span(span) => *span,
-            DiagnosticAnchor::Symbol(_)
-            | DiagnosticAnchor::File(_)
+        let target = match anchor {
+            DiagnosticAnchor::Span(span) => DiagnosticTarget::Span(*span),
+            DiagnosticAnchor::File(file) if *file == self.file.id => DiagnosticTarget::File(*file),
+            DiagnosticAnchor::File(_)
             | DiagnosticAnchor::Module(_)
-            | DiagnosticAnchor::Package(_) => Span::empty(self.file.id),
+            | DiagnosticAnchor::Package(_) => {
+                return Err(DiagnosticError::InvalidAnchor {
+                    message: format!("raw MIR diagnostic cannot resolve {anchor:?}"),
+                });
+            }
         };
 
         Ok(DiagnosticLabel {
             blob: self.file.blob(),
-            target: DiagnosticTarget::Span(span),
+            target,
             message,
         })
     }

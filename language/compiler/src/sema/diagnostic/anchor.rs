@@ -22,31 +22,20 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) -> DiagnosticAnchor {
-        // fall back to a symbol anchor when the module isn't loaded
-        let Some(state) = self.module_maybe(module) else {
-            return self.foreign_anchor(module, source);
+        // read the source span from the checked or imported module
+        let span = match self.module_maybe(module) {
+            Some(state) => state.diagnostic_span(source),
+            None => self
+                .external_module(module)
+                .parsed
+                .tree
+                .get_main_span_by_id(source.id),
         };
-
-        let span = match state.diagnostic_span(source) {
-            Some(span) => span,
-            None => unreachable!("check node {} has no source span", source.id),
+        let Some(span) = span else {
+            unreachable!("check node {source:?} has no source span");
         };
 
         DiagnosticAnchor::from(span)
-    }
-
-    /// Return the position-free anchor for one foreign source node.
-    fn foreign_anchor(&self, module: ModuleId, source: dir::LocalNodeIdAny) -> DiagnosticAnchor {
-        let symbol = self.external_modules.get(&module).and_then(|external| {
-            external
-                .bindings
-                .declaration_symbol(source.into_global(module))
-        });
-
-        match symbol {
-            Some(symbol) => DiagnosticAnchor::from(symbol.into_global(module)),
-            None => DiagnosticAnchor::from(module),
-        }
     }
 
     /// Return one source node's full anchor.
@@ -55,16 +44,18 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<DiagnosticAnchor> {
-        // fall back to a symbol anchor when the module isn't loaded
-        let Some(state) = self.module_maybe(module) else {
-            return Ok(self.foreign_anchor(module, source));
+        // read the full source span from the checked or imported module
+        let span = match self.module_maybe(module) {
+            Some(state) => state.source_span(source),
+            None => self
+                .external_module(module)
+                .parsed
+                .tree
+                .get_span_by_id(source.id),
         };
-
-        let span = state
-            .source_span(source)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("check node {} has no source span", source.id),
-            })?;
+        let span = span.ok_or_else(|| CompilerError::Internal {
+            message: format!("check node {} has no source span", source.id),
+        })?;
 
         Ok(DiagnosticAnchor::from(span))
     }

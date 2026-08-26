@@ -74,6 +74,8 @@ const value = 1;
         r#"
 /// @diagnostic.error id=ambiguous-reference message="ambiguous reference 'mark'"
 /// @diagnostic.label line=5 column=2 span="mark" line_source="@mark"
+/// @diagnostic.related file="first.ds" line=1 column=14 span="mark" line_source="export const mark = 1;" message="one candidate is declared here"
+/// @diagnostic.related file="second.ds" line=1 column=14 span="mark" line_source="export const mark = 1;" message="one candidate is declared here"
 "#,
     );
 }

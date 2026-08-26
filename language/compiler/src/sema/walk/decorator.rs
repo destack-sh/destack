@@ -143,7 +143,7 @@ impl WalkState<'_, '_> {
                             self.module,
                             target.into_any(),
                             &path,
-                        );
+                        )?;
 
                         None
                     }
@@ -157,7 +157,7 @@ impl WalkState<'_, '_> {
             }
             dir::Reference::Ambiguous(_) => {
                 self.check
-                    .report_ambiguous_reference(self.module, target.into_any(), &path);
+                    .report_ambiguous_reference(self.module, target.into_any(), &path)?;
 
                 None
             }

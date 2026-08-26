@@ -258,7 +258,7 @@ impl BodyState<'_, '_> {
                             ),
                         });
                     };
-                    self.report_ambiguous_reference(module, left.into_any(), &path);
+                    self.report_ambiguous_reference(module, left.into_any(), &path)?;
                     self.commit_decision(node, dir::Decision::Rejected)?;
                     self.commit_error_node(node)?;
 

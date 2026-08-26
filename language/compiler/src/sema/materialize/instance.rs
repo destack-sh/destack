@@ -424,8 +424,7 @@ impl CheckState<'_> {
                     worklist,
                 )?,
                 None => {
-                    let module = self.module_id;
-                    self.report_unmapped_drop_conformance(module, member);
+                    self.report_unmapped_drop_conformance(row.source);
                 }
             }
         }

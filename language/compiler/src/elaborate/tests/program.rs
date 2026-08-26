@@ -7,7 +7,7 @@ use crate::verify::VerifyState;
 impl TestProgram {
     /// Run MIR elaboration.
     pub(in crate::elaborate::tests) fn elaborate(&mut self) {
-        let mut state = VerifyState::new(self.module_id(), &self.lowered);
+        let mut state = VerifyState::new(&self.lowered);
         state.verify();
 
         let errors = state.take_errors();

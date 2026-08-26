@@ -6,15 +6,12 @@ use destack_mir::{
     AccessTable, AnalysisCache, AnalysisOptions, DropTable, EffectTable, Function, FunctionCache,
     LocalNodeIdAny, ResolutionTable, RetentionTable, TargetLayout, Tree,
 };
-use destack_source::ModuleId;
 
 use crate::DiagnosticAnchor;
 use crate::verify::{BorrowChecker, DropChecker, InitializationChecker, MoveChecker, VerifyError};
 
 /// State for one MIR verification.
 pub(crate) struct VerifyState<'a> {
-    /// The module being verified.
-    module: ModuleId,
     /// The MIR tree being verified.
     pub(in crate::verify) tree: &'a Tree,
     /// MIR drop definitions.
@@ -37,7 +34,7 @@ pub(crate) struct VerifyState<'a> {
 
 impl<'a> VerifyState<'a> {
     /// Create verification state for one lowered MIR module.
-    pub(crate) fn new(module: ModuleId, lowered: &'a MirLowered) -> Self {
+    pub(crate) fn new(lowered: &'a MirLowered) -> Self {
         let mut analyses = AnalysisCache::new();
         let resolution = analyses.resolution(&lowered.tree, &lowered.dispatch);
         let effects = analyses.effect(
@@ -48,7 +45,6 @@ impl<'a> VerifyState<'a> {
         );
 
         Self {
-            module,
             tree: &lowered.tree,
             drops: &lowered.drops,
             accesses: &lowered.accesses,
@@ -92,11 +88,11 @@ impl<'a> VerifyState<'a> {
 
     /// Create a source anchor for one MIR node.
     pub(crate) fn anchor(&self, node: LocalNodeIdAny) -> DiagnosticAnchor {
-        if let Some(span) = self.tree.source_span_by_id(node.id) {
-            DiagnosticAnchor::Span(span)
-        } else {
-            DiagnosticAnchor::Module(self.module)
-        }
+        let Some(span) = self.tree.source_span_by_id(node.id) else {
+            unreachable!("verified MIR node {node:?} has no source span");
+        };
+
+        DiagnosticAnchor::Span(span)
     }
 
     /// Emit one verification error.

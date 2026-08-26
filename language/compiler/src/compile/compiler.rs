@@ -69,8 +69,9 @@ impl Compiler {
         T: DiagnosticLike,
     {
         let diagnostic = diagnostic.into();
+        let diagnostic = diagnostic.to_record(context)?;
 
-        context.emit(&diagnostic)?;
+        context.emit_diagnostics(vec![diagnostic]);
 
         Ok(())
     }

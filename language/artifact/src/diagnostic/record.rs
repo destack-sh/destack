@@ -3,40 +3,31 @@ use destack_serde::Reflect;
 use destack_source::Diagnostic;
 use serde::{Deserialize, Serialize};
 
-use crate::DiagnosticAnchor;
-
-/// One stored diagnostic and its cross-module declaration references.
+/// One stored diagnostic and its deferred labels.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct DiagnosticRecord {
-    /// The diagnostic as emitted, with own-module labels resolved.
+    /// The diagnostic with immediate source labels resolved.
     pub diagnostic: Diagnostic,
-    /// Cross-module references, resolved to labels when read.
-    pub references: Vec<DeclarationReference>,
+    /// Diagnostic labels resolved against the current revision.
+    pub deferred_labels: Vec<DeferredDiagnosticLabel>,
 }
 
-/// One cross-module declaration reference.
+/// One diagnostic label resolved against the current revision.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct DeclarationReference {
-    /// The referenced declaration.
-    pub symbol: GlobalSymbolId,
-    /// The optional label message.
-    pub message: Option<String>,
+pub struct DeferredDiagnosticLabel {
+    /// The declaration anchoring the label.
+    pub anchor: GlobalSymbolId,
+    /// The label message.
+    pub message: String,
 }
 
 impl DiagnosticRecord {
-    /// Record one resolved diagnostic without references.
+    /// Record one resolved diagnostic without deferred labels.
     pub fn new(diagnostic: Diagnostic) -> Self {
         Self {
             diagnostic,
-            references: Vec::new(),
+            deferred_labels: Vec::new(),
         }
-    }
-
-    /// Add one declaration reference.
-    pub fn reference(mut self, symbol: GlobalSymbolId, message: Option<String>) -> Self {
-        self.references
-            .push(DeclarationReference { symbol, message });
-        self
     }
 }
 
@@ -44,15 +35,5 @@ impl From<&Diagnostic> for DiagnosticRecord {
     /// Record one already-resolved diagnostic.
     fn from(diagnostic: &Diagnostic) -> Self {
         Self::new(diagnostic.clone())
-    }
-}
-
-impl DiagnosticAnchor {
-    /// Return the referenced declaration when this anchor names one.
-    pub fn declaration(&self) -> Option<GlobalSymbolId> {
-        match self {
-            Self::Symbol(symbol) => Some(*symbol),
-            _ => None,
-        }
     }
 }

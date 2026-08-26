@@ -262,7 +262,6 @@ impl<'a> DiagnosticControlIndex<'a> {
         let index = match anchor {
             DiagnosticAnchor::Span(span) => self.files.get(&span.file),
             DiagnosticAnchor::File(file) => self.files.get(file),
-            DiagnosticAnchor::Symbol(symbol) => self.modules.get(&symbol.module_id),
             DiagnosticAnchor::Module(module) => self.modules.get(module),
             DiagnosticAnchor::Package(_) => None,
         }?;
@@ -310,8 +309,7 @@ impl DiagnosticControlScope {
             Self::Module => true,
             Self::Span(scope) => match anchor {
                 DiagnosticAnchor::Span(span) => scope.contains_span(*span),
-                DiagnosticAnchor::Symbol(_)
-                | DiagnosticAnchor::File(_)
+                DiagnosticAnchor::File(_)
                 | DiagnosticAnchor::Module(_)
                 | DiagnosticAnchor::Package(_) => false,
             },

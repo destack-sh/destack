@@ -625,8 +625,8 @@ import { value } from "./mid.ds";
         r#"
 /// @diagnostic.error id=ambiguous-export message="ambiguous export 'value' from './mid.ds'"
 /// @diagnostic.label line=2 column=10 span="value" line_source="import { value } from \"./mid.ds\";"
-/// @diagnostic.related file="a.ds" message="one 'value' comes from this module"
-/// @diagnostic.related file="b.ds" message="one 'value' comes from this module"
+/// @diagnostic.related file="a.ds" line=2 column=12 span="value" line_source="export let value = 1;" message="one 'value' is declared here"
+/// @diagnostic.related file="b.ds" line=2 column=12 span="value" line_source="export let value = 2;" message="one 'value' is declared here"
 /// @diagnostic.help message="import 'value' directly from one origin module"
 "#,
     );

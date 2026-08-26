@@ -7,7 +7,7 @@ use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 use parking_lot::Mutex;
 
 use crate::optimize::{DiagnosticEmitter, ModuleWorkItem, PackageWorkset};
-use crate::{DiagnosticAnchor, OptimizeError, OptimizeWarning};
+use crate::{OptimizeError, OptimizeWarning};
 use destack_mir::{AnalysisOptions, HotnessThresholds, TargetLayout};
 
 /// Minimum samples required before guarded devirtualization accepts a target.
@@ -282,15 +282,6 @@ impl<'a> PipelineContext<'a> {
     /// Return the inline budget scale percent for this pipeline run.
     pub fn inline_budget_scale_percent(&self) -> u64 {
         self.options.inline_budget_scale_percent()
-    }
-
-    /// Create a diagnostic anchor for one MIR node.
-    pub fn anchor(&self, tree: &mir::Tree, node: mir::LocalNodeIdAny) -> DiagnosticAnchor {
-        if let Some(span) = tree.source_span_by_id(node.id) {
-            DiagnosticAnchor::Span(span)
-        } else {
-            DiagnosticAnchor::Module(self.module_id)
-        }
     }
 
     /// Return the target layout for this pipeline run.

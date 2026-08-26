@@ -9,8 +9,7 @@ use smallvec::{SmallVec, smallvec};
 use crate::export::{ExportLookup, ExportResolver};
 use crate::resolve::stats::ResolveStats;
 use crate::{
-    CompilerError, CompilerResult, ResolveError, ResolveWarning, diagnostic_suggestion_distance,
-    rename_suggestion,
+    CompilerResult, ResolveError, ResolveWarning, diagnostic_suggestion_distance, rename_suggestion,
 };
 
 /// Resolve phase state for one module.
@@ -389,23 +388,12 @@ impl<'a> ResolveState<'a> {
             target,
         };
 
-        // point at each origin module supplying the name
+        // point at each declaration supplying the name
         let mut diagnostic = DiagnosticBuilder::new(error);
         for resolution in resolutions {
-            let module =
-                resolution
-                    .declaration
-                    .module()
-                    .ok_or_else(|| CompilerError::Internal {
-                        message: format!(
-                            "ambiguous export declaration spans modules: {:?}",
-                            resolution.declaration
-                        ),
-                    })?;
-            diagnostic = diagnostic.label(
-                DiagnosticAnchor::Module(module),
-                format!("one '{name}' comes from this module"),
-            );
+            for target in resolution.declaration.iter() {
+                diagnostic = diagnostic.reference(target, format!("one '{name}' is declared here"));
+            }
         }
         diagnostic = diagnostic.help(format!("import '{name}' directly from one origin module"));
 

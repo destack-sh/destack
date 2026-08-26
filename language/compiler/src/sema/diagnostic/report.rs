@@ -299,10 +299,10 @@ impl CheckState<'_> {
     /// Report a Drop conformance whose extension parameters cannot map.
     pub(in crate::sema) fn report_unmapped_drop_conformance(
         &mut self,
-        module: ModuleId,
-        owner: dir::GlobalSymbolId,
+        source: dir::GlobalNodeIdAny,
     ) {
-        let anchor = DiagnosticAnchor::Symbol(owner);
+        let module = source.module_id;
+        let anchor = self.diagnostic_anchor(module, source.local_id);
         let diagnostic = CheckError::UnmappedDropConformance { anchor, module };
 
         self.report(module, diagnostic);
@@ -417,7 +417,7 @@ impl CheckState<'_> {
             suggestion: best.as_ref().map(|best| best.candidate.clone()),
         };
 
-        // attach the name suggestion and any sibling module declaration
+        // attach the name suggestion and any matching imported declaration
         let mut diagnostic = DiagnosticBuilder::new(error);
         if let Some(suggestion) = best
             .as_ref()
@@ -425,13 +425,10 @@ impl CheckState<'_> {
         {
             diagnostic = diagnostic.suggestion(suggestion);
         }
-        if let Some(sibling) = self.declaring_sibling_module(module, path) {
+        if let Some(declaration) = self.imported_declaration(module, path) {
             diagnostic = diagnostic
-                .label(
-                    DiagnosticAnchor::Module(sibling),
-                    format!("'{name}' is declared in this module"),
-                )
-                .help(format!("import '{name}' from that module"));
+                .declaration(declaration, format!("'{name}' is declared here"))
+                .help(format!("import '{name}' from its module"));
         }
 
         self.report(module, diagnostic);
@@ -443,7 +440,7 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
         path: &dir::Path,
-    ) {
+    ) -> CompilerResult<()> {
         let anchor = self.diagnostic_anchor(module, source);
         let error = CheckError::AmbiguousReference {
             anchor,
@@ -451,25 +448,42 @@ impl CheckState<'_> {
             name: self.path_label(path),
         };
 
-        // point at each conflicting candidate declaration
+        // read the exact conflicting targets retained by resolution
+        let reference = self
+            .module(module)
+            .resolved
+            .references
+            .get(source.into_global(module))
+            .cloned()
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("ambiguous source {source:?} has no resolved reference"),
+            })?;
+
+        // point at each live candidate declaration
         let mut diagnostic = DiagnosticBuilder::new(error);
-        if let Some(dir::Reference::Ambiguous(candidates)) = self
-            .module_maybe(module)
-            .and_then(|state| state.resolved.references.get(source.into_global(module)))
-        {
-            for target in candidates.clone().iter().take(4) {
-                let dir::ReferenceTarget::Symbol(symbol) = target else {
-                    continue;
-                };
-                let Ok(declaration) = self.symbol_source(*symbol) else {
-                    continue;
-                };
-                let (_, candidate) = self.source_anchor(declaration);
-                diagnostic = diagnostic.label(candidate, "one candidate is declared here");
+        match reference {
+            dir::Reference::Bound(symbols) => {
+                for symbol in self.present_symbols(&symbols).into_iter().take(4) {
+                    diagnostic = diagnostic.declaration(symbol, "one candidate is declared here");
+                }
+            }
+            dir::Reference::Ambiguous(targets) => {
+                for target in targets.into_iter().take(4) {
+                    diagnostic = diagnostic.reference(target, "one candidate is declared here");
+                }
+            }
+            reference => {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "ambiguous source {source:?} has non-conflicting reference {reference:?}"
+                    ),
+                });
             }
         }
 
         self.report(module, diagnostic);
+
+        Ok(())
     }
 
     /// Report a local binding read before assignment.
@@ -485,7 +499,7 @@ impl CheckState<'_> {
             module,
             name: self.format_symbol(symbol),
         };
-        let diagnostic = self.label_binding_declaration(DiagnosticBuilder::new(error), symbol);
+        let diagnostic = DiagnosticBuilder::new(error).declaration(symbol, "declared here");
 
         self.report(module, diagnostic);
     }
@@ -2163,8 +2177,7 @@ impl CheckState<'_> {
                     module,
                     name,
                 };
-                let diagnostic =
-                    self.label_binding_declaration(DiagnosticBuilder::new(error), symbol);
+                let diagnostic = DiagnosticBuilder::new(error).declaration(symbol, "declared here");
 
                 self.report(module, diagnostic);
             }
@@ -2176,8 +2189,7 @@ impl CheckState<'_> {
                     module,
                     name,
                 };
-                let diagnostic =
-                    self.label_binding_declaration(DiagnosticBuilder::new(error), symbol);
+                let diagnostic = DiagnosticBuilder::new(error).declaration(symbol, "declared here");
 
                 self.report(module, diagnostic);
             }
@@ -2276,9 +2288,8 @@ impl CheckState<'_> {
 
                 // point at the declaration when it carries the conflicting space
                 if let Some(symbol) = declaration {
-                    let (_, declaration_anchor) = self.source_anchor(self.symbol_source(symbol)?);
-                    diagnostic = diagnostic.label(
-                        declaration_anchor,
+                    diagnostic = diagnostic.declaration(
+                        symbol,
                         format!("'{}' is {}", self.format_symbol(symbol), declared.text()),
                     );
                 }
@@ -2381,18 +2392,15 @@ impl CheckState<'_> {
             } => {
                 let (module, anchor) = self.source_anchor(source);
                 let (_, conflict_anchor) = self.source_anchor(conflict_source);
-                let (_, declaration_anchor) = self.source_anchor(self.symbol_source(symbol)?);
-                let (_, conflict_declaration_anchor) =
-                    self.source_anchor(self.symbol_source(conflict)?);
                 let error = CheckError::HeritagePlacementConflict { anchor, module };
                 let diagnostic = DiagnosticBuilder::new(error)
                     .label(conflict_anchor, "conflicting placement")
-                    .label(
-                        declaration_anchor,
+                    .declaration(
+                        symbol,
                         format!("'{}' is declared here", self.format_symbol(symbol)),
                     )
-                    .label(
-                        conflict_declaration_anchor,
+                    .declaration(
+                        conflict,
                         format!("'{}' is declared here", self.format_symbol(conflict)),
                     )
                     .help("make every base and implemented interface use the same placement");
@@ -2621,28 +2629,6 @@ impl CheckState<'_> {
         match value {
             UncoveredValue::Type(ty) => self.format_type(ty),
             UncoveredValue::VariantCase { ty, key } => self.format_variant_case(ty, key),
-        }
-    }
-
-    /// Add a declaration label to a binding diagnostic when the declaration is local.
-    fn label_binding_declaration(
-        &self,
-        diagnostic: DiagnosticBuilder<CheckError>,
-        symbol: dir::GlobalSymbolId,
-    ) -> DiagnosticBuilder<CheckError> {
-        let declaration = self
-            .binding_table(symbol.module_id)
-            .get_symbol_maybe(symbol.local_id)
-            .and_then(|binding| binding.declaration)
-            .filter(|declaration| declaration.module_id == symbol.module_id);
-
-        match declaration {
-            Some(declaration) => {
-                let anchor = self.diagnostic_anchor(symbol.module_id, declaration.local_id);
-
-                diagnostic.label(anchor, "declared here")
-            }
-            None => diagnostic,
         }
     }
 
@@ -2903,8 +2889,6 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.source_anchor(source);
-        let conflict = self.symbol_source(conflict)?;
-        let (_, conflict) = self.source_anchor(conflict);
         let error = CheckError::ConflictingImplementation {
             anchor,
             module,
@@ -2912,7 +2896,7 @@ impl CheckState<'_> {
             ty: self.format_type(ty),
         };
         let diagnostic =
-            DiagnosticBuilder::new(error).label(conflict, "conflicting implementation");
+            DiagnosticBuilder::new(error).declaration(conflict, "conflicting implementation");
 
         self.report(module, diagnostic);
 

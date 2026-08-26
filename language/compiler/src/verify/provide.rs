@@ -36,7 +36,7 @@ impl Compiler {
         let lowered = artifacts
             .read::<MirLowered>((module, profile, target))
             .map_err(CompilerError::from)?;
-        let mut state = VerifyState::new(module, &lowered);
+        let mut state = VerifyState::new(&lowered);
 
         state.verify();
 

@@ -1,4 +1,3 @@
-use destack_dir::GlobalSymbolId;
 use destack_serde::Reflect;
 use destack_source::{FileId, ModuleId, PackageId, Span};
 use serde::{Deserialize, Serialize};
@@ -8,8 +7,6 @@ use serde::{Deserialize, Serialize};
 pub enum DiagnosticAnchor {
     /// A concrete span in the provider revision.
     Span(Span),
-    /// A declared symbol, resolved to its declaration span at render time.
-    Symbol(GlobalSymbolId),
     /// A whole source file in the provider revision.
     File(FileId),
     /// A module in the provider revision.
@@ -43,12 +40,5 @@ impl From<PackageId> for DiagnosticAnchor {
     /// Create a diagnostic anchor from a source package.
     fn from(package: PackageId) -> Self {
         Self::Package(package)
-    }
-}
-
-impl From<GlobalSymbolId> for DiagnosticAnchor {
-    /// Create a diagnostic anchor from a declared symbol.
-    fn from(symbol: GlobalSymbolId) -> Self {
-        Self::Symbol(symbol)
     }
 }

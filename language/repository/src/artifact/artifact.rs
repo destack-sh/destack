@@ -7,13 +7,11 @@ use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{ArtifactBase, ArtifactResolution};
 use destack_artifact::{
     ArtifactDependency, ArtifactEntry, ArtifactFailure, ArtifactKey, ArtifactOutcome,
-    ArtifactPayload, ArtifactVersion, DeclarationReference, DiagnosticRecord, DirBound, DirParsed,
+    ArtifactPayload, ArtifactVersion, DeferredDiagnosticLabel, DiagnosticRecord, DirBound,
+    DirParsed,
 };
 use destack_core::Blob;
-use destack_dir::GlobalSymbolId;
-use destack_source::{
-    Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, ModuleId, ProfileId,
-};
+use destack_source::{Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget};
 use rustc_hash::{FxHashSet, FxHasher};
 
 impl Repository {
@@ -436,103 +434,30 @@ impl Repository {
     ) -> Result<Diagnostic, RepositoryError> {
         let mut diagnostic = record.diagnostic.clone();
 
-        // append each declaration reference as a resolved label
-        for reference in &record.references {
-            let label = self.resolve_reference(revision, version, reference)?;
+        // append each deferred label at its current source span
+        for deferred_label in &record.deferred_labels {
+            let label = self.resolve_deferred_label(revision, version, deferred_label)?;
             diagnostic = diagnostic.label(label);
         }
 
         Ok(diagnostic)
     }
 
-    /// Resolve one declaration reference onto its current declaration span.
-    fn resolve_reference(
+    /// Resolve one deferred diagnostic label onto its current source span.
+    fn resolve_deferred_label(
         &self,
         revision: Revision,
         version: &ArtifactVersion,
-        reference: &DeclarationReference,
+        label: &DeferredDiagnosticLabel,
     ) -> Result<DiagnosticLabel, RepositoryError> {
-        let symbol = reference.symbol;
-        let message = reference.message.clone();
+        let profile = version
+            .key
+            .profile_id()
+            .ok_or_else(|| RepositoryError::InvalidArtifact {
+                message: format!("artifact has no profile for declaration label: {version:?}"),
+            })?;
+        let symbol = label.anchor;
 
-        // use the precise declaration while its recorded projection remains current
-        if let Some(profile) = version.key.profile_id()
-            && self.declared_observation_holds(revision, version, symbol.module_id, profile)?
-        {
-            self.declaration_label(revision, symbol, profile, message)
-        }
-        // locate stale references at their module file
-        else {
-            self.module_label(revision, symbol.module_id, message)
-        }
-    }
-
-    /// Return whether one artifact's observed declared projection still holds.
-    fn declared_observation_holds(
-        &self,
-        revision: Revision,
-        version: &ArtifactVersion,
-        module: ModuleId,
-        profile: ProfileId,
-    ) -> Result<bool, RepositoryError> {
-        let declared_key = ArtifactKey::dir_declared(module, profile);
-        let entry = self
-            .artifact_entry(revision, &version.key)?
-            .ok_or(RepositoryError::MissingArtifact { version: *version })?;
-
-        // find the observed declared projection for the referenced module
-        for dependency in entry.dependencies.iter() {
-            let ArtifactDependency::Projection(projection) = dependency else {
-                continue;
-            };
-            if projection.projection().artifact != declared_key {
-                continue;
-            }
-
-            // compare the observation against the current declared value
-            let Some(current) = self.artifact_version(revision, &declared_key)? else {
-                return Ok(false);
-            };
-            let current_fingerprint = self
-                .artifact_table()
-                .projection_fingerprint(&current, &projection.projection())
-                .map_err(|error| RepositoryError::InvalidArtifact {
-                    message: error.to_string(),
-                })?;
-
-            return Ok(current_fingerprint
-                .is_some_and(|fingerprint| fingerprint == projection.fingerprint()));
-        }
-
-        Ok(false)
-    }
-
-    /// Return one module's first file as a label.
-    fn module_label(
-        &self,
-        revision: Revision,
-        module: ModuleId,
-        message: Option<String>,
-    ) -> Result<DiagnosticLabel, RepositoryError> {
-        let file = self
-            .module_root_file(revision, module)?
-            .ok_or(RepositoryError::MissingModule { module })?;
-
-        Ok(DiagnosticLabel {
-            blob: file.blob,
-            target: DiagnosticTarget::File(file.id),
-            message,
-        })
-    }
-
-    /// Return one current symbol declaration label.
-    fn declaration_label(
-        &self,
-        revision: Revision,
-        symbol: GlobalSymbolId,
-        profile: ProfileId,
-        message: Option<String>,
-    ) -> Result<DiagnosticLabel, RepositoryError> {
         // resolve the declaration's local symbol entry
         let bound_key = ArtifactKey::dir_bound(symbol.module_id, profile);
         let bound_version = self
@@ -593,23 +518,7 @@ impl Repository {
         Ok(DiagnosticLabel {
             blob: file.blob,
             target: DiagnosticTarget::Span(span),
-            message,
+            message: Some(label.message.clone()),
         })
-    }
-
-    /// Return the first source file of one module.
-    fn module_root_file(
-        &self,
-        revision: Revision,
-        module: ModuleId,
-    ) -> Result<Option<Arc<File>>, RepositoryError> {
-        let Some(module) = self.module(revision, module)? else {
-            return Ok(None);
-        };
-        let Some(entry) = module.files.first() else {
-            return Ok(None);
-        };
-
-        self.file(revision, entry.file_id)
     }
 }

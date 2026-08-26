@@ -1,10 +1,11 @@
+use destack_dir::{GlobalSymbolId, ReferenceTarget};
 use destack_source::{
     Diagnostic, DiagnosticHelp, DiagnosticNote, DiagnosticSuggestion, DiagnosticTag,
 };
 
 use crate::{
-    DeclarationReference, DiagnosticAnchor, DiagnosticContext, DiagnosticError, DiagnosticRecord,
-    ToDiagnostic,
+    DeferredDiagnosticLabel, DiagnosticAnchor, DiagnosticContext, DiagnosticError,
+    DiagnosticRecord, ToDiagnostic,
 };
 
 /// One secondary diagnostic label.
@@ -35,6 +36,8 @@ pub struct DiagnosticBuilder<T> {
     primary: Option<String>,
     /// Secondary source labels to add.
     labels: Vec<SecondaryLabel>,
+    /// Diagnostic labels to resolve when the record is read.
+    deferred_labels: Vec<DeferredDiagnosticLabel>,
     /// Notes to add.
     notes: Vec<DiagnosticNote>,
     /// Help messages to add.
@@ -52,6 +55,7 @@ impl<T> DiagnosticBuilder<T> {
             diagnostic,
             primary: None,
             labels: Vec::new(),
+            deferred_labels: Vec::new(),
             notes: Vec::new(),
             helps: Vec::new(),
             suggestions: Vec::new(),
@@ -86,6 +90,24 @@ impl<T> DiagnosticBuilder<T> {
         self
     }
 
+    /// Add one deferred declaration label.
+    pub fn declaration(mut self, declaration: GlobalSymbolId, message: impl Into<String>) -> Self {
+        self.deferred_labels.push(DeferredDiagnosticLabel {
+            anchor: declaration,
+            message: message.into(),
+        });
+
+        self
+    }
+
+    /// Add one resolved reference target as a secondary label.
+    pub fn reference(self, target: ReferenceTarget, message: impl Into<String>) -> Self {
+        match target {
+            ReferenceTarget::Symbol(declaration) => self.declaration(declaration, message),
+            ReferenceTarget::Namespace(module) => self.label(module, message),
+        }
+    }
+
     /// Add one note.
     pub fn note(mut self, note: impl Into<DiagnosticNote>) -> Self {
         self.notes.push(note.into());
@@ -117,26 +139,14 @@ impl<T> DiagnosticBuilder<T> {
     }
 }
 
-impl<T> From<T> for DiagnosticBuilder<T> {
-    /// Create a diagnostic builder from one provider diagnostic.
-    fn from(diagnostic: T) -> Self {
-        Self::new(diagnostic)
-    }
-}
-
-impl<T> ToDiagnostic for DiagnosticBuilder<T>
+impl<T> DiagnosticBuilder<T>
 where
     T: ToDiagnostic,
 {
-    /// Convert the provider diagnostic and its attached fields into a source diagnostic.
-    fn to_diagnostic(
-        &self,
-        context: &dyn DiagnosticContext,
-    ) -> Result<Diagnostic, DiagnosticError> {
+    /// Resolve immediate fields into one source diagnostic.
+    fn resolve(&self, context: &dyn DiagnosticContext) -> Result<Diagnostic, DiagnosticError> {
         // base diagnostic
         let mut diagnostic = self.diagnostic.to_diagnostic(context)?;
-
-        // set the primary label
         if let Some(message) = &self.primary {
             diagnostic.primary.message = Some(message.clone());
         }
@@ -169,61 +179,44 @@ where
 
         Ok(diagnostic)
     }
-}
 
-impl<T> DiagnosticBuilder<T>
-where
-    T: ToDiagnostic,
-{
-    /// Convert the provider diagnostic into a stored record, splitting
-    /// declaration references from labels resolvable at emit.
+    /// Convert the provider diagnostic into a stored record.
     pub fn to_record(
         &self,
         context: &dyn DiagnosticContext,
     ) -> Result<DiagnosticRecord, DiagnosticError> {
-        // base diagnostic with the primary label resolved
-        let mut diagnostic = self.diagnostic.to_diagnostic(context)?;
-        if let Some(message) = &self.primary {
-            diagnostic.primary.message = Some(message.clone());
-        }
-
-        // split labels: declarations stay references, the rest resolve now
-        let mut references = Vec::new();
-        for label in &self.labels {
-            if let Some(symbol) = label.anchor.declaration() {
-                references.push(DeclarationReference {
-                    symbol,
-                    message: Some(label.message.clone()),
-                });
-                continue;
-            }
-            let label = context.label(&label.anchor, Some(label.message.clone()))?;
-            diagnostic = diagnostic.label(label);
-        }
-
-        // carry the notes
-        for note in &self.notes {
-            diagnostic = diagnostic.note(note.clone());
-        }
-
-        // carry the help messages
-        for help in &self.helps {
-            diagnostic = diagnostic.help(help.clone());
-        }
-
-        // carry the suggestions
-        for suggestion in &self.suggestions {
-            diagnostic = diagnostic.suggestion(suggestion.clone());
-        }
-
-        // carry the tags
-        for tag in &self.tags {
-            diagnostic = diagnostic.tag(*tag);
-        }
+        let diagnostic = self.resolve(context)?;
 
         Ok(DiagnosticRecord {
             diagnostic,
-            references,
+            deferred_labels: self.deferred_labels.clone(),
         })
+    }
+}
+
+impl<T> From<T> for DiagnosticBuilder<T> {
+    /// Create a diagnostic builder from one provider diagnostic.
+    fn from(diagnostic: T) -> Self {
+        Self::new(diagnostic)
+    }
+}
+
+impl<T> ToDiagnostic for DiagnosticBuilder<T>
+where
+    T: ToDiagnostic,
+{
+    /// Convert the provider diagnostic and its attached fields into a source diagnostic.
+    fn to_diagnostic(
+        &self,
+        context: &dyn DiagnosticContext,
+    ) -> Result<Diagnostic, DiagnosticError> {
+        // require deferred labels to pass through a stored diagnostic record
+        if !self.deferred_labels.is_empty() {
+            return Err(DiagnosticError::InvalidDiagnostic {
+                message: "declaration labels require a stored diagnostic record".to_string(),
+            });
+        }
+
+        self.resolve(context)
     }
 }

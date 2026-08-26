@@ -22,12 +22,12 @@ impl CheckState<'_> {
         label
     }
 
-    /// Return one imported module declaring an unresolved name.
-    pub(in crate::sema) fn declaring_sibling_module(
+    /// Return one imported declaration matching an unresolved name.
+    pub(in crate::sema) fn imported_declaration(
         &self,
         module: ModuleId,
         path: &dir::Path,
-    ) -> Option<ModuleId> {
+    ) -> Option<dir::GlobalSymbolId> {
         let [name] = path.segments.as_slice() else {
             return None;
         };
@@ -42,26 +42,24 @@ impl CheckState<'_> {
             }
         }
 
-        // scan each imported module scope for the exact name
-        let declares = |bindings: &dir::BindingTable<'_>| {
+        // find an exact declaration in one module scope
+        let declaration = |bindings: &dir::BindingTable<'_>| {
             let scope = bindings.module_scope();
             bindings
                 .get_scope(scope)
                 .named_symbols_up_to(scope.mark)
-                .any(|(key, _)| {
+                .find_map(|(key, symbol)| {
                     matches!(key, dir::StaticKey::Name(key) if self.strings().get(key) == name)
+                        .then_some(symbol)
                 })
         };
+
+        // select the first matching imported declaration
         for imported in imported {
-            let declared = match self.module_maybe(imported) {
-                Some(state) => declares(&state.binding_table()),
-                None => match self.external_modules.get(&imported) {
-                    Some(external) => declares(&external.bindings),
-                    None => continue,
-                },
-            };
-            if declared {
-                return Some(imported);
+            let external = self.external_module(imported);
+            let symbol = declaration(&external.bindings);
+            if let Some(symbol) = symbol {
+                return Some(symbol.into_global(imported));
             }
         }
 

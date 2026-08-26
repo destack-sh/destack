@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactKey, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
-    DiagnosticError, DiagnosticLike, DiagnosticRecord,
+    DiagnosticError, DiagnosticLike, DiagnosticRecord, SourceDependency,
 };
 use destack_core::Blob;
 use destack_repository::{
@@ -126,12 +126,6 @@ impl ProviderAttempt {
     ) -> Result<DiagnosticTarget, DiagnosticError> {
         let target = match anchor {
             DiagnosticAnchor::Span(span) => DiagnosticTarget::Span(*span),
-            // symbol anchors resolve at read, never at emit
-            DiagnosticAnchor::Symbol(symbol) => {
-                return Err(Self::invalid_anchor(format!(
-                    "symbol anchor {symbol:?} resolves when its record is read"
-                )));
-            }
             DiagnosticAnchor::File(file) => DiagnosticTarget::File(*file),
             DiagnosticAnchor::Module(module) => {
                 DiagnosticTarget::File(self.module_file_id(*module)?)
@@ -166,7 +160,7 @@ impl ProviderAttempt {
         Ok(Span::empty(configuration.file_id))
     }
 
-    /// Return one File's Blob in this revision.
+    /// Return one file's blob in this revision.
     fn file_blob(&self, file: FileId) -> Result<Blob, DiagnosticError> {
         let blob = self
             .repository
@@ -179,6 +173,10 @@ impl ProviderAttempt {
                 "diagnostic file is not tracked in revision: {file:?}"
             )));
         };
+
+        // retain the exact source selected by this label
+        let source = SourceDependency::file(file, blob.id);
+        self.observe(ArtifactDependency::Source(source));
 
         Ok(blob)
     }

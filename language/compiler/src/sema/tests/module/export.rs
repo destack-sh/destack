@@ -95,7 +95,7 @@ const namespaced = source.value;
 }
 
 #[test]
-fn test_name_the_declaring_module_for_an_unresolved_reference() {
+fn test_suggest_import_for_an_unresolved_sibling_declaration() {
     let session = TestSession::builder()
         .module(
             "util.ds",
@@ -142,8 +142,8 @@ const second = sibling;
         r#"
 /// @diagnostic.error id=unresolved-reference message="cannot find 'sibling'"
 /// @diagnostic.label line=5 column=16 span="sibling" line_source="const second = sibling;"
-/// @diagnostic.related file="util.ds" message="'sibling' is declared in this module"
-/// @diagnostic.help message="import 'sibling' from that module"
+/// @diagnostic.related file="util.ds" line=3 column=14 span="sibling" line_source="export const sibling: int32 = 2;" message="'sibling' is declared here"
+/// @diagnostic.help message="import 'sibling' from its module"
 "#,
     );
 }

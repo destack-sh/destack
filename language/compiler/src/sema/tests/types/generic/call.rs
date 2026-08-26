@@ -1099,6 +1099,8 @@ const parser = parse<int32>;
         r#"
 /// @diagnostic.error id=ambiguous-reference message="ambiguous reference 'parse'"
 /// @diagnostic.label line=10 column=16 span="parse" line_source="const parser = parse<int32>;"
+/// @diagnostic.related line=2 column=10 span="parse" line_source="function parse<T>(value: T): T {" message="one candidate is declared here"
+/// @diagnostic.related line=6 column=10 span="parse" line_source="function parse<T>(value: T[]): T {" message="one candidate is declared here"
 "#,
     );
 }

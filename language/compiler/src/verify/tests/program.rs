@@ -10,7 +10,7 @@ use crate::verify::{VerifyError, VerifyState};
 impl TestProgram {
     /// Run MIR verification.
     pub(in crate::verify) fn verify(&mut self) -> Vec<DiagnosticBuilder<VerifyError>> {
-        let mut state = VerifyState::new(self.module_id(), &self.lowered);
+        let mut state = VerifyState::new(&self.lowered);
         state.verify();
 
         state.take_errors()
