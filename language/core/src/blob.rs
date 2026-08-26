@@ -139,7 +139,16 @@ pub struct BlobMemory {
     /// The exact retained Blob.
     blob: Blob,
     /// The retained byte memory.
-    memory: Arc<dyn Memory>,
+    memory: BlobBytes,
+}
+
+/// Immutable Blob bytes by ownership.
+#[derive(Debug, Clone)]
+enum BlobBytes {
+    /// Build-owned bytes.
+    Static(&'static [u8]),
+    /// Runtime-owned bytes.
+    Shared(Arc<dyn Memory>),
 }
 
 /// Shared immutable byte memory.
@@ -148,6 +157,18 @@ trait Memory: AsRef<[u8]> + fmt::Debug + Send + Sync {}
 impl<T> Memory for T where T: AsRef<[u8]> + fmt::Debug + Send + Sync {}
 
 impl BlobMemory {
+    /// Retain static bytes with their build-verified Blob.
+    ///
+    /// # Safety
+    ///
+    /// `memory` must have the exact identity and length described by `blob`.
+    pub unsafe fn from_static(blob: Blob, memory: &'static [u8]) -> Self {
+        Self {
+            blob,
+            memory: BlobBytes::Static(memory),
+        }
+    }
+
     /// Retain and identify shared immutable byte memory.
     pub fn from_shared<T>(memory: Arc<T>) -> Self
     where
@@ -155,7 +176,10 @@ impl BlobMemory {
     {
         let blob = Blob::for_bytes(memory.as_ref().as_ref());
 
-        Self { blob, memory }
+        Self {
+            blob,
+            memory: BlobBytes::Shared(memory),
+        }
     }
 
     /// Retain and identify owned immutable bytes.
@@ -170,7 +194,10 @@ impl BlobMemory {
 
     /// Return the retained immutable bytes.
     pub fn bytes(&self) -> &[u8] {
-        self.memory.as_ref().as_ref()
+        match &self.memory {
+            BlobBytes::Static(memory) => memory,
+            BlobBytes::Shared(memory) => memory.as_ref().as_ref(),
+        }
     }
 }
 
