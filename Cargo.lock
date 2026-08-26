@@ -857,13 +857,11 @@ dependencies = [
  "destack_source",
  "fs2",
  "indexmap",
- "libc",
  "rustc-hash 2.1.2",
  "schemars",
  "serde",
  "serde_json",
  "siphasher",
- "windows-sys 0.52.0",
 ]
 
 [[package]]

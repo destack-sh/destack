@@ -131,8 +131,7 @@ fn build_workspace(
         &DestackLayoutOverride::default(),
         None,
     );
-    let build_id = BuildId::current()
-        .unwrap_or_else(|error| panic!("failed to identify compiler benchmark build: {error}"));
+    let build_id = BuildId::test();
     let host = Host::new(build_id, environment, file_system);
     let (repository, revision) =
         Repository::new(workspace_root.clone(), host, Settings::default(), layout);

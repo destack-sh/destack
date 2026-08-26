@@ -38,16 +38,5 @@ schemars = { workspace = true, optional = true }
 [target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
 fs2 = { workspace = true }
 
-[target.'cfg(any(target_os = "android", target_os = "linux", target_os = "macos"))'.dependencies]
-libc = { workspace = true }
-
-[target.'cfg(windows)'.dependencies]
-windows-sys = { workspace = true, features = [
-	"Win32_Foundation",
-	"Win32_System_LibraryLoader",
-	"Win32_System_ProcessStatus",
-	"Win32_System_Threading",
-] }
-
 [lints]
 workspace = true

@@ -561,7 +561,7 @@ mod tests {
     #[test]
     fn test_collect_removes_obsolete_build() {
         let files = TemporaryPhysicalFileSystem::new_with_prefix("artifact-cache-build");
-        let obsolete_build = BuildId::from_bytes(b"obsolete artifact producer");
+        let obsolete_build = BuildId::new([0xff; 16]);
         let obsolete_path = PathBuf::from("builds")
             .join(obsolete_build.to_string())
             .join("opaque-record");

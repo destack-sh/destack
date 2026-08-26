@@ -1,14 +1,11 @@
-use std::sync::OnceLock;
-use std::{fmt, io};
+use std::fmt;
 
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 const BUILD_ID_BYTES: usize = 16;
 
-pub(super) static CURRENT_BUILD_ID: OnceLock<BuildId> = OnceLock::new();
-
-/// The Destack build that produces derived artifacts.
+/// One Destack toolchain build.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
@@ -21,30 +18,9 @@ impl BuildId {
         Self(bytes)
     }
 
-    /// Create an id from exact producer identity bytes.
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        let hash = blake3::hash(bytes);
-        let mut build_id = [0; BUILD_ID_BYTES];
-        build_id.copy_from_slice(&hash.as_bytes()[..BUILD_ID_BYTES]);
-
-        Self(build_id)
-    }
-
-    /// Return the linker id of the binary image containing this artifact implementation.
-    pub fn current() -> io::Result<Self> {
-        if let Some(build_id) = CURRENT_BUILD_ID.get() {
-            return Ok(*build_id);
-        }
-
-        let build_id = Self::read()?;
-        let build_id = CURRENT_BUILD_ID.get_or_init(|| build_id);
-
-        Ok(*build_id)
-    }
-
-    /// Return the shared build id for isolated tests.
-    pub fn test() -> Self {
-        Self::from_bytes(b"destack test build")
+    /// Return the shared build id for isolated runs.
+    pub const fn test() -> Self {
+        Self([0x74; BUILD_ID_BYTES])
     }
 
     /// Return the build id bytes.
