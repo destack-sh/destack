@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::{FileId, ModuleId};
+use destack_source::{ByteRange, FileId, ModuleId};
 use serde::{Deserialize, Serialize};
 
 use crate::{ArtifactProjectionFingerprint, DiagnosticControlTable};
@@ -65,6 +65,17 @@ pub struct DirParsedFile {
 }
 
 impl DirParsedFile {
+    /// Return the token with exactly this source range.
+    pub fn token(&self, range: ByteRange) -> Option<dir::Token> {
+        let index = self
+            .tokens
+            .binary_search_by_key(&range.start, |token| token.start())
+            .ok()?;
+        let token = self.tokens[index];
+
+        (token.end() == range.end).then_some(token)
+    }
+
     /// Iterate semantic token spans for this physical file.
     pub fn iter_token_spans(&self) -> impl Iterator<Item = dir::TokenSpan> + '_ {
         let file_id = self.file_id;

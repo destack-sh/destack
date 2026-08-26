@@ -96,11 +96,16 @@ fn decimal_mask(
         _ => return Ok(None),
     };
 
-    // retain only decimal source spelling
+    // retain only decimal source notation
     let span = module.source_extent(expression.into_any())?;
-    let source = module.source(span)?;
-    let digits = source.trim_end_matches('n').replace('_', "");
-    if !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+    let token = module.token(span)?;
+    if !matches!(
+        token.literal(),
+        Some(dir::TokenLiteral::Int {
+            base: dir::NumberBase::Decimal,
+            ..
+        })
+    ) {
         return Ok(None);
     }
 

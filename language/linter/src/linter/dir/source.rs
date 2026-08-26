@@ -9,6 +9,20 @@ use destack_source::{File, FileId, NodeSpanBoundary, NodeSpanRegion, NodeSpanTyp
 use super::DirModule;
 
 impl DirModule<'_> {
+    /// Return the token with exactly this source span.
+    pub(crate) fn token(&self, span: Span) -> Result<dir::Token, ProviderError> {
+        let parsed = self.parsed.file(span.file).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "source file {:?} is absent from parsed lint module {:?}",
+                span.file, self.id
+            ))
+        })?;
+
+        parsed.token(span.range()).ok_or_else(|| {
+            ProviderError::internal(format!("source span {span:?} does not match one token"))
+        })
+    }
+
     /// Return the required source span for one node.
     pub fn span(&self, node: dir::LocalNodeIdAny) -> Result<Span, ProviderError> {
         self.view()
