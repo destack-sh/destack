@@ -1401,51 +1401,6 @@ define_language_items! {
         }
     }
 
-    /// Fuzzing types.
-    fuzz {
-        /// `destack:fuzz/case`.
-        case {
-            /// Registered fuzz case.
-            FuzzCase => (Struct, "fuzz/case", "Case"),
-
-            /// Registered fuzz suite.
-            FuzzSuite => (Struct, "fuzz/case", "Suite"),
-        }
-
-        /// `destack:fuzz/context`.
-        context {
-            /// Fuzz execution context.
-            FuzzContext => (NewtypeInterface, "fuzz/context", "Context"),
-        }
-
-        /// `destack:fuzz/corpus`.
-        corpus {
-            /// Fuzzing corpus.
-            Corpus => (Struct, "fuzz/corpus", "Corpus"),
-
-            /// Corpus entry.
-            CorpusEntry => (Struct, "fuzz/corpus", "CorpusEntry"),
-
-            /// Corpus identity.
-            CorpusId => (Newtype, "fuzz/corpus", "CorpusId"),
-
-            /// Minimized failing input.
-            Counterexample => (Struct, "fuzz/corpus", "Counterexample"),
-        }
-
-        /// `destack:fuzz/generator`.
-        generator {
-            /// Fuzz value generator.
-            FuzzGenerator => (Class, "fuzz/generator", "Generator"),
-        }
-
-        /// `destack:fuzz/sample`.
-        sample {
-            /// Reproducible fuzz sample.
-            FuzzSample => (Struct, "fuzz/sample", "Sample"),
-        }
-    }
-
     /// Iterator types.
     iter {
         /// `destack:iter/iterator`.

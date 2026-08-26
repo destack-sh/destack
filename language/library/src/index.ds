@@ -28,7 +28,6 @@ export * as console from "./console";
 export * as convert from "./convert";
 export * as debug from "./debug";
 export * as fs from "./fs";
-export * as fuzz from "./fuzz";
 export * as hint from "./hint";
 export * as json from "./json";
 export * as net from "./net";

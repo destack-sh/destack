@@ -60,9 +60,6 @@
     "./fs/binding": {
       "path": "./src/fs/binding/index.ds"
     },
-    "./fuzz": {
-      "path": "./src/fuzz/index.ds"
-    },
     "./hint": {
       "path": "./src/hint/index.ds"
     },
