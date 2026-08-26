@@ -2,7 +2,7 @@ use destack_repository::Revision;
 use futures::executor::block_on;
 
 use crate::tests::harness::TestWorkspace;
-use crate::{DiagnosticsRequest, Error, RevisionPolicy, RunQueryInput};
+use crate::{Error, RevisionPolicy, RunQueryInput};
 
 /// Requires an explicit semantic target when resolving a query file.
 #[test]
@@ -26,10 +26,7 @@ fn test_resolve_query_file_requires_target() {
 /// Executes latest and historical queries against their exact selected revisions.
 #[test]
 fn test_run_query_selects_exact_revision() {
-    let test = TestWorkspace::new("query-exact-revision");
-    let config_source = query_config();
-    let config = test.write_text("destack.json", config_source);
-    let _ = test.apply_text(&config, config_source);
+    let test = TestWorkspace::with_entry("query-exact-revision", "main.ds");
     let path = test.write_text("main.ds", "export const value = 1;\n");
     let _ = test.apply_text(&path, "export const value = 1;\n");
     let first = test.workspace.revision().expect("first revision");
@@ -83,82 +80,9 @@ fn test_run_query_requires_matching_revision() {
     .expect("expected query with matching revision");
 }
 
-/// Reads diagnostics from each exact source revision.
-#[test]
-#[ignore]
-fn test_diagnose_successive_source_revisions() {
-    let test = TestWorkspace::new("diagnose-source-revisions");
-    let config_source = query_config();
-    let config = test.write_text("destack.json", config_source);
-    let _ = test.apply_text(&config, config_source);
-    let first_source = r#"export function run(): void {
-  const value: float64 = false;
-}
-"#;
-    let path = test.write_text("main.ds", first_source);
-    let _ = test.apply_text(&path, first_source);
-    let first_revision = test
-        .workspace
-        .revision()
-        .expect("first diagnostic revision");
-
-    // read the complete diagnostic result for the first revision
-    let first = block_on(
-        test.workspace
-            .diagnose(first_revision, DiagnosticsRequest::File(path.clone())),
-    )
-    .expect("first diagnostics");
-    let first_diagnostics = first[0]
-        .diagnostics
-        .iter()
-        .map(|diagnostic| (diagnostic.id.as_str(), diagnostic.message.as_str()))
-        .collect::<Vec<_>>();
-    assert_eq!(first[0].revision, first_revision);
-    assert_eq!(
-        first_diagnostics,
-        vec![(
-            "not-assignable",
-            "type 'false' is not assignable to type 'float64'"
-        )]
-    );
-
-    // replace the source and require diagnostics from only the new revision
-    let second_source = r#"export function run(): void {
-  const value: float64 = 1;
-}
-"#;
-    let _ = test.apply_text(&path, second_source);
-    let second_revision = test
-        .workspace
-        .revision()
-        .expect("second diagnostic revision");
-    let second = block_on(
-        test.workspace
-            .diagnose(second_revision, DiagnosticsRequest::File(path)),
-    )
-    .expect("second diagnostics");
-    assert_ne!(first_revision, second_revision);
-    assert_eq!(second[0].revision, second_revision);
-    assert_eq!(second[0].diagnostics, Vec::new());
-}
-
 /// Builds one empty file-rename query for revision selection exercises.
 fn empty_rename_files() -> destack_query::QueryRequest {
     destack_query::QueryRequest::RenameFiles(destack_query::RenameFilesRequest {
         renames: Vec::new(),
     })
-}
-
-/// Return one query configuration with an explicit semantic target.
-fn query_config() -> &'static str {
-    r#"{
-  "name": "test",
-  "targets": {
-    "default": {
-      "entry": ["main.ds"]
-    }
-  },
-  "defaultTarget": "default"
-}
-"#
 }

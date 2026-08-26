@@ -1,4 +1,5 @@
 use destack_repository::TraceView;
+use destack_source::{DiagnosticTarget, FileId, Span};
 use futures::executor::block_on;
 
 use crate::command::{CheckInput, CommandInput, CommandOptions, CommandRevision};
@@ -59,7 +60,7 @@ const second = sibling;
     ));
     let output = block_on(test.workspace.check(input, None)).expect("check command failed");
 
-    // the sibling hint labels the declaring module across files
+    // label the exact imported declaration across files
     let diagnostic = output
         .diagnostics
         .iter()
@@ -69,21 +70,26 @@ const second = sibling;
         .labels()
         .next()
         .expect("missing the cross-file label");
+    assert_eq!(label.message.as_deref(), Some("'sibling' is declared here"));
+    let declaration_start = util_source.find("sibling").expect("find declaration") as u32;
     assert_eq!(
-        label.message.as_deref(),
-        Some("'sibling' is declared in this module")
+        label.target,
+        DiagnosticTarget::Span(Span::at(
+            FileId::from_logical_str("util.ds"),
+            declaration_start,
+            7,
+        ))
     );
 
-    // the render path resolves every labeled file without degrading
-    let files = output
+    // collect every file required to render the diagnostic
+    let mut files = output
         .files
         .iter()
         .map(|image| image.name.as_str())
         .collect::<Vec<_>>();
-    assert!(
-        files.contains(&"util.ds"),
-        "cross-file label source was not collected: {files:?}"
-    );
+    files.sort_unstable();
+
+    assert_eq!(files, ["main.ds", "util.ds"]);
 }
 
 #[test]

@@ -1,6 +1,7 @@
 mod artifact;
 mod cache;
 mod command;
+mod diagnostic;
 mod doc;
 mod edit;
 mod format;

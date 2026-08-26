@@ -8,11 +8,12 @@ use destack_core::Blob;
 use destack_dir as dir;
 use destack_repository::{
     Change, Commit, DestackLayoutOverride, Environment, Execution, Host, Repository, Revision,
-    Settings,
+    Settings, TraceLevel,
 };
 use destack_session::Executor;
 use destack_source::{
-    Edit, FileId, FileMetadata, FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri,
+    DiagnosticLabel, DiagnosticTarget, Edit, FileId, FileMetadata, FileSystem, PhysicalFileSystem,
+    Span, TemporaryPhysicalFileSystem, Uri,
 };
 use futures::executor::block_on;
 
@@ -20,7 +21,7 @@ use crate::command::{
     CheckInput, CommandInput, CommandOptions, CommandRevision, QueryInput, QueryOutput,
     RewriteInput, RewriteMode, RewriteOutput,
 };
-use crate::{CheckOutput, Error, Workspace};
+use crate::{CheckOutput, DiagnosticsRequest, Error, FileDiagnostics, Workspace};
 
 /// Test harness for workspace integration tests.
 #[derive(Debug)]
@@ -35,10 +36,51 @@ pub(super) struct TestWorkspace {
     artifact_cache: Option<PathBuf>,
 }
 
+/// One mutable workspace branch under test.
+pub(super) struct TestBranch<'a> {
+    /// Workspace that owns this branch.
+    workspace: &'a Workspace,
+    /// Branch name.
+    name: String,
+    /// Current branch revision.
+    revision: Revision,
+}
+
+/// One authored file in a workspace test.
+#[derive(Debug, Clone)]
+pub(super) struct TestFile {
+    /// Absolute file path.
+    path: PathBuf,
+    /// Logical file identity.
+    id: FileId,
+    /// Current source text.
+    source: String,
+}
+
 impl TestWorkspace {
     /// Create a new harness rooted at a temporary source root.
     pub(super) fn new(prefix: &str) -> Self {
         Self::build(prefix, |_| Arc::new(PhysicalFileSystem::new()), false)
+    }
+
+    /// Create a new harness with one selected entry file.
+    pub(super) fn with_entry(prefix: &str, entry: &str) -> Self {
+        let test = Self::new(prefix);
+        let manifest = format!(
+            r#"{{
+  "name": "test",
+  "targets": {{
+    "default": {{
+      "entry": ["{entry}"]
+    }}
+  }},
+  "defaultTarget": "default"
+}}
+"#
+        );
+        let _ = test.file("destack.json", &manifest);
+
+        test
     }
 
     /// Create a new harness with persistent artifact storage.
@@ -201,6 +243,18 @@ impl TestWorkspace {
         path
     }
 
+    /// Write and publish one authored file.
+    pub(super) fn file(&self, path: &str, source: &str) -> TestFile {
+        let absolute = self.write_text(path, source);
+        let _ = self.apply_text(&absolute, source);
+
+        TestFile {
+            path: absolute,
+            id: FileId::from_logical_str(path),
+            source: source.to_string(),
+        }
+    }
+
     /// Write one text file at the current physical revision.
     pub(super) fn apply_text(&self, path: &Path, source: &str) -> Commit {
         let edits = vec![Edit::SetText {
@@ -217,6 +271,95 @@ impl TestWorkspace {
         let revision = self.workspace.revision()?;
 
         self.workspace.edit(revision, edits)
+    }
+
+    /// Create one mutable branch at the physical revision.
+    pub(super) fn create_branch(&self, name: &str) -> TestBranch<'_> {
+        let revision = self.workspace.revision().expect("read physical revision");
+        self.workspace
+            .create_branch(name.to_string(), revision)
+            .expect("create test branch");
+
+        TestBranch {
+            workspace: &self.workspace,
+            name: name.to_string(),
+            revision,
+        }
+    }
+}
+
+impl TestBranch<'_> {
+    /// Return the current branch revision.
+    pub(super) fn revision(&self) -> Revision {
+        self.revision
+    }
+
+    /// Apply source edits and advance this branch.
+    pub(super) fn edit(&mut self, edits: impl IntoIterator<Item = Edit>) {
+        let trace = self.workspace.start_trace(TraceLevel::Disabled);
+        let commit = self
+            .workspace
+            .edit_branch(
+                &self.name,
+                self.revision,
+                edits.into_iter().collect(),
+                trace.as_ref(),
+            )
+            .expect("edit test branch");
+
+        self.revision = commit.after;
+    }
+
+    /// Read diagnostics for one file at the current branch revision.
+    pub(super) fn diagnose(&self, file: &TestFile) -> FileDiagnostics {
+        let diagnostics = block_on(
+            self.workspace
+                .diagnose(self.revision, DiagnosticsRequest::File(file.path.clone())),
+        )
+        .expect("read branch diagnostics");
+        let [diagnostics] = diagnostics.as_slice() else {
+            panic!("branch diagnostics returned {} files", diagnostics.len());
+        };
+
+        diagnostics.clone()
+    }
+}
+
+impl TestFile {
+    /// Return one exact source label selected by text.
+    pub(super) fn label(&self, text: &str) -> DiagnosticLabel {
+        let start = self
+            .source
+            .find(text)
+            .unwrap_or_else(|| panic!("{} does not contain {text:?}", self.path.display()));
+        let span = Span::at(self.id, start as u32, text.len() as u32);
+
+        DiagnosticLabel::new(
+            Blob::for_bytes(self.source.as_bytes()),
+            DiagnosticTarget::Span(span),
+        )
+    }
+
+    /// Return one exact source label with a message.
+    pub(super) fn message(&self, text: &str, message: &str) -> DiagnosticLabel {
+        let mut label = self.label(text);
+        label.message = Some(message.to_string());
+
+        label
+    }
+
+    /// Replace the first matching source fragment.
+    pub(super) fn replace(&mut self, before: &str, after: &str) -> Edit {
+        let Some(start) = self.source.find(before) else {
+            panic!("{} does not contain {before:?}", self.path.display());
+        };
+        let end = start + before.len();
+        self.source.replace_range(start..end, after);
+
+        Edit::SetText {
+            path: self.path.clone(),
+            text: self.source.clone(),
+        }
     }
 }
 
