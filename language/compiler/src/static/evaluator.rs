@@ -372,13 +372,16 @@ impl<'a> StaticEvaluator<'a> {
         operator: dir::UnaryOperator,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> Result<dir::StaticTerm, StaticError> {
-        match operator {
-            dir::UnaryOperator::Not => {
-                let right = self.evaluate_boolean(right)?;
+        let Ok(operator) = dir::StaticUnaryOperator::try_from(operator) else {
+            return Err(StaticError::NotStatic(expression));
+        };
+        let Some(right) = self.evaluate_expression(right)?.as_scalar() else {
+            return Err(StaticError::NotStatic(expression));
+        };
 
-                Ok(dir::Literal::Boolean(!right).into())
-            }
-            _ => Err(StaticError::NotStatic(expression)),
+        match operator.apply(right) {
+            Ok(value) => Ok(value.into()),
+            Err(_) => Err(StaticError::NotStatic(expression)),
         }
     }
 
@@ -431,7 +434,34 @@ impl<'a> StaticEvaluator<'a> {
 
                 Ok(dir::Literal::Boolean(value).into())
             }
-            _ => Err(StaticError::NotStatic(expression)),
+            // scalar operators evaluate over literal operands
+            _ => {
+                let Ok(operator) = dir::StaticBinaryOperator::try_from(operator) else {
+                    return Err(StaticError::NotStatic(expression));
+                };
+                let left = self.evaluate_expression(left)?;
+                let right = self.evaluate_expression(right)?;
+                let (Some(left), Some(right)) = (left.as_scalar(), right.as_scalar()) else {
+                    return Err(StaticError::NotStatic(expression));
+                };
+
+                // concatenate string literals through the shared pool
+                if let (
+                    dir::StaticBinaryOperator::Add,
+                    dir::Literal::String(left),
+                    dir::Literal::String(right),
+                ) = (operator, left, right)
+                {
+                    let joined = format!("{}{}", self.strings.get(left), self.strings.get(right));
+
+                    return Ok(self.string(&joined));
+                }
+
+                match operator.apply(left, right) {
+                    Ok(value) => Ok(value.into()),
+                    Err(_) => Err(StaticError::NotStatic(expression)),
+                }
+            }
         }
     }
 

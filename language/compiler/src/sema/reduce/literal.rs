@@ -357,37 +357,18 @@ impl CheckState<'_> {
             _ => return Ok(None),
         };
 
-        // evaluate operators that are defined for the closed literal
-        let evaluated = match (unary.operator, literal) {
-            (dir::StaticUnaryOperator::Not, dir::Literal::Boolean(value)) => {
-                Some(dir::Literal::Boolean(!value))
-            }
-            (dir::StaticUnaryOperator::Negate, dir::Literal::Integer(value)) => {
-                match value.checked_neg() {
-                    Some(negated) => Some(dir::Literal::Integer(negated)),
-                    None => {
-                        self.report_static_operation(origin, "integer negation overflows")?;
-
-                        None
-                    }
-                }
-            }
-            (dir::StaticUnaryOperator::Negate, dir::Literal::Float(value)) => {
-                Some(dir::Literal::Float(-value))
-            }
-            (dir::StaticUnaryOperator::BitwiseNot, dir::Literal::Integer(value)) => {
-                Some(dir::Literal::Integer(!value))
-            }
-            _ => None,
-        };
-
-        match evaluated {
-            Some(literal) => {
+        // evaluate the scalar operator directly
+        match unary.operator.apply(literal) {
+            Ok(literal) => {
                 let id = self.intern_type(dir::Type::Literal(literal))?;
 
                 Ok(Some(id))
             }
-            None => Ok(None),
+            Err(message) => {
+                self.report_static_operation(origin, message)?;
+
+                Ok(None)
+            }
         }
     }
 
