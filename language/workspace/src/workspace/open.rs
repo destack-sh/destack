@@ -30,9 +30,10 @@ impl Workspace {
         })?;
         let artifact_cache =
             DestackLayout::resolve_cache(cwd, &home, &environment, &settings, None);
-        let artifact_cache = ArtifactCache::open(build_id, file_system.clone(), artifact_cache)
-            .map(Arc::new)
-            .map_err(RepositoryError::from)?;
+        let artifact_cache =
+            ArtifactCache::open(build_id, artifact_cache, settings.cache.maximum_bytes)
+                .map(Arc::new)
+                .map_err(RepositoryError::from)?;
         let host = Host::new(build_id, environment, file_system)
             .with_artifact_cache(artifact_cache, executor.worker_count());
         let (repository, physical) =

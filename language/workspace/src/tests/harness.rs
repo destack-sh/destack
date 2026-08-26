@@ -92,20 +92,18 @@ impl TestWorkspace {
         artifact_cache: Option<&Path>,
     ) -> Workspace {
         let mut host = Host::new(BuildId::test(), Environment::capture_process(), file_system);
+        let settings = Settings::default();
         if let Some(directory) = artifact_cache {
-            let cache = ArtifactCache::open(
-                BuildId::test(),
-                Arc::new(PhysicalFileSystem::new()),
-                directory,
-            )
-            .map(Arc::new)
-            .expect("open artifact cache");
+            let cache =
+                ArtifactCache::open(BuildId::test(), directory, settings.cache.maximum_bytes)
+                    .map(Arc::new)
+                    .expect("open artifact cache");
             host = host.with_artifact_cache(cache, 4);
         }
         let (repository, physical) = Repository::open(
             root.to_path_buf(),
             host,
-            Settings::default(),
+            settings,
             DestackLayoutOverride::default(),
         )
         .expect("failed to import repository from physical fs");
@@ -146,14 +144,11 @@ impl TestWorkspace {
             .expect("flush physical artifacts");
     }
 
-    /// Return the build-specific persistent artifact cache directory.
-    pub(super) fn artifact_cache_directory(&self) -> PathBuf {
-        let directory = self
-            .artifact_cache
+    /// Return the persistent artifact cache directory.
+    pub(super) fn artifact_cache(&self) -> &Path {
+        self.artifact_cache
             .as_ref()
-            .expect("persistent artifact cache");
-
-        directory.join(BuildId::test().to_string())
+            .expect("persistent artifact cache")
     }
 
     /// Run one fully traced check over an authored entry file and revision.

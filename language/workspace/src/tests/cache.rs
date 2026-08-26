@@ -1,3 +1,4 @@
+use destack_artifact::BuildId;
 use destack_repository::TraceLevel;
 use destack_source::{Edit, FileSystem};
 
@@ -34,20 +35,23 @@ fn test_restart_reuses_exact_artifacts() {
             .is_some_and(|trace| trace.stats.built > 0)
     );
     test.save_artifacts();
-    let cache = test.artifact_cache_directory();
+    let cache = test.artifact_cache().to_path_buf();
+    let build = cache.join("builds").join(BuildId::test().to_string());
     let mut packs = test
         .fs
-        .read_dir(&cache.join("packs"))
+        .read_dir(&build.join("packs"))
         .expect("read initial artifact packs");
     packs.sort_unstable();
     let manifests = test
         .fs
-        .read_dir(&cache.join("manifests"))
+        .read_dir(&build.join("manifests"))
         .expect("read initial artifact manifests");
     let [manifest] = manifests.as_slice() else {
         panic!("expected one artifact cache manifest, found {manifests:?}");
     };
     let manifest = test.fs.read(manifest).expect("read initial manifest");
+    assert!(cache.join("lock").is_file());
+    assert!(cache.join("last-collection").is_file());
     let revision = test.workspace.revision().expect("read physical revision");
     let is_scheduled = test
         .workspace
@@ -73,12 +77,12 @@ fn test_restart_reuses_exact_artifacts() {
     test.save_artifacts();
     let mut current_packs = test
         .fs
-        .read_dir(&cache.join("packs"))
+        .read_dir(&build.join("packs"))
         .expect("read retained artifact packs");
     current_packs.sort_unstable();
     let current_manifests = test
         .fs
-        .read_dir(&cache.join("manifests"))
+        .read_dir(&build.join("manifests"))
         .expect("read retained artifact manifests");
     let [current_manifest] = current_manifests.as_slice() else {
         panic!("expected one artifact cache manifest, found {current_manifests:?}");
