@@ -9,19 +9,6 @@ Destack is not generally open for public contributions at this point.
 Destack uses one canonical monorepo release version from [VERSION.txt](VERSION.txt).
 Do not bump versions during normal development, only bump versions through `just bump` or `just release`.
 
-## Commits
-
-Use conventional commits for all repository changes.
-- Follow `type(scope): summary` with an imperative summary and keep it under 100 characters.
-- Use one of `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `dev`, `ci` as the type.
-- Use the full scope (sometimes stylisied) like `language/ast`, `language/compiler/analyze`, `library/ui`, ...
-- If the commit touches multiple scopes either use the highest most, use `all`, or (if large enough) break into multiple smaller commits
-- For example: `feat(language/source): improve error span precision (to sub-token granularity)`.
-- For large packages / crates, we may want to use subscopes like `language/compiler/sema`.
-- When possible and sensible try to mention specific code concepts like `add SiteTable, rename Foo -> Bar` is nice and specific
-- In case of doubt, look at the past 50 or so commit messages for common style.
-- Do not mention non-human authors or contributors in commit messages. We don't care.
-
 ## Security
 
 If you find a security issue, please follow [SECURITY.md](SECURITY.md).
@@ -43,30 +30,8 @@ To contribute to Destack and build it yourself locally you will need at least `c
 
 ## Commands
 
-We use `justfile`s as the source of truth for all commands:
-```sh
-just install        # setup everything
-just lint           # run repository static checks
-just test           # run area test aggregates
-just fmt            # format all code
-just check          # run the normal repository check
-just check-quick    # run the explicit normal repository check
-just check-full     # run the repository check with slow suites
-just clean          # clean all build artifacts
-just publish        # publish all packages
-```
-
-If you are working in one area only, use scoped area checks:
-```sh
-just language/check-quick
-just language/check-full
-just library/check-quick
-just library/check-full
-just app/check-quick
-just app/check-full
-just bridge/check-quick
-just bridge/check-full
-```
+We use `justfile`s as the source of truth for all commands. 
+See the relevant directories we're working on for the relevant just recipes.
 
 ## Release
 
