@@ -2,14 +2,14 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::BuildId;
+use destack_artifact::{ArtifactKey, BuildId, IndexKind};
 use destack_query::{QueryRequest, QueryResponse};
 use destack_repository::{
     DestackLayoutOverride, Edit, Environment, Execution, Host, Repository, Revision, Settings,
     Trace, TraceLevel, TraceSnapshot, TraceView,
 };
-use destack_session::Executor;
-use destack_source::{FileSystem, MemoryFileSystem};
+use destack_session::{ArtifactPriority, Executor, Session};
+use destack_source::{FileSystem, MemoryFileSystem, TargetId};
 use destack_workspace::{RevisionPolicy, RunQueryInput, Workspace};
 use futures::executor::block_on;
 use indexmap::IndexMap;
@@ -27,6 +27,10 @@ const QUERY_MANIFEST: &str = r#"{
   "defaultTarget": "default"
 }
 "#;
+/// Logical path of the shared query package declaration.
+const QUERY_MANIFEST_PATH: &str = "destack.json";
+/// Temporary module used to resolve the shared query package profile.
+const WARM_ANCHOR_PATH: &str = "__warm.ds";
 /// Environment variable enabling detailed timing reports.
 const TIMINGS_ENV: &str = "DESTACK_TIMINGS";
 /// Environment variable selecting the query workspace worker count.
@@ -41,7 +45,7 @@ pub(super) struct QueryWorkspace {
     repository: Arc<Repository>,
     /// The query workspace.
     workspace: Workspace,
-    /// The immutable empty base revision.
+    /// The shared revision containing warmed library artifacts and query indexes.
     base_revision: Revision,
     /// Whether detailed query traces should be retained.
     has_timings: bool,
@@ -74,7 +78,7 @@ impl QueryWorkspace {
         .map_err(|error| format!("failed to open query repository: {error}"))?;
         let repository = Arc::new(repository);
 
-        // create one threaded semantic workspace
+        // read fixture execution controls
         let worker_count = match env::var(WORKERS_ENV) {
             Ok(value) => value
                 .parse::<usize>()
@@ -84,18 +88,90 @@ impl QueryWorkspace {
                 return Err(format!("{WORKERS_ENV} is not valid UTF-8"));
             }
         };
-        let executor = Executor::new(Execution::Threaded, worker_count)
-            .map_err(|error| format!("failed to create query artifact executor: {error}"))?;
-        let workspace = Workspace::new(repository.clone(), revision, executor)
-            .map_err(|error| format!("failed to open query workspace: {error}"))?;
         let has_timings =
             env::var_os(TIMINGS_ENV).is_some_and(|value| !value.is_empty() && value != "0");
+
+        // create one threaded artifact executor
+        let executor = Executor::new(Execution::Threaded, worker_count)
+            .map_err(|error| format!("failed to create query artifact executor: {error}"))?;
+
+        // install the shared package and its temporary anchor
+        let manifest = repository
+            .retain_blob(QUERY_MANIFEST.as_bytes())
+            .map_err(|error| format!("failed to store query manifest: {error}"))?;
+        let anchor = repository
+            .retain_blob(b"")
+            .map_err(|error| format!("failed to store query anchor: {error}"))?;
+        let revision = repository
+            .edit(
+                revision,
+                [
+                    Edit::add_file(QUERY_MANIFEST_PATH, manifest),
+                    Edit::add_file(WARM_ANCHOR_PATH, anchor),
+                ],
+            )
+            .map_err(|error| format!("failed to create query base revision: {error}"))?
+            .after;
+
+        // resolve the builtin and fixture package profiles
+        let library = repository.embedded_builtin();
+        let library_target = TargetId::new(library.package_id(), "default");
+        let library_profile = repository
+            .profile_for_target(revision, library_target)
+            .map_err(|error| format!("failed to resolve builtin library profile: {error}"))?
+            .id();
+        let anchor_module = repository
+            .module_id_for_path(revision, Path::new(WARM_ANCHOR_PATH))
+            .map_err(|error| format!("failed to resolve query anchor module: {error}"))?
+            .ok_or_else(|| "query anchor module is not tracked".to_string())?;
+        let package = repository
+            .module(revision, anchor_module)
+            .map_err(|error| format!("failed to load query anchor module: {error}"))?
+            .ok_or_else(|| "query anchor module is not loaded".to_string())?
+            .package_id;
+        let query_target = TargetId::new(package, "default");
+        let query_profile = repository
+            .profile_for_target(revision, query_target)
+            .map_err(|error| format!("failed to resolve query fixture profile: {error}"))?
+            .id();
+
+        // check the complete builtin library under both reusable profiles
+        let session = Session::new(repository.clone(), executor.clone())
+            .map_err(|error| format!("failed to start query warmup session: {error}"))?;
+        let artifacts = library
+            .module_ids()
+            .flat_map(|module| {
+                [
+                    ArtifactKey::dir_checked(module, library_profile),
+                    ArtifactKey::dir_checked(module, query_profile),
+                ]
+            })
+            .collect::<Vec<_>>();
+        let run = session.provide(revision, &artifacts, ArtifactPriority::Foreground);
+        block_on(run.wait()).map_err(|error| format!("failed to warm builtin library: {error}"))?;
+
+        // remove the temporary module while retaining its inherited artifacts
+        let base_revision = repository
+            .edit(revision, [Edit::remove_file(WARM_ANCHOR_PATH)])
+            .map_err(|error| format!("failed to retire query anchor: {error}"))?
+            .after;
+
+        // index the builtin program once for incremental query forks
+        let artifacts = IndexKind::ALL
+            .map(|kind| ArtifactKey::program_index(query_profile, kind))
+            .to_vec();
+        let run = session.provide(base_revision, &artifacts, ArtifactPriority::Foreground);
+        block_on(run.wait()).map_err(|error| format!("failed to warm query indexes: {error}"))?;
+
+        // retain the exact warmed base through the shared workspace
+        let workspace = Workspace::new(repository.clone(), base_revision, executor)
+            .map_err(|error| format!("failed to open query workspace: {error}"))?;
 
         Ok(Self {
             root,
             repository,
             workspace,
-            base_revision: revision,
+            base_revision,
             has_timings,
         })
     }
@@ -112,16 +188,7 @@ impl QueryWorkspace {
 
     /// Fork one isolated revision containing exact initial files.
     pub(super) fn fork(&self, files: &IndexMap<PathBuf, QueryFile>) -> Result<Revision, String> {
-        let mut edits = Vec::with_capacity(files.len() + 1);
-
-        // provide a minimal manifest only when the fixture omits one
-        if !files.contains_key(Path::new("destack.json")) {
-            let blob = self
-                .repository
-                .retain_blob(QUERY_MANIFEST.as_bytes())
-                .map_err(|error| format!("failed to store query manifest: {error}"))?;
-            edits.push(Edit::add_file("destack.json", blob));
-        }
+        let mut edits = Vec::with_capacity(files.len());
 
         // commit every fixture file to the isolated revision
         for file in files.values() {
@@ -130,7 +197,12 @@ impl QueryWorkspace {
                 .repository
                 .retain_blob(file.source.as_bytes())
                 .map_err(|error| format!("failed to store query file: {error}"))?;
-            edits.push(Edit::add_file(logical_path, blob));
+            let edit = if logical_path == QUERY_MANIFEST_PATH {
+                Edit::set_file(logical_path, blob)
+            } else {
+                Edit::add_file(logical_path, blob)
+            };
+            edits.push(edit);
         }
 
         self.repository
