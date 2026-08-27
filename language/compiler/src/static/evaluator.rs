@@ -233,7 +233,9 @@ impl<'a> StaticEvaluator<'a> {
             "targetName" => StaticValue::Term(self.optional_string(conditions.target.as_deref())),
             "product" => StaticValue::Term(self.optional_string(conditions.product.as_deref())),
             "version" => StaticValue::Term(self.optional_string(self.package.version.as_deref())),
-            "stage" => StaticValue::Term(self.optional_string(conditions.stage.as_deref())),
+            "stability" => StaticValue::Term(
+                self.optional_string(self.profile.stability.map(|stability| stability.name())),
+            ),
             "derive" => return Err(StaticError::NotStatic(expression)),
             "role" => StaticValue::Term(self.optional_string(conditions.role.as_deref())),
             "labels" => StaticValue::Labels,

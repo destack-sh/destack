@@ -37,8 +37,6 @@ pub struct SubjectSelector {
     pub target: Option<ConditionSelector>,
     /// Active product selector.
     pub product: Option<ConditionSelector>,
-    /// Active package release stage selector.
-    pub stage: Option<ConditionSelector>,
     /// Active target platform selector.
     pub platform: Option<ConditionSelector>,
     /// Active host environment selector.
@@ -281,7 +279,6 @@ impl SubjectSelector {
                 .product
                 .as_ref()
                 .is_none_or(ConditionSelector::is_empty)
-            && self.stage.as_ref().is_none_or(ConditionSelector::is_empty)
             && self
                 .platform
                 .as_ref()
@@ -619,7 +616,6 @@ fn matches_conditions(selector: &SubjectSelector, conditions: &ConditionSet) -> 
         tag: selector.tag.clone(),
         target: selector.target.clone(),
         product: selector.product.clone(),
-        stage: selector.stage.clone(),
         platform: selector.platform.clone(),
         host: selector.host.clone(),
         runtime: selector.runtime.clone(),

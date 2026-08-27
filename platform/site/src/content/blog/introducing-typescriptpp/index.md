@@ -798,7 +798,8 @@ export type Record<K: PropertyKey, V> = {
 | `import.meta.target` | target family and ABI | `Target` | `{ family: "unix", arch: "x64", abi: "gnu" }` |
 | `import.meta.targetName` | active build target name | `string \| undefined` | `"web"`, `"native"` |
 | `import.meta.product` | active deliverable product name | `Product \| undefined` | `"app"`, `"server"` |
-| `import.meta.version` | active package version | `string \| undefined` | `"2026.5.27-alpha.1"` |
+| `import.meta.version` | active package version | `string \| undefined` | `"2026.5.2"` |
+| `import.meta.stability` | active package or product stability | `Stability \| undefined` | `"alpha"`, `"stable"` |
 | `import.meta.runtime` | semantic runtime | `Runtime` | `"destack"`, `"js"` |
 | `import.meta.<mode>` | mode shorthands for `debug`, `dev`, `prod`, `test`, `bench`, `lint` | `boolean` | `import.meta.test`, `import.meta.prod` |
 | `import.meta.env` | configured build environment | `{ readonly [key: string]: string \| undefined }` | `{ NODE_ENV: "production" }` |

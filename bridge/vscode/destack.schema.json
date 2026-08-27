@@ -20,11 +20,11 @@
       ],
       "default": null
     },
-    "stage": {
-      "description": "Package release stage.",
+    "stability": {
+      "description": "Stability promised by this package.",
       "anyOf": [
         {
-          "$ref": "#/$defs/Stage"
+          "$ref": "#/$defs/Stability"
         },
         {
           "type": "null"
@@ -384,26 +384,26 @@
     }
   },
   "$defs": {
-    "Stage": {
-      "description": "Package release stage.",
+    "Stability": {
+      "description": "Stability promised by one published package or product.",
       "oneOf": [
         {
-          "description": "Experimental package surface.",
+          "description": "Experimental surface with no compatibility guarantee.",
           "type": "string",
           "const": "experimental"
         },
         {
-          "description": "Alpha package surface.",
+          "description": "Alpha surface intended for early use.",
           "type": "string",
           "const": "alpha"
         },
         {
-          "description": "Beta package surface.",
+          "description": "Beta surface approaching compatibility guarantees.",
           "type": "string",
           "const": "beta"
         },
         {
-          "description": "Stable package surface.",
+          "description": "Stable surface governed by compatibility guarantees.",
           "type": "string",
           "const": "stable"
         }
@@ -585,18 +585,6 @@
         },
         "product": {
           "description": "Active product selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ConditionSelector"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "stage": {
-          "description": "Active package release stage selector.",
           "anyOf": [
             {
               "$ref": "#/$defs/ConditionSelector"
@@ -816,7 +804,6 @@
             "tag": null,
             "target": null,
             "product": null,
-            "stage": null,
             "platform": null,
             "host": null,
             "runtime": null,
@@ -2804,7 +2791,6 @@
           "$ref": "#/$defs/TargetConditionSet",
           "default": {
             "profile": null,
-            "stage": null,
             "modes": [],
             "roles": [],
             "features": [],
@@ -3385,18 +3371,6 @@
           "type": [
             "string",
             "null"
-          ],
-          "default": null
-        },
-        "stage": {
-          "description": "Release stage for this target.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Stage"
-            },
-            {
-              "type": "null"
-            }
           ],
           "default": null
         },
@@ -4271,11 +4245,11 @@
       "description": "Product assembled from one or more build targets.",
       "type": "object",
       "properties": {
-        "stage": {
-          "description": "Release stage for this product.",
+        "stability": {
+          "description": "Stability promised by this product.",
           "anyOf": [
             {
-              "$ref": "#/$defs/Stage"
+              "$ref": "#/$defs/Stability"
             },
             {
               "type": "null"
@@ -4946,18 +4920,6 @@
       "description": "Normalized profile options.",
       "type": "object",
       "properties": {
-        "stage": {
-          "description": "Release stage for this profile.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Stage"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
         "platform": {
           "description": "Target platform / operating system for this profile.",
           "anyOf": [

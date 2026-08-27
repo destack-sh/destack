@@ -151,7 +151,6 @@ fn test_serve_world_connection() {
                 product: None,
                 role: None,
                 labels: Default::default(),
-                stage: None,
                 platform: Platform::Unknown,
                 host: Host::Native,
                 runtime: Runtime::Destack,

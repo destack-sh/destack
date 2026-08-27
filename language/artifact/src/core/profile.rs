@@ -4,7 +4,7 @@ use std::hash::Hash;
 use destack_core::StableHasher;
 use serde::{Deserialize, Serialize};
 
-use crate::{ConditionSet, EnvironmentKey, Output, TargetAbi, TargetArch, TargetVendor};
+use crate::{ConditionSet, EnvironmentKey, Output, Stability, TargetAbi, TargetArch, TargetVendor};
 
 const PROFILE_ID_DOMAIN: &[u8] = b"profile";
 
@@ -40,6 +40,8 @@ pub enum DiagnosticPolicy {
 pub struct ProfileKey {
     /// Output selected for the profile.
     pub output: Output,
+    /// Stability promised by the selected package or product.
+    pub stability: Option<Stability>,
     /// Active source graph and runtime conditions for the profile.
     pub conditions: ConditionSet,
     /// Target architecture for the profile.

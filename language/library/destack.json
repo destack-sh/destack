@@ -1,5 +1,6 @@
 {
   "name": "destack",
+  "stability": "experimental",
   "private": true,
   "description": "Destack standard library.",
   "targets": {

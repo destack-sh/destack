@@ -6,6 +6,7 @@ mod failure;
 mod fingerprint;
 mod key;
 mod profile;
+mod stability;
 mod target;
 mod version;
 
@@ -17,5 +18,6 @@ pub use failure::*;
 pub use fingerprint::*;
 pub use key::*;
 pub use profile::*;
+pub use stability::*;
 pub use target::*;
 pub use version::*;

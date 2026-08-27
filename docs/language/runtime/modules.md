@@ -11,11 +11,11 @@ Destack's module system goes a little further than plain code imports: sources c
 ## Conditions
 
 Conditions generalize the idea behind `module.tests.ds` and `[cfg(attr)]`-style feature gating into a flexible "condition system" for, well, conditionally including sources and parts of sources into some builds (but not others).
-We recognize `conditions` of `mode`, `feature`, `role`, `stage`, and a general `tag`, in addition to all the usual target gates (e.g. `host`, `runtime`, `target`, `platform`):
+We recognize `conditions` of `mode`, `feature`, `role`, and a general `tag`, in addition to all the usual target gates (e.g. `host`, `runtime`, `target`, `platform`):
 
 ```json:destack.json
 {
-    "stage": "alpha",
+    "stability": "alpha",
     "conditions": {
         "modes": {
             "test": {},
@@ -31,7 +31,6 @@ We recognize `conditions` of `mode`, `feature`, `role`, `stage`, and a general `
             "client": {}
         },
         "aliases": {
-            "alpha": { "stage": "alpha" },
             "browser": { "host": "browser" }
         }
     },
@@ -42,7 +41,6 @@ We recognize `conditions` of `mode`, `feature`, `role`, `stage`, and a general `
 }
 ```
 
-One stage is active at a time - and profiles, products, and targets may override it for the resolved profile.
 The active conditions are available within code via [`import.meta.<condition>`](#import-meta) (like `import.meta.roles`) as usual for in-code dynamic gating:
 
 ```ds
@@ -112,8 +110,8 @@ Top-level dependencies are always part of the source graph, while `conditionalDe
 | `import.meta.target` | target family and ABI | `Target` | `{ family: "unix", arch: "x64", abi: "gnu" }` |
 | `import.meta.targetName` | active build target name | `string \| undefined` | `"web"`, `"native"` |
 | `import.meta.product` | active deliverable product name | `Product \| undefined` | `"app"`, `"server"` |
-| `import.meta.version` | active package version | `string \| undefined` | `"2026.5.27-alpha.1"` |
-| `import.meta.stage` | active package release stage | `Stage \| undefined` | `"alpha"`, `"stable"` |
+| `import.meta.version` | active package version | `string \| undefined` | `"2026.5.2"` |
+| `import.meta.stability` | active package or product stability | `Stability \| undefined` | `"alpha"`, `"stable"` |
 | `import.meta.runtime` | semantic runtime | `Runtime` | `"destack"`, `"js"` |
 | `import.meta.modes` | active source graph modes | `readonly Mode[]` | `["test"]`, `["dev", "lint"]` |
 | `import.meta.roles` | active source graph roles | `readonly Role[]` | `["server"]`, `["client"]` |

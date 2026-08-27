@@ -1897,8 +1897,8 @@ define_language_items! {
             /// Module runtime.
             ModuleRuntime => (Type, "module/meta", "Runtime"),
 
-            /// Module stability stage.
-            ModuleStage => (Type, "module/meta", "Stage"),
+            /// Module stability.
+            ModuleStability => (Type, "module/meta", "Stability"),
 
             /// Module target family.
             ModuleTargetFamily => (Type, "module/meta", "TargetFamily"),

@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
-use destack_artifact::{Host, Platform, ProfileKey, Runtime};
+use destack_artifact::{Host, Platform, ProfileKey, Runtime, Stability};
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{
     CompilerOptions, Condition, ConditionAxis, ConditionCatalog, ConditionSelection, ConditionSet,
-    Destack, DestackFile, Environment, Product, ProfileOptions, RepositoryError, Stage, Target,
+    Destack, DestackFile, Environment, Product, ProfileOptions, RepositoryError, Target,
 };
 
 /// The builtin prelude global grounding every profile.
@@ -42,10 +42,7 @@ pub(crate) fn profile_key_for_target(
     );
     let conditions = build_profile_conditions(
         target_name,
-        target,
         &compiler_options,
-        profile_config,
-        product_config,
         config,
         &environment.selection,
         product,
@@ -86,6 +83,7 @@ pub(crate) fn profile_key_for_target(
 
     Ok(ProfileKey {
         output,
+        stability: resolved_stability(config.map(|config| &config.destack), product_config),
         conditions,
         architecture: target.architecture.clone(),
         vendor: target.vendor.clone(),
@@ -109,10 +107,7 @@ pub(crate) fn profile_key_for_target(
 /// Build the active conditions for one compiler profile.
 fn build_profile_conditions(
     target_name: &str,
-    target: &Target,
     compiler_options: &CompilerOptions,
-    profile_config: Option<&ProfileOptions>,
-    product_config: Option<&Product>,
     config: Option<&DestackFile>,
     selection: &ConditionSelection,
     product: Option<&str>,
@@ -150,8 +145,6 @@ fn build_profile_conditions(
     } else {
         BTreeMap::new()
     };
-    let config = config.map(|config| &config.destack);
-
     Ok(ConditionSet {
         modes,
         roles,
@@ -161,8 +154,6 @@ fn build_profile_conditions(
         product: product.map(str::to_string),
         role: product_role.map(str::to_string),
         labels,
-        stage: resolved_stage(config, profile_config, product_config, target)
-            .map(|stage| stage.name().to_string()),
         platform,
         host,
         runtime,
@@ -233,19 +224,14 @@ fn profile_compiler_options_for_target(
     target.compiler_options(&compiler_options)
 }
 
-/// Resolve the active scalar release stage.
-fn resolved_stage(
+/// Resolve the stability promised by the selected package or product.
+fn resolved_stability(
     config: Option<&Destack>,
-    profile_config: Option<&ProfileOptions>,
     product_config: Option<&Product>,
-    target: &Target,
-) -> Option<Stage> {
-    target
-        .conditions
-        .stage
-        .or_else(|| product_config.and_then(|product| product.stage))
-        .or_else(|| profile_config.and_then(|profile| profile.stage))
-        .or_else(|| config.and_then(|config| config.stage))
+) -> Option<Stability> {
+    product_config
+        .and_then(|product| product.stability)
+        .or_else(|| config.and_then(|config| config.stability))
 }
 
 /// Expand selected source graph names through declared parents.

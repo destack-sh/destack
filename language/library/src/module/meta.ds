@@ -27,9 +27,9 @@ export type Runtime = "destack" | "js";
 @languageItem("module.Output")
 export type Output = "bundle" | "program";
 
-/// Package release stage.
-@languageItem("module.Stage")
-export type Stage = "experimental" | "alpha" | "beta" | "stable";
+/// Stability promised by one published package or product.
+@languageItem("module.Stability")
+export type Stability = "experimental" | "alpha" | "beta" | "stable";
 
 /// Host environment providing imports and ambient effects.
 @languageItem("module.Host")
@@ -95,8 +95,8 @@ export interface ImportMeta {
     readonly product: string | undefined;
     /// Active package version.
     readonly version: string | undefined;
-    /// Active package release stage.
-    readonly stage: Stage | undefined;
+    /// Stability promised by the active package or product.
+    readonly stability: Stability | undefined;
     /// Auto-derives declared by the current module.
     readonly derive: readonly Derive[];
     /// Active product role.

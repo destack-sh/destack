@@ -28,8 +28,6 @@ pub struct ConditionSet {
     pub role: Option<String>,
     /// Labels contributed by active source graph conditions.
     pub labels: BTreeMap<String, Vec<String>>,
-    /// Active package release stage.
-    pub stage: Option<String>,
     /// Active target platform.
     pub platform: Platform,
     /// Active host environment.
@@ -49,7 +47,6 @@ impl Hash for ConditionSet {
         self.product.hash(state);
         self.role.hash(state);
         self.labels.hash(state);
-        self.stage.hash(state);
         self.platform.hash(state);
         self.host.hash(state);
         self.runtime.hash(state);
@@ -75,11 +72,6 @@ impl ConditionSet {
     /// Return whether this set contains one tag.
     pub fn contains_tag(&self, name: &str) -> bool {
         self.tags.contains(name)
-    }
-
-    /// Return whether this set has one stage.
-    pub fn contains_stage(&self, name: &str) -> bool {
-        self.stage.as_deref() == Some(name)
     }
 }
 

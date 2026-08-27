@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 
+use destack_artifact::Stability;
 use serde::{Deserialize, Serialize};
 
-use crate::{Policy, Stage};
+use crate::Policy;
 
 use super::App;
 
@@ -12,8 +13,8 @@ use super::App;
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
 pub struct Product {
-    /// Release stage for this product.
-    pub stage: Option<Stage>,
+    /// Stability promised by this product.
+    pub stability: Option<Stability>,
     /// Active source graph modes for this product.
     pub modes: Vec<String>,
     /// Active source graph roles for this product.

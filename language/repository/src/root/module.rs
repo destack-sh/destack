@@ -242,7 +242,6 @@ mod tests {
             product: None,
             role: None,
             labels: BTreeMap::new(),
-            stage: None,
             platform: Platform::Unknown,
             host: Host::Native,
             runtime: Runtime::Destack,

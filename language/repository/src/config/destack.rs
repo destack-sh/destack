@@ -4,6 +4,7 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_artifact::Stability;
 use destack_source::{File, FileId, FileSystem, FileType, Uri, matches};
 use indexmap::IndexMap;
 use serde::Deserialize;
@@ -13,8 +14,8 @@ use crate::RepositoryError;
 use crate::config::{
     CompilerOptions, ConditionCatalog, ConditionalDependencies, DEFAULT_SOURCE_EXCLUDE,
     DEFAULT_SOURCE_INCLUDE, Dependency, DiagnosticPolicy, ExecutionOptions, Export,
-    FormatterOptions, LinterOptions, PackagePatch, Policy, Product, ProfileOptions, Stage, Target,
-    Task, Topology, Vendor, builtin_modes, builtin_roles, parse_jsonc_file,
+    FormatterOptions, LinterOptions, PackagePatch, Policy, Product, ProfileOptions, Target, Task,
+    Topology, Vendor, builtin_modes, builtin_roles, parse_jsonc_file,
 };
 
 /// Destack configuration document.
@@ -24,12 +25,12 @@ use crate::config::{
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
 pub struct Destack {
-    /// Package name.
+    /// Package or workspace name.
     pub name: Option<String>,
-    /// Package version.
+    /// Package or workspace version.
     pub version: Option<String>,
-    /// Package release stage.
-    pub stage: Option<Stage>,
+    /// Stability promised by this package or workspace.
+    pub stability: Option<Stability>,
     /// Whether the package is private.
     pub r#private: Option<bool>,
     /// Package description.
