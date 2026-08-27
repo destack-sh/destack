@@ -26,7 +26,7 @@ cfg-if = { workspace = true }
 dashmap = { workspace = true }
 indexmap = { workspace = true }
 parking_lot = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive", "rc"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
 schemars = { workspace = true, optional = true }
 simdutf8 = { workspace = true }

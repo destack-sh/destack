@@ -1,3 +1,4 @@
+use destack_core::SectionEntry;
 use destack_serde::Reflect;
 use std::ops::Range;
 
@@ -6,7 +7,10 @@ use serde::{Deserialize, Serialize};
 use crate::{ByteRange, FileId};
 
 /// A source range in bytes (in some File).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct Span {
     /// The file that the Span belongs to.
     pub file: FileId,
