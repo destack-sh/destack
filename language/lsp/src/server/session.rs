@@ -9,17 +9,14 @@ use destack_lsp_types as lsp;
 use destack_query as query;
 use destack_repository::{Host, Revision, SourceRoot, Trace};
 use destack_session::Executor;
-use destack_source::{File, TextChange, Uri};
+use destack_source::{File, TextChange};
 use destack_workspace::{QueryFile, Workspace};
 use parking_lot::RwLock;
 use serde::Deserialize;
 use serde_json::from_value;
 
-use super::{Project, ProjectSet, internal_error};
+use super::{DESTACK_URI_SCHEME, Project, ProjectSet, internal_error};
 use crate::query::DiagnosticDelivery;
-
-/// URI scheme served by the Destack virtual document provider.
-pub(super) const DESTACK_URI_SCHEME: &str = "destack";
 
 /// State installed after one language server initialization.
 #[derive(Debug)]
@@ -117,16 +114,7 @@ impl ServerSession {
 
     /// Resolve one physical or builtin source for queries.
     pub(super) fn resolve_query_file(&self, uri: &lsp::Uri) -> jsonrpc::Result<Option<QueryFile>> {
-        // convert supported client URIs to repository URIs
-        let source_uri = if uri.scheme().as_str() == DESTACK_URI_SCHEME {
-            Uri::from_string(uri.as_str())
-        } else if let Some(path) = uri.to_file_path() {
-            Uri::from_path(path)
-        } else {
-            return Ok(None);
-        };
-
-        self.projects.read().resolve_query_file(&source_uri)
+        self.projects.read().resolve_query_file(uri)
     }
 
     /// Open one editor document through its nearest project.
@@ -240,12 +228,11 @@ impl ServerSession {
             )));
         }
 
-        // resolve the exact source revision
-        let source_uri = Uri::from_string(uri.as_str());
+        // resolve the exact project and source revision
         let file = self
             .projects
             .read()
-            .resolve_query_file(&source_uri)?
+            .resolve_query_file(uri)?
             .map(|file| file.file)
             .ok_or_else(|| {
                 jsonrpc::Error::invalid_params(format!("source URI is not tracked: {uri:?}"))

@@ -13,7 +13,7 @@ use destack_lsp_types as lsp;
 use destack_lsp_types::notification::Notification;
 use destack_repository::{Environment, Execution, Host};
 use destack_session::Executor;
-use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
+use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri};
 use futures::channel::mpsc::{UnboundedReceiver, unbounded};
 use futures::{FutureExt, SinkExt, StreamExt};
 use serde_json::{Value, from_value, to_value};
@@ -21,6 +21,7 @@ use tower::{Service, ServiceExt};
 
 use crate::DestackLanguageServer;
 use crate::query::ToLspUri;
+use crate::server::ProjectId;
 
 /// The single-target workspace manifest test fixtures share.
 pub(super) const MANIFEST: &str = r#"{
@@ -191,6 +192,30 @@ impl TestServer {
             capabilities,
             initialization_options,
             root_uri: Some(uri(root)),
+            trace: Self::trace_value(),
+            ..lsp::InitializeParams::default()
+        };
+
+        self.request(TestRequest::<lsp::request::Initialize>::new(params))
+            .await
+    }
+
+    /// Initialize the server against exact editor workspace folders.
+    #[allow(deprecated)]
+    pub(super) async fn initialize_folders(
+        &mut self,
+        folders: &[&Path],
+    ) -> jsonrpc::Result<lsp::InitializeResult> {
+        let workspace_folders = folders
+            .iter()
+            .map(|folder| lsp::WorkspaceFolder {
+                uri: uri(folder),
+                name: folder.display().to_string(),
+            })
+            .collect();
+        let params = lsp::InitializeParams {
+            capabilities: lsp::ClientCapabilities::default(),
+            workspace_folders: Some(workspace_folders),
             trace: Self::trace_value(),
             ..lsp::InitializeParams::default()
         };
@@ -782,6 +807,19 @@ impl TestServer {
     /// Return the test workspace root URI.
     pub(super) fn root_uri(&self) -> lsp::Uri {
         uri(self.root())
+    }
+
+    /// Build one project-qualified builtin URI.
+    pub(super) fn builtin_uri(&self, uri: &str) -> lsp::Uri {
+        self.builtin_uri_at(self.root(), uri)
+    }
+
+    /// Build one project-qualified builtin URI for an exact root.
+    pub(super) fn builtin_uri_at(&self, root: &Path, uri: &str) -> lsp::Uri {
+        let project = ProjectId::from_root(root);
+        let source = Uri::from_string(uri);
+
+        project.qualify(&source).unwrap()
     }
 
     /// Build one document identity from a scoped workspace path.

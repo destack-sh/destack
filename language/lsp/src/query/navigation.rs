@@ -19,7 +19,7 @@ impl DocumentSet {
 
         // build the destination
         let destination = self.document(target.target.span.file)?;
-        let target_uri = destination.uri()?;
+        let target_uri = destination.uri(self.project)?;
         let (target_range, target_selection_range) =
             destination.ranges(target.target.span, target.target.selection_span)?;
 
@@ -40,7 +40,7 @@ impl DocumentSet {
         search_symbol: &query::SearchSymbol,
     ) -> jsonrpc::Result<lsp::SymbolInformation> {
         let document = self.document(search_symbol.target.span.file)?;
-        let location = document.location(search_symbol.target.span)?;
+        let location = document.location(self.project, search_symbol.target.span)?;
         let kind = search_symbol.kind.into_lsp();
 
         Ok(lsp::SymbolInformation {
@@ -63,7 +63,7 @@ impl DocumentSet {
         item: &query::CallItem,
     ) -> jsonrpc::Result<lsp::CallHierarchyItem> {
         let document = self.document(item.target.span.file)?;
-        let uri = document.uri()?;
+        let uri = document.uri(self.project)?;
         let (range, selection_range) =
             document.ranges(item.target.span, item.target.selection_span)?;
         let kind = match item.kind {
@@ -157,7 +157,7 @@ impl DocumentSet {
         item: &query::TypeItem,
     ) -> jsonrpc::Result<lsp::TypeHierarchyItem> {
         let document = self.document(item.target.span.file)?;
-        let uri = document.uri()?;
+        let uri = document.uri(self.project)?;
         let (range, selection_range) =
             document.ranges(item.target.span, item.target.selection_span)?;
         let kind = item.kind.into_lsp();

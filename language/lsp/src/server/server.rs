@@ -21,8 +21,8 @@ use destack_workspace::{
 use serde_json::to_value;
 
 use super::{
-    ClientCapabilities, DESTACK_URI_SCHEME, ServerSession, ServerSettings, internal_error,
-    workspace_error,
+    ClientCapabilities, DESTACK_URI_SCHEME, ProjectId, ServerSession, ServerSettings,
+    internal_error, workspace_error,
 };
 use crate::query::{
     CodeActionContext, DiagnosticDelivery, DiagnosticPublisher, Document, DocumentSet, IntoLsp,
@@ -2409,11 +2409,12 @@ impl LanguageServer for DestackLanguageServer {
         let lenses = response.lenses;
 
         // build only actions implemented by the connected client bridge
+        let project = ProjectId::from_root(&query_file.root);
         let capabilities = self.client_capabilities()?;
         let mut lsp_lenses = Vec::new();
         for lens in &lenses {
             if capabilities.supports_code_lens(&lens.action) {
-                lsp_lenses.push(document.code_lens(lens)?);
+                lsp_lenses.push(document.code_lens(project, lens)?);
             }
         }
 

@@ -8,7 +8,7 @@ use destack_repository::Revision;
 use destack_source::{File, FileId, PatchSet, Span, TextChange, TextPosition, TextRange, Uri};
 use destack_workspace::{FileEdit, Workspace};
 
-use crate::server::{internal_error, workspace_error};
+use crate::server::{DESTACK_URI_SCHEME, ProjectId, internal_error, workspace_error};
 
 /// Convert one LSP value into a Destack source value.
 pub(crate) trait IntoSource {
@@ -112,7 +112,11 @@ impl Document {
     }
 
     /// Build the document URI.
-    pub(crate) fn uri(&self) -> jsonrpc::Result<lsp::Uri> {
+    pub(crate) fn uri(&self, project: ProjectId) -> jsonrpc::Result<lsp::Uri> {
+        if self.file.uri.scheme() == Some(DESTACK_URI_SCHEME) {
+            return project.qualify(&self.file.uri);
+        }
+
         let Some(uri) = self.file.uri.to_lsp_uri() else {
             return Err(internal_error(format!(
                 "source file {:?} has no representable LSP URI: {}",
@@ -263,9 +267,13 @@ impl Document {
     }
 
     /// Encode one span as an LSP location.
-    pub(crate) fn location(&self, span: Span) -> jsonrpc::Result<lsp::Location> {
+    pub(crate) fn location(
+        &self,
+        project: ProjectId,
+        span: Span,
+    ) -> jsonrpc::Result<lsp::Location> {
         let range = self.range(span)?;
-        let uri = self.uri()?;
+        let uri = self.uri(project)?;
 
         Ok(lsp::Location { uri, range })
     }
@@ -273,6 +281,8 @@ impl Document {
 
 /// Source documents loaded from one workspace revision.
 pub(crate) struct DocumentSet {
+    /// Stable identity of the owning project.
+    pub(super) project: ProjectId,
     /// The workspace root used to load the documents.
     pub(super) root: PathBuf,
     /// Documents keyed by source file id.
@@ -283,6 +293,7 @@ impl DocumentSet {
     /// Create an empty document set.
     pub(crate) fn new(root: &Path) -> Self {
         Self {
+            project: ProjectId::from_root(root),
             root: root.to_path_buf(),
             documents: HashMap::new(),
         }
@@ -357,7 +368,7 @@ impl DocumentSet {
     pub(crate) fn location(&self, span: Span) -> jsonrpc::Result<lsp::Location> {
         let document = self.document(span.file)?;
 
-        document.location(span)
+        document.location(self.project, span)
     }
 }
 
@@ -381,7 +392,7 @@ impl DocumentSet {
         // build edits per document
         for file_edit in &patches.files {
             let document = self.document(file_edit.file)?;
-            let uri = document.uri()?;
+            let uri = document.uri(self.project)?;
 
             let mut edits = file_edit.patches.iter().collect::<Vec<_>>();
             edits.sort_by_key(|edit| (edit.span.start, edit.span.end));

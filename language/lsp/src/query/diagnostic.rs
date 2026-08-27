@@ -17,8 +17,8 @@ use destack_source::{
 use destack_workspace::{FileDiagnostics, Workspace};
 use parking_lot::{Mutex, RwLock};
 
-use super::{Document, DocumentSet, ToLspUri};
-use crate::server::{ProjectSet, internal_error, workspace_error};
+use super::{Document, DocumentSet};
+use crate::server::{ProjectId, ProjectSet, internal_error, workspace_error};
 
 /// Diagnostic delivery selected from client capabilities.
 #[derive(Debug)]
@@ -134,12 +134,9 @@ impl DiagnosticPublisher {
             ));
         }
 
-        let uri = diagnostics.file.uri.to_lsp_uri().ok_or_else(|| {
-            internal_error(format!(
-                "diagnostic URI is not representable by LSP: {}",
-                diagnostics.file.uri
-            ))
-        })?;
+        let project = ProjectId::from_root(self.workspace.root());
+        let document = Document::new(diagnostics.file.clone());
+        let uri = document.uri(project)?;
 
         Ok(lsp::OptionalVersionedTextDocumentIdentifier { uri, version: None })
     }
@@ -272,7 +269,7 @@ impl DocumentSet {
                 )));
             }
 
-            let uri = document.uri()?;
+            let uri = document.uri(self.project)?;
             let range = document.diagnostic_range(label)?;
             let message = label
                 .message

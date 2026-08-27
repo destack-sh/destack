@@ -251,13 +251,13 @@ async fn test_return_resolved_document_links() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_open_builtin_documents() {
     let source = "import { log } from \"destack:console\";\n";
-    let target: lsp::Uri = "destack://console/index.ds".parse().unwrap();
     let (mut server, document) = TestServer::open_workspace(
         "builtin-module-links",
         &[("src/main.ds", source)],
         "src/main.ds",
     )
     .await;
+    let target = server.builtin_uri("destack://console/index.ds");
 
     // resolve the import through its builtin module identity
     let expected = Some(vec![lsp::DocumentLink {
@@ -278,7 +278,7 @@ async fn test_open_builtin_documents() {
     // query the opened builtin index through its module
     let index = TestDocument::from(target);
     server.open(&index, 1, &expected.text).await;
-    let console: lsp::Uri = "destack://console/console.ds".parse().unwrap();
+    let console = server.builtin_uri("destack://console/console.ds");
     let expected = Some(vec![lsp::DocumentLink {
         range: range(0, 14, 0, 28),
         target: Some(console.clone()),
@@ -320,6 +320,56 @@ async fn test_open_builtin_documents() {
     server
         .assert_request(console.definition(position(20, 27)), Ok(expected))
         .await;
+}
+
+/// Keep builtin document identities distinct across editor workspace folders.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_distinguish_builtin_documents_by_project() {
+    let source = "import { log } from \"destack:console\";\n";
+    let mut server = TestServer::new_editor_folder("builtin-project-identity");
+    server.create_package("first");
+    server.create_package("second");
+    let first = server.write("first/main.ds", source);
+    let second = server.write("second/main.ds", source);
+    let first_root = server.root().join("first");
+    let second_root = server.root().join("second");
+    server
+        .initialize_folders(&[&first_root, &second_root])
+        .await
+        .unwrap();
+    server.initialized().await;
+
+    let first_target = server.builtin_uri_at(&first_root, "destack://console/index.ds");
+    let second_target = server.builtin_uri_at(&second_root, "destack://console/index.ds");
+    let link_range = range(0, 20, 0, 37);
+    let first_links = Some(vec![lsp::DocumentLink {
+        range: link_range,
+        target: Some(first_target.clone()),
+        tooltip: None,
+        data: None,
+    }]);
+    let second_links = Some(vec![lsp::DocumentLink {
+        range: link_range,
+        target: Some(second_target.clone()),
+        tooltip: None,
+        data: None,
+    }]);
+
+    server.assert_request(first.links(), Ok(first_links)).await;
+    server
+        .assert_request(second.links(), Ok(second_links))
+        .await;
+    assert_ne!(first_target, second_target);
+
+    // resolve each qualified URI through its exact project
+    let expected = lsp::TextDocumentContentResult {
+        text: "export * from \"./console.ds\";\n".to_string(),
+    };
+    let first_content = server.virtual_document(first_target).await;
+    let second_content = server.virtual_document(second_target).await;
+    assert_eq!(first_content, expected);
+    assert_eq!(second_content, expected);
+    server.assert_no_message();
 }
 
 /// Return exact workspace symbols and executable declaration lenses.

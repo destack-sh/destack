@@ -359,7 +359,7 @@ impl DocumentSet {
     /// Encode one document link as an LSP document link.
     pub(crate) fn link(&self, link: &query::Link) -> jsonrpc::Result<lsp::DocumentLink> {
         let range = self.document(link.range.file)?.range(link.range)?;
-        let target = self.document(link.target)?.uri()?;
+        let target = self.document(link.target)?.uri(self.project)?;
 
         Ok(lsp::DocumentLink {
             range,

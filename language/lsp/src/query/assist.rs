@@ -7,7 +7,7 @@ use destack_source::DiagnosticReference;
 use serde_json::{Value, from_value};
 
 use super::{Document, DocumentSet, IntoLsp};
-use crate::server::internal_error;
+use crate::server::{ProjectId, internal_error};
 
 /// Code action constraints read from one client request.
 pub(crate) struct CodeActionContext {
@@ -526,9 +526,13 @@ impl Document {
 
 impl Document {
     /// Encode one code lens as an LSP code lens.
-    pub(crate) fn code_lens(&self, lens: &query::CodeLens) -> jsonrpc::Result<lsp::CodeLens> {
+    pub(crate) fn code_lens(
+        &self,
+        project: ProjectId,
+        lens: &query::CodeLens,
+    ) -> jsonrpc::Result<lsp::CodeLens> {
         let range = self.range(lens.range)?;
-        let uri = serde_json::to_value(self.uri()?).map_err(internal_error)?;
+        let uri = serde_json::to_value(self.uri(project)?).map_err(internal_error)?;
         let position = self.position(lens.range.start)?;
         let position = serde_json::to_value(position).map_err(internal_error)?;
 
