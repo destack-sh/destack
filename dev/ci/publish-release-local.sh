@@ -6,7 +6,7 @@ cli_artifacts_directory="${DESTACK_CLI_ARTIFACTS:-release-cli-assets}"
 just build
 
 if [ -d "${cli_artifacts_directory}" ]; then
-	just app/stage-cli-binaries-from-artifacts "$(cat VERSION.txt)" "${cli_artifacts_directory}"
+	just app/stage-cli-binaries-from-artifacts "$(just version)" "${cli_artifacts_directory}"
 else
 	if [ -z "${DESTACK_RELEASE_TARGETS:-}" ]; then
 		host_target="$(rustc -vV | awk '/^host: / { print $2 }')"
@@ -27,7 +27,4 @@ else
 fi
 
 just app/validate-cli-publish
-just library/publish ""
-just app/publish ""
-just bridge/publish ""
-just template/publish-create-destack-live
+just _publish-release

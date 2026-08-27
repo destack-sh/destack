@@ -1,5 +1,6 @@
 import * as stylex from "@stylexjs/stylex";
 
+import { release } from "../generated/release";
 import { tokens } from "../style/tokens.stylex";
 import { SiteLink } from "./link";
 import { socialLinks } from "./navigation";
@@ -24,7 +25,9 @@ export function Footer() {
                             </SiteLink>
                         ))}
                     </nav>
-                    <span {...stylex.attrs(styles.location)}>zurich, switzerland</span>
+                    <span {...stylex.attrs(styles.location)}>
+                        {release.version} · {release.stability} · zurich, switzerland
+                    </span>
                 </div>
             </div>
         </footer>

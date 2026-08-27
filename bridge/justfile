@@ -94,7 +94,7 @@ check-full:
 # --- release ---
 
 # publish vscode extension dry by default
-publish-vscode dry="--dry-run":
+publish-vscode dry="--dry-run" prerelease="":
     @if [ "{{dry}}" = "--dry-run" ]; then \
         cd vscode && bun run package; \
         echo "Dry run: would publish vscode extension"; \
@@ -103,7 +103,12 @@ publish-vscode dry="--dry-run":
             echo "missing VSCE_PAT env var for live vscode publish"; \
             exit 1; \
         fi; \
-        cd vscode && bun run publish:live; \
+        prerelease="{{prerelease}}"; \
+        stability="$(node -p 'JSON.parse(require("node:fs").readFileSync("../destack.json", "utf8")).products.destack.stability')"; \
+        if [ -z "${prerelease}" ] && [ "${stability}" != "stable" ]; then \
+            prerelease="--pre-release"; \
+        fi; \
+        cd vscode && bun x vsce publish --no-dependencies ${prerelease}; \
     fi
 
 # publish zed extension registry update dry by default
@@ -111,6 +116,6 @@ publish-zed dry="--dry-run" version="":
     bash zed/scripts/create-registry-pr.sh "{{dry}}" "{{version}}"
 
 # publish bridges dry by default
-publish dry="--dry-run":
-    just publish-vscode "{{dry}}"
+publish dry="--dry-run" prerelease="":
+    just publish-vscode "{{dry}}" "{{prerelease}}"
     just publish-zed "{{dry}}"

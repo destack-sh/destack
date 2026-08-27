@@ -194,10 +194,21 @@ publish dry="--dry-run":
 publish-release:
     just build
     just app/validate-cli-publish
-    just library/publish ""
-    just app/publish ""
-    just client/publish ""
-    just bridge/publish ""
+    just _publish-release
+
+# publish live packages under the current stability
+_publish-release:
+    stability="$(just stability)"; \
+    case "${stability}" in \
+        experimental|alpha|beta) npm_tag="${stability}"; prerelease="--pre-release" ;; \
+        stable) npm_tag="latest"; prerelease="" ;; \
+        *) echo "invalid release stability '${stability}'" >&2; exit 1 ;; \
+    esac; \
+    export NPM_CONFIG_TAG="${npm_tag}"; \
+    just library/publish ""; \
+    just app/publish ""; \
+    just client/publish ""; \
+    just bridge/publish "" "${prerelease}"; \
     just template/publish-create-destack-live
 
 # publish packages with local cli binary staging
