@@ -1,6 +1,5 @@
 use destack_core::FxIndexMap;
 use destack_dir as dir;
-use destack_source::FileId;
 
 use super::builtin::{keyword_completions, primitive_type_completions};
 use super::{CompletionContext, CompletionReceiver, CursorToken};
@@ -16,8 +15,6 @@ pub(crate) struct CompletionCollector<'owner, 'module, 'program> {
     pub(super) module: &'owner ModuleQueryContext<'module>,
     /// The program query context.
     pub(super) program: &'owner ProgramQueryContext<'program>,
-    /// The source file being completed.
-    pub(super) file_id: FileId,
     /// The pattern being initialized at the cursor.
     initializing_pattern: Option<dir::LocalNodeId<dir::Pattern>>,
 }
@@ -38,13 +35,11 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
     pub(crate) fn new(
         module: &'owner ModuleQueryContext<'module>,
         program: &'owner ProgramQueryContext<'program>,
-        file_id: FileId,
         initializing_pattern: Option<dir::LocalNodeId<dir::Pattern>>,
     ) -> Self {
         Self {
             module,
             program,
-            file_id,
             initializing_pattern,
         }
     }

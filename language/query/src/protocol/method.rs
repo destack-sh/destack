@@ -3,6 +3,8 @@
 pub enum QueryMethod {
     /// Completion query.
     Completion,
+    /// Completion details query.
+    CompletionDetails,
     /// Hover query.
     Hover,
     /// Signature help query.
@@ -67,8 +69,9 @@ pub enum QueryMethod {
 
 impl QueryMethod {
     /// Every public query method in canonical order.
-    pub const ALL: [Self; 31] = [
+    pub const ALL: [Self; 32] = [
         Self::Completion,
+        Self::CompletionDetails,
         Self::Hover,
         Self::SignatureHelp,
         Self::InlayHints,
@@ -110,6 +113,7 @@ impl QueryMethod {
     pub const fn name(self) -> &'static str {
         match self {
             Self::Completion => "completion",
+            Self::CompletionDetails => "completion_details",
             Self::Hover => "hover",
             Self::SignatureHelp => "signature_help",
             Self::InlayHints => "inlay_hints",

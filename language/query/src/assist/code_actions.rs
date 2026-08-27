@@ -367,9 +367,10 @@ impl ModuleQueryContext<'_> {
         name: &str,
         symbol_use: SymbolUse,
     ) -> QueryResult<Vec<ImportAction>> {
-        let mut imports = Vec::new();
+        let mut actions = Vec::new();
         let mut seen = FxHashSet::default();
         let candidates = program.search_export_candidates(name, Some(self.module_id()))?;
+        let imports = self.import_declarations(file)?;
 
         // retain exact matching exports and their importable specifiers
         for candidate in candidates {
@@ -378,8 +379,8 @@ impl ModuleQueryContext<'_> {
             }
 
             // require one declaration in the unresolved name's symbol space
-            let declarations = candidate.resolve_declarations(program)?;
-            if !declarations
+            let export_declarations = candidate.resolve_declarations(program)?;
+            if !export_declarations
                 .into_iter()
                 .any(|declaration| symbol_use.accepts_export(declaration))
             {
@@ -405,21 +406,19 @@ impl ModuleQueryContext<'_> {
                 }
 
                 // build one action for this exact import
-                let Some(patches) =
-                    self.build_import_edits(file, &candidate.binding, &specifier)?
-                else {
+                let Some(patch) = imports.edit(&candidate.binding, &specifier) else {
                     continue;
                 };
                 let order = ImportOrder::new(path.clone(), &specifier, name);
-                imports.push(ImportAction {
+                actions.push(ImportAction {
                     order,
                     binding: candidate.binding.clone(),
                     specifier,
-                    patches,
+                    patches: vec![patch],
                 });
             }
         }
-        imports.sort_by(|left, right| {
+        actions.sort_by(|left, right| {
             (&left.order, &left.binding, &left.specifier).cmp(&(
                 &right.order,
                 &right.binding,
@@ -427,7 +426,7 @@ impl ModuleQueryContext<'_> {
             ))
         });
 
-        Ok(imports)
+        Ok(actions)
     }
 }
 

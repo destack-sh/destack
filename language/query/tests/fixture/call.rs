@@ -16,6 +16,17 @@ pub(super) enum QueryCall {
         /// Whether auto-import completions are included.
         include_auto_imports: bool,
     },
+    /// Request expanded fields for one completion entry.
+    CompletionDetails {
+        /// The queried source position.
+        position: FixturePosition,
+        /// The selected completion label.
+        entry: String,
+        /// The completion trigger.
+        trigger: CompletionTrigger,
+        /// Whether auto-import completions are included.
+        include_auto_imports: bool,
+    },
     /// Request hover information at one position.
     Hover {
         /// The queried source position.
@@ -224,6 +235,12 @@ impl QueryCall {
                 trigger: parser.completion_trigger()?,
                 include_auto_imports: parser.boolean("include_auto_imports", false)?,
             },
+            QueryMethod::CompletionDetails => Self::CompletionDetails {
+                position: parser.position()?,
+                entry: parser.required_value("entry")?,
+                trigger: parser.completion_trigger()?,
+                include_auto_imports: parser.boolean("include_auto_imports", false)?,
+            },
             QueryMethod::Hover => Self::Hover {
                 position: parser.position()?,
             },
@@ -333,6 +350,7 @@ impl QueryCall {
     pub(super) fn method(&self) -> QueryMethod {
         match self {
             Self::Completion { .. } => QueryMethod::Completion,
+            Self::CompletionDetails { .. } => QueryMethod::CompletionDetails,
             Self::Hover { .. } => QueryMethod::Hover,
             Self::SignatureHelp { .. } => QueryMethod::SignatureHelp,
             Self::InlayHints { .. } => QueryMethod::InlayHints,

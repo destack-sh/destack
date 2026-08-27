@@ -125,6 +125,7 @@ impl QueryCall {
     fn validate(&self, files: &IndexMap<PathBuf, QueryFile>) -> Result<(), String> {
         match self {
             Self::Completion { position, .. }
+            | Self::CompletionDetails { position, .. }
             | Self::Hover { position }
             | Self::SignatureHelp { position }
             | Self::Highlight { position }

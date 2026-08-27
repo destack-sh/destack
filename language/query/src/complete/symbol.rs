@@ -3,9 +3,10 @@ use destack_source::Span;
 
 use super::CompletionCollector;
 use super::call::CallSnippet;
+use crate::source::ImportDeclarations;
 use crate::{
-    CompletionCandidate, CompletionInsertion, CompletionItem, CompletionMember, ConstructorFamily,
-    Formatter, QueryError, QueryResult,
+    CompletionCandidate, CompletionEntry, CompletionInsertion, CompletionMember, ConstructorFamily,
+    Formatter, QueryError, QueryPosition, QueryResult,
 };
 
 impl CompletionCollector<'_, '_, '_> {
@@ -122,12 +123,14 @@ impl CompletionCollector<'_, '_, '_> {
         Ok(())
     }
 
-    /// Resolve one ranked completion candidate.
-    pub(crate) fn resolve(
+    /// Build one list entry from a ranked completion candidate.
+    pub(crate) fn entry(
         &self,
         mut completion: CompletionCandidate,
+        position: QueryPosition,
         replacement: Span,
-    ) -> QueryResult<Option<CompletionItem>> {
+        imports: Option<&ImportDeclarations>,
+    ) -> QueryResult<Option<CompletionEntry>> {
         // read the selected declaration once
         if let Some(symbol) = completion.symbol() {
             completion = self.resolve_symbol(completion, symbol)?;
@@ -142,17 +145,6 @@ impl CompletionCollector<'_, '_, '_> {
                 completion = self.resolve_object_field(completion, site, key)?;
             }
             None => {}
-        }
-
-        // build an import edit when this candidate needs one
-        if let Some(import) = completion.take_import() {
-            let Some(edits) =
-                self.module
-                    .build_import_edits(self.file_id, &import.binding, &import.specifier)?
-            else {
-                return Ok(None);
-            };
-            completion = completion.with_additional_edits(edits);
         }
 
         // render the insertion selected before ranking
@@ -194,13 +186,10 @@ impl CompletionCollector<'_, '_, '_> {
             }
         }
 
-        // render declaration text, label suffix, and documentation
+        // render the suffix shown in the completion list
         if let Some(symbol) = completion.symbol() {
             let module = self.program.module(symbol.module_id)?;
             let formatter = Formatter::new(&module, self.program);
-            let declaration = formatter.symbol_signature(symbol)?;
-            completion = completion.with_declaration(declaration);
-
             if completion.label_suffix.is_none() && completion.kind.has_value_suffix() {
                 let type_id = completion.type_id.ok_or(QueryError::missing(format!(
                     "completion value type: {symbol:?}"
@@ -232,10 +221,6 @@ impl CompletionCollector<'_, '_, '_> {
             {
                 completion = completion.with_label_suffix(generics);
             }
-
-            if let Some(documentation) = self.program.symbol_documentation(symbol)? {
-                completion = completion.with_documentation(documentation);
-            }
         }
 
         // render contextual value types without declarations
@@ -254,6 +239,23 @@ impl CompletionCollector<'_, '_, '_> {
             completion = completion.with_label_suffix(format!(": {type_text}"));
         }
 
-        completion.into_item(replacement).map(Some)
+        // build the exact edit for one returned auto import
+        let additional_edits = match completion.import() {
+            Some(import) => {
+                let imports = imports.ok_or(QueryError::invalid(
+                    "auto import completion has no import declarations",
+                ))?;
+                let Some(edit) = imports.edit(&import.binding, &import.specifier) else {
+                    return Ok(None);
+                };
+
+                vec![edit]
+            }
+            None => Vec::new(),
+        };
+
+        completion
+            .into_entry(position, replacement, additional_edits)
+            .map(Some)
     }
 }

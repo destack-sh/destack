@@ -3,10 +3,10 @@ use std::fmt::{self, Debug, Display, Formatter};
 
 use destack_dir::DecoratorTarget;
 use destack_query::{
-    CallItem, CodeAction, CodeLens, CodeLensAction, CompletionResponse, DecoratorItem,
-    FoldingRange, Hover, IncomingCall, InlayHint, Link, NavigationTarget, OutgoingCall,
-    OutlineSymbol, QueryResponse, SearchSymbol, SelectionRange, SemanticToken,
-    SemanticTokenModifiers, SignatureHelp, Target, TypeItem,
+    CallItem, CodeAction, CodeLens, CodeLensAction, CompletionDetailsResponse,
+    CompletionEntryDetails, CompletionResponse, DecoratorItem, FoldingRange, Hover, IncomingCall,
+    InlayHint, Link, NavigationTarget, OutgoingCall, OutlineSymbol, QueryResponse, SearchSymbol,
+    SelectionRange, SemanticToken, SemanticTokenModifiers, SignatureHelp, Target, TypeItem,
 };
 use destack_source::{DiagnosticTarget, Patch, PatchSet};
 
@@ -215,6 +215,7 @@ pub(super) fn response_rows(
 ) -> Result<ResponseRows, String> {
     let rows = match response {
         QueryResponse::Completion(response) => completion_rows(run, response)?,
+        QueryResponse::CompletionDetails(response) => completion_details_rows(run, response)?,
         QueryResponse::Hover(response) => match &response.hover {
             Some(hover) => hover_rows(run, hover)?,
             None => none("hover"),
@@ -372,9 +373,9 @@ fn completion_rows(
         rows.push(QueryRow::new("completion.list").field("incomplete", "true"));
     }
 
-    // transcribe items and edits in response order
-    for (item_index, item) in response.items.iter().enumerate() {
-        let matches = item
+    // transcribe entries in response order
+    for (entry_index, entry) in response.entries.iter().enumerate() {
+        let matches = entry
             .match_positions
             .iter()
             .map(usize::to_string)
@@ -382,35 +383,63 @@ fn completion_rows(
             .join(",");
         rows.push(
             QueryRow::new("completion.item")
-                .field("label", &item.label)
-                .field("kind", enum_name(item.kind))
-                .field("replace", run.format_span(item.edit.span)?)
-                .optional("suffix", item.label_suffix.as_deref())
-                .optional("declaration", item.declaration.as_deref())
-                .optional("description", item.description.as_deref())
-                .optional("documentation", item.documentation.as_deref())
+                .field("label", &entry.label)
+                .field("kind", enum_name(entry.kind))
+                .field("replace", run.format_span(entry.edit.span)?)
+                .optional("suffix", entry.label_suffix.as_deref())
+                .optional("description", entry.description.as_deref())
                 .optional(
                     "insert",
-                    (item.edit.new_text != item.label).then_some(item.edit.new_text.as_str()),
+                    (entry.edit.new_text != entry.label).then_some(entry.edit.new_text.as_str()),
                 )
-                .flag("snippet", item.edit.is_snippet)
-                .flag("preselect", item.preselect)
-                .flag("deprecated", item.is_deprecated)
-                .flag("auto_import", item.is_auto_import)
+                .flag("snippet", entry.edit.is_snippet)
+                .flag("preselect", entry.preselect)
+                .flag("deprecated", entry.is_deprecated)
+                .flag("auto_import", entry.is_auto_import)
                 .optional("matches", (!matches.is_empty()).then_some(matches)),
         );
 
-        for patch in &item.additional_edits {
+        // retain exact completion edits in compact list fixtures
+        let additional_edits = match entry.details.as_ref() {
+            Some(CompletionEntryDetails::Deferred(request)) => &request.additional_edits,
+            Some(CompletionEntryDetails::Eager(response)) => &response.additional_edits,
+            None => continue,
+        };
+        for patch in additional_edits {
             rows.push(patch_row(
                 run,
                 "completion.additional_edit",
-                Some(("item", item_index)),
+                Some(("item", entry_index)),
                 patch,
             )?);
         }
     }
 
     Ok(rows_or_none(rows, "completion"))
+}
+
+/// Render expanded completion fields and their additional edits.
+fn completion_details_rows(
+    run: &QueryRun<'_>,
+    response: &CompletionDetailsResponse,
+) -> Result<Vec<QueryRow>, String> {
+    let mut rows = vec![
+        QueryRow::new("completion_details.item")
+            .optional("declaration", response.declaration.as_deref())
+            .optional("documentation", response.documentation.as_deref()),
+    ];
+
+    // render every additional edit in source order
+    for patch in &response.additional_edits {
+        rows.push(patch_row(
+            run,
+            "completion_details.additional_edit",
+            None,
+            patch,
+        )?);
+    }
+
+    Ok(rows)
 }
 
 /// Render every declaration in one hover result.

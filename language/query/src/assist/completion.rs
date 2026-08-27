@@ -2,13 +2,14 @@ use std::mem;
 
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::{Patch, Span};
+use destack_source::{FileId, Patch, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::complete::{CompletionCollector, CompletionCursor};
 use crate::source::ImportBinding;
 use crate::{
-    ImportOrder, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
+    Formatter, ImportOrder, Module, ModuleQueryContext, ProgramQueryContext, QueryError,
+    QueryPosition, QueryResult,
 };
 
 /// Maximum completion items returned in one response.
@@ -141,33 +142,29 @@ pub struct CompletionEdit {
     pub is_snippet: bool,
 }
 
-/// A completion item.
+/// One entry in a completion list.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct CompletionItem {
+pub struct CompletionEntry {
     /// The label shown in the completion list.
     pub label: String,
     /// The kind of completion.
     pub kind: CompletionItemKind,
     /// The exact text shown directly after the label.
     pub label_suffix: Option<String>,
-    /// The declaration shown in completion details.
-    pub declaration: Option<String>,
     /// The declaration owner or import source.
     pub description: Option<String>,
-    /// Documentation for the item.
-    pub documentation: Option<String>,
     /// The primary source edit.
     pub edit: CompletionEdit,
     /// Whether to preselect this item.
     pub preselect: bool,
     /// Whether this item is deprecated.
     pub is_deprecated: bool,
-    /// Additional text edits to apply, for example auto imports.
-    pub additional_edits: Vec<Patch>,
     /// Whether this completion inserts one auto import.
     pub is_auto_import: bool,
     /// Matched character positions in the label.
     pub match_positions: Vec<usize>,
+    /// Expanded fields or the request that computes them.
+    pub details: Option<CompletionEntryDetails>,
 }
 
 /// Trigger character that caused the completion.
@@ -190,32 +187,77 @@ pub struct CompletionRequest {
     pub trigger: CompletionTrigger,
     /// Whether to include auto import completions.
     pub include_auto_imports: bool,
+    /// When expanded fields are computed.
+    pub details: CompletionDetailsMode,
+}
+
+/// When expanded completion fields are computed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum CompletionDetailsMode {
+    /// Compute expanded fields in the completion list.
+    Eager,
+    /// Compute expanded fields after selecting an entry.
+    Deferred,
 }
 
 /// A completion response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CompletionResponse {
-    /// Completion items.
-    pub items: Vec<CompletionItem>,
+    /// Completion entries.
+    pub entries: Vec<CompletionEntry>,
     /// Whether another request may produce more items.
     pub is_incomplete: bool,
 }
 
+/// Request for the expanded fields of one completion entry.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct CompletionDetailsRequest {
+    /// The module that produced the entry.
+    pub module: Module,
+    /// The source file that produced the entry.
+    pub file_id: FileId,
+    /// The selected declaration when one exists.
+    pub symbol: Option<dir::GlobalSymbolId>,
+    /// Additional source edits applied with the selected entry.
+    pub additional_edits: Vec<Patch>,
+}
+
+/// Expanded fields for one selected completion entry.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct CompletionDetailsResponse {
+    /// The declaration shown for the selected entry.
+    pub declaration: Option<String>,
+    /// Documentation for the selected entry.
+    pub documentation: Option<String>,
+    /// Additional source edits applied with the selected entry.
+    pub additional_edits: Vec<Patch>,
+}
+
+/// Expanded fields retained by one completion entry.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum CompletionEntryDetails {
+    /// A request retained until the entry is selected.
+    Deferred(CompletionDetailsRequest),
+    /// Fields computed with the completion list.
+    Eager(CompletionDetailsResponse),
+}
+
 impl ModuleQueryContext<'_> {
-    /// Return completion items at one position.
+    /// Return completion entries at one position.
     pub fn completion(
         &self,
         request: CompletionRequest,
         program: &ProgramQueryContext<'_>,
     ) -> QueryResult<CompletionResponse> {
         let position = request.position;
+        let details_mode = request.details;
         let file_id = position.file_id;
         let offset = position.offset;
         let Some(CompletionCursor { context, token }) =
             self.classify_completion(file_id, offset)?
         else {
             return Ok(CompletionResponse {
-                items: Vec::new(),
+                entries: Vec::new(),
                 is_incomplete: false,
             });
         };
@@ -224,7 +266,7 @@ impl ModuleQueryContext<'_> {
         let initializing_pattern = self.initializing_pattern_at_offset(file_id, offset)?;
 
         // collect and rank candidates for the selected context
-        let collector = CompletionCollector::new(self, program, file_id, initializing_pattern);
+        let collector = CompletionCollector::new(self, program, initializing_pattern);
         let completions = collector.collect(
             request.trigger,
             &context,
@@ -234,16 +276,24 @@ impl ModuleQueryContext<'_> {
         let completions = completions.rank(&context, token.as_ref());
         let mut is_incomplete = completions.is_incomplete;
 
+        // collect authored imports once for auto import planning
+        let imports = completions
+            .items
+            .iter()
+            .any(|completion| completion.import().is_some())
+            .then(|| self.import_declarations(file_id))
+            .transpose()?;
+
         // resolve only candidates returned to the editor
         let replacement_start = token.as_ref().map_or(offset, |token| token.start);
         let replacement_end = token.as_ref().map_or(offset, |token| token.end);
         let replacement = Span::new(file_id, replacement_start, replacement_end);
         let capacity = completions.items.len().min(MAX_COMPLETION_ITEMS);
-        let mut items = Vec::with_capacity(capacity);
+        let mut entries = Vec::with_capacity(capacity);
         let mut expanded = Vec::new();
         let mut has_preselected = false;
         'candidates: for completion in completions.items {
-            if items.len() == MAX_COMPLETION_ITEMS {
+            if entries.len() == MAX_COMPLETION_ITEMS {
                 is_incomplete = true;
 
                 break;
@@ -251,30 +301,71 @@ impl ModuleQueryContext<'_> {
             collector.expand(completion, &mut expanded)?;
 
             for completion in expanded.drain(..) {
-                if items.len() == MAX_COMPLETION_ITEMS {
+                if entries.len() == MAX_COMPLETION_ITEMS {
                     is_incomplete = true;
 
                     break 'candidates;
                 }
 
                 // omit candidates that cannot introduce their import binding
-                let Some(mut item) = collector.resolve(completion, replacement)? else {
+                let Some(mut entry) =
+                    collector.entry(completion, position, replacement, imports.as_ref())?
+                else {
                     continue;
                 };
 
                 // retain one preselected result after expansion and import planning
-                if item.preselect {
-                    item.preselect = !has_preselected;
+                if entry.preselect {
+                    entry.preselect = !has_preselected;
                     has_preselected = true;
                 }
 
-                items.push(item);
+                // compute expanded fields for clients without lazy resolution
+                if details_mode == CompletionDetailsMode::Eager
+                    && let Some(details) = entry.details.take()
+                {
+                    let CompletionEntryDetails::Deferred(request) = details else {
+                        return Err(QueryError::invalid(
+                            "completion details were already computed",
+                        ));
+                    };
+                    let details = self.completion_details(request, program)?;
+                    entry.details = Some(CompletionEntryDetails::Eager(details));
+                }
+
+                entries.push(entry);
             }
         }
 
         Ok(CompletionResponse {
-            items,
+            entries,
             is_incomplete,
+        })
+    }
+
+    /// Return expanded fields for one selected completion entry.
+    pub fn completion_details(
+        &self,
+        request: CompletionDetailsRequest,
+        program: &ProgramQueryContext<'_>,
+    ) -> QueryResult<CompletionDetailsResponse> {
+        // render declaration text and authored documentation
+        let (declaration, documentation) = match request.symbol {
+            Some(symbol) => {
+                let module = program.module(symbol.module_id)?;
+                let formatter = Formatter::new(&module, program);
+                let declaration = Some(formatter.symbol_signature(symbol)?);
+                let documentation = program.symbol_documentation(symbol)?;
+
+                (declaration, documentation)
+            }
+            None => (None, None),
+        };
+
+        Ok(CompletionDetailsResponse {
+            declaration,
+            documentation,
+            additional_edits: request.additional_edits,
         })
     }
 }
@@ -318,12 +409,8 @@ pub(crate) struct CompletionCandidate {
     pub(crate) kind: CompletionItemKind,
     /// The exact text shown directly after the label.
     pub(crate) label_suffix: Option<String>,
-    /// The declaration shown in completion details.
-    pub(crate) declaration: Option<String>,
     /// The declaration owner or import source.
     pub(crate) description: Option<String>,
-    /// Documentation for the item.
-    pub(crate) documentation: Option<String>,
     /// The insertion produced when this candidate is selected.
     insertion: CompletionInsertion,
     /// Stable text used to order otherwise equal candidates.
@@ -332,8 +419,6 @@ pub(crate) struct CompletionCandidate {
     pub(crate) preselect: bool,
     /// Whether this item is deprecated.
     pub(crate) is_deprecated: bool,
-    /// Additional source edits to apply.
-    pub(crate) additional_edits: Vec<Patch>,
     /// Matched character positions in the label.
     pub(crate) match_positions: Vec<usize>,
     /// The origin bucket used for ranking.
@@ -407,8 +492,8 @@ pub(crate) enum CompletionInsertion {
     Snippet(String),
 }
 
-/// One import inserted with a completion candidate.
-#[derive(Debug, Clone)]
+/// One import inserted with a completion entry.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CompletionImport {
     /// The binding inserted into the current module.
     pub(crate) binding: ImportBinding,
@@ -435,14 +520,11 @@ impl CompletionCandidate {
             label: label.into(),
             kind,
             label_suffix: None,
-            declaration: None,
             description: None,
-            documentation: None,
             insertion: CompletionInsertion::Label,
             ordering_text: None,
             preselect: false,
             is_deprecated: false,
-            additional_edits: Vec::new(),
             match_positions: Vec::new(),
             origin,
             import_order: None,
@@ -468,23 +550,9 @@ impl CompletionCandidate {
         self
     }
 
-    /// Set the declaration shown in completion details.
-    pub(crate) fn with_declaration(mut self, declaration: impl Into<String>) -> Self {
-        self.declaration = Some(declaration.into());
-
-        self
-    }
-
     /// Set the item description.
     pub(crate) fn with_description(mut self, description: impl Into<String>) -> Self {
         self.description = Some(description.into());
-
-        self
-    }
-
-    /// Set the documentation.
-    pub(crate) fn with_documentation(mut self, documentation: impl Into<String>) -> Self {
-        self.documentation = Some(documentation.into());
 
         self
     }
@@ -499,13 +567,6 @@ impl CompletionCandidate {
     /// Set the insertion snippet.
     pub(crate) fn with_snippet(mut self, text: impl Into<String>) -> Self {
         self.insertion = CompletionInsertion::Snippet(text.into());
-
-        self
-    }
-
-    /// Add additional edits.
-    pub(crate) fn with_additional_edits(mut self, edits: Vec<Patch>) -> Self {
-        self.additional_edits = edits;
 
         self
     }
@@ -633,9 +694,9 @@ impl CompletionCandidate {
         mem::replace(&mut self.insertion, CompletionInsertion::Label)
     }
 
-    /// Take the import inserted with this candidate.
-    pub(crate) fn take_import(&mut self) -> Option<CompletionImport> {
-        self.import.take()
+    /// Return the import inserted with this candidate.
+    pub(crate) fn import(&self) -> Option<&CompletionImport> {
+        self.import.as_ref()
     }
 
     /// Return the target declaration carried by this candidate.
@@ -651,7 +712,12 @@ impl CompletionCandidate {
     }
 
     /// Build the public completion item for one exact replacement range.
-    pub(crate) fn into_item(self, span: Span) -> QueryResult<CompletionItem> {
+    pub(crate) fn into_entry(
+        self,
+        position: QueryPosition,
+        span: Span,
+        additional_edits: Vec<Patch>,
+    ) -> QueryResult<CompletionEntry> {
         let (new_text, is_snippet) = match self.insertion {
             CompletionInsertion::Label => (self.label.clone(), false),
             CompletionInsertion::Text(text) => (text, false),
@@ -664,13 +730,22 @@ impl CompletionCandidate {
             }
         };
 
-        Ok(CompletionItem {
+        let details = if self.symbol.is_some() || !additional_edits.is_empty() {
+            Some(CompletionEntryDetails::Deferred(CompletionDetailsRequest {
+                module: position.module,
+                file_id: position.file_id,
+                symbol: self.symbol,
+                additional_edits,
+            }))
+        } else {
+            None
+        };
+
+        Ok(CompletionEntry {
             label: self.label,
             kind: self.kind,
             label_suffix: self.label_suffix,
-            declaration: self.declaration,
             description: self.description,
-            documentation: self.documentation,
             edit: CompletionEdit {
                 span,
                 new_text,
@@ -678,9 +753,9 @@ impl CompletionCandidate {
             },
             preselect: self.preselect,
             is_deprecated: self.is_deprecated,
-            additional_edits: self.additional_edits,
             is_auto_import: self.origin == CompletionOrigin::AutoImport,
             match_positions: self.match_positions,
+            details,
         })
     }
 }

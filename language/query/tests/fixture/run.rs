@@ -6,14 +6,15 @@ use destack_artifact::{DirBound, DirChecked, DirDeclared, DirElaborated, DirExpa
 use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, View};
 use destack_query::{
     CallItem, CallItemRequest, CodeActionContext, CodeActionsRequest, CodeLensesRequest,
-    CompletionRequest, DecoratorScope, DecoratorsRequest, ExtractVariableRequest,
-    FindReferencesRequest, FoldingRangesRequest, GotoDeclarationRequest, GotoDefinitionRequest,
-    GotoImplementationRequest, GotoTypeDefinitionRequest, HighlightRequest, HoverRequest,
-    IncomingCallsRequest, InlayHintsRequest, InlineRequest, LinksRequest, Module,
-    OutgoingCallsRequest, OutlineRequest, QueryPosition, QueryRange, QueryRequest, QueryResponse,
-    RenameFilesRequest, RenameRequest, RenameTargetRequest, SearchSymbolsRequest,
-    SelectionRangesRequest, SemanticTokensRangeRequest, SemanticTokensRequest,
-    SignatureHelpRequest, SubtypesRequest, SupertypesRequest, TypeItem, TypeItemRequest,
+    CompletionDetailsMode, CompletionEntryDetails, CompletionRequest, DecoratorScope,
+    DecoratorsRequest, ExtractVariableRequest, FindReferencesRequest, FoldingRangesRequest,
+    GotoDeclarationRequest, GotoDefinitionRequest, GotoImplementationRequest,
+    GotoTypeDefinitionRequest, HighlightRequest, HoverRequest, IncomingCallsRequest,
+    InlayHintsRequest, InlineRequest, LinksRequest, Module, OutgoingCallsRequest, OutlineRequest,
+    QueryPosition, QueryRange, QueryRequest, QueryResponse, RenameFilesRequest, RenameRequest,
+    RenameTargetRequest, SearchSymbolsRequest, SelectionRangesRequest, SemanticTokensRangeRequest,
+    SemanticTokensRequest, SignatureHelpRequest, SubtypesRequest, SupertypesRequest, TypeItem,
+    TypeItemRequest,
 };
 use destack_repository::{ArtifactReader, Revision, TraceSnapshot};
 use destack_source::{
@@ -248,7 +249,14 @@ impl<'a> QueryRun<'a> {
                 position: self.position(position)?,
                 trigger: *trigger,
                 include_auto_imports: *include_auto_imports,
+                details: CompletionDetailsMode::Deferred,
             }),
+            QueryCall::CompletionDetails {
+                position,
+                entry,
+                trigger,
+                include_auto_imports,
+            } => self.completion_details(position, entry, *trigger, *include_auto_imports)?,
             QueryCall::Hover { position } => QueryRequest::Hover(HoverRequest {
                 position: self.position(position)?,
             }),
@@ -441,6 +449,47 @@ impl<'a> QueryRun<'a> {
         };
 
         Ok(request)
+    }
+
+    /// Resolve one required completion entry into its details request.
+    fn completion_details(
+        &self,
+        position: &FixturePosition,
+        entry: &str,
+        trigger: destack_query::CompletionTrigger,
+        include_auto_imports: bool,
+    ) -> Result<QueryRequest, String> {
+        let completion = CompletionRequest {
+            position: self.position(position)?,
+            trigger,
+            include_auto_imports,
+            details: CompletionDetailsMode::Deferred,
+        };
+        let request = QueryRequest::Completion(completion);
+        let response = self.workspace.query(self.revision, request)?.response;
+        let QueryResponse::Completion(response) = response else {
+            return Err("completion query returned a mismatched response".to_string());
+        };
+        let matching = response
+            .entries
+            .into_iter()
+            .filter(|candidate| candidate.label == entry)
+            .collect::<Vec<_>>();
+        if matching.len() != 1 {
+            return Err(format!(
+                "completion query returned {} entries named '{entry}'",
+                matching.len()
+            ));
+        }
+        let selected = matching.into_iter().next().unwrap();
+        let details = selected
+            .details
+            .ok_or_else(|| format!("completion entry '{entry}' has no details"))?;
+        let CompletionEntryDetails::Deferred(details) = details else {
+            return Err(format!("completion entry '{entry}' returned eager details"));
+        };
+
+        Ok(QueryRequest::CompletionDetails(details))
     }
 
     /// Resolve one required call hierarchy item.

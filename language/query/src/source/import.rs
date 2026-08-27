@@ -50,9 +50,17 @@ impl ImportGroup {
     }
 }
 
-/// One existing import declaration.
+/// Authored import declarations from one source file.
+pub(crate) struct ImportDeclarations {
+    /// The source file containing the declarations.
+    file_id: FileId,
+    /// The declarations in source order.
+    declarations: Vec<ImportDeclaration>,
+}
+
+/// One authored import declaration.
 #[derive(Debug, Clone)]
-struct ExistingImport {
+struct ImportDeclaration {
     /// The import path.
     path: String,
     /// Start byte offset of the import statement.
@@ -75,10 +83,95 @@ struct ExistingImport {
     named: Vec<String>,
 }
 
-impl ExistingImport {
+impl ImportDeclaration {
     /// Return whether this import already contains one named binding.
     fn contains_named(&self, symbol_name: &str) -> bool {
         self.named.iter().any(|specifier| specifier == symbol_name)
+    }
+}
+
+impl ImportDeclarations {
+    /// Build the edit that introduces one available import binding.
+    pub(crate) fn edit(&self, binding: &ImportBinding, import_path: &str) -> Option<Patch> {
+        if let Some(existing) = self
+            .declarations
+            .iter()
+            .find(|import| import.path == import_path)
+        {
+            match binding {
+                // retain an existing default import or add one before its remaining bindings
+                ImportBinding::Default { name } => {
+                    if existing.default_name.as_deref() == Some(name) {
+                        return None;
+                    }
+                    if existing.default_name.is_some() {
+                        return None;
+                    }
+                    if let Some(position) = existing.default_offset {
+                        let text = format!("{name}, ");
+
+                        return Some(Patch::insert(self.file_id, position, text));
+                    }
+                }
+
+                // retain an existing named import or add one inside its clause
+                ImportBinding::Named { name } => {
+                    if existing.contains_named(name) {
+                        return None;
+                    }
+                    if !existing.is_namespace
+                        && let Some(offset) = existing.named_end
+                    {
+                        let text = format!(", {name}");
+
+                        return Some(Patch::insert(self.file_id, offset, text));
+                    }
+                    if !existing.is_namespace
+                        && existing.default_name.is_some()
+                        && let Some(position) = existing.default_end
+                    {
+                        let text = format!(", {{ {name} }}");
+
+                        return Some(Patch::insert(self.file_id, position, text));
+                    }
+                    if !existing.is_namespace
+                        && let Some(position) = existing.named_offset
+                    {
+                        let text = format!(" {name} ");
+
+                        return Some(Patch::insert(self.file_id, position, text));
+                    }
+                }
+            }
+        }
+
+        // preserve the declaration's symbol space
+        let group = ImportGroup::from_path(import_path);
+        let declaration = match binding {
+            ImportBinding::Default { name } => {
+                format!("import {name} from \"{import_path}\";")
+            }
+            ImportBinding::Named { name } => {
+                format!("import {{ {name} }} from \"{import_path}\";")
+            }
+        };
+
+        // place the declaration before its successor or after the final import
+        let next = self.declarations.iter().find(|existing| {
+            let existing_group = ImportGroup::from_path(&existing.path);
+
+            group < existing_group
+                || (group == existing_group && import_path < existing.path.as_str())
+        });
+        let (position, text) = if let Some(next) = next {
+            (next.start, format!("{declaration}\n"))
+        } else if let Some(previous) = self.declarations.last() {
+            (previous.end, format!("\n{declaration}"))
+        } else {
+            (0, format!("{declaration}\n"))
+        };
+
+        Some(Patch::insert(self.file_id, position, text))
     }
 }
 
@@ -139,95 +232,6 @@ impl ModuleQueryContext<'_> {
         Ok(item.local_import_alias_name())
     }
 
-    /// Build edits that introduce one available import binding.
-    pub(crate) fn build_import_edits(
-        &self,
-        file_id: FileId,
-        binding: &ImportBinding,
-        import_path: &str,
-    ) -> QueryResult<Option<Vec<Patch>>> {
-        let existing_imports = self.collect_existing_imports(file_id)?;
-
-        if let Some(existing) = existing_imports
-            .iter()
-            .find(|import| import.path == import_path)
-        {
-            match binding {
-                // retain an existing default import or add one before its remaining bindings
-                ImportBinding::Default { name } => {
-                    if existing.default_name.as_deref() == Some(name) {
-                        return Ok(None);
-                    }
-                    if existing.default_name.is_some() {
-                        return Ok(None);
-                    }
-                    if let Some(position) = existing.default_offset {
-                        let text = format!("{name}, ");
-
-                        return Ok(Some(vec![Patch::insert(file_id, position, text)]));
-                    }
-                }
-
-                // retain an existing named import or add one inside its clause
-                ImportBinding::Named { name } => {
-                    if existing.contains_named(name) {
-                        return Ok(None);
-                    }
-                    if !existing.is_namespace
-                        && let Some(offset) = existing.named_end
-                    {
-                        let text = format!(", {name}");
-
-                        return Ok(Some(vec![Patch::insert(file_id, offset, text)]));
-                    }
-                    if !existing.is_namespace
-                        && existing.default_name.is_some()
-                        && let Some(position) = existing.default_end
-                    {
-                        let text = format!(", {{ {name} }}");
-
-                        return Ok(Some(vec![Patch::insert(file_id, position, text)]));
-                    }
-                    if !existing.is_namespace
-                        && let Some(position) = existing.named_offset
-                    {
-                        let text = format!(" {name} ");
-
-                        return Ok(Some(vec![Patch::insert(file_id, position, text)]));
-                    }
-                }
-            }
-        }
-
-        // preserve the declaration's symbol space
-        let group = ImportGroup::from_path(import_path);
-        let declaration = match binding {
-            ImportBinding::Default { name } => {
-                format!("import {name} from \"{import_path}\";")
-            }
-            ImportBinding::Named { name } => {
-                format!("import {{ {name} }} from \"{import_path}\";")
-            }
-        };
-
-        // place the declaration before its successor or after the final import
-        let next = existing_imports.iter().find(|existing| {
-            let existing_group = ImportGroup::from_path(&existing.path);
-
-            group < existing_group
-                || (group == existing_group && import_path < existing.path.as_str())
-        });
-        let (position, text) = if let Some(next) = next {
-            (next.start, format!("{declaration}\n"))
-        } else if let Some(previous) = existing_imports.last() {
-            (previous.end, format!("\n{declaration}"))
-        } else {
-            (0, format!("{declaration}\n"))
-        };
-
-        Ok(Some(vec![Patch::insert(file_id, position, text)]))
-    }
-
     /// Resolve the bounds for a complete import clause.
     pub(crate) fn import_clause_bounds(
         &self,
@@ -277,8 +281,8 @@ impl ModuleQueryContext<'_> {
         }))
     }
 
-    /// Collect existing imports from one source file.
-    fn collect_existing_imports(&self, file_id: FileId) -> QueryResult<Vec<ExistingImport>> {
+    /// Collect authored imports from one source file.
+    pub(crate) fn import_declarations(&self, file_id: FileId) -> QueryResult<ImportDeclarations> {
         let mut imports = Vec::new();
         let view = self.view()?;
 
@@ -359,7 +363,7 @@ impl ModuleQueryContext<'_> {
             } else {
                 bounds.map(|bounds| bounds.open_brace.start)
             };
-            imports.push(ExistingImport {
+            imports.push(ImportDeclaration {
                 path,
                 start: span.start,
                 end: statement_end,
@@ -375,7 +379,10 @@ impl ModuleQueryContext<'_> {
 
         imports.sort_by_key(|import| import.start);
 
-        Ok(imports)
+        Ok(ImportDeclarations {
+            file_id,
+            declarations: imports,
+        })
     }
 }
 

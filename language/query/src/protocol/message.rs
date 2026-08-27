@@ -5,20 +5,21 @@ use serde::{Deserialize, Serialize};
 use super::QueryMethod;
 use crate::{
     CallItemRequest, CallItemResponse, CodeActionsRequest, CodeActionsResponse, CodeLensesRequest,
-    CodeLensesResponse, CompletionRequest, CompletionResponse, DecoratorScope, DecoratorsRequest,
-    DecoratorsResponse, ExtractVariableRequest, ExtractVariableResponse, FindReferencesRequest,
-    FindReferencesResponse, FoldingRangesRequest, FoldingRangesResponse, GotoDeclarationRequest,
-    GotoDeclarationResponse, GotoDefinitionRequest, GotoDefinitionResponse,
-    GotoImplementationRequest, GotoImplementationResponse, GotoTypeDefinitionRequest,
-    GotoTypeDefinitionResponse, HighlightRequest, HighlightResponse, HoverRequest, HoverResponse,
-    IncomingCallsRequest, IncomingCallsResponse, InlayHintsRequest, InlayHintsResponse,
-    InlineRequest, InlineResponse, LinksRequest, LinksResponse, OutgoingCallsRequest,
-    OutgoingCallsResponse, OutlineRequest, OutlineResponse, RenameFilesRequest,
-    RenameFilesResponse, RenameRequest, RenameResponse, RenameTargetRequest, RenameTargetResponse,
-    SearchSymbolsRequest, SearchSymbolsResponse, SelectionRangesRequest, SelectionRangesResponse,
-    SemanticTokensRangeRequest, SemanticTokensRangeResponse, SemanticTokensRequest,
-    SemanticTokensResponse, SignatureHelpRequest, SignatureHelpResponse, SubtypesRequest,
-    SubtypesResponse, SupertypesRequest, SupertypesResponse, TypeItemRequest, TypeItemResponse,
+    CodeLensesResponse, CompletionDetailsRequest, CompletionDetailsResponse, CompletionRequest,
+    CompletionResponse, DecoratorScope, DecoratorsRequest, DecoratorsResponse,
+    ExtractVariableRequest, ExtractVariableResponse, FindReferencesRequest, FindReferencesResponse,
+    FoldingRangesRequest, FoldingRangesResponse, GotoDeclarationRequest, GotoDeclarationResponse,
+    GotoDefinitionRequest, GotoDefinitionResponse, GotoImplementationRequest,
+    GotoImplementationResponse, GotoTypeDefinitionRequest, GotoTypeDefinitionResponse,
+    HighlightRequest, HighlightResponse, HoverRequest, HoverResponse, IncomingCallsRequest,
+    IncomingCallsResponse, InlayHintsRequest, InlayHintsResponse, InlineRequest, InlineResponse,
+    LinksRequest, LinksResponse, OutgoingCallsRequest, OutgoingCallsResponse, OutlineRequest,
+    OutlineResponse, RenameFilesRequest, RenameFilesResponse, RenameRequest, RenameResponse,
+    RenameTargetRequest, RenameTargetResponse, SearchSymbolsRequest, SearchSymbolsResponse,
+    SelectionRangesRequest, SelectionRangesResponse, SemanticTokensRangeRequest,
+    SemanticTokensRangeResponse, SemanticTokensRequest, SemanticTokensResponse,
+    SignatureHelpRequest, SignatureHelpResponse, SubtypesRequest, SubtypesResponse,
+    SupertypesRequest, SupertypesResponse, TypeItemRequest, TypeItemResponse,
 };
 
 /// Query request envelope.
@@ -26,6 +27,8 @@ use crate::{
 pub enum QueryRequest {
     /// Completion request payload.
     Completion(CompletionRequest),
+    /// Completion details request payload.
+    CompletionDetails(CompletionDetailsRequest),
     /// Hover request payload.
     Hover(HoverRequest),
     /// Signature help request payload.
@@ -95,6 +98,7 @@ impl QueryRequest {
     pub fn profile_id(&self) -> Option<ProfileId> {
         match self {
             Self::Completion(request) => Some(request.position.module.profile_id),
+            Self::CompletionDetails(request) => Some(request.module.profile_id),
             Self::Hover(request) => Some(request.position.module.profile_id),
             Self::SignatureHelp(request) => Some(request.position.module.profile_id),
             Self::InlayHints(request) => Some(request.range.module.profile_id),
@@ -135,6 +139,7 @@ impl QueryRequest {
         // map request variants to query methods
         match self {
             Self::Completion(_) => QueryMethod::Completion,
+            Self::CompletionDetails(_) => QueryMethod::CompletionDetails,
             Self::Hover(_) => QueryMethod::Hover,
             Self::SignatureHelp(_) => QueryMethod::SignatureHelp,
             Self::InlayHints(_) => QueryMethod::InlayHints,
@@ -174,6 +179,8 @@ impl QueryRequest {
 pub enum QueryResponse {
     /// Completion response payload.
     Completion(CompletionResponse),
+    /// Completion details response payload.
+    CompletionDetails(CompletionDetailsResponse),
     /// Hover response payload.
     Hover(HoverResponse),
     /// Signature help response payload.
@@ -244,6 +251,7 @@ impl QueryResponse {
         // map response variants to query methods
         match self {
             Self::Completion(_) => QueryMethod::Completion,
+            Self::CompletionDetails(_) => QueryMethod::CompletionDetails,
             Self::Hover(_) => QueryMethod::Hover,
             Self::SignatureHelp(_) => QueryMethod::SignatureHelp,
             Self::InlayHints(_) => QueryMethod::InlayHints,

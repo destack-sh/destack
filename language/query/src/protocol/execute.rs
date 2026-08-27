@@ -85,6 +85,12 @@ impl QueryRequest {
 
                 QueryResponse::Completion(response)
             }
+            Self::CompletionDetails(request) => {
+                let context = program.module(request.module.module_id)?;
+                let response = context.completion_details(request, program)?;
+
+                QueryResponse::CompletionDetails(response)
+            }
             Self::Hover(request) => {
                 let context = program.module(request.position.module.module_id)?;
                 let response = context.hover(request, program)?;
