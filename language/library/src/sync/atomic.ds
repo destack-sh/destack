@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { Integer } from "destack:math";
+import { Float, Integer } from "destack:math";
 import { Concrete, Copy, SharedSafe } from "destack:memory";
 
 /// Memory reordering constraint for atomic operations.

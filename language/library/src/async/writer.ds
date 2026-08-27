@@ -1,5 +1,7 @@
 import { IoError } from "destack:error";
 
+import { Task } from "./task.ds";
+
 /// Asynchronous byte writer.
 @languageItem("async.AsyncWriter")
 export interface AsyncWriter {

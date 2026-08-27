@@ -1,6 +1,8 @@
 import { IoError } from "destack:error";
 import { SeekFrom } from "destack:sync";
 
+import { Task } from "./task.ds";
+
 /// Asynchronous seekable byte stream.
 @languageItem("async.AsyncSeeker")
 export interface AsyncSeeker {

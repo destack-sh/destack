@@ -1,6 +1,7 @@
 import { todo } from "destack:error";
 import { Add, Divide, Multiply, Negate, Subtract } from "destack:ops";
 
+import { Float } from "./float.ds";
 import { Numeric } from "./numeric.ds";
 
 /// Two-dimensional vector.

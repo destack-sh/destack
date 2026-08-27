@@ -1,6 +1,7 @@
 import { todo } from "destack:error";
 import { Add, Multiply, Subtract } from "destack:ops";
 
+import { Float } from "./float.ds";
 import { Vector2, Vector3, Vector4 } from "./linear.ds";
 import { Numeric } from "./numeric.ds";
 
