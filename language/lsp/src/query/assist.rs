@@ -331,17 +331,18 @@ impl CodeActionContext {
 }
 
 impl Document {
-    /// Build one LSP completion item from a query result.
+    /// Build one LSP completion item from a query entry.
     pub(crate) fn completion_item(
         &self,
         index: usize,
-        item: query::CompletionItem,
+        entry: query::CompletionEntry,
         supports_label_details: bool,
+        data: Option<Value>,
     ) -> jsonrpc::Result<lsp::CompletionItem> {
         // build compact label details when the client supports them
         let label_details = if supports_label_details {
-            let detail = item.label_suffix.clone();
-            let description = item.description.clone();
+            let detail = entry.label_suffix.clone();
+            let description = entry.description.clone();
 
             (detail.is_some() || description.is_some()).then_some(lsp::CompletionItemLabelDetails {
                 detail,
@@ -352,104 +353,112 @@ impl Document {
         };
 
         // configure snippet insertion
-        let insert_text_format = if item.edit.is_snippet {
+        let insert_text_format = if entry.edit.is_snippet {
             Some(lsp::InsertTextFormat::SNIPPET)
         } else {
             None
         };
-        let insert_text_mode = if item.edit.is_snippet {
+        let insert_text_mode = if entry.edit.is_snippet {
             Some(lsp::InsertTextMode::ADJUST_INDENTATION)
         } else {
             None
         };
-        // build additional text edits
-        let additional_text_edits = if item.additional_edits.is_empty() {
-            None
-        } else {
-            let edits = item
-                .additional_edits
-                .iter()
-                .map(|edit| {
-                    if edit.span.file != self.id() {
-                        return Err(internal_error(format!(
-                            "completion edit targets another file: {:?}",
-                            edit.span
-                        )));
-                    }
-
-                    Ok(lsp::TextEdit {
-                        range: self.range(edit.span)?,
-                        new_text: edit.new_text.clone(),
-                    })
-                })
-                .collect::<jsonrpc::Result<_>>()?;
-
-            Some(edits)
-        };
-
         // retain query order in clients that sort completion items
         let sort_text = Some(format!("{index:020}"));
-        if item.edit.span.file != self.id() {
+        if entry.edit.span.file != self.id() {
             return Err(internal_error(format!(
                 "completion edit targets another file: {:?}",
-                item.edit.span
+                entry.edit.span
             )));
         }
         let text_edit = lsp::TextEdit {
-            range: self.range(item.edit.span)?,
-            new_text: item.edit.new_text,
+            range: self.range(entry.edit.span)?,
+            new_text: entry.edit.new_text,
         };
 
-        // render declaration and authored documentation
-        let mut documentation = Markdown::default();
-        if let Some(declaration) = item.declaration.as_deref() {
-            documentation.push_code("ds", declaration);
-        }
-        if let Some(item_documentation) = item.documentation.as_deref() {
-            documentation.push(item_documentation);
-        }
-        let documentation = (!documentation.is_empty()).then(|| documentation.into_documentation());
-
         // map deprecation fields
-        let (deprecated, tags) = if item.is_deprecated {
+        let (deprecated, tags) = if entry.is_deprecated {
             (Some(true), Some(vec![lsp::CompletionItemTag::DEPRECATED]))
         } else {
             (None, None)
         };
 
-        // retain descriptions in expanded details for older clients
-        let detail = match (
-            supports_label_details,
-            item.declaration,
-            item.description.as_deref(),
-        ) {
-            (_, Some(declaration), None) | (true, Some(declaration), Some(_)) => Some(declaration),
-            (false, Some(declaration), Some(description)) => {
-                Some(format!("{declaration} — {description}"))
-            }
-            (false, None, Some(description)) => Some(description.to_string()),
-            (_, None, None) | (true, None, Some(_)) => None,
+        // retain descriptions in the detail field for older clients
+        let detail = if supports_label_details {
+            None
+        } else {
+            entry.description.clone()
         };
 
         // map completion kind
-        let kind = item.kind.into_lsp();
+        let kind = entry.kind.into_lsp();
 
         Ok(lsp::CompletionItem {
-            label: item.label,
+            label: entry.label,
             label_details,
             kind: Some(kind),
             detail,
-            documentation,
+            documentation: None,
             insert_text_format,
             insert_text_mode,
             sort_text,
-            preselect: if item.preselect { Some(true) } else { None },
+            preselect: if entry.preselect { Some(true) } else { None },
             deprecated,
             tags,
-            additional_text_edits,
+            additional_text_edits: None,
             text_edit: Some(text_edit.into()),
+            data,
             ..Default::default()
         })
+    }
+
+    /// Apply selected completion details to one LSP item.
+    pub(crate) fn apply_completion_details(
+        &self,
+        item: &mut lsp::CompletionItem,
+        details: query::CompletionDetailsResponse,
+        supports_label_details: bool,
+    ) -> jsonrpc::Result<()> {
+        // render expanded declaration details
+        if let Some(declaration) = details.declaration.as_deref() {
+            item.detail = match (supports_label_details, item.detail.as_deref()) {
+                (false, Some(description)) => Some(format!("{declaration} — {description}")),
+                _ => Some(declaration.to_string()),
+            };
+        }
+
+        // render declaration and authored documentation
+        let mut documentation = Markdown::default();
+        if let Some(declaration) = details.declaration.as_deref() {
+            documentation.push_code("ds", declaration);
+        }
+        if let Some(text) = details.documentation.as_deref() {
+            documentation.push(text);
+        }
+        item.documentation =
+            (!documentation.is_empty()).then(|| documentation.into_documentation());
+
+        // map exact import edits
+        let edits = details
+            .additional_edits
+            .iter()
+            .map(|edit| {
+                if edit.span.file != self.id() {
+                    return Err(internal_error(format!(
+                        "completion edit targets another file: {:?}",
+                        edit.span
+                    )));
+                }
+
+                Ok(lsp::TextEdit {
+                    range: self.range(edit.span)?,
+                    new_text: edit.new_text.clone(),
+                })
+            })
+            .collect::<jsonrpc::Result<Vec<_>>>()?;
+        item.additional_text_edits = (!edits.is_empty()).then_some(edits);
+
+        Ok(())
     }
 }
 

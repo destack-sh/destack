@@ -442,6 +442,8 @@ pub(super) struct ClientCapabilities {
     pub(super) supports_code_action_edit_resolve: bool,
     /// Whether completion label details are supported.
     pub(super) supports_completion_label_details: bool,
+    /// Whether completion details can be resolved lazily.
+    pub(super) supports_completion_resolve: bool,
     /// Whether pull diagnostics are supported.
     pub(super) supports_pull_diagnostics: bool,
     /// Whether diagnostic refresh requests are supported.
@@ -490,6 +492,17 @@ impl TryFrom<&lsp::InitializeParams> for ClientCapabilities {
         let supports_completion_label_details = completion_item
             .and_then(|completion| completion.label_details_support)
             .unwrap_or(false);
+        let completion_resolve_properties = ["detail", "documentation", "additionalTextEdits"];
+        let supports_completion_resolve = completion_item
+            .and_then(|completion| completion.resolve_support.as_ref())
+            .is_some_and(|support| {
+                completion_resolve_properties.iter().all(|required| {
+                    support
+                        .properties
+                        .iter()
+                        .any(|property| property == required)
+                })
+            });
         let supports_pull_diagnostics = text_document
             .and_then(|text| text.diagnostic.as_ref())
             .is_some();
@@ -504,6 +517,7 @@ impl TryFrom<&lsp::InitializeParams> for ClientCapabilities {
             supports_code_action_data,
             supports_code_action_edit_resolve,
             supports_completion_label_details,
+            supports_completion_resolve,
             supports_pull_diagnostics,
             supports_diagnostic_refresh,
             code_lens_commands: initialization_options.code_lens_commands,

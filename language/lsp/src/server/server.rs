@@ -918,7 +918,7 @@ impl LanguageServer for DestackLanguageServer {
                     "/".to_string(),
                     "@".to_string(),
                 ]),
-                resolve_provider: None,
+                resolve_provider: Some(true),
                 completion_item: Some(lsp::CompletionOptionsCompletionItem {
                     label_details_support: Some(true),
                 }),
@@ -1805,30 +1805,74 @@ impl LanguageServer for DestackLanguageServer {
         let document = Document::new(query_file.file.clone());
         let offset = document.offset(&params.text_document_position.position)?;
         let position = query_file.position(offset);
+        let client = self.client_capabilities()?;
+        let supports_label_details = client.supports_completion_label_details;
+        let details_mode = if client.supports_completion_resolve {
+            query::CompletionDetailsMode::Deferred
+        } else {
+            query::CompletionDetailsMode::Eager
+        };
         let include_auto_imports = self.settings()?.completion_auto_imports();
         let request = query::QueryRequest::Completion(query::CompletionRequest {
             position,
             trigger,
             include_auto_imports,
+            details: details_mode,
         });
         let response = self.query_module(&query_file, request).await?;
+        let revision = response.revision;
         let query::QueryResponse::Completion(response) = response.response else {
             return Err(internal_error("query did not return completion"));
         };
         let is_incomplete = response.is_incomplete;
-        let completions = response.items;
-        if completions.is_empty() {
+        let entries = response.entries;
+        if entries.is_empty() {
             return Ok(None);
         }
-        let supports_label_details = self
-            .client_capabilities()?
-            .supports_completion_label_details;
 
         // build LSP completion items
-        let items: Vec<lsp::CompletionItem> = completions
+        let items: Vec<lsp::CompletionItem> = entries
             .into_iter()
             .enumerate()
-            .map(|(index, item)| document.completion_item(index, item, supports_label_details))
+            .map(|(index, mut entry)| {
+                // map the requested details mode
+                let (data, eager) = match (details_mode, entry.details.take()) {
+                    (
+                        query::CompletionDetailsMode::Deferred,
+                        Some(query::CompletionEntryDetails::Deferred(details)),
+                    ) => {
+                        let data = QueryContinuation::new(&query_file.path, revision, details)
+                            .into_value()?;
+
+                        (Some(data), None)
+                    }
+                    (
+                        query::CompletionDetailsMode::Eager,
+                        Some(query::CompletionEntryDetails::Eager(details)),
+                    ) => (None, Some(details)),
+                    (_, None) => (None, None),
+                    _ => {
+                        return Err(internal_error(
+                            "completion details do not match the requested mode",
+                        ));
+                    }
+                };
+
+                // build the initial completion item
+                let mut item =
+                    document.completion_item(index, entry, supports_label_details, data)?;
+
+                // populate expanded fields for clients without complete resolve support
+                if let Some(details) = eager {
+                    document.apply_completion_details(
+                        &mut item,
+                        details,
+                        supports_label_details,
+                    )?;
+                }
+
+                Ok(item)
+            })
             .collect::<jsonrpc::Result<_>>()?;
 
         Ok(Some(lsp::CompletionResponse::List(lsp::CompletionList {
@@ -1836,6 +1880,42 @@ impl LanguageServer for DestackLanguageServer {
             items,
             ..Default::default()
         })))
+    }
+
+    async fn completion_resolve(
+        &self,
+        mut params: lsp::CompletionItem,
+    ) -> jsonrpc::Result<lsp::CompletionItem> {
+        let continuation =
+            QueryContinuation::<query::CompletionDetailsRequest>::from_value(params.data.as_ref())?;
+        let QueryContinuation {
+            path,
+            revision,
+            value: request,
+        } = continuation;
+        let file_id = request.file_id;
+
+        // query details against the exact completion revision
+        let request = query::QueryRequest::CompletionDetails(request);
+        let response = self
+            .query_program(&path, request, RevisionPolicy::Exact(revision))
+            .await?;
+        let revision = response.revision;
+        let query::QueryResponse::CompletionDetails(details) = response.response else {
+            return Err(internal_error("query did not return completion details"));
+        };
+
+        // apply the complete resolved entry
+        let documents = self.load_documents(&path, revision, [file_id])?;
+        let document = documents.document(file_id)?;
+        let client = self.client_capabilities()?;
+        document.apply_completion_details(
+            &mut params,
+            details,
+            client.supports_completion_label_details,
+        )?;
+
+        Ok(params)
     }
 
     async fn signature_help(

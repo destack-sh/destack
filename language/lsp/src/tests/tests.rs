@@ -205,6 +205,36 @@ impl TestServer {
             .await;
     }
 
+    /// Initialize completion capabilities for one simulated client.
+    pub(super) async fn initialize_completion(
+        &mut self,
+        resolve_properties: &[&str],
+        supports_label_details: bool,
+    ) {
+        let capabilities = lsp::ClientCapabilities {
+            text_document: Some(lsp::TextDocumentClientCapabilities {
+                completion: Some(lsp::CompletionClientCapabilities {
+                    completion_item: Some(lsp::CompletionItemCapability {
+                        label_details_support: Some(supports_label_details),
+                        resolve_support: Some(lsp::CompletionItemCapabilityResolveSupport {
+                            properties: resolve_properties
+                                .iter()
+                                .map(|property| property.to_string())
+                                .collect(),
+                        }),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        self.initialize(capabilities, None).await.unwrap();
+        self.initialized().await;
+    }
+
     /// Open one single-target workspace and its entry document.
     ///
     /// Writes the default manifest and every source file, initializes the
@@ -337,6 +367,41 @@ impl TestServer {
             .into_iter()
             .map(|item| item.label)
             .collect()
+    }
+
+    /// Select one exact completion item by label.
+    pub(super) async fn select_completion(
+        &mut self,
+        request: TestRequest<lsp::request::Completion>,
+        label: &str,
+    ) -> lsp::CompletionItem {
+        let items = self.complete(request).await;
+        let labels = items
+            .iter()
+            .map(|item| item.label.clone())
+            .collect::<Vec<_>>();
+        let matching = items
+            .into_iter()
+            .filter(|item| item.label == label)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            matching.len(),
+            1,
+            "expected one {label:?} completion, found labels {labels:?}",
+        );
+
+        matching.into_iter().next().unwrap()
+    }
+
+    /// Resolve one completion item selected from a completion list.
+    pub(super) async fn resolve_completion(
+        &mut self,
+        item: lsp::CompletionItem,
+    ) -> jsonrpc::Result<lsp::CompletionItem> {
+        self.request(TestRequest::<lsp::request::ResolveCompletionItem>::new(
+            item,
+        ))
+        .await
     }
 
     /// Return one virtual document.
@@ -511,23 +576,15 @@ impl TestServer {
         request: TestRequest<lsp::request::Completion>,
         expected: CompletionDisplay<'_>,
     ) {
-        let items = self.complete(request).await;
-        let matching = items
-            .iter()
-            .filter(|item| item.label == expected.label)
-            .collect::<Vec<_>>();
-        let labels = items
-            .iter()
-            .map(|item| item.label.as_str())
-            .collect::<Vec<_>>();
-        assert_eq!(
-            matching.len(),
-            1,
-            "expected one {:?} completion, found labels {labels:?}",
-            expected.label,
-        );
-        // compare every displayed detail
-        let actual = CompletionDisplay::from(matching[0]);
+        let item = self.select_completion(request, expected.label).await;
+
+        // resolve and compare every displayed detail
+        let item = if item.data.is_some() {
+            self.resolve_completion(item).await.unwrap()
+        } else {
+            item
+        };
+        let actual = CompletionDisplay::from(&item);
         assert_eq!(actual, expected);
     }
 

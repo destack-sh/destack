@@ -1,6 +1,9 @@
+use destack_lsp_server::jsonrpc;
 use destack_lsp_types as lsp;
 
-use super::tests::{CompletionDisplay, MANIFEST, TestServer, markdown, position, range};
+use super::tests::{
+    CompletionDisplay, MANIFEST, TestServer, markdown, position, range, replace_document,
+};
 
 /// Return exact signature help and inlay hints for one call.
 #[tokio::test]
@@ -84,9 +87,9 @@ const sent = send(1, "ok");
         .await;
 }
 
-/// Return declaration, member, and callable details in completion lists.
+/// Resolve declaration, documentation, and import edits for selected completion entries.
 #[tokio::test]
-async fn test_return_completion_details() {
+async fn test_resolve_completion_details() {
     let source = r#"struct HostErrorContextProcess {
     kind: "process";
     syscall?: string;
@@ -106,38 +109,46 @@ const sent = context.send(1);
 "#;
     let mut server = TestServer::new("completion-details");
     server.write("destack.json", MANIFEST);
+    server.write(
+        "src/library.ds",
+        "export function greetFixture(): void {}\n",
+    );
     let document = server.write("src/main.ds", source);
-    let capabilities = lsp::ClientCapabilities {
-        text_document: Some(lsp::TextDocumentClientCapabilities {
-            completion: Some(lsp::CompletionClientCapabilities {
-                completion_item: Some(lsp::CompletionItemCapability {
-                    label_details_support: Some(true),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
-        ..Default::default()
-    };
-    server.initialize(capabilities, None).await.unwrap();
-    server.initialized().await;
+    server
+        .initialize_completion(&["detail", "documentation", "additionalTextEdits"], true)
+        .await;
     server.open(&document, 1, source).await;
     server.assert_diagnostics(&document, 1, Vec::new()).await;
 
-    // show the exact declaration beside one type completion
-    server
-        .assert_completion(
+    // defer expanded fields until the client selects an entry
+    let item = server
+        .select_completion(
             document.completion(position(13, 46)),
-            CompletionDisplay {
-                label: "HostErrorContextProcess",
-                label_detail: None,
-                description: None,
-                detail: Some("struct HostErrorContextProcess"),
-                documentation: Some("```ds\nstruct HostErrorContextProcess\n```"),
-            },
+            "HostErrorContextProcess",
         )
         .await;
+    assert_eq!(
+        CompletionDisplay::from(&item),
+        CompletionDisplay {
+            label: "HostErrorContextProcess",
+            label_detail: None,
+            description: None,
+            detail: None,
+            documentation: None,
+        },
+    );
+    assert!(item.data.as_ref().is_some_and(|data| data.is_string()));
+    let item = server.resolve_completion(item).await.unwrap();
+    assert_eq!(
+        CompletionDisplay::from(&item),
+        CompletionDisplay {
+            label: "HostErrorContextProcess",
+            label_detail: None,
+            description: None,
+            detail: Some("struct HostErrorContextProcess"),
+            documentation: Some("```ds\nstruct HostErrorContextProcess\n```"),
+        },
+    );
 
     // show the exact declaration beside one associated type
     server
@@ -187,6 +198,77 @@ const sent = context.send(1);
             },
         )
         .await;
+
+    // reject an entry after its source revision changes
+    let stale = server
+        .select_completion(
+            document.completion(position(13, 46)),
+            "HostErrorContextProcess",
+        )
+        .await;
+    let edited = format!("{source}\nfunction completeImport(): void {{\n    greetFix;\n}}\n");
+    server
+        .change(&document, 2, [replace_document(edited)])
+        .await;
+    let error = server.resolve_completion(stale).await.unwrap_err();
+    assert_eq!(error.code, jsonrpc::ErrorCode::ContentModified);
+
+    // return an auto import edit only after selecting its completion entry
+    let item = server
+        .select_completion(document.completion(position(18, 12)), "greetFixture")
+        .await;
+    assert_eq!(item.additional_text_edits, None);
+    let item = server.resolve_completion(item).await.unwrap();
+    assert_eq!(
+        item.additional_text_edits,
+        Some(vec![lsp::TextEdit {
+            range: range(0, 0, 0, 0),
+            new_text: "import { greetFixture } from \"./library\";\n".to_string(),
+        }]),
+    );
+}
+
+/// Return complete auto-import entries to clients without lazy resolution.
+#[tokio::test]
+async fn test_return_eager_completion_details() {
+    let source = "function main(): void {\n    greetFix;\n}\n";
+    let mut server = TestServer::new("eager-completion-details");
+    server.write("destack.json", MANIFEST);
+    server.write(
+        "src/library.ds",
+        "/// Greet one fixture.\nexport function greetFixture(): void {}\n",
+    );
+    let document = server.write("src/main.ds", source);
+    server.initialize_completion(&["detail"], false).await;
+    server.open(&document, 1, source).await;
+
+    // include expanded fields and import edits in the initial list
+    let item = server
+        .select_completion(document.completion(position(1, 12)), "greetFixture")
+        .await;
+    assert_eq!(item.data, None);
+    assert_eq!(
+        CompletionDisplay::from(&item),
+        CompletionDisplay {
+            label: "greetFixture",
+            label_detail: None,
+            description: None,
+            detail: Some("export function greetFixture(): void — from ./library"),
+            documentation: Some(concat!(
+                "```ds\n",
+                "export function greetFixture(): void\n",
+                "```\n\n",
+                "Greet one fixture.",
+            )),
+        },
+    );
+    assert_eq!(
+        item.additional_text_edits,
+        Some(vec![lsp::TextEdit {
+            range: range(0, 0, 0, 0),
+            new_text: "import { greetFixture } from \"./library\";\n".to_string(),
+        }]),
+    );
 }
 
 /// Complete a receiver's own, extension, and inherited members after a dot.
