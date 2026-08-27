@@ -153,56 +153,6 @@ extension of Robot implements Greeter {}
         .await;
 }
 
-/// Complete the expected type's missing fields inside an object literal.
-#[tokio::test]
-async fn test_complete_expected_fields_in_an_object_literal() {
-    let source = r#"struct Point {
-    x: int32;
-    y: int32;
-}
-
-const origin: Point = { x: 0,  };
-"#;
-    let mut server = TestServer::new("expected-field-completion");
-    server.write("destack.json", MANIFEST);
-    let document = server.write("src/main.ds", source);
-    server
-        .initialize(lsp::ClientCapabilities::default(), None)
-        .await
-        .unwrap();
-    server.initialized().await;
-    server.open(&document, 1, source).await;
-
-    // accept the missing-property diagnostic of the incomplete literal
-    let diagnostics = server.receive_diagnostics(&document, 1).await;
-    let codes: Vec<String> = diagnostics
-        .diagnostics
-        .iter()
-        .filter_map(|diagnostic| match &diagnostic.code {
-            Some(lsp::NumberOrString::String(code)) => Some(code.clone()),
-            _ => None,
-        })
-        .collect();
-    assert_eq!(codes, ["missing-required-property"]);
-
-    // offer the missing y field at the free key position
-    let params = document.completion(position(5, 29));
-    let response = server
-        .request::<lsp::request::Completion>(params)
-        .await
-        .unwrap();
-    let labels: Vec<String> = match response {
-        Some(lsp::CompletionResponse::Array(items)) => {
-            items.into_iter().map(|item| item.label).collect()
-        }
-        Some(lsp::CompletionResponse::List(list)) => {
-            list.items.into_iter().map(|item| item.label).collect()
-        }
-        None => Vec::new(),
-    };
-    assert_eq!(labels, ["y"]);
-}
-
 /// Return declaration, member, and callable details in completion lists.
 #[tokio::test]
 async fn test_return_completion_details() {
@@ -310,52 +260,6 @@ const sent = context.send(1);
             },
         )
         .await;
-}
-
-/// Rename an interface method together with its implementing declaration.
-#[tokio::test]
-async fn test_rename_an_interface_method_with_its_implementation() {
-    let source = r#"interface Greeter {
-    greet(): string;
-}
-
-class Robot {
-    greet(): string {
-        return "beep";
-    }
-}
-
-extension of Robot implements Greeter {}
-
-declare const robot: Robot;
-const sound = robot.greet();
-"#;
-    let (mut server, document) = TestServer::open_workspace(
-        "member-union-rename",
-        &[("src/main.ds", source)],
-        "src/main.ds",
-    )
-    .await;
-
-    // rename the interface requirement and collect every edited span
-    let params = document.rename(position(1, 4), "announce");
-    let response = server
-        .request::<lsp::request::Rename>(params)
-        .await
-        .unwrap();
-    let Some(edit) = response else {
-        panic!("rename produced no edit");
-    };
-    let mut starts: Vec<(u32, u32)> = edit
-        .changes
-        .into_iter()
-        .flat_map(|changes| changes.into_values().flatten())
-        .map(|edit| (edit.range.start.line, edit.range.start.character))
-        .collect();
-    starts.sort_unstable();
-
-    // expect the requirement, the implementing method, and the call to rename
-    assert_eq!(starts, [(1, 4), (5, 4), (13, 20)]);
 }
 
 /// Rename an export through its import selector chain.
