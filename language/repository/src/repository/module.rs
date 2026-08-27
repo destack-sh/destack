@@ -471,7 +471,7 @@ impl Repository {
         self.module_id_for_file(revision, file_id)
     }
 
-    /// Return the module id for one uri in one revision when present.
+    /// Return the module ID for one URI in one revision when present.
     pub fn module_id_for_uri(
         &self,
         revision: Revision,
@@ -480,6 +480,17 @@ impl Repository {
         let modules = self.module_index(revision)?;
 
         Ok(modules.module_id_for_uri(uri))
+    }
+
+    /// Resolve one canonical source URI to its module and file IDs.
+    pub fn resolve_uri(
+        &self,
+        revision: Revision,
+        uri: &Uri,
+    ) -> Result<Option<(ModuleId, FileId)>, RepositoryError> {
+        let modules = self.module_index(revision)?;
+
+        Ok(modules.resolve_uri(uri))
     }
 
     /// Resolve one module path, recording every candidate probe.

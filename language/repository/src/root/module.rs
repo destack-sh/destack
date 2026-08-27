@@ -130,13 +130,13 @@ impl ModuleFile {
 /// Revision-local module lookup data.
 #[derive(Debug, Clone)]
 pub(crate) struct ModuleIndex {
-    /// Modules keyed by module id.
+    /// Modules keyed by module ID.
     modules: OrdMap<ModuleId, Arc<Module>>,
-    /// Module ids keyed by contributing file id.
+    /// Module IDs keyed by contributing file ID.
     module_by_file: FxHashMap<FileId, ModuleId>,
-    /// Module ids keyed by contributing file uri.
-    module_by_uri: FxHashMap<Uri, ModuleId>,
-    /// Module ids keyed by package id.
+    /// Module and file IDs keyed by canonical source URI.
+    file_by_uri: FxHashMap<Uri, (ModuleId, FileId)>,
+    /// Module IDs keyed by package ID.
     module_by_package: FxHashMap<PackageId, Vec<ModuleId>>,
 }
 
@@ -144,7 +144,7 @@ impl ModuleIndex {
     /// Create one module index.
     pub(crate) fn new(modules: OrdMap<ModuleId, Arc<Module>>) -> Self {
         let mut module_by_file = FxHashMap::default();
-        let mut module_by_uri = FxHashMap::default();
+        let mut file_by_uri = FxHashMap::default();
         let mut module_by_package = FxHashMap::default();
 
         // derive lookup indexes from canonical modules
@@ -156,29 +156,29 @@ impl ModuleIndex {
 
             for file in &module.files {
                 module_by_file.insert(file.file_id, *module_id);
-                module_by_uri.insert(file.uri.clone(), *module_id);
+                file_by_uri.insert(file.uri.clone(), (*module_id, file.file_id));
             }
         }
 
         Self {
             modules,
             module_by_file,
-            module_by_uri,
+            file_by_uri,
             module_by_package,
         }
     }
 
-    /// Return one module by id.
+    /// Return one module by ID.
     pub(crate) fn module(&self, module_id: ModuleId) -> Option<Arc<Module>> {
         self.modules.get(&module_id).cloned()
     }
 
-    /// Return all module ids.
+    /// Return all module IDs.
     pub(crate) fn module_ids(&self) -> impl Iterator<Item = ModuleId> + '_ {
         self.modules.keys().copied()
     }
 
-    /// Return module ids for one package.
+    /// Return module IDs for one package.
     pub(crate) fn package_module_ids(&self, package_id: PackageId) -> &[ModuleId] {
         self.module_by_package
             .get(&package_id)
@@ -186,14 +186,19 @@ impl ModuleIndex {
             .unwrap_or_default()
     }
 
-    /// Return the module id for one contributing file id.
+    /// Return the module ID for one contributing file ID.
     pub(crate) fn module_id_for_file(&self, file_id: FileId) -> Option<ModuleId> {
         self.module_by_file.get(&file_id).copied()
     }
 
-    /// Return the module id for one contributing file uri.
+    /// Return the module ID for one contributing file URI.
     pub(crate) fn module_id_for_uri(&self, uri: &Uri) -> Option<ModuleId> {
-        self.module_by_uri.get(uri).copied()
+        self.resolve_uri(uri).map(|(module_id, _)| module_id)
+    }
+
+    /// Resolve one canonical source URI to its module and file IDs.
+    pub(crate) fn resolve_uri(&self, uri: &Uri) -> Option<(ModuleId, FileId)> {
+        self.file_by_uri.get(uri).copied()
     }
 }
 
@@ -290,7 +295,7 @@ mod tests {
     }
 
     #[test]
-    fn test_module_index_tracks_builtin_uri() {
+    fn test_module_index_resolves_builtin_uri() {
         let package_id = PackageId::new(1);
         let module_id = ModuleId::new(package_id, 1);
         let module = Module::blank(
@@ -308,9 +313,8 @@ mod tests {
         modules.insert(module_id, Arc::new(module));
         let index = ModuleIndex::new(modules);
 
-        assert_eq!(
-            index.module_id_for_uri(&Uri::from_string("destack://types/function")),
-            Some(module_id)
-        );
+        let uri = Uri::from_string("destack://types/function");
+        assert_eq!(index.resolve_uri(&uri), Some((module_id, FileId::new(1))));
+        assert_eq!(index.module_id_for_uri(&uri), Some(module_id));
     }
 }

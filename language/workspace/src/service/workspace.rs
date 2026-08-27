@@ -666,7 +666,7 @@ impl WorkspaceService for Workspace {
     ) -> Result<Response<Option<QueryFileResponse>>, Status> {
         let request = request.value;
         self.resolve_root(&request.root)?;
-        let file = Workspace::resolve_query_file(self, request.revision, request.path)?;
+        let file = Workspace::resolve_query_file(self, request.revision, request.uri)?;
         let file = file.as_ref().map(QueryFileResponse::from);
 
         Ok(Response::new(file))

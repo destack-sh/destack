@@ -1,10 +1,11 @@
 use destack_repository::Revision;
+use destack_source::Uri;
 use futures::executor::block_on;
 
 use crate::tests::harness::TestWorkspace;
 use crate::{Error, RevisionPolicy, RunQueryInput};
 
-/// Requires an explicit semantic target when resolving a query file.
+/// Require an explicit target when resolving a query file.
 #[test]
 fn test_resolve_query_file_requires_target() {
     let test = TestWorkspace::new("query-file-target");
@@ -17,10 +18,39 @@ fn test_resolve_query_file_requires_target() {
     let revision = test.workspace.revision().expect("read revision");
     let error = test
         .workspace
-        .resolve_query_file(revision, path)
+        .resolve_query_file(revision, Uri::from_path(path))
         .expect_err("query file without target should fail");
 
     assert!(matches!(error, Error::TargetNotSelected { .. }));
+}
+
+/// Resolve canonical URIs through the selected authored Builtin Package.
+#[test]
+fn test_resolve_query_file_from_canonical_uri() {
+    let test = TestWorkspace::new("query-canonical-uri");
+    let manifest = r#"{
+  "name": "destack",
+  "targets": {
+    "default": {
+      "entry": ["src/custom.ds"]
+    }
+  },
+  "defaultTarget": "default"
+}
+"#;
+    test.file("destack.json", manifest);
+    let source = "export const custom = 1;\n";
+    test.file("src/custom.ds", source);
+    let revision = test.workspace.revision().expect("read revision");
+
+    // resolve the URI to the authored file in this exact revision
+    let uri = Uri::from_string("destack://custom.ds");
+    let file = test
+        .workspace
+        .resolve_query_file(revision, uri)
+        .expect("resolve query file")
+        .expect("canonical URI should resolve");
+    assert_eq!(file.file.text(), source);
 }
 
 /// Executes latest and historical queries against their exact selected revisions.

@@ -6,23 +6,23 @@ use destack_query::{Module, QueryError, QueryPosition, QueryRange, QueryRequest,
 use destack_repository::{ProviderError, Revision, Trace, TraceLevel};
 use destack_serde::Reflect;
 use destack_session::{ArtifactPriority, ArtifactRun, ArtifactRunId};
-use destack_source::{File, ProfileId, Span};
+use destack_source::{File, ProfileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::Error;
 
 use super::{Workspace, WorkspacePin};
 
-/// One source file resolved for semantic queries.
+/// One source file resolved for queries.
 #[derive(Debug, Clone)]
 pub struct QueryFile {
-    /// The requested source path.
-    pub path: PathBuf,
-    /// The exact semantic revision.
+    /// The workspace root that owns this query.
+    pub root: PathBuf,
+    /// The exact source revision.
     pub revision: Revision,
     /// The module containing the file.
     pub module: Module,
-    /// The source file at the exact semantic revision.
+    /// The source file at the exact revision.
     pub file: Arc<File>,
 }
 
@@ -50,32 +50,47 @@ impl QueryFile {
 }
 
 impl Workspace {
-    /// Resolve one source file for semantic queries.
+    /// Resolve one source file for queries.
     pub fn resolve_query_file(
         &self,
         revision: Revision,
-        path: PathBuf,
+        uri: Uri,
     ) -> Result<Option<QueryFile>, Error> {
-        let path = self.resolve_path(&path)?;
-
-        // pin the workspace and resolve the requested source
+        // open the workspace at the requested revision
         let session = self.pin(revision)?;
-        let Some(file_id) = session.file_id(&path)? else {
-            return Ok(None);
-        };
-        let file = session.file(file_id)?;
         let repository = session.repository();
+
+        // resolve canonical source URIs through the module index
+        let (module_id, file_id) = if uri.scheme().is_some() {
+            let Some((module_id, file_id)) = repository.resolve_uri(revision, &uri)? else {
+                return Ok(None);
+            };
+
+            (module_id, file_id)
+        }
+        // resolve physical source through its workspace path
+        else {
+            let path = PathBuf::from(uri.as_ref());
+            let path = self.resolve_path(&path)?;
+            let Some(file_id) = session.file_id(&path)? else {
+                return Ok(None);
+            };
+            let Some(module_id) = repository.module_id_for_file(revision, file_id)? else {
+                return Ok(None);
+            };
+
+            (module_id, file_id)
+        };
+
+        // read the exact source revision
+        let file = session.file(file_id)?;
         let revision = session.revision();
 
         // resolve the containing module
-        let module_id = repository.module_id_for_file(revision, file_id)?;
-        let Some(module_id) = module_id else {
-            return Ok(None);
-        };
         let module = session.module(module_id)?;
 
         Ok(Some(QueryFile {
-            path,
+            root: self.root.clone(),
             revision,
             module,
             file,

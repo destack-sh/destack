@@ -4,27 +4,28 @@ use std::sync::Arc;
 use destack_query::Module;
 use destack_repository::Revision;
 use destack_serde::Reflect;
+use destack_source::Uri;
 use serde::{Deserialize, Serialize};
 
 use crate::{Error, FileImage, QueryFile, RunQueryInput};
 
-/// Request to resolve one source file for semantic queries.
+/// Request to resolve one source file for queries.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ResolveQueryFileRequest {
     /// Owning workspace root.
     pub root: PathBuf,
-    /// Exact semantic revision.
+    /// Exact source revision.
     pub revision: Revision,
-    /// Source path to resolve.
-    pub path: PathBuf,
+    /// Source URI to resolve.
+    pub uri: Uri,
 }
 
-/// Serialized source file prepared for semantic queries.
+/// Serialized source file prepared for queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct QueryFileResponse {
-    /// Requested source path.
-    pub path: PathBuf,
-    /// Exact semantic revision.
+    /// Owning workspace root.
+    pub root: PathBuf,
+    /// Exact source revision.
     pub revision: Revision,
     /// Module containing the file.
     pub module: Module,
@@ -40,7 +41,7 @@ impl TryFrom<QueryFileResponse> for QueryFile {
         let file = response.file.into_file()?;
 
         Ok(Self {
-            path: response.path,
+            root: response.root,
             revision: response.revision,
             module: response.module,
             file: Arc::new(file),
@@ -52,7 +53,7 @@ impl From<&QueryFile> for QueryFileResponse {
     /// Build one serialized response from runtime query state.
     fn from(file: &QueryFile) -> Self {
         Self {
-            path: file.path.clone(),
+            root: file.root.clone(),
             revision: file.revision,
             module: file.module,
             file: FileImage::from(file.file.as_ref()),

@@ -6,9 +6,11 @@ use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactReference, Bundle, BundleFile, Product,
 };
 use destack_core::Blob;
-use destack_repository::{Repository, Revision, Trace, TraceLevel, TraceSnapshot, TraceView};
+use destack_repository::{
+    Repository, Revision, RootKind, Trace, TraceLevel, TraceSnapshot, TraceView,
+};
 use destack_session::{Executor, Session};
-use destack_source::{File, FileId, Uri};
+use destack_source::{File, FileId};
 use futures::future::BoxFuture;
 use parking_lot::Mutex;
 
@@ -89,6 +91,11 @@ impl Workspace {
     /// Return this workspace's canonical root.
     pub fn root(&self) -> &Path {
         &self.root
+    }
+
+    /// Return the kind of this workspace root.
+    pub fn kind(&self, revision: Revision) -> Result<RootKind, Error> {
+        Ok(self.repository.root(revision)?.kind)
     }
 
     /// Persist successful artifacts from the current physical revision.
@@ -471,14 +478,6 @@ impl Workspace {
             })
             .await
         })
-    }
-
-    /// Read one embedded builtin source file by URI.
-    pub fn read_builtin_file(&self, uri: &Uri) -> Option<Arc<File>> {
-        self.repository
-            .embedded_builtin()
-            .file_for_uri(uri)
-            .cloned()
     }
 
     /// Read source files from one exact revision.

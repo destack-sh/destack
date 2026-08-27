@@ -52,6 +52,11 @@ impl Uri {
         Self(uri.into())
     }
 
+    /// Return the URI scheme when present.
+    pub fn scheme(&self) -> Option<&str> {
+        self.0.split_once("://").map(|(scheme, _)| scheme)
+    }
+
     /// Get the last segment of the URI.
     pub fn last_segment(&self) -> Option<&str> {
         self.0.split("/").last()
@@ -138,20 +143,17 @@ impl Borrow<str> for Uri {
 }
 
 impl Uri {
-    /// Convert a URI to a Path.
+    /// Return the path represented by a scheme-less URI.
     pub fn to_path(&self) -> Option<&Path> {
-        let path = Path::new(&self.0);
-        Some(path)
+        if self.scheme().is_some() {
+            return None;
+        }
+
+        Some(Path::new(&self.0))
     }
 
-    /// Convert a URI to a PathBuf.
+    /// Return the owned path represented by a scheme-less URI.
     pub fn to_path_buf(&self) -> Option<PathBuf> {
-        let path = Path::new(&self.0);
-        Some(path.to_path_buf())
-    }
-
-    /// Convert a file Path to a URI.
-    pub fn from_file_path<A: AsRef<Path>>(path: A) -> Self {
-        Self(path.as_ref().to_string_lossy().into_owned())
+        self.to_path().map(Path::to_path_buf)
     }
 }

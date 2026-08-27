@@ -221,7 +221,7 @@ impl TestWorkspace {
 
     /// Build a source URI for one path.
     pub(super) fn uri_for_path(&self, path: &Path) -> Uri {
-        Uri::from_file_path(path)
+        Uri::from_path(path)
     }
 
     /// Build one exact expected text change.

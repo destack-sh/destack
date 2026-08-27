@@ -144,7 +144,7 @@ impl Edit {
         let file = File::from_text(
             file_id,
             name.to_string(),
-            Uri::from_file_path(path),
+            Uri::from_path(path),
             Some(path.to_path_buf()),
             file_type,
             text,
