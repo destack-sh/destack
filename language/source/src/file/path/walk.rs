@@ -1,13 +1,12 @@
-//! Generic directory walker with filtering hooks and ignore support.
-
+use std::io;
 use std::path::{Path, PathBuf};
 
-use crate::PhysicalFileSystem;
+use crate::FileSystem;
 
 use super::IgnoreSet;
 
 /// Options for directory walking.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct WalkOptions {
     /// Root directory to walk.
     pub root: PathBuf,
@@ -17,67 +16,59 @@ pub struct WalkOptions {
     pub glob: Option<Vec<String>>,
 }
 
-impl Default for WalkOptions {
-    fn default() -> Self {
-        Self {
-            root: PathBuf::new(),
-            ignore: None,
-            glob: None,
-        }
-    }
-}
-
-/// Visit files under a root use a stack-based DFS, applying ignore rules and filters.
-///
-/// The visitor closure receives `&Path` of a file.
-/// Errors are ignored.
-pub fn walk<F>(options: &WalkOptions, mut visitor: F)
+/// Visit files below one root in depth-first order.
+pub fn walk<F>(
+    file_system: &dyn FileSystem,
+    options: &WalkOptions,
+    mut visitor: F,
+) -> io::Result<()>
 where
     F: FnMut(&Path),
 {
-    // stack-based DFS to avoid recursion
-    let mut dir_stack: Vec<PathBuf> = vec![options.root.clone()];
+    // retain pending directories without recursive calls
+    let mut directory_stack: Vec<PathBuf> = vec![options.root.clone()];
     let mut ignore_set = IgnoreSet::new();
-    let file_system = PhysicalFileSystem;
 
-    while let Some(dir) = dir_stack.pop() {
-        // consider ignore set
-        ignore_set.load(&file_system, &dir);
+    while let Some(directory) = directory_stack.pop() {
+        // load ignore rules declared by this directory
+        ignore_set.load(file_system, &directory)?;
 
-        // walk entries
-        let read_dir = match std::fs::read_dir(&dir) {
-            Ok(rd) => rd,
-            Err(_) => continue,
-        };
-        for entry in read_dir.flatten() {
-            let path = entry.path();
-            let file_type = match entry.file_type() {
-                Ok(t) => t,
-                Err(_) => continue,
-            };
-            let is_dir = file_type.is_dir();
+        // inspect every directory entry through the selected file system
+        let paths = file_system.read_dir(&directory).map_err(|error| {
+            io::Error::new(
+                error.kind(),
+                format!("failed to read {}: {error}", directory.display()),
+            )
+        })?;
+        for path in paths {
+            let metadata = file_system.symlink_metadata(&path).map_err(|error| {
+                io::Error::new(
+                    error.kind(),
+                    format!("failed to inspect {}: {error}", path.display()),
+                )
+            })?;
 
-            // skip if ignored
-            if ignore_set.is_ignored(&options.root, &path, is_dir) {
+            // skip ignored entries
+            if ignore_set.is_ignored(&options.root, &path, metadata.is_directory) {
                 continue;
             }
 
-            // if directory, add to stack
-            if is_dir {
+            // schedule included directories
+            if metadata.is_directory {
                 if let Some(name) = path.file_name().and_then(|s| s.to_str())
                     && let Some(ignore) = &options.ignore
                     && ignore.iter().any(|directory| directory == name)
                 {
                     continue;
                 }
-                dir_stack.push(path);
+                directory_stack.push(path);
                 continue;
             }
-            if !file_type.is_file() {
+            if !metadata.is_file {
                 continue;
             }
 
-            // skip if not matched by glob
+            // skip files outside the selected patterns
             if let Some(glob) = &options.glob {
                 let text = path.to_string_lossy();
                 if !glob
@@ -88,8 +79,10 @@ where
                 }
             }
 
-            // visit file
+            // visit the selected file
             visitor(&path);
         }
     }
+
+    Ok(())
 }

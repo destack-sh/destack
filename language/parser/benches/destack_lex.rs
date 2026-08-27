@@ -77,8 +77,11 @@ fn bench_lex(criterion: &mut Criterion) {
     let workspace_root = workspace_root_path.to_string_lossy().into_owned();
 
     // collect source files
-    let mut ds_files = glob(&format!("{workspace_root}/**/*.ds"));
-    ds_files.extend(glob(&format!("{workspace_root}/**/*.d.ds")));
+    let mut ds_files =
+        glob(&format!("{workspace_root}/**/*.ds")).expect("collect Destack source files");
+    ds_files.extend(
+        glob(&format!("{workspace_root}/**/*.d.ds")).expect("collect Destack declaration files"),
+    );
     ds_files.sort();
     ds_files.dedup();
 

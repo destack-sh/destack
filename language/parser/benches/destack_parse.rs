@@ -306,7 +306,9 @@ fn collect_parser_sources(root: &Path, include_stress: bool) -> Vec<PathBuf> {
     let mut source_files = Vec::new();
 
     for extension in SOURCE_EXTENSIONS {
-        source_files.extend(glob(&format!("{root}/**/*.{extension}")));
+        source_files.extend(
+            glob(&format!("{root}/**/*.{extension}")).expect("collect parser benchmark sources"),
+        );
     }
 
     source_files.retain(|path| {

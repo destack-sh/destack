@@ -1,12 +1,13 @@
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
+use std::io;
 use std::path::{Path, PathBuf};
 
 use clap::Args;
-use destack_source::PhysicalFileSystem;
+use destack_source::{FileSystem, PhysicalFileSystem};
 use tiktoken_rs::o200k_base;
 
-use crate::console::{bold, color, dim, style, visible_width};
+use crate::console::{self, bold, color, dim, style, visible_width};
 
 /// Marker definitions: (name, ansi_color_code, dot_char)
 const MARKERS: &[(&str, &str, char)] = &[
@@ -217,10 +218,8 @@ pub fn run(args: &StatsArgs) -> i32 {
     let root = match args.path.canonicalize() {
         Ok(p) => p,
         Err(error) => {
-            eprintln!(
-                "{} failed to resolve path: {error}",
-                color("error:", "1;91")
-            );
+            console::error(&format!("error: failed to resolve path: {error}"));
+
             return 1;
         }
     };
@@ -241,11 +240,9 @@ pub fn run(args: &StatsArgs) -> i32 {
         match o200k_base() {
             Ok(bpe) => Some(bpe),
             Err(error) => {
-                eprintln!(
-                    "{} failed to initialize tokenizer: {error}",
-                    color("warning:", "1;93")
-                );
-                None
+                console::error(&format!("error: failed to initialize tokenizer: {error}"));
+
+                return 1;
             }
         }
     };
@@ -254,7 +251,11 @@ pub fn run(args: &StatsArgs) -> i32 {
     let mut ignore_set = destack_source::IgnoreSet::new();
     let file_system = PhysicalFileSystem;
     let mut files = Vec::new();
-    walk_directory(&file_system, &root, &root, &mut files, &mut ignore_set);
+    if let Err(error) = walk_directory(&file_system, &root, &root, &mut files, &mut ignore_set) {
+        console::error(&format!("error: failed to read source tree: {error}"));
+
+        return 1;
+    }
 
     // count tokens once file metadata is known
     assign_token_counts(&root, &mut files, tokenizer.as_ref(), token_count_mode);
@@ -277,48 +278,56 @@ pub fn run(args: &StatsArgs) -> i32 {
 ///
 /// # Arguments
 /// * `root` - Root directory path for gitignore resolution
-/// * `dir` - Current directory being processed
+/// * `directory` - Current directory being processed
 /// * `files` - Collected file metadata entries
 /// * `ignore_set` - Gitignore rules for filtering files
 fn walk_directory(
     file_system: &PhysicalFileSystem,
     root: &Path,
-    dir: &Path,
+    directory: &Path,
     files: &mut Vec<FileEntry>,
     ignore_set: &mut destack_source::IgnoreSet,
-) {
+) -> io::Result<()> {
     // load gitignore for this directory
-    ignore_set.load(file_system, dir);
+    ignore_set.load(file_system, directory)?;
 
-    let read_dir = match std::fs::read_dir(dir) {
-        Ok(rd) => rd,
-        Err(_) => return,
-    };
-
-    for entry in read_dir.flatten() {
-        let path = entry.path();
-        let file_type = match entry.file_type() {
-            Ok(ft) => ft,
-            Err(_) => continue,
-        };
+    // inspect every directory entry
+    let paths = file_system.read_dir(directory).map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!("failed to read {}: {error}", directory.display()),
+        )
+    })?;
+    for path in paths {
+        let metadata = file_system.symlink_metadata(&path).map_err(|error| {
+            io::Error::new(
+                error.kind(),
+                format!("failed to inspect {}: {error}", path.display()),
+            )
+        })?;
 
         // skip hidden files and directories
-        let name = match path.file_name().and_then(|s| s.to_str()) {
-            Some(n) => n,
-            None => continue,
-        };
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("path has no UTF-8 file name: {}", path.display()),
+                )
+            })?;
         if name.starts_with('.') {
             continue;
         }
 
         // check gitignore
-        if ignore_set.is_ignored(root, &path, file_type.is_dir()) {
+        if ignore_set.is_ignored(root, &path, metadata.is_directory) {
             continue;
         }
 
-        if file_type.is_dir() {
-            walk_directory(file_system, root, &path, files, ignore_set);
-        } else if file_type.is_file() {
+        if metadata.is_directory {
+            walk_directory(file_system, root, &path, files, ignore_set)?;
+        } else if metadata.is_file {
             // get extension
             let extension = path
                 .extension()
@@ -332,10 +341,12 @@ fn walk_directory(
             }
 
             // read file content
-            let content = match std::fs::read_to_string(&path) {
-                Ok(c) => c,
-                Err(_) => continue,
-            };
+            let content = file_system.read_to_string(&path).map_err(|error| {
+                io::Error::new(
+                    error.kind(),
+                    format!("failed to read {}: {error}", path.display()),
+                )
+            })?;
 
             // count stats
             let lines = content.lines().count();
@@ -351,10 +362,15 @@ fn walk_directory(
             stats.markers = analysis.markers;
             stats.tags = analysis.tags;
 
-            let relative_path = match path.strip_prefix(root) {
-                Ok(relative_path) => relative_path.to_path_buf(),
-                Err(_) => continue,
-            };
+            let relative_path = path
+                .strip_prefix(root)
+                .map(Path::to_path_buf)
+                .map_err(|_| {
+                    io::Error::other(format!(
+                        "walked path is outside source root: {}",
+                        path.display()
+                    ))
+                })?;
 
             files.push(FileEntry {
                 relative_path,
@@ -363,6 +379,8 @@ fn walk_directory(
             });
         }
     }
+
+    Ok(())
 }
 
 /// Assign token counts to collected file entries.

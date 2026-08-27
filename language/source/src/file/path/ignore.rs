@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::{self, ErrorKind};
 use std::path::{Component, Path, PathBuf};
 
 use crate::FileSystem;
@@ -40,22 +41,22 @@ impl IgnoreSet {
     }
 
     /// Load ignore files for a directory if not already loaded.
-    pub fn load(&mut self, file_system: &dyn FileSystem, directory: &Path) {
+    pub fn load(&mut self, file_system: &dyn FileSystem, directory: &Path) -> io::Result<()> {
         let key = directory.to_path_buf();
         if self.loaded.contains_key(&key) {
-            return;
+            return Ok(());
         }
 
         // load gitignore patterns first
         let mut patterns = Vec::new();
         let ignore_file = directory.join(GITIGNORE_FILE_NAME);
-        if let Ok(text) = file_system.read_to_string(&ignore_file) {
+        if let Some(text) = read_optional(file_system, &ignore_file)? {
             patterns.extend(parse_patterns(&text));
         }
 
         // load stats relevant gitattributes patterns
         let attributes_file = directory.join(GITATTRIBUTES_FILE_NAME);
-        if let Ok(text) = file_system.read_to_string(&attributes_file) {
+        if let Some(text) = read_optional(file_system, &attributes_file)? {
             patterns.extend(parse_gitattributes_patterns(&text));
         }
 
@@ -66,6 +67,8 @@ impl IgnoreSet {
                 patterns,
             },
         );
+
+        Ok(())
     }
 
     /// Check if a path is ignored, considering all ancestor ignore files.
@@ -88,6 +91,18 @@ impl IgnoreSet {
             }
         }
         ignored
+    }
+}
+
+/// Read one ignore file when it exists.
+fn read_optional(file_system: &dyn FileSystem, path: &Path) -> io::Result<Option<String>> {
+    match file_system.read_to_string(path) {
+        Ok(text) => Ok(Some(text)),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(io::Error::new(
+            error.kind(),
+            format!("failed to read {}: {error}", path.display()),
+        )),
     }
 }
 
@@ -289,7 +304,9 @@ mod tests {
             .expect("write ignore file");
 
         let mut ignore_set = IgnoreSet::new();
-        ignore_set.load(&fs, &fs.path_for("project"));
+        ignore_set
+            .load(&fs, &fs.path_for("project"))
+            .expect("load ignore rules");
 
         let target_file = fs.path_for("project/target");
         assert!(ignore_set.is_ignored(fs.root(), &target_file, true));
@@ -326,7 +343,9 @@ archive.tar export-ignore
             .expect("write attributes file");
 
         let mut ignore_set = IgnoreSet::new();
-        ignore_set.load(&fs, &fs.path_for("project"));
+        ignore_set
+            .load(&fs, &fs.path_for("project"))
+            .expect("load attribute rules");
 
         let generated_file = fs.path_for("project/generated/parser.c");
         assert!(ignore_set.is_ignored(fs.root(), &generated_file, false));

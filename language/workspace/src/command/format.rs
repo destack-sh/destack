@@ -212,7 +212,7 @@ impl CommandContext<'_> {
                     fs.as_ref(),
                     self.repository.path(),
                     self.repository.path(),
-                );
+                )?;
             }
             FormatSource::Files(files) => {
                 for path in files {
@@ -226,8 +226,10 @@ impl CommandContext<'_> {
         let mut did_any_change = false;
         let mut seen_files = HashSet::new();
         for path in paths {
-            let metadata = fs.metadata(&path).ok();
-            if matches!(metadata, Some(meta) if meta.is_file) {
+            let metadata = fs.metadata(&path).map_err(|error| {
+                CommandError::source(format!("failed to inspect {}: {error}", path.display()))
+            })?;
+            if metadata.is_file {
                 if !seen_files.insert(path.clone()) {
                     continue;
                 }
@@ -258,8 +260,8 @@ impl CommandContext<'_> {
                 continue;
             }
 
-            if matches!(metadata, Some(meta) if meta.is_directory) {
-                let files = collect_formattable_files(fs.as_ref(), &path, self.repository.path());
+            if metadata.is_directory {
+                let files = collect_formattable_files(fs.as_ref(), &path, self.repository.path())?;
                 for file_path in files {
                     if !seen_files.insert(file_path.clone()) {
                         continue;
@@ -413,13 +415,14 @@ fn collect_formattable_files(
     fs: &dyn FileSystem,
     directory: &Path,
     ignore_root: &Path,
-) -> Vec<PathBuf> {
+) -> CommandResult<Vec<PathBuf>> {
     let mut files = Vec::new();
     let mut ignore_set = IgnoreSet::new();
 
-    collect_formattable_files_in_dir(fs, ignore_root, directory, &mut ignore_set, &mut files);
+    collect_formattable_files_in_dir(fs, ignore_root, directory, &mut ignore_set, &mut files)?;
     files.sort();
-    files
+
+    Ok(files)
 }
 
 /// Walk a directory to collect formattable files.
@@ -429,23 +432,27 @@ fn collect_formattable_files_in_dir(
     directory: &Path,
     ignore_set: &mut IgnoreSet,
     files: &mut Vec<PathBuf>,
-) {
-    let Ok(entries) = fs.read_dir(directory) else {
-        return;
-    };
-    let mut entries = entries;
+) -> CommandResult<()> {
+    let mut entries = fs.read_dir(directory).map_err(|error| {
+        CommandError::source(format!("failed to read {}: {error}", directory.display()))
+    })?;
     entries.sort();
-    ignore_set.load(fs, directory);
+    ignore_set.load(fs, directory).map_err(|error| {
+        CommandError::source(format!(
+            "failed to read ignore rules in {}: {error}",
+            directory.display()
+        ))
+    })?;
 
     for entry in entries {
-        let Ok(metadata) = fs.metadata(&entry) else {
-            continue;
-        };
+        let metadata = fs.metadata(&entry).map_err(|error| {
+            CommandError::source(format!("failed to inspect {}: {error}", entry.display()))
+        })?;
         if ignore_set.is_ignored(ignore_root, &entry, metadata.is_directory) {
             continue;
         }
         if metadata.is_directory {
-            collect_formattable_files_in_dir(fs, ignore_root, &entry, ignore_set, files);
+            collect_formattable_files_in_dir(fs, ignore_root, &entry, ignore_set, files)?;
             continue;
         }
         if !metadata.is_file {
@@ -459,6 +466,8 @@ fn collect_formattable_files_in_dir(
             files.push(entry);
         }
     }
+
+    Ok(())
 }
 
 /// Get formatting options for a file, checking for destack.json.

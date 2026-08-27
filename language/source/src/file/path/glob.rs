@@ -1,4 +1,7 @@
+use std::io;
 use std::path::PathBuf;
+
+use crate::PhysicalFileSystem;
 
 use super::{WalkOptions, walk};
 
@@ -114,9 +117,9 @@ fn is_separator(byte: u8) -> bool {
 }
 
 /// Collect filesystem entries matching a glob `pattern`.
-pub fn glob(pattern: &str) -> Vec<PathBuf> {
+pub fn glob(pattern: &str) -> io::Result<Vec<PathBuf>> {
     // split pattern into base directory and normalized pattern
-    let (base_directory, normalized_pattern) = split_base_directory(pattern);
+    let (base_directory, normalized_pattern) = split_base_directory(pattern)?;
 
     // set up walk options for traversal
     let walk_options = WalkOptions {
@@ -127,13 +130,15 @@ pub fn glob(pattern: &str) -> Vec<PathBuf> {
     let mut paths = Vec::new();
 
     // collect all matching paths
-    walk(&walk_options, |path| paths.push(path.to_path_buf()));
+    walk(&PhysicalFileSystem, &walk_options, |path| {
+        paths.push(path.to_path_buf());
+    })?;
 
-    paths
+    Ok(paths)
 }
 
 /// Extract a base directory prefix without wildcards to limit traversal.
-fn split_base_directory(pattern: &str) -> (PathBuf, String) {
+fn split_base_directory(pattern: &str) -> io::Result<(PathBuf, String)> {
     // normalize separators to '/'
     let normalized = pattern.replace('\\', "/");
 
@@ -158,12 +163,12 @@ fn split_base_directory(pattern: &str) -> (PathBuf, String) {
 
     // use current directory if no base found
     let base_directory = if base.is_empty() {
-        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+        std::env::current_dir()?
     } else {
         PathBuf::from(base)
     };
 
-    (base_directory, normalized)
+    Ok((base_directory, normalized))
 }
 
 #[cfg(test)]
@@ -204,7 +209,7 @@ mod tests {
 
         // search for all .rs files recursively
         let pattern = format!("{}/**/*.rs", fs.root().to_string_lossy());
-        let mut paths = glob(&pattern);
+        let mut paths = glob(&pattern).expect("collect matching paths");
         paths.sort();
 
         // compare the complete path selection
@@ -255,11 +260,21 @@ mod tests {
 
         // collect all files under any fixtures directory
         let pattern = format!("{}/**/fixtures/**", fs.root().to_string_lossy());
-        let paths = glob(&pattern);
+        let paths = glob(&pattern).expect("collect matching paths");
 
         // compare the complete path selection
         let expected =
             vec![fs.path_for("packages/astro/e2e/fixtures/errors/src/components/JSSyntaxError.js")];
         assert_eq!(paths, expected);
+    }
+
+    /// Report a missing traversal root.
+    #[test]
+    fn test_glob_reports_missing_root() {
+        let fs = TemporaryPhysicalFileSystem::new_with_prefix("file_glob_missing");
+        let pattern = format!("{}/missing/**/*.ds", fs.root().to_string_lossy());
+
+        let error = glob(&pattern).unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
     }
 }

@@ -3,7 +3,8 @@ use std::path::{Path, PathBuf};
 use std::{fmt, fs};
 
 use clap::Subcommand;
-use jiff::{Timestamp, tz::TimeZone};
+use jiff::Timestamp;
+use jiff::tz::TimeZone;
 
 use destack_repository::{Destack, parse_jsonc_text};
 use destack_source::glob;
@@ -268,6 +269,7 @@ fn collect_tracked_paths() -> Result<Vec<PathBuf>, String> {
     for configured in FILE_GLOBS_TO_UPDATE {
         let resolved = if configured.contains('*') {
             glob(configured)
+                .map_err(|error| format!("failed to expand version path {configured}: {error}"))?
         } else {
             vec![PathBuf::from(configured)]
         };

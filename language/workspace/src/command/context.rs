@@ -346,7 +346,7 @@ impl<'a> CommandContext<'a> {
 
         let config_path = self.resolve_destack_config_path(self.common.manifest.as_deref())?;
         let config = self.load_destack_config(&config_path)?;
-        let inputs = collect_sources_from_destack_config(&config, self.common.target.as_deref());
+        let inputs = collect_sources_from_destack_config(&config, self.common.target.as_deref())?;
 
         if inputs.is_empty() {
             return Err("no input files provided".to_string().into());
@@ -847,7 +847,7 @@ fn sanitize_command_input_name(name: &str) -> String {
 fn collect_sources_from_destack_config(
     config: &DestackFile,
     target_name: Option<&str>,
-) -> Vec<PathBuf> {
+) -> CommandResult<Vec<PathBuf>> {
     // select target source settings
     let selected_target = target_name
         .map(str::to_string)
@@ -906,8 +906,8 @@ fn collect_sources_from_destack_config(
             includes
         };
 
-        let include_paths = expand_patterns(&base_dir, &patterns);
-        let exclude_paths = expand_patterns(&base_dir, &excludes);
+        let include_paths = expand_patterns(&base_dir, &patterns)?;
+        let exclude_paths = expand_patterns(&base_dir, &excludes)?;
         let excludes: HashSet<PathBuf> = exclude_paths.into_iter().collect();
         for path in include_paths {
             if !excludes.contains(&path) {
@@ -916,11 +916,11 @@ fn collect_sources_from_destack_config(
         }
     }
 
-    paths.into_keys().collect()
+    Ok(paths.into_keys().collect())
 }
 
 /// Expand path patterns relative to a base directory.
-fn expand_patterns(base_dir: &Path, patterns: &[String]) -> Vec<PathBuf> {
+fn expand_patterns(base_dir: &Path, patterns: &[String]) -> CommandResult<Vec<PathBuf>> {
     let mut paths = Vec::new();
     for pattern in patterns {
         let pattern_path = if PathBuf::from(pattern).is_absolute() {
@@ -929,9 +929,14 @@ fn expand_patterns(base_dir: &Path, patterns: &[String]) -> Vec<PathBuf> {
             base_dir.join(pattern)
         };
 
-        let entries = glob(pattern_path.to_string_lossy().as_ref());
+        let entries = glob(pattern_path.to_string_lossy().as_ref()).map_err(|error| {
+            CommandError::config(format!(
+                "failed to expand source pattern {}: {error}",
+                pattern_path.display()
+            ))
+        })?;
         paths.extend(entries);
     }
 
-    paths
+    Ok(paths)
 }
