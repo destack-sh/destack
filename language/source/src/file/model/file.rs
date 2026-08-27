@@ -389,9 +389,7 @@ impl File {
         Some(Span::new(self.id, line_start, line_end))
     }
 
-    /// Get the line number and column for a given byte index.
-    /// Returns (line_index, column_index), both 0-based.
-    /// Uses binary search for O(log n) performance.
+    /// Get the line number and byte column for a given byte index.
     pub fn get_position(&self, byte_index: u32) -> Option<(u32, u32)> {
         let line_start_offsets = self.line_start_offsets()?;
         if byte_index > self.len {
@@ -412,6 +410,16 @@ impl File {
 
         let line_start = line_start_offsets[line_index as usize];
         let column = byte_index - line_start;
+
+        Some((line_index, column))
+    }
+
+    /// Get the line number and UTF-16 column for a given byte index.
+    pub fn get_utf16_position(&self, byte_index: u32) -> Option<(u32, u32)> {
+        let (line_index, _) = self.get_position(byte_index)?;
+        let line_start = self.line_start_offsets()?[line_index as usize];
+        let line_prefix = self.text().get(line_start as usize..byte_index as usize)?;
+        let column = u32::try_from(line_prefix.encode_utf16().count()).ok()?;
 
         Some((line_index, column))
     }
