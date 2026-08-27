@@ -194,6 +194,83 @@ const result = identity(1);
 @inlay_hints.none
 ```
 
+### Omit a hint for an explicit declaration while typing
+
+Request inlay hints after every inserted scalar.
+
+```ds main.ds
+// module
+```
+
+```ds main.ds type
+// module
+
+declare const x: Clone;
+^^^^^^^^^^^^^^^^^^^^^^^ declaration
+```
+
+```query inlay_hints main.ds#declaration
+@inlay_hints.none
+```
+
+### Render the current inferred binding type
+
+An inferred type hint reflects the current initializer.
+
+```ds main.ds
+const value = 1;
+      ^^^^^ binding
+```
+
+```query inlay_hints main.ds#binding
+@inlay_hints.hint position=main.ds#binding@end label=": 1" kind=type
+```
+
+```ds main.ds change
+const value = true;
+      ^^^^^ binding
+```
+
+```query inlay_hints main.ds#binding
+@inlay_hints.hint position=main.ds#binding@end label=": true" kind=type
+```
+
+### Render an unresolved initializer type
+
+An unresolved initializer renders as `<error>`.
+
+```ds main.ds
+const value = 1;
+      ^^^^^ binding
+```
+
+```query inlay_hints main.ds#binding
+@inlay_hints.hint position=main.ds#binding@end label=": 1" kind=type
+```
+
+```ds main.ds change
+const value = missing;
+      ^^^^^ binding
+```
+
+```query inlay_hints main.ds#binding
+@inlay_hints.hint position=main.ds#binding@end label=": <error>" kind=type
+```
+
+### Render an inferred template literal type
+
+An inferred hint preserves every static string segment and interpolated type.
+
+```ds main.ds
+declare const route: `api:${string}`;
+const selected = route;
+      ^^^^^^^^ selected
+```
+
+```query inlay_hints main.ds#selected
+@inlay_hints.hint position=main.ds#selected@end label=": `api:${string}`" kind=type
+```
+
 ## Call Arguments
 
 ### Show parameter names for local call arguments
@@ -533,6 +610,32 @@ repeat("ready", 2);
 @inlay_hints.hint position=main.ds#count_argument label="count:" kind=parameter padding_right=true
 ```
 
+### Render the current parameter name
+
+Parameter name hints update when the callable parameter is renamed.
+
+```ds main.ds
+function send(value: string): void {}
+
+send("ready");
+^^^^^^^^^^^^^^ call
+     ^ argument
+```
+
+```query inlay_hints main.ds#call
+@inlay_hints.hint position=main.ds#argument label="value:" kind=parameter padding_right=true
+```
+
+```diff main.ds
+@@ -1 +1 @@
+-function send(value: string): void {}
++function send(message: string): void {}
+```
+
+```query inlay_hints main.ds#call
+@inlay_hints.hint position=main.ds#argument label="message:" kind=parameter padding_right=true
+```
+
 ## Construction
 
 ### Show class constructor parameter names
@@ -586,142 +689,4 @@ ping();
 
 ```query inlay_hints main.ds#call
 @inlay_hints.none
-```
-
-## Source changes
-
-### Request hints while typing a declaration
-
-Request inlay hints after every inserted scalar.
-
-```ds main.ds
-// module
-```
-
-```ds main.ds type
-// module
-
-declare const x: Clone;
-^^^^^^^^^^^^^^^^^^^^^^^ declaration
-```
-
-```query inlay_hints main.ds#declaration
-@inlay_hints.none
-```
-
-### Update an inferred binding hint
-
-An inferred type hint reflects the current initializer.
-
-```ds main.ds
-const value = 1;
-      ^^^^^ binding
-```
-
-```query inlay_hints main.ds#binding
-@inlay_hints.hint position=main.ds#binding@end label=": 1" kind=type
-```
-
-```ds main.ds change
-const value = true;
-      ^^^^^ binding
-```
-
-```query inlay_hints main.ds#binding
-@inlay_hints.hint position=main.ds#binding@end label=": true" kind=type
-```
-
-### Render inferred types during incomplete edits
-
-An unresolved initializer renders as `<error>`.
-
-```ds main.ds
-const value = 1;
-      ^^^^^ binding
-```
-
-```query inlay_hints main.ds#binding
-@inlay_hints.hint position=main.ds#binding@end label=": 1" kind=type
-```
-
-```ds main.ds change
-const value = missing;
-      ^^^^^ binding
-```
-
-```query inlay_hints main.ds#binding
-@inlay_hints.hint position=main.ds#binding@end label=": <error>" kind=type
-```
-
-### Update parameter names after a callable edit
-
-Parameter name hints update when the callable parameter is renamed.
-
-```ds main.ds
-function send(value: string): void {}
-
-send("ready");
-^^^^^^^^^^^^^^ call
-     ^ argument
-```
-
-```query inlay_hints main.ds#call
-@inlay_hints.hint position=main.ds#argument label="value:" kind=parameter padding_right=true
-```
-
-```diff main.ds
-@@ -1 +1 @@
--function send(value: string): void {}
-+function send(message: string): void {}
-```
-
-```query inlay_hints main.ds#call
-@inlay_hints.hint position=main.ds#argument label="message:" kind=parameter padding_right=true
-```
-
-### Request hints while typing a module
-
-Request inlay hints after each typed character.
-
-```ds main.ds
-// module
-```
-
-```ds main.ds type
-// module
-^^^^^^^^^ module:start
-
-class World {}
-
-struct Position {
-    x: float64;
-    y: float64;
-}
-
-class Player {
-    world: World;
-    position: Position;
-}
-
-const playerCount = 1;
-      ^^^^^^^^^^^ player_count
-^^^^^^^^^^^^^^^^^^^^^ module:end
-```
-
-```query inlay_hints main.ds#module
-@inlay_hints.hint position=main.ds#player_count@end label=": 1" kind=type
-```
-
-### Render an inferred template literal type
-
-An inferred hint preserves every static string segment and interpolated type.
-
-```ds main.ds
-declare const route: `api:${string}`;
-const selected = route;
-      ^^^^^^^^ selected
-```
-
-```query inlay_hints main.ds#selected
-@inlay_hints.hint position=main.ds#selected@end label=": `api:${string}`" kind=type
 ```

@@ -580,6 +580,45 @@ const message = welcome("Destack");
 @goto_definition.target origin=main.ds#reference:aliased_import location=library.ds#declaration:aliased_import selection=library.ds#definition:aliased_import symbol=library.ds#greet@1
 ```
 
+### Resolve the current imported definition
+
+An imported reference follows the declaration in the selected revision.
+
+```ds library.ds
+export function greet(name: string): string {
+^ declaration:start
+                ^^^^^ definition
+    return name;
+}
+^ declaration:end
+```
+
+```ds main.ds
+import { greet } from "./library.ds";
+
+const message = greet("World");
+                ^^^^^ reference
+```
+
+```query goto_definition main.ds#reference
+@goto_definition.target origin=main.ds#reference location=library.ds#declaration selection=library.ds#definition symbol=library.ds#greet@1
+```
+
+```ds library.ds change
+export const prefix = "Hello";
+
+export function greet(name: string): string {
+^ declaration:start
+                ^^^^^ definition
+    return prefix;
+}
+^ declaration:end
+```
+
+```query goto_definition main.ds#reference
+@goto_definition.target origin=main.ds#reference location=library.ds#declaration selection=library.ds#definition symbol=library.ds#greet@2
+```
+
 ## Re-Exports
 
 ### Resolve a named re-export
@@ -849,78 +888,4 @@ class Service {}
 
 ```query goto_definition main.ds#reference:tracked
 @goto_definition.target origin=main.ds#reference:tracked location=main.ds#declaration:tracked selection=main.ds#definition:tracked symbol=main.ds#tracked@1
-```
-
-## Source changes
-
-### Follow an imported definition across revisions
-
-An imported reference follows the declaration in the selected revision.
-
-```ds library.ds
-export function greet(name: string): string {
-^ declaration:start
-                ^^^^^ definition
-    return name;
-}
-^ declaration:end
-```
-
-```ds main.ds
-import { greet } from "./library.ds";
-
-const message = greet("World");
-                ^^^^^ reference
-```
-
-```query goto_definition main.ds#reference
-@goto_definition.target origin=main.ds#reference location=library.ds#declaration selection=library.ds#definition symbol=library.ds#greet@1
-```
-
-```ds library.ds change
-export const prefix = "Hello";
-
-export function greet(name: string): string {
-^ declaration:start
-                ^^^^^ definition
-    return prefix;
-}
-^ declaration:end
-```
-
-```query goto_definition main.ds#reference
-@goto_definition.target origin=main.ds#reference location=library.ds#declaration selection=library.ds#definition symbol=library.ds#greet@2
-```
-
-### Resolve a type while typing a module
-
-Execute definition lookup after each typed character.
-
-```ds main.ds
-// module
-```
-
-```ds main.ds type
-// module
-
-class World {
-^ declaration:start
-      ^^^^^ definition
-}
-^ declaration:end
-
-struct Position {
-    x: float64;
-    y: float64;
-}
-
-class Player {
-    world: World;
-           ^^^^^ reference
-    position: Position;
-}
-```
-
-```query goto_definition main.ds#reference
-@goto_definition.target origin=main.ds#reference location=main.ds#declaration selection=main.ds#definition symbol=main.ds#World@1
 ```

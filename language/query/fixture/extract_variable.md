@@ -43,6 +43,37 @@ function total(left: int32, right: int32): int32 {
 }
 ```
 
+### Extract two local expressions
+
+Each extraction uses the source produced by the preceding edit.
+
+```ds main.ds
+const first = 1 + 2;
+              ^^^^^ selection:first
+const second = 3 + 4;
+               ^^^^^ selection:second
+```
+
+```query extract_variable main.ds#selection:first new_name=firstValue apply
+```
+
+```ds main.ds after
+const firstValue = 1 + 2;
+const first = firstValue;
+const second = 3 + 4;
+               ^^^^^ selection:second
+```
+
+```query extract_variable main.ds#selection:second new_name=secondValue
+```
+
+```ds main.ds after
+const firstValue = 1 + 2;
+const first = firstValue;
+const secondValue = 3 + 4;
+const second = secondValue;
+```
+
 ## Module Expression
 
 ### Extract a module initializer
@@ -274,37 +305,4 @@ const first = 1, second = 2 + 3;
 const first = 1;
 const sum = 2 + 3;
 const second = sum;
-```
-
-## Successive Extractions
-
-### Extract expressions across applied revisions
-
-Each extraction uses the source produced by the preceding edit.
-
-```ds main.ds
-const first = 1 + 2;
-              ^^^^^ selection:first
-const second = 3 + 4;
-               ^^^^^ selection:second
-```
-
-```query extract_variable main.ds#selection:first new_name=firstValue apply
-```
-
-```ds main.ds after
-const firstValue = 1 + 2;
-const first = firstValue;
-const second = 3 + 4;
-               ^^^^^ selection:second
-```
-
-```query extract_variable main.ds#selection:second new_name=secondValue
-```
-
-```ds main.ds after
-const firstValue = 1 + 2;
-const first = firstValue;
-const secondValue = 3 + 4;
-const second = secondValue;
 ```

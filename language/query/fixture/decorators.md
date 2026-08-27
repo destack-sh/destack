@@ -76,6 +76,30 @@ class Service {}
 @decorators.owner index=1 location=main.ds#target node=main.ds#declaration@10
 ```
 
+### Return current decorator applications
+
+Decorator lookup includes applications added in later revisions.
+
+```ds main.ds
+function verify(): void {}
+```
+
+```query decorators scope=main.ds
+@decorators.none
+```
+
+```ds main.ds change
+@deprecated("use verifyNew")
+ ^^^^^^^^^^^^^^^^^^^^^^^^^^^ decorator
+function verify(): void {}
+         ^^^^^^ target
+```
+
+```query decorators scope=main.ds
+@decorators.application index=0 name=deprecated role=language_item language_item=deprecated location=main.ds#decorator node=main.ds#decorator@4
+@decorators.owner index=0 location=main.ds#target node=main.ds#declaration@8
+```
+
 ## Program
 
 ### Return decorators across modules
@@ -121,30 +145,4 @@ function verify(): void {}
 
 ```query decorators scope=main.ds name=missing
 @decorators.none
-```
-
-## Source changes
-
-### Add a decorator application
-
-Decorator lookup includes applications added in later revisions.
-
-```ds main.ds
-function verify(): void {}
-```
-
-```query decorators scope=main.ds
-@decorators.none
-```
-
-```ds main.ds change
-@deprecated("use verifyNew")
- ^^^^^^^^^^^^^^^^^^^^^^^^^^^ decorator
-function verify(): void {}
-         ^^^^^^ target
-```
-
-```query decorators scope=main.ds
-@decorators.application index=0 name=deprecated role=language_item language_item=deprecated location=main.ds#decorator node=main.ds#decorator@4
-@decorators.owner index=0 location=main.ds#target node=main.ds#declaration@8
 ```

@@ -23,6 +23,37 @@ const bar = foo + foo;
 @highlight.range range=main.ds#occurrence:second kind=read
 ```
 
+### Highlight current references
+
+Highlights include the current declaration and references.
+
+```ds main.ds
+const value = 1;
+      ^^^^^ occurrence:definition
+const first = value;
+              ^^^^^ occurrence:first
+```
+
+```query highlight main.ds#occurrence:first
+@highlight.range range=main.ds#occurrence:definition kind=write
+@highlight.range range=main.ds#occurrence:first kind=read
+```
+
+```ds main.ds change
+const value = 1;
+      ^^^^^ occurrence:definition
+const first = value;
+              ^^^^^ occurrence:first
+const second = value;
+               ^^^^^ occurrence:second
+```
+
+```query highlight main.ds#occurrence:first
+@highlight.range range=main.ds#occurrence:definition kind=write
+@highlight.range range=main.ds#occurrence:first kind=read
+@highlight.range range=main.ds#occurrence:second kind=read
+```
+
 ## Functions
 
 ### Highlight function occurrences
@@ -276,37 +307,4 @@ const value = 42;
 
 ```query highlight main.ds#literal
 @highlight.none
-```
-
-## Source changes
-
-### Update highlights after a reference is added
-
-Highlights include the current declaration and references.
-
-```ds main.ds
-const value = 1;
-      ^^^^^ occurrence:definition
-const first = value;
-              ^^^^^ occurrence:first
-```
-
-```query highlight main.ds#occurrence:first
-@highlight.range range=main.ds#occurrence:definition kind=write
-@highlight.range range=main.ds#occurrence:first kind=read
-```
-
-```ds main.ds change
-const value = 1;
-      ^^^^^ occurrence:definition
-const first = value;
-              ^^^^^ occurrence:first
-const second = value;
-               ^^^^^ occurrence:second
-```
-
-```query highlight main.ds#occurrence:first
-@highlight.range range=main.ds#occurrence:definition kind=write
-@highlight.range range=main.ds#occurrence:first kind=read
-@highlight.range range=main.ds#occurrence:second kind=read
 ```

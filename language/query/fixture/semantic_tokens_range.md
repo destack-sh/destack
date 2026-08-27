@@ -50,25 +50,7 @@ const value = 1;
 @semantic_tokens_range.none
 ```
 
-## Empty Results
-
-### Return no tokens for lexical source
-
-A range containing only comments and literals has no semantic tokens.
-
-```ds main.ds
-// ordinary comment
-"text";
-^^^^^^^ lexical
-```
-
-```query semantic_tokens_range main.ds#lexical
-@semantic_tokens_range.none
-```
-
-## Source changes
-
-### Follow a selected token after earlier text changes
+### Classify the current selected token
 
 The requested range resolves against the selected revision.
 
@@ -91,4 +73,20 @@ const second = 2;
 
 ```query semantic_tokens_range main.ds#second
 @semantic_tokens_range.token range=main.ds#second type=variable modifiers=declaration,readonly
+```
+
+## Empty Results
+
+### Return no tokens for lexical source
+
+A range containing only comments and literals has no semantic tokens.
+
+```ds main.ds
+// ordinary comment
+"text";
+^^^^^^^ lexical
+```
+
+```query semantic_tokens_range main.ds#lexical
+@semantic_tokens_range.none
 ```

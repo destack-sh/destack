@@ -630,6 +630,172 @@ function borrow<'a>(value: &'a readonly string): &'a readonly string {
 @semantic_tokens.token range=main.ds#value_reference type=parameter
 ```
 
+### Classify a declaration while typing
+
+Request semantic tokens after every inserted scalar.
+
+```ds main.ds
+// module
+```
+
+```ds main.ds type
+// module
+
+declare const x: Clone;
+              ^ binding
+                 ^^^^^ type
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#type type=interface modifiers=default_library
+```
+
+### Classify a selected replacement while typing
+
+Replace the selected type with the first scalar and insert each remaining scalar separately.
+
+```ds main.ds
+declare const value: Wrong;
+```
+
+```ds main.ds type
+declare const value: Clone;
+              ^^^^^ binding
+                     ^^^^^ type
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#type type=interface modifiers=default_library
+```
+
+### Classify a declaration while backspacing
+
+Request semantic tokens after every scalar removed from the end of a type name.
+
+```ds main.ds
+declare const value: Cloneeeee;
+```
+
+```ds main.ds backspace
+declare const value: Clone;
+              ^^^^^ binding
+                     ^^^^^ type
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#type type=interface modifiers=default_library
+```
+
+### Classify a declaration while deleting
+
+Request semantic tokens after every scalar removed from the start of an identifier.
+
+```ds main.ds
+declare const temporaryvalue: Clone;
+```
+
+```ds main.ds delete
+declare const value: Clone;
+              ^^^^^ binding
+                     ^^^^^ type
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#type type=interface modifiers=default_library
+```
+
+### Classify declarations while editing class fields
+
+Class and field declarations remain classified through successive source edits.
+
+```ds main.ds
+class Player {}
+      ^^^^^^ player
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#player type=class modifiers=declaration
+```
+
+```diff main.ds
+@@ -1,2 +1,3 @@
+-class Player {}
++class Player {
+       ^^^^^^ player
++}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#player type=class modifiers=declaration
+```
+
+```diff main.ds
+@@ -1,3 +1,5 @@
+ class Player {
+       ^^^^^^ player
++    x:
++    ^ field
+ }
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#player type=class modifiers=declaration
+@semantic_tokens.token range=main.ds#field type=property modifiers=declaration
+```
+
+```diff main.ds
+@@ -1,5 +1,5 @@
+ class Player {
+       ^^^^^^ player
+-    x:
++    x: number;
+     ^ field
+ }
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#player type=class modifiers=declaration
+@semantic_tokens.token range=main.ds#field type=property modifiers=declaration
+```
+
+### Classify renamed symbols
+
+Semantic roles remain attached to renamed declarations and references.
+
+```ds main.ds
+function identity(value: int32): int32 {
+         ^^^^^^^^ function
+                  ^^^^^ parameter
+    return value;
+           ^^^^^ reference
+}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#function type=function modifiers=declaration
+@semantic_tokens.token range=main.ds#parameter type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#reference type=parameter
+```
+
+```ds main.ds change
+function identity(item: int32): int32 {
+         ^^^^^^^^ function
+                  ^^^^ parameter
+    return item;
+           ^^^^ reference
+}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#function type=function modifiers=declaration
+@semantic_tokens.token range=main.ds#parameter type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#reference type=parameter
+```
+
 ## Imports
 
 ### Classify imported names and aliases
@@ -1093,8 +1259,6 @@ true;
 @semantic_tokens.none
 ```
 
-## Source changes
-
 ### Classify documentation while typing
 
 Request semantic tokens after every inserted documentation character.
@@ -1113,219 +1277,4 @@ struct Position {}
 ```query semantic_tokens main.ds
 @semantic_tokens.token range=main.ds#documentation type=comment modifiers=documentation
 @semantic_tokens.token range=main.ds#position type=struct modifiers=declaration
-```
-
-### Classify a declaration while typing
-
-Request semantic tokens after every inserted scalar.
-
-```ds main.ds
-// module
-```
-
-```ds main.ds type
-// module
-
-declare const x: Clone;
-              ^ binding
-                 ^^^^^ type
-```
-
-```query semantic_tokens main.ds
-@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
-@semantic_tokens.token range=main.ds#type type=interface modifiers=default_library
-```
-
-### Classify a selected replacement while typing
-
-Replace the selected type with the first scalar and insert each remaining scalar separately.
-
-```ds main.ds
-declare const value: Wrong;
-```
-
-```ds main.ds type
-declare const value: Clone;
-              ^^^^^ binding
-                     ^^^^^ type
-```
-
-```query semantic_tokens main.ds
-@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
-@semantic_tokens.token range=main.ds#type type=interface modifiers=default_library
-```
-
-### Classify a declaration while backspacing
-
-Request semantic tokens after every scalar removed from the end of a type name.
-
-```ds main.ds
-declare const value: Cloneeeee;
-```
-
-```ds main.ds backspace
-declare const value: Clone;
-              ^^^^^ binding
-                     ^^^^^ type
-```
-
-```query semantic_tokens main.ds
-@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
-@semantic_tokens.token range=main.ds#type type=interface modifiers=default_library
-```
-
-### Classify a declaration while deleting
-
-Request semantic tokens after every scalar removed from the start of an identifier.
-
-```ds main.ds
-declare const temporaryvalue: Clone;
-```
-
-```ds main.ds delete
-declare const value: Clone;
-              ^^^^^ binding
-                     ^^^^^ type
-```
-
-```query semantic_tokens main.ds
-@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
-@semantic_tokens.token range=main.ds#type type=interface modifiers=default_library
-```
-
-### Classify declarations while editing class fields
-
-Class and field declarations remain classified through successive source edits.
-
-```ds main.ds
-class Player {}
-      ^^^^^^ player
-```
-
-```query semantic_tokens main.ds
-@semantic_tokens.token range=main.ds#player type=class modifiers=declaration
-```
-
-```diff main.ds
-@@ -1,2 +1,3 @@
--class Player {}
-+class Player {
-       ^^^^^^ player
-+}
-```
-
-```query semantic_tokens main.ds
-@semantic_tokens.token range=main.ds#player type=class modifiers=declaration
-```
-
-```diff main.ds
-@@ -1,3 +1,5 @@
- class Player {
-       ^^^^^^ player
-+    x:
-+    ^ field
- }
-```
-
-```query semantic_tokens main.ds
-@semantic_tokens.token range=main.ds#player type=class modifiers=declaration
-@semantic_tokens.token range=main.ds#field type=property modifiers=declaration
-```
-
-```diff main.ds
-@@ -1,5 +1,5 @@
- class Player {
-       ^^^^^^ player
--    x:
-+    x: number;
-     ^ field
- }
-```
-
-```query semantic_tokens main.ds
-@semantic_tokens.token range=main.ds#player type=class modifiers=declaration
-@semantic_tokens.token range=main.ds#field type=property modifiers=declaration
-```
-
-### Update tokens after symbols are renamed
-
-Semantic roles remain attached to renamed declarations and references.
-
-```ds main.ds
-function identity(value: int32): int32 {
-         ^^^^^^^^ function
-                  ^^^^^ parameter
-    return value;
-           ^^^^^ reference
-}
-```
-
-```query semantic_tokens main.ds
-@semantic_tokens.token range=main.ds#function type=function modifiers=declaration
-@semantic_tokens.token range=main.ds#parameter type=parameter modifiers=declaration
-@semantic_tokens.token range=main.ds#reference type=parameter
-```
-
-```ds main.ds change
-function identity(item: int32): int32 {
-         ^^^^^^^^ function
-                  ^^^^ parameter
-    return item;
-           ^^^^ reference
-}
-```
-
-```query semantic_tokens main.ds
-@semantic_tokens.token range=main.ds#function type=function modifiers=declaration
-@semantic_tokens.token range=main.ds#parameter type=parameter modifiers=declaration
-@semantic_tokens.token range=main.ds#reference type=parameter
-```
-
-### Classify a module while typing
-
-Classify the module after each typed character.
-
-```ds main.ds
-// module
-```
-
-```ds main.ds type
-// module
-
-class World {
-      ^^^^^ world
-    name: string;
-    ^^^^ world_name
-}
-
-struct Position {
-       ^^^^^^^^ position
-    x: float64;
-    ^ position_x
-    y: float64;
-    ^ position_y
-}
-
-class Player {
-      ^^^^^^ player
-    world: World;
-    ^^^^^ player_world
-           ^^^^^ world_reference
-    position: Position;
-    ^^^^^^^^ player_position
-              ^^^^^^^^ position_reference
-}
-```
-
-```query semantic_tokens main.ds
-@semantic_tokens.token range=main.ds#world type=class modifiers=declaration
-@semantic_tokens.token range=main.ds#world_name type=property modifiers=declaration
-@semantic_tokens.token range=main.ds#position type=struct modifiers=declaration
-@semantic_tokens.token range=main.ds#position_x type=property modifiers=declaration
-@semantic_tokens.token range=main.ds#position_y type=property modifiers=declaration
-@semantic_tokens.token range=main.ds#player type=class modifiers=declaration
-@semantic_tokens.token range=main.ds#player_world type=property modifiers=declaration
-@semantic_tokens.token range=main.ds#world_reference type=class
-@semantic_tokens.token range=main.ds#player_position type=property modifiers=declaration
-@semantic_tokens.token range=main.ds#position_reference type=struct
 ```

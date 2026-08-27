@@ -31,6 +31,39 @@ struct Rectangle implements Drawable {
 @goto_implementation.target origin=main.ds#target:drawable location=main.ds#declaration:rectangle selection=main.ds#implementation:rectangle symbol=main.ds#Rectangle@7
 ```
 
+### Return current implementations
+
+Implementation lookup includes declarations added in later revisions.
+
+```ds main.ds
+interface Drawable {
+          ^^^^^^^^ target
+    draw(): void;
+}
+```
+
+```query goto_implementation main.ds#target
+@goto_implementation.none
+```
+
+```ds main.ds change
+interface Drawable {
+          ^^^^^^^^ target
+    draw(): void;
+}
+
+class Circle implements Drawable {
+^ declaration:start
+      ^^^^^^ implementation
+    draw(): void {}
+}
+^ declaration:end
+```
+
+```query goto_implementation main.ds#target
+@goto_implementation.target origin=main.ds#target location=main.ds#declaration selection=main.ds#implementation symbol=main.ds#Circle@4
+```
+
 ## Nominal Interfaces
 
 ### Find every direct nominal implementation kind
@@ -380,39 +413,4 @@ export class Sprite implements Surface {
 
 ```query goto_implementation types.ds#target:renderable
 @goto_implementation.target origin=types.ds#target:renderable location=implementation.ds#declaration:sprite selection=implementation.ds#implementation:sprite symbol=implementation.ds#Sprite@2
-```
-
-## Source changes
-
-### Add an implementation
-
-Implementation lookup includes declarations added in later revisions.
-
-```ds main.ds
-interface Drawable {
-          ^^^^^^^^ target
-    draw(): void;
-}
-```
-
-```query goto_implementation main.ds#target
-@goto_implementation.none
-```
-
-```ds main.ds change
-interface Drawable {
-          ^^^^^^^^ target
-    draw(): void;
-}
-
-class Circle implements Drawable {
-^ declaration:start
-      ^^^^^^ implementation
-    draw(): void {}
-}
-^ declaration:end
-```
-
-```query goto_implementation main.ds#target
-@goto_implementation.target origin=main.ds#target location=main.ds#declaration selection=main.ds#implementation symbol=main.ds#Circle@4
 ```

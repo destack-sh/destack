@@ -80,6 +80,52 @@ const color: Color = Color.Red;
 @goto_type_definition.target origin=main.ds#reference:color location=main.ds#declaration:color selection=main.ds#definition:color symbol=main.ds#Color@1
 ```
 
+### Resolve the current value type
+
+A value resolves to its nominal type in each revision.
+
+```ds main.ds
+struct First {
+^ declaration:first:start
+       ^^^^^ definition:first
+}
+^ declaration:first:end
+
+struct Second {
+^ declaration:second:start
+       ^^^^^^ definition:second
+}
+^ declaration:second:end
+
+declare const value: First;
+              ^^^^^ reference
+```
+
+```query goto_type_definition main.ds#reference
+@goto_type_definition.target origin=main.ds#reference location=main.ds#declaration:first selection=main.ds#definition:first symbol=main.ds#First@1
+```
+
+```ds main.ds change
+struct First {
+^ declaration:first:start
+       ^^^^^ definition:first
+}
+^ declaration:first:end
+
+struct Second {
+^ declaration:second:start
+       ^^^^^^ definition:second
+}
+^ declaration:second:end
+
+declare const value: Second;
+              ^^^^^ reference
+```
+
+```query goto_type_definition main.ds#reference
+@goto_type_definition.target origin=main.ds#reference location=main.ds#declaration:second selection=main.ds#definition:second symbol=main.ds#Second@2
+```
+
 ## Type References
 
 ### Resolve primitive runtime declarations
@@ -505,52 +551,4 @@ function main(): void {
 
 ```query goto_type_definition main.ds#reference
 @goto_type_definition.none
-```
-
-## Source changes
-
-### Follow a value after its type changes
-
-A value resolves to its nominal type in each revision.
-
-```ds main.ds
-struct First {
-^ declaration:first:start
-       ^^^^^ definition:first
-}
-^ declaration:first:end
-
-struct Second {
-^ declaration:second:start
-       ^^^^^^ definition:second
-}
-^ declaration:second:end
-
-declare const value: First;
-              ^^^^^ reference
-```
-
-```query goto_type_definition main.ds#reference
-@goto_type_definition.target origin=main.ds#reference location=main.ds#declaration:first selection=main.ds#definition:first symbol=main.ds#First@1
-```
-
-```ds main.ds change
-struct First {
-^ declaration:first:start
-       ^^^^^ definition:first
-}
-^ declaration:first:end
-
-struct Second {
-^ declaration:second:start
-       ^^^^^^ definition:second
-}
-^ declaration:second:end
-
-declare const value: Second;
-              ^^^^^ reference
-```
-
-```query goto_type_definition main.ds#reference
-@goto_type_definition.target origin=main.ds#reference location=main.ds#declaration:second selection=main.ds#definition:second symbol=main.ds#Second@2
 ```

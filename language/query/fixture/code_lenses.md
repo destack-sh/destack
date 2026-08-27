@@ -16,6 +16,40 @@ ping();
 @code_lenses.lens range=main.ds#declaration action=references count=1
 ```
 
+### Count current references
+
+Reference lenses count calls in the selected revision.
+
+```ds main.ds
+function ping(): void {}
+         ^^^^ declaration
+```
+
+```query code_lenses main.ds
+@code_lenses.lens range=main.ds#declaration action=references count=0
+```
+
+```ds main.ds change
+function ping(): void {}
+         ^^^^ declaration
+
+ping();
+```
+
+```query code_lenses main.ds
+@code_lenses.lens range=main.ds#declaration action=references count=1
+```
+
+```diff main.ds
+@@ -4,1 +4,2 @@
+ ping();
++ping();
+```
+
+```query code_lenses main.ds
+@code_lenses.lens range=main.ds#declaration action=references count=2
+```
+
 ## Implementations
 
 ### Offer interface implementations and class subclasses
@@ -138,40 +172,4 @@ const value = (): int32 => 1;
 
 ```query code_lenses main.ds
 @code_lenses.none
-```
-
-## Source changes
-
-### Update reference counts after calls are added
-
-Reference lenses count calls in the selected revision.
-
-```ds main.ds
-function ping(): void {}
-         ^^^^ declaration
-```
-
-```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=references count=0
-```
-
-```ds main.ds change
-function ping(): void {}
-         ^^^^ declaration
-
-ping();
-```
-
-```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=references count=1
-```
-
-```diff main.ds
-@@ -4,1 +4,2 @@
- ping();
-+ping();
-```
-
-```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=references count=2
 ```

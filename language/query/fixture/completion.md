@@ -248,6 +248,30 @@ const result = legacy;
 @completion.item label=legacyName kind=function replace=main.ds#prefix suffix="(): void" declaration="function legacyName(): void" documentation="Use currentName." insert="legacyName()" deprecated=true matches=0,1,2,3,4,5
 ```
 
+### Complete visible symbols from current declarations
+
+Completion reflects the declarations in the selected revision.
+
+```ds main.ds
+const localRevisionAlpha = 1;
+const result = localRevision;
+               ^^^^^^^^^^^^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=localRevisionAlpha kind=constant replace=main.ds#prefix suffix=": 1" declaration="const localRevisionAlpha: 1" matches=0,1,2,3,4,5,6,7,8,9,10,11,12
+```
+
+```ds main.ds change
+const localRevisionAlpine = 2;
+const result = localRevision;
+               ^^^^^^^^^^^^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=localRevisionAlpine kind=constant replace=main.ds#prefix suffix=": 2" declaration="const localRevisionAlpine: 2" matches=0,1,2,3,4,5,6,7,8,9,10,11,12
+```
+
 ## Global Symbols
 
 ### Complete a profile global
@@ -881,6 +905,235 @@ declare const packet: library.Pac;
 @completion.item label=Packet kind=struct replace=main.ds#prefix declaration="export struct Packet" matches=0,1,2
 ```
 
+### Complete members from the current declaration
+
+Member completion uses the receiver selected in each revision.
+
+```ds main.ds
+struct Box {
+    value: string;
+}
+
+declare const box: Box;
+const selected = box.val;
+                     ^^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=value kind=field replace=main.ds#prefix suffix=": string" declaration="Box.value: string" matches=0,1,2
+```
+
+```ds main.ds change
+struct Box {
+    count: int32;
+}
+
+declare const box: Box;
+const selected = box.cou;
+                     ^^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=count kind=field replace=main.ds#prefix suffix=": int32" declaration="Box.count: int32" matches=0,1,2
+```
+
+```diff main.ds
+@@ -1,3 +1,3 @@
+ struct Box {
+-    count: int32;
++    count: boolean;
+ }
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=count kind=field replace=main.ds#prefix suffix=": boolean" declaration="Box.count: boolean" matches=0,1,2
+```
+
+### Complete blanket extensions from current conformance
+
+Blanket extension completion follows the receiver's current interface conformance.
+
+```ds main.ds
+newtype interface Named {}
+
+struct User implements Named {}
+
+extension<Value: Named> of Value {
+    displayName(): string {
+        return "user";
+    }
+}
+
+declare const user: User;
+const result = user.dis;
+                    ^^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=displayName kind=method replace=main.ds#prefix suffix="(): string" declaration="displayName(): string" insert="displayName()" matches=0,1,2
+```
+
+```diff main.ds
+@@ -3 +3 @@
+-struct User implements Named {}
++struct User {}
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.none
+```
+
+```diff main.ds
+@@ -3 +3 @@
+-struct User {}
++struct User implements Named {}
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=displayName kind=method replace=main.ds#prefix suffix="(): string" declaration="displayName(): string" insert="displayName()" matches=0,1,2
+```
+
+### Return no members for an unresolved receiver
+
+An unresolved receiver has no member completion candidates.
+
+```ds main.ds
+struct Box {
+    value: string;
+}
+
+declare const box: Box;
+const selected = box.val;
+                     ^^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=value kind=field replace=main.ds#prefix suffix=": string" declaration="Box.value: string" matches=0,1,2
+```
+
+```diff main.ds
+@@ -5,3 +5,3 @@
+ declare const box: Box;
+-const selected = box.val;
++const selected = missing.val;
+-                     ^^^ prefix
++                         ^^^ prefix
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.none
+```
+
+### Complete a member throughout module typing
+
+Every requested query succeeds throughout incomplete source revisions, and completion returns the
+final member.
+
+```ds main.ds
+// module
+```
+
+```ds main.ds type
+// module
+^^^^^^^^^ module:start
+
+class World {
+^ world_range:start
+      ^^^^^ world_selection
+    name: string;
+    ^^^^^^^^^^^^ world_name_range
+    ^^^^ world_name_selection
+}
+^ world_range:end
+
+struct Position {
+^ position_range:start
+       ^^^^^^^^ position_selection
+    x: float64;
+    ^^^^^^^^^^ position_x_range
+    ^ position_x_selection
+    y: float64;
+    ^^^^^^^^^^ position_y_range
+    ^ position_y_selection
+}
+^ position_range:end
+
+class Player {
+^ player_range:start
+      ^^^^^^ player_selection
+    world: World;
+    ^^^^^^^^^^^^ player_world_range
+    ^^^^^ player_world_selection
+           ^^^^^ world_reference
+    position: Position;
+    ^^^^^^^^^^^^^^^^^^ player_position_range
+    ^^^^^^^^ player_position_selection
+              ^^^^^^^^ position_reference
+}
+^ player_range:end
+
+const playerCount = 1;
+^^^^^^^^^^^^^^^^^^^^^ player_count_range
+      ^^^^^^^^^^^ player_count_selection
+
+declare const player: Player;
+                      ^^^^^^ player_type
+const selected = player.wo;
+      ^^^^^^^^ selected
+                 ^^^^^^ player_reference
+                        ^^ prefix
+^^^^^^^^^^^^^^^^^^^^^^^^^^ module:end
+```
+
+```query completion main.ds#prefix@end trigger=.
+@completion.item label=world kind=field replace=main.ds#prefix suffix=": World" declaration="Player.world: World" matches=0,1
+```
+
+```query goto_definition main.ds#world_reference
+@goto_definition.target origin=main.ds#world_reference location=main.ds#world_range selection=main.ds#world_selection symbol=main.ds#World@1
+```
+
+```query hover main.ds#player_type
+@hover.item index=0 declaration="class Player" location=main.ds#player_range selection=main.ds#player_selection range=main.ds#player_type
+```
+
+```query outline main.ds
+@outline.symbol depth=0 name=World kind=class range=main.ds#world_range selection=main.ds#world_selection
+@outline.symbol depth=1 name=name kind=field detail=string range=main.ds#world_name_range selection=main.ds#world_name_selection
+@outline.symbol depth=0 name=Position kind=struct range=main.ds#position_range selection=main.ds#position_selection
+@outline.symbol depth=1 name=x kind=field detail=float64 range=main.ds#position_x_range selection=main.ds#position_x_selection
+@outline.symbol depth=1 name=y kind=field detail=float64 range=main.ds#position_y_range selection=main.ds#position_y_selection
+@outline.symbol depth=0 name=Player kind=class range=main.ds#player_range selection=main.ds#player_selection
+@outline.symbol depth=1 name=world kind=field detail=World range=main.ds#player_world_range selection=main.ds#player_world_selection
+@outline.symbol depth=1 name=position kind=field detail=Position range=main.ds#player_position_range selection=main.ds#player_position_selection
+@outline.symbol depth=0 name=playerCount kind=constant detail=1 range=main.ds#player_count_range selection=main.ds#player_count_selection
+@outline.symbol depth=0 name=player kind=constant detail=Player range=main.ds:19:1-19:29 selection=main.ds:19:15-19:21
+@outline.symbol depth=0 name=selected kind=constant detail="<error>" range=main.ds:20:1-20:27 selection=main.ds#selected
+```
+
+```query inlay_hints main.ds#module
+@inlay_hints.hint position=main.ds#player_count_selection@end label=": 1" kind=type
+@inlay_hints.hint position=main.ds#selected@end label=": <error>" kind=type
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#world_selection type=class modifiers=declaration
+@semantic_tokens.token range=main.ds#world_name_selection type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#position_selection type=struct modifiers=declaration
+@semantic_tokens.token range=main.ds#position_x_selection type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#position_y_selection type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#player_selection type=class modifiers=declaration
+@semantic_tokens.token range=main.ds#player_world_selection type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#world_reference type=class
+@semantic_tokens.token range=main.ds#player_position_selection type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#position_reference type=struct
+@semantic_tokens.token range=main.ds#player_count_selection type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds:19:15-19:21 type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#player_type type=class
+@semantic_tokens.token range=main.ds#selected type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#player_reference type=variable modifiers=readonly
+```
+
 ## Types
 
 ### Complete a nominal type
@@ -1075,6 +1328,31 @@ const result = Choice(1);
 @completion.item label=Choice kind=constructor replace=main.ds#prefix suffix="(string): Choice" declaration="newtype Choice = string | int32" insert="Choice(${1})$0" snippet=true matches=0,1,2,3,4,5
 @completion.item label=Choice kind=constructor replace=main.ds#prefix suffix="(int32): Choice" declaration="newtype Choice = string | int32" insert="Choice(${1})$0" snippet=true matches=0,1,2,3,4,5
 @completion.item label=Choice kind=constructor replace=main.ds#prefix suffix="(string | int32): Choice" declaration="newtype Choice = string | int32" insert="Choice(${1})$0" snippet=true matches=0,1,2,3,4,5
+```
+
+### Complete a newtype constructor from its current backing type
+
+Newtype completion updates when its backing type changes.
+
+```ds main.ds
+newtype UserId = string;
+
+const result = UserI;
+               ^^^^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=UserId kind=constructor replace=main.ds#prefix suffix="(string): UserId" declaration="newtype UserId = string" insert="UserId(${1})$0" snippet=true matches=0,1,2,3,4
+```
+
+```diff main.ds
+@@ -1 +1 @@
+-newtype UserId = string;
++newtype UserId = int32;
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=UserId kind=constructor replace=main.ds#prefix suffix="(int32): UserId" declaration="newtype UserId = int32" insert="UserId(${1})$0" snippet=true matches=0,1,2,3,4
 ```
 
 ## Object Literals
@@ -2171,6 +2449,42 @@ const value = beta;
 @completion.additional_edit item=0 range=main.ds#insertion text="\nimport { beta } from \"./beta\";"
 ```
 
+### Complete an auto import from its current declaration
+
+Auto import completion reads the declaration selected in each revision.
+
+```ds library.ds
+export function greet(name: string): string {
+    return name;
+}
+```
+
+```ds main.ds
+
+^ insertion
+const message = greet;
+                ^^^^^ prefix
+```
+
+```query completion main.ds#prefix@end include_auto_imports=true
+@completion.item label=greet kind=function replace=main.ds#prefix suffix="(name: string): string" declaration="export function greet(name: string): string" description="from ./library" insert="greet(${1:name})$0" snippet=true auto_import=true matches=0,1,2,3,4
+@completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
+```
+
+```diff library.ds
+@@ -1,3 +1,3 @@
+-export function greet(name: string): string {
+-    return name;
++export function greet(count: int32): int32 {
++    return count;
+ }
+```
+
+```query completion main.ds#prefix@end include_auto_imports=true
+@completion.item label=greet kind=function replace=main.ds#prefix suffix="(count: int32): int32" declaration="export function greet(count: int32): int32" description="from ./library" insert="greet(${1:count})$0" snippet=true auto_import=true matches=0,1,2,3,4
+@completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
+```
+
 ## Empty Results
 
 ### Return no completion for a string literal
@@ -2505,244 +2819,4 @@ declare const value: int3;
 ```query completion main.ds#prefix@end
 @completion.item label=int32 kind=builtin_type replace=main.ds#prefix matches=0,1,2,3
 @completion.item label=uint32 kind=builtin_type replace=main.ds#prefix matches=1,2,3,4
-```
-
-## Source changes
-
-### Update visible symbols after a declaration changes
-
-Completion reflects the declarations in the selected revision.
-
-```ds main.ds
-const localRevisionAlpha = 1;
-const result = localRevision;
-               ^^^^^^^^^^^^^ prefix
-```
-
-```query completion main.ds#prefix@end
-@completion.item label=localRevisionAlpha kind=constant replace=main.ds#prefix suffix=": 1" declaration="const localRevisionAlpha: 1" matches=0,1,2,3,4,5,6,7,8,9,10,11,12
-```
-
-```ds main.ds change
-const localRevisionAlpine = 2;
-const result = localRevision;
-               ^^^^^^^^^^^^^ prefix
-```
-
-```query completion main.ds#prefix@end
-@completion.item label=localRevisionAlpine kind=constant replace=main.ds#prefix suffix=": 2" declaration="const localRevisionAlpine: 2" matches=0,1,2,3,4,5,6,7,8,9,10,11,12
-```
-
-### Update members after successive source changes
-
-Member completion uses the receiver selected in each revision.
-
-```ds main.ds
-struct Box {
-    value: string;
-}
-
-declare const box: Box;
-const selected = box.val;
-                     ^^^ prefix
-```
-
-```query completion main.ds#prefix@end trigger=.
-@completion.item label=value kind=field replace=main.ds#prefix suffix=": string" declaration="Box.value: string" matches=0,1,2
-```
-
-```ds main.ds change
-struct Box {
-    count: int32;
-}
-
-declare const box: Box;
-const selected = box.cou;
-                     ^^^ prefix
-```
-
-```query completion main.ds#prefix@end trigger=.
-@completion.item label=count kind=field replace=main.ds#prefix suffix=": int32" declaration="Box.count: int32" matches=0,1,2
-```
-
-```diff main.ds
-@@ -1,3 +1,3 @@
- struct Box {
--    count: int32;
-+    count: boolean;
- }
-```
-
-```query completion main.ds#prefix@end trigger=.
-@completion.item label=count kind=field replace=main.ds#prefix suffix=": boolean" declaration="Box.count: boolean" matches=0,1,2
-```
-
-### Update a newtype constructor after its backing type changes
-
-Newtype completion updates when its backing type changes.
-
-```ds main.ds
-newtype UserId = string;
-
-const result = UserI;
-               ^^^^^ prefix
-```
-
-```query completion main.ds#prefix@end
-@completion.item label=UserId kind=constructor replace=main.ds#prefix suffix="(string): UserId" declaration="newtype UserId = string" insert="UserId(${1})$0" snippet=true matches=0,1,2,3,4
-```
-
-```diff main.ds
-@@ -1 +1 @@
--newtype UserId = string;
-+newtype UserId = int32;
-```
-
-```query completion main.ds#prefix@end
-@completion.item label=UserId kind=constructor replace=main.ds#prefix suffix="(int32): UserId" declaration="newtype UserId = int32" insert="UserId(${1})$0" snippet=true matches=0,1,2,3,4
-```
-
-### Update blanket extension completion after conformance changes
-
-Blanket extension completion follows the receiver's current interface conformance.
-
-```ds main.ds
-newtype interface Named {}
-
-struct User implements Named {}
-
-extension<Value: Named> of Value {
-    displayName(): string {
-        return "user";
-    }
-}
-
-declare const user: User;
-const result = user.dis;
-                    ^^^ prefix
-```
-
-```query completion main.ds#prefix@end trigger=.
-@completion.item label=displayName kind=method replace=main.ds#prefix suffix="(): string" declaration="displayName(): string" insert="displayName()" matches=0,1,2
-```
-
-```diff main.ds
-@@ -3 +3 @@
--struct User implements Named {}
-+struct User {}
-```
-
-```query completion main.ds#prefix@end trigger=.
-@completion.none
-```
-
-```diff main.ds
-@@ -3 +3 @@
--struct User {}
-+struct User implements Named {}
-```
-
-```query completion main.ds#prefix@end trigger=.
-@completion.item label=displayName kind=method replace=main.ds#prefix suffix="(): string" declaration="displayName(): string" insert="displayName()" matches=0,1,2
-```
-
-### Return no members for an unresolved receiver after an edit
-
-An unresolved receiver has no member completion candidates.
-
-```ds main.ds
-struct Box {
-    value: string;
-}
-
-declare const box: Box;
-const selected = box.val;
-                     ^^^ prefix
-```
-
-```query completion main.ds#prefix@end trigger=.
-@completion.item label=value kind=field replace=main.ds#prefix suffix=": string" declaration="Box.value: string" matches=0,1,2
-```
-
-```diff main.ds
-@@ -5,3 +5,3 @@
- declare const box: Box;
--const selected = box.val;
-+const selected = missing.val;
--                     ^^^ prefix
-+                         ^^^ prefix
-```
-
-```query completion main.ds#prefix@end trigger=.
-@completion.none
-```
-
-### Update an auto import after its declaration changes
-
-Auto import completion reads the declaration selected in each revision.
-
-```ds library.ds
-export function greet(name: string): string {
-    return name;
-}
-```
-
-```ds main.ds
-
-^ insertion
-const message = greet;
-                ^^^^^ prefix
-```
-
-```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(name: string): string" declaration="export function greet(name: string): string" description="from ./library" insert="greet(${1:name})$0" snippet=true auto_import=true matches=0,1,2,3,4
-@completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
-```
-
-```diff library.ds
-@@ -1,3 +1,3 @@
--export function greet(name: string): string {
--    return name;
-+export function greet(count: int32): int32 {
-+    return count;
- }
-```
-
-```query completion main.ds#prefix@end include_auto_imports=true
-@completion.item label=greet kind=function replace=main.ds#prefix suffix="(count: int32): int32" declaration="export function greet(count: int32): int32" description="from ./library" insert="greet(${1:count})$0" snippet=true auto_import=true matches=0,1,2,3,4
-@completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
-```
-
-### Complete a member while typing a module
-
-Execute completion after each typed character.
-
-```ds main.ds
-// module
-```
-
-```ds main.ds type
-// module
-
-class World {
-    name: string;
-}
-
-struct Position {
-    x: float64;
-    y: float64;
-}
-
-class Player {
-    world: World;
-    position: Position;
-}
-
-declare const player: Player;
-const selected = player.wo;
-                        ^^ prefix
-```
-
-```query completion main.ds#prefix@end trigger=.
-@completion.item label=world kind=field replace=main.ds#prefix suffix=": World" declaration="Player.world: World" matches=0,1
 ```

@@ -210,6 +210,32 @@ function total(): int32 {
 @code_actions.patch action=0 range=main.ds#selection text=extracted
 ```
 
+### Offer extraction for the current expression
+
+Code actions reflect the selected expression in the current revision.
+
+```ds main.ds
+const value = 42;
+      ^^^^^ range
+```
+
+```query code_actions main.ds#range only=refactor_extract
+@code_actions.none
+```
+
+```ds main.ds change
+function total(): int32 {
+    return 1 + 2;
+           ^^^^^ range
+}
+```
+
+```query code_actions main.ds#range only=refactor_extract
+@code_actions.action index=0 title="Extract constant" kind=refactor_extract
+@code_actions.patch action=0 range=main.ds:2:1 text="    const extracted = 1 + 2;\n"
+@code_actions.patch action=0 range=main.ds#range text=extracted
+```
+
 ## Inline
 
 ### Inline a binding
@@ -248,32 +274,4 @@ const total = offset + 1;
 @code_actions.action index=1 title="Inline symbol" kind=refactor_inline
 @code_actions.patch action=1 range=main.ds:1:1-2:1 text=""
 @code_actions.patch action=1 range=main.ds#target text=10
-```
-
-## Source changes
-
-### Update available actions after an expression changes
-
-Code actions reflect the selected expression in the current revision.
-
-```ds main.ds
-const value = 42;
-      ^^^^^ range
-```
-
-```query code_actions main.ds#range only=refactor_extract
-@code_actions.none
-```
-
-```ds main.ds change
-function total(): int32 {
-    return 1 + 2;
-           ^^^^^ range
-}
-```
-
-```query code_actions main.ds#range only=refactor_extract
-@code_actions.action index=0 title="Extract constant" kind=refactor_extract
-@code_actions.patch action=0 range=main.ds:2:1 text="    const extracted = 1 + 2;\n"
-@code_actions.patch action=0 range=main.ds#range text=extracted
 ```

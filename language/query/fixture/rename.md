@@ -215,7 +215,7 @@ function read(counter: Counter): int32 {
 @rename.none
 ```
 
-## Imported Functions
+## Functions
 
 ### Rename an exported function
 
@@ -281,6 +281,66 @@ import { welcome as importedGreet } from "./library.ds";
 
 const greet = 1;
 const message = importedGreet("Destack");
+```
+
+### Rename a function and query its new name
+
+Hover, definition, reference, and token queries read the applied function name.
+
+```ds main.ds
+function greet(name: string): string {
+^ declaration:start
+         ^^^^^ definition
+    return name;
+}
+^ declaration:end
+
+const message = greet("World");
+                ^^^^^ reference
+```
+
+```query hover main.ds#reference
+@hover.item index=0 declaration="function greet(name: string): string" location=main.ds#declaration selection=main.ds#definition range=main.ds#reference
+```
+
+```query goto_definition main.ds#reference
+@goto_definition.target origin=main.ds#reference location=main.ds#declaration selection=main.ds#definition symbol=main.ds#greet@1
+```
+
+```query rename main.ds#definition new_name=formatName apply
+```
+
+```ds main.ds after
+function formatName(name: string): string {
+^ declaration:start
+         ^^^^^^^^^^ definition
+    return name;
+}
+^ declaration:end
+
+const message = formatName("World");
+                ^^^^^^^^^^ reference
+```
+
+```query hover main.ds#reference
+@hover.item index=0 declaration="function formatName(name: string): string" location=main.ds#declaration selection=main.ds#definition range=main.ds#reference
+```
+
+```query goto_definition main.ds#reference
+@goto_definition.target origin=main.ds#reference location=main.ds#declaration selection=main.ds#definition symbol=main.ds#formatName@1
+```
+
+```query find_references main.ds#reference include_declaration=true
+@find_references.reference location=main.ds#definition symbol=main.ds#formatName@1
+@find_references.reference location=main.ds#reference symbol=main.ds#formatName@1
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#definition type=function modifiers=declaration
+@semantic_tokens.token range=main.ds:1:21-1:25 type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds:2:12-2:16 type=parameter
+@semantic_tokens.token range=main.ds:5:7-5:14 type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#reference type=function
 ```
 
 ## Namespace Imports

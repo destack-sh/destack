@@ -100,6 +100,64 @@ const result = identity(name);
 @hover.item index=0 declaration="function identity<Value>(value: Value): Value" type="(value: string) => string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#reference
 ```
 
+### Preserve function hover across body changes
+
+Changing a function body leaves its declaration hover unchanged.
+
+```ds main.ds
+function message(): string {
+         ^^^^^^^ definition
+    return "one";
+}
+
+const value = message();
+              ^^^^^^^ reference
+
+function unrelated(): int32 {
+    return 1;
+}
+```
+
+```query hover main.ds#reference
+@hover.item index=0 declaration="function message(): string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#reference
+```
+
+```diff main.ds
+@@ -1,4 +1,4 @@
+ function message(): string {
+          ^^^^^^^ definition
+-    return "one";
++    return "two";
+ }
+@@ -9,3 +9,3 @@
+ function unrelated(): int32 {
+-    return 1;
++    return 2;
+ }
+```
+
+```query hover main.ds#reference
+@hover.item index=0 declaration="function message(): string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#reference
+```
+
+```diff main.ds
+@@ -1,4 +1,4 @@
+ function message(): string {
+          ^^^^^^^ definition
+-    return "two";
++    return "three";
+ }
+@@ -9,3 +9,3 @@
+ function unrelated(): int32 {
+-    return 2;
++    return 3;
+ }
+```
+
+```query hover main.ds#reference
+@hover.item index=0 declaration="function message(): string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#reference
+```
+
 ## Documentation
 
 ### Include declaration documentation
@@ -298,6 +356,83 @@ extension<Element> of Box<Element> {}
 
 ```query hover main.ds#reference
 @hover.item index=0 declaration=Element location=main.ds#declaration range=main.ds#reference
+```
+
+### Render the current type alias
+
+Hover uses the declaration from the selected revision.
+
+```ds main.ds
+type Value = int32;
+     ^^^^^ definition
+
+declare const value: Value;
+                     ^^^^^ reference
+```
+
+```query hover main.ds#reference
+@hover.item index=0 declaration="type Value = int32" location=main.ds:1:1-1:19 selection=main.ds#definition range=main.ds#reference
+```
+
+```ds main.ds change
+type Value = string;
+     ^^^^^ definition
+
+declare const value: Value;
+                     ^^^^^ reference
+```
+
+```query hover main.ds#reference
+@hover.item index=0 declaration="type Value = string" location=main.ds:1:1-1:20 selection=main.ds#definition range=main.ds#reference
+```
+
+```diff main.ds
+@@ -1,2 +1,2 @@
+-type Value = string;
++type Value = boolean;
+      ^^^^^ definition
+```
+
+```query hover main.ds#reference
+@hover.item index=0 declaration="type Value = boolean" location=main.ds:1:1-1:21 selection=main.ds#definition range=main.ds#reference
+```
+
+### Render a renamed extension type parameter
+
+Extension parameter hover updates at its declaration and reference.
+
+```ds main.ds
+newtype Box<Value> = Value;
+
+extension<Element> of Box<Element> {}
+          ^^^^^^^ declaration
+                          ^^^^^^^ reference
+```
+
+```query hover main.ds#declaration
+@hover.item index=0 declaration=Element location=main.ds#declaration range=main.ds#declaration
+```
+
+```query hover main.ds#reference
+@hover.item index=0 declaration=Element location=main.ds#declaration range=main.ds#reference
+```
+
+```diff main.ds
+@@ -3,3 +3,3 @@
+-extension<Element> of Box<Element> {}
+-          ^^^^^^^ declaration
+-                          ^^^^^^^ reference
++extension<Item> of Box<Item> {}
++          ^^^^ declaration
++                       ^^^^ reference
+```
+
+```query hover main.ds#declaration
+@hover.item index=0 declaration=Item location=main.ds#declaration range=main.ds#declaration
+```
+
+```query hover main.ds#reference
+@hover.item index=0 declaration=Item location=main.ds#declaration range=main.ds#reference
 ```
 
 ## Members
@@ -760,141 +895,4 @@ const value = 42;
 
 ```query hover main.ds#literal
 @hover.none
-```
-
-## Source changes
-
-### Update hover after successive source changes
-
-Hover uses the declaration from the selected revision.
-
-```ds main.ds
-type Value = int32;
-     ^^^^^ definition
-
-declare const value: Value;
-                     ^^^^^ reference
-```
-
-```query hover main.ds#reference
-@hover.item index=0 declaration="type Value = int32" location=main.ds:1:1-1:19 selection=main.ds#definition range=main.ds#reference
-```
-
-```ds main.ds change
-type Value = string;
-     ^^^^^ definition
-
-declare const value: Value;
-                     ^^^^^ reference
-```
-
-```query hover main.ds#reference
-@hover.item index=0 declaration="type Value = string" location=main.ds:1:1-1:20 selection=main.ds#definition range=main.ds#reference
-```
-
-```diff main.ds
-@@ -1,2 +1,2 @@
--type Value = string;
-+type Value = boolean;
-      ^^^^^ definition
-```
-
-```query hover main.ds#reference
-@hover.item index=0 declaration="type Value = boolean" location=main.ds:1:1-1:21 selection=main.ds#definition range=main.ds#reference
-```
-
-### Keep hover after an implementation edit
-
-Changing a function body leaves its declaration hover unchanged.
-
-```ds main.ds
-function message(): string {
-         ^^^^^^^ definition
-    return "one";
-}
-
-const value = message();
-              ^^^^^^^ reference
-
-function unrelated(): int32 {
-    return 1;
-}
-```
-
-```query hover main.ds#reference
-@hover.item index=0 declaration="function message(): string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#reference
-```
-
-```diff main.ds
-@@ -1,4 +1,4 @@
- function message(): string {
-          ^^^^^^^ definition
--    return "one";
-+    return "two";
- }
-@@ -9,3 +9,3 @@
- function unrelated(): int32 {
--    return 1;
-+    return 2;
- }
-```
-
-```query hover main.ds#reference
-@hover.item index=0 declaration="function message(): string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#reference
-```
-
-```diff main.ds
-@@ -1,4 +1,4 @@
- function message(): string {
-          ^^^^^^^ definition
--    return "two";
-+    return "three";
- }
-@@ -9,3 +9,3 @@
- function unrelated(): int32 {
--    return 2;
-+    return 3;
- }
-```
-
-```query hover main.ds#reference
-@hover.item index=0 declaration="function message(): string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#reference
-```
-
-### Update extension type parameter hover after a rename
-
-Extension parameter hover updates at its declaration and reference.
-
-```ds main.ds
-newtype Box<Value> = Value;
-
-extension<Element> of Box<Element> {}
-          ^^^^^^^ declaration
-                          ^^^^^^^ reference
-```
-
-```query hover main.ds#declaration
-@hover.item index=0 declaration=Element location=main.ds#declaration range=main.ds#declaration
-```
-
-```query hover main.ds#reference
-@hover.item index=0 declaration=Element location=main.ds#declaration range=main.ds#reference
-```
-
-```diff main.ds
-@@ -3,3 +3,3 @@
--extension<Element> of Box<Element> {}
--          ^^^^^^^ declaration
--                          ^^^^^^^ reference
-+extension<Item> of Box<Item> {}
-+          ^^^^ declaration
-+                       ^^^^ reference
-```
-
-```query hover main.ds#declaration
-@hover.item index=0 declaration=Item location=main.ds#declaration range=main.ds#declaration
-```
-
-```query hover main.ds#reference
-@hover.item index=0 declaration=Item location=main.ds#declaration range=main.ds#reference
 ```

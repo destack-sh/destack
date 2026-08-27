@@ -402,6 +402,46 @@ export { missing as publicMissing } from "./library.ds";
 @search_symbols.none
 ```
 
+### Search current workspace files
+
+Search follows the exact workspace file set.
+
+```ds main.ds
+export function stableFeature(): void {}
+                ^^^^^^^^^^^^^ stable_feature
+```
+
+```query search_symbols query=transientFeature max_results=10
+@search_symbols.none
+```
+
+```ds staged.ds add
+export function transientFeature(): void {}
+                ^^^^^^^^^^^^^^^^ transient_feature
+```
+
+```query search_symbols query=transientFeature max_results=10
+@search_symbols.symbol name=transientFeature kind=function location=staged.ds:1:1-1:44 selection=staged.ds#transient_feature symbol=staged.ds#transientFeature@1
+```
+
+```query search_symbols query=stableFeature max_results=10
+@search_symbols.symbol name=stableFeature kind=function location=main.ds:1:1-1:41 selection=main.ds#stable_feature symbol=main.ds#stableFeature@1
+```
+
+```move staged.ds published.ds
+```
+
+```query search_symbols query=transientFeature max_results=10
+@search_symbols.symbol name=transientFeature kind=function location=published.ds:1:1-1:44 selection=published.ds#transient_feature symbol=published.ds#transientFeature@1
+```
+
+```remove published.ds
+```
+
+```query search_symbols query=transientFeature max_results=10
+@search_symbols.none
+```
+
 ## Declaration Kinds
 
 ### Return a type alias
@@ -500,9 +540,7 @@ export let mutableSearchValue = 2;
 @search_symbols.symbol name=mutableSearchValue kind=variable location=main.ds#mutable_name symbol=main.ds#mutableSearchValue@2
 ```
 
-## Source changes
-
-### Update search after declarations change
+### Search current declarations
 
 Search follows declarations across revisions.
 
@@ -550,45 +588,5 @@ export function newFeatureBeta(): void {}
 ```
 
 ```query search_symbols query=newFeature max_results=10
-@search_symbols.none
-```
-
-### Follow files added, moved, and removed
-
-Search follows the exact workspace file set.
-
-```ds main.ds
-export function stableFeature(): void {}
-                ^^^^^^^^^^^^^ stable_feature
-```
-
-```query search_symbols query=transientFeature max_results=10
-@search_symbols.none
-```
-
-```ds staged.ds add
-export function transientFeature(): void {}
-                ^^^^^^^^^^^^^^^^ transient_feature
-```
-
-```query search_symbols query=transientFeature max_results=10
-@search_symbols.symbol name=transientFeature kind=function location=staged.ds:1:1-1:44 selection=staged.ds#transient_feature symbol=staged.ds#transientFeature@1
-```
-
-```query search_symbols query=stableFeature max_results=10
-@search_symbols.symbol name=stableFeature kind=function location=main.ds:1:1-1:41 selection=main.ds#stable_feature symbol=main.ds#stableFeature@1
-```
-
-```move staged.ds published.ds
-```
-
-```query search_symbols query=transientFeature max_results=10
-@search_symbols.symbol name=transientFeature kind=function location=published.ds:1:1-1:44 selection=published.ds#transient_feature symbol=published.ds#transientFeature@1
-```
-
-```remove published.ds
-```
-
-```query search_symbols query=transientFeature max_results=10
 @search_symbols.none
 ```

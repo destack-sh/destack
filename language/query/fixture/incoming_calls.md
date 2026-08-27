@@ -76,6 +76,41 @@ function second(): void {
 @incoming_calls.site call=1 range=main.ds#second_call
 ```
 
+### Return current incoming calls
+
+Incoming calls include call sites added in later revisions.
+
+```ds main.ds
+function callee(): void {}
+         ^^^^^^ callee
+
+function caller(): void {
+         ^^^^^^ caller
+}
+```
+
+```query incoming_calls main.ds#callee
+@incoming_calls.none
+```
+
+```ds main.ds change
+function callee(): void {}
+         ^^^^^^ callee
+
+function caller(): void {
+^ declaration:caller:start
+         ^^^^^^ caller
+    callee();
+    ^^^^^^^^ call
+}
+^ declaration:caller:end
+```
+
+```query incoming_calls main.ds#callee
+@incoming_calls.call index=0 name=caller kind=function signature="caller(): void" location=main.ds#declaration:caller selection=main.ds#caller symbol=main.ds#caller@2
+@incoming_calls.site call=0 range=main.ds#call
+```
+
 ## Modules
 
 ### Find a caller in another module
@@ -450,41 +485,4 @@ function idle(): void {}
 
 ```query incoming_calls main.ds#idle
 @incoming_calls.none
-```
-
-## Source changes
-
-### Add an incoming call
-
-Incoming calls include call sites added in later revisions.
-
-```ds main.ds
-function callee(): void {}
-         ^^^^^^ callee
-
-function caller(): void {
-         ^^^^^^ caller
-}
-```
-
-```query incoming_calls main.ds#callee
-@incoming_calls.none
-```
-
-```ds main.ds change
-function callee(): void {}
-         ^^^^^^ callee
-
-function caller(): void {
-^ declaration:caller:start
-         ^^^^^^ caller
-    callee();
-    ^^^^^^^^ call
-}
-^ declaration:caller:end
-```
-
-```query incoming_calls main.ds#callee
-@incoming_calls.call index=0 name=caller kind=function signature="caller(): void" location=main.ds#declaration:caller selection=main.ds#caller symbol=main.ds#caller@2
-@incoming_calls.site call=0 range=main.ds#call
 ```

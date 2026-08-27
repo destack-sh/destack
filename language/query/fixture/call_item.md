@@ -22,6 +22,44 @@ callee();
 @call_item.item name=callee kind=function signature="callee(): void" location=main.ds#declaration selection=main.ds#name symbol=main.ds#callee@1
 ```
 
+### Resolve the current call target
+
+A call identifies the function selected in each revision.
+
+```ds main.ds
+function first(): void {}
+^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:first
+         ^^^^^ name:first
+
+function second(): void {}
+^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:second
+         ^^^^^^ name:second
+
+first();
+^^^^^ call
+```
+
+```query call_item main.ds#call
+@call_item.item name=first kind=function signature="first(): void" location=main.ds#declaration:first selection=main.ds#name:first symbol=main.ds#first@1
+```
+
+```ds main.ds change
+function first(): void {}
+^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:first
+         ^^^^^ name:first
+
+function second(): void {}
+^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:second
+         ^^^^^^ name:second
+
+second();
+^^^^^^ call
+```
+
+```query call_item main.ds#call
+@call_item.item name=second kind=function signature="second(): void" location=main.ds#declaration:second selection=main.ds#name:second symbol=main.ds#second@2
+```
+
 ## Methods
 
 ### Return the same method item from its declaration and calls
@@ -325,44 +363,4 @@ enum Status {
 
 ```query call_item main.ds#value
 @call_item.none
-```
-
-## Source changes
-
-### Follow a call after its target changes
-
-A call identifies the function selected in each revision.
-
-```ds main.ds
-function first(): void {}
-^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:first
-         ^^^^^ name:first
-
-function second(): void {}
-^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:second
-         ^^^^^^ name:second
-
-first();
-^^^^^ call
-```
-
-```query call_item main.ds#call
-@call_item.item name=first kind=function signature="first(): void" location=main.ds#declaration:first selection=main.ds#name:first symbol=main.ds#first@1
-```
-
-```ds main.ds change
-function first(): void {}
-^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:first
-         ^^^^^ name:first
-
-function second(): void {}
-^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:second
-         ^^^^^^ name:second
-
-second();
-^^^^^^ call
-```
-
-```query call_item main.ds#call
-@call_item.item name=second kind=function signature="second(): void" location=main.ds#declaration:second selection=main.ds#name:second symbol=main.ds#second@2
 ```

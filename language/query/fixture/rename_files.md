@@ -3,7 +3,55 @@
 
 ### Rename one imported file
 
-A relative import follows the renamed file and keeps its extension form.
+A relative import follows the renamed file across edits, links, and definition navigation.
+
+```ds source/value.ds
+export function greet(name: string): string {
+^ declaration:start
+                ^^^^^ definition
+    return name;
+}
+^ declaration:end
+```
+
+```ds main.ds
+import { greet } from "./source/value";
+                      ^^^^^^^^^^^^^^^^ specifier
+
+const message = greet("World");
+                ^^^^^ reference
+```
+
+```query goto_definition main.ds#reference
+@goto_definition.target origin=main.ds#reference location=source/value.ds#declaration selection=source/value.ds#definition symbol=source/value.ds#greet@1
+```
+
+```query rename_files apply
+source/value.ds -> source/result.ds
+```
+
+```ds main.ds after
+import { greet } from "./source/result";
+                      ^^^^^^^^^^^^^^^^^ specifier
+
+const message = greet("World");
+                ^^^^^ reference
+```
+
+```move source/value.ds source/result.ds
+```
+
+```query links main.ds
+@links.link range=main.ds#specifier path=source/result.ds
+```
+
+```query goto_definition main.ds#reference
+@goto_definition.target origin=main.ds#reference location=source/result.ds#declaration selection=source/result.ds#definition symbol=source/result.ds#greet@1
+```
+
+### Rename an already renamed import
+
+Each rename uses the current file paths.
 
 ```ds source/value.ds
 export const value = 1;
@@ -21,6 +69,25 @@ source/value.ds -> source/result.ds
 
 ```ds main.ds after
 import { value } from "./source/result";
+
+const result = value;
+```
+
+```move source/value.ds source/result.ds
+```
+
+```ds main.ds change
+import { value } from "./source/result";
+
+const result = value;
+```
+
+```query rename_files
+source/result.ds -> source/final.ds
+```
+
+```ds main.ds after
+import { value } from "./source/final";
 
 const result = value;
 ```
@@ -424,51 +491,6 @@ source/value.ds -> source/result.ds
 
 ```ds main.ds after
 import { value } from './source/result';
-
-const result = value;
-```
-
-## Successive Renames
-
-### Update an import across file moves
-
-Each rename starts from the paths in the current workspace revision.
-
-```ds source/value.ds
-export const value = 1;
-```
-
-```ds main.ds
-import { value } from "./source/value";
-
-const result = value;
-```
-
-```query rename_files
-source/value.ds -> source/result.ds
-```
-
-```ds main.ds after
-import { value } from "./source/result";
-
-const result = value;
-```
-
-```move source/value.ds source/result.ds
-```
-
-```ds main.ds change
-import { value } from "./source/result";
-
-const result = value;
-```
-
-```query rename_files
-source/result.ds -> source/final.ds
-```
-
-```ds main.ds after
-import { value } from "./source/final";
 
 const result = value;
 ```
