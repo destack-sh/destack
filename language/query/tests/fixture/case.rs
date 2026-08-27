@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use destack_query::QueryMethod;
 use indexmap::IndexMap;
 
 use crate::MarkdownCase;
@@ -25,9 +24,8 @@ pub(super) struct QueryCase {
 impl QueryCase {
     /// Parse one Markdown case into an executable query case.
     pub(super) fn parse(path: &Path, markdown: MarkdownCase) -> Result<Self, String> {
-        let method = Self::parse_method(path)?;
         let files = Self::index_files(Self::parse_files(&markdown)?)?;
-        let revisions = QueryRevision::parse(&markdown, &files, method)?;
+        let revisions = QueryRevision::parse(&markdown, &files)?;
 
         Ok(Self {
             document: path.to_path_buf(),
@@ -63,22 +61,6 @@ impl QueryCase {
         is_blessing: bool,
     ) -> Result<QueryResult, String> {
         QueryRun::open(&self.files, workspace)?.run(&self.revisions, is_blessing)
-    }
-
-    /// Parse the query method named by one fixture file.
-    fn parse_method(path: &Path) -> Result<QueryMethod, String> {
-        let method_name = path
-            .file_stem()
-            .and_then(|name| name.to_str())
-            .ok_or_else(|| format!("query fixture path '{}' has no UTF-8 stem", path.display()))?;
-        let method = QueryMethod::from_name(method_name).ok_or_else(|| {
-            format!(
-                "query fixture '{}' has no registered method",
-                path.display()
-            )
-        })?;
-
-        Ok(method)
     }
 
     /// Parse every initial workspace file.

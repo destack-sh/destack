@@ -1,7 +1,6 @@
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 
-use destack_query::QueryMethod;
 use indexmap::IndexMap;
 
 use crate::QueryBlock;
@@ -52,19 +51,21 @@ impl QueryAssertion {
         blocks: &[QueryBlock],
         index: usize,
         files: &IndexMap<PathBuf, QueryFile>,
-        method: QueryMethod,
     ) -> Result<(Self, Option<Vec<QueryFile>>, usize), String> {
         let query = &blocks[index];
         let (request, response) = split_request_response(&query.content);
         let (language, applies_edit) = parse_query_language(&query.language);
-        let call = QueryCall::parse(language, request, method)?;
+        let call = QueryCall::parse(language, request)?;
+        let method = call.method();
         call.validate(files)?;
-        let mut next_index = index + 1;
+
+        // require an edit response before applying its output
         if applies_edit && !call.is_edit() {
             return Err(format!("{} query cannot apply an edit", method.name()));
         }
 
         // parse response rows or complete edited files
+        let mut next_index = index + 1;
         let expected = if let Some((response_offset, response)) = response {
             let content_range = query.content_range.clone().ok_or_else(|| {
                 "query response must have a non-empty fenced block body".to_string()

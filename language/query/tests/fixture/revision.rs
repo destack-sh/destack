@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use destack_query::QueryMethod;
 use indexmap::IndexMap;
 
 use crate::MarkdownCase;
@@ -21,7 +20,6 @@ impl QueryRevision {
     pub(super) fn parse(
         markdown: &MarkdownCase,
         files: &IndexMap<PathBuf, QueryFile>,
-        method: QueryMethod,
     ) -> Result<Vec<Self>, String> {
         let mut files = files.clone();
         let mut revisions = Vec::new();
@@ -35,7 +33,7 @@ impl QueryRevision {
             // append one query assertion
             if block.language.starts_with("query ") {
                 let (assertion, applied_files, next_index) =
-                    QueryAssertion::parse(&markdown.blocks, index, &files, method)?;
+                    QueryAssertion::parse(&markdown.blocks, index, &files)?;
                 assertions.push(assertion);
                 index = next_index;
 

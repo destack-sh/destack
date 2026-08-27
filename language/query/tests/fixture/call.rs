@@ -208,11 +208,7 @@ pub(super) struct FixtureDiagnostic {
 
 impl QueryCall {
     /// Parse one query fence header and body.
-    pub(super) fn parse(
-        language: &str,
-        body: &str,
-        expected_method: QueryMethod,
-    ) -> Result<Self, String> {
+    pub(super) fn parse(language: &str, body: &str) -> Result<Self, String> {
         let source = language
             .strip_prefix("query ")
             .ok_or_else(|| format!("query fence '{language}' must start with 'query '"))?;
@@ -220,11 +216,6 @@ impl QueryCall {
         let method_name = parser.required("query method")?;
         let method = QueryMethod::from_name(&method_name)
             .ok_or_else(|| format!("unknown query method '{method_name}'"))?;
-        if method != expected_method {
-            return Err(format!(
-                "query fixture for {expected_method:?} contains a {method:?} call"
-            ));
-        }
 
         // parse the exact request shape selected by the method
         let call = match method {
@@ -336,6 +327,43 @@ impl QueryCall {
         parser.finish()?;
 
         Ok(call)
+    }
+
+    /// Return this call's query method.
+    pub(super) fn method(&self) -> QueryMethod {
+        match self {
+            Self::Completion { .. } => QueryMethod::Completion,
+            Self::Hover { .. } => QueryMethod::Hover,
+            Self::SignatureHelp { .. } => QueryMethod::SignatureHelp,
+            Self::InlayHints { .. } => QueryMethod::InlayHints,
+            Self::CodeLenses { .. } => QueryMethod::CodeLenses,
+            Self::FoldingRanges { .. } => QueryMethod::FoldingRanges,
+            Self::SemanticTokens { .. } => QueryMethod::SemanticTokens,
+            Self::SemanticTokensRange { .. } => QueryMethod::SemanticTokensRange,
+            Self::Outline { .. } => QueryMethod::Outline,
+            Self::SearchSymbols { .. } => QueryMethod::SearchSymbols,
+            Self::Links { .. } => QueryMethod::Links,
+            Self::Highlight { .. } => QueryMethod::Highlight,
+            Self::SelectionRanges { .. } => QueryMethod::SelectionRanges,
+            Self::GotoDefinition { .. } => QueryMethod::GotoDefinition,
+            Self::GotoDeclaration { .. } => QueryMethod::GotoDeclaration,
+            Self::GotoTypeDefinition { .. } => QueryMethod::GotoTypeDefinition,
+            Self::GotoImplementation { .. } => QueryMethod::GotoImplementation,
+            Self::FindReferences { .. } => QueryMethod::FindReferences,
+            Self::CallItem { .. } => QueryMethod::CallItem,
+            Self::IncomingCalls { .. } => QueryMethod::IncomingCalls,
+            Self::OutgoingCalls { .. } => QueryMethod::OutgoingCalls,
+            Self::TypeItem { .. } => QueryMethod::TypeItem,
+            Self::Supertypes { .. } => QueryMethod::Supertypes,
+            Self::Subtypes { .. } => QueryMethod::Subtypes,
+            Self::Decorators { .. } => QueryMethod::Decorators,
+            Self::RenameTarget { .. } => QueryMethod::RenameTarget,
+            Self::Rename { .. } => QueryMethod::Rename,
+            Self::RenameFiles { .. } => QueryMethod::RenameFiles,
+            Self::ExtractVariable { .. } => QueryMethod::ExtractVariable,
+            Self::Inline { .. } => QueryMethod::Inline,
+            Self::CodeActions { .. } => QueryMethod::CodeActions,
+        }
     }
 
     /// Return whether this call directly produces an edit.
