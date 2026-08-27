@@ -1,7 +1,7 @@
 use smallvec::{Array, SmallVec};
 
 use destack_core::StringId;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProvenanceId};
 
 use crate::{
     Access, AutoInterface, BinaryOperator, CaptureMode, CastOrigin, EnumBackingType,
@@ -149,6 +149,7 @@ type_fold_leaves!(
     u64,
     usize,
     ModuleId,
+    ProvenanceId,
     StringId,
     GlobalGenericParameterId,
     GlobalNodeIdAny,

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use destack_core::FxIndexSet as IndexSet;
-use destack_source::{FileId, NodeSpanType, Span};
+use destack_source::{FileId, NodeSpanType, ProvenanceId, Span};
 use smallvec::SmallVec;
 
 use crate::{
@@ -115,7 +115,7 @@ impl<'a> View<'a> {
         let node_id = self.node_id_any(node_id);
         let (tree, node_id) = self.visible_node(node_id)?;
 
-        tree.get_span_by_id(node_id.id)
+        Some(tree.get_span_by_id(node_id.id))
     }
 
     /// Get the visible concrete source extent by local node id.
@@ -123,7 +123,7 @@ impl<'a> View<'a> {
         let node_id = self.node_id_any(node_id);
         let (tree, node_id) = self.visible_node(node_id)?;
 
-        tree.get_source_extent_by_id(node_id.id)
+        Some(tree.get_source_extent_by_id(node_id.id))
     }
 
     /// Return a visible node span extended across attached decorators.
@@ -308,18 +308,18 @@ impl<'a> View<'a> {
         false
     }
 
-    /// Get the source id for one visible typed node.
-    pub fn get_source<T: Node>(&self, node_id: LocalNodeId<T>) -> u32 {
-        self.get_source_any(node_id.into_any())
+    /// Return the provenance of one visible typed node.
+    pub fn provenance<T: Node>(&self, node_id: LocalNodeId<T>) -> ProvenanceId {
+        self.provenance_any(node_id.into_any())
     }
 
-    /// Get the source id for one visible erased node.
-    pub fn get_source_any(&self, node_id: LocalNodeIdAny) -> u32 {
+    /// Return the provenance of one visible erased node.
+    pub fn provenance_any(&self, node_id: LocalNodeIdAny) -> ProvenanceId {
         let (tree, node_id) = self
             .visible_node(node_id)
             .unwrap_or_else(|| panic!("DIR node {node_id:?} is not visible"));
 
-        tree.get_source(node_id.id)
+        tree.provenance(node_id.id)
     }
 
     /// Return the static path a visible reference expression spells.
@@ -353,18 +353,9 @@ impl<'a> View<'a> {
         }
     }
 
-    /// Resolve one parsed source node to its visible node.
-    pub fn get_node_id_by_source_id(&self, source_id: u32) -> Option<LocalNodeIdAny> {
-        for patch in self.patches().rev() {
-            let Some(node_id) = patch.tree.get_alias(source_id) else {
-                continue;
-            };
-            if let Some((_, node_id)) = self.visible_node(node_id) {
-                return Some(node_id);
-            }
-        }
-
-        let node_id = self.tree.resolve_alias(source_id);
+    /// Resolve one source-index node id to its visible node.
+    pub fn resolve_node(&self, node_id: u32) -> Option<LocalNodeIdAny> {
+        let node_id = self.node_id_any(node_id);
 
         self.visible_node(node_id).map(|(_, node_id)| node_id)
     }
@@ -461,11 +452,7 @@ impl<'a> View<'a> {
     /// Iterate visible node ids whose source spans belong to one file.
     pub fn iter_node_ids_in_file(&self, file: FileId) -> Vec<LocalNodeIdAny> {
         self.iter_visible_nodes()
-            .filter(|node| {
-                node.tree
-                    .get_span_by_id(node.value_id.id)
-                    .is_some_and(|span| span.file == file)
-            })
+            .filter(|node| node.tree.get_span_by_id(node.value_id.id).file == file)
             .map(|node| node.id)
             .collect()
     }

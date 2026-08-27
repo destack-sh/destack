@@ -271,7 +271,8 @@ impl<'a> GenericTable<'a> {
     }
 }
 
-/// Generic templates and parameters added by one DIR phase.
+/// Generic declarations and concrete instances added by one DIR phase.
+/// TODO #Architecture: split out InstanceTable from GenericTable (maybe)..?
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct GenericSegment {
     /// The module id of the generic segment.

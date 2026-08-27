@@ -33,20 +33,6 @@ impl<T> SparseNodeMap<T> {
     }
 }
 
-impl<T> SparseNodeMap<T>
-where
-    T: Copy,
-{
-    /// Return one value by node id.
-    #[inline]
-    pub(crate) fn get(&self, node_id: u32) -> Option<T> {
-        self.entries
-            .binary_search_by_key(&node_id, |entry| entry.node_id)
-            .ok()
-            .map(|index| self.entries[index].value)
-    }
-}
-
 impl<T> SparseNodeMap<T> {
     /// Iterate over node IDs and their attached values.
     #[inline]
@@ -108,24 +94,6 @@ impl<T> SparseNodeMap<T> {
             Err(index) => self
                 .entries
                 .insert(index, SparseNodeEntry { node_id, value }),
-        }
-    }
-
-    /// Remove one value by node id.
-    #[inline]
-    pub(crate) fn remove(&mut self, node_id: u32) {
-        if let Some(last) = self.entries.last()
-            && last.node_id == node_id
-        {
-            self.entries.pop();
-            return;
-        }
-
-        if let Ok(index) = self
-            .entries
-            .binary_search_by_key(&node_id, |entry| entry.node_id)
-        {
-            self.entries.remove(index);
         }
     }
 

@@ -1,5 +1,5 @@
 use destack_serde::Reflect;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProvenanceId};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -362,20 +362,24 @@ pub struct GlobalInstanceId {
 pub struct Instance {
     /// The closed declaration and its generic arguments, in parameter order.
     pub key: InstanceKey,
-    /// One source node that closes this instance.
+    /// One DIR node that closes this instance.
     pub source: GlobalNodeIdAny,
-    /// The source that introduced this instance.
+    /// Why materialization introduced this instance.
     pub origin: InstanceOrigin,
+    /// The provenance of the closed instance.
+    pub provenance: ProvenanceId,
     /// The auto interfaces this closed nominal satisfies, empty on callables.
     pub conformances: AutoInterfaceSet,
 }
 
-/// One source introducing a generic instance.
+/// Why materialization introduced a generic instance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum InstanceOrigin {
-    /// An instantiation a checked body performs, generating code.
+    /// A concrete declaration requiring one closed representation.
+    Declaration,
+    /// A checked body instantiation requiring generated code.
     Instantiation,
-    /// A type application a materialized type mentions, carrying rows.
+    /// A materialized type application requiring type rows.
     Application,
 }
 
