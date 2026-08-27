@@ -3,8 +3,10 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonBigint, jsonBool, jsonField, jsonInteger, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 import type { StringId } from "../../core/string.js";
 import type { LocalNodeId } from "./node.js";
+import type { Space } from "./type.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
+import { decodeSpace, encodeSpace, fromJsonSpace, toJsonSpace } from "./type.js";
 
 /** One closed compile-time value retained in MIR. */
 export type Static =
@@ -58,6 +60,11 @@ export type Static =
     | {
           readonly kind: "type";
           readonly type: LocalNodeId;
+      }
+    /** A storage space bound as a compile-time value. */
+    | {
+          readonly kind: "space";
+          readonly space: Space;
       }
     /** A homogeneous array value. */
     | {
@@ -149,6 +156,11 @@ export const Static = {
     /** A type reflected as a compile-time value. */
     "type"(type_: LocalNodeId): Static {
         return { kind: "type", type: type_ };
+    },
+
+    /** A storage space bound as a compile-time value. */
+    space(space: Space): Static {
+        return { kind: "space", space };
     },
 
     /** A homogeneous array value. */
@@ -246,39 +258,43 @@ export function encodeStatic(writer: BinaryWriter, value: Static): void {
             writer.writeUnsigned(9);
             encodeLocalNodeId(writer, value.type);
             return;
-        case "array":
+        case "space":
             writer.writeUnsigned(10);
+            encodeSpace(writer, value.space);
+            return;
+        case "array":
+            writer.writeUnsigned(11);
             writer.writeUnsigned(value.array.length);
             for (const item0 of value.array) {
                 encodeStaticId(writer, item0);
             }
             return;
         case "fixedArray":
-            writer.writeUnsigned(11);
+            writer.writeUnsigned(12);
             encodeStaticId(writer, value.value);
             writer.writeUnsigned(value.length);
             return;
         case "tuple":
-            writer.writeUnsigned(12);
+            writer.writeUnsigned(13);
             writer.writeUnsigned(value.tuple.length);
             for (const item0 of value.tuple) {
                 encodeStaticId(writer, item0);
             }
             return;
         case "newtype":
-            writer.writeUnsigned(13);
+            writer.writeUnsigned(14);
             encodeLocalNodeId(writer, value.ty);
             encodeStaticId(writer, value.value);
             return;
         case "object":
-            writer.writeUnsigned(14);
+            writer.writeUnsigned(15);
             writer.writeUnsigned(value.object.length);
             for (const item0 of value.object) {
                 encodeStaticField(writer, item0);
             }
             return;
         case "struct":
-            writer.writeUnsigned(15);
+            writer.writeUnsigned(16);
             encodeLocalNodeId(writer, value.ty);
             writer.writeUnsigned(value.fields.length);
             for (const item1 of value.fields) {
@@ -347,11 +363,16 @@ export function decodeStatic(reader: BinaryReader): Static {
             return { kind: "type", type: type_ };
         }
         case 10: {
+            const space = decodeSpace(reader);
+
+            return { kind: "space", space };
+        }
+        case 11: {
             const array = (() => { const length0 = reader.readNumber(); const items0: Array<StaticId> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeStaticId(reader)); } return items0; })();
 
             return { kind: "array", array };
         }
-        case 11: {
+        case 12: {
             const value = decodeStaticId(reader);
             const length = reader.readUnsigned();
 
@@ -361,12 +382,12 @@ export function decodeStatic(reader: BinaryReader): Static {
                 length,
             };
         }
-        case 12: {
+        case 13: {
             const tuple = (() => { const length0 = reader.readNumber(); const items0: Array<StaticId> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeStaticId(reader)); } return items0; })();
 
             return { kind: "tuple", tuple };
         }
-        case 13: {
+        case 14: {
             const ty = decodeLocalNodeId(reader);
             const value = decodeStaticId(reader);
 
@@ -376,12 +397,12 @@ export function decodeStatic(reader: BinaryReader): Static {
                 value,
             };
         }
-        case 14: {
+        case 15: {
             const object_ = (() => { const length0 = reader.readNumber(); const items0: Array<StaticField> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeStaticField(reader)); } return items0; })();
 
             return { kind: "object", object: object_ };
         }
-        case 15: {
+        case 16: {
             const ty = decodeLocalNodeId(reader);
             const fields = (() => { const length1 = reader.readNumber(); const items1: Array<StaticField> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeStaticField(reader)); } return items1; })();
 
@@ -447,6 +468,11 @@ export function toJsonStatic(value: Static): Json {
             return {
                 kind: "type",
                 type: toJsonLocalNodeId(value.type),
+            };
+        case "space":
+            return {
+                kind: "space",
+                space: toJsonSpace(value.space),
             };
         case "array":
             return {
@@ -540,6 +566,11 @@ export function fromJsonStatic(value: Json): Static {
             return {
                 kind,
                 type: fromJsonLocalNodeId(jsonField(object, "type")),
+            };
+        case "space":
+            return {
+                kind,
+                space: fromJsonSpace(jsonField(object, "space")),
             };
         case "array":
             return {

@@ -6,7 +6,6 @@ import type { DiagnosticControlTable } from "./diagnostic/control.js";
 import type { Comment } from "../dir/source/comment.js";
 import type { TokenRecord } from "../dir/source/token.js";
 import type { LocalScopeId } from "../dir/symbol/scope.js";
-import type { AutoSegment } from "../dir/table/auto.js";
 import type { BindingSegment } from "../dir/table/binding.js";
 import type { CaptureSegment } from "../dir/table/capture.js";
 import type { CoercionSegment } from "../dir/table/coercion.js";
@@ -37,7 +36,6 @@ import { decodeDiagnosticControlTable, encodeDiagnosticControlTable, fromJsonDia
 import { decodeComment, encodeComment, fromJsonComment, toJsonComment } from "../dir/source/comment.js";
 import { decodeTokenRecord, encodeTokenRecord, fromJsonTokenRecord, toJsonTokenRecord } from "../dir/source/token.js";
 import { decodeLocalScopeId, encodeLocalScopeId, fromJsonLocalScopeId, toJsonLocalScopeId } from "../dir/symbol/scope.js";
-import { decodeAutoSegment, encodeAutoSegment, fromJsonAutoSegment, toJsonAutoSegment } from "../dir/table/auto.js";
 import { decodeBindingSegment, encodeBindingSegment, fromJsonBindingSegment, toJsonBindingSegment } from "../dir/table/binding.js";
 import { decodeCaptureSegment, encodeCaptureSegment, fromJsonCaptureSegment, toJsonCaptureSegment } from "../dir/table/capture.js";
 import { decodeCoercionSegment, encodeCoercionSegment, fromJsonCoercionSegment, toJsonCoercionSegment } from "../dir/table/coercion.js";
@@ -192,8 +190,6 @@ export type DirChecked = {
     readonly captures: CaptureSegment;
     /** Flow conclusions. */
     readonly flows: FlowSegment;
-    /** The auto conformances the check pass decided. */
-    readonly auto: AutoSegment;
 };
 
 export const DirChecked = {
@@ -238,7 +234,6 @@ export function encodeDirChecked(writer: BinaryWriter, value: DirChecked): void 
     encodeCoercionSegment(writer, value.coercions);
     encodeCaptureSegment(writer, value.captures);
     encodeFlowSegment(writer, value.flows);
-    encodeAutoSegment(writer, value.auto);
 }
 
 /** Decode one DirChecked. */
@@ -258,7 +253,6 @@ export function decodeDirChecked(reader: BinaryReader): DirChecked {
     const coercions = decodeCoercionSegment(reader);
     const captures = decodeCaptureSegment(reader);
     const flows = decodeFlowSegment(reader);
-    const auto = decodeAutoSegment(reader);
 
     return {
         fingerprint,
@@ -276,7 +270,6 @@ export function decodeDirChecked(reader: BinaryReader): DirChecked {
         coercions,
         captures,
         flows,
-        auto,
     };
 }
 
@@ -298,7 +291,6 @@ export function toJsonDirChecked(value: DirChecked): Json {
         coercions: toJsonCoercionSegment(value.coercions),
         captures: toJsonCaptureSegment(value.captures),
         flows: toJsonFlowSegment(value.flows),
-        auto: toJsonAutoSegment(value.auto),
     };
 }
 
@@ -322,7 +314,6 @@ export function fromJsonDirChecked(value: Json): DirChecked {
         coercions: fromJsonCoercionSegment(jsonField(object, "coercions")),
         captures: fromJsonCaptureSegment(jsonField(object, "captures")),
         flows: fromJsonFlowSegment(jsonField(object, "flows")),
-        auto: fromJsonAutoSegment(jsonField(object, "auto")),
     };
 }
 
@@ -476,8 +467,6 @@ export type DirElaborated = {
     readonly types: TypeSegment;
     /** Flattened member bindings per owner subject. */
     readonly members: MemberSegment;
-    /** Auto conformances for concrete nominals. */
-    readonly auto: AutoSegment;
     /** Derived variances. */
     readonly generics: GenericSegment;
     /** Definitions carrying derived constructor entries. */
@@ -528,7 +517,6 @@ export function encodeDirElaborated(writer: BinaryWriter, value: DirElaborated):
     encodeBindingSegment(writer, value.bindings);
     encodeTypeSegment(writer, value.types);
     encodeMemberSegment(writer, value.members);
-    encodeAutoSegment(writer, value.auto);
     encodeGenericSegment(writer, value.generics);
     encodeDefinitionSegment(writer, value.definitions);
     encodeDecoratorSegment(writer, value.decorators);
@@ -546,7 +534,6 @@ export function decodeDirElaborated(reader: BinaryReader): DirElaborated {
     const bindings = decodeBindingSegment(reader);
     const types = decodeTypeSegment(reader);
     const members = decodeMemberSegment(reader);
-    const auto = decodeAutoSegment(reader);
     const generics = decodeGenericSegment(reader);
     const definitions = decodeDefinitionSegment(reader);
     const decorators = decodeDecoratorSegment(reader);
@@ -562,7 +549,6 @@ export function decodeDirElaborated(reader: BinaryReader): DirElaborated {
         bindings,
         types,
         members,
-        auto,
         generics,
         definitions,
         decorators,
@@ -582,7 +568,6 @@ export function toJsonDirElaborated(value: DirElaborated): Json {
         bindings: toJsonBindingSegment(value.bindings),
         types: toJsonTypeSegment(value.types),
         members: toJsonMemberSegment(value.members),
-        auto: toJsonAutoSegment(value.auto),
         generics: toJsonGenericSegment(value.generics),
         definitions: toJsonDefinitionSegment(value.definitions),
         decorators: toJsonDecoratorSegment(value.decorators),
@@ -604,7 +589,6 @@ export function fromJsonDirElaborated(value: Json): DirElaborated {
         bindings: fromJsonBindingSegment(jsonField(object, "bindings")),
         types: fromJsonTypeSegment(jsonField(object, "types")),
         members: fromJsonMemberSegment(jsonField(object, "members")),
-        auto: fromJsonAutoSegment(jsonField(object, "auto")),
         generics: fromJsonGenericSegment(jsonField(object, "generics")),
         definitions: fromJsonDefinitionSegment(jsonField(object, "definitions")),
         decorators: fromJsonDecoratorSegment(jsonField(object, "decorators")),

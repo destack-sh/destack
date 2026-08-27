@@ -2,12 +2,12 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonField, jsonObject, jsonString } from "../../../protocol/serde.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
+import type { InstanceKey } from "./key.js";
 import type { Dereference } from "./resolution.js";
-import type { Selection } from "./selection.js";
 import type { GlobalTypeId } from "./type.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
+import { decodeInstanceKey, encodeInstanceKey, fromJsonInstanceKey, toJsonInstanceKey } from "./key.js";
 import { decodeDereference, encodeDereference, fromJsonDereference, toJsonDereference } from "./resolution.js";
-import { decodeSelection, encodeSelection, fromJsonSelection, toJsonSelection } from "./selection.js";
 import { decodeGlobalTypeId, encodeGlobalTypeId, fromJsonGlobalTypeId, toJsonGlobalTypeId } from "./type.js";
 
 /** One receiver and its ordered implicit transformations. */
@@ -281,7 +281,7 @@ export type ReceiverAdjustment =
     | {
           readonly kind: "newtypePayload";
           /** The selected newtype declaration and its generic arguments. */
-          readonly selection: Selection;
+          readonly key: InstanceKey;
           /** The adjusted receiver type. */
           readonly ty: GlobalTypeId;
       }
@@ -309,8 +309,8 @@ export const ReceiverAdjustment = {
     },
 
     /** Project the payload of one newtype receiver. */
-    newtypePayload(selection: Selection, ty: GlobalTypeId): ReceiverAdjustment {
-        return { kind: "newtypePayload", selection, ty };
+    newtypePayload(key: InstanceKey, ty: GlobalTypeId): ReceiverAdjustment {
+        return { kind: "newtypePayload", key, ty };
     },
 
     /** Project the payload selected by one precise union arm. */
@@ -352,7 +352,7 @@ export function encodeReceiverAdjustment(writer: BinaryWriter, value: ReceiverAd
             return;
         case "newtypePayload":
             writer.writeUnsigned(2);
-            encodeSelection(writer, value.selection);
+            encodeInstanceKey(writer, value.key);
             encodeGlobalTypeId(writer, value.ty);
             return;
         case "unionPayload":
@@ -385,12 +385,12 @@ export function decodeReceiverAdjustment(reader: BinaryReader): ReceiverAdjustme
             return { kind: "dereference", dereference };
         }
         case 2: {
-            const selection = decodeSelection(reader);
+            const key = decodeInstanceKey(reader);
             const ty = decodeGlobalTypeId(reader);
 
             return {
                 kind: "newtypePayload",
-                selection,
+                key,
                 ty,
             };
         }
@@ -427,7 +427,7 @@ export function toJsonReceiverAdjustment(value: ReceiverAdjustment): Json {
         case "newtypePayload":
             return {
                 kind: "newtypePayload",
-                selection: toJsonSelection(value.selection),
+                key: toJsonInstanceKey(value.key),
                 ty: toJsonGlobalTypeId(value.ty),
             };
         case "unionPayload":
@@ -461,7 +461,7 @@ export function fromJsonReceiverAdjustment(value: Json): ReceiverAdjustment {
         case "newtypePayload":
             return {
                 kind,
-                selection: fromJsonSelection(jsonField(object, "selection")),
+                key: fromJsonInstanceKey(jsonField(object, "key")),
                 ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
             };
         case "unionPayload":

@@ -236,6 +236,8 @@ export function fromJsonConditionalType(value: Json): ConditionalType {
 export type DynamicType = {
     /** The `Dynamic<T>` constraint. */
     readonly constraint: GlobalTypeId;
+    /** The place of the erased referent. */
+    readonly place: GlobalTypeId;
 };
 
 export const DynamicType = {
@@ -263,14 +265,17 @@ export const DynamicType = {
 /** Encode one DynamicType. */
 export function encodeDynamicType(writer: BinaryWriter, value: DynamicType): void {
     encodeGlobalTypeId(writer, value.constraint);
+    encodeGlobalTypeId(writer, value.place);
 }
 
 /** Decode one DynamicType. */
 export function decodeDynamicType(reader: BinaryReader): DynamicType {
     const constraint = decodeGlobalTypeId(reader);
+    const place = decodeGlobalTypeId(reader);
 
     return {
         constraint,
+        place,
     };
 }
 
@@ -278,6 +283,7 @@ export function decodeDynamicType(reader: BinaryReader): DynamicType {
 export function toJsonDynamicType(value: DynamicType): Json {
     return {
         constraint: toJsonGlobalTypeId(value.constraint),
+        place: toJsonGlobalTypeId(value.place),
     };
 }
 
@@ -287,6 +293,7 @@ export function fromJsonDynamicType(value: Json): DynamicType {
 
     return {
         constraint: fromJsonGlobalTypeId(jsonField(object, "constraint")),
+        place: fromJsonGlobalTypeId(jsonField(object, "place")),
     };
 }
 
@@ -357,9 +364,11 @@ export function fromJsonFixedArrayType(value: Json): FixedArrayType {
 
 /** Canonical memory or access form constructor. */
 export type Form =
-    /** Automatically managed runtime value, the unqualified `User`. */
+    /** Automatically managed runtime value with its referent place, */
     | {
           readonly kind: "managed";
+          /** The solved concrete or ambient referent place singleton. */
+          readonly place: GlobalTypeId;
       }
     /** Owned value, like `^User`. */
     | {
@@ -374,12 +383,6 @@ export type Form =
     | {
           readonly kind: "raw";
       }
-    /** Placed value, like `local User` or `shared User`. */
-    | {
-          readonly kind: "placed";
-          /** The solved concrete or ambient place singleton. */
-          readonly place: GlobalTypeId;
-      }
     /** Readonly view, like `readonly User`. */
     | {
           readonly kind: "readonly";
@@ -387,9 +390,9 @@ export type Form =
 ;
 
 export const Form = {
-    /** Automatically managed runtime value, the unqualified `User`. */
-    managed(): Form {
-        return { kind: "managed" };
+    /** Automatically managed runtime value with its referent place, */
+    managed(place: GlobalTypeId): Form {
+        return { kind: "managed", place };
     },
 
     /** Owned value, like `^User`. */
@@ -405,11 +408,6 @@ export const Form = {
     /** Raw pointer value, like `*User`. */
     raw(): Form {
         return { kind: "raw" };
-    },
-
-    /** Placed value, like `local User` or `shared User`. */
-    placed(place: GlobalTypeId): Form {
-        return { kind: "placed", place };
     },
 
     /** Readonly view, like `readonly User`. */
@@ -443,6 +441,7 @@ export function encodeForm(writer: BinaryWriter, value: Form): void {
     switch (value.kind) {
         case "managed":
             writer.writeUnsigned(0);
+            encodeGlobalTypeId(writer, value.place);
             return;
         case "owned":
             writer.writeUnsigned(1);
@@ -454,12 +453,8 @@ export function encodeForm(writer: BinaryWriter, value: Form): void {
         case "raw":
             writer.writeUnsigned(3);
             return;
-        case "placed":
-            writer.writeUnsigned(4);
-            encodeGlobalTypeId(writer, value.place);
-            return;
         case "readonly":
-            writer.writeUnsigned(5);
+            writer.writeUnsigned(4);
             return;
     }
 
@@ -472,7 +467,12 @@ export function decodeForm(reader: BinaryReader): Form {
 
     switch (variant) {
         case 0: {
-            return { kind: "managed" };
+            const place = decodeGlobalTypeId(reader);
+
+            return {
+                kind: "managed",
+                place,
+            };
         }
         case 1: {
             return { kind: "owned" };
@@ -486,14 +486,6 @@ export function decodeForm(reader: BinaryReader): Form {
             return { kind: "raw" };
         }
         case 4: {
-            const place = decodeGlobalTypeId(reader);
-
-            return {
-                kind: "placed",
-                place,
-            };
-        }
-        case 5: {
             return { kind: "readonly" };
         }
     }
@@ -507,6 +499,7 @@ export function toJsonForm(value: Form): Json {
         case "managed":
             return {
                 kind: "managed",
+                place: toJsonGlobalTypeId(value.place),
             };
         case "owned":
             return {
@@ -520,11 +513,6 @@ export function toJsonForm(value: Form): Json {
         case "raw":
             return {
                 kind: "raw",
-            };
-        case "placed":
-            return {
-                kind: "placed",
-                place: toJsonGlobalTypeId(value.place),
             };
         case "readonly":
             return {
@@ -544,6 +532,7 @@ export function fromJsonForm(value: Json): Form {
         case "managed":
             return {
                 kind,
+                place: fromJsonGlobalTypeId(jsonField(object, "place")),
             };
         case "owned":
             return {
@@ -557,11 +546,6 @@ export function fromJsonForm(value: Json): Form {
         case "raw":
             return {
                 kind,
-            };
-        case "placed":
-            return {
-                kind,
-                place: fromJsonGlobalTypeId(jsonField(object, "place")),
             };
         case "readonly":
             return {
@@ -746,6 +730,8 @@ export type FunctionType = {
     readonly signature: GlobalTypeId;
     /** The permitted number of invocations. */
     readonly multiplicity: Multiplicity;
+    /** The place of the captured environment. */
+    readonly place: GlobalTypeId;
 };
 
 export const FunctionType = {
@@ -774,16 +760,19 @@ export const FunctionType = {
 export function encodeFunctionType(writer: BinaryWriter, value: FunctionType): void {
     encodeGlobalTypeId(writer, value.signature);
     encodeMultiplicity(writer, value.multiplicity);
+    encodeGlobalTypeId(writer, value.place);
 }
 
 /** Decode one FunctionType. */
 export function decodeFunctionType(reader: BinaryReader): FunctionType {
     const signature = decodeGlobalTypeId(reader);
     const multiplicity = decodeMultiplicity(reader);
+    const place = decodeGlobalTypeId(reader);
 
     return {
         signature,
         multiplicity,
+        place,
     };
 }
 
@@ -792,6 +781,7 @@ export function toJsonFunctionType(value: FunctionType): Json {
     return {
         signature: toJsonGlobalTypeId(value.signature),
         multiplicity: toJsonMultiplicity(value.multiplicity),
+        place: toJsonGlobalTypeId(value.place),
     };
 }
 
@@ -802,6 +792,7 @@ export function fromJsonFunctionType(value: Json): FunctionType {
     return {
         signature: fromJsonGlobalTypeId(jsonField(object, "signature")),
         multiplicity: fromJsonMultiplicity(jsonField(object, "multiplicity")),
+        place: fromJsonGlobalTypeId(jsonField(object, "place")),
     };
 }
 
@@ -1181,78 +1172,6 @@ export function fromJsonIntersectionType(value: Json): IntersectionType {
     };
 }
 
-/** Normalized lifetime value. */
-export type Lifetime = "static" | "frame";
-
-export const Lifetime = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: Lifetime): void {
-        encodeLifetime(writer, value);
-    },
-
-    /** Decode one Lifetime. */
-    decode(reader: BinaryReader): Lifetime {
-        return decodeLifetime(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: Lifetime): Json {
-        return toJsonLifetime(value);
-    },
-
-    /** Return one Lifetime from one JSON value. */
-    fromJson(value: Json): Lifetime {
-        return fromJsonLifetime(value);
-    },
-};
-
-/** Encode one Lifetime. */
-export function encodeLifetime(writer: BinaryWriter, value: Lifetime): void {
-    switch (value) {
-        case "static":
-            writer.writeUnsigned(0);
-            return;
-        case "frame":
-            writer.writeUnsigned(1);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one Lifetime. */
-export function decodeLifetime(reader: BinaryReader): Lifetime {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0:
-            return "static";
-        case 1:
-            return "frame";
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one Lifetime. */
-export function toJsonLifetime(value: Lifetime): Json {
-    return value;
-}
-
-/** Return one Lifetime from one JSON value. */
-export function fromJsonLifetime(value: Json): Lifetime {
-    const variant = jsonString(value);
-
-    switch (variant) {
-        case "static":
-            return "static";
-        case "frame":
-            return "frame";
-    }
-
-    throw new SerdeError(`unknown enum variant: ${variant}`);
-}
-
 /** Unique identifier for a local type. */
 export type LocalTypeId = number;
 
@@ -1570,214 +1489,6 @@ export function fromJsonMemberTypeId(value: Json): MemberTypeId {
     return jsonInteger(value);
 }
 
-/** Singleton type of one normalized memory value. */
-export type MemoryLiteral =
-    /** Memory access singleton, like `"readonly"` or `"exclusive"`. */
-    | {
-          readonly kind: "access";
-          readonly access: Access;
-      }
-    /** Ownership singleton, like `"managed"` or `"owned"`. */
-    | {
-          readonly kind: "ownership";
-          readonly ownership: Ownership;
-      }
-    /** Storage space singleton, like `"local"` or `"shared"`. */
-    | {
-          readonly kind: "space";
-          readonly space: Space;
-      }
-    /** Placement singleton, like `"relative"` or a concrete space. */
-    | {
-          readonly kind: "place";
-          readonly place: Place;
-      }
-    /** Lifetime singleton, like `"static"` or a lifetime parameter. */
-    | {
-          readonly kind: "lifetime";
-          readonly lifetime: Lifetime;
-      }
-;
-
-export const MemoryLiteral = {
-    /** Memory access singleton, like `"readonly"` or `"exclusive"`. */
-    access(access: Access): MemoryLiteral {
-        return { kind: "access", access };
-    },
-
-    /** Ownership singleton, like `"managed"` or `"owned"`. */
-    ownership(ownership: Ownership): MemoryLiteral {
-        return { kind: "ownership", ownership };
-    },
-
-    /** Storage space singleton, like `"local"` or `"shared"`. */
-    space(space: Space): MemoryLiteral {
-        return { kind: "space", space };
-    },
-
-    /** Placement singleton, like `"relative"` or a concrete space. */
-    place(place: Place): MemoryLiteral {
-        return { kind: "place", place };
-    },
-
-    /** Lifetime singleton, like `"static"` or a lifetime parameter. */
-    lifetime(lifetime: Lifetime): MemoryLiteral {
-        return { kind: "lifetime", lifetime };
-    },
-
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: MemoryLiteral): void {
-        encodeMemoryLiteral(writer, value);
-    },
-
-    /** Decode one MemoryLiteral. */
-    decode(reader: BinaryReader): MemoryLiteral {
-        return decodeMemoryLiteral(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: MemoryLiteral): Json {
-        return toJsonMemoryLiteral(value);
-    },
-
-    /** Return one MemoryLiteral from one JSON value. */
-    fromJson(value: Json): MemoryLiteral {
-        return fromJsonMemoryLiteral(value);
-    },
-};
-
-/** Encode one MemoryLiteral. */
-export function encodeMemoryLiteral(writer: BinaryWriter, value: MemoryLiteral): void {
-    switch (value.kind) {
-        case "access":
-            writer.writeUnsigned(0);
-            encodeAccess(writer, value.access);
-            return;
-        case "ownership":
-            writer.writeUnsigned(1);
-            encodeOwnership(writer, value.ownership);
-            return;
-        case "space":
-            writer.writeUnsigned(2);
-            encodeSpace(writer, value.space);
-            return;
-        case "place":
-            writer.writeUnsigned(3);
-            encodePlace(writer, value.place);
-            return;
-        case "lifetime":
-            writer.writeUnsigned(4);
-            encodeLifetime(writer, value.lifetime);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one MemoryLiteral. */
-export function decodeMemoryLiteral(reader: BinaryReader): MemoryLiteral {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0: {
-            const access = decodeAccess(reader);
-
-            return { kind: "access", access };
-        }
-        case 1: {
-            const ownership = decodeOwnership(reader);
-
-            return { kind: "ownership", ownership };
-        }
-        case 2: {
-            const space = decodeSpace(reader);
-
-            return { kind: "space", space };
-        }
-        case 3: {
-            const place = decodePlace(reader);
-
-            return { kind: "place", place };
-        }
-        case 4: {
-            const lifetime = decodeLifetime(reader);
-
-            return { kind: "lifetime", lifetime };
-        }
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one MemoryLiteral. */
-export function toJsonMemoryLiteral(value: MemoryLiteral): Json {
-    switch (value.kind) {
-        case "access":
-            return {
-                kind: "access",
-                access: toJsonAccess(value.access),
-            };
-        case "ownership":
-            return {
-                kind: "ownership",
-                ownership: toJsonOwnership(value.ownership),
-            };
-        case "space":
-            return {
-                kind: "space",
-                space: toJsonSpace(value.space),
-            };
-        case "place":
-            return {
-                kind: "place",
-                place: toJsonPlace(value.place),
-            };
-        case "lifetime":
-            return {
-                kind: "lifetime",
-                lifetime: toJsonLifetime(value.lifetime),
-            };
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Return one MemoryLiteral from one JSON value. */
-export function fromJsonMemoryLiteral(value: Json): MemoryLiteral {
-    const object = jsonObject(value);
-    const kind = jsonString(jsonField(object, "kind"));
-
-    switch (kind) {
-        case "access":
-            return {
-                kind,
-                access: fromJsonAccess(jsonField(object, "access")),
-            };
-        case "ownership":
-            return {
-                kind,
-                ownership: fromJsonOwnership(jsonField(object, "ownership")),
-            };
-        case "space":
-            return {
-                kind,
-                space: fromJsonSpace(jsonField(object, "space")),
-            };
-        case "place":
-            return {
-                kind,
-                place: fromJsonPlace(jsonField(object, "place")),
-            };
-        case "lifetime":
-            return {
-                kind,
-                lifetime: fromJsonLifetime(jsonField(object, "lifetime")),
-            };
-    }
-
-    throw new SerdeError(`unknown enum variant: ${kind}`);
-}
-
 /** Permitted invocation count for a callable value. */
 export type Multiplicity = "repeatable" | "once";
 
@@ -1999,207 +1710,6 @@ export function fromJsonObjectType(value: Json): ObjectType {
         constructSignatures: fromJsonTypeListId(jsonField(object, "constructSignatures")),
         indexSignatures: fromJsonTypeListId(jsonField(object, "indexSignatures")),
     };
-}
-
-/** Canonical memory or access form constructor. */
-export type Ownership = "managed" | "owned" | "borrowed" | "raw";
-
-export const Ownership = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: Ownership): void {
-        encodeOwnership(writer, value);
-    },
-
-    /** Decode one Ownership. */
-    decode(reader: BinaryReader): Ownership {
-        return decodeOwnership(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: Ownership): Json {
-        return toJsonOwnership(value);
-    },
-
-    /** Return one Ownership from one JSON value. */
-    fromJson(value: Json): Ownership {
-        return fromJsonOwnership(value);
-    },
-};
-
-/** Encode one Ownership. */
-export function encodeOwnership(writer: BinaryWriter, value: Ownership): void {
-    switch (value) {
-        case "managed":
-            writer.writeUnsigned(0);
-            return;
-        case "owned":
-            writer.writeUnsigned(1);
-            return;
-        case "borrowed":
-            writer.writeUnsigned(2);
-            return;
-        case "raw":
-            writer.writeUnsigned(3);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one Ownership. */
-export function decodeOwnership(reader: BinaryReader): Ownership {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0:
-            return "managed";
-        case 1:
-            return "owned";
-        case 2:
-            return "borrowed";
-        case 3:
-            return "raw";
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one Ownership. */
-export function toJsonOwnership(value: Ownership): Json {
-    return value;
-}
-
-/** Return one Ownership from one JSON value. */
-export function fromJsonOwnership(value: Json): Ownership {
-    const variant = jsonString(value);
-
-    switch (variant) {
-        case "managed":
-            return "managed";
-        case "owned":
-            return "owned";
-        case "borrowed":
-            return "borrowed";
-        case "raw":
-            return "raw";
-    }
-
-    throw new SerdeError(`unknown enum variant: ${variant}`);
-}
-
-/** Normalized memory placement value. */
-export type Place =
-    /** Placement relative to the containing runtime value. */
-    | {
-          readonly kind: "relative";
-      }
-    /** Concrete storage space. */
-    | {
-          readonly kind: "space";
-          readonly space: Space;
-      }
-;
-
-export const Place = {
-    /** Placement relative to the containing runtime value. */
-    relative(): Place {
-        return { kind: "relative" };
-    },
-
-    /** Concrete storage space. */
-    space(space: Space): Place {
-        return { kind: "space", space };
-    },
-
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: Place): void {
-        encodePlace(writer, value);
-    },
-
-    /** Decode one Place. */
-    decode(reader: BinaryReader): Place {
-        return decodePlace(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: Place): Json {
-        return toJsonPlace(value);
-    },
-
-    /** Return one Place from one JSON value. */
-    fromJson(value: Json): Place {
-        return fromJsonPlace(value);
-    },
-};
-
-/** Encode one Place. */
-export function encodePlace(writer: BinaryWriter, value: Place): void {
-    switch (value.kind) {
-        case "relative":
-            writer.writeUnsigned(0);
-            return;
-        case "space":
-            writer.writeUnsigned(1);
-            encodeSpace(writer, value.space);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one Place. */
-export function decodePlace(reader: BinaryReader): Place {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0: {
-            return { kind: "relative" };
-        }
-        case 1: {
-            const space = decodeSpace(reader);
-
-            return { kind: "space", space };
-        }
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one Place. */
-export function toJsonPlace(value: Place): Json {
-    switch (value.kind) {
-        case "relative":
-            return {
-                kind: "relative",
-            };
-        case "space":
-            return {
-                kind: "space",
-                space: toJsonSpace(value.space),
-            };
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Return one Place from one JSON value. */
-export function fromJsonPlace(value: Json): Place {
-    const object = jsonObject(value);
-    const kind = jsonString(jsonField(object, "kind"));
-
-    switch (kind) {
-        case "relative":
-            return {
-                kind,
-            };
-        case "space":
-            return {
-                kind,
-                space: fromJsonSpace(jsonField(object, "space")),
-            };
-    }
-
-    throw new SerdeError(`unknown enum variant: ${kind}`);
 }
 
 /** The value types exposed by one structural property. */
@@ -2484,6 +1994,71 @@ export function fromJsonRefinedTypeId(value: Json): RefinedTypeId {
     return jsonInteger(value);
 }
 
+/** One region pair: the lifetime extent and the referent space set. */
+export type RegionType = {
+    /** The lifetime extent: a lifetime singleton, parameter, or variable. */
+    readonly extent: GlobalTypeId;
+    /** The referent space: a space literal, parameter, or variable. */
+    readonly space: GlobalTypeId;
+};
+
+export const RegionType = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: RegionType): void {
+        encodeRegionType(writer, value);
+    },
+
+    /** Decode one RegionType. */
+    decode(reader: BinaryReader): RegionType {
+        return decodeRegionType(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: RegionType): Json {
+        return toJsonRegionType(value);
+    },
+
+    /** Return one RegionType from one JSON value. */
+    fromJson(value: Json): RegionType {
+        return fromJsonRegionType(value);
+    },
+};
+
+/** Encode one RegionType. */
+export function encodeRegionType(writer: BinaryWriter, value: RegionType): void {
+    encodeGlobalTypeId(writer, value.extent);
+    encodeGlobalTypeId(writer, value.space);
+}
+
+/** Decode one RegionType. */
+export function decodeRegionType(reader: BinaryReader): RegionType {
+    const extent = decodeGlobalTypeId(reader);
+    const space = decodeGlobalTypeId(reader);
+
+    return {
+        extent,
+        space,
+    };
+}
+
+/** Return one JSON value for one RegionType. */
+export function toJsonRegionType(value: RegionType): Json {
+    return {
+        extent: toJsonGlobalTypeId(value.extent),
+        space: toJsonGlobalTypeId(value.space),
+    };
+}
+
+/** Return one RegionType from one JSON value. */
+export function fromJsonRegionType(value: Json): RegionType {
+    const object = jsonObject(value);
+
+    return {
+        extent: fromJsonGlobalTypeId(jsonField(object, "extent")),
+        space: fromJsonGlobalTypeId(jsonField(object, "space")),
+    };
+}
+
 /** One canonical rigid-parameter number, assigned in first-visit order. */
 export type RigidIndex = number;
 
@@ -2533,6 +2108,8 @@ export function fromJsonRigidIndex(value: Json): RigidIndex {
 export type SliceType = {
     /** The element type. */
     readonly element: GlobalTypeId;
+    /** The place of the sliced elements. */
+    readonly place: GlobalTypeId;
 };
 
 export const SliceType = {
@@ -2560,14 +2137,17 @@ export const SliceType = {
 /** Encode one SliceType. */
 export function encodeSliceType(writer: BinaryWriter, value: SliceType): void {
     encodeGlobalTypeId(writer, value.element);
+    encodeGlobalTypeId(writer, value.place);
 }
 
 /** Decode one SliceType. */
 export function decodeSliceType(reader: BinaryReader): SliceType {
     const element = decodeGlobalTypeId(reader);
+    const place = decodeGlobalTypeId(reader);
 
     return {
         element,
+        place,
     };
 }
 
@@ -2575,6 +2155,7 @@ export function decodeSliceType(reader: BinaryReader): SliceType {
 export function toJsonSliceType(value: SliceType): Json {
     return {
         element: toJsonGlobalTypeId(value.element),
+        place: toJsonGlobalTypeId(value.place),
     };
 }
 
@@ -2584,11 +2165,12 @@ export function fromJsonSliceType(value: Json): SliceType {
 
     return {
         element: fromJsonGlobalTypeId(jsonField(object, "element")),
+        place: fromJsonGlobalTypeId(jsonField(object, "place")),
     };
 }
 
 /** Normalized storage space value. */
-export type Space = "local" | "shared";
+export type Space = "local" | "shared" | "constant";
 
 export const Space = {
     /** Encode this value. */
@@ -2621,6 +2203,9 @@ export function encodeSpace(writer: BinaryWriter, value: Space): void {
         case "shared":
             writer.writeUnsigned(1);
             return;
+        case "constant":
+            writer.writeUnsigned(2);
+            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -2635,6 +2220,8 @@ export function decodeSpace(reader: BinaryReader): Space {
             return "local";
         case 1:
             return "shared";
+        case 2:
+            return "constant";
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -2654,6 +2241,8 @@ export function fromJsonSpace(value: Json): Space {
             return "local";
         case "shared":
             return "shared";
+        case "constant":
+            return "constant";
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);
@@ -3436,11 +3025,6 @@ export type Type =
           readonly kind: "key";
           readonly key: StaticKey;
       }
-    /** Singleton type of one normalized memory value. */
-    | {
-          readonly kind: "memory";
-          readonly memory: MemoryLiteral;
-      }
     /** Singleton type of one committed static value. */
     | {
           readonly kind: "static";
@@ -3488,6 +3072,11 @@ export type Type =
     | {
           readonly kind: "variant";
           readonly variant: VariantType;
+      }
+    /** One reference region: the referent's lifetime extent and space set. */
+    | {
+          readonly kind: "region";
+          readonly region: RegionType;
       }
     /** Canonical memory or access form, like `^User` or `&exclusive User`. */
     | {
@@ -3617,11 +3206,6 @@ export const Type = {
         return { kind: "key", key };
     },
 
-    /** Singleton type of one normalized memory value. */
-    memory(memory: MemoryLiteral): Type {
-        return { kind: "memory", memory };
-    },
-
     /** Singleton type of one committed static value. */
     "static"(static_: GlobalStaticId): Type {
         return { kind: "static", static: static_ };
@@ -3670,6 +3254,11 @@ export const Type = {
     /** One selected enum variant, like `Mode.Read`. */
     variant(variant: VariantType): Type {
         return { kind: "variant", variant };
+    },
+
+    /** One reference region: the referent's lifetime extent and space set. */
+    region(region: RegionType): Type {
+        return { kind: "region", region };
     },
 
     /** Canonical memory or access form, like `^User` or `&exclusive User`. */
@@ -3802,47 +3391,47 @@ export function encodeType(writer: BinaryWriter, value: Type): void {
             writer.writeUnsigned(12);
             encodeStaticKey(writer, value.key);
             return;
-        case "memory":
-            writer.writeUnsigned(13);
-            encodeMemoryLiteral(writer, value.memory);
-            return;
         case "static":
-            writer.writeUnsigned(14);
+            writer.writeUnsigned(13);
             encodeGlobalStaticId(writer, value.static);
             return;
         case "intrinsic":
-            writer.writeUnsigned(15);
+            writer.writeUnsigned(14);
             return;
         case "erased":
-            writer.writeUnsigned(16);
+            writer.writeUnsigned(15);
             encodeGlobalGenericParameterId(writer, value.erased);
             return;
         case "parameter":
-            writer.writeUnsigned(17);
+            writer.writeUnsigned(16);
             encodeGlobalGenericParameterId(writer, value.parameter);
             return;
         case "reference":
-            writer.writeUnsigned(18);
+            writer.writeUnsigned(17);
             encodeTypeReference(writer, value.reference);
             return;
         case "application":
-            writer.writeUnsigned(19);
+            writer.writeUnsigned(18);
             encodeGenericApplication(writer, value.application);
             return;
         case "this":
-            writer.writeUnsigned(20);
+            writer.writeUnsigned(19);
             return;
         case "member":
-            writer.writeUnsigned(21);
+            writer.writeUnsigned(20);
             encodeMemberTypeId(writer, value.member);
             return;
         case "refined":
-            writer.writeUnsigned(22);
+            writer.writeUnsigned(21);
             encodeRefinedTypeId(writer, value.refined);
             return;
         case "variant":
-            writer.writeUnsigned(23);
+            writer.writeUnsigned(22);
             encodeVariantType(writer, value.variant);
+            return;
+        case "region":
+            writer.writeUnsigned(23);
+            encodeRegionType(writer, value.region);
             return;
         case "form":
             writer.writeUnsigned(24);
@@ -3956,55 +3545,55 @@ export function decodeType(reader: BinaryReader): Type {
             return { kind: "key", key };
         }
         case 13: {
-            const memory = decodeMemoryLiteral(reader);
-
-            return { kind: "memory", memory };
-        }
-        case 14: {
             const static_ = decodeGlobalStaticId(reader);
 
             return { kind: "static", static: static_ };
         }
-        case 15: {
+        case 14: {
             return { kind: "intrinsic" };
         }
-        case 16: {
+        case 15: {
             const erased = decodeGlobalGenericParameterId(reader);
 
             return { kind: "erased", erased };
         }
-        case 17: {
+        case 16: {
             const parameter = decodeGlobalGenericParameterId(reader);
 
             return { kind: "parameter", parameter };
         }
-        case 18: {
+        case 17: {
             const reference = decodeTypeReference(reader);
 
             return { kind: "reference", reference };
         }
-        case 19: {
+        case 18: {
             const application = decodeGenericApplication(reader);
 
             return { kind: "application", application };
         }
-        case 20: {
+        case 19: {
             return { kind: "this" };
         }
-        case 21: {
+        case 20: {
             const member = decodeMemberTypeId(reader);
 
             return { kind: "member", member };
         }
-        case 22: {
+        case 21: {
             const refined = decodeRefinedTypeId(reader);
 
             return { kind: "refined", refined };
         }
-        case 23: {
+        case 22: {
             const variant = decodeVariantType(reader);
 
             return { kind: "variant", variant };
+        }
+        case 23: {
+            const region = decodeRegionType(reader);
+
+            return { kind: "region", region };
         }
         case 24: {
             const form = decodeFormType(reader);
@@ -4133,11 +3722,6 @@ export function toJsonType(value: Type): Json {
                 kind: "key",
                 key: toJsonStaticKey(value.key),
             };
-        case "memory":
-            return {
-                kind: "memory",
-                memory: toJsonMemoryLiteral(value.memory),
-            };
         case "static":
             return {
                 kind: "static",
@@ -4185,6 +3769,11 @@ export function toJsonType(value: Type): Json {
             return {
                 kind: "variant",
                 variant: toJsonVariantType(value.variant),
+            };
+        case "region":
+            return {
+                kind: "region",
+                region: toJsonRegionType(value.region),
             };
         case "form":
             return {
@@ -4316,11 +3905,6 @@ export function fromJsonType(value: Json): Type {
                 kind,
                 key: fromJsonStaticKey(jsonField(object, "key")),
             };
-        case "memory":
-            return {
-                kind,
-                memory: fromJsonMemoryLiteral(jsonField(object, "memory")),
-            };
         case "static":
             return {
                 kind,
@@ -4368,6 +3952,11 @@ export function fromJsonType(value: Json): Type {
             return {
                 kind,
                 variant: fromJsonVariantType(jsonField(object, "variant")),
+            };
+        case "region":
+            return {
+                kind,
+                region: fromJsonRegionType(jsonField(object, "region")),
             };
         case "form":
             return {

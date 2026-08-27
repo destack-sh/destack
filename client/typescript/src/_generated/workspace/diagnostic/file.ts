@@ -2,7 +2,7 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonField, jsonObject, jsonString } from "../../../protocol/serde.js";
 
-/** Selection for one diagnostic read. */
+/** Diagnostics selected from one workspace. */
 export type DiagnosticsRequest =
     /** Return diagnostics for this workspace. */
     | {

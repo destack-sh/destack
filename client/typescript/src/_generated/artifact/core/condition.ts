@@ -26,8 +26,6 @@ export type ConditionSet = {
     readonly role?: string;
     /** Labels contributed by active source graph conditions. */
     readonly labels: Readonly<Record<string, ReadonlyArray<string>>>;
-    /** Active package release stage. */
-    readonly stage?: string;
     /** Active target platform. */
     readonly platform: Platform;
     /** Active host environment. */
@@ -100,9 +98,6 @@ export function encodeConditionSet(writer: BinaryWriter, value: ConditionSet): v
             writer.writeString(item8);
         }
     }
-    writer.writeOption(value.stage, (value8) => {
-        writer.writeString(value8);
-    });
     encodePlatform(writer, value.platform);
     encodeHost(writer, value.host);
     encodeRuntime(writer, value.runtime);
@@ -118,7 +113,6 @@ export function decodeConditionSet(reader: BinaryReader): ConditionSet {
     const product = reader.readOption(() => reader.readString());
     const role = reader.readOption(() => reader.readString());
     const labels = (() => { const length7 = reader.readNumber(); const items7: Record<string, ReadonlyArray<string>> = {}; for (let index = 0; index < length7; index += 1) { const key = reader.readString(); items7[key] = (() => { const length9 = reader.readNumber(); const items9: Array<string> = []; for (let index = 0; index < length9; index += 1) { items9.push(reader.readString()); } return items9; })(); } return items7; })();
-    const stage = reader.readOption(() => reader.readString());
     const platform = decodePlatform(reader);
     const host = decodeHost(reader);
     const runtime = decodeRuntime(reader);
@@ -132,7 +126,6 @@ export function decodeConditionSet(reader: BinaryReader): ConditionSet {
         ...(product === undefined ? {} : { product }),
         ...(role === undefined ? {} : { role }),
         labels,
-        ...(stage === undefined ? {} : { stage }),
         platform,
         host,
         runtime,
@@ -150,7 +143,6 @@ export function toJsonConditionSet(value: ConditionSet): Json {
         ...(value.product === undefined ? {} : { product: value.product }),
         ...(value.role === undefined ? {} : { role: value.role }),
         labels: Object.fromEntries(Object.entries(value.labels).map(([key0, item0]) => [key0, item0.map((item1) => item1)] as const)),
-        ...(value.stage === undefined ? {} : { stage: value.stage }),
         platform: toJsonPlatform(value.platform),
         host: toJsonHost(value.host),
         runtime: toJsonRuntime(value.runtime),
@@ -170,7 +162,6 @@ export function fromJsonConditionSet(value: Json): ConditionSet {
         product: jsonOptional(object, "product", (value) => jsonString(value)),
         role: jsonOptional(object, "role", (value) => jsonString(value)),
         labels: Object.fromEntries(Object.entries(jsonObject(jsonField(object, "labels"))).map(([key0, item0]) => [key0, jsonArray(item0).map((item1) => jsonString(item1))] as const)),
-        stage: jsonOptional(object, "stage", (value) => jsonString(value)),
         platform: fromJsonPlatform(jsonField(object, "platform")),
         host: fromJsonHost(jsonField(object, "host")),
         runtime: fromJsonRuntime(jsonField(object, "runtime")),

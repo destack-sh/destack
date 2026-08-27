@@ -207,6 +207,8 @@ export type FlowSegment = {
     readonly unreachable: ReadonlyArray<LocalNodeIdAny>;
     /** Nodes flow proves never return. */
     readonly diverging: ReadonlyArray<LocalNodeIdAny>;
+    /** Loops flow proves run their body at most once. */
+    readonly singlePass: ReadonlyArray<LocalNodeIdAny>;
     /** Proved binding uses. */
     readonly bindingOccurrences: ReadonlyArray<BindingOccurrence>;
     /** Proved stable access uses. */
@@ -246,13 +248,17 @@ export function encodeFlowSegment(writer: BinaryWriter, value: FlowSegment): voi
     for (const item2 of value.diverging) {
         encodeLocalNodeIdAny(writer, item2);
     }
+    writer.writeUnsigned(value.singlePass.length);
+    for (const item3 of value.singlePass) {
+        encodeLocalNodeIdAny(writer, item3);
+    }
     writer.writeUnsigned(value.bindingOccurrences.length);
-    for (const item3 of value.bindingOccurrences) {
-        encodeBindingOccurrence(writer, item3);
+    for (const item4 of value.bindingOccurrences) {
+        encodeBindingOccurrence(writer, item4);
     }
     writer.writeUnsigned(value.accessOccurrences.length);
-    for (const item4 of value.accessOccurrences) {
-        encodeAccessOccurrence(writer, item4);
+    for (const item5 of value.accessOccurrences) {
+        encodeAccessOccurrence(writer, item5);
     }
 }
 
@@ -261,13 +267,15 @@ export function decodeFlowSegment(reader: BinaryReader): FlowSegment {
     const moduleId = decodeModuleId(reader);
     const unreachable = (() => { const length1 = reader.readNumber(); const items1: Array<LocalNodeIdAny> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeLocalNodeIdAny(reader)); } return items1; })();
     const diverging = (() => { const length2 = reader.readNumber(); const items2: Array<LocalNodeIdAny> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeLocalNodeIdAny(reader)); } return items2; })();
-    const bindingOccurrences = (() => { const length3 = reader.readNumber(); const items3: Array<BindingOccurrence> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeBindingOccurrence(reader)); } return items3; })();
-    const accessOccurrences = (() => { const length4 = reader.readNumber(); const items4: Array<AccessOccurrence> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeAccessOccurrence(reader)); } return items4; })();
+    const singlePass = (() => { const length3 = reader.readNumber(); const items3: Array<LocalNodeIdAny> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalNodeIdAny(reader)); } return items3; })();
+    const bindingOccurrences = (() => { const length4 = reader.readNumber(); const items4: Array<BindingOccurrence> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeBindingOccurrence(reader)); } return items4; })();
+    const accessOccurrences = (() => { const length5 = reader.readNumber(); const items5: Array<AccessOccurrence> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeAccessOccurrence(reader)); } return items5; })();
 
     return {
         moduleId,
         unreachable,
         diverging,
+        singlePass,
         bindingOccurrences,
         accessOccurrences,
     };
@@ -279,6 +287,7 @@ export function toJsonFlowSegment(value: FlowSegment): Json {
         moduleId: toJsonModuleId(value.moduleId),
         unreachable: value.unreachable.map((item0) => toJsonLocalNodeIdAny(item0)),
         diverging: value.diverging.map((item0) => toJsonLocalNodeIdAny(item0)),
+        singlePass: value.singlePass.map((item0) => toJsonLocalNodeIdAny(item0)),
         bindingOccurrences: value.bindingOccurrences.map((item0) => toJsonBindingOccurrence(item0)),
         accessOccurrences: value.accessOccurrences.map((item0) => toJsonAccessOccurrence(item0)),
     };
@@ -292,6 +301,7 @@ export function fromJsonFlowSegment(value: Json): FlowSegment {
         moduleId: fromJsonModuleId(jsonField(object, "moduleId")),
         unreachable: jsonArray(jsonField(object, "unreachable")).map((item0) => fromJsonLocalNodeIdAny(item0)),
         diverging: jsonArray(jsonField(object, "diverging")).map((item0) => fromJsonLocalNodeIdAny(item0)),
+        singlePass: jsonArray(jsonField(object, "singlePass")).map((item0) => fromJsonLocalNodeIdAny(item0)),
         bindingOccurrences: jsonArray(jsonField(object, "bindingOccurrences")).map((item0) => fromJsonBindingOccurrence(item0)),
         accessOccurrences: jsonArray(jsonField(object, "accessOccurrences")).map((item0) => fromJsonAccessOccurrence(item0)),
     };

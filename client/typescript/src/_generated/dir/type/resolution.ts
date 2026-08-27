@@ -9,12 +9,12 @@ import type { MemberSpace } from "../table/member.js";
 import type { GlobalNodeIdAny } from "../tree/node.js";
 import type { ArgumentBinding } from "./generic.js";
 import type { GenericArgumentBinding } from "./generic.js";
+import type { InstanceKey } from "./key.js";
 import type { Predicate } from "./predicate.js";
 import type { Projection } from "./projection.js";
 import type { AdjustedReceiver } from "./receiver.js";
 import type { DynamicDispatch } from "./receiver.js";
 import type { MemberReceiver } from "./receiver.js";
-import type { Selection } from "./selection.js";
 import type { GlobalTypeId } from "./type.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
 import { decodeStaticKey, encodeStaticKey, fromJsonStaticKey, toJsonStaticKey } from "../symbol/key.js";
@@ -24,12 +24,12 @@ import { decodeMemberSpace, encodeMemberSpace, fromJsonMemberSpace, toJsonMember
 import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
 import { decodeArgumentBinding, encodeArgumentBinding, fromJsonArgumentBinding, toJsonArgumentBinding } from "./generic.js";
 import { decodeGenericArgumentBinding, encodeGenericArgumentBinding, fromJsonGenericArgumentBinding, toJsonGenericArgumentBinding } from "./generic.js";
+import { decodeInstanceKey, encodeInstanceKey, fromJsonInstanceKey, toJsonInstanceKey } from "./key.js";
 import { decodePredicate, encodePredicate, fromJsonPredicate, toJsonPredicate } from "./predicate.js";
 import { decodeProjection, encodeProjection, fromJsonProjection, toJsonProjection } from "./projection.js";
 import { decodeAdjustedReceiver, encodeAdjustedReceiver, fromJsonAdjustedReceiver, toJsonAdjustedReceiver } from "./receiver.js";
 import { decodeDynamicDispatch, encodeDynamicDispatch, fromJsonDynamicDispatch, toJsonDynamicDispatch } from "./receiver.js";
 import { decodeMemberReceiver, encodeMemberReceiver, fromJsonMemberReceiver, toJsonMemberReceiver } from "./receiver.js";
-import { decodeSelection, encodeSelection, fromJsonSelection, toJsonSelection } from "./selection.js";
 import { decodeGlobalTypeId, encodeGlobalTypeId, fromJsonGlobalTypeId, toJsonGlobalTypeId } from "./type.js";
 
 /** Assignment target meaning selected during checking. */
@@ -1081,7 +1081,7 @@ export type ConstructTarget =
     | {
           readonly kind: "class";
           /** The selected class declaration and its generic arguments. */
-          readonly selection: Selection;
+          readonly key: InstanceKey;
           /** The selected class constructor. */
           readonly constructor: ClassConstructor;
       }
@@ -1089,7 +1089,7 @@ export type ConstructTarget =
     | {
           readonly kind: "newtype";
           /** The selected newtype declaration and its generic arguments. */
-          readonly selection: Selection;
+          readonly key: InstanceKey;
           /** The selected instantiated backing alternative. */
           readonly backing: GlobalTypeId;
       }
@@ -1105,13 +1105,13 @@ export type ConstructTarget =
 
 export const ConstructTarget = {
     /** Class construction selected at compile time. */
-    "class"(selection: Selection, constructor_: ClassConstructor): ConstructTarget {
-        return { kind: "class", selection, constructor: constructor_ };
+    "class"(key: InstanceKey, constructor_: ClassConstructor): ConstructTarget {
+        return { kind: "class", key, constructor: constructor_ };
     },
 
     /** Newtype wrapper constructor selected at compile time. */
-    newtype(selection: Selection, backing: GlobalTypeId): ConstructTarget {
-        return { kind: "newtype", selection, backing };
+    newtype(key: InstanceKey, backing: GlobalTypeId): ConstructTarget {
+        return { kind: "newtype", key, backing };
     },
 
     /** Construction through one erased interface construct signature. */
@@ -1145,12 +1145,12 @@ export function encodeConstructTarget(writer: BinaryWriter, value: ConstructTarg
     switch (value.kind) {
         case "class":
             writer.writeUnsigned(0);
-            encodeSelection(writer, value.selection);
+            encodeInstanceKey(writer, value.key);
             encodeClassConstructor(writer, value.constructor);
             return;
         case "newtype":
             writer.writeUnsigned(1);
-            encodeSelection(writer, value.selection);
+            encodeInstanceKey(writer, value.key);
             encodeGlobalTypeId(writer, value.backing);
             return;
         case "dynamic":
@@ -1169,22 +1169,22 @@ export function decodeConstructTarget(reader: BinaryReader): ConstructTarget {
 
     switch (variant) {
         case 0: {
-            const selection = decodeSelection(reader);
+            const key = decodeInstanceKey(reader);
             const constructor_ = decodeClassConstructor(reader);
 
             return {
                 kind: "class",
-                selection,
+                key,
                 constructor: constructor_,
             };
         }
         case 1: {
-            const selection = decodeSelection(reader);
+            const key = decodeInstanceKey(reader);
             const backing = decodeGlobalTypeId(reader);
 
             return {
                 kind: "newtype",
-                selection,
+                key,
                 backing,
             };
         }
@@ -1209,13 +1209,13 @@ export function toJsonConstructTarget(value: ConstructTarget): Json {
         case "class":
             return {
                 kind: "class",
-                selection: toJsonSelection(value.selection),
+                key: toJsonInstanceKey(value.key),
                 constructor: toJsonClassConstructor(value.constructor),
             };
         case "newtype":
             return {
                 kind: "newtype",
-                selection: toJsonSelection(value.selection),
+                key: toJsonInstanceKey(value.key),
                 backing: toJsonGlobalTypeId(value.backing),
             };
         case "dynamic":
@@ -1238,13 +1238,13 @@ export function fromJsonConstructTarget(value: Json): ConstructTarget {
         case "class":
             return {
                 kind,
-                selection: fromJsonSelection(jsonField(object, "selection")),
+                key: fromJsonInstanceKey(jsonField(object, "key")),
                 constructor: fromJsonClassConstructor(jsonField(object, "constructor")),
             };
         case "newtype":
             return {
                 kind,
-                selection: fromJsonSelection(jsonField(object, "selection")),
+                key: fromJsonInstanceKey(jsonField(object, "key")),
                 backing: fromJsonGlobalTypeId(jsonField(object, "backing")),
             };
         case "dynamic":
@@ -1994,7 +1994,7 @@ export type FunctionTarget = {
     /** The generic scope whose arguments are carried into this call. */
     readonly genericScope?: GlobalSymbolId;
     /** The selected callable declaration and its generic arguments. */
-    readonly selection: Selection;
+    readonly key: InstanceKey;
 };
 
 export const FunctionTarget = {
@@ -2027,19 +2027,19 @@ export function encodeFunctionTarget(writer: BinaryWriter, value: FunctionTarget
     writer.writeOption(value.genericScope, (value1) => {
         encodeGlobalSymbolId(writer, value1);
     });
-    encodeSelection(writer, value.selection);
+    encodeInstanceKey(writer, value.key);
 }
 
 /** Decode one FunctionTarget. */
 export function decodeFunctionTarget(reader: BinaryReader): FunctionTarget {
     const receiver = reader.readOption(() => decodeAdjustedReceiver(reader));
     const genericScope = reader.readOption(() => decodeGlobalSymbolId(reader));
-    const selection = decodeSelection(reader);
+    const key = decodeInstanceKey(reader);
 
     return {
         ...(receiver === undefined ? {} : { receiver }),
         ...(genericScope === undefined ? {} : { genericScope }),
-        selection,
+        key,
     };
 }
 
@@ -2048,7 +2048,7 @@ export function toJsonFunctionTarget(value: FunctionTarget): Json {
     return {
         ...(value.receiver === undefined ? {} : { receiver: toJsonAdjustedReceiver(value.receiver) }),
         ...(value.genericScope === undefined ? {} : { genericScope: toJsonGlobalSymbolId(value.genericScope) }),
-        selection: toJsonSelection(value.selection),
+        key: toJsonInstanceKey(value.key),
     };
 }
 
@@ -2059,7 +2059,7 @@ export function fromJsonFunctionTarget(value: Json): FunctionTarget {
     return {
         receiver: jsonOptional(object, "receiver", (value) => fromJsonAdjustedReceiver(value)),
         genericScope: jsonOptional(object, "genericScope", (value) => fromJsonGlobalSymbolId(value)),
-        selection: fromJsonSelection(jsonField(object, "selection")),
+        key: fromJsonInstanceKey(jsonField(object, "key")),
     };
 }
 
@@ -2791,7 +2791,7 @@ export type MemberCandidate = {
     /** The callable member type applied to the matched receiver. */
     readonly callableType?: GlobalTypeId;
     /** The selected member declaration and its generic arguments. */
-    readonly selection: Selection;
+    readonly key: InstanceKey;
 };
 
 export const MemberCandidate = {
@@ -2825,7 +2825,7 @@ export function encodeMemberCandidate(writer: BinaryWriter, value: MemberCandida
     writer.writeOption(value.callableType, (value4) => {
         encodeGlobalTypeId(writer, value4);
     });
-    encodeSelection(writer, value.selection);
+    encodeInstanceKey(writer, value.key);
 }
 
 /** Decode one MemberCandidate. */
@@ -2835,7 +2835,7 @@ export function decodeMemberCandidate(reader: BinaryReader): MemberCandidate {
     const owner = decodeGlobalSymbolId(reader);
     const accessType = decodeGlobalTypeId(reader);
     const callableType = reader.readOption(() => decodeGlobalTypeId(reader));
-    const selection = decodeSelection(reader);
+    const key = decodeInstanceKey(reader);
 
     return {
         receiver,
@@ -2843,7 +2843,7 @@ export function decodeMemberCandidate(reader: BinaryReader): MemberCandidate {
         owner,
         accessType,
         ...(callableType === undefined ? {} : { callableType }),
-        selection,
+        key,
     };
 }
 
@@ -2855,7 +2855,7 @@ export function toJsonMemberCandidate(value: MemberCandidate): Json {
         owner: toJsonGlobalSymbolId(value.owner),
         accessType: toJsonGlobalTypeId(value.accessType),
         ...(value.callableType === undefined ? {} : { callableType: toJsonGlobalTypeId(value.callableType) }),
-        selection: toJsonSelection(value.selection),
+        key: toJsonInstanceKey(value.key),
     };
 }
 
@@ -2869,7 +2869,7 @@ export function fromJsonMemberCandidate(value: Json): MemberCandidate {
         owner: fromJsonGlobalSymbolId(jsonField(object, "owner")),
         accessType: fromJsonGlobalTypeId(jsonField(object, "accessType")),
         callableType: jsonOptional(object, "callableType", (value) => fromJsonGlobalTypeId(value)),
-        selection: fromJsonSelection(jsonField(object, "selection")),
+        key: fromJsonInstanceKey(jsonField(object, "key")),
     };
 }
 
@@ -4195,7 +4195,7 @@ export function fromJsonPatternMustResolution(value: Json): PatternMustResolutio
 /** Nominal destructuring selected by one pattern. */
 export type PatternNominalDestructureResolution = {
     /** The selected nominal declaration and its generic arguments. */
-    readonly selection: Selection;
+    readonly key: InstanceKey;
     /** The nominal fields in source order. */
     readonly fields: ReadonlyArray<PatternFieldResolution>;
     /** The rest field, when present. */
@@ -4226,7 +4226,7 @@ export const PatternNominalDestructureResolution = {
 
 /** Encode one PatternNominalDestructureResolution. */
 export function encodePatternNominalDestructureResolution(writer: BinaryWriter, value: PatternNominalDestructureResolution): void {
-    encodeSelection(writer, value.selection);
+    encodeInstanceKey(writer, value.key);
     writer.writeUnsigned(value.fields.length);
     for (const item1 of value.fields) {
         encodePatternFieldResolution(writer, item1);
@@ -4238,12 +4238,12 @@ export function encodePatternNominalDestructureResolution(writer: BinaryWriter, 
 
 /** Decode one PatternNominalDestructureResolution. */
 export function decodePatternNominalDestructureResolution(reader: BinaryReader): PatternNominalDestructureResolution {
-    const selection = decodeSelection(reader);
+    const key = decodeInstanceKey(reader);
     const fields = (() => { const length1 = reader.readNumber(); const items1: Array<PatternFieldResolution> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodePatternFieldResolution(reader)); } return items1; })();
     const rest = reader.readOption(() => decodePatternFieldResolution(reader));
 
     return {
-        selection,
+        key,
         fields,
         ...(rest === undefined ? {} : { rest }),
     };
@@ -4252,7 +4252,7 @@ export function decodePatternNominalDestructureResolution(reader: BinaryReader):
 /** Return one JSON value for one PatternNominalDestructureResolution. */
 export function toJsonPatternNominalDestructureResolution(value: PatternNominalDestructureResolution): Json {
     return {
-        selection: toJsonSelection(value.selection),
+        key: toJsonInstanceKey(value.key),
         fields: value.fields.map((item0) => toJsonPatternFieldResolution(item0)),
         ...(value.rest === undefined ? {} : { rest: toJsonPatternFieldResolution(value.rest) }),
     };
@@ -4263,7 +4263,7 @@ export function fromJsonPatternNominalDestructureResolution(value: Json): Patter
     const object = jsonObject(value);
 
     return {
-        selection: fromJsonSelection(jsonField(object, "selection")),
+        key: fromJsonInstanceKey(jsonField(object, "key")),
         fields: jsonArray(jsonField(object, "fields")).map((item0) => fromJsonPatternFieldResolution(item0)),
         rest: jsonOptional(object, "rest", (value) => fromJsonPatternFieldResolution(value)),
     };

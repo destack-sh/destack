@@ -55,7 +55,7 @@ const addProbeMethodResponse: Decoder<runtimeDebuggerProbe.ProbeId> = {
 const addProbeMethod: Method<runtimeServiceDebugger.AddProbeRequest, runtimeDebuggerProbe.ProbeId, never, never> = {
     service: 13801391981294836930n,
     method: 17463861177706809873n,
-    fingerprint: 303312473670780395249324872988897984637n,
+    fingerprint: 290619501365622172270201273012392120225n,
     kind: "unary",
     idempotency: "unknown",
     request: addProbeMethodRequest,
@@ -78,7 +78,7 @@ const addWatchpointMethodResponse: Decoder<programWatch.WatchpointId> = {
 const addWatchpointMethod: Method<runtimeServiceDebugger.AddWatchpointRequest, programWatch.WatchpointId, never, never> = {
     service: 13801391981294836930n,
     method: 16922976575045655805n,
-    fingerprint: 298988820209269150045721754535740892010n,
+    fingerprint: 143999415164352621920072197720068859078n,
     kind: "unary",
     idempotency: "unknown",
     request: addWatchpointMethodRequest,
@@ -177,7 +177,7 @@ const listProbesMethodResponse: Decoder<ReadonlyArray<runtimeDebuggerProbe.Probe
 const listProbesMethod: Method<runtimeServiceDebugger.ListProbesRequest, ReadonlyArray<runtimeDebuggerProbe.Probe>, never, never> = {
     service: 13801391981294836930n,
     method: 17381613733833395095n,
-    fingerprint: 190289897296540966418160237978002298379n,
+    fingerprint: 168950869062110690685161055375111907141n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: listProbesMethodRequest,
@@ -260,7 +260,7 @@ const listWatchpointsMethodResponse: Decoder<ReadonlyArray<runtimeDebuggerWatchp
 const listWatchpointsMethod: Method<runtimeServiceDebugger.ListWatchpointsRequest, ReadonlyArray<runtimeDebuggerWatchpoint.Watchpoint>, never, never> = {
     service: 13801391981294836930n,
     method: 15334718060550816675n,
-    fingerprint: 247942118503410276536951863337466632307n,
+    fingerprint: 3827468602708586971749828444818139163n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: listWatchpointsMethodRequest,
@@ -359,7 +359,7 @@ const readMemoryMapMethodResponse: Decoder<runtimeDebuggerMemory.MemoryMap> = {
 const readMemoryMapMethod: Method<runtimeServiceDebugger.ReadMemoryMapRequest, runtimeDebuggerMemory.MemoryMap, never, never> = {
     service: 13801391981294836930n,
     method: 9309917065282492521n,
-    fingerprint: 33736869662772860587400142980708394721n,
+    fingerprint: 198282423243976383228183939843752024259n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: readMemoryMapMethodRequest,
@@ -520,7 +520,7 @@ const updateProbeMethodResponse: Decoder<null> = {
 const updateProbeMethod: Method<runtimeServiceDebugger.UpdateProbeRequest, null, never, never> = {
     service: 13801391981294836930n,
     method: 17031003854144437763n,
-    fingerprint: 96274793250138204089867900320835096077n,
+    fingerprint: 310775625679693818842309766788928366724n,
     kind: "unary",
     idempotency: "unknown",
     request: updateProbeMethodRequest,
@@ -543,7 +543,7 @@ const updateWatchpointMethodResponse: Decoder<null> = {
 const updateWatchpointMethod: Method<runtimeServiceDebugger.UpdateWatchpointRequest, null, never, never> = {
     service: 13801391981294836930n,
     method: 6153021212115275998n,
-    fingerprint: 158257082730603359472193786253195873994n,
+    fingerprint: 8114255432595216902239019872898330346n,
     kind: "unary",
     idempotency: "unknown",
     request: updateWatchpointMethodRequest,

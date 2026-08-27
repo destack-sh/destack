@@ -6,15 +6,15 @@ import type { GlobalInitializer } from "../../mir/tree/global.js";
 import type { Linkage } from "../../mir/tree/global.js";
 import type { LocalNodeId } from "../../mir/tree/node.js";
 import type { Symbol } from "../../mir/tree/symbol.js";
-import type { GlobalStorage } from "../../mir/tree/type.js";
 import type { Mutability } from "../../mir/tree/type.js";
+import type { Space } from "../../mir/tree/type.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
 import { decodeGlobalInitializer, encodeGlobalInitializer, fromJsonGlobalInitializer, toJsonGlobalInitializer } from "../../mir/tree/global.js";
 import { decodeLinkage, encodeLinkage, fromJsonLinkage, toJsonLinkage } from "../../mir/tree/global.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "../../mir/tree/node.js";
 import { decodeSymbol, encodeSymbol, fromJsonSymbol, toJsonSymbol } from "../../mir/tree/symbol.js";
-import { decodeGlobalStorage, encodeGlobalStorage, fromJsonGlobalStorage, toJsonGlobalStorage } from "../../mir/tree/type.js";
 import { decodeMutability, encodeMutability, fromJsonMutability, toJsonMutability } from "../../mir/tree/type.js";
+import { decodeSpace, encodeSpace, fromJsonSpace, toJsonSpace } from "../../mir/tree/type.js";
 
 /** One object-local global declaration or definition. */
 export type Global = {
@@ -28,8 +28,8 @@ export type Global = {
     readonly ty: LocalNodeId;
     /** Whether instructions may mutate this global. */
     readonly mutability: Mutability;
-    /** The static storage containing this global. */
-    readonly storage: GlobalStorage;
+    /** The space containing this global. */
+    readonly space: Space;
     /** The global linkage. */
     readonly linkage: Linkage;
     /** The initializer when this object defines the global. */
@@ -65,7 +65,7 @@ export function encodeGlobal(writer: BinaryWriter, value: Global): void {
     encodeSymbol(writer, value.symbol);
     encodeLocalNodeId(writer, value.ty);
     encodeMutability(writer, value.mutability);
-    encodeGlobalStorage(writer, value.storage);
+    encodeSpace(writer, value.space);
     encodeLinkage(writer, value.linkage);
     writer.writeOption(value.initializer, (value7) => {
         encodeGlobalInitializer(writer, value7);
@@ -79,7 +79,7 @@ export function decodeGlobal(reader: BinaryReader): Global {
     const symbol_ = decodeSymbol(reader);
     const ty = decodeLocalNodeId(reader);
     const mutability = decodeMutability(reader);
-    const storage = decodeGlobalStorage(reader);
+    const space = decodeSpace(reader);
     const linkage = decodeLinkage(reader);
     const initializer = reader.readOption(() => decodeGlobalInitializer(reader));
 
@@ -89,7 +89,7 @@ export function decodeGlobal(reader: BinaryReader): Global {
         symbol: symbol_,
         ty,
         mutability,
-        storage,
+        space,
         linkage,
         ...(initializer === undefined ? {} : { initializer }),
     };
@@ -103,7 +103,7 @@ export function toJsonGlobal(value: Global): Json {
         symbol: toJsonSymbol(value.symbol),
         ty: toJsonLocalNodeId(value.ty),
         mutability: toJsonMutability(value.mutability),
-        storage: toJsonGlobalStorage(value.storage),
+        space: toJsonSpace(value.space),
         linkage: toJsonLinkage(value.linkage),
         ...(value.initializer === undefined ? {} : { initializer: toJsonGlobalInitializer(value.initializer) }),
     };
@@ -119,7 +119,7 @@ export function fromJsonGlobal(value: Json): Global {
         symbol: fromJsonSymbol(jsonField(object, "symbol")),
         ty: fromJsonLocalNodeId(jsonField(object, "ty")),
         mutability: fromJsonMutability(jsonField(object, "mutability")),
-        storage: fromJsonGlobalStorage(jsonField(object, "storage")),
+        space: fromJsonSpace(jsonField(object, "space")),
         linkage: fromJsonLinkage(jsonField(object, "linkage")),
         initializer: jsonOptional(object, "initializer", (value) => fromJsonGlobalInitializer(value)),
     };

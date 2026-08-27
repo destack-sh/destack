@@ -169,7 +169,7 @@ export function fromJsonCopy(value: Json): Copy {
 
 /** A field in a struct type. */
 export type Field = {
-    /** Name (optional). */
+    /** The optional field name. */
     readonly name?: StringId;
     /** Type of the field. */
     readonly ty: LocalNodeId;
@@ -301,92 +301,6 @@ export function fromJsonFloatType(value: Json): FloatType {
             return "float32";
         case "float64":
             return "float64";
-    }
-
-    throw new SerdeError(`unknown enum variant: ${variant}`);
-}
-
-/** Static storage selected by one global declaration. */
-export type GlobalStorage = "constant" | "immortal" | "local" | "shared";
-
-export const GlobalStorage = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: GlobalStorage): void {
-        encodeGlobalStorage(writer, value);
-    },
-
-    /** Decode one GlobalStorage. */
-    decode(reader: BinaryReader): GlobalStorage {
-        return decodeGlobalStorage(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: GlobalStorage): Json {
-        return toJsonGlobalStorage(value);
-    },
-
-    /** Return one GlobalStorage from one JSON value. */
-    fromJson(value: Json): GlobalStorage {
-        return fromJsonGlobalStorage(value);
-    },
-};
-
-/** Encode one GlobalStorage. */
-export function encodeGlobalStorage(writer: BinaryWriter, value: GlobalStorage): void {
-    switch (value) {
-        case "constant":
-            writer.writeUnsigned(0);
-            return;
-        case "immortal":
-            writer.writeUnsigned(1);
-            return;
-        case "local":
-            writer.writeUnsigned(2);
-            return;
-        case "shared":
-            writer.writeUnsigned(3);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one GlobalStorage. */
-export function decodeGlobalStorage(reader: BinaryReader): GlobalStorage {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0:
-            return "constant";
-        case 1:
-            return "immortal";
-        case 2:
-            return "local";
-        case 3:
-            return "shared";
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one GlobalStorage. */
-export function toJsonGlobalStorage(value: GlobalStorage): Json {
-    return value;
-}
-
-/** Return one GlobalStorage from one JSON value. */
-export function fromJsonGlobalStorage(value: Json): GlobalStorage {
-    const variant = jsonString(value);
-
-    switch (variant) {
-        case "constant":
-            return "constant";
-        case "immortal":
-            return "immortal";
-        case "local":
-            return "local";
-        case "shared":
-            return "shared";
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);
@@ -702,7 +616,7 @@ export function fromJsonReferenceKind(value: Json): ReferenceKind {
 }
 
 /** Runtime ownership domain. */
-export type Space = "local" | "shared";
+export type Space = "local" | "shared" | "constant";
 
 export const Space = {
     /** Encode this value. */
@@ -735,6 +649,9 @@ export function encodeSpace(writer: BinaryWriter, value: Space): void {
         case "shared":
             writer.writeUnsigned(1);
             return;
+        case "constant":
+            writer.writeUnsigned(2);
+            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -749,6 +666,8 @@ export function decodeSpace(reader: BinaryReader): Space {
             return "local";
         case 1:
             return "shared";
+        case 2:
+            return "constant";
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -768,45 +687,17 @@ export function fromJsonSpace(value: Json): Space {
             return "local";
         case "shared":
             return "shared";
+        case "constant":
+            return "constant";
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
 /** Backing storage addressed by one reference-like value. */
-export type Storage =
-    /** Heap storage in one ownership domain. */
-    | {
-          readonly kind: "heap";
-          readonly heap: Space;
-      }
-    /** Frame storage inside the current activation. */
-    | {
-          readonly kind: "frame";
-      }
-    /** Static storage selected by one global declaration. */
-    | {
-          readonly kind: "global";
-          readonly global: GlobalStorage;
-      }
-;
+export type Storage = "localHeap" | "sharedHeap" | "frame" | "constant" | "localStatic" | "sharedStatic";
 
 export const Storage = {
-    /** Heap storage in one ownership domain. */
-    heap(heap: Space): Storage {
-        return { kind: "heap", heap };
-    },
-
-    /** Frame storage inside the current activation. */
-    frame(): Storage {
-        return { kind: "frame" };
-    },
-
-    /** Static storage selected by one global declaration. */
-    global(global: GlobalStorage): Storage {
-        return { kind: "global", global };
-    },
-
     /** Encode this value. */
     encode(writer: BinaryWriter, value: Storage): void {
         encodeStorage(writer, value);
@@ -830,17 +721,24 @@ export const Storage = {
 
 /** Encode one Storage. */
 export function encodeStorage(writer: BinaryWriter, value: Storage): void {
-    switch (value.kind) {
-        case "heap":
+    switch (value) {
+        case "localHeap":
             writer.writeUnsigned(0);
-            encodeSpace(writer, value.heap);
             return;
-        case "frame":
+        case "sharedHeap":
             writer.writeUnsigned(1);
             return;
-        case "global":
+        case "frame":
             writer.writeUnsigned(2);
-            encodeGlobalStorage(writer, value.global);
+            return;
+        case "constant":
+            writer.writeUnsigned(3);
+            return;
+        case "localStatic":
+            writer.writeUnsigned(4);
+            return;
+        case "sharedStatic":
+            writer.writeUnsigned(5);
             return;
     }
 
@@ -852,19 +750,18 @@ export function decodeStorage(reader: BinaryReader): Storage {
     const variant = reader.readNumber();
 
     switch (variant) {
-        case 0: {
-            const heap = decodeSpace(reader);
-
-            return { kind: "heap", heap };
-        }
-        case 1: {
-            return { kind: "frame" };
-        }
-        case 2: {
-            const global = decodeGlobalStorage(reader);
-
-            return { kind: "global", global };
-        }
+        case 0:
+            return "localHeap";
+        case 1:
+            return "sharedHeap";
+        case 2:
+            return "frame";
+        case 3:
+            return "constant";
+        case 4:
+            return "localStatic";
+        case 5:
+            return "sharedStatic";
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -872,49 +769,29 @@ export function decodeStorage(reader: BinaryReader): Storage {
 
 /** Return one JSON value for one Storage. */
 export function toJsonStorage(value: Storage): Json {
-    switch (value.kind) {
-        case "heap":
-            return {
-                kind: "heap",
-                heap: toJsonSpace(value.heap),
-            };
-        case "frame":
-            return {
-                kind: "frame",
-            };
-        case "global":
-            return {
-                kind: "global",
-                global: toJsonGlobalStorage(value.global),
-            };
-    }
-
-    throw new SerdeError("unknown enum variant");
+    return value;
 }
 
 /** Return one Storage from one JSON value. */
 export function fromJsonStorage(value: Json): Storage {
-    const object = jsonObject(value);
-    const kind = jsonString(jsonField(object, "kind"));
+    const variant = jsonString(value);
 
-    switch (kind) {
-        case "heap":
-            return {
-                kind,
-                heap: fromJsonSpace(jsonField(object, "heap")),
-            };
+    switch (variant) {
+        case "localHeap":
+            return "localHeap";
+        case "sharedHeap":
+            return "sharedHeap";
         case "frame":
-            return {
-                kind,
-            };
-        case "global":
-            return {
-                kind,
-                global: fromJsonGlobalStorage(jsonField(object, "global")),
-            };
+            return "frame";
+        case "constant":
+            return "constant";
+        case "localStatic":
+            return "localStatic";
+        case "sharedStatic":
+            return "sharedStatic";
     }
 
-    throw new SerdeError(`unknown enum variant: ${kind}`);
+    throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
 /** One logical MIR type. */
@@ -1068,10 +945,10 @@ export type Type =
           /** Copy of this struct type. */
           readonly copy: Copy;
       }
-    /** Nominal newtype wrapping an inner type. */
+    /** Nominal newtype over one wrapped type. */
     | {
           readonly kind: "newtype";
-          /** The wrapped inner type. */
+          /** The wrapped type. */
           readonly inner: LocalNodeId;
           /** Copy of this newtype. */
           readonly copy: Copy;
@@ -1246,7 +1123,7 @@ export const Type = {
         return { kind: "struct", fields, copy };
     },
 
-    /** Nominal newtype wrapping an inner type. */
+    /** Nominal newtype over one wrapped type. */
     newtype(inner: LocalNodeId, copy: Copy): Type {
         return { kind: "newtype", inner, copy };
     },

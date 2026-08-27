@@ -4,21 +4,23 @@ import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonBool, json
 import type { StringId } from "../../core/string.js";
 import type { LocalScopeId } from "../symbol/scope.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
+import type { AutoInterfaceSet } from "../table/auto.js";
 import type { WhereRelation } from "../tree/expression.js";
 import type { GlobalNodeIdAny } from "../tree/node.js";
 import type { LocalNodeIdAny } from "../tree/node.js";
 import type { VarianceModifier } from "../tree/property.js";
-import type { Selection } from "./selection.js";
+import type { InstanceKey } from "./key.js";
 import type { GlobalTypeId } from "./type.js";
 import type { ModuleId } from "../../source/file/model/module.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
 import { decodeLocalScopeId, encodeLocalScopeId, fromJsonLocalScopeId, toJsonLocalScopeId } from "../symbol/scope.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
+import { decodeAutoInterfaceSet, encodeAutoInterfaceSet, fromJsonAutoInterfaceSet, toJsonAutoInterfaceSet } from "../table/auto.js";
 import { decodeWhereRelation, encodeWhereRelation, fromJsonWhereRelation, toJsonWhereRelation } from "../tree/expression.js";
 import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
 import { decodeLocalNodeIdAny, encodeLocalNodeIdAny, fromJsonLocalNodeIdAny, toJsonLocalNodeIdAny } from "../tree/node.js";
 import { decodeVarianceModifier, encodeVarianceModifier, fromJsonVarianceModifier, toJsonVarianceModifier } from "../tree/property.js";
-import { decodeSelection, encodeSelection, fromJsonSelection, toJsonSelection } from "./selection.js";
+import { decodeInstanceKey, encodeInstanceKey, fromJsonInstanceKey, toJsonInstanceKey } from "./key.js";
 import { decodeGlobalTypeId, encodeGlobalTypeId, fromJsonGlobalTypeId, toJsonGlobalTypeId } from "./type.js";
 import { decodeModuleId, encodeModuleId, fromJsonModuleId, toJsonModuleId } from "../../source/file/model/module.js";
 
@@ -120,7 +122,7 @@ export type ArgumentSource =
           /** The packed source arguments in call order. */
           readonly elements: ReadonlyArray<GlobalNodeIdAny>;
           /** The selected pack constructor, absent for slice parameters. */
-          readonly pack?: Selection;
+          readonly pack?: InstanceKey;
       }
 ;
 
@@ -146,7 +148,7 @@ export const ArgumentSource = {
     },
 
     /** Remaining source arguments were supplied to a rest parameter. */
-    rest(elements: ReadonlyArray<GlobalNodeIdAny>, pack: Selection | undefined): ArgumentSource {
+    rest(elements: ReadonlyArray<GlobalNodeIdAny>, pack: InstanceKey | undefined): ArgumentSource {
         return { kind: "rest", elements, pack };
     },
 
@@ -195,7 +197,7 @@ export function encodeArgumentSource(writer: BinaryWriter, value: ArgumentSource
                 encodeGlobalNodeIdAny(writer, item0);
             }
             writer.writeOption(value.pack, (value1) => {
-                encodeSelection(writer, value1);
+                encodeInstanceKey(writer, value1);
             });
             return;
     }
@@ -226,7 +228,7 @@ export function decodeArgumentSource(reader: BinaryReader): ArgumentSource {
         }
         case 4: {
             const elements = (() => { const length0 = reader.readNumber(); const items0: Array<GlobalNodeIdAny> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeGlobalNodeIdAny(reader)); } return items0; })();
-            const pack = reader.readOption(() => decodeSelection(reader));
+            const pack = reader.readOption(() => decodeInstanceKey(reader));
 
             return {
                 kind: "rest",
@@ -264,7 +266,7 @@ export function toJsonArgumentSource(value: ArgumentSource): Json {
             return {
                 kind: "rest",
                 elements: value.elements.map((item0) => toJsonGlobalNodeIdAny(item0)),
-                ...(value.pack === undefined ? {} : { pack: toJsonSelection(value.pack) }),
+                ...(value.pack === undefined ? {} : { pack: toJsonInstanceKey(value.pack) }),
             };
     }
 
@@ -299,7 +301,7 @@ export function fromJsonArgumentSource(value: Json): ArgumentSource {
             return {
                 kind,
                 elements: jsonArray(jsonField(object, "elements")).map((item0) => fromJsonGlobalNodeIdAny(item0)),
-                pack: jsonOptional(object, "pack", (value) => fromJsonSelection(value)),
+                pack: jsonOptional(object, "pack", (value) => fromJsonInstanceKey(value)),
             };
     }
 
@@ -526,6 +528,8 @@ export type GenericParameterBinding = {
     readonly isVariadic: boolean;
     /** Whether type inference preserves exact argument literals. */
     readonly isConst: boolean;
+    /** The auto interfaces the declared bounds assume for this parameter. */
+    readonly conformances: AutoInterfaceSet;
 };
 
 export const GenericParameterBinding = {
@@ -572,6 +576,7 @@ export function encodeGenericParameterBinding(writer: BinaryWriter, value: Gener
     encodeGenericParameterKind(writer, value.kind);
     writer.writeBool(value.isVariadic);
     writer.writeBool(value.isConst);
+    encodeAutoInterfaceSet(writer, value.conformances);
 }
 
 /** Decode one GenericParameterBinding. */
@@ -588,6 +593,7 @@ export function decodeGenericParameterBinding(reader: BinaryReader): GenericPara
     const kind = decodeGenericParameterKind(reader);
     const isVariadic = reader.readBool();
     const isConst = reader.readBool();
+    const conformances = decodeAutoInterfaceSet(reader);
 
     return {
         template,
@@ -602,6 +608,7 @@ export function decodeGenericParameterBinding(reader: BinaryReader): GenericPara
         kind,
         isVariadic,
         isConst,
+        conformances,
     };
 }
 
@@ -620,6 +627,7 @@ export function toJsonGenericParameterBinding(value: GenericParameterBinding): J
         kind: toJsonGenericParameterKind(value.kind),
         isVariadic: value.isVariadic,
         isConst: value.isConst,
+        conformances: toJsonAutoInterfaceSet(value.conformances),
     };
 }
 
@@ -640,6 +648,7 @@ export function fromJsonGenericParameterBinding(value: Json): GenericParameterBi
         kind: fromJsonGenericParameterKind(jsonField(object, "kind")),
         isVariadic: jsonBool(jsonField(object, "isVariadic")),
         isConst: jsonBool(jsonField(object, "isConst")),
+        conformances: fromJsonAutoInterfaceSet(jsonField(object, "conformances")),
     };
 }
 
@@ -1178,11 +1187,13 @@ export function fromJsonGlobalGenericTemplateId(value: Json): GlobalGenericTempl
 /** One generic template closed over concrete type arguments. */
 export type Instance = {
     /** The closed declaration and its generic arguments, in parameter order. */
-    readonly selection: Selection;
+    readonly key: InstanceKey;
     /** One source node that closes this instance. */
     readonly source: GlobalNodeIdAny;
     /** The source that introduced this instance. */
     readonly origin: InstanceOrigin;
+    /** The auto interfaces this closed nominal satisfies, empty on callables. */
+    readonly conformances: AutoInterfaceSet;
 };
 
 export const Instance = {
@@ -1209,30 +1220,34 @@ export const Instance = {
 
 /** Encode one Instance. */
 export function encodeInstance(writer: BinaryWriter, value: Instance): void {
-    encodeSelection(writer, value.selection);
+    encodeInstanceKey(writer, value.key);
     encodeGlobalNodeIdAny(writer, value.source);
     encodeInstanceOrigin(writer, value.origin);
+    encodeAutoInterfaceSet(writer, value.conformances);
 }
 
 /** Decode one Instance. */
 export function decodeInstance(reader: BinaryReader): Instance {
-    const selection = decodeSelection(reader);
+    const key = decodeInstanceKey(reader);
     const source = decodeGlobalNodeIdAny(reader);
     const origin = decodeInstanceOrigin(reader);
+    const conformances = decodeAutoInterfaceSet(reader);
 
     return {
-        selection,
+        key,
         source,
         origin,
+        conformances,
     };
 }
 
 /** Return one JSON value for one Instance. */
 export function toJsonInstance(value: Instance): Json {
     return {
-        selection: toJsonSelection(value.selection),
+        key: toJsonInstanceKey(value.key),
         source: toJsonGlobalNodeIdAny(value.source),
         origin: toJsonInstanceOrigin(value.origin),
+        conformances: toJsonAutoInterfaceSet(value.conformances),
     };
 }
 
@@ -1241,9 +1256,10 @@ export function fromJsonInstance(value: Json): Instance {
     const object = jsonObject(value);
 
     return {
-        selection: fromJsonSelection(jsonField(object, "selection")),
+        key: fromJsonInstanceKey(jsonField(object, "key")),
         source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
         origin: fromJsonInstanceOrigin(jsonField(object, "origin")),
+        conformances: fromJsonAutoInterfaceSet(jsonField(object, "conformances")),
     };
 }
 
@@ -1324,7 +1340,7 @@ export type Instantiation = {
     /** The enclosing template whose instances close this instantiation, module-level when none. */
     readonly owner?: GlobalSymbolId;
     /** The instantiated declaration and its generic arguments. */
-    readonly selection: Selection;
+    readonly key: InstanceKey;
     /** The source node performing the instantiation. */
     readonly source: GlobalNodeIdAny;
 };
@@ -1356,19 +1372,19 @@ export function encodeInstantiation(writer: BinaryWriter, value: Instantiation):
     writer.writeOption(value.owner, (value0) => {
         encodeGlobalSymbolId(writer, value0);
     });
-    encodeSelection(writer, value.selection);
+    encodeInstanceKey(writer, value.key);
     encodeGlobalNodeIdAny(writer, value.source);
 }
 
 /** Decode one Instantiation. */
 export function decodeInstantiation(reader: BinaryReader): Instantiation {
     const owner = reader.readOption(() => decodeGlobalSymbolId(reader));
-    const selection = decodeSelection(reader);
+    const key = decodeInstanceKey(reader);
     const source = decodeGlobalNodeIdAny(reader);
 
     return {
         ...(owner === undefined ? {} : { owner }),
-        selection,
+        key,
         source,
     };
 }
@@ -1377,7 +1393,7 @@ export function decodeInstantiation(reader: BinaryReader): Instantiation {
 export function toJsonInstantiation(value: Instantiation): Json {
     return {
         ...(value.owner === undefined ? {} : { owner: toJsonGlobalSymbolId(value.owner) }),
-        selection: toJsonSelection(value.selection),
+        key: toJsonInstanceKey(value.key),
         source: toJsonGlobalNodeIdAny(value.source),
     };
 }
@@ -1388,7 +1404,7 @@ export function fromJsonInstantiation(value: Json): Instantiation {
 
     return {
         owner: jsonOptional(object, "owner", (value) => fromJsonGlobalSymbolId(value)),
-        selection: fromJsonSelection(jsonField(object, "selection")),
+        key: fromJsonInstanceKey(jsonField(object, "key")),
         source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
     };
 }
@@ -1529,7 +1545,7 @@ export function fromJsonLocalInstanceId(value: Json): LocalInstanceId {
 }
 
 /** Well-known memory kind quantified by a const parameter. */
-export type MemoryParameter = "access" | "ownership" | "place" | "space" | "lifetime";
+export type MemoryParameter = "access" | "ownership" | "place" | "space" | "region";
 
 export const MemoryParameter = {
     /** Encode this value. */
@@ -1568,7 +1584,7 @@ export function encodeMemoryParameter(writer: BinaryWriter, value: MemoryParamet
         case "space":
             writer.writeUnsigned(3);
             return;
-        case "lifetime":
+        case "region":
             writer.writeUnsigned(4);
             return;
     }
@@ -1590,7 +1606,7 @@ export function decodeMemoryParameter(reader: BinaryReader): MemoryParameter {
         case 3:
             return "space";
         case 4:
-            return "lifetime";
+            return "region";
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -1614,8 +1630,8 @@ export function fromJsonMemoryParameter(value: Json): MemoryParameter {
             return "place";
         case "space":
             return "space";
-        case "lifetime":
-            return "lifetime";
+        case "region":
+            return "region";
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);

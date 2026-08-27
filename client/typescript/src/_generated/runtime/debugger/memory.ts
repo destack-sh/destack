@@ -162,7 +162,7 @@ export function fromJsonRegion(value: Json): Region {
 }
 
 /** Logical purpose of one mapped World memory Region. */
-export type RegionKind = "program" | "constant" | "immortal" | "sharedStatic" | "localStatic" | "sharedHeap" | "heap" | "stack";
+export type RegionKind = "program" | "constant" | "sharedStatic" | "localStatic" | "sharedHeap" | "heap" | "stack";
 
 export const RegionKind = {
     /** Encode this value. */
@@ -195,23 +195,20 @@ export function encodeRegionKind(writer: BinaryWriter, value: RegionKind): void 
         case "constant":
             writer.writeUnsigned(1);
             return;
-        case "immortal":
+        case "sharedStatic":
             writer.writeUnsigned(2);
             return;
-        case "sharedStatic":
+        case "localStatic":
             writer.writeUnsigned(3);
             return;
-        case "localStatic":
+        case "sharedHeap":
             writer.writeUnsigned(4);
             return;
-        case "sharedHeap":
+        case "heap":
             writer.writeUnsigned(5);
             return;
-        case "heap":
-            writer.writeUnsigned(6);
-            return;
         case "stack":
-            writer.writeUnsigned(7);
+            writer.writeUnsigned(6);
             return;
     }
 
@@ -228,16 +225,14 @@ export function decodeRegionKind(reader: BinaryReader): RegionKind {
         case 1:
             return "constant";
         case 2:
-            return "immortal";
-        case 3:
             return "sharedStatic";
-        case 4:
+        case 3:
             return "localStatic";
-        case 5:
+        case 4:
             return "sharedHeap";
-        case 6:
+        case 5:
             return "heap";
-        case 7:
+        case 6:
             return "stack";
     }
 
@@ -258,8 +253,6 @@ export function fromJsonRegionKind(value: Json): RegionKind {
             return "program";
         case "constant":
             return "constant";
-        case "immortal":
-            return "immortal";
         case "sharedStatic":
             return "sharedStatic";
         case "localStatic":

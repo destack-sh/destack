@@ -398,7 +398,7 @@ export function fromJsonBinaryOperator(value: Json): BinaryOperator {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** The end-bound spelling of one range. */
+/** The end-bound form of one range. */
 export type RangeEnd = "open" | "inclusive";
 
 export const RangeEnd = {

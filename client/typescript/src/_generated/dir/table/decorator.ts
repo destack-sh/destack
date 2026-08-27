@@ -9,7 +9,7 @@ import type { GlobalNodeIdAny } from "../tree/node.js";
 import type { LocalNodeId } from "../tree/node.js";
 import type { GlobalStaticId } from "../tree/static.js";
 import type { ArgumentBinding } from "../type/generic.js";
-import type { Selection } from "../type/selection.js";
+import type { InstanceKey } from "../type/key.js";
 import type { GlobalTypeId } from "../type/type.js";
 import type { ModuleId } from "../../source/file/model/module.js";
 import { decodeLanguageItem, encodeLanguageItem, fromJsonLanguageItem, toJsonLanguageItem } from "../symbol/language.js";
@@ -20,7 +20,7 @@ import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, 
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "../tree/node.js";
 import { decodeGlobalStaticId, encodeGlobalStaticId, fromJsonGlobalStaticId, toJsonGlobalStaticId } from "../tree/static.js";
 import { decodeArgumentBinding, encodeArgumentBinding, fromJsonArgumentBinding, toJsonArgumentBinding } from "../type/generic.js";
-import { decodeSelection, encodeSelection, fromJsonSelection, toJsonSelection } from "../type/selection.js";
+import { decodeInstanceKey, encodeInstanceKey, fromJsonInstanceKey, toJsonInstanceKey } from "../type/key.js";
 import { decodeGlobalTypeId, encodeGlobalTypeId, fromJsonGlobalTypeId, toJsonGlobalTypeId } from "../type/type.js";
 import { decodeModuleId, encodeModuleId, fromJsonModuleId, toJsonModuleId } from "../../source/file/model/module.js";
 
@@ -288,13 +288,13 @@ export function fromJsonDecoratorSegment(value: Json): DecoratorSegment {
     };
 }
 
-/** Selection used to construct one checked decorator value. */
+/** InstanceKey used to construct one checked decorator value. */
 export type DecoratorSelection =
     /** Arguments matched against one newtype backing. */
     | {
           readonly kind: "newtype";
           /** The selected newtype declaration and its generic arguments. */
-          readonly selection: Selection;
+          readonly key: InstanceKey;
           /** The selected instantiated backing alternative. */
           readonly backing: GlobalTypeId;
           /** The source arguments bound to the selected parameters. */
@@ -310,8 +310,8 @@ export type DecoratorSelection =
 
 export const DecoratorSelection = {
     /** Arguments matched against one newtype backing. */
-    newtype(selection: Selection, backing: GlobalTypeId, arguments_: ReadonlyArray<ArgumentBinding>): DecoratorSelection {
-        return { kind: "newtype", selection, backing, arguments: arguments_ };
+    newtype(key: InstanceKey, backing: GlobalTypeId, arguments_: ReadonlyArray<ArgumentBinding>): DecoratorSelection {
+        return { kind: "newtype", key, backing, arguments: arguments_ };
     },
 
     /** Interfaces selected by the compiler-owned derive dispatcher. */
@@ -345,7 +345,7 @@ export function encodeDecoratorSelection(writer: BinaryWriter, value: DecoratorS
     switch (value.kind) {
         case "newtype":
             writer.writeUnsigned(0);
-            encodeSelection(writer, value.selection);
+            encodeInstanceKey(writer, value.key);
             encodeGlobalTypeId(writer, value.backing);
             writer.writeUnsigned(value.arguments.length);
             for (const item2 of value.arguments) {
@@ -370,13 +370,13 @@ export function decodeDecoratorSelection(reader: BinaryReader): DecoratorSelecti
 
     switch (variant) {
         case 0: {
-            const selection = decodeSelection(reader);
+            const key = decodeInstanceKey(reader);
             const backing = decodeGlobalTypeId(reader);
             const arguments_ = (() => { const length2 = reader.readNumber(); const items2: Array<ArgumentBinding> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeArgumentBinding(reader)); } return items2; })();
 
             return {
                 kind: "newtype",
-                selection,
+                key,
                 backing,
                 arguments: arguments_,
             };
@@ -400,7 +400,7 @@ export function toJsonDecoratorSelection(value: DecoratorSelection): Json {
         case "newtype":
             return {
                 kind: "newtype",
-                selection: toJsonSelection(value.selection),
+                key: toJsonInstanceKey(value.key),
                 backing: toJsonGlobalTypeId(value.backing),
                 arguments: value.arguments.map((item0) => toJsonArgumentBinding(item0)),
             };
@@ -423,7 +423,7 @@ export function fromJsonDecoratorSelection(value: Json): DecoratorSelection {
         case "newtype":
             return {
                 kind,
-                selection: fromJsonSelection(jsonField(object, "selection")),
+                key: fromJsonInstanceKey(jsonField(object, "key")),
                 backing: fromJsonGlobalTypeId(jsonField(object, "backing")),
                 arguments: jsonArray(jsonField(object, "arguments")).map((item0) => fromJsonArgumentBinding(item0)),
             };

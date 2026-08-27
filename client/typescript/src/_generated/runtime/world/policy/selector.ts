@@ -652,8 +652,6 @@ export type SubjectSelector = {
     readonly target?: ConditionSelector;
     /** Active product selector. */
     readonly product?: ConditionSelector;
-    /** Active package release stage selector. */
-    readonly stage?: ConditionSelector;
     /** Active target platform selector. */
     readonly platform?: ConditionSelector;
     /** Active host environment selector. */
@@ -719,17 +717,14 @@ export function encodeSubjectSelector(writer: BinaryWriter, value: SubjectSelect
     writer.writeOption(value.product, (value9) => {
         encodeConditionSelector(writer, value9);
     });
-    writer.writeOption(value.stage, (value10) => {
+    writer.writeOption(value.platform, (value10) => {
         encodeConditionSelector(writer, value10);
     });
-    writer.writeOption(value.platform, (value11) => {
+    writer.writeOption(value.host, (value11) => {
         encodeConditionSelector(writer, value11);
     });
-    writer.writeOption(value.host, (value12) => {
+    writer.writeOption(value.runtime, (value12) => {
         encodeConditionSelector(writer, value12);
-    });
-    writer.writeOption(value.runtime, (value13) => {
-        encodeConditionSelector(writer, value13);
     });
 }
 
@@ -745,7 +740,6 @@ export function decodeSubjectSelector(reader: BinaryReader): SubjectSelector {
     const tag = reader.readOption(() => decodeConditionSelector(reader));
     const target = reader.readOption(() => decodeConditionSelector(reader));
     const product = reader.readOption(() => decodeConditionSelector(reader));
-    const stage = reader.readOption(() => decodeConditionSelector(reader));
     const platform = reader.readOption(() => decodeConditionSelector(reader));
     const host = reader.readOption(() => decodeConditionSelector(reader));
     const runtime = reader.readOption(() => decodeConditionSelector(reader));
@@ -761,7 +755,6 @@ export function decodeSubjectSelector(reader: BinaryReader): SubjectSelector {
         ...(tag === undefined ? {} : { tag }),
         ...(target === undefined ? {} : { target }),
         ...(product === undefined ? {} : { product }),
-        ...(stage === undefined ? {} : { stage }),
         ...(platform === undefined ? {} : { platform }),
         ...(host === undefined ? {} : { host }),
         ...(runtime === undefined ? {} : { runtime }),
@@ -781,7 +774,6 @@ export function toJsonSubjectSelector(value: SubjectSelector): Json {
         ...(value.tag === undefined ? {} : { tag: toJsonConditionSelector(value.tag) }),
         ...(value.target === undefined ? {} : { target: toJsonConditionSelector(value.target) }),
         ...(value.product === undefined ? {} : { product: toJsonConditionSelector(value.product) }),
-        ...(value.stage === undefined ? {} : { stage: toJsonConditionSelector(value.stage) }),
         ...(value.platform === undefined ? {} : { platform: toJsonConditionSelector(value.platform) }),
         ...(value.host === undefined ? {} : { host: toJsonConditionSelector(value.host) }),
         ...(value.runtime === undefined ? {} : { runtime: toJsonConditionSelector(value.runtime) }),
@@ -803,7 +795,6 @@ export function fromJsonSubjectSelector(value: Json): SubjectSelector {
         tag: jsonOptional(object, "tag", (value) => fromJsonConditionSelector(value)),
         target: jsonOptional(object, "target", (value) => fromJsonConditionSelector(value)),
         product: jsonOptional(object, "product", (value) => fromJsonConditionSelector(value)),
-        stage: jsonOptional(object, "stage", (value) => fromJsonConditionSelector(value)),
         platform: jsonOptional(object, "platform", (value) => fromJsonConditionSelector(value)),
         host: jsonOptional(object, "host", (value) => fromJsonConditionSelector(value)),
         runtime: jsonOptional(object, "runtime", (value) => fromJsonConditionSelector(value)),

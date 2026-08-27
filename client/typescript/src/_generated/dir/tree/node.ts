@@ -652,7 +652,7 @@ export function fromJsonNodeType(value: Json): NodeType {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** A Visibility is the visibility of an item. */
+/** The declared visibility of one member. */
 export type Visibility = "public" | "protected" | "private";
 
 export const Visibility = {

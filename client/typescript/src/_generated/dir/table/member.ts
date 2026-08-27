@@ -899,7 +899,7 @@ export type MemberSubject = {
     /** The generic template assumptions active at the source site. */
     readonly scope?: GlobalGenericTemplateId;
     /** The type whose member keys are enumerated. */
-    readonly keyType: GlobalTypeId;
+    readonly keySource: GlobalTypeId;
 };
 
 export const MemberSubject = {
@@ -932,7 +932,7 @@ export function encodeMemberSubject(writer: BinaryWriter, value: MemberSubject):
     writer.writeOption(value.scope, (value3) => {
         encodeGlobalGenericTemplateId(writer, value3);
     });
-    encodeGlobalTypeId(writer, value.keyType);
+    encodeGlobalTypeId(writer, value.keySource);
 }
 
 /** Decode one MemberSubject. */
@@ -941,14 +941,14 @@ export function decodeMemberSubject(reader: BinaryReader): MemberSubject {
     const target = decodeGlobalTypeId(reader);
     const space = decodeMemberSpace(reader);
     const scope = reader.readOption(() => decodeGlobalGenericTemplateId(reader));
-    const keyType = decodeGlobalTypeId(reader);
+    const keySource = decodeGlobalTypeId(reader);
 
     return {
         receiver,
         target,
         space,
         ...(scope === undefined ? {} : { scope }),
-        keyType,
+        keySource,
     };
 }
 
@@ -959,7 +959,7 @@ export function toJsonMemberSubject(value: MemberSubject): Json {
         target: toJsonGlobalTypeId(value.target),
         space: toJsonMemberSpace(value.space),
         ...(value.scope === undefined ? {} : { scope: toJsonGlobalGenericTemplateId(value.scope) }),
-        keyType: toJsonGlobalTypeId(value.keyType),
+        keySource: toJsonGlobalTypeId(value.keySource),
     };
 }
 
@@ -972,7 +972,7 @@ export function fromJsonMemberSubject(value: Json): MemberSubject {
         target: fromJsonGlobalTypeId(jsonField(object, "target")),
         space: fromJsonMemberSpace(jsonField(object, "space")),
         scope: jsonOptional(object, "scope", (value) => fromJsonGlobalGenericTemplateId(value)),
-        keyType: fromJsonGlobalTypeId(jsonField(object, "keyType")),
+        keySource: fromJsonGlobalTypeId(jsonField(object, "keySource")),
     };
 }
 

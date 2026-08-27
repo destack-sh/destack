@@ -27,6 +27,8 @@ export type Type = {
     readonly name?: StringId;
     /** The direct nominal heritage when present. */
     readonly heritage?: TypeHeritage;
+    /** The language item key this declaration binds, mirroring the source decorator. */
+    readonly languageItem?: StringId;
 };
 
 export const Type = {
@@ -65,6 +67,9 @@ export function encodeType(writer: BinaryWriter, value: Type): void {
     writer.writeOption(value.heritage, (value5) => {
         encodeTypeHeritage(writer, value5);
     });
+    writer.writeOption(value.languageItem, (value6) => {
+        encodeStringId(writer, value6);
+    });
 }
 
 /** Decode one Type. */
@@ -75,6 +80,7 @@ export function decodeType(reader: BinaryReader): Type {
     const symbol_ = reader.readOption(() => decodeSymbol(reader));
     const name = reader.readOption(() => decodeStringId(reader));
     const heritage = reader.readOption(() => decodeTypeHeritage(reader));
+    const languageItem = reader.readOption(() => decodeStringId(reader));
 
     return {
         id,
@@ -83,6 +89,7 @@ export function decodeType(reader: BinaryReader): Type {
         ...(symbol_ === undefined ? {} : { symbol: symbol_ }),
         ...(name === undefined ? {} : { name }),
         ...(heritage === undefined ? {} : { heritage }),
+        ...(languageItem === undefined ? {} : { languageItem }),
     };
 }
 
@@ -95,6 +102,7 @@ export function toJsonType(value: Type): Json {
         ...(value.symbol === undefined ? {} : { symbol: toJsonSymbol(value.symbol) }),
         ...(value.name === undefined ? {} : { name: toJsonStringId(value.name) }),
         ...(value.heritage === undefined ? {} : { heritage: toJsonTypeHeritage(value.heritage) }),
+        ...(value.languageItem === undefined ? {} : { languageItem: toJsonStringId(value.languageItem) }),
     };
 }
 
@@ -109,5 +117,6 @@ export function fromJsonType(value: Json): Type {
         symbol: jsonOptional(object, "symbol", (value) => fromJsonSymbol(value)),
         name: jsonOptional(object, "name", (value) => fromJsonStringId(value)),
         heritage: jsonOptional(object, "heritage", (value) => fromJsonTypeHeritage(value)),
+        languageItem: jsonOptional(object, "languageItem", (value) => fromJsonStringId(value)),
     };
 }

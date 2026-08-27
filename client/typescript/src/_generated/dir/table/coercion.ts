@@ -109,19 +109,19 @@ export type CoercionAdjustment =
           /** The selected conversion for each possible source type. */
           readonly cases: ReadonlyArray<CoercionCase>;
       }
-    /** Erase the value behind its constraint carrier, like an interface or `unknown`. */
+    /** Erase the value behind its constraint representation, like an interface or `unknown`. */
     | {
           readonly kind: "erase";
-          /** The erased carrier type after this adjustment. */
+          /** The erased representation type after this adjustment. */
           readonly target: GlobalTypeId;
       }
-    /** Convert between scalar carriers, like `int32` into `float64`. */
+    /** Convert between scalar representations, like `int32` into `float64`. */
     | {
           readonly kind: "scalar";
           /** The scalar type after this adjustment. */
           readonly target: GlobalTypeId;
       }
-    /** Materialize one const scalar at its selected carrier, like `42` into `int32`. */
+    /** Materialize one const scalar at its selected representation, like `42` into `int32`. */
     | {
           readonly kind: "widen";
           /** The scalar type after this adjustment. */
@@ -139,10 +139,10 @@ export type CoercionAdjustment =
           /** The managed type after this adjustment. */
           readonly target: GlobalTypeId;
       }
-    /** Change the value carrier, like `^T` into `&T` or `T[]` into `[T]`. */
+    /** Change the value representation, like `^T` into `&T` or `T[]` into `[T]`. */
     | {
-          readonly kind: "carrier";
-          /** The carrier type after this adjustment. */
+          readonly kind: "representation";
+          /** The representation type after this adjustment. */
           readonly target: GlobalTypeId;
       }
     /** Materialize one generic callable reference at its selected concrete instance. */
@@ -171,17 +171,17 @@ export const CoercionAdjustment = {
         return { kind: "union", target, cases };
     },
 
-    /** Erase the value behind its constraint carrier, like an interface or `unknown`. */
+    /** Erase the value behind its constraint representation, like an interface or `unknown`. */
     erase(target: GlobalTypeId): CoercionAdjustment {
         return { kind: "erase", target };
     },
 
-    /** Convert between scalar carriers, like `int32` into `float64`. */
+    /** Convert between scalar representations, like `int32` into `float64`. */
     scalar(target: GlobalTypeId): CoercionAdjustment {
         return { kind: "scalar", target };
     },
 
-    /** Materialize one const scalar at its selected carrier, like `42` into `int32`. */
+    /** Materialize one const scalar at its selected representation, like `42` into `int32`. */
     widen(target: GlobalTypeId): CoercionAdjustment {
         return { kind: "widen", target };
     },
@@ -196,9 +196,9 @@ export const CoercionAdjustment = {
         return { kind: "manage", target };
     },
 
-    /** Change the value carrier, like `^T` into `&T` or `T[]` into `[T]`. */
-    carrier(target: GlobalTypeId): CoercionAdjustment {
-        return { kind: "carrier", target };
+    /** Change the value representation, like `^T` into `&T` or `T[]` into `[T]`. */
+    representation(target: GlobalTypeId): CoercionAdjustment {
+        return { kind: "representation", target };
     },
 
     /** Materialize one generic callable reference at its selected concrete instance. */
@@ -266,7 +266,7 @@ export function encodeCoercionAdjustment(writer: BinaryWriter, value: CoercionAd
             writer.writeUnsigned(7);
             encodeGlobalTypeId(writer, value.target);
             return;
-        case "carrier":
+        case "representation":
             writer.writeUnsigned(8);
             encodeGlobalTypeId(writer, value.target);
             return;
@@ -358,7 +358,7 @@ export function decodeCoercionAdjustment(reader: BinaryReader): CoercionAdjustme
             const target = decodeGlobalTypeId(reader);
 
             return {
-                kind: "carrier",
+                kind: "representation",
                 target,
             };
         }
@@ -421,9 +421,9 @@ export function toJsonCoercionAdjustment(value: CoercionAdjustment): Json {
                 kind: "manage",
                 target: toJsonGlobalTypeId(value.target),
             };
-        case "carrier":
+        case "representation":
             return {
-                kind: "carrier",
+                kind: "representation",
                 target: toJsonGlobalTypeId(value.target),
             };
         case "instantiate":
@@ -484,7 +484,7 @@ export function fromJsonCoercionAdjustment(value: Json): CoercionAdjustment {
                 kind,
                 target: fromJsonGlobalTypeId(jsonField(object, "target")),
             };
-        case "carrier":
+        case "representation":
             return {
                 kind,
                 target: fromJsonGlobalTypeId(jsonField(object, "target")),

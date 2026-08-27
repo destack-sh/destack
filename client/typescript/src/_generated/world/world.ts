@@ -31,7 +31,7 @@ const addRuleMethodResponse: Decoder<null> = {
 const addRuleMethod: Method<runtimeServiceWorld.AddRuleRequest, null, never, never> = {
     service: 10634146378307930274n,
     method: 16813479073203872380n,
-    fingerprint: 326336308869172955110760908774925326212n,
+    fingerprint: 64481110724408000318111629839960286692n,
     kind: "unary",
     idempotency: "unknown",
     request: addRuleMethodRequest,
@@ -169,7 +169,7 @@ const listObservationsMethodResponse: Decoder<runtimeServiceWorld.ObservationPag
 const listObservationsMethod: Method<runtimeServiceWorld.ListObservationsRequest, runtimeServiceWorld.ObservationPage, never, never> = {
     service: 10634146378307930274n,
     method: 1437261528243189898n,
-    fingerprint: 308636298998412260796539571676712163954n,
+    fingerprint: 57837344939912482357750910484199613394n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: listObservationsMethodRequest,
@@ -192,7 +192,7 @@ const listRuntimesMethodResponse: Decoder<ReadonlyArray<runtimeServiceWorld.Runt
 const listRuntimesMethod: Method<runtimeServiceWorld.ListRuntimesRequest, ReadonlyArray<runtimeServiceWorld.Runtime>, never, never> = {
     service: 10634146378307930274n,
     method: 13494924740849884462n,
-    fingerprint: 44799178127057640244548167517595011690n,
+    fingerprint: 316750158777233413471282762688356437352n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: listRuntimesMethodRequest,
@@ -284,7 +284,7 @@ const readPolicyMethodResponse: Decoder<runtimeWorldPolicyPolicy.Policy> = {
 const readPolicyMethod: Method<runtimeServiceWorld.ReadPolicyRequest, runtimeWorldPolicyPolicy.Policy, never, never> = {
     service: 10634146378307930274n,
     method: 13141633833561005040n,
-    fingerprint: 330490546133893299313357372197728430234n,
+    fingerprint: 248257480969639072663504896170794113641n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: readPolicyMethodRequest,
@@ -307,7 +307,7 @@ const readRuntimeMethodResponse: Decoder<runtimeServiceWorld.Runtime> = {
 const readRuntimeMethod: Method<runtimeServiceWorld.ReadRuntimeRequest, runtimeServiceWorld.Runtime, never, never> = {
     service: 10634146378307930274n,
     method: 17741785525402478019n,
-    fingerprint: 118653598017370470474397319930116693994n,
+    fingerprint: 138644457161980853087517330883890908427n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: readRuntimeMethodRequest,
@@ -353,7 +353,7 @@ const reloadRuntimeMethodResponse: Decoder<runtimeServiceWorld.Runtime> = {
 const reloadRuntimeMethod: Method<runtimeServiceWorld.ReloadRuntimeRequest, runtimeServiceWorld.Runtime, never, never> = {
     service: 10634146378307930274n,
     method: 15811933204709298131n,
-    fingerprint: 1028502371309658753654106931514714410n,
+    fingerprint: 292641083566599995001540325514569334149n,
     kind: "unary",
     idempotency: "unknown",
     request: reloadRuntimeMethodRequest,
@@ -422,7 +422,7 @@ const replacePolicyMethodResponse: Decoder<null> = {
 const replacePolicyMethod: Method<runtimeServiceWorld.ReplacePolicyRequest, null, never, never> = {
     service: 10634146378307930274n,
     method: 15373056204194364075n,
-    fingerprint: 160973612462934385516740052430939378091n,
+    fingerprint: 225051825163163224214542273932355069490n,
     kind: "unary",
     idempotency: "unknown",
     request: replacePolicyMethodRequest,
@@ -445,7 +445,7 @@ const replaceRuleMethodResponse: Decoder<null> = {
 const replaceRuleMethod: Method<runtimeServiceWorld.ReplaceRuleRequest, null, never, never> = {
     service: 10634146378307930274n,
     method: 1861260571537567491n,
-    fingerprint: 143025997571192341549941120067983131897n,
+    fingerprint: 102579629823830111683254372926809018053n,
     kind: "unary",
     idempotency: "unknown",
     request: replaceRuleMethodRequest,
@@ -537,7 +537,7 @@ const spawnRuntimeMethodResponse: Decoder<runtimeServiceWorld.Runtime> = {
 const spawnRuntimeMethod: Method<runtimeServiceWorld.SpawnRuntimeRequest, runtimeServiceWorld.Runtime, never, never> = {
     service: 10634146378307930274n,
     method: 18276151310101957786n,
-    fingerprint: 12671912223701750327500438266648609714n,
+    fingerprint: 64064363718473084587768411867456410510n,
     kind: "unary",
     idempotency: "unknown",
     request: spawnRuntimeMethodRequest,
@@ -566,7 +566,7 @@ const watchObservationsMethodOutput: Decoder<runtimeWorldObservationEntry.Observ
 const watchObservationsMethod: Method<runtimeServiceWorld.WatchObservationsRequest, null, never, runtimeWorldObservationEntry.ObservationEntry> = {
     service: 10634146378307930274n,
     method: 13237122242148560062n,
-    fingerprint: 162430897042791698149959346074197932415n,
+    fingerprint: 235847324697748917516121796630506751975n,
     kind: "serverStreaming",
     idempotency: "unknown",
     request: watchObservationsMethodRequest,

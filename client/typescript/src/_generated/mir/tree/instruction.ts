@@ -754,10 +754,10 @@ export type Instruction =
           /** The result type of the allocation. */
           readonly resultType: LocalNodeId;
       }
-    /** Release one unique carrier's backing heap allocation (`free`). */
+    /** Release one unique representation's backing heap allocation (`free`). */
     | {
           readonly kind: "free";
-          /** The unique heap carrier whose backing allocation is released. */
+          /** The unique heap representation whose backing allocation is released. */
           readonly value: Value;
       }
     /** Stabilize one heap value against movement (`pin`). */
@@ -1155,7 +1155,7 @@ export const Instruction = {
         return { kind: "newSliceUninit", destination, element, length, resultType };
     },
 
-    /** Release one unique carrier's backing heap allocation (`free`). */
+    /** Release one unique representation's backing heap allocation (`free`). */
     free(value: Value): Instruction {
         return { kind: "free", value };
     },

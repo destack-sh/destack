@@ -10,6 +10,7 @@ import type { TypeLiteral } from "./literal.js";
 import type { Name } from "./name.js";
 import type { LocalNodeId } from "./node.js";
 import type { Mutability } from "./node.js";
+import type { Visibility } from "./node.js";
 import type { RangeEnd } from "./operator.js";
 import type { Path } from "./path.js";
 import type { TupleForm } from "../type/type.js";
@@ -22,6 +23,7 @@ import { decodeTypeLiteral, encodeTypeLiteral, fromJsonTypeLiteral, toJsonTypeLi
 import { decodeName, encodeName, fromJsonName, toJsonName } from "./name.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
 import { decodeMutability, encodeMutability, fromJsonMutability, toJsonMutability } from "./node.js";
+import { decodeVisibility, encodeVisibility, fromJsonVisibility, toJsonVisibility } from "./node.js";
 import { decodeRangeEnd, encodeRangeEnd, fromJsonRangeEnd, toJsonRangeEnd } from "./operator.js";
 import { decodePath, encodePath, fromJsonPath, toJsonPath } from "./path.js";
 import { decodeTupleForm, encodeTupleForm, fromJsonTupleForm, toJsonTupleForm } from "../type/type.js";
@@ -1899,6 +1901,7 @@ export type TypeMember =
           readonly kind: "field";
           readonly name: Name;
           readonly declaredType?: LocalNodeId;
+          readonly visibility?: Visibility;
           readonly isStatic: boolean;
           readonly isOptional: boolean;
           readonly isReadonly: boolean;
@@ -1909,6 +1912,7 @@ export type TypeMember =
           readonly name: Name;
           readonly signature: FunctionSignature;
           readonly body?: LocalNodeId;
+          readonly visibility?: Visibility;
           readonly isStatic: boolean;
           readonly isOptional: boolean;
       }
@@ -1960,13 +1964,13 @@ export type TypeMember =
 
 export const TypeMember = {
     /** Named field. */
-    field(name: Name, declaredType: LocalNodeId | undefined, isStatic: boolean, isOptional: boolean, isReadonly: boolean): TypeMember {
-        return { kind: "field", name, declaredType, isStatic, isOptional, isReadonly };
+    field(name: Name, declaredType: LocalNodeId | undefined, visibility: Visibility | undefined, isStatic: boolean, isOptional: boolean, isReadonly: boolean): TypeMember {
+        return { kind: "field", name, declaredType, visibility, isStatic, isOptional, isReadonly };
     },
 
     /** Named method. */
-    method(name: Name, signature: FunctionSignature, body: LocalNodeId | undefined, isStatic: boolean, isOptional: boolean): TypeMember {
-        return { kind: "method", name, signature, body, isStatic, isOptional };
+    method(name: Name, signature: FunctionSignature, body: LocalNodeId | undefined, visibility: Visibility | undefined, isStatic: boolean, isOptional: boolean): TypeMember {
+        return { kind: "method", name, signature, body, visibility, isStatic, isOptional };
     },
 
     /** Call signature declaration. */
@@ -2029,6 +2033,9 @@ export function encodeTypeMember(writer: BinaryWriter, value: TypeMember): void 
             writer.writeOption(value.declaredType, (value1) => {
                 encodeLocalNodeId(writer, value1);
             });
+            writer.writeOption(value.visibility, (value2) => {
+                encodeVisibility(writer, value2);
+            });
             writer.writeBool(value.isStatic);
             writer.writeBool(value.isOptional);
             writer.writeBool(value.isReadonly);
@@ -2039,6 +2046,9 @@ export function encodeTypeMember(writer: BinaryWriter, value: TypeMember): void 
             encodeFunctionSignature(writer, value.signature);
             writer.writeOption(value.body, (value2) => {
                 encodeLocalNodeId(writer, value2);
+            });
+            writer.writeOption(value.visibility, (value3) => {
+                encodeVisibility(writer, value3);
             });
             writer.writeBool(value.isStatic);
             writer.writeBool(value.isOptional);
@@ -2107,6 +2117,7 @@ export function decodeTypeMember(reader: BinaryReader): TypeMember {
         case 0: {
             const name = decodeName(reader);
             const declaredType = reader.readOption(() => decodeLocalNodeId(reader));
+            const visibility = reader.readOption(() => decodeVisibility(reader));
             const isStatic = reader.readBool();
             const isOptional = reader.readBool();
             const isReadonly = reader.readBool();
@@ -2115,6 +2126,7 @@ export function decodeTypeMember(reader: BinaryReader): TypeMember {
                 kind: "field",
                 name,
                 ...(declaredType === undefined ? {} : { declaredType }),
+                ...(visibility === undefined ? {} : { visibility }),
                 isStatic,
                 isOptional,
                 isReadonly,
@@ -2124,6 +2136,7 @@ export function decodeTypeMember(reader: BinaryReader): TypeMember {
             const name = decodeName(reader);
             const signature = decodeFunctionSignature(reader);
             const body = reader.readOption(() => decodeLocalNodeId(reader));
+            const visibility = reader.readOption(() => decodeVisibility(reader));
             const isStatic = reader.readBool();
             const isOptional = reader.readBool();
 
@@ -2132,6 +2145,7 @@ export function decodeTypeMember(reader: BinaryReader): TypeMember {
                 name,
                 signature,
                 ...(body === undefined ? {} : { body }),
+                ...(visibility === undefined ? {} : { visibility }),
                 isStatic,
                 isOptional,
             };
@@ -2220,6 +2234,7 @@ export function toJsonTypeMember(value: TypeMember): Json {
                 kind: "field",
                 name: toJsonName(value.name),
                 ...(value.declaredType === undefined ? {} : { declaredType: toJsonLocalNodeId(value.declaredType) }),
+                ...(value.visibility === undefined ? {} : { visibility: toJsonVisibility(value.visibility) }),
                 isStatic: value.isStatic,
                 isOptional: value.isOptional,
                 isReadonly: value.isReadonly,
@@ -2230,6 +2245,7 @@ export function toJsonTypeMember(value: TypeMember): Json {
                 name: toJsonName(value.name),
                 signature: toJsonFunctionSignature(value.signature),
                 ...(value.body === undefined ? {} : { body: toJsonLocalNodeId(value.body) }),
+                ...(value.visibility === undefined ? {} : { visibility: toJsonVisibility(value.visibility) }),
                 isStatic: value.isStatic,
                 isOptional: value.isOptional,
             };
@@ -2292,6 +2308,7 @@ export function fromJsonTypeMember(value: Json): TypeMember {
                 kind,
                 name: fromJsonName(jsonField(object, "name")),
                 declaredType: jsonOptional(object, "declaredType", (value) => fromJsonLocalNodeId(value)),
+                visibility: jsonOptional(object, "visibility", (value) => fromJsonVisibility(value)),
                 isStatic: jsonBool(jsonField(object, "isStatic")),
                 isOptional: jsonBool(jsonField(object, "isOptional")),
                 isReadonly: jsonBool(jsonField(object, "isReadonly")),
@@ -2302,6 +2319,7 @@ export function fromJsonTypeMember(value: Json): TypeMember {
                 name: fromJsonName(jsonField(object, "name")),
                 signature: fromJsonFunctionSignature(jsonField(object, "signature")),
                 body: jsonOptional(object, "body", (value) => fromJsonLocalNodeId(value)),
+                visibility: jsonOptional(object, "visibility", (value) => fromJsonVisibility(value)),
                 isStatic: jsonBool(jsonField(object, "isStatic")),
                 isOptional: jsonBool(jsonField(object, "isOptional")),
             };

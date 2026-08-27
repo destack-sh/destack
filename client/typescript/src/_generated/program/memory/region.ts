@@ -48,7 +48,7 @@ export function fromJsonGlobalId(value: Json): GlobalId {
 }
 
 /** Storage location for one program global. */
-export type GlobalLocation = "constant" | "sharedStatic" | "localStatic" | "immortal";
+export type GlobalLocation = "constant" | "sharedStatic" | "localStatic";
 
 export const GlobalLocation = {
     /** Encode this value. */
@@ -84,9 +84,6 @@ export function encodeGlobalLocation(writer: BinaryWriter, value: GlobalLocation
         case "localStatic":
             writer.writeUnsigned(2);
             return;
-        case "immortal":
-            writer.writeUnsigned(3);
-            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -103,8 +100,6 @@ export function decodeGlobalLocation(reader: BinaryReader): GlobalLocation {
             return "sharedStatic";
         case 2:
             return "localStatic";
-        case 3:
-            return "immortal";
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -126,8 +121,6 @@ export function fromJsonGlobalLocation(value: Json): GlobalLocation {
             return "sharedStatic";
         case "localStatic":
             return "localStatic";
-        case "immortal":
-            return "immortal";
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);

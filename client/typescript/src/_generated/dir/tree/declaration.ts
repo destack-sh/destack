@@ -6,11 +6,13 @@ import type { FunctionSignature } from "./function.js";
 import type { Name } from "./name.js";
 import type { LocalNodeId } from "./node.js";
 import type { Mutability } from "./node.js";
+import type { Visibility } from "./node.js";
 import { decodeExportKind, encodeExportKind, fromJsonExportKind, toJsonExportKind } from "./dependency.js";
 import { decodeFunctionSignature, encodeFunctionSignature, fromJsonFunctionSignature, toJsonFunctionSignature } from "./function.js";
 import { decodeName, encodeName, fromJsonName, toJsonName } from "./name.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
 import { decodeMutability, encodeMutability, fromJsonMutability, toJsonMutability } from "./node.js";
+import { decodeVisibility, encodeVisibility, fromJsonVisibility, toJsonVisibility } from "./node.js";
 
 /** A class declaration. */
 export type ClassDeclaration = {
@@ -1371,6 +1373,8 @@ export type TypeDeclaration = {
     readonly genericParameters: ReadonlyArray<LocalNodeId>;
     /** The where clauses of the declaration. */
     readonly whereClauses: ReadonlyArray<LocalNodeId>;
+    /** The backing visibility written ahead of a newtype value. */
+    readonly backingVisibility?: Visibility;
     /** The declared type expression. */
     readonly value: LocalNodeId;
     /** Whether the declaration is ambient. */
@@ -1421,6 +1425,9 @@ export function encodeTypeDeclaration(writer: BinaryWriter, value: TypeDeclarati
     for (const item5 of value.whereClauses) {
         encodeLocalNodeId(writer, item5);
     }
+    writer.writeOption(value.backingVisibility, (value6) => {
+        encodeVisibility(writer, value6);
+    });
     encodeLocalNodeId(writer, value.value);
     writer.writeBool(value.isAmbient);
     writer.writeBool(value.isNominal);
@@ -1434,6 +1441,7 @@ export function decodeTypeDeclaration(reader: BinaryReader): TypeDeclaration {
     const mutability = reader.readOption(() => decodeMutability(reader));
     const genericParameters = (() => { const length4 = reader.readNumber(); const items4: Array<LocalNodeId> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeLocalNodeId(reader)); } return items4; })();
     const whereClauses = (() => { const length5 = reader.readNumber(); const items5: Array<LocalNodeId> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeLocalNodeId(reader)); } return items5; })();
+    const backingVisibility = reader.readOption(() => decodeVisibility(reader));
     const value = decodeLocalNodeId(reader);
     const isAmbient = reader.readBool();
     const isNominal = reader.readBool();
@@ -1445,6 +1453,7 @@ export function decodeTypeDeclaration(reader: BinaryReader): TypeDeclaration {
         ...(mutability === undefined ? {} : { mutability }),
         genericParameters,
         whereClauses,
+        ...(backingVisibility === undefined ? {} : { backingVisibility }),
         value,
         isAmbient,
         isNominal,
@@ -1460,6 +1469,7 @@ export function toJsonTypeDeclaration(value: TypeDeclaration): Json {
         ...(value.mutability === undefined ? {} : { mutability: toJsonMutability(value.mutability) }),
         genericParameters: value.genericParameters.map((item0) => toJsonLocalNodeId(item0)),
         whereClauses: value.whereClauses.map((item0) => toJsonLocalNodeId(item0)),
+        ...(value.backingVisibility === undefined ? {} : { backingVisibility: toJsonVisibility(value.backingVisibility) }),
         value: toJsonLocalNodeId(value.value),
         isAmbient: value.isAmbient,
         isNominal: value.isNominal,
@@ -1477,6 +1487,7 @@ export function fromJsonTypeDeclaration(value: Json): TypeDeclaration {
         mutability: jsonOptional(object, "mutability", (value) => fromJsonMutability(value)),
         genericParameters: jsonArray(jsonField(object, "genericParameters")).map((item0) => fromJsonLocalNodeId(item0)),
         whereClauses: jsonArray(jsonField(object, "whereClauses")).map((item0) => fromJsonLocalNodeId(item0)),
+        backingVisibility: jsonOptional(object, "backingVisibility", (value) => fromJsonVisibility(value)),
         value: fromJsonLocalNodeId(jsonField(object, "value")),
         isAmbient: jsonBool(jsonField(object, "isAmbient")),
         isNominal: jsonBool(jsonField(object, "isNominal")),
