@@ -194,14 +194,18 @@ impl<'a> Scan<'a> {
         let mut pending = vec![self.root.to_path_buf()];
         let mut visited = HashSet::new();
 
-        // walk directories by metadata only
+        // walk workspace directories without following links
         while let Some(directory) = pending.pop() {
             if !visited.insert(directory.clone()) {
                 continue;
             }
 
             for path in self.read_directory(&directory)? {
-                let metadata = self.metadata(&path)?;
+                let package_path = self.package_path(self.root, &path)?;
+                if config.excludes_source(&package_path) {
+                    continue;
+                }
+                let metadata = self.symlink_metadata(&path)?;
 
                 // collect manifest files
                 if metadata.is_file && Self::is_destack_config_path(&path) {
@@ -209,10 +213,7 @@ impl<'a> Scan<'a> {
                 }
                 // descend into source directories
                 else if metadata.is_directory {
-                    let package_path = self.package_path(self.root, &path)?;
-                    if !config.excludes_source(&package_path) {
-                        pending.push(path);
-                    }
+                    pending.push(path);
                 }
             }
         }
@@ -258,26 +259,26 @@ impl<'a> Scan<'a> {
         let mut pending = vec![package_root.to_path_buf()];
         let mut visited = HashSet::new();
 
-        // walk package files by metadata only
+        // walk package directories without following links
         while let Some(directory) = pending.pop() {
             if !visited.insert(directory.clone()) {
                 continue;
             }
 
             for path in self.read_directory(&directory)? {
-                let metadata = self.metadata(&path)?;
+                let package_path = self.package_path(package_root, &path)?;
+                if config.excludes_source(&package_path) {
+                    continue;
+                }
+                let metadata = self.symlink_metadata(&path)?;
 
                 // descend into directories that remain inside the source set
                 if metadata.is_directory {
-                    let package_path = self.package_path(package_root, &path)?;
-                    if !config.excludes_source(&package_path) {
-                        pending.push(path);
-                    }
+                    pending.push(path);
                     continue;
                 }
 
                 // collect recognized and explicitly selected files
-                let package_path = self.package_path(package_root, &path)?;
                 let is_included = Self::tracks_path(&path) || config.includes_source(&package_path);
                 if metadata.is_file && is_included {
                     self.import_file(&path)?;
@@ -294,7 +295,7 @@ impl<'a> Scan<'a> {
             if !Self::tracks_path(&path) {
                 continue;
             }
-            let metadata = self.metadata(&path)?;
+            let metadata = self.symlink_metadata(&path)?;
             if metadata.is_file {
                 self.import_file(&path)?;
             }
@@ -471,13 +472,25 @@ impl<'a> Scan<'a> {
         Ok(paths)
     }
 
-    /// Read metadata for one path.
+    /// Read metadata for one explicitly selected path.
     fn metadata(&self, path: &Path) -> Result<FileMetadata, RepositoryError> {
         self.repository
             .file_system()
             .metadata(path)
             .map_err(|error| RepositoryError::FileSystem {
                 operation: "metadata",
+                path: path.to_path_buf(),
+                message: error.to_string(),
+            })
+    }
+
+    /// Read metadata for one directory entry without following symlinks.
+    fn symlink_metadata(&self, path: &Path) -> Result<FileMetadata, RepositoryError> {
+        self.repository
+            .file_system()
+            .symlink_metadata(path)
+            .map_err(|error| RepositoryError::FileSystem {
+                operation: "symlink_metadata",
                 path: path.to_path_buf(),
                 message: error.to_string(),
             })

@@ -292,13 +292,16 @@ impl DestackFile {
     /// Return whether one source pattern contains one package-relative path.
     fn matches_source_pattern(pattern: &str, path: &str) -> bool {
         let directory_pattern = pattern.strip_suffix("/**");
+        let is_match = matches(pattern.as_bytes(), 0, path.as_bytes(), 0);
+        let is_directory_match = directory_pattern
+            .is_some_and(|pattern| matches(pattern.as_bytes(), 0, path.as_bytes(), 0));
 
-        matches(pattern.as_bytes(), 0, path.as_bytes(), 0)
-            || path == pattern
-            || directory_pattern.is_some_and(|pattern| path == pattern)
-            || path
-                .strip_prefix(pattern)
-                .is_some_and(|suffix| suffix.starts_with('/'))
+        // include descendants selected through a literal directory path
+        let is_descendant = path
+            .strip_prefix(pattern)
+            .is_some_and(|suffix| suffix.starts_with('/'));
+
+        is_match || is_directory_match || is_descendant
     }
 
     /// Inherit settings from one parent configuration.
