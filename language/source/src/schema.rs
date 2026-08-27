@@ -5,8 +5,8 @@ use crate::{
     Applicability, ByteRange, ComponentId, Diagnostic, DiagnosticHelp, DiagnosticLabel,
     DiagnosticNote, DiagnosticReference, DiagnosticSeverity, DiagnosticSuggestion, DiagnosticTag,
     Edit, FileId, FilePatch, FileType, Location, LocationId, ModuleId, PackageId, Patch, PatchSet,
-    ProductId, ProfileId, ProvenanceId, ProvenanceTable, Span, TargetId, TextChange, TextPatch,
-    TextPosition, TextRange, Transform, TransformId,
+    ProductId, ProfileId, ProvenanceId, ProvenanceTable, Span, TargetId, TextChange, TextExtent,
+    TextMap, TextNameId, TextPatch, TextPosition, TextRange, Transform, TransformId,
 };
 
 /// Include public source schema roots.
@@ -29,6 +29,9 @@ pub fn schema(schema: &mut Schema) {
     schema.register::<Location>();
     schema.register::<Transform>();
     schema.register::<ProvenanceTable>();
+    schema.register::<TextNameId>();
+    schema.register::<TextExtent>();
+    schema.register::<TextMap>();
 
     schema.register::<DiagnosticSeverity>();
     schema.register::<DiagnosticTag>();

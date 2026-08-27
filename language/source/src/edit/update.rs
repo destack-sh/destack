@@ -1,6 +1,7 @@
 use std::io;
 use std::path::{Component, Path, PathBuf};
 
+use destack_core::SectionEntry;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -200,7 +201,10 @@ impl Edit {
 }
 
 /// One byte range in source text.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[repr(C)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub struct ByteRange {
     /// Inclusive start byte offset.
     pub start: u32,
