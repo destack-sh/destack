@@ -1,11 +1,21 @@
 use destack_lsp_types as lsp;
 
-use super::tests::{TestServer, position};
+use super::tests::{TestServer, position, range};
 
-/// Navigate an interface method to its implementing declarations.
+/// Return exact locations for every positional navigation request.
 #[tokio::test]
-async fn test_navigate_an_interface_method_to_its_implementations() {
-    let source = r#"interface Greeter {
+async fn test_navigate_symbols() {
+    let library = r#"export class Device {}
+export function choose(device: Device): Device {
+    return device;
+}
+"#;
+    let main = r#"import { Device, choose } from "./library.ds";
+
+const first = new Device();
+const second = choose(first);
+
+interface Greeter {
     greet(): string;
 }
 
@@ -18,27 +28,90 @@ class Robot {
 extension of Robot implements Greeter {}
 "#;
     let (mut server, document) = TestServer::open_workspace(
-        "member-implementations",
-        &[("src/main.ds", source)],
+        "navigation",
+        &[("src/library.ds", library), ("src/main.ds", main)],
         "src/main.ds",
     )
     .await;
-    let params = document.implementations(position(1, 4));
-    let expected = Some(lsp::request::GotoImplementationResponse::Link(vec![
-        lsp::LocationLink {
-            origin_selection_range: Some(lsp::Range::new(
-                lsp::Position::new(1, 4),
-                lsp::Position::new(1, 9),
-            )),
-            target_uri: document.uri().clone(),
-            target_range: lsp::Range::new(lsp::Position::new(5, 4), lsp::Position::new(7, 5)),
-            target_selection_range: lsp::Range::new(
-                lsp::Position::new(5, 4),
-                lsp::Position::new(5, 9),
-            ),
-        },
-    ]));
+    let library = server.document("src/library.ds");
+
+    // navigate the imported call to its authored function
+    let definition = Some(lsp::GotoDefinitionResponse::Link(vec![lsp::LocationLink {
+        origin_selection_range: Some(range(3, 15, 3, 21)),
+        target_uri: library.uri().clone(),
+        target_range: range(1, 0, 3, 1),
+        target_selection_range: range(1, 16, 1, 22),
+    }]));
     server
-        .assert_request::<lsp::request::GotoImplementation>(params, Ok(expected))
+        .assert_request(document.definition(position(3, 15)), Ok(definition))
+        .await;
+
+    // navigate the same call to its local import declaration
+    let declaration = Some(lsp::GotoDefinitionResponse::Link(vec![lsp::LocationLink {
+        origin_selection_range: Some(range(3, 15, 3, 21)),
+        target_uri: document.uri().clone(),
+        target_range: range(0, 17, 0, 23),
+        target_selection_range: range(0, 17, 0, 23),
+    }]));
+    server
+        .assert_request(document.declaration(position(3, 15)), Ok(declaration))
+        .await;
+
+    // navigate one value reference to its nominal type
+    let type_definition = Some(lsp::GotoDefinitionResponse::Link(vec![lsp::LocationLink {
+        origin_selection_range: Some(range(3, 22, 3, 27)),
+        target_uri: library.uri().clone(),
+        target_range: range(0, 0, 0, 22),
+        target_selection_range: range(0, 13, 0, 19),
+    }]));
+    server
+        .assert_request(
+            document.type_definition(position(3, 22)),
+            Ok(type_definition),
+        )
+        .await;
+
+    // return the exact declaration and reference locations
+    let references = Some(vec![
+        lsp::Location {
+            uri: document.uri().clone(),
+            range: range(2, 6, 2, 11),
+        },
+        lsp::Location {
+            uri: document.uri().clone(),
+            range: range(3, 22, 3, 27),
+        },
+    ]);
+    server
+        .assert_request(document.references(position(3, 22), true), Ok(references))
+        .await;
+
+    // preserve read and write kinds in document highlights
+    let highlights = Some(vec![
+        lsp::DocumentHighlight {
+            range: range(2, 6, 2, 11),
+            kind: Some(lsp::DocumentHighlightKind::WRITE),
+        },
+        lsp::DocumentHighlight {
+            range: range(3, 22, 3, 27),
+            kind: Some(lsp::DocumentHighlightKind::READ),
+        },
+    ]);
+    server
+        .assert_request(document.highlights(position(3, 22)), Ok(highlights))
+        .await;
+
+    // navigate an interface method to its implementing declaration
+    let implementations = Some(lsp::GotoDefinitionResponse::Link(vec![lsp::LocationLink {
+        origin_selection_range: Some(range(6, 4, 6, 9)),
+        target_uri: document.uri().clone(),
+        target_range: range(10, 4, 12, 5),
+        target_selection_range: range(10, 4, 10, 9),
+    }]));
+    server
+        .assert_request(
+            document.implementations(position(6, 4)),
+            Ok(implementations),
+        )
         .await;
 }
