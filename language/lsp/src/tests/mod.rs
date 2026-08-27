@@ -1,7 +1,10 @@
+mod assist;
 mod diagnostic;
 mod document;
 mod lifecycle;
+mod navigation;
+mod refactor;
 mod sync;
 
-// reuse the protocol test fixture
+// protocol harness
 mod tests;
