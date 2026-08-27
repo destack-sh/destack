@@ -222,7 +222,7 @@ impl PositionIndex {
         let mut file_index_by_id = FxHashMap::default();
 
         for (index, range) in source_index.enclosing_ranges.iter().copied().enumerate() {
-            let node_id = index as u32;
+            let node_id = source_index.node_id(index);
             let file = source_index.file_for_node(node_id);
             let interval = (range.start, range.end, node_id);
 
@@ -271,9 +271,11 @@ struct FilePositionIndex {
 /// Source range and position index for tree nodes.
 #[derive(Debug)]
 pub struct SourceIndex {
+    /// The first node id indexed by the dense enclosing range column.
+    first_node_id: u32,
     /// Source file runs for node ranges.
     file_runs: Vec<SourceFileRun>,
-    /// Enclosing ranges of all nodes, indexed by global node id.
+    /// Enclosing ranges of all nodes, indexed relative to the first node id.
     enclosing_ranges: Vec<ByteRange>,
     /// Frequent typed ranges indexed by node span column.
     range_columns: [Vec<NodeRange>; NodeSpanColumn::COUNT],
@@ -289,6 +291,7 @@ pub struct SourceIndex {
 impl Clone for SourceIndex {
     fn clone(&self) -> Self {
         Self {
+            first_node_id: self.first_node_id,
             file_runs: self.file_runs.clone(),
             enclosing_ranges: self.enclosing_ranges.clone(),
             range_columns: self.range_columns.clone(),
@@ -302,6 +305,9 @@ impl Clone for SourceIndex {
 /// Serialized source index shape.
 #[derive(Serialize, Deserialize, Reflect)]
 struct SourceIndexArchive {
+    /// The first node id in every serialized span column.
+    #[serde(default)]
+    first_node_id: u32,
     enclosing_spans: Vec<Span>,
     #[serde(default)]
     main_spans: Vec<Option<Span>>,
@@ -317,15 +323,6 @@ impl Reflect for SourceIndex {
     }
 }
 
-/// Borrowed source index serialization view.
-#[derive(Serialize)]
-struct SourceIndexArchiveRef<'a> {
-    enclosing_spans: &'a [Span],
-    main_spans: Vec<Option<Span>>,
-    type_spans: Vec<Option<Span>>,
-    side_spans: Vec<(NodeSpanKey, Span)>,
-}
-
 impl Serialize for SourceIndex {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -337,25 +334,28 @@ impl Serialize for SourceIndex {
 
         // expand dedicated archive columns under each owning file
         for index in 0..self.enclosing_ranges.len() {
+            let node_id = self.node_id(index);
             main_spans.push(
-                Self::get_node_range(self.range_column(NodeSpanColumn::Main), index as u32)
-                    .map(|range| self.expand_range(index as u32, range)),
+                Self::get_node_range(self.range_column(NodeSpanColumn::Main), node_id)
+                    .map(|range| self.expand_range(node_id, range)),
             );
             type_spans.push(
-                Self::get_node_range(self.range_column(NodeSpanColumn::Type), index as u32)
-                    .map(|range| self.expand_range(index as u32, range)),
+                Self::get_node_range(self.range_column(NodeSpanColumn::Type), node_id)
+                    .map(|range| self.expand_range(node_id, range)),
             );
         }
 
         let side_spans = self.collect_side_spans();
 
-        let data = SourceIndexArchiveRef {
-            enclosing_spans: &enclosing_spans,
+        let archive = SourceIndexArchive {
+            first_node_id: self.first_node_id,
+            enclosing_spans,
             main_spans,
             type_spans,
             side_spans,
         };
-        data.serialize(serializer)
+
+        archive.serialize(serializer)
     }
 }
 
@@ -365,14 +365,16 @@ impl<'de> Deserialize<'de> for SourceIndex {
         D: Deserializer<'de>,
     {
         let data = SourceIndexArchive::deserialize(deserializer)?;
+        let first_node_id = data.first_node_id;
         let enclosing_len = data.enclosing_spans.len();
-        let (file_runs, enclosing_ranges) = Self::split_spans(data.enclosing_spans);
+        let (file_runs, enclosing_ranges) = Self::split_spans(first_node_id, data.enclosing_spans);
+
         // restore main ranges
         let mut main_ranges = Vec::new();
         for index in 0..enclosing_len {
             if let Some(span) = data.main_spans.get(index).copied().flatten() {
                 main_ranges.push(NodeRange {
-                    node_id: index as u32,
+                    node_id: Self::node_id_from(first_node_id, index),
                     range: span.range(),
                 });
             }
@@ -383,7 +385,7 @@ impl<'de> Deserialize<'de> for SourceIndex {
         for index in 0..enclosing_len {
             if let Some(span) = data.type_spans.get(index).copied().flatten() {
                 type_ranges.push(NodeRange {
-                    node_id: index as u32,
+                    node_id: Self::node_id_from(first_node_id, index),
                     range: span.range(),
                 });
             }
@@ -405,6 +407,7 @@ impl<'de> Deserialize<'de> for SourceIndex {
         range_columns[NodeSpanColumn::Type as usize] = type_ranges;
 
         let mut source_index = Self {
+            first_node_id,
             file_runs,
             enclosing_ranges,
             range_columns,
@@ -449,7 +452,13 @@ impl SourceIndex {
 
     /// Create an empty source index with room for node spans.
     pub fn with_capacity(capacity: usize) -> Self {
+        Self::with_base(0, capacity)
+    }
+
+    /// Create an empty source index beginning at one node id.
+    pub fn with_base(first_node_id: u32, capacity: usize) -> Self {
         Self {
+            first_node_id,
             file_runs: Vec::new(),
             enclosing_ranges: Vec::with_capacity(capacity),
             range_columns: array::from_fn(|_| Vec::new()),
@@ -464,10 +473,20 @@ impl SourceIndex {
         self.enclosing_ranges.reserve(additional);
     }
 
+    /// Return the number of nodes carrying enclosing source ranges.
+    pub fn len(&self) -> usize {
+        self.enclosing_ranges.len()
+    }
+
+    /// Return whether no node carries an enclosing source range.
+    pub fn is_empty(&self) -> bool {
+        self.enclosing_ranges.is_empty()
+    }
+
     /// Return whether this index has an enclosing span for a node id.
     #[inline]
     pub fn contains_node(&self, node_id: u32) -> bool {
-        (node_id as usize) < self.enclosing_ranges.len()
+        self.try_node_index(node_id).is_some()
     }
 
     /// Invalidate cached position index after enclosing span mutations.
@@ -525,9 +544,10 @@ impl SourceIndex {
 
     /// Append a copy of one node's complete source ranges.
     pub fn append_from(&mut self, source_id: u32) {
-        let target_id = self.enclosing_ranges.len() as u32;
+        let source_index = self.node_index(source_id);
+        let target_id = self.node_id(self.enclosing_ranges.len());
         let file = self.file_for_node(source_id);
-        let enclosing = self.enclosing_ranges[source_id as usize];
+        let enclosing = self.enclosing_ranges[source_index];
         self.begin_file_run(file);
         self.enclosing_ranges.push(enclosing);
 
@@ -576,7 +596,7 @@ impl SourceIndex {
     /// Set the span for a node.
     #[inline]
     pub fn set(&mut self, node_id: u32, span: Span) {
-        let index = node_id as usize;
+        let index = self.node_index(node_id);
         let previous_range = self.enclosing_ranges[index];
         let previous_file = self.file_for_node(node_id);
         let file = span.file;
@@ -592,7 +612,7 @@ impl SourceIndex {
     /// Set the file-local byte range for one node.
     #[inline]
     pub fn set_range(&mut self, node_id: u32, range: ByteRange) {
-        let index = node_id as usize;
+        let index = self.node_index(node_id);
         let previous = self.enclosing_ranges[index];
         self.enclosing_ranges[index] = range;
 
@@ -601,24 +621,32 @@ impl SourceIndex {
         }
     }
 
-    /// Prune spans from the index after one mark.
+    /// Truncate the index before one next node id.
     #[inline]
-    pub fn prune_from(&mut self, retained_node_count: usize, first_pruned_node_id: u32) {
+    pub fn truncate(&mut self, next_node_id: u32) {
+        let retained_node_count = next_node_id
+            .checked_sub(self.first_node_id)
+            .unwrap_or_else(|| panic!("node id {next_node_id} is before this source index"))
+            as usize;
+        assert!(
+            retained_node_count <= self.enclosing_ranges.len(),
+            "node id {next_node_id} is after this source index"
+        );
         self.enclosing_ranges.truncate(retained_node_count);
 
         // truncate each ordered index at the first pruned node
         let file_run_count = self
             .file_runs
-            .partition_point(|run| (run.first_node_id as usize) < retained_node_count);
+            .partition_point(|run| run.first_node_id < next_node_id);
         self.file_runs.truncate(file_run_count);
 
         for ranges in &mut self.range_columns {
-            Self::prune_node_ranges(ranges, retained_node_count);
+            Self::prune_node_ranges(ranges, next_node_id);
         }
 
         let sparse_range_count = self
             .sparse_ranges
-            .partition_point(|entry| entry.key.source_id < first_pruned_node_id);
+            .partition_point(|entry| entry.key.source_id < next_node_id);
         self.sparse_ranges.truncate(sparse_range_count);
 
         self.invalidate_position_index();
@@ -789,10 +817,10 @@ impl SourceIndex {
             .iter()
             .enumerate()
             .filter(|(index, span)| {
-                self.file_for_node(*index as u32) == file && span.start >= position
+                self.file_for_node(self.node_id(*index)) == file && span.start >= position
             })
             .min_by_key(|(_, span)| (span.start - position, span.end - span.start))
-            .map(|(index, _)| NodeSpanKey::new(index as u32, NodeSpanType::Enclosing))
+            .map(|(index, _)| NodeSpanKey::new(self.node_id(index), NodeSpanType::Enclosing))
     }
 
     /// Find the nearest enclosing owner that ends before a position.
@@ -805,10 +833,10 @@ impl SourceIndex {
             .iter()
             .enumerate()
             .filter(|(index, span)| {
-                self.file_for_node(*index as u32) == file && span.end <= position
+                self.file_for_node(self.node_id(*index)) == file && span.end <= position
             })
             .min_by_key(|(_, span)| (position - span.end, span.end - span.start))
-            .map(|(index, _)| NodeSpanKey::new(index as u32, NodeSpanType::Enclosing))
+            .map(|(index, _)| NodeSpanKey::new(self.node_id(index), NodeSpanType::Enclosing))
     }
 
     /// Get a side span or the enclosing span if no side span is set.
@@ -846,7 +874,7 @@ impl SourceIndex {
     /// Get the span for a node by its id.
     #[inline]
     pub fn get(&self, node_id: u32) -> Span {
-        self.expand_range(node_id, self.enclosing_ranges[node_id as usize])
+        self.expand_range(node_id, self.enclosing_ranges[self.node_index(node_id)])
     }
 
     /// Return every distinct authored span containing one source position.
@@ -892,14 +920,14 @@ impl SourceIndex {
     /// Get the file-local byte range for one node by its id.
     #[inline]
     pub fn get_range(&self, node_id: u32) -> ByteRange {
-        self.enclosing_ranges[node_id as usize]
+        self.enclosing_ranges[self.node_index(node_id)]
     }
 
     /// Get the span for a node by its id when it is present.
     #[inline]
     pub fn try_get(&self, node_id: u32) -> Option<Span> {
-        self.enclosing_ranges
-            .get(node_id as usize)
+        self.try_node_index(node_id)
+            .and_then(|index| self.enclosing_ranges.get(index))
             .copied()
             .map(|range| self.expand_range(node_id, range))
     }
@@ -999,7 +1027,7 @@ impl SourceIndex {
         } else {
             self.file_runs.clear();
             self.file_runs.push(SourceFileRun {
-                first_node_id: 0,
+                first_node_id: self.first_node_id,
                 file,
             });
         }
@@ -1008,12 +1036,12 @@ impl SourceIndex {
     }
 
     /// Split full spans into source file runs and byte ranges.
-    fn split_spans(spans: Vec<Span>) -> (Vec<SourceFileRun>, Vec<ByteRange>) {
+    fn split_spans(first_node_id: u32, spans: Vec<Span>) -> (Vec<SourceFileRun>, Vec<ByteRange>) {
         let mut file_runs = Vec::new();
         let mut ranges = Vec::with_capacity(spans.len());
 
         for span in spans {
-            let node_id = ranges.len() as u32;
+            let node_id = Self::node_id_from(first_node_id, ranges.len());
             if file_runs.last().map(|run: &SourceFileRun| run.file) != Some(span.file) {
                 file_runs.push(SourceFileRun {
                     first_node_id: node_id,
@@ -1033,7 +1061,7 @@ impl SourceIndex {
             .iter()
             .copied()
             .enumerate()
-            .map(|(index, range)| self.expand_range(index as u32, range))
+            .map(|(index, range)| self.expand_range(self.node_id(index), range))
             .collect()
     }
 
@@ -1099,9 +1127,8 @@ impl SourceIndex {
     }
 
     /// Prune one ordered node range column after a tree mark.
-    fn prune_node_ranges(ranges: &mut Vec<NodeRange>, retained_node_count: usize) {
-        let retained_range_count =
-            ranges.partition_point(|entry| (entry.node_id as usize) < retained_node_count);
+    fn prune_node_ranges(ranges: &mut Vec<NodeRange>, next_node_id: u32) {
+        let retained_range_count = ranges.partition_point(|entry| entry.node_id < next_node_id);
         ranges.truncate(retained_range_count);
     }
 
@@ -1137,6 +1164,38 @@ impl SourceIndex {
         }
     }
 
+    /// Return the dense index of one node id when it belongs to this index.
+    #[inline]
+    fn try_node_index(&self, node_id: u32) -> Option<usize> {
+        let index = node_id.checked_sub(self.first_node_id)? as usize;
+
+        (index < self.enclosing_ranges.len()).then_some(index)
+    }
+
+    /// Return the dense index of one node id.
+    #[inline]
+    fn node_index(&self, node_id: u32) -> usize {
+        self.try_node_index(node_id)
+            .unwrap_or_else(|| panic!("node id {node_id} is outside this source index"))
+    }
+
+    /// Return the node id at one dense index.
+    #[inline]
+    fn node_id(&self, index: usize) -> u32 {
+        Self::node_id_from(self.first_node_id, index)
+    }
+
+    /// Return the node id at one dense index and base.
+    #[inline]
+    fn node_id_from(first_node_id: u32, index: usize) -> u32 {
+        let index = u32::try_from(index)
+            .unwrap_or_else(|_| panic!("source index exhausted its node id space"));
+
+        first_node_id
+            .checked_add(index)
+            .unwrap_or_else(|| panic!("source index exhausted its node id space"))
+    }
+
     /// Expand one node range with its source file.
     #[inline]
     fn expand_range(&self, node_id: u32, range: ByteRange) -> Span {
@@ -1146,7 +1205,7 @@ impl SourceIndex {
     /// Begin or continue the source file run for the next node.
     #[inline]
     fn begin_file_run(&mut self, file: FileId) {
-        let node_id = self.enclosing_ranges.len() as u32;
+        let node_id = self.node_id(self.enclosing_ranges.len());
         // replace a pending run that has not received any nodes
         if let Some(last) = self.file_runs.last_mut()
             && last.first_node_id == node_id
@@ -1183,7 +1242,7 @@ impl SourceIndex {
         }
 
         let mut file_runs = Vec::with_capacity(self.file_runs.len() + 2);
-        let node_count = self.enclosing_ranges.len() as u32;
+        let next_node_id = self.node_id(self.enclosing_ranges.len());
 
         for index in 0..self.file_runs.len() {
             let run = self.file_runs[index];
@@ -1191,7 +1250,7 @@ impl SourceIndex {
                 .file_runs
                 .get(index + 1)
                 .map(|run| run.first_node_id)
-                .unwrap_or(node_count);
+                .unwrap_or(next_node_id);
 
             if node_id < run.first_node_id || node_id >= next_node_id {
                 Self::push_file_run(&mut file_runs, run);
@@ -1355,14 +1414,14 @@ mod tests {
     }
 
     #[test]
-    fn test_prune_spans_drops_file_runs() {
+    fn test_truncate_spans_drops_file_runs() {
         let first_file = FileId::new(1);
         let second_file = FileId::new(2);
         let mut source_index = SourceIndex::new();
 
         source_index.append(Span::new(first_file, 0, 10));
         source_index.append(Span::new(second_file, 0, 8));
-        source_index.prune_from(1, 1);
+        source_index.truncate(1);
         source_index.append(Span::new(first_file, 10, 20));
 
         assert_eq!(source_index.get(0), Span::new(first_file, 0, 10));
@@ -1371,7 +1430,7 @@ mod tests {
     }
 
     #[test]
-    fn test_prune_spans_truncates_range_columns() {
+    fn test_truncate_spans_truncates_range_columns() {
         let file = FileId::new(1);
         let mut source_index = SourceIndex::new();
         source_index.append(Span::new(file, 0, 10));
@@ -1412,7 +1471,7 @@ mod tests {
             Span::new(file, 20, 30),
         );
 
-        source_index.prune_from(2, 2);
+        source_index.truncate(2);
 
         assert_eq!(source_index.get_main(0), Some(Span::new(file, 1, 9)));
         assert_eq!(source_index.get_main(2), None);
