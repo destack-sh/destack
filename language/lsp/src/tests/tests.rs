@@ -3,13 +3,18 @@ use std::env;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
 
+use destack_artifact::BuildId;
 use destack_lsp_server::jsonrpc::{self, Id};
-use destack_lsp_server::{ClientSocket, ExitedError, LspService};
+use destack_lsp_server::{ExitedError, LspService, ResponseSink};
 use destack_lsp_types as lsp;
 use destack_lsp_types::notification::Notification;
-use destack_source::TemporaryPhysicalFileSystem;
+use destack_repository::{Environment, Execution, Host};
+use destack_session::Executor;
+use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
+use futures::channel::mpsc::{UnboundedReceiver, unbounded};
 use futures::{FutureExt, SinkExt, StreamExt};
 use serde_json::{Value, from_value, to_value};
 use tower::{Service, ServiceExt};
@@ -31,6 +36,8 @@ pub(super) const MANIFEST: &str = r#"{
 
 /// Maximum time to wait for one server initiated message.
 const CLIENT_MESSAGE_TIMEOUT: Duration = Duration::from_secs(15);
+/// Maximum time to wait for one server call.
+const SERVER_CALL_TIMEOUT: Duration = Duration::from_secs(15);
 /// Environment variable enabling timing output.
 const TIMINGS_ENV: &str = "DESTACK_TIMINGS";
 
@@ -48,16 +55,21 @@ const DESTACK_JSON: &str = r#"{
 
 /// One isolated language server and physical workspace.
 pub(super) struct TestServer {
-    /// Temporary workspace storage.
-    file_system: TemporaryPhysicalFileSystem,
     /// In-process LSP service.
     service: LspService<DestackLanguageServer>,
-    /// Server initiated messages and client responses.
-    socket: ClientSocket,
+
+    /// Server initiated messages consumed by the simulated client.
+    requests: UnboundedReceiver<jsonrpc::Request>,
+    /// Client responses routed back to the server.
+    responses: ResponseSink,
+
     /// Non-trace messages retained while draining timing output.
     messages: VecDeque<jsonrpc::Request>,
     /// Next client request identity.
     next_request_id: i64,
+
+    /// Temporary workspace storage retained through server shutdown.
+    file_system: TemporaryPhysicalFileSystem,
 }
 
 /// The displayed text from one completion item.
@@ -106,29 +118,15 @@ impl TestServer {
     pub(super) fn new(name: &str) -> Self {
         let file_system = TemporaryPhysicalFileSystem::new_with_prefix(name);
         file_system.write_text_or_error("destack.json", DESTACK_JSON);
-        let (service, socket) = LspService::new(DestackLanguageServer::new);
 
-        Self {
-            file_system,
-            service,
-            socket,
-            messages: VecDeque::new(),
-            next_request_id: 1,
-        }
+        Self::start(file_system)
     }
 
     /// Create one language server rooted at an editor folder without a manifest.
     pub(super) fn new_editor_folder(name: &str) -> Self {
         let file_system = TemporaryPhysicalFileSystem::new_with_prefix(name);
-        let (service, socket) = LspService::new(DestackLanguageServer::new);
 
-        Self {
-            file_system,
-            service,
-            socket,
-            messages: VecDeque::new(),
-            next_request_id: 1,
-        }
+        Self::start(file_system)
     }
 
     /// Create one configured package below the editor folder.
@@ -388,7 +386,10 @@ impl TestServer {
         let call = self.service.ready().await.unwrap().call(request);
         let call = tokio::spawn(call);
 
-        PendingNotification { call }
+        PendingNotification {
+            method: N::METHOD,
+            call,
+        }
     }
 
     /// Receive diagnostics for one exact document revision.
@@ -480,7 +481,7 @@ impl TestServer {
         }
 
         loop {
-            match self.socket.next().now_or_never() {
+            match self.requests.next().now_or_never() {
                 None => return,
                 Some(Some(message)) if self.consume_output(&message) => {}
                 Some(Some(message)) => panic!("unexpected server message: {message:?}"),
@@ -512,7 +513,7 @@ impl TestServer {
         let result = result.map(|result| to_value(result).unwrap());
         let response = jsonrpc::Response::from_parts(id, result);
 
-        self.socket.send(response).await.unwrap();
+        self.responses.send(response).await.unwrap();
     }
 
     /// Return the test workspace root.
@@ -539,7 +540,7 @@ impl TestServer {
                 return message;
             }
 
-            let message = tokio::time::timeout(CLIENT_MESSAGE_TIMEOUT, self.socket.next())
+            let message = tokio::time::timeout(CLIENT_MESSAGE_TIMEOUT, self.requests.next())
                 .await
                 .unwrap()
                 .unwrap();
@@ -552,7 +553,7 @@ impl TestServer {
     /// Drain completed trace output without consuming protocol messages.
     fn drain_output(&mut self) {
         loop {
-            let Some(message) = self.socket.next().now_or_never().flatten() else {
+            let Some(message) = self.requests.next().now_or_never().flatten() else {
                 return;
             };
             if !self.consume_output(&message) {
@@ -604,6 +605,41 @@ impl TestServer {
         let params = from_value::<lsp::LogMessageParams>(params).unwrap();
 
         params.typ == lsp::MessageType::INFO && params.message.starts_with("event=")
+    }
+
+    /// Start one server and continuously receive its client messages.
+    fn start(file_system: TemporaryPhysicalFileSystem) -> Self {
+        // create isolated process capabilities
+        let mut environment = Environment::capture_process();
+        environment.cwd = Some(file_system.root().to_path_buf());
+        let physical = Arc::new(PhysicalFileSystem::new());
+        let host = Host::new(BuildId::test(), environment, physical);
+        let executor = Executor::new(Execution::Threaded, 1).unwrap();
+
+        // create one server over the isolated host
+        let (service, socket) = LspService::new(move |client| {
+            DestackLanguageServer::new(client, host.clone(), executor.clone())
+        });
+        let (mut requests, responses) = socket.split();
+        let (sender, received) = unbounded();
+
+        // consume the bounded protocol queue independently from server calls
+        drop(tokio::spawn(async move {
+            while let Some(request) = requests.next().await {
+                if sender.unbounded_send(request).is_err() {
+                    return;
+                }
+            }
+        }));
+
+        Self {
+            service,
+            requests: received,
+            responses,
+            messages: VecDeque::new(),
+            next_request_id: 1,
+            file_system,
+        }
     }
 }
 
@@ -841,9 +877,14 @@ where
 {
     /// Wait for the typed server result.
     pub(super) async fn wait(self) -> jsonrpc::Result<R::Result> {
-        let response = self.call.await.unwrap().unwrap().unwrap_or_else(|| {
-            panic!("{} returned no response", R::METHOD);
-        });
+        let response = tokio::time::timeout(SERVER_CALL_TIMEOUT, self.call)
+            .await
+            .unwrap_or_else(|_| panic!("{} timed out", R::METHOD))
+            .unwrap()
+            .unwrap()
+            .unwrap_or_else(|| {
+                panic!("{} returned no response", R::METHOD);
+            });
         let (id, result) = response.into_parts();
         assert_eq!(id, self.id);
 
@@ -862,6 +903,8 @@ where
 
 /// One client notification being handled by the server.
 pub(super) struct PendingNotification {
+    /// Notification method being evaluated.
+    method: &'static str,
     /// Running server call.
     call: ServerCall,
 }
@@ -869,7 +912,12 @@ pub(super) struct PendingNotification {
 impl PendingNotification {
     /// Wait until the server finishes handling the notification.
     pub(super) async fn wait(self) {
-        let response = self.call.await.unwrap().unwrap();
+        let method = self.method;
+        let response = tokio::time::timeout(SERVER_CALL_TIMEOUT, self.call)
+            .await
+            .unwrap_or_else(|_| panic!("{method} timed out"))
+            .unwrap()
+            .unwrap();
 
         assert_eq!(response, None);
     }

@@ -10,7 +10,8 @@ pub use self::service::progress::{
     Bounded, Cancellable, NotCancellable, OngoingProgress, Progress, Unbounded,
 };
 pub use self::service::{
-    Client, ClientSocket, ExitedError, LogRecord, LspService, LspServiceBuilder,
+    Client, ClientSocket, ExitedError, LogRecord, LspService, LspServiceBuilder, RequestStream,
+    ResponseSink,
 };
 pub use self::transport::{Loopback, Server};
 pub use self::uri_ext::UriExt;
