@@ -1243,12 +1243,22 @@ version = "2026.8.3"
 dependencies = [
  "destack_core",
  "destack_fir",
+ "destack_mir_macros",
  "destack_serde",
  "destack_source",
  "destack_unicode",
  "indexmap",
  "serde",
  "smallvec",
+]
+
+[[package]]
+name = "destack_mir_macros"
+version = "0.55.4"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -1271,6 +1281,7 @@ dependencies = [
  "destack_core",
  "destack_mir",
  "destack_serde",
+ "destack_source",
  "serde",
 ]
 

@@ -40,6 +40,7 @@ members = [
 	"language/native",
 	"language/vm",
 	"language/mir",
+	"language/mir/macros",
 	"language/parser",
 	"language/pattern",
 	"language/query",
@@ -97,6 +98,7 @@ destack_memory = { path = "language/memory" }
 destack_native = { path = "language/native" }
 destack_vm = { path = "language/vm" }
 destack_mir = { path = "language/mir" }
+destack_mir_macros = { path = "language/mir/macros" }
 destack_parser = { path = "language/parser" }
 destack_pattern = { path = "language/pattern" }
 destack_query = { path = "language/query" }
