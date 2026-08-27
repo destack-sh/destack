@@ -10,7 +10,7 @@ use destack_query as query;
 use destack_repository::{Host, Revision, SourceRoot, Trace};
 use destack_session::Executor;
 use destack_source::{File, TextChange, Uri};
-use destack_workspace::Workspace;
+use destack_workspace::{QueryFile, Workspace};
 use parking_lot::RwLock;
 use serde::Deserialize;
 use serde_json::from_value;
@@ -115,6 +115,20 @@ impl ServerSession {
         Ok((workspace, revision))
     }
 
+    /// Resolve one physical or builtin source for queries.
+    pub(super) fn resolve_query_file(&self, uri: &lsp::Uri) -> jsonrpc::Result<Option<QueryFile>> {
+        // convert supported client URIs to repository URIs
+        let source_uri = if uri.scheme().as_str() == DESTACK_URI_SCHEME {
+            Uri::from_string(uri.as_str())
+        } else if let Some(path) = uri.to_file_path() {
+            Uri::from_path(path)
+        } else {
+            return Ok(None);
+        };
+
+        self.projects.read().resolve_query_file(&source_uri)
+    }
+
     /// Open one editor document through its nearest project.
     pub(super) fn open_document(
         &self,
@@ -217,8 +231,8 @@ impl ServerSession {
         self.projects.clone()
     }
 
-    /// Read one server-owned source file by its canonical URI.
-    pub(super) fn read_file(&self, uri: &lsp::Uri) -> jsonrpc::Result<Arc<File>> {
+    /// Read one Builtin Package file by its canonical URI.
+    pub(super) fn read_builtin_file(&self, uri: &lsp::Uri) -> jsonrpc::Result<Arc<File>> {
         if uri.scheme().as_str() != DESTACK_URI_SCHEME {
             return Err(jsonrpc::Error::invalid_params(format!(
                 "unsupported source URI scheme: {}",
@@ -226,12 +240,13 @@ impl ServerSession {
             )));
         }
 
-        // read the exact embedded source file
+        // resolve the exact source revision
         let source_uri = Uri::from_string(uri.as_str());
         let file = self
             .projects
             .read()
-            .read_builtin_file(&source_uri)?
+            .resolve_query_file(&source_uri)?
+            .map(|file| file.file)
             .ok_or_else(|| {
                 jsonrpc::Error::invalid_params(format!("source URI is not tracked: {uri:?}"))
             })?;

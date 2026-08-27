@@ -74,7 +74,10 @@ export class DestackExtension {
     /** Build the complete language client configuration. */
     private clientOptions(): LanguageClientOptions {
         return {
-            documentSelector: [{ language: "destack-ds", scheme: "file" }],
+            documentSelector: [
+                { language: "destack-ds", scheme: "file" },
+                { language: "destack-ds", scheme: "destack" },
+            ],
             outputChannel: this.log,
             traceOutputChannel: this.log,
             initializationOptions: {

@@ -915,6 +915,13 @@ impl From<&Path> for TestDocument {
     }
 }
 
+impl From<lsp::Uri> for TestDocument {
+    /// Build one test document from its exact LSP URI.
+    fn from(uri: lsp::Uri) -> Self {
+        Self { uri }
+    }
+}
+
 impl TestDocument {
     /// Return the LSP document URI.
     pub(super) fn uri(&self) -> &lsp::Uri {

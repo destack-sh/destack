@@ -8,10 +8,10 @@ use destack_repository::{
     Commit, DestackLayoutOverride, Host, Repository, Revision, Settings, Trace,
 };
 use destack_session::Executor;
-use destack_source::{Edit, File, FileId, TextChange, Uri, apply_text_changes};
-use destack_workspace::{FileSelection, Workspace};
+use destack_source::{Edit, FileId, TextChange, Uri, apply_text_changes};
+use destack_workspace::{FileSelection, QueryFile, Workspace};
 
-use super::{internal_error, workspace_error};
+use super::{DESTACK_URI_SCHEME, internal_error, workspace_error};
 
 /// Private branch used for Language Server Protocol document state.
 const LSP_BRANCH: &str = "lsp";
@@ -418,15 +418,30 @@ impl ProjectSet {
         self.projects.iter().map(Project::workspace).collect()
     }
 
-    /// Read one embedded builtin source URI through an active project.
-    pub(super) fn read_builtin_file(&self, uri: &Uri) -> jsonrpc::Result<Option<Arc<File>>> {
-        // embedded files are identical across repositories in this server build
-        let project = self
-            .projects
-            .first()
-            .ok_or_else(|| jsonrpc::Error::invalid_params("no Destack project is open"))?;
+    /// Resolve one physical or builtin source for queries.
+    pub(super) fn resolve_query_file(&self, uri: &Uri) -> jsonrpc::Result<Option<QueryFile>> {
+        // select the shared Builtin Package from any open project
+        let project = if uri.scheme() == Some(DESTACK_URI_SCHEME) {
+            self.projects
+                .first()
+                .ok_or_else(|| jsonrpc::Error::invalid_params("no Destack project is open"))?
+        }
+        // select physical sources through their owning project
+        else {
+            let path = Path::new(uri.as_ref());
+            self.select(path).ok_or_else(|| {
+                jsonrpc::Error::invalid_params(format!(
+                    "no Destack project owns {}",
+                    path.display()
+                ))
+            })?
+        };
+        let revision = project.revision()?;
 
-        Ok(project.workspace.read_builtin_file(uri))
+        project
+            .workspace
+            .resolve_query_file(revision, uri.clone())
+            .map_err(workspace_error)
     }
 
     /// Reload every project and merge closed physical files into editor branches.

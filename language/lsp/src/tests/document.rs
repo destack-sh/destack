@@ -2,16 +2,20 @@ use destack_lsp_types as lsp;
 
 use serde_json::json;
 
-use super::tests::{MANIFEST, TestServer, position, range};
+use super::tests::{MANIFEST, TestDocument, TestServer, position, range};
 
 /// Function index in the advertised semantic token legend.
 const FUNCTION_TOKEN: u32 = 11;
+/// Interface index in the advertised semantic token legend.
+const INTERFACE_TOKEN: u32 = 4;
 /// Parameter index in the advertised semantic token legend.
 const PARAMETER_TOKEN: u32 = 7;
 /// Declaration bit in the advertised semantic token modifier legend.
 const DECLARATION_MODIFIER: u32 = 1 << 0;
 /// Deprecated bit in the advertised semantic token modifier legend.
 const DEPRECATED_MODIFIER: u32 = 1 << 3;
+/// Default library bit in the advertised semantic token modifier legend.
+const DEFAULT_LIBRARY_MODIFIER: u32 = 1 << 8;
 
 /// Return exact document symbols, tokens, folds, and selections.
 #[tokio::test]
@@ -243,9 +247,9 @@ async fn test_return_resolved_document_links() {
     server.assert_request(document.links(), Ok(expected)).await;
 }
 
-/// Open builtin module links through virtual documents.
+/// Open builtin documents with links, navigation, and semantic tokens.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_open_builtin_module_links() {
+async fn test_open_builtin_documents() {
     let source = "import { log } from \"destack:console\";\n";
     let target: lsp::Uri = "destack://console/index.ds".parse().unwrap();
     let (mut server, document) = TestServer::open_workspace(
@@ -268,8 +272,54 @@ async fn test_open_builtin_module_links() {
     let expected = lsp::TextDocumentContentResult {
         text: "export * from \"./console.ds\";\n".to_string(),
     };
-    let actual = server.virtual_document(target).await;
+    let actual = server.virtual_document(target.clone()).await;
     assert_eq!(actual, expected);
+
+    // query the opened builtin index through its module
+    let index = TestDocument::from(target);
+    server.open(&index, 1, &expected.text).await;
+    let console: lsp::Uri = "destack://console/console.ds".parse().unwrap();
+    let expected = Some(vec![lsp::DocumentLink {
+        range: range(0, 14, 0, 28),
+        target: Some(console.clone()),
+        tooltip: None,
+        data: None,
+    }]);
+    server.assert_request(index.links(), Ok(expected)).await;
+
+    // return semantic tokens from the builtin implementation source
+    let source = server.virtual_document(console.clone()).await.text;
+    let console = TestDocument::from(console);
+    server.open(&console, 1, &source).await;
+    let expected = Some(lsp::SemanticTokensRangeResult::Tokens(
+        lsp::SemanticTokens {
+            result_id: None,
+            data: vec![lsp::SemanticToken {
+                delta_line: 5,
+                delta_start: 17,
+                length: 14,
+                token_type: INTERFACE_TOKEN,
+                token_modifiers_bitset: DECLARATION_MODIFIER | DEFAULT_LIBRARY_MODIFIER,
+            }],
+        },
+    ));
+    server
+        .assert_request(
+            console.semantic_tokens_range(range(5, 0, 5, 33)),
+            Ok(expected),
+        )
+        .await;
+
+    // navigate one builtin type reference
+    let expected = Some(lsp::GotoDefinitionResponse::Link(vec![lsp::LocationLink {
+        origin_selection_range: Some(range(20, 26, 20, 40)),
+        target_uri: console.uri().clone(),
+        target_range: range(5, 0, 14, 1),
+        target_selection_range: range(5, 17, 5, 31),
+    }]));
+    server
+        .assert_request(console.definition(position(20, 27)), Ok(expected))
+        .await;
 }
 
 /// Return exact workspace symbols and executable declaration lenses.

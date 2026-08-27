@@ -13,8 +13,8 @@ use crate::server::internal_error;
 /// State carried from one query request into a related request.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub(crate) struct QueryContinuation<T> {
-    /// The workspace path that anchored the original request.
-    pub(crate) path: PathBuf,
+    /// The workspace root that owns the original request.
+    pub(crate) root: PathBuf,
     /// The exact revision that produced the value.
     pub(crate) revision: Revision,
     /// The query value consumed by the related request.
@@ -23,9 +23,9 @@ pub(crate) struct QueryContinuation<T> {
 
 impl<T> QueryContinuation<T> {
     /// Create query continuation state.
-    pub(crate) fn new(path: &Path, revision: Revision, value: T) -> Self {
+    pub(crate) fn new(root: &Path, revision: Revision, value: T) -> Self {
         Self {
-            path: path.to_path_buf(),
+            root: root.to_path_buf(),
             revision,
             value,
         }
