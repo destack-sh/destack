@@ -11,9 +11,11 @@ DESTACK_VERSION_INPUT="${1:-}"
 DESTACK_ARTIFACTS_DIRECTORY="${2:-${DESTACK_CLI_DIRECTORY}/install/artifacts}"
 DESTACK_TARGETS_INPUT="${DESTACK_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
 DESTACK_RELEASE_TAG_INPUT="${DESTACK_RELEASE_TAG:-}"
-DESTACK_RELEASE_CHANNEL_INPUT="${DESTACK_RELEASE_CHANNEL:-stable}"
+DESTACK_RELEASE_CHANNEL_INPUT="${DESTACK_RELEASE_CHANNEL:-release}"
+DESTACK_RELEASE_STABILITY_INPUT="${DESTACK_RELEASE_STABILITY:-}"
 DESTACK_CHECKSUMS_NAME="SHA256SUMS"
 DESTACK_MANIFEST_NAME="manifest.json"
+read -r -a DESTACK_TARGETS <<< "${DESTACK_TARGETS_INPUT}"
 
 # print an error message and exit
 fail() {
@@ -36,11 +38,28 @@ resolve_release_tag() {
 # resolve the release channel
 resolve_release_channel() {
     case "${DESTACK_RELEASE_CHANNEL_INPUT}" in
-        stable | nightly | canary)
+        release | nightly | canary)
             printf '%s\n' "${DESTACK_RELEASE_CHANNEL_INPUT}"
             ;;
         *)
             fail "unsupported release channel: ${DESTACK_RELEASE_CHANNEL_INPUT}"
+            ;;
+    esac
+}
+
+# resolve the release stability
+resolve_release_stability() {
+    local stability_value="${DESTACK_RELEASE_STABILITY_INPUT}"
+    if [ -z "${stability_value}" ] && [ -f "destack.json" ]; then
+        stability_value="$(node -p 'JSON.parse(require("node:fs").readFileSync("destack.json", "utf8")).products.destack.stability')"
+    fi
+
+    case "${stability_value}" in
+        experimental | alpha | beta | stable)
+            printf '%s\n' "${stability_value}"
+            ;;
+        *)
+            fail "unsupported release stability: ${stability_value}"
             ;;
     esac
 }
@@ -52,16 +71,16 @@ resolve_version() {
         return
     fi
 
-    if [ -f "VERSION.txt" ]; then
+    if [ -f "destack.json" ]; then
         local version_file
-        version_file="$(cat VERSION.txt | tr -d '[:space:]')"
+        version_file="$(node -p 'JSON.parse(require("node:fs").readFileSync("destack.json", "utf8")).version')"
         if [ -n "${version_file}" ]; then
             printf '%s\n' "${version_file#v}"
             return
         fi
     fi
 
-    fail "release version not provided and VERSION.txt is missing"
+    fail "release version not provided and destack.json is missing"
 }
 
 # resolve a target archive extension
@@ -137,6 +156,8 @@ main() {
     version_value="$(resolve_version)"
     local release_tag
     release_tag="$(resolve_release_tag "${version_value}")"
+    local release_stability
+    release_stability="$(resolve_release_stability)"
     local release_channel
     release_channel="$(resolve_release_channel)"
     local checksums_path="${DESTACK_ARTIFACTS_DIRECTORY}/${DESTACK_CHECKSUMS_NAME}"
@@ -145,7 +166,7 @@ main() {
     fi
 
     local target_triple
-    for target_triple in ${DESTACK_TARGETS_INPUT}; do
+    for target_triple in "${DESTACK_TARGETS[@]}"; do
         validate_target_archive "${version_value}" "${target_triple}" "${checksums_path}"
     done
 
@@ -158,7 +179,7 @@ main() {
         fail "python3 is required to validate ${DESTACK_MANIFEST_NAME}"
     fi
 
-    python3 - "${manifest_path}" "${checksums_path}" "${version_value}" "${release_tag}" "${release_channel}" ${DESTACK_TARGETS_INPUT} <<'PY'
+    python3 - "${manifest_path}" "${checksums_path}" "${version_value}" "${release_tag}" "${release_channel}" "${release_stability}" "${DESTACK_TARGETS[@]}" <<'PY'
 import json
 import pathlib
 import sys
@@ -168,7 +189,8 @@ checksums_path = pathlib.Path(sys.argv[2])
 version_value = sys.argv[3]
 release_tag = sys.argv[4]
 release_channel = sys.argv[5]
-targets = sys.argv[6:]
+release_stability = sys.argv[6]
+targets = sys.argv[7:]
 
 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
@@ -183,6 +205,11 @@ if manifest.get("releaseTag") != release_tag:
 if manifest.get("channel") != release_channel:
     raise SystemExit(
         f"error: manifest channel mismatch: {manifest.get('channel')} != {release_channel}"
+    )
+
+if manifest.get("stability") != release_stability:
+    raise SystemExit(
+        f"error: manifest stability mismatch: {manifest.get('stability')} != {release_stability}"
     )
 
 if manifest.get("checksumsFile") != "SHA256SUMS":

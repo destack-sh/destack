@@ -37,16 +37,16 @@ resolve_version() {
         return
     fi
 
-    if [ -f "VERSION.txt" ]; then
+    if [ -f "destack.json" ]; then
         local version_file
-        version_file="$(cat VERSION.txt | tr -d '[:space:]')"
+        version_file="$(node -p 'JSON.parse(require("node:fs").readFileSync("destack.json", "utf8")).version')"
         if [ -n "${version_file}" ]; then
             printf '%s\n' "${version_file#v}"
             return
         fi
     fi
 
-    fail "release version not provided and VERSION.txt is missing"
+    fail "release version not provided and destack.json is missing"
 }
 
 # resolve linux libc family

@@ -11,9 +11,11 @@ DESTACK_VERSION_INPUT="${1:-}"
 DESTACK_OUTPUT_DIRECTORY="${2:-}"
 DESTACK_TARGETS_INPUT="${DESTACK_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
 DESTACK_RELEASE_TAG_INPUT="${DESTACK_RELEASE_TAG:-}"
-DESTACK_RELEASE_CHANNEL_INPUT="${DESTACK_RELEASE_CHANNEL:-stable}"
-DESTACK_BINARY_NAMES="destack ds dsc"
+DESTACK_RELEASE_CHANNEL_INPUT="${DESTACK_RELEASE_CHANNEL:-release}"
+DESTACK_RELEASE_STABILITY_INPUT="${DESTACK_RELEASE_STABILITY:-}"
 DESTACK_MANIFEST_NAME="manifest.json"
+read -r -a DESTACK_TARGETS <<< "${DESTACK_TARGETS_INPUT}"
+DESTACK_BINARY_NAMES=(destack ds dsc)
 
 # print an error message and exit
 fail() {
@@ -36,16 +38,16 @@ resolve_version() {
         return
     fi
 
-    if [ -f "VERSION.txt" ]; then
+    if [ -f "destack.json" ]; then
         local version_file
-        version_file="$(cat VERSION.txt | tr -d '[:space:]')"
+        version_file="$(node -p 'JSON.parse(require("node:fs").readFileSync("destack.json", "utf8")).version')"
         if [ -n "${version_file}" ]; then
             printf '%s\n' "${version_file#v}"
             return
         fi
     fi
 
-    fail "release version not provided and VERSION.txt is missing"
+    fail "release version not provided and destack.json is missing"
 }
 
 # resolve the release tag
@@ -63,11 +65,28 @@ resolve_release_tag() {
 # resolve the release channel
 resolve_release_channel() {
     case "${DESTACK_RELEASE_CHANNEL_INPUT}" in
-        stable | nightly | canary)
+        release | nightly | canary)
             printf '%s\n' "${DESTACK_RELEASE_CHANNEL_INPUT}"
             ;;
         *)
             fail "unsupported release channel: ${DESTACK_RELEASE_CHANNEL_INPUT}"
+            ;;
+    esac
+}
+
+# resolve the release stability
+resolve_release_stability() {
+    local stability_value="${DESTACK_RELEASE_STABILITY_INPUT}"
+    if [ -z "${stability_value}" ] && [ -f "destack.json" ]; then
+        stability_value="$(node -p 'JSON.parse(require("node:fs").readFileSync("destack.json", "utf8")).products.destack.stability')"
+    fi
+
+    case "${stability_value}" in
+        experimental | alpha | beta | stable)
+            printf '%s\n' "${stability_value}"
+            ;;
+        *)
+            fail "unsupported release stability: ${stability_value}"
             ;;
     esac
 }
@@ -116,7 +135,7 @@ stage_target_files() {
     mkdir -p "${package_directory}"
 
     local binary_name
-    for binary_name in ${DESTACK_BINARY_NAMES}; do
+    for binary_name in "${DESTACK_BINARY_NAMES[@]}"; do
         local source_path="${source_directory}/${binary_name}${binary_extension}"
         local destination_name="${binary_name}${binary_extension}"
 
@@ -214,11 +233,11 @@ write_manifest() {
     local version_value="$1"
     local release_tag="$2"
     local release_channel="$3"
-    local output_directory="$4"
+    local release_stability="$4"
+    local output_directory="$5"
     local checksums_path="${output_directory}/SHA256SUMS"
     local manifest_path="${output_directory}/${DESTACK_MANIFEST_NAME}"
-    local targets_count
-    targets_count="$(printf '%s\n' ${DESTACK_TARGETS_INPUT} | wc -l | tr -d '[:space:]')"
+    local targets_count="${#DESTACK_TARGETS[@]}"
     local target_index=0
 
     {
@@ -226,11 +245,12 @@ write_manifest() {
         printf '  "version": "%s",\n' "${version_value}"
         printf '  "releaseTag": "%s",\n' "${release_tag}"
         printf '  "channel": "%s",\n' "${release_channel}"
+        printf '  "stability": "%s",\n' "${release_stability}"
         printf '  "checksumsFile": "SHA256SUMS",\n'
         printf '  "assets": [\n'
 
         local target_triple
-        for target_triple in ${DESTACK_TARGETS_INPUT}; do
+        for target_triple in "${DESTACK_TARGETS[@]}"; do
             target_index="$((target_index + 1))"
 
             local archive_name
@@ -279,11 +299,14 @@ main() {
     require_command zip
     require_command awk
     require_command find
+    require_command node
 
     local version_value
     version_value="$(resolve_version)"
     local release_tag
     release_tag="$(resolve_release_tag "${version_value}")"
+    local release_stability
+    release_stability="$(resolve_release_stability)"
     local release_channel
     release_channel="$(resolve_release_channel)"
     local output_directory
@@ -296,12 +319,12 @@ main() {
     clear_version_artifacts "${version_value}" "${output_directory}"
 
     local target_triple
-    for target_triple in ${DESTACK_TARGETS_INPUT}; do
+    for target_triple in "${DESTACK_TARGETS[@]}"; do
         create_target_archive "${version_value}" "${target_triple}" "${output_directory}" "${temp_directory}"
     done
 
     write_checksums "${output_directory}"
-    write_manifest "${version_value}" "${release_tag}" "${release_channel}" "${output_directory}"
+    write_manifest "${version_value}" "${release_tag}" "${release_channel}" "${release_stability}" "${output_directory}"
 }
 
 main "$@"

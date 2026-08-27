@@ -23,6 +23,10 @@ on:
         description: "Release channel recorded in the manifest"
         required: true
         type: string
+      release_stability:
+        description: "Release stability recorded in the manifest"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -198,12 +202,14 @@ jobs:
         env:
           DESTACK_RELEASE_TAG: ${{ inputs.release_tag }}
           DESTACK_RELEASE_CHANNEL: ${{ inputs.release_channel }}
+          DESTACK_RELEASE_STABILITY: ${{ inputs.release_stability }}
 
       - name: Check CLI Assets
         run: bash app/cli/install/validate-release-artifacts.sh "${{ inputs.release_version }}" "${{ inputs.artifact_prefix }}-cli-assets"
         env:
           DESTACK_RELEASE_TAG: ${{ inputs.release_tag }}
           DESTACK_RELEASE_CHANNEL: ${{ inputs.release_channel }}
+          DESTACK_RELEASE_STABILITY: ${{ inputs.release_stability }}
 
       - name: Check CLI Installer
         run: bash app/cli/install/test-install.sh "${{ inputs.release_version }}" "${{ inputs.artifact_prefix }}-cli-assets"

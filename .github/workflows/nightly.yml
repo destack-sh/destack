@@ -22,6 +22,7 @@ jobs:
     outputs:
       version: ${{ steps.metadata.outputs.version }}
       tag: ${{ steps.metadata.outputs.tag }}
+      stability: ${{ steps.metadata.outputs.stability }}
       release_name: ${{ steps.metadata.outputs.release_name }}
       release_body: ${{ steps.metadata.outputs.release_body }}
     steps:
@@ -35,7 +36,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base_version="$(tr -d '[:space:]' < VERSION.txt)"
+          base_version="$(node -p 'JSON.parse(require("node:fs").readFileSync("destack.json", "utf8")).version')"
+          stability="$(node -p 'JSON.parse(require("node:fs").readFileSync("destack.json", "utf8")).products.destack.stability')"
           short_sha="$(git rev-parse --short=12 "${GITHUB_SHA}")"
           nightly_date="$(date -u +%Y%m%d)"
           nightly_version="${base_version}-nightly.${nightly_date}+${short_sha}"
@@ -45,10 +47,12 @@ jobs:
           nightly_body+="Version: \`${nightly_version}\`"$'\n'
           nightly_body+="Commit: \`${GITHUB_SHA}\`"$'\n'
           nightly_body+="Channel: \`nightly\`"$'\n'
+          nightly_body+="Stability: \`${stability}\`"$'\n'
 
           {
             echo "version=${nightly_version}"
             echo "tag=${nightly_tag}"
+            echo "stability=${stability}"
             echo "release_name=${nightly_name}"
             echo "release_body<<EOF"
             printf '%s\n' "${nightly_body}"
@@ -218,6 +222,7 @@ jobs:
       release_version: ${{ needs.nightly-metadata.outputs.version }}
       release_tag: ${{ needs.nightly-metadata.outputs.tag }}
       release_channel: nightly
+      release_stability: ${{ needs.nightly-metadata.outputs.stability }}
 
   nightly-release-create:
     name: Nightly Release Create
