@@ -4,12 +4,16 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
+use destack_artifact::ArtifactCache;
 use destack_lsp_server::{Client, LanguageServer, LogRecord, LspService, Server, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
-use destack_repository::{Clock, Revision, Trace, TraceLevel, TraceReport, TraceView};
+use destack_repository::{
+    Clock, DestackLayout, Environment, Execution, Host, Revision, Settings, Trace, TraceLevel,
+    TraceReport, TraceView,
+};
 use destack_session::{ArtifactPriority, Executor};
-use destack_source::{FileId, PatchSet, TextRange};
+use destack_source::{FileId, FileSystem, PatchSet, PhysicalFileSystem, TextRange};
 use destack_workspace::{
     DiagnosticRun, DiagnosticsRequest, FileDiagnostics, FileEdit, QueryFile, QueryRun,
     RevisionPolicy, RunQueryInput, RunQueryResponse, Workspace,
@@ -36,6 +40,10 @@ const TRACKED_FILE_GLOBS: [&str; 1] = ["**/*"];
 pub struct DestackLanguageServer {
     /// The client connection.
     pub(super) client: Client,
+    /// Host capabilities shared by every project.
+    host: Host,
+    /// Artifact executor shared by every project.
+    executor: Arc<Executor>,
     /// State installed after initialization.
     session: OnceLock<ServerSession>,
 }
@@ -43,18 +51,44 @@ pub struct DestackLanguageServer {
 #[allow(clippy::too_many_arguments)]
 impl DestackLanguageServer {
     /// Create a new language server instance.
-    pub fn new(client: Client) -> Self {
+    pub fn new(client: Client, host: Host, executor: Arc<Executor>) -> Self {
         Self {
             client,
+            host,
+            executor,
             session: OnceLock::new(),
         }
     }
 
     /// Run the language server over stdio.
     pub async fn run_stdio() -> Result<(), Box<dyn std::error::Error>> {
+        // open process capabilities
+        let worker_count = Executor::default_worker_count();
+        let file_system = Arc::new(PhysicalFileSystem::new());
+        let environment = Environment::capture_process();
+        let cwd = environment.cwd.as_deref().unwrap_or_else(|| Path::new("."));
+
+        // open persistent artifact storage
+        let home = DestackLayout::resolve_home(cwd, &environment, None);
+        let settings = Settings::load_from_home(file_system.as_ref(), &home)?;
+        let cache_directory =
+            DestackLayout::resolve_cache(cwd, &home, &environment, &settings, None);
+        let artifact_cache = ArtifactCache::open(
+            Workspace::BUILD_ID,
+            cache_directory,
+            settings.cache.maximum_bytes,
+        )?;
+
+        // create process artifact execution
+        let host = Host::new(Workspace::BUILD_ID, environment, file_system)
+            .with_artifact_cache(Arc::new(artifact_cache), worker_count);
+        let executor = Executor::new(Execution::Threaded, worker_count)?;
+
+        // serve one client connection
         let stdin = tokio::io::stdin();
         let stdout = tokio::io::stdout();
-        let (service, socket) = LspService::new(Self::new);
+        let (service, socket) =
+            LspService::new(move |client| Self::new(client, host.clone(), executor.clone()));
 
         Server::new(stdin, stdout, socket).serve(service).await;
 
@@ -787,10 +821,15 @@ impl LanguageServer for DestackLanguageServer {
 
         // build the complete initialized session
         let started = Instant::now();
-        let workers = Executor::default_worker_count();
+        let workers = self.executor.worker_count();
         let trace = Trace::new(Clock::default(), workers, self.trace_level());
         let session = match trace.span("server.initialize", || {
-            ServerSession::open(&params, trace.as_ref())
+            ServerSession::open(
+                &params,
+                self.host.clone(),
+                self.executor.clone(),
+                trace.as_ref(),
+            )
         }) {
             Ok(session) => session,
             Err(error) => {

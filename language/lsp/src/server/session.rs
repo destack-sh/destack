@@ -4,15 +4,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_artifact::ArtifactCache;
 use destack_lsp_server::{Client, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
-use destack_repository::{
-    DestackLayout, Environment, Execution, Host, Revision, Settings, SourceRoot, Trace,
-};
+use destack_repository::{Host, Revision, SourceRoot, Trace};
 use destack_session::Executor;
-use destack_source::{File, FileSystem, PhysicalFileSystem, TextChange, Uri};
+use destack_source::{File, TextChange, Uri};
 use destack_workspace::Workspace;
 use parking_lot::RwLock;
 use serde::Deserialize;
@@ -43,8 +40,12 @@ pub(super) struct ServerSession {
 
 impl ServerSession {
     /// Open one initialized language server session.
-    pub(super) fn open(params: &lsp::InitializeParams, trace: &Trace) -> jsonrpc::Result<Self> {
-        let worker_count = Executor::default_worker_count();
+    pub(super) fn open(
+        params: &lsp::InitializeParams,
+        host: Host,
+        executor: Arc<Executor>,
+        trace: &Trace,
+    ) -> jsonrpc::Result<Self> {
         let folders = trace.span("folders.resolve", || {
             let mut folders = Self::editor_folders(params)?;
             if folders.is_empty() {
@@ -54,43 +55,7 @@ impl ServerSession {
             Ok::<_, jsonrpc::Error>(folders)
         })?;
 
-        let host = trace.span("host.open", || {
-            // read process inputs
-            let file_system =
-                trace.span("file_system.open", || Arc::new(PhysicalFileSystem::new()));
-            let build_id = Workspace::BUILD_ID;
-            let environment = trace.span("environment.capture", Environment::capture_process);
-
-            // resolve persistent storage
-            let cwd = environment.cwd.as_deref().unwrap_or_else(|| Path::new("."));
-            let home = DestackLayout::resolve_home(cwd, &environment, None);
-            let settings = trace
-                .span("settings.load", || {
-                    Settings::load_from_home(file_system.as_ref(), &home)
-                })
-                .map_err(internal_error)?;
-            let artifact_cache =
-                DestackLayout::resolve_cache(cwd, &home, &environment, &settings, None);
-            let artifact_cache = trace
-                .span("artifact_cache.open", || {
-                    ArtifactCache::open(build_id, artifact_cache, settings.cache.maximum_bytes)
-                })
-                .map(Arc::new)
-                .map_err(internal_error)?;
-
-            // create shared host state
-            let host = trace.span("host.create", || {
-                Host::new(build_id, environment, file_system)
-            });
-            let host = trace.span("artifact_cache_writer.start", || {
-                host.with_artifact_cache(artifact_cache, worker_count)
-            });
-
-            Ok::<_, jsonrpc::Error>(host)
-        })?;
-        let executor = trace.span("executor.open", || {
-            Executor::new(Execution::Threaded, worker_count).map_err(internal_error)
-        })?;
+        // select client behavior
         let client_capabilities = ClientCapabilities::try_from(params)?;
         let diagnostics = if client_capabilities.supports_pull_diagnostics {
             DiagnosticDelivery::pull(client_capabilities.supports_diagnostic_refresh)
