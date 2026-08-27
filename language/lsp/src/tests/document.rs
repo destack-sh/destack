@@ -1,6 +1,8 @@
 use destack_lsp_types as lsp;
 
-use super::tests::{MANIFEST, TestServer, range};
+use serde_json::json;
+
+use super::tests::{MANIFEST, TestServer, position, range};
 
 /// Function index in the advertised semantic token legend.
 const FUNCTION_TOKEN: u32 = 11;
@@ -10,6 +12,110 @@ const PARAMETER_TOKEN: u32 = 7;
 const DECLARATION_MODIFIER: u32 = 1 << 0;
 /// Deprecated bit in the advertised semantic token modifier legend.
 const DEPRECATED_MODIFIER: u32 = 1 << 3;
+
+/// Return exact document symbols, tokens, folds, and selections.
+#[tokio::test]
+async fn test_return_document_structure() {
+    let source = r#"export function choose(value: string): string {
+    if (value == "") {
+        return "empty";
+    }
+    return value;
+}
+"#;
+    let (mut server, document) = TestServer::open_workspace(
+        "document-structure",
+        &[("src/main.ds", source)],
+        "src/main.ds",
+    )
+    .await;
+
+    // return the exact authored declaration hierarchy
+    let outline = Some(lsp::DocumentSymbolResponse::Nested(vec![
+        lsp::DocumentSymbol {
+            name: "choose".to_string(),
+            detail: Some("(value: string): string".to_string()),
+            kind: lsp::SymbolKind::FUNCTION,
+            tags: None,
+            #[allow(deprecated)]
+            deprecated: None,
+            range: range(0, 0, 5, 1),
+            selection_range: range(0, 16, 0, 22),
+            children: None,
+        },
+    ]));
+    server.assert_request(document.outline(), Ok(outline)).await;
+
+    // return only semantic tokens inside the requested source range
+    let tokens = Some(lsp::SemanticTokensRangeResult::Tokens(
+        lsp::SemanticTokens {
+            result_id: None,
+            data: vec![
+                lsp::SemanticToken {
+                    delta_line: 0,
+                    delta_start: 16,
+                    length: 6,
+                    token_type: FUNCTION_TOKEN,
+                    token_modifiers_bitset: DECLARATION_MODIFIER,
+                },
+                lsp::SemanticToken {
+                    delta_line: 0,
+                    delta_start: 7,
+                    length: 5,
+                    token_type: PARAMETER_TOKEN,
+                    token_modifiers_bitset: DECLARATION_MODIFIER,
+                },
+            ],
+        },
+    ));
+    server
+        .assert_request(
+            document.semantic_tokens_range(range(0, 0, 0, 47)),
+            Ok(tokens),
+        )
+        .await;
+
+    // return the function and nested conditional folds
+    let folds = Some(vec![
+        lsp::FoldingRange {
+            start_line: 0,
+            start_character: None,
+            end_line: 5,
+            end_character: None,
+            kind: None,
+            collapsed_text: None,
+        },
+        lsp::FoldingRange {
+            start_line: 1,
+            start_character: None,
+            end_line: 3,
+            end_character: None,
+            kind: None,
+            collapsed_text: None,
+        },
+    ]);
+    server
+        .assert_request(document.folding_ranges(), Ok(folds))
+        .await;
+
+    // return every enclosing range from the reference to its declaration
+    let selections = Some(vec![lsp::SelectionRange {
+        range: range(4, 11, 4, 16),
+        parent: Some(Box::new(lsp::SelectionRange {
+            range: range(4, 4, 4, 16),
+            parent: Some(Box::new(lsp::SelectionRange {
+                range: range(0, 46, 5, 1),
+                parent: Some(Box::new(lsp::SelectionRange {
+                    range: range(0, 0, 5, 1),
+                    parent: None,
+                })),
+            })),
+        })),
+    }]);
+    server
+        .assert_request(document.selection_ranges([position(4, 11)]), Ok(selections))
+        .await;
+}
 
 /// Return semantic tokens that follow an imported declaration.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -164,6 +270,61 @@ async fn test_open_builtin_module_links() {
     };
     let actual = server.virtual_document(target).await;
     assert_eq!(actual, expected);
+}
+
+/// Return exact workspace symbols and executable declaration lenses.
+#[tokio::test]
+async fn test_return_workspace_symbols_and_code_lenses() {
+    let source = r#"export function quartz(): void {}
+
+quartz();
+"#;
+    let mut server = TestServer::new("workspace-symbols-and-lenses");
+    server.write("destack.json", MANIFEST);
+    let document = server.write("src/main.ds", source);
+    let options = Some(json!({ "codeLensCommands": ["references"] }));
+    server
+        .initialize(lsp::ClientCapabilities::default(), options)
+        .await
+        .unwrap();
+    server.initialized().await;
+    server.open(&document, 1, source).await;
+    server.assert_diagnostics(&document, 1, Vec::new()).await;
+
+    // search the complete workspace and project the authored location
+    #[allow(deprecated)]
+    let symbols = Some(lsp::WorkspaceSymbolResponse::Flat(vec![
+        lsp::SymbolInformation {
+            name: "quartz".to_string(),
+            kind: lsp::SymbolKind::FUNCTION,
+            tags: None,
+            deprecated: None,
+            location: lsp::Location {
+                uri: document.uri().clone(),
+                range: range(0, 0, 0, 33),
+            },
+            container_name: None,
+        },
+    ]));
+    let request = server.workspace_symbols("quartz");
+    server.assert_request(request, Ok(symbols)).await;
+
+    // retain only actions implemented by the connected client bridge
+    let lenses = Some(vec![lsp::CodeLens {
+        range: range(0, 16, 0, 22),
+        command: Some(lsp::Command {
+            title: "1 reference".to_string(),
+            command: "destack.showReferences".to_string(),
+            arguments: Some(vec![
+                serde_json::to_value(document.uri()).unwrap(),
+                serde_json::to_value(position(0, 16)).unwrap(),
+            ]),
+        }),
+        data: None,
+    }]);
+    server
+        .assert_request(document.code_lenses(), Ok(lenses))
+        .await;
 }
 
 /// Complete concurrent semantic document requests over shared artifacts.

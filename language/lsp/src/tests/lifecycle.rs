@@ -3,7 +3,7 @@ use std::fs;
 use destack_lsp_types as lsp;
 use serde_json::{Value, json, to_value};
 
-use super::tests::TestServer;
+use super::tests::{TestServer, markdown, position, range};
 
 /// Complete initialization without requesting unsupported client capabilities.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -139,4 +139,112 @@ async fn test_reconcile_removed_nested_path() {
         .await;
 
     server.assert_no_message();
+}
+
+/// Reload changed filesystem source through the advertised command.
+#[tokio::test]
+async fn test_reload_workspace_source() {
+    let initial = "export function answer(): float64 { return 1; }\n";
+    let changed = "export function answer(): string { return \"changed\"; }\n";
+    let mut server = TestServer::new("reload-workspace-source");
+    let document = server.write("main.ds", initial);
+    server
+        .initialize(lsp::ClientCapabilities::default(), None)
+        .await
+        .unwrap();
+    server.initialized().await;
+
+    // replace the physical source before reloading the workspace
+    server.write("main.ds", changed);
+    let request = server.reload();
+    server.assert_request(request, Ok(None)).await;
+
+    // observe the reloaded declaration through a semantic request
+    let hover = Some(lsp::Hover {
+        contents: lsp::HoverContents::Markup(markdown(
+            "`main.ds:1:17`\n\n```ds\nexport function answer(): string\n```",
+        )),
+        range: Some(range(0, 16, 0, 22)),
+    });
+    server
+        .assert_request(document.hover(position(0, 16)), Ok(hover))
+        .await;
+}
+
+/// Clear diagnostics after a file rename notification.
+#[tokio::test]
+async fn test_clear_renamed_file_diagnostics() {
+    let source = "const value = missing;\n";
+    let mut server = TestServer::new("renamed-file-diagnostics");
+    let renamed = server.write("renamed.ds", source);
+    let renamed_target = server.document("renamed-again.ds");
+    let renamed_error = renamed.error(
+        range(0, 14, 0, 21),
+        "unresolved-reference",
+        "cannot find 'missing'",
+    );
+    server
+        .initialize(lsp::ClientCapabilities::default(), None)
+        .await
+        .unwrap();
+    server.initialized().await;
+
+    // retain diagnostics before closing the editor document
+    server.open(&renamed, 1, source).await;
+    server
+        .assert_diagnostics(&renamed, 1, vec![renamed_error.clone()])
+        .await;
+    server.close(&renamed).await;
+    server
+        .assert_diagnostics(&renamed, None, vec![renamed_error])
+        .await;
+
+    // clear the old identity after a rename notification
+    server
+        .notify::<lsp::notification::DidRenameFiles>(lsp::RenameFilesParams {
+            files: vec![lsp::FileRename {
+                old_uri: renamed.uri().to_string(),
+                new_uri: renamed_target.uri().to_string(),
+            }],
+        })
+        .await;
+    server.assert_diagnostics(&renamed, None, Vec::new()).await;
+}
+
+/// Clear diagnostics after a file delete notification.
+#[tokio::test]
+async fn test_clear_deleted_file_diagnostics() {
+    let source = "const value = missing;\n";
+    let mut server = TestServer::new("deleted-file-diagnostics");
+    let deleted = server.write("deleted.ds", source);
+    let deleted_error = deleted.error(
+        range(0, 14, 0, 21),
+        "unresolved-reference",
+        "cannot find 'missing'",
+    );
+    server
+        .initialize(lsp::ClientCapabilities::default(), None)
+        .await
+        .unwrap();
+    server.initialized().await;
+
+    // retain diagnostics before closing the editor document
+    server.open(&deleted, 1, source).await;
+    server
+        .assert_diagnostics(&deleted, 1, vec![deleted_error.clone()])
+        .await;
+    server.close(&deleted).await;
+    server
+        .assert_diagnostics(&deleted, None, vec![deleted_error])
+        .await;
+
+    // clear the removed identity after a delete notification
+    server
+        .notify::<lsp::notification::DidDeleteFiles>(lsp::DeleteFilesParams {
+            files: vec![lsp::FileDelete {
+                uri: deleted.uri().to_string(),
+            }],
+        })
+        .await;
+    server.assert_diagnostics(&deleted, None, Vec::new()).await;
 }

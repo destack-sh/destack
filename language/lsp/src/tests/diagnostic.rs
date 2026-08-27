@@ -118,3 +118,73 @@ async fn test_publish_parser_diagnostics_before_check_failure() {
         )
         .await;
 }
+
+/// Return one complete workspace diagnostic report.
+#[tokio::test]
+async fn test_return_workspace_diagnostics() {
+    let source = "const value = missing;\n";
+    let mut server = TestServer::new("workspace-diagnostics");
+    let document = server.write("main.ds", source);
+    let capabilities = lsp::ClientCapabilities {
+        text_document: Some(lsp::TextDocumentClientCapabilities {
+            diagnostic: Some(lsp::DiagnosticClientCapabilities::default()),
+            ..lsp::TextDocumentClientCapabilities::default()
+        }),
+        ..lsp::ClientCapabilities::default()
+    };
+    server.initialize(capabilities, None).await.unwrap();
+    server.initialized().await;
+
+    // return the exact diagnostic for every semantic workspace
+    let request = server.workspace_diagnostics(Vec::new());
+    let report = server.request(request).await.unwrap();
+    let lsp::WorkspaceDiagnosticReportResult::Report(mut report) = report else {
+        panic!("workspace diagnostics returned a partial report");
+    };
+    let [lsp::WorkspaceDocumentDiagnosticReport::Full(full)] = report.items.as_mut_slice() else {
+        panic!("workspace diagnostics did not return one full report");
+    };
+    let Some(result_id) = full.full_document_diagnostic_report.result_id.clone() else {
+        panic!("workspace diagnostics omitted its result ID");
+    };
+    let [diagnostic] = full.full_document_diagnostic_report.items.as_mut_slice() else {
+        panic!("workspace diagnostics did not return one diagnostic");
+    };
+    diagnostic.data = None;
+    let expected = lsp::WorkspaceDiagnosticReport {
+        items: vec![lsp::WorkspaceDocumentDiagnosticReport::Full(
+            lsp::WorkspaceFullDocumentDiagnosticReport {
+                uri: document.uri().clone(),
+                version: None,
+                full_document_diagnostic_report: lsp::FullDocumentDiagnosticReport {
+                    result_id: Some(result_id.clone()),
+                    items: vec![document.error(
+                        range(0, 14, 0, 21),
+                        "unresolved-reference",
+                        "cannot find 'missing'",
+                    )],
+                },
+            },
+        )],
+    };
+    assert_eq!(report, expected);
+
+    // return an unchanged report for the exact previous result
+    let previous = lsp::PreviousResultId {
+        uri: document.uri().clone(),
+        value: result_id.clone(),
+    };
+    let expected = lsp::WorkspaceDiagnosticReportResult::Report(lsp::WorkspaceDiagnosticReport {
+        items: vec![lsp::WorkspaceDocumentDiagnosticReport::Unchanged(
+            lsp::WorkspaceUnchangedDocumentDiagnosticReport {
+                uri: document.uri().clone(),
+                version: None,
+                unchanged_document_diagnostic_report: lsp::UnchangedDocumentDiagnosticReport {
+                    result_id,
+                },
+            },
+        )],
+    });
+    let request = server.workspace_diagnostics(vec![previous]);
+    server.assert_request(request, Ok(expected)).await;
+}

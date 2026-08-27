@@ -353,6 +353,62 @@ impl TestServer {
         .unwrap()
     }
 
+    /// Search every open workspace for symbols matching one query.
+    pub(super) fn workspace_symbols(
+        &self,
+        query: &str,
+    ) -> TestRequest<lsp::request::WorkspaceSymbolRequest> {
+        TestRequest::new(lsp::WorkspaceSymbolParams {
+            query: query.to_string(),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+            partial_result_params: lsp::PartialResultParams::default(),
+        })
+    }
+
+    /// Request diagnostics for every open workspace.
+    pub(super) fn workspace_diagnostics(
+        &self,
+        previous_result_ids: Vec<lsp::PreviousResultId>,
+    ) -> TestRequest<lsp::request::WorkspaceDiagnosticRequest> {
+        TestRequest::new(lsp::WorkspaceDiagnosticParams {
+            identifier: None,
+            previous_result_ids,
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+            partial_result_params: lsp::PartialResultParams::default(),
+        })
+    }
+
+    /// Reload every workspace owned by this server.
+    pub(super) fn reload(&self) -> TestRequest<lsp::request::ExecuteCommand> {
+        TestRequest::new(lsp::ExecuteCommandParams {
+            command: "destack.reload".to_string(),
+            arguments: Vec::new(),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+        })
+    }
+
+    /// Resolve the edit carried by one deferred code action.
+    pub(super) fn resolve_code_action(
+        &self,
+        action: lsp::CodeAction,
+    ) -> TestRequest<lsp::request::CodeActionResolveRequest> {
+        TestRequest::new(action)
+    }
+
+    /// Request import edits for one workspace file rename.
+    pub(super) fn rename_file(
+        &self,
+        old_document: &TestDocument,
+        new_document: &TestDocument,
+    ) -> TestRequest<lsp::request::WillRenameFiles> {
+        TestRequest::new(lsp::RenameFilesParams {
+            files: vec![lsp::FileRename {
+                old_uri: old_document.uri.to_string(),
+                new_uri: new_document.uri.to_string(),
+            }],
+        })
+    }
+
     // hierarchy
 
     /// Prepare one call hierarchy item.
@@ -541,8 +597,9 @@ impl TestServer {
     pub(super) async fn receive_diagnostics(
         &mut self,
         document: &TestDocument,
-        version: i32,
+        version: impl Into<Option<i32>>,
     ) -> lsp::PublishDiagnosticsParams {
+        let version = version.into();
         let mut unmatched = VecDeque::new();
 
         // select the requested document revision
@@ -555,7 +612,7 @@ impl TestServer {
             }
 
             // decode one diagnostic publication
-            let (_, id, params) = message.into_parts();
+            let (_, id, params) = message.clone().into_parts();
             assert_eq!(id, None);
             let params = params.unwrap_or_else(|| {
                 panic!(
@@ -564,7 +621,9 @@ impl TestServer {
                 )
             });
             let published = from_value::<lsp::PublishDiagnosticsParams>(params).unwrap();
-            if published.uri != document.uri || published.version != Some(version) {
+            if published.uri != document.uri || published.version != version {
+                unmatched.push_back(message);
+
                 continue;
             }
 
@@ -580,7 +639,7 @@ impl TestServer {
     pub(super) async fn assert_diagnostics(
         &mut self,
         document: &TestDocument,
-        version: i32,
+        version: impl Into<Option<i32>>,
         expected: Vec<lsp::Diagnostic>,
     ) {
         let mut published = self.receive_diagnostics(document, version).await;
@@ -992,6 +1051,18 @@ impl TestDocument {
         })
     }
 
+    /// Build a signature help request for this document.
+    pub(super) fn signature_help(
+        &self,
+        position: lsp::Position,
+    ) -> TestRequest<lsp::request::SignatureHelpRequest> {
+        TestRequest::new(lsp::SignatureHelpParams {
+            context: None,
+            text_document_position_params: self.position(position),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+        })
+    }
+
     /// Build a rename request for this document.
     pub(super) fn rename(
         &self,
@@ -1005,6 +1076,49 @@ impl TestDocument {
         })
     }
 
+    /// Build a rename preparation request for this document.
+    pub(super) fn prepare_rename(
+        &self,
+        position: lsp::Position,
+    ) -> TestRequest<lsp::request::PrepareRenameRequest> {
+        TestRequest::new(self.position(position))
+    }
+
+    /// Build a whole document formatting request.
+    pub(super) fn format(&self) -> TestRequest<lsp::request::Formatting> {
+        TestRequest::new(lsp::DocumentFormattingParams {
+            text_document: self.identifier(),
+            options: lsp::FormattingOptions::default(),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+        })
+    }
+
+    /// Build a range formatting request.
+    pub(super) fn format_range(
+        &self,
+        range: lsp::Range,
+    ) -> TestRequest<lsp::request::RangeFormatting> {
+        TestRequest::new(lsp::DocumentRangeFormattingParams {
+            text_document: self.identifier(),
+            range,
+            options: lsp::FormattingOptions::default(),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+        })
+    }
+
+    /// Build an on type formatting request.
+    pub(super) fn format_on_type(
+        &self,
+        position: lsp::Position,
+        character: &str,
+    ) -> TestRequest<lsp::request::OnTypeFormatting> {
+        TestRequest::new(lsp::DocumentOnTypeFormattingParams {
+            text_document_position: self.position(position),
+            ch: character.to_string(),
+            options: lsp::FormattingOptions::default(),
+        })
+    }
+
     /// Build a semantic token request for this document.
     pub(super) fn semantic_tokens(&self) -> TestRequest<lsp::request::SemanticTokensFullRequest> {
         TestRequest::new(lsp::SemanticTokensParams {
@@ -1014,10 +1128,45 @@ impl TestDocument {
         })
     }
 
+    /// Build a semantic token request for one document range.
+    pub(super) fn semantic_tokens_range(
+        &self,
+        range: lsp::Range,
+    ) -> TestRequest<lsp::request::SemanticTokensRangeRequest> {
+        TestRequest::new(lsp::SemanticTokensRangeParams {
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+            partial_result_params: lsp::PartialResultParams::default(),
+            text_document: self.identifier(),
+            range,
+        })
+    }
+
     /// Build an outline request for this document.
     pub(super) fn outline(&self) -> TestRequest<lsp::request::DocumentSymbolRequest> {
         TestRequest::new(lsp::DocumentSymbolParams {
             text_document: self.identifier(),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+            partial_result_params: lsp::PartialResultParams::default(),
+        })
+    }
+
+    /// Build a folding range request for this document.
+    pub(super) fn folding_ranges(&self) -> TestRequest<lsp::request::FoldingRangeRequest> {
+        TestRequest::new(lsp::FoldingRangeParams {
+            text_document: self.identifier(),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+            partial_result_params: lsp::PartialResultParams::default(),
+        })
+    }
+
+    /// Build a selection range request for this document.
+    pub(super) fn selection_ranges(
+        &self,
+        positions: impl IntoIterator<Item = lsp::Position>,
+    ) -> TestRequest<lsp::request::SelectionRangeRequest> {
+        TestRequest::new(lsp::SelectionRangeParams {
+            text_document: self.identifier(),
+            positions: positions.into_iter().collect(),
             work_done_progress_params: lsp::WorkDoneProgressParams::default(),
             partial_result_params: lsp::PartialResultParams::default(),
         })

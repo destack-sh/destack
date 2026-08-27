@@ -2,6 +2,88 @@ use destack_lsp_types as lsp;
 
 use super::tests::{CompletionDisplay, MANIFEST, TestServer, markdown, position, range};
 
+/// Return exact signature help and inlay hints for one call.
+#[tokio::test]
+async fn test_return_signature_help_and_inlay_hints() {
+    let source = r#"/// Send one message.
+/// @param code - The destination code.
+/// @param message - The message text.
+function send(code: int32, message: string): boolean {
+    return true;
+}
+const sent = send(1, "ok");
+"#;
+    let (mut server, document) =
+        TestServer::open_workspace("call-assists", &[("src/main.ds", source)], "src/main.ds").await;
+
+    // select the second parameter and retain callable documentation
+    let signature = Some(lsp::SignatureHelp {
+        signatures: vec![lsp::SignatureInformation {
+            label: "send(code: int32, message: string): boolean".to_string(),
+            documentation: Some(lsp::Documentation::MarkupContent(markdown(
+                "Send one message.",
+            ))),
+            parameters: Some(vec![
+                lsp::ParameterInformation {
+                    label: lsp::ParameterLabel::Simple("code: int32".to_string()),
+                    documentation: Some(lsp::Documentation::MarkupContent(markdown(
+                        "The destination code.",
+                    ))),
+                },
+                lsp::ParameterInformation {
+                    label: lsp::ParameterLabel::Simple("message: string".to_string()),
+                    documentation: Some(lsp::Documentation::MarkupContent(markdown(
+                        "The message text.",
+                    ))),
+                },
+            ]),
+            active_parameter: None,
+        }],
+        active_signature: Some(0),
+        active_parameter: Some(1),
+    });
+    server
+        .assert_request(document.signature_help(position(6, 21)), Ok(signature))
+        .await;
+
+    // return the inferred binding type and both parameter labels
+    let hints = Some(vec![
+        lsp::InlayHint {
+            position: position(6, 10),
+            label: lsp::InlayHintLabel::String(": boolean".to_string()),
+            kind: Some(lsp::InlayHintKind::TYPE),
+            text_edits: None,
+            tooltip: None,
+            padding_left: Some(false),
+            padding_right: Some(false),
+            data: None,
+        },
+        lsp::InlayHint {
+            position: position(6, 18),
+            label: lsp::InlayHintLabel::String("code:".to_string()),
+            kind: Some(lsp::InlayHintKind::PARAMETER),
+            text_edits: None,
+            tooltip: None,
+            padding_left: Some(false),
+            padding_right: Some(true),
+            data: None,
+        },
+        lsp::InlayHint {
+            position: position(6, 21),
+            label: lsp::InlayHintLabel::String("message:".to_string()),
+            kind: Some(lsp::InlayHintKind::PARAMETER),
+            text_edits: None,
+            tooltip: None,
+            padding_left: Some(false),
+            padding_right: Some(true),
+            data: None,
+        },
+    ]);
+    server
+        .assert_request(document.inlay_hints(range(0, 0, 6, 27)), Ok(hints))
+        .await;
+}
+
 /// Return declaration, member, and callable details in completion lists.
 #[tokio::test]
 async fn test_return_completion_details() {
