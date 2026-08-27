@@ -3,71 +3,96 @@ use std::path::PathBuf;
 use super::{WalkOptions, walk};
 
 /// Match a glob-style `pattern` against raw `text` bytes.
-/// The matcher works over byte slices so callers can supply UTF-8 or filesystem-encoded data:
-/// - `*` keeps its classic greedy semantics
-/// - `?` matches a single byte, and
-/// - `**/` segment optionally consumes a directory
-/// - separator so that `**/*.rs` matches files in the root directory as well as nested subdirectories.
-pub fn matches(pattern: &[u8], mut pattern_idx: usize, text: &[u8], mut text_idx: usize) -> bool {
+///
+/// `*` and `?` remain within one path segment, while `**` crosses path separators.
+/// `**/` may consume zero directories, so `**/*.rs` also matches root files.
+pub fn matches(pattern: &[u8], text: &[u8]) -> bool {
+    matches_at(pattern, 0, text, 0)
+}
+
+/// Match pattern and text suffixes at exact byte indices.
+fn matches_at(
+    pattern: &[u8],
+    mut pattern_index: usize,
+    text: &[u8],
+    mut text_index: usize,
+) -> bool {
     let pattern_length = pattern.len();
     let text_length = text.len();
-    let mut star_idx: Option<usize> = None;
+    let mut star_index: Option<usize> = None;
     let mut star_width: usize = 0;
-    let mut star_allows_dot = false;
-    let mut match_idx: usize = 0;
+    let mut match_index: usize = 0;
 
     // match pattern against text
-    while text_idx < text_length {
-        // handle "**/" at root or after a slash
-        if pattern_idx + 2 < pattern_length
-            && pattern[pattern_idx] == b'*'
-            && pattern[pattern_idx + 1] == b'*'
-            && pattern[pattern_idx + 2] == b'/'
-            && (pattern_idx == 0 || pattern[pattern_idx - 1] == b'/')
-        {
-            // try the branch where we skip the "/" after a double star
-            if matches(pattern, pattern_idx + 3, text, text_idx) {
+    while text_index < text_length {
+        // match the remaining pattern at every directory depth
+        let is_recursive_directory = pattern_index + 2 < pattern_length
+            && pattern[pattern_index] == b'*'
+            && pattern[pattern_index + 1] == b'*'
+            && is_separator(pattern[pattern_index + 2])
+            && (pattern_index == 0 || is_separator(pattern[pattern_index - 1]));
+        if is_recursive_directory {
+            let remaining_pattern = pattern_index + 3;
+
+            // try the current directory
+            if matches_at(pattern, remaining_pattern, text, text_index) {
                 return true;
             }
+
+            // try each descendant directory
+            while text_index < text_length {
+                if is_separator(text[text_index])
+                    && matches_at(pattern, remaining_pattern, text, text_index + 1)
+                {
+                    return true;
+                }
+                text_index += 1;
+            }
+
+            return false;
         }
 
         // match single character or '?'
-        if pattern_idx < pattern_length
-            && (pattern[pattern_idx] == b'?' || pattern[pattern_idx] == text[text_idx])
+        if pattern_index < pattern_length
+            && (pattern[pattern_index] == text[text_index]
+                || (is_separator(pattern[pattern_index]) && is_separator(text[text_index]))
+                || (pattern[pattern_index] == b'?' && !is_separator(text[text_index])))
         {
-            pattern_idx += 1;
-            text_idx += 1;
+            pattern_index += 1;
+            text_index += 1;
         }
         // "**" matches any number of bytes, including '.'
-        else if pattern_idx + 1 < pattern_length
-            && pattern[pattern_idx] == b'*'
-            && pattern[pattern_idx + 1] == b'*'
+        else if pattern_index + 1 < pattern_length
+            && pattern[pattern_index] == b'*'
+            && pattern[pattern_index + 1] == b'*'
         {
-            star_idx = Some(pattern_idx);
+            star_index = Some(pattern_index);
             star_width = 2;
-            star_allows_dot = true;
-            match_idx = text_idx;
-            pattern_idx += 2;
+            match_index = text_index;
+            pattern_index += 2;
         }
-        // '*' matches anything (except '.')
-        else if pattern_idx < pattern_length
-            && pattern[pattern_idx] == b'*'
-            && text[text_idx] != b'.'
-        {
-            star_idx = Some(pattern_idx);
+        // match within one path segment with '*'
+        else if pattern_index < pattern_length && pattern[pattern_index] == b'*' {
+            star_index = Some(pattern_index);
             star_width = 1;
-            star_allows_dot = false;
-            match_idx = text_idx;
-            pattern_idx += 1;
+            match_index = text_index;
+            pattern_index += 1;
         }
         // backtrack to last '*' if needed
-        else if let Some(si) = star_idx {
-            if match_idx >= text_length || (!star_allows_dot && text[match_idx] == b'.') {
+        else if let Some(star_pattern_index) = star_index {
+            if match_index >= text_length {
                 return false;
             }
-            pattern_idx = si + star_width;
-            match_idx += 1;
-            text_idx = match_idx;
+
+            let matched = text[match_index];
+            let is_single_star_end = star_width == 1 && is_separator(matched);
+            if is_single_star_end {
+                return false;
+            }
+
+            pattern_index = star_pattern_index + star_width;
+            match_index += 1;
+            text_index = match_index;
         }
         // no match
         else {
@@ -76,32 +101,35 @@ pub fn matches(pattern: &[u8], mut pattern_idx: usize, text: &[u8], mut text_idx
     }
 
     // skip trailing '*' in pattern
-    while pattern_idx < pattern_length && pattern[pattern_idx] == b'*' {
-        pattern_idx += 1;
+    while pattern_index < pattern_length && pattern[pattern_index] == b'*' {
+        pattern_index += 1;
     }
-    pattern_idx == pattern_length
+
+    pattern_index == pattern_length
+}
+
+/// Return whether one byte separates path segments.
+fn is_separator(byte: u8) -> bool {
+    matches!(byte, b'/' | b'\\')
 }
 
 /// Collect filesystem entries matching a glob `pattern`.
-///
-/// The walker honours ignore rules through [`walk`]. Patterns are processed
-/// using [`matches`], so callers automatically get the extended `**/` semantics
-/// at the workspace root.
 pub fn glob(pattern: &str) -> Vec<PathBuf> {
     // split pattern into base directory and normalized pattern
-    let (base_dir, normalized_pattern) = split_base_directory(pattern);
+    let (base_directory, normalized_pattern) = split_base_directory(pattern);
 
     // set up walk options for traversal
     let walk_options = WalkOptions {
-        root: base_dir,
+        root: base_directory,
         ignore: None,
         glob: Some(vec![normalized_pattern]),
     };
-    let mut result = Vec::new();
+    let mut paths = Vec::new();
 
     // collect all matching paths
-    walk(&walk_options, |path| result.push(path.to_path_buf()));
-    result
+    walk(&walk_options, |path| paths.push(path.to_path_buf()));
+
+    paths
 }
 
 /// Extract a base directory prefix without wildcards to limit traversal.
@@ -110,18 +138,18 @@ fn split_base_directory(pattern: &str) -> (PathBuf, String) {
     let normalized = pattern.replace('\\', "/");
 
     // find earliest wildcard position
-    let mut first_wildcard: Option<usize> = None;
-    for (idx, ch) in normalized.char_indices() {
-        if ch == '*' || ch == '?' {
-            first_wildcard = Some(idx);
+    let mut first_wildcard = None;
+    for (index, character) in normalized.char_indices() {
+        if matches!(character, '*' | '?') {
+            first_wildcard = Some(index);
             break;
         }
     }
-    let scan_upto = first_wildcard.unwrap_or(normalized.len());
-    let prefix = &normalized[..scan_upto];
+    let prefix_end = first_wildcard.unwrap_or(normalized.len());
+    let prefix = &normalized[..prefix_end];
 
-    // base is up to the last '/'
-    let base_end = prefix.rfind('/').map(|i| i + 1).unwrap_or(0);
+    // retain complete directory segments
+    let base_end = prefix.rfind('/').map(|index| index + 1).unwrap_or(0);
     let base = if base_end > 0 {
         &normalized[..base_end]
     } else {
@@ -129,12 +157,13 @@ fn split_base_directory(pattern: &str) -> (PathBuf, String) {
     };
 
     // use current directory if no base found
-    let base_path = if base.is_empty() {
+    let base_directory = if base.is_empty() {
         std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
     } else {
         PathBuf::from(base)
     };
-    (base_path, normalized)
+
+    (base_directory, normalized)
 }
 
 #[cfg(test)]
@@ -144,19 +173,24 @@ mod tests {
 
     use crate::{FileSystem, TemporaryPhysicalFileSystem};
 
-    /// Exercise simple wildcard cases.
+    /// Match wildcards within and across path segments.
     #[test]
     fn test_matches_basic_patterns() {
-        assert!(matches(b"*.rs", 0, b"main.rs", 0));
-        assert!(matches(b"src/*.rs", 0, b"src/lib.rs", 0));
-        assert!(matches(b"src/*/mod.rs", 0, b"src/foo/mod.rs", 0));
-        assert!(matches(b"?ain.rs", 0, b"main.rs", 0));
-        assert!(!matches(b"*.rs", 0, b"main.py", 0));
-        assert!(matches(b"**/*.d.ds", 0, b"src/foo/bar/declaration.d.ds", 0));
-        assert!(!matches(b"**/*.ds", 0, b"src/foo/bar/declarationd.d.ds", 0));
+        assert!(matches(b"*.rs", b"main.rs"));
+        assert!(matches(b"src/*.rs", b"src/lib.rs"));
+        assert!(matches(b"src/*/mod.rs", b"src/foo/mod.rs"));
+        assert!(matches(b"src/*/mod.rs", b"src/foo.bar/mod.rs"));
+        assert!(matches(b"src\\*\\mod.rs", b"src/foo/mod.rs"));
+        assert!(matches(b"bridge/*", b"bridge/zed"));
+        assert!(!matches(b"bridge/*", b"bridge/zed/grammars/destack"));
+        assert!(matches(b"bridge/**", b"bridge/zed/grammars/destack"));
+        assert!(matches(b"?ain.rs", b"main.rs"));
+        assert!(!matches(b"*.rs", b"main.py"));
+        assert!(matches(b"**/*.d.ds", b"src/foo/bar/declaration.d.ds"));
+        assert!(!matches(b"**/*.ds", b"src/foo/bar/declaration.ts"));
     }
 
-    /// Exercise glob traversal including recursive and root level matches.
+    /// Find root and nested files through one recursive pattern.
     #[test]
     fn test_glob_finds_paths() {
         // create a temporary directory structure
@@ -173,39 +207,39 @@ mod tests {
         let mut paths = glob(&pattern);
         paths.sort();
 
-        // check that all expected files are found
-        assert!(paths.iter().any(|p| p.ends_with("root.rs")));
-        assert!(paths.iter().any(|p| p.ends_with("lib.rs")));
-        assert!(paths.iter().any(|p| p.ends_with("main.rs")));
-        assert!(paths.iter().any(|p| p.ends_with("mod.rs")));
+        // compare the complete path selection
+        let mut expected = vec![
+            fs.path_for("root.rs"),
+            fs.path_for("src/lib.rs"),
+            fs.path_for("src/main.rs"),
+            fs.path_for("src/sub/mod.rs"),
+        ];
+        expected.sort();
+        assert_eq!(paths, expected);
     }
 
-    /// Validate root level double star matching without a directory separator.
+    /// Match a recursive pattern at root and nested levels.
     #[test]
     fn test_matches_double_star_root_level() {
-        assert!(matches(b"**/*.rs", 0, b"file.rs", 0));
-        assert!(matches(b"**/*.rs", 0, b"dir/file.rs", 0));
-        assert!(!matches(b"**/*.rs", 0, b"file.py", 0));
+        assert!(matches(b"**/*.rs", b"file.rs"));
+        assert!(matches(b"**/*.rs", b"dir/file.rs"));
+        assert!(!matches(b"**/*.rs", b"file.py"));
     }
 
-    /// Validate directory excludes with trailing double star on dotted file names.
+    /// Match dotted files beneath a recursive directory pattern.
     #[test]
     fn test_matches_directory_exclude_with_trailing_double_star() {
         assert!(matches(
             b"**/fixtures/**",
-            0,
-            b"packages/astro/e2e/fixtures/errors/src/components/JSSyntaxError.js",
-            0
+            b"packages/astro/e2e/fixtures/errors/src/components/JSSyntaxError.js"
         ));
         assert!(matches(
             b"**/fixtures/**",
-            0,
-            b"fixtures/error-case/index.test.tsx",
-            0
+            b"fixtures/error-case/index.test.tsx"
         ));
     }
 
-    /// Validate glob collection for directory excludes with file extensions.
+    /// Find dotted files beneath a recursive directory pattern.
     #[test]
     fn test_glob_finds_fixture_paths_with_extensions() {
         // create a fixture directory with extension based files
@@ -223,7 +257,9 @@ mod tests {
         let pattern = format!("{}/**/fixtures/**", fs.root().to_string_lossy());
         let paths = glob(&pattern);
 
-        // verify that extension based fixture files are included
-        assert!(paths.iter().any(|path| path.ends_with("JSSyntaxError.js")));
+        // compare the complete path selection
+        let expected =
+            vec![fs.path_for("packages/astro/e2e/fixtures/errors/src/components/JSSyntaxError.js")];
+        assert_eq!(paths, expected);
     }
 }

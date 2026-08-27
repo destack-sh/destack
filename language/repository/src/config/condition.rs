@@ -843,7 +843,7 @@ impl From<ConditionSelectorValue> for ConditionSelector {
 
 /// Return true when one glob-like pattern matches text.
 fn glob_match(pattern: &str, text: &str) -> bool {
-    matches(pattern.as_bytes(), 0, text.as_bytes(), 0)
+    matches(pattern.as_bytes(), text.as_bytes())
 }
 
 #[cfg(test)]

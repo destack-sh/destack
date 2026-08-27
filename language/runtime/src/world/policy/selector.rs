@@ -662,7 +662,7 @@ fn matches_label_requirement(requirement: &RuntimeLabelRequirement, labels: &Lab
 
 /// Match one text value against one glob pattern.
 fn glob_match(pattern: &str, text: &str) -> bool {
-    matches(pattern.as_bytes(), 0, text.as_bytes(), 0)
+    matches(pattern.as_bytes(), text.as_bytes())
 }
 
 /// Return the module segment for one binding id.

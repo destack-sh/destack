@@ -205,6 +205,6 @@ impl Repository {
         let path = path.to_string_lossy();
         let path = path.as_bytes();
 
-        matches(pattern, 0, path, 0)
+        matches(pattern, path)
     }
 }

@@ -435,8 +435,8 @@ impl<'a> Scan<'a> {
             format!("{package_path}/destack.json")
         };
 
-        Ok(matches(pattern.as_bytes(), 0, package_path.as_bytes(), 0)
-            || matches(pattern.as_bytes(), 0, config_path.as_bytes(), 0))
+        Ok(matches(pattern.as_bytes(), package_path.as_bytes())
+            || matches(pattern.as_bytes(), config_path.as_bytes()))
     }
 
     /// Return one package-relative path as normalized text.

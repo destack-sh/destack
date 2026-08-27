@@ -82,7 +82,7 @@ where
                 let text = path.to_string_lossy();
                 if !glob
                     .iter()
-                    .any(|p| super::matches(p.as_bytes(), 0, text.as_bytes(), 0))
+                    .any(|pattern| super::matches(pattern.as_bytes(), text.as_bytes()))
                 {
                     continue;
                 }

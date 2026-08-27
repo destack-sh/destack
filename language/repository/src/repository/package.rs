@@ -612,8 +612,8 @@ impl Repository {
             config_path.as_str()
         };
 
-        matches(pattern.as_bytes(), 0, relative_root.as_bytes(), 0)
-            || matches(pattern.as_bytes(), 0, config_path.as_bytes(), 0)
+        matches(pattern.as_bytes(), relative_root.as_bytes())
+            || matches(pattern.as_bytes(), config_path.as_bytes())
     }
 
     /// Build the active import-resolution node of one package.

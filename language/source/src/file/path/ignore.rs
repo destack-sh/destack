@@ -210,9 +210,9 @@ fn parse_attribute_value(value: &str) -> Option<bool> {
 /// Check if pattern matches either the relative path or file name when pattern has no slash.
 fn pattern_matches(pattern: &str, relative_path: &str, file_name: &str) -> bool {
     if pattern.contains('/') {
-        matches(pattern.as_bytes(), 0, relative_path.as_bytes(), 0)
+        matches(pattern.as_bytes(), relative_path.as_bytes())
     } else {
-        matches(pattern.as_bytes(), 0, file_name.as_bytes(), 0)
+        matches(pattern.as_bytes(), file_name.as_bytes())
     }
 }
 

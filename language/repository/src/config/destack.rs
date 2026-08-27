@@ -292,9 +292,9 @@ impl DestackFile {
     /// Return whether one source pattern contains one package-relative path.
     fn matches_source_pattern(pattern: &str, path: &str) -> bool {
         let directory_pattern = pattern.strip_suffix("/**");
-        let is_match = matches(pattern.as_bytes(), 0, path.as_bytes(), 0);
-        let is_directory_match = directory_pattern
-            .is_some_and(|pattern| matches(pattern.as_bytes(), 0, path.as_bytes(), 0));
+        let is_match = matches(pattern.as_bytes(), path.as_bytes());
+        let is_directory_match =
+            directory_pattern.is_some_and(|pattern| matches(pattern.as_bytes(), path.as_bytes()));
 
         // include descendants selected through a literal directory path
         let is_descendant = path
