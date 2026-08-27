@@ -84,9 +84,7 @@ pub struct TransformId(pub u32);
 
 /// One direct source attribution.
 #[repr(C, u32)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub enum Location {
     /// One authored construct.
     Authored {
