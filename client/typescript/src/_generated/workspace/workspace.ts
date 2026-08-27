@@ -658,7 +658,7 @@ const resolveQueryFileMethodResponse: Decoder<workspaceServiceQuery.QueryFileRes
 const resolveQueryFileMethod: Method<workspaceServiceQuery.ResolveQueryFileRequest, workspaceServiceQuery.QueryFileResponse | undefined, never, never> = {
     service: 5221210015570525267n,
     method: 7867554958004844305n,
-    fingerprint: 292866841425660614465084694331483112797n,
+    fingerprint: 21302530661815602352440049916357102078n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: resolveQueryFileMethodRequest,
@@ -757,7 +757,7 @@ const runQueryMethodResponse: Decoder<workspaceQuery.RunQueryResponse> = {
 const runQueryMethod: Method<workspaceServiceQuery.RunQueryRequest, workspaceQuery.RunQueryResponse, never, never> = {
     service: 5221210015570525267n,
     method: 3642248314147070001n,
-    fingerprint: 256125646505878443185715609701748950439n,
+    fingerprint: 17437748124631607899738415185670813893n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: runQueryMethodRequest,

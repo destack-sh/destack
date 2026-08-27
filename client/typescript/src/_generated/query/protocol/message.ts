@@ -5,6 +5,8 @@ import type { CodeActionsRequest } from "../assist/code_actions.js";
 import type { CodeActionsResponse } from "../assist/code_actions.js";
 import type { CodeLensesRequest } from "../assist/code_lenses.js";
 import type { CodeLensesResponse } from "../assist/code_lenses.js";
+import type { CompletionDetailsRequest } from "../assist/completion.js";
+import type { CompletionDetailsResponse } from "../assist/completion.js";
 import type { CompletionRequest } from "../assist/completion.js";
 import type { CompletionResponse } from "../assist/completion.js";
 import type { HoverRequest } from "../assist/hover.js";
@@ -67,6 +69,8 @@ import { decodeCodeActionsRequest, encodeCodeActionsRequest, fromJsonCodeActions
 import { decodeCodeActionsResponse, encodeCodeActionsResponse, fromJsonCodeActionsResponse, toJsonCodeActionsResponse } from "../assist/code_actions.js";
 import { decodeCodeLensesRequest, encodeCodeLensesRequest, fromJsonCodeLensesRequest, toJsonCodeLensesRequest } from "../assist/code_lenses.js";
 import { decodeCodeLensesResponse, encodeCodeLensesResponse, fromJsonCodeLensesResponse, toJsonCodeLensesResponse } from "../assist/code_lenses.js";
+import { decodeCompletionDetailsRequest, encodeCompletionDetailsRequest, fromJsonCompletionDetailsRequest, toJsonCompletionDetailsRequest } from "../assist/completion.js";
+import { decodeCompletionDetailsResponse, encodeCompletionDetailsResponse, fromJsonCompletionDetailsResponse, toJsonCompletionDetailsResponse } from "../assist/completion.js";
 import { decodeCompletionRequest, encodeCompletionRequest, fromJsonCompletionRequest, toJsonCompletionRequest } from "../assist/completion.js";
 import { decodeCompletionResponse, encodeCompletionResponse, fromJsonCompletionResponse, toJsonCompletionResponse } from "../assist/completion.js";
 import { decodeHoverRequest, encodeHoverRequest, fromJsonHoverRequest, toJsonHoverRequest } from "../assist/hover.js";
@@ -132,6 +136,11 @@ export type QueryRequest =
     | {
           readonly kind: "completion";
           readonly completion: CompletionRequest;
+      }
+    /** Completion details request payload. */
+    | {
+          readonly kind: "completionDetails";
+          readonly completion_details: CompletionDetailsRequest;
       }
     /** Hover request payload. */
     | {
@@ -289,6 +298,11 @@ export const QueryRequest = {
     /** Completion request payload. */
     completion(completion: CompletionRequest): QueryRequest {
         return { kind: "completion", completion };
+    },
+
+    /** Completion details request payload. */
+    completionDetails(completion_details: CompletionDetailsRequest): QueryRequest {
+        return { kind: "completionDetails", completion_details };
     },
 
     /** Hover request payload. */
@@ -469,124 +483,128 @@ export function encodeQueryRequest(writer: BinaryWriter, value: QueryRequest): v
             writer.writeUnsigned(0);
             encodeCompletionRequest(writer, value.completion);
             return;
-        case "hover":
+        case "completionDetails":
             writer.writeUnsigned(1);
+            encodeCompletionDetailsRequest(writer, value.completion_details);
+            return;
+        case "hover":
+            writer.writeUnsigned(2);
             encodeHoverRequest(writer, value.hover);
             return;
         case "signatureHelp":
-            writer.writeUnsigned(2);
+            writer.writeUnsigned(3);
             encodeSignatureHelpRequest(writer, value.signature_help);
             return;
         case "inlayHints":
-            writer.writeUnsigned(3);
+            writer.writeUnsigned(4);
             encodeInlayHintsRequest(writer, value.inlay_hints);
             return;
         case "codeLenses":
-            writer.writeUnsigned(4);
+            writer.writeUnsigned(5);
             encodeCodeLensesRequest(writer, value.code_lenses);
             return;
         case "foldingRanges":
-            writer.writeUnsigned(5);
+            writer.writeUnsigned(6);
             encodeFoldingRangesRequest(writer, value.folding_ranges);
             return;
         case "semanticTokens":
-            writer.writeUnsigned(6);
+            writer.writeUnsigned(7);
             encodeSemanticTokensRequest(writer, value.semantic_tokens);
             return;
         case "semanticTokensRange":
-            writer.writeUnsigned(7);
+            writer.writeUnsigned(8);
             encodeSemanticTokensRangeRequest(writer, value.semantic_tokens_range);
             return;
         case "outline":
-            writer.writeUnsigned(8);
+            writer.writeUnsigned(9);
             encodeOutlineRequest(writer, value.outline);
             return;
         case "searchSymbols":
-            writer.writeUnsigned(9);
+            writer.writeUnsigned(10);
             encodeSearchSymbolsRequest(writer, value.search_symbols);
             return;
         case "links":
-            writer.writeUnsigned(10);
+            writer.writeUnsigned(11);
             encodeLinksRequest(writer, value.links);
             return;
         case "highlight":
-            writer.writeUnsigned(11);
+            writer.writeUnsigned(12);
             encodeHighlightRequest(writer, value.highlight);
             return;
         case "selectionRanges":
-            writer.writeUnsigned(12);
+            writer.writeUnsigned(13);
             encodeSelectionRangesRequest(writer, value.selection_ranges);
             return;
         case "gotoDefinition":
-            writer.writeUnsigned(13);
+            writer.writeUnsigned(14);
             encodeGotoDefinitionRequest(writer, value.goto_definition);
             return;
         case "gotoDeclaration":
-            writer.writeUnsigned(14);
+            writer.writeUnsigned(15);
             encodeGotoDeclarationRequest(writer, value.goto_declaration);
             return;
         case "gotoTypeDefinition":
-            writer.writeUnsigned(15);
+            writer.writeUnsigned(16);
             encodeGotoTypeDefinitionRequest(writer, value.goto_type_definition);
             return;
         case "gotoImplementation":
-            writer.writeUnsigned(16);
+            writer.writeUnsigned(17);
             encodeGotoImplementationRequest(writer, value.goto_implementation);
             return;
         case "findReferences":
-            writer.writeUnsigned(17);
+            writer.writeUnsigned(18);
             encodeFindReferencesRequest(writer, value.find_references);
             return;
         case "callItem":
-            writer.writeUnsigned(18);
+            writer.writeUnsigned(19);
             encodeCallItemRequest(writer, value.call_item);
             return;
         case "incomingCalls":
-            writer.writeUnsigned(19);
+            writer.writeUnsigned(20);
             encodeIncomingCallsRequest(writer, value.incoming_calls);
             return;
         case "outgoingCalls":
-            writer.writeUnsigned(20);
+            writer.writeUnsigned(21);
             encodeOutgoingCallsRequest(writer, value.outgoing_calls);
             return;
         case "typeItem":
-            writer.writeUnsigned(21);
+            writer.writeUnsigned(22);
             encodeTypeItemRequest(writer, value.type_item);
             return;
         case "supertypes":
-            writer.writeUnsigned(22);
+            writer.writeUnsigned(23);
             encodeSupertypesRequest(writer, value.supertypes);
             return;
         case "subtypes":
-            writer.writeUnsigned(23);
+            writer.writeUnsigned(24);
             encodeSubtypesRequest(writer, value.subtypes);
             return;
         case "decorators":
-            writer.writeUnsigned(24);
+            writer.writeUnsigned(25);
             encodeDecoratorsRequest(writer, value.decorators);
             return;
         case "renameTarget":
-            writer.writeUnsigned(25);
+            writer.writeUnsigned(26);
             encodeRenameTargetRequest(writer, value.rename_target);
             return;
         case "rename":
-            writer.writeUnsigned(26);
+            writer.writeUnsigned(27);
             encodeRenameRequest(writer, value.rename);
             return;
         case "renameFiles":
-            writer.writeUnsigned(27);
+            writer.writeUnsigned(28);
             encodeRenameFilesRequest(writer, value.rename_files);
             return;
         case "extractVariable":
-            writer.writeUnsigned(28);
+            writer.writeUnsigned(29);
             encodeExtractVariableRequest(writer, value.extract_variable);
             return;
         case "inline":
-            writer.writeUnsigned(29);
+            writer.writeUnsigned(30);
             encodeInlineRequest(writer, value.inline);
             return;
         case "codeActions":
-            writer.writeUnsigned(30);
+            writer.writeUnsigned(31);
             encodeCodeActionsRequest(writer, value.code_actions);
             return;
     }
@@ -605,151 +623,156 @@ export function decodeQueryRequest(reader: BinaryReader): QueryRequest {
             return { kind: "completion", completion };
         }
         case 1: {
+            const completion_details = decodeCompletionDetailsRequest(reader);
+
+            return { kind: "completionDetails", completion_details };
+        }
+        case 2: {
             const hover = decodeHoverRequest(reader);
 
             return { kind: "hover", hover };
         }
-        case 2: {
+        case 3: {
             const signature_help = decodeSignatureHelpRequest(reader);
 
             return { kind: "signatureHelp", signature_help };
         }
-        case 3: {
+        case 4: {
             const inlay_hints = decodeInlayHintsRequest(reader);
 
             return { kind: "inlayHints", inlay_hints };
         }
-        case 4: {
+        case 5: {
             const code_lenses = decodeCodeLensesRequest(reader);
 
             return { kind: "codeLenses", code_lenses };
         }
-        case 5: {
+        case 6: {
             const folding_ranges = decodeFoldingRangesRequest(reader);
 
             return { kind: "foldingRanges", folding_ranges };
         }
-        case 6: {
+        case 7: {
             const semantic_tokens = decodeSemanticTokensRequest(reader);
 
             return { kind: "semanticTokens", semantic_tokens };
         }
-        case 7: {
+        case 8: {
             const semantic_tokens_range = decodeSemanticTokensRangeRequest(reader);
 
             return { kind: "semanticTokensRange", semantic_tokens_range };
         }
-        case 8: {
+        case 9: {
             const outline = decodeOutlineRequest(reader);
 
             return { kind: "outline", outline };
         }
-        case 9: {
+        case 10: {
             const search_symbols = decodeSearchSymbolsRequest(reader);
 
             return { kind: "searchSymbols", search_symbols };
         }
-        case 10: {
+        case 11: {
             const links = decodeLinksRequest(reader);
 
             return { kind: "links", links };
         }
-        case 11: {
+        case 12: {
             const highlight = decodeHighlightRequest(reader);
 
             return { kind: "highlight", highlight };
         }
-        case 12: {
+        case 13: {
             const selection_ranges = decodeSelectionRangesRequest(reader);
 
             return { kind: "selectionRanges", selection_ranges };
         }
-        case 13: {
+        case 14: {
             const goto_definition = decodeGotoDefinitionRequest(reader);
 
             return { kind: "gotoDefinition", goto_definition };
         }
-        case 14: {
+        case 15: {
             const goto_declaration = decodeGotoDeclarationRequest(reader);
 
             return { kind: "gotoDeclaration", goto_declaration };
         }
-        case 15: {
+        case 16: {
             const goto_type_definition = decodeGotoTypeDefinitionRequest(reader);
 
             return { kind: "gotoTypeDefinition", goto_type_definition };
         }
-        case 16: {
+        case 17: {
             const goto_implementation = decodeGotoImplementationRequest(reader);
 
             return { kind: "gotoImplementation", goto_implementation };
         }
-        case 17: {
+        case 18: {
             const find_references = decodeFindReferencesRequest(reader);
 
             return { kind: "findReferences", find_references };
         }
-        case 18: {
+        case 19: {
             const call_item = decodeCallItemRequest(reader);
 
             return { kind: "callItem", call_item };
         }
-        case 19: {
+        case 20: {
             const incoming_calls = decodeIncomingCallsRequest(reader);
 
             return { kind: "incomingCalls", incoming_calls };
         }
-        case 20: {
+        case 21: {
             const outgoing_calls = decodeOutgoingCallsRequest(reader);
 
             return { kind: "outgoingCalls", outgoing_calls };
         }
-        case 21: {
+        case 22: {
             const type_item = decodeTypeItemRequest(reader);
 
             return { kind: "typeItem", type_item };
         }
-        case 22: {
+        case 23: {
             const supertypes = decodeSupertypesRequest(reader);
 
             return { kind: "supertypes", supertypes };
         }
-        case 23: {
+        case 24: {
             const subtypes = decodeSubtypesRequest(reader);
 
             return { kind: "subtypes", subtypes };
         }
-        case 24: {
+        case 25: {
             const decorators = decodeDecoratorsRequest(reader);
 
             return { kind: "decorators", decorators };
         }
-        case 25: {
+        case 26: {
             const rename_target = decodeRenameTargetRequest(reader);
 
             return { kind: "renameTarget", rename_target };
         }
-        case 26: {
+        case 27: {
             const rename = decodeRenameRequest(reader);
 
             return { kind: "rename", rename };
         }
-        case 27: {
+        case 28: {
             const rename_files = decodeRenameFilesRequest(reader);
 
             return { kind: "renameFiles", rename_files };
         }
-        case 28: {
+        case 29: {
             const extract_variable = decodeExtractVariableRequest(reader);
 
             return { kind: "extractVariable", extract_variable };
         }
-        case 29: {
+        case 30: {
             const inline = decodeInlineRequest(reader);
 
             return { kind: "inline", inline };
         }
-        case 30: {
+        case 31: {
             const code_actions = decodeCodeActionsRequest(reader);
 
             return { kind: "codeActions", code_actions };
@@ -766,6 +789,11 @@ export function toJsonQueryRequest(value: QueryRequest): Json {
             return {
                 kind: "completion",
                 completion: toJsonCompletionRequest(value.completion),
+            };
+        case "completionDetails":
+            return {
+                kind: "completionDetails",
+                completion_details: toJsonCompletionDetailsRequest(value.completion_details),
             };
         case "hover":
             return {
@@ -933,6 +961,11 @@ export function fromJsonQueryRequest(value: Json): QueryRequest {
                 kind,
                 completion: fromJsonCompletionRequest(jsonField(object, "completion")),
             };
+        case "completionDetails":
+            return {
+                kind,
+                completion_details: fromJsonCompletionDetailsRequest(jsonField(object, "completion_details")),
+            };
         case "hover":
             return {
                 kind,
@@ -1095,6 +1128,11 @@ export type QueryResponse =
           readonly kind: "completion";
           readonly completion: CompletionResponse;
       }
+    /** Completion details response payload. */
+    | {
+          readonly kind: "completionDetails";
+          readonly completion_details: CompletionDetailsResponse;
+      }
     /** Hover response payload. */
     | {
           readonly kind: "hover";
@@ -1251,6 +1289,11 @@ export const QueryResponse = {
     /** Completion response payload. */
     completion(completion: CompletionResponse): QueryResponse {
         return { kind: "completion", completion };
+    },
+
+    /** Completion details response payload. */
+    completionDetails(completion_details: CompletionDetailsResponse): QueryResponse {
+        return { kind: "completionDetails", completion_details };
     },
 
     /** Hover response payload. */
@@ -1431,124 +1474,128 @@ export function encodeQueryResponse(writer: BinaryWriter, value: QueryResponse):
             writer.writeUnsigned(0);
             encodeCompletionResponse(writer, value.completion);
             return;
-        case "hover":
+        case "completionDetails":
             writer.writeUnsigned(1);
+            encodeCompletionDetailsResponse(writer, value.completion_details);
+            return;
+        case "hover":
+            writer.writeUnsigned(2);
             encodeHoverResponse(writer, value.hover);
             return;
         case "signatureHelp":
-            writer.writeUnsigned(2);
+            writer.writeUnsigned(3);
             encodeSignatureHelpResponse(writer, value.signature_help);
             return;
         case "inlayHints":
-            writer.writeUnsigned(3);
+            writer.writeUnsigned(4);
             encodeInlayHintsResponse(writer, value.inlay_hints);
             return;
         case "codeLenses":
-            writer.writeUnsigned(4);
+            writer.writeUnsigned(5);
             encodeCodeLensesResponse(writer, value.code_lenses);
             return;
         case "foldingRanges":
-            writer.writeUnsigned(5);
+            writer.writeUnsigned(6);
             encodeFoldingRangesResponse(writer, value.folding_ranges);
             return;
         case "semanticTokens":
-            writer.writeUnsigned(6);
+            writer.writeUnsigned(7);
             encodeSemanticTokensResponse(writer, value.semantic_tokens);
             return;
         case "semanticTokensRange":
-            writer.writeUnsigned(7);
+            writer.writeUnsigned(8);
             encodeSemanticTokensRangeResponse(writer, value.semantic_tokens_range);
             return;
         case "outline":
-            writer.writeUnsigned(8);
+            writer.writeUnsigned(9);
             encodeOutlineResponse(writer, value.outline);
             return;
         case "searchSymbols":
-            writer.writeUnsigned(9);
+            writer.writeUnsigned(10);
             encodeSearchSymbolsResponse(writer, value.search_symbols);
             return;
         case "links":
-            writer.writeUnsigned(10);
+            writer.writeUnsigned(11);
             encodeLinksResponse(writer, value.links);
             return;
         case "highlight":
-            writer.writeUnsigned(11);
+            writer.writeUnsigned(12);
             encodeHighlightResponse(writer, value.highlight);
             return;
         case "selectionRanges":
-            writer.writeUnsigned(12);
+            writer.writeUnsigned(13);
             encodeSelectionRangesResponse(writer, value.selection_ranges);
             return;
         case "gotoDefinition":
-            writer.writeUnsigned(13);
+            writer.writeUnsigned(14);
             encodeGotoDefinitionResponse(writer, value.goto_definition);
             return;
         case "gotoDeclaration":
-            writer.writeUnsigned(14);
+            writer.writeUnsigned(15);
             encodeGotoDeclarationResponse(writer, value.goto_declaration);
             return;
         case "gotoTypeDefinition":
-            writer.writeUnsigned(15);
+            writer.writeUnsigned(16);
             encodeGotoTypeDefinitionResponse(writer, value.goto_type_definition);
             return;
         case "gotoImplementation":
-            writer.writeUnsigned(16);
+            writer.writeUnsigned(17);
             encodeGotoImplementationResponse(writer, value.goto_implementation);
             return;
         case "findReferences":
-            writer.writeUnsigned(17);
+            writer.writeUnsigned(18);
             encodeFindReferencesResponse(writer, value.find_references);
             return;
         case "callItem":
-            writer.writeUnsigned(18);
+            writer.writeUnsigned(19);
             encodeCallItemResponse(writer, value.call_item);
             return;
         case "incomingCalls":
-            writer.writeUnsigned(19);
+            writer.writeUnsigned(20);
             encodeIncomingCallsResponse(writer, value.incoming_calls);
             return;
         case "outgoingCalls":
-            writer.writeUnsigned(20);
+            writer.writeUnsigned(21);
             encodeOutgoingCallsResponse(writer, value.outgoing_calls);
             return;
         case "typeItem":
-            writer.writeUnsigned(21);
+            writer.writeUnsigned(22);
             encodeTypeItemResponse(writer, value.type_item);
             return;
         case "supertypes":
-            writer.writeUnsigned(22);
+            writer.writeUnsigned(23);
             encodeSupertypesResponse(writer, value.supertypes);
             return;
         case "subtypes":
-            writer.writeUnsigned(23);
+            writer.writeUnsigned(24);
             encodeSubtypesResponse(writer, value.subtypes);
             return;
         case "decorators":
-            writer.writeUnsigned(24);
+            writer.writeUnsigned(25);
             encodeDecoratorsResponse(writer, value.decorators);
             return;
         case "renameTarget":
-            writer.writeUnsigned(25);
+            writer.writeUnsigned(26);
             encodeRenameTargetResponse(writer, value.rename_target);
             return;
         case "rename":
-            writer.writeUnsigned(26);
+            writer.writeUnsigned(27);
             encodeRenameResponse(writer, value.rename);
             return;
         case "renameFiles":
-            writer.writeUnsigned(27);
+            writer.writeUnsigned(28);
             encodeRenameFilesResponse(writer, value.rename_files);
             return;
         case "extractVariable":
-            writer.writeUnsigned(28);
+            writer.writeUnsigned(29);
             encodeExtractVariableResponse(writer, value.extract_variable);
             return;
         case "inline":
-            writer.writeUnsigned(29);
+            writer.writeUnsigned(30);
             encodeInlineResponse(writer, value.inline);
             return;
         case "codeActions":
-            writer.writeUnsigned(30);
+            writer.writeUnsigned(31);
             encodeCodeActionsResponse(writer, value.code_actions);
             return;
     }
@@ -1567,151 +1614,156 @@ export function decodeQueryResponse(reader: BinaryReader): QueryResponse {
             return { kind: "completion", completion };
         }
         case 1: {
+            const completion_details = decodeCompletionDetailsResponse(reader);
+
+            return { kind: "completionDetails", completion_details };
+        }
+        case 2: {
             const hover = decodeHoverResponse(reader);
 
             return { kind: "hover", hover };
         }
-        case 2: {
+        case 3: {
             const signature_help = decodeSignatureHelpResponse(reader);
 
             return { kind: "signatureHelp", signature_help };
         }
-        case 3: {
+        case 4: {
             const inlay_hints = decodeInlayHintsResponse(reader);
 
             return { kind: "inlayHints", inlay_hints };
         }
-        case 4: {
+        case 5: {
             const code_lenses = decodeCodeLensesResponse(reader);
 
             return { kind: "codeLenses", code_lenses };
         }
-        case 5: {
+        case 6: {
             const folding_ranges = decodeFoldingRangesResponse(reader);
 
             return { kind: "foldingRanges", folding_ranges };
         }
-        case 6: {
+        case 7: {
             const semantic_tokens = decodeSemanticTokensResponse(reader);
 
             return { kind: "semanticTokens", semantic_tokens };
         }
-        case 7: {
+        case 8: {
             const semantic_tokens_range = decodeSemanticTokensRangeResponse(reader);
 
             return { kind: "semanticTokensRange", semantic_tokens_range };
         }
-        case 8: {
+        case 9: {
             const outline = decodeOutlineResponse(reader);
 
             return { kind: "outline", outline };
         }
-        case 9: {
+        case 10: {
             const search_symbols = decodeSearchSymbolsResponse(reader);
 
             return { kind: "searchSymbols", search_symbols };
         }
-        case 10: {
+        case 11: {
             const links = decodeLinksResponse(reader);
 
             return { kind: "links", links };
         }
-        case 11: {
+        case 12: {
             const highlight = decodeHighlightResponse(reader);
 
             return { kind: "highlight", highlight };
         }
-        case 12: {
+        case 13: {
             const selection_ranges = decodeSelectionRangesResponse(reader);
 
             return { kind: "selectionRanges", selection_ranges };
         }
-        case 13: {
+        case 14: {
             const goto_definition = decodeGotoDefinitionResponse(reader);
 
             return { kind: "gotoDefinition", goto_definition };
         }
-        case 14: {
+        case 15: {
             const goto_declaration = decodeGotoDeclarationResponse(reader);
 
             return { kind: "gotoDeclaration", goto_declaration };
         }
-        case 15: {
+        case 16: {
             const goto_type_definition = decodeGotoTypeDefinitionResponse(reader);
 
             return { kind: "gotoTypeDefinition", goto_type_definition };
         }
-        case 16: {
+        case 17: {
             const goto_implementation = decodeGotoImplementationResponse(reader);
 
             return { kind: "gotoImplementation", goto_implementation };
         }
-        case 17: {
+        case 18: {
             const find_references = decodeFindReferencesResponse(reader);
 
             return { kind: "findReferences", find_references };
         }
-        case 18: {
+        case 19: {
             const call_item = decodeCallItemResponse(reader);
 
             return { kind: "callItem", call_item };
         }
-        case 19: {
+        case 20: {
             const incoming_calls = decodeIncomingCallsResponse(reader);
 
             return { kind: "incomingCalls", incoming_calls };
         }
-        case 20: {
+        case 21: {
             const outgoing_calls = decodeOutgoingCallsResponse(reader);
 
             return { kind: "outgoingCalls", outgoing_calls };
         }
-        case 21: {
+        case 22: {
             const type_item = decodeTypeItemResponse(reader);
 
             return { kind: "typeItem", type_item };
         }
-        case 22: {
+        case 23: {
             const supertypes = decodeSupertypesResponse(reader);
 
             return { kind: "supertypes", supertypes };
         }
-        case 23: {
+        case 24: {
             const subtypes = decodeSubtypesResponse(reader);
 
             return { kind: "subtypes", subtypes };
         }
-        case 24: {
+        case 25: {
             const decorators = decodeDecoratorsResponse(reader);
 
             return { kind: "decorators", decorators };
         }
-        case 25: {
+        case 26: {
             const rename_target = decodeRenameTargetResponse(reader);
 
             return { kind: "renameTarget", rename_target };
         }
-        case 26: {
+        case 27: {
             const rename = decodeRenameResponse(reader);
 
             return { kind: "rename", rename };
         }
-        case 27: {
+        case 28: {
             const rename_files = decodeRenameFilesResponse(reader);
 
             return { kind: "renameFiles", rename_files };
         }
-        case 28: {
+        case 29: {
             const extract_variable = decodeExtractVariableResponse(reader);
 
             return { kind: "extractVariable", extract_variable };
         }
-        case 29: {
+        case 30: {
             const inline = decodeInlineResponse(reader);
 
             return { kind: "inline", inline };
         }
-        case 30: {
+        case 31: {
             const code_actions = decodeCodeActionsResponse(reader);
 
             return { kind: "codeActions", code_actions };
@@ -1728,6 +1780,11 @@ export function toJsonQueryResponse(value: QueryResponse): Json {
             return {
                 kind: "completion",
                 completion: toJsonCompletionResponse(value.completion),
+            };
+        case "completionDetails":
+            return {
+                kind: "completionDetails",
+                completion_details: toJsonCompletionDetailsResponse(value.completion_details),
             };
         case "hover":
             return {
@@ -1894,6 +1951,11 @@ export function fromJsonQueryResponse(value: Json): QueryResponse {
             return {
                 kind,
                 completion: fromJsonCompletionResponse(jsonField(object, "completion")),
+            };
+        case "completionDetails":
+            return {
+                kind,
+                completion_details: fromJsonCompletionDetailsResponse(jsonField(object, "completion_details")),
             };
         case "hover":
             return {

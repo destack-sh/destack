@@ -3,18 +3,20 @@
 import { BinaryReader, BinaryWriter, Json, jsonField, jsonObject, jsonString } from "../../../protocol/serde.js";
 import type { Module } from "../../query/protocol/target.js";
 import type { Revision } from "../../repository/revision.js";
+import type { Uri } from "../../source/file/path/uri.js";
 import type { FileImage } from "../file/image.js";
 import type { RunQueryInput } from "../query.js";
 import { decodeModule, encodeModule, fromJsonModule, toJsonModule } from "../../query/protocol/target.js";
 import { decodeRevision, encodeRevision, fromJsonRevision, toJsonRevision } from "../../repository/revision.js";
+import { decodeUri, encodeUri, fromJsonUri, toJsonUri } from "../../source/file/path/uri.js";
 import { decodeFileImage, encodeFileImage, fromJsonFileImage, toJsonFileImage } from "../file/image.js";
 import { decodeRunQueryInput, encodeRunQueryInput, fromJsonRunQueryInput, toJsonRunQueryInput } from "../query.js";
 
-/** Serialized source file prepared for semantic queries. */
+/** Serialized source file prepared for queries. */
 export type QueryFileResponse = {
-    /** Requested source path. */
-    readonly path: string;
-    /** Exact semantic revision. */
+    /** Owning workspace root. */
+    readonly root: string;
+    /** Exact source revision. */
     readonly revision: Revision;
     /** Module containing the file. */
     readonly module: Module;
@@ -46,7 +48,7 @@ export const QueryFileResponse = {
 
 /** Encode one QueryFileResponse. */
 export function encodeQueryFileResponse(writer: BinaryWriter, value: QueryFileResponse): void {
-    writer.writeString(value.path);
+    writer.writeString(value.root);
     encodeRevision(writer, value.revision);
     encodeModule(writer, value.module);
     encodeFileImage(writer, value.file);
@@ -54,13 +56,13 @@ export function encodeQueryFileResponse(writer: BinaryWriter, value: QueryFileRe
 
 /** Decode one QueryFileResponse. */
 export function decodeQueryFileResponse(reader: BinaryReader): QueryFileResponse {
-    const path = reader.readString();
+    const root = reader.readString();
     const revision = decodeRevision(reader);
     const module_ = decodeModule(reader);
     const file = decodeFileImage(reader);
 
     return {
-        path,
+        root,
         revision,
         module: module_,
         file,
@@ -70,7 +72,7 @@ export function decodeQueryFileResponse(reader: BinaryReader): QueryFileResponse
 /** Return one JSON value for one QueryFileResponse. */
 export function toJsonQueryFileResponse(value: QueryFileResponse): Json {
     return {
-        path: value.path,
+        root: value.root,
         revision: toJsonRevision(value.revision),
         module: toJsonModule(value.module),
         file: toJsonFileImage(value.file),
@@ -82,21 +84,21 @@ export function fromJsonQueryFileResponse(value: Json): QueryFileResponse {
     const object = jsonObject(value);
 
     return {
-        path: jsonString(jsonField(object, "path")),
+        root: jsonString(jsonField(object, "root")),
         revision: fromJsonRevision(jsonField(object, "revision")),
         module: fromJsonModule(jsonField(object, "module")),
         file: fromJsonFileImage(jsonField(object, "file")),
     };
 }
 
-/** Request to resolve one source file for semantic queries. */
+/** Request to resolve one source file for queries. */
 export type ResolveQueryFileRequest = {
     /** Owning workspace root. */
     readonly root: string;
-    /** Exact semantic revision. */
+    /** Exact source revision. */
     readonly revision: Revision;
-    /** Source path to resolve. */
-    readonly path: string;
+    /** Source URI to resolve. */
+    readonly uri: Uri;
 };
 
 export const ResolveQueryFileRequest = {
@@ -125,19 +127,19 @@ export const ResolveQueryFileRequest = {
 export function encodeResolveQueryFileRequest(writer: BinaryWriter, value: ResolveQueryFileRequest): void {
     writer.writeString(value.root);
     encodeRevision(writer, value.revision);
-    writer.writeString(value.path);
+    encodeUri(writer, value.uri);
 }
 
 /** Decode one ResolveQueryFileRequest. */
 export function decodeResolveQueryFileRequest(reader: BinaryReader): ResolveQueryFileRequest {
     const root = reader.readString();
     const revision = decodeRevision(reader);
-    const path = reader.readString();
+    const uri = decodeUri(reader);
 
     return {
         root,
         revision,
-        path,
+        uri,
     };
 }
 
@@ -146,7 +148,7 @@ export function toJsonResolveQueryFileRequest(value: ResolveQueryFileRequest): J
     return {
         root: value.root,
         revision: toJsonRevision(value.revision),
-        path: value.path,
+        uri: toJsonUri(value.uri),
     };
 }
 
@@ -157,7 +159,7 @@ export function fromJsonResolveQueryFileRequest(value: Json): ResolveQueryFileRe
     return {
         root: jsonString(jsonField(object, "root")),
         revision: fromJsonRevision(jsonField(object, "revision")),
-        path: jsonString(jsonField(object, "path")),
+        uri: fromJsonUri(jsonField(object, "uri")),
     };
 }
 

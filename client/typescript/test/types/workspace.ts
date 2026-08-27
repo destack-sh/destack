@@ -44,7 +44,7 @@ declare const targetsInput: Command.TargetsRequest["input"];
 declare const taskInput: Command.TaskRequest["input"];
 declare const testInput: Command.TestRequest["input"];
 declare const readFiles: Omit<ReadFilesRequest, "root">;
-declare const queryPath: ResolveQueryFileRequest["path"];
+declare const queryUri: ResolveQueryFileRequest["uri"];
 declare const queryRun: RunQueryRequest["input"];
 
 const physical: Promise<Workspace> = openWorkspace({ root: "/project" });
@@ -94,7 +94,7 @@ workspace.artifact(artifact);
 const artifactBlob: Promise<Blob> = workspace.blob(artifact);
 workspace.export(exportInput);
 workspace.diagnose(revision);
-workspace.resolveQueryFile({ revision, path: queryPath });
+workspace.resolveQueryFile({ revision, uri: queryUri });
 workspace.runQuery(queryRun);
 
 void physical;
