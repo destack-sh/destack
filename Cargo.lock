@@ -1172,6 +1172,7 @@ dependencies = [
 name = "destack_lsp"
 version = "2026.8.3"
 dependencies = [
+ "base64",
  "destack_artifact",
  "destack_compiler",
  "destack_core",
@@ -1183,6 +1184,7 @@ dependencies = [
  "destack_parser",
  "destack_query",
  "destack_repository",
+ "destack_serde",
  "destack_session",
  "destack_source",
  "destack_workspace",

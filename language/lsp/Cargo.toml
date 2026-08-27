@@ -30,9 +30,11 @@ destack_lsp_server = { workspace = true }
 destack_lsp_types = { workspace = true }
 destack_parser = { workspace = true }
 destack_source = { workspace = true }
+destack_serde = { workspace = true }
 destack_workspace = { workspace = true }
 
 # general
+base64 = { workspace = true }
 libc = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
