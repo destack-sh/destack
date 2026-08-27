@@ -260,13 +260,13 @@ impl Parser {
                 self.bump();
 
                 let lifetime_scope_count = self.lifetime_scopes.len();
-                let parsed = self.parse_symbol_name().and_then(|(name, _)| {
+                let parsed = self.parse_symbol_name().and_then(|(name, name_start)| {
                     let (arguments, _) = self.parse_declaration_parameters()?;
 
-                    Ok((name, arguments))
+                    Ok((name, name_start, arguments))
                 });
                 self.restore_lifetime_scopes(lifetime_scope_count);
-                let Ok((name, arguments)) = parsed else {
+                let Ok((name, name_start, arguments)) = parsed else {
                     continue;
                 };
 
@@ -279,11 +279,11 @@ impl Parser {
                 let void_type = self.tree.intern_type(Type::Void);
                 let base = Symbol::named(name_id);
                 let symbol = base.instantiate(&arguments, &self.tree);
-                let function =
-                    Function::declare(name_id, Vec::new(), Vec::new(), TypeId::from(void_type))
-                        .with_arguments(arguments)
-                        .with_symbol(symbol);
-                let function_id = self.tree.insert(function);
+                let function = Function::declare(name_id, Vec::new(), Vec::new(), void_type)
+                    .with_arguments(arguments)
+                    .with_symbol(symbol);
+                let span = self.span_at(name_start, name.len());
+                let function_id = self.insert_node(function, span);
                 self.function_map.insert(key, function_id);
 
                 continue;
@@ -401,25 +401,38 @@ impl Parser {
         let heritage = self.parse_type_heritage()?;
 
         // declaration target type
-        let (ty, type_span, field_spans, declaration_spans) = if self.peek_is(TokenType::OpenBrace)
-        {
-            let type_start = self.pos();
-            let (ty, field_spans, declaration_spans) = self.parse_struct_type()?;
-            let type_span = self.span_from_parse_start(type_start);
-            (ty, type_span, field_spans, declaration_spans)
-        } else {
-            let equals_token = self.eat_token(TokenType::Equal)?;
-            let equals_start = equals_token.start();
-            let equals_length = self.tree.source_text(equals_token.span).len();
-            let equals_span = self.span_at(equals_start, equals_length);
-            let (ty, type_span) = self.parse_type_part()?;
-            (
-                ty,
-                type_span,
-                Vec::new(),
-                TypeDeclarationSpans::new(Some(equals_span), None, None),
-            )
-        };
+        let (ty, type_span, field_spans, case_spans, declaration_spans) =
+            if self.peek_is(TokenType::OpenBrace) {
+                let type_start = self.pos();
+                let (ty, field_spans, declaration_spans) = self.parse_struct_type()?;
+                let type_span = self.span_from_parse_start(type_start);
+                (ty, type_span, field_spans, Vec::new(), declaration_spans)
+            } else {
+                let equals_token = self.eat_token(TokenType::Equal)?;
+                let equals_start = equals_token.start();
+                let equals_length = self.tree.source_text(equals_token.span).len();
+                let equals_span = self.span_at(equals_start, equals_length);
+                let type_start = self.pos();
+                let is_variant = self.peek().is_some_and(|token| {
+                    self.token_type(token) == TokenType::Identifier
+                        && self.tree.source_text(token.span) == "variant"
+                });
+                let (ty, case_spans) = if is_variant {
+                    let (ty, spans) = self.parse_variant_type()?;
+
+                    (self.intern_type(ty)?, spans)
+                } else {
+                    (self.parse_type()?, Vec::new())
+                };
+                let type_span = self.span_from_parse_start(type_start);
+                (
+                    ty,
+                    type_span,
+                    Vec::new(),
+                    case_spans,
+                    TypeDeclarationSpans::new(Some(equals_span), None, None),
+                )
+            };
 
         // reject direct self definitions
         if ty == type_id {
@@ -440,7 +453,7 @@ impl Parser {
         }
 
         // define the identified representation
-        let mut resolved = self.tree.get(ty).clone();
+        let mut resolved = self.tree.ty(ty).clone();
         if let Some(copy) = self.copy_attribute(&attributes, item_start)? {
             set_type_copy(&mut resolved, copy, item_start)?;
         }
@@ -451,15 +464,34 @@ impl Parser {
 
         // record declaration
         let name_id = self.strings.intern(&name);
+        let text_span = self.span_from_parse_start(item_start);
+        let provenance = self.provenance.insert_authored(text_span);
+        let mut member_provenance = Vec::with_capacity(field_spans.len() + case_spans.len());
+
+        // record struct fields in declaration order
+        for field in &field_spans {
+            let provenance = self.provenance.insert_authored(field.span);
+            let primary = Some(field.name_span.unwrap_or(field.type_span));
+            self.provenance
+                .set_authored(provenance, field.span, primary);
+            member_provenance.push(provenance);
+        }
+
+        // record variant cases in declaration order
+        for span in &case_spans {
+            member_provenance.push(self.provenance.insert_authored(*span));
+        }
+
         let id = self.tree.insert_type_declaration(
             name_id,
             arguments,
             lifetimes.clone(),
             type_id,
             heritage,
+            provenance,
+            member_provenance,
         );
-        self.tree
-            .set_text_span(id, self.span_from_parse_start(item_start));
+        self.tree.set_span(id, text_span);
         self.tree.set_keyword_span(id, keyword_span);
         self.tree.set_main_span(id, name_span);
         self.tree
@@ -595,9 +627,9 @@ impl Parser {
             linkage,
             initializer,
         };
-        let id = self.tree.insert(global);
-        self.tree
-            .set_text_span(id, self.span_from_parse_start(item_start));
+        let text_span = self.span_from_parse_start(item_start);
+        let id = self.insert_node(global, text_span);
+        self.tree.set_span(id, text_span);
         self.tree.set_keyword_span(id, keyword_span);
         self.tree.set_main_span(id, name_span);
         self.tree
@@ -617,10 +649,7 @@ impl Parser {
     }
 
     /// Parse a data initializer.
-    fn parse_data_init(
-        &mut self,
-        expected_type: Option<LocalNodeId<Type>>,
-    ) -> ParseResult<GlobalInitializer> {
+    fn parse_data_init(&mut self, expected_type: Option<TypeId>) -> ParseResult<GlobalInitializer> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("data initializer", self.pos()))?;
@@ -655,8 +684,8 @@ impl Parser {
                 let value = self.parse_string_literal(&token_text).ok_or_else(|| {
                     ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
                 })?;
-                let is_nominal = expected_type
-                    .is_some_and(|ty| matches!(self.tree.get(ty), Type::Struct { .. }));
+                let is_nominal =
+                    expected_type.is_some_and(|ty| matches!(self.tree.ty(ty), Type::Struct { .. }));
                 if is_nominal {
                     let value = self.strings.intern(&value);
 
@@ -748,15 +777,15 @@ impl Parser {
     /// Return the expected type for one aggregate initializer element.
     fn data_init_element_type(
         &self,
-        expected_type: Option<LocalNodeId<Type>>,
+        expected_type: Option<TypeId>,
         index: usize,
-    ) -> Option<LocalNodeId<Type>> {
+    ) -> Option<TypeId> {
         let expected_type = expected_type?;
 
-        match self.tree.get(expected_type) {
+        match self.tree.ty(expected_type) {
             Type::FixedArray { element, .. } | Type::Vector { element, .. } => Some(*element),
             Type::Tuple { elements, .. } => elements.get(index).copied(),
-            Type::Struct { fields, .. } => fields.get(index).map(|field| self.tree.get(*field).ty),
+            Type::Struct { fields, .. } => fields.get(index).map(|field| field.ty),
             Type::Newtype { inner, .. } => self.data_init_element_type(Some(*inner), index),
             _ => None,
         }

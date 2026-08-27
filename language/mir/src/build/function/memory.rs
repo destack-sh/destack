@@ -3,18 +3,14 @@ use destack_core::StringId;
 use crate::build::FunctionBuilder;
 use crate::{
     Access, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability, Nullability,
-    ReferenceKind, Storage, Type, Value,
+    ReferenceKind, Storage, Type, TypeId, Value,
 };
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
     /// Return the existing or inserted pointer-sized unsigned integer type.
-    pub fn ensure_usize_type(&mut self) -> LocalNodeId<Type> {
-        if let Some((ty, _)) = self
-            .tree
-            .iter_nodes::<Type>()
-            .find(|(_, ty)| matches!(ty, Type::Usize))
-        {
+    pub fn ensure_usize_type(&mut self) -> TypeId {
+        if let Some(ty) = self.tree.find_type(&Type::Usize) {
             return ty;
         }
 
@@ -22,7 +18,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Create a local variable (stack slot).
-    pub fn local(&mut self, ty: LocalNodeId<Type>, mutability: Mutability) -> LocalNodeId<Local> {
+    pub fn local(&mut self, ty: TypeId, mutability: Mutability) -> LocalNodeId<Local> {
         let local = self.insert(Local::new(ty, mutability));
         self.locals.push(local);
         local
@@ -38,11 +34,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Get the address of a local variable.
-    pub fn local_addr(
-        &mut self,
-        local: LocalNodeId<Local>,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
+    pub fn local_addr(&mut self, local: LocalNodeId<Local>, result_type: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::LocalAddr {
             destination,
@@ -59,11 +51,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Get the address of a mutable global variable.
-    pub fn global_addr(
-        &mut self,
-        global: LocalNodeId<Global>,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
+    pub fn global_addr(&mut self, global: LocalNodeId<Global>, result_type: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::GlobalAddr {
             destination,
@@ -78,7 +66,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn external_global(
         &mut self,
         name: StringId,
-        ty: LocalNodeId<Type>,
+        ty: TypeId,
         mutability: Mutability,
     ) -> LocalNodeId<Global> {
         self.insert(Global::import(name, ty, mutability))
@@ -119,7 +107,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Load from a pointer.
-    pub fn load(&mut self, pointer_value: Value, result_type: LocalNodeId<Type>) -> Value {
+    pub fn load(&mut self, pointer_value: Value, result_type: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Load {
             destination,
@@ -139,16 +127,12 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Create a linear uninitialized allocation token type.
-    pub fn type_uninit(&mut self, value: LocalNodeId<Type>) -> LocalNodeId<Type> {
+    pub fn type_uninit(&mut self, value: TypeId) -> TypeId {
         self.tree.intern_type(Type::Uninit { value })
     }
 
     /// Allocate zeroed heap storage.
-    pub fn new_zeroed(
-        &mut self,
-        storage_type: LocalNodeId<Type>,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
+    pub fn new_zeroed(&mut self, storage_type: TypeId, result_type: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewZeroed {
             destination,
@@ -160,11 +144,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Allocate uninitialized heap storage.
-    pub fn new_uninit(
-        &mut self,
-        storage_type: LocalNodeId<Type>,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
+    pub fn new_uninit(&mut self, storage_type: TypeId, result_type: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewUninit {
             destination,
@@ -176,7 +156,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Complete initialization of one allocation.
-    pub fn new_complete(&mut self, value: Value, result_type: LocalNodeId<Type>) -> Value {
+    pub fn new_complete(&mut self, value: Value, result_type: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewComplete {
             destination,
@@ -190,9 +170,9 @@ impl<'a> FunctionBuilder<'a> {
     /// Allocate zeroed repeated heap storage.
     pub fn new_slice_zeroed(
         &mut self,
-        element: LocalNodeId<Type>,
+        element: TypeId,
         length: Value,
-        result_type: LocalNodeId<Type>,
+        result_type: TypeId,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewSliceZeroed {
@@ -208,9 +188,9 @@ impl<'a> FunctionBuilder<'a> {
     /// Allocate uninitialized repeated heap storage.
     pub fn new_slice_uninit(
         &mut self,
-        element: LocalNodeId<Type>,
+        element: TypeId,
         length: Value,
-        result_type: LocalNodeId<Type>,
+        result_type: TypeId,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewSliceUninit {

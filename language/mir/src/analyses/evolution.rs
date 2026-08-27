@@ -377,7 +377,7 @@ impl<'a> LoopScevBuilder<'a> {
         let ty = self.function.expect_value_type(left);
         let Some((_, is_signed)) = self
             .tree
-            .get(ty)
+            .ty(ty)
             .int_info_with_pointer_width(self.target_layout.pointer_bits())
         else {
             return Scev::Unknown(destination);
@@ -500,7 +500,7 @@ impl<'a> LoopScevBuilder<'a> {
         destination: mir::Value,
         operator: mir::CastOperator,
         argument: mir::Value,
-        to_type: mir::LocalNodeId<mir::Type>,
+        to_type: mir::TypeId,
     ) -> Scev {
         // compute the operand expression
         let argument_scev = self.scev_for_value(argument);
@@ -519,7 +519,7 @@ impl<'a> LoopScevBuilder<'a> {
         }
 
         // read the target type
-        let target_type = self.tree.get(to_type);
+        let target_type = self.tree.ty(to_type);
         let Some((width, _)) =
             target_type.int_info_with_pointer_width(self.target_layout.pointer_bits())
         else {
@@ -864,7 +864,7 @@ impl<'a> LoopScevBuilder<'a> {
         // resolve the parameter type
         let header_block = self.tree.get(header);
         let param = header_block.parameters.get(param_index)?;
-        let ty = self.tree.get(Some(param.ty)?);
+        let ty = self.tree.ty(param.ty);
 
         constant_zero_for_type(ty, pointer_width_bits)
     }

@@ -208,7 +208,7 @@ impl MemoryRegion {
         let inferred_size = size.or_else(|| {
             value_type
                 .as_ref()
-                .and_then(|value_type| tree.get(*value_type).byte_size(tree, pointer_width_bits))
+                .and_then(|value_type| tree.ty(*value_type).byte_size(tree, pointer_width_bits))
         });
 
         Self::Address {
@@ -658,7 +658,7 @@ impl<'a> MemoryRegionBuilder<'a> {
 
     /// Return a region for a parameter address.
     fn parameter_region(&self, index: usize, parameter: &mir::FunctionParameter) -> MemoryRegion {
-        let ty = self.tree.get(parameter.ty);
+        let ty = self.tree.ty(parameter.ty);
 
         match (
             ty.reference_kind(),
@@ -684,7 +684,7 @@ impl<'a> MemoryRegionBuilder<'a> {
         address: mir::Value,
     ) -> MemoryRegion {
         let ty_id = self.value_type(address);
-        let ty = self.tree.get(ty_id);
+        let ty = self.tree.ty(ty_id);
 
         match (ty.reference_kind(), ty.reference_storage()) {
             (Some(kind), Some(storage)) => {
@@ -705,21 +705,21 @@ impl<'a> MemoryRegionBuilder<'a> {
     /// Return an imprecise region bounded by an address type when possible.
     fn any_region(&self, address: mir::Value) -> MemoryRegion {
         let ty_id = self.value_type(address);
-        let ty = self.tree.get(ty_id);
+        let ty = self.tree.ty(ty_id);
 
         ty.reference_storage()
             .map_or_else(MemoryRegion::any, MemoryRegion::any_storage)
     }
 
     /// Return the value type for an SSA value.
-    fn value_type(&self, value: mir::Value) -> mir::LocalNodeId<mir::Type> {
+    fn value_type(&self, value: mir::Value) -> mir::TypeId {
         self.function.expect_value_type(value)
     }
 
     /// Return the byte stride for one indexed value.
     fn expect_element_size(&self, array: mir::Value) -> u64 {
         let ty_id = self.value_type(array);
-        let element_id = match self.tree.get(ty_id) {
+        let element_id = match self.tree.ty(ty_id) {
             mir::Type::FixedArray { element, .. } | mir::Type::Slice { element, .. } => *element,
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
                 self.expect_pointee_element(*pointee)
@@ -729,7 +729,7 @@ impl<'a> MemoryRegionBuilder<'a> {
 
         match self
             .tree
-            .get(element_id)
+            .ty(element_id)
             .byte_size(self.tree, self.target_layout.pointer_bits())
         {
             Some(size) if size > 0 => size,
@@ -739,7 +739,7 @@ impl<'a> MemoryRegionBuilder<'a> {
 
     /// Return the element type for an indexed pointee.
     fn expect_pointee_element(&self, pointee: mir::TypeId) -> mir::TypeId {
-        match self.tree.get(pointee) {
+        match self.tree.ty(pointee) {
             mir::Type::FixedArray { element, .. } | mir::Type::Slice { element, .. } => *element,
             _ => panic!("element.address requires an indexed pointee, got {pointee:?}"),
         }

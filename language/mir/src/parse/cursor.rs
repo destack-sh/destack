@@ -13,11 +13,7 @@ impl Parser {
         } else if let Some(end) = self.last_consumed_token_end() {
             end
         } else {
-            let Some(source) = self.tree.source_text.as_ref() else {
-                unreachable!("MIR parser tree has no source text");
-            };
-
-            source.len()
+            self.tree.parsed_text().len()
         }
     }
 
@@ -233,9 +229,7 @@ impl Parser {
 
     /// Return whether one token starts at the first byte of its source line.
     pub(super) fn is_token_at_line_start(&self, token: &Token) -> bool {
-        let Some(source_text) = self.tree.source_text.as_deref() else {
-            unreachable!("MIR tree has no parsed source text");
-        };
+        let source_text = self.tree.parsed_text();
         let start = token.span.start as usize;
 
         start == 0 || source_text.as_bytes().get(start - 1) == Some(&b'\n')

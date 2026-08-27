@@ -52,7 +52,7 @@ impl AliasTable {
                 let Some(ty) = ty else {
                     return false;
                 };
-                let ty = tree.get(*ty);
+                let ty = tree.ty(*ty);
 
                 ty.is_aliasable_reference()
             })
@@ -69,7 +69,7 @@ impl AliasTable {
                 match places.get(value).origin {
                     PlaceOrigin::Local(_) => Some(Storage::Frame),
                     PlaceOrigin::Global(global) => global_spaces.get(global).map(Storage::global),
-                    PlaceOrigin::Value(_) => ty.and_then(|ty| tree.get(ty).reference_storage()),
+                    PlaceOrigin::Value(_) => ty.and_then(|ty| tree.ty(ty).reference_storage()),
                 }
             })
             .collect();

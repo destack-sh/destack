@@ -1,12 +1,12 @@
 use crate::build::{BuildError, FunctionBuilder};
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, CastOperator, CompareExchangeAccess, Constant,
-    FenceAccess, FloatType, Instruction, Intrinsic, LocalNodeId, Type, UnaryOperator, Value,
+    FenceAccess, FloatType, Instruction, Intrinsic, Type, TypeId, UnaryOperator, Value,
 };
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
     /// Insert one typed constant.
-    pub fn constant(&mut self, value: Constant, ty: LocalNodeId<Type>) -> Value {
+    pub fn constant(&mut self, value: Constant, ty: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Const { destination, value });
         self.define_value(destination, ty);
@@ -15,12 +15,12 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Insert a null reference constant.
-    pub fn null(&mut self, reference_type: LocalNodeId<Type>) -> Value {
+    pub fn null(&mut self, reference_type: TypeId) -> Value {
         self.constant(Constant::Null, reference_type)
     }
 
     /// Insert an undefined reference constant.
-    pub fn undefined(&mut self, reference_type: LocalNodeId<Type>) -> Value {
+    pub fn undefined(&mut self, reference_type: TypeId) -> Value {
         self.constant(Constant::Undefined, reference_type)
     }
 
@@ -145,8 +145,8 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let left_type_id = self.expect_value_type(left_value, "binary left");
         let right_type_id = self.expect_value_type(right_value, "binary right");
-        let left_type = self.tree.get(left_type_id);
-        let right_type = self.tree.get(right_type_id);
+        let left_type = self.tree.ty(left_type_id);
+        let right_type = self.tree.ty(right_type_id);
         if left_type != right_type {
             self.expect_build::<()>(Err(BuildError::MismatchedBinaryOperands {
                 operator,
@@ -187,12 +187,7 @@ impl<'a> FunctionBuilder<'a> {
     // instruction builders: casts
 
     /// Cast a value to a different type.
-    pub fn cast(
-        &mut self,
-        operator: CastOperator,
-        argument: Value,
-        to_type: LocalNodeId<Type>,
-    ) -> Value {
+    pub fn cast(&mut self, operator: CastOperator, argument: Value, to_type: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Cast {
             destination,
@@ -205,22 +200,22 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Bitcast (reinterpret bits, same size).
-    pub fn bitcast(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
+    pub fn bitcast(&mut self, argument: Value, to_type: TypeId) -> Value {
         self.cast(CastOperator::Bitcast, argument, to_type)
     }
 
     /// Truncate integer to smaller width.
-    pub fn trunc(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
+    pub fn trunc(&mut self, argument: Value, to_type: TypeId) -> Value {
         self.cast(CastOperator::Truncate, argument, to_type)
     }
 
     /// Zero-extend integer to larger width.
-    pub fn zext(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
+    pub fn zext(&mut self, argument: Value, to_type: TypeId) -> Value {
         self.cast(CastOperator::ZeroExtend, argument, to_type)
     }
 
     /// Sign-extend integer to larger width.
-    pub fn sext(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
+    pub fn sext(&mut self, argument: Value, to_type: TypeId) -> Value {
         self.cast(CastOperator::SignExtend, argument, to_type)
     }
 
@@ -234,8 +229,8 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let then_type = self.expect_value_type(then_value, "select then");
         let else_type = self.expect_value_type(else_value, "select else");
-        let then_ty = self.tree.get(then_type);
-        let else_ty = self.tree.get(else_type);
+        let then_ty = self.tree.ty(then_type);
+        let else_ty = self.tree.ty(else_type);
         if then_ty != else_ty {
             self.expect_build::<()>(Err(BuildError::MismatchedSelectOperands {
                 then_type,
@@ -272,7 +267,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn intrinsic(
         &mut self,
         intrinsic: Intrinsic,
-        result_type: LocalNodeId<Type>,
+        result_type: TypeId,
         args: Vec<Value>,
     ) -> Value {
         let destination = self.allocate_value();
@@ -303,7 +298,7 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         pointer: Value,
         access: AtomicAccess,
-        result_type: LocalNodeId<Type>,
+        result_type: TypeId,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::AtomicLoad {
@@ -333,7 +328,7 @@ impl<'a> FunctionBuilder<'a> {
         new_value: Value,
         is_weak: bool,
         access: CompareExchangeAccess,
-        result_type: LocalNodeId<Type>,
+        result_type: TypeId,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::AtomicCompareExchange {
@@ -355,7 +350,7 @@ impl<'a> FunctionBuilder<'a> {
         pointer: Value,
         value: Value,
         access: AtomicAccess,
-        result_type: LocalNodeId<Type>,
+        result_type: TypeId,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::AtomicRmw {

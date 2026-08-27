@@ -28,6 +28,7 @@ impl TestProgram {
             .expect("MIR parser requires text content");
         let (
             tree,
+            _provenance,
             _target_layout,
             _layouts,
             dispatch,

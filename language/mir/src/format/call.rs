@@ -98,7 +98,7 @@ fn format_call_signature_suffix<'a>(
         lifetimes,
         parameters,
         result,
-    } = formatter.context().tree.get(*signature)
+    } = formatter.context().tree.ty(*signature)
     {
         format_function_signature(lifetimes, parameters, *result, formatter)
     } else {

@@ -222,7 +222,7 @@ impl Parser {
 
             // replace the reserved function with its parsed declaration
             self.tree
-                .set_text_span(function_id, self.span_from_parse_start(item_start));
+                .set_span(function_id, self.span_from_parse_start(item_start));
             self.tree.set_keyword_span(function_id, header.keyword_span);
             self.tree.set_main_span(function_id, header.name_span);
             self.tree.set_side_span(
@@ -263,7 +263,7 @@ impl Parser {
         let name_id = self.strings.intern(&header.name);
         let id = function_id;
         self.tree
-            .set_text_span(id, self.span_from_parse_start(item_start));
+            .set_span(id, self.span_from_parse_start(item_start));
         self.tree.set_keyword_span(id, header.keyword_span);
         self.tree.set_main_span(id, header.name_span);
         self.tree.set_side_span(
@@ -363,7 +363,7 @@ impl Parser {
         self.current_function = None;
         self.pop_lifetime_scope();
         self.tree
-            .set_text_span(id, self.span_from_parse_start(item_start));
+            .set_span(id, self.span_from_parse_start(item_start));
 
         // record attributes
         if !function_attributes.attributes.is_empty() {
@@ -392,7 +392,14 @@ impl Parser {
                 let (ty, type_span) = self.parse_type_use_part()?;
                 let parameter_span = self.span_from_parse_start(parameter_start);
                 let value = Value::new(parameters.len() as u32);
-                parameters.push(FunctionParameter { value, ty });
+                let provenance = self.provenance.insert_authored(parameter_span);
+                self.provenance
+                    .set_authored(provenance, parameter_span, Some(type_span));
+                parameters.push(FunctionParameter {
+                    value,
+                    ty,
+                    provenance,
+                });
                 parameter_spans.push(TypedValueSpan::new(parameter_span, None, type_span));
                 if !self.eat_token_if(TokenType::Comma) {
                     break;
@@ -415,7 +422,14 @@ impl Parser {
                 let colon_token = self.eat_token(TokenType::Colon)?;
                 let (ty, type_span) = self.parse_function_parameter_type(colon_token, mode)?;
                 let parameter_span = self.span_from_parse_start(parameter_start);
-                parameters.push(FunctionParameter { value, ty });
+                let provenance = self.provenance.insert_authored(parameter_span);
+                self.provenance
+                    .set_authored(provenance, parameter_span, Some(name_span));
+                parameters.push(FunctionParameter {
+                    value,
+                    ty,
+                    provenance,
+                });
                 parameter_spans.push(TypedValueSpan::new(
                     parameter_span,
                     Some(name_span),
@@ -544,11 +558,11 @@ impl Parser {
 
         // record the local
         let local = Local::new(ty, mutability);
-        let local_id = self.tree.insert(local);
+        let text_span = self.span_from_parse_start(local_start);
+        let local_id = self.insert_node(local, text_span);
         self.local_name_map
             .insert(local_name_text.clone(), local_id);
-        self.tree
-            .set_text_span(local_id, self.span_from_parse_start(local_start));
+        self.tree.set_span(local_id, text_span);
         self.tree.set_main_span(local_id, local_span);
         self.tree.set_side_span(
             local_id,
@@ -638,7 +652,7 @@ impl Parser {
                         self.diagnostics
                             .insert(error.to_diagnostic(self.blob, self.file_id));
                         self.try_recover_to_block(recovery_pos);
-                        terminator_span = Some(self.span_between(error.position(), self.pos()));
+                        terminator_span = Some(self.span_between(recovery_pos, self.pos()));
                         terminator_main_span = main_token.as_ref().map(|token| token.span);
                         terminator = Some(Terminator::Error);
                         is_broken = true;
@@ -658,8 +672,8 @@ impl Parser {
                     let continue_block = self.try_recover_in_block(recovery_index);
                     let error_end = self.pos();
                     let error_span = self.span_between(instruction_start, error_end);
-                    let error_instruction = self.tree.insert(Instruction::Error);
-                    self.tree.set_text_span(error_instruction, error_span);
+                    let error_instruction = self.insert_node(Instruction::Error, error_span);
+                    self.tree.set_span(error_instruction, error_span);
                     instructions.push(error_instruction);
                     is_broken = true;
 
@@ -686,11 +700,11 @@ impl Parser {
         *self.tree.get_mut(terminator_id) = parsed_terminator;
         *self.tree.get_mut(block_id) = block;
         self.tree
-            .set_text_span(block_id, self.span_from_parse_start(block_start));
+            .set_span(block_id, self.span_from_parse_start(block_start));
         self.tree.set_main_span(block_id, block_span);
 
         if let Some(terminator_span) = terminator_span {
-            self.tree.set_text_span(terminator_id, terminator_span);
+            self.tree.set_span(terminator_id, terminator_span);
         }
 
         if let Some(terminator_main_span) = terminator_main_span {
@@ -731,8 +745,8 @@ impl Parser {
 
                 *self.tree.get_mut(terminator_id) = Terminator::Error;
                 *self.tree.get_mut(block_id) = block;
-                self.tree.set_text_span(block_id, error_span);
-                self.tree.set_text_span(terminator_id, error_span);
+                self.tree.set_span(block_id, error_span);
+                self.tree.set_span(terminator_id, error_span);
 
                 block_id
             }
@@ -761,10 +775,10 @@ impl Parser {
     /// Create an error block when recovery state is missing.
     fn create_error_block(&mut self, position: usize) -> LocalNodeId<Block> {
         let error_span = self.span_at(position, 0);
-        let terminator_id = self.tree.insert(Terminator::Error);
-        let block_id = self.tree.insert(Block::new(terminator_id));
-        self.tree.set_text_span(block_id, error_span);
-        self.tree.set_text_span(terminator_id, error_span);
+        let terminator_id = self.insert_node(Terminator::Error, error_span);
+        let block_id = self.insert_node(Block::new(terminator_id), error_span);
+        self.tree.set_span(block_id, error_span);
+        self.tree.set_span(terminator_id, error_span);
 
         block_id
     }
@@ -828,7 +842,7 @@ impl Parser {
         self.parsed_block_count == 0 && !function.parameters.is_empty()
     }
 
-    /// Parse the entry block parameter mirror and reuse the function parameters.
+    /// Parse the entry block parameter mirror.
     fn parse_entry_block_parameters(&mut self) -> ParseResult<Vec<BlockParameter>> {
         let function_id = self.current_function.ok_or_else(|| {
             ParseError::new(
@@ -836,21 +850,24 @@ impl Parser {
                 self.pos(),
             )
         })?;
-        let parameters = self
+        let expected = self
             .tree
             .get(function_id)
             .parameters
             .iter()
-            .map(FunctionParameter::block_parameter)
+            .map(FunctionParameter::typed_value)
             .collect::<Vec<_>>();
+        let parameter_count = expected.len();
+        let mut parameters = Vec::with_capacity(parameter_count);
 
-        for (parameter_index, parameter) in parameters.iter().enumerate() {
-            let (value, _) = self.parse_entry_block_parameter()?;
-            if value != parameter.value {
+        for (parameter_index, expected) in expected.into_iter().enumerate() {
+            let parameter_start = self.pos();
+            let (value, name_span) = self.parse_entry_block_parameter()?;
+            if value != expected.value {
                 return Err(ParseError::new(
                     format!(
                         "entry block parameter {parameter_index} expected value {:?} got {:?}",
-                        parameter.value, value
+                        expected.value, value
                     ),
                     self.pos(),
                 ));
@@ -858,17 +875,27 @@ impl Parser {
 
             self.eat_token(TokenType::Colon)?;
             let (ty, _) = self.parse_type_use_part()?;
-            if ty != parameter.ty {
+            if ty != expected.ty {
                 return Err(ParseError::new(
                     format!(
                         "entry block parameter {parameter_index} expected type {:?} got {:?}",
-                        parameter.ty, ty
+                        expected.ty, ty
                     ),
                     self.pos(),
                 ));
             }
 
-            if parameter_index + 1 < parameters.len() {
+            let span = self.span_from_parse_start(parameter_start);
+            let provenance = self.provenance.insert_authored(span);
+            self.provenance
+                .set_authored(provenance, span, Some(name_span));
+            parameters.push(BlockParameter {
+                value,
+                ty,
+                provenance,
+            });
+
+            if parameter_index + 1 < parameter_count {
                 self.eat_token(TokenType::Comma)?;
             }
         }
@@ -1476,8 +1503,8 @@ impl Parser {
                 continue;
             }
 
-            let terminator_id = self.tree.insert(Terminator::Unreachable);
-            let block_id = self.tree.insert(Block::new(terminator_id));
+            let terminator_id = self.insert_node(Terminator::Unreachable, token.span);
+            let block_id = self.insert_node(Block::new(terminator_id), token.span);
             self.predeclared_blocks.push(block_id);
 
             match self.token_type(&token) {

@@ -4,9 +4,9 @@ use destack_core::{StableHasher, StringId};
 
 use crate::{
     Access, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Constant, Copy, Field,
-    FloatType, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Multiplicity, Nullability,
-    ReferenceKind, SignatureParameter, Static, StaticField, StaticId, StaticKey, Storage, Symbol,
-    Tree, Type, TypeFingerprint, TypeId,
+    FloatType, Lifetime, LifetimeParameter, LifetimeTerm, Multiplicity, Nullability, ReferenceKind,
+    SignatureParameter, Static, StaticField, StaticId, StaticKey, Storage, Symbol, Tree, Type,
+    TypeFingerprint, TypeId,
 };
 
 impl Tree {
@@ -183,7 +183,7 @@ impl TypeHasher {
             return;
         }
 
-        match tree.get(id) {
+        match tree.ty(id) {
             Type::Error => self.hasher.write_u8(0),
             Type::Never => self.hasher.write_u8(1),
             Type::Void => self.hasher.write_u8(2),
@@ -291,7 +291,7 @@ impl TypeHasher {
                 self.hasher.write_u8(19);
                 self.hash_length(fields.len());
                 for field in fields {
-                    self.hash_field(*field, tree);
+                    self.hash_field(field, tree);
                 }
                 self.hash_copy(*copy);
             }
@@ -379,14 +379,12 @@ impl TypeHasher {
     }
 
     /// Hash one structural field declaration.
-    fn hash_field(&mut self, id: LocalNodeId<Field>, tree: &Tree) {
-        let field = tree.get(id);
+    fn hash_field(&mut self, field: &Field, tree: &Tree) {
         self.hash_string_maybe(field.name);
         self.hash_type(field.ty, tree);
 
-        let attributes = tree.attributes(id);
-        self.hash_length(attributes.len());
-        for attribute in attributes {
+        self.hash_length(field.attributes.len());
+        for attribute in &field.attributes {
             self.hash_attribute(attribute, tree);
         }
     }
@@ -691,13 +689,11 @@ mod tests {
         let mut tree = Tree::new();
 
         let first = tree.reserve_type(first_name);
-        let first_field = tree.intern_field(
-            Field {
-                name: None,
-                ty: first,
-            },
-            Vec::new(),
-        );
+        let first_field = Field {
+            name: None,
+            ty: first,
+            attributes: Vec::new(),
+        };
         tree.define_type(
             first,
             Type::Struct {

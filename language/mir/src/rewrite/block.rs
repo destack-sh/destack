@@ -2,10 +2,11 @@ use std::collections::VecDeque;
 
 use crate as mir;
 use destack_core::{FxIndexMap, FxIndexSet};
+use destack_source::ProvenanceJournal;
 
 use crate::{
     ControlTable, DefinitionTable, DominatorTable, UseTable, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses, terminator_remap,
+    terminator_remap,
 };
 
 /// Return one block target with appended arguments.
@@ -111,6 +112,7 @@ pub enum EdgeSplitPolicy {
 /// Append extra arguments to edges that target a successor block.
 pub fn append_edge_arguments(
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     block_id: mir::LocalNodeId<mir::Block>,
     successor: mir::LocalNodeId<mir::Block>,
     extra_args: &[mir::Value],
@@ -126,7 +128,7 @@ pub fn append_edge_arguments(
 
     // write back only when arguments changed
     if is_changed {
-        tree.set(terminator_id, terminator);
+        tree.rewrite(terminator_id, terminator, provenance);
     }
 }
 
@@ -138,6 +140,7 @@ pub fn ensure_edge_block(
     successor: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     cfg: &ControlTable,
     edge_blocks: &mut FxIndexMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
@@ -148,7 +151,8 @@ pub fn ensure_edge_block(
 ) -> mir::LocalNodeId<mir::Block> {
     // skip edges that do not require splitting
     let pred_block = tree.get(predecessor);
-    let pred_terminator = tree.get(pred_block.terminator);
+    let pred_terminator_id = pred_block.terminator;
+    let pred_terminator = tree.get(pred_terminator_id);
     let pred_multi = successor_count(tree, pred_terminator) > 1;
     let succ_multi = cfg.predecessors(successor).len() > 1;
     let should_split = match policy {
@@ -172,15 +176,20 @@ pub fn ensure_edge_block(
 
     // build the new edge block
     let edge_arguments = tree.add_values(&args);
-    let edge_terminator = tree.insert(mir::Terminator::Jump {
-        target: mir::BlockTarget::new(successor, edge_arguments),
-    });
+    let source = tree.provenance(pred_terminator_id.id);
+    let [terminator_provenance, block_provenance] = provenance.split(source);
+    let edge_terminator = tree.insert(
+        mir::Terminator::Jump {
+            target: mir::BlockTarget::new(successor, edge_arguments),
+        },
+        terminator_provenance,
+    );
     let edge_block = mir::Block::new(edge_terminator);
-    let edge_block_id = tree.insert(edge_block);
+    let edge_block_id = tree.insert(edge_block, block_provenance);
     insert_block_after(function, predecessor, edge_block_id, tree);
 
     // redirect the predecessor to the edge block
-    if redirect_successor_to_edge(predecessor, successor, edge_block_id, tree) {
+    if redirect_successor_to_edge(predecessor, successor, edge_block_id, tree, provenance) {
         edge_blocks.insert((predecessor, successor), edge_block_id);
         *changed = true;
         edge_block_id
@@ -195,6 +204,7 @@ impl mir::Edge {
         self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
+        provenance: &mut ProvenanceJournal<'_>,
         edge_blocks: &mut FxIndexMap<mir::Edge, mir::LocalNodeId<mir::Block>>,
         changed: &mut bool,
     ) -> mir::LocalNodeId<mir::Block> {
@@ -220,6 +230,7 @@ impl mir::Edge {
             .map(|parameter| mir::BlockParameter {
                 value: function.next_typed_value(parameter.ty),
                 ty: parameter.ty,
+                provenance: provenance.derive(parameter.provenance),
             })
             .collect::<Vec<_>>();
         let forwarded = parameters
@@ -229,10 +240,18 @@ impl mir::Edge {
 
         // forward the complete edge state into the original destination
         let forwarded = tree.add_values(&forwarded);
-        let terminator = tree.insert(mir::Terminator::Jump {
-            target: mir::BlockTarget::new(self.target, forwarded),
-        });
-        let block = tree.insert(mir::Block::with_parameters(parameters, terminator));
+        let source = tree.provenance(terminator_id.id);
+        let [terminator_provenance, block_provenance] = provenance.split(source);
+        let terminator = tree.insert(
+            mir::Terminator::Jump {
+                target: mir::BlockTarget::new(self.target, forwarded),
+            },
+            terminator_provenance,
+        );
+        let block = tree.insert(
+            mir::Block::with_parameters(parameters, terminator),
+            block_provenance,
+        );
 
         // redirect the selected edge with its original explicit arguments
         let mut terminator = tree.get(terminator_id).clone();
@@ -241,7 +260,7 @@ impl mir::Edge {
         if !terminator.replace_edge(self.successor, target, tree) {
             unreachable!("control-flow edge cannot be replaced in its terminator");
         }
-        tree.set(terminator_id, terminator);
+        tree.rewrite(terminator_id, terminator, provenance);
         insert_block_after(function, self.source, block, tree);
 
         edge_blocks.insert(self, block);
@@ -283,6 +302,7 @@ fn redirect_successor_to_edge(
     successor: mir::LocalNodeId<mir::Block>,
     edge_block: mir::LocalNodeId<mir::Block>,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // redirect every matching edge
     let terminator_id = tree.get(block_id).terminator;
@@ -295,7 +315,7 @@ fn redirect_successor_to_edge(
 
     // update the terminator
     if is_changed {
-        tree.set(terminator_id, terminator);
+        tree.rewrite(terminator_id, terminator, provenance);
     }
 
     is_changed
@@ -414,6 +434,7 @@ impl BlockParamForwarding {
 pub fn apply_substitutions_in_dominated_blocks(
     function: &mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     dominator: &DominatorTable,
     root: mir::LocalNodeId<mir::Block>,
@@ -448,8 +469,8 @@ pub fn apply_substitutions_in_dominated_blocks(
 
             // replace when a rewrite occurred
             if updated != instruction {
-                tree.set(instruction_id, updated);
-                remap_instruction_memory_accesses(accesses, instruction_id, substitutions);
+                tree.rewrite(instruction_id, updated, provenance);
+                accesses.remap_instruction(instruction_id, substitutions);
                 changed = true;
             }
         }
@@ -459,9 +480,7 @@ pub fn apply_substitutions_in_dominated_blocks(
 
         // replace the terminator when it changes
         if new_terminator != terminator {
-            let new_block = block;
-            tree.set(block_id, new_block);
-            tree.set(terminator_id, new_terminator);
+            tree.rewrite(terminator_id, new_terminator, provenance);
             changed = true;
         }
     }
@@ -585,7 +604,11 @@ pub fn block_parameters_used_outside_block(
 }
 
 /// Thread jumps through empty and passthrough blocks.
-pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::Tree) -> bool {
+pub fn function_thread_jumps(
+    function: &mir::Function,
+    tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
+) -> bool {
     // find all empty blocks (no instructions) that can be threaded
     let mut threadable: FxIndexMap<mir::LocalNodeId<mir::Block>, ThreadableBlock> =
         FxIndexMap::default();
@@ -852,7 +875,7 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::Tree) -> 
 
         // update the terminator when it changes
         if let Some(terminator) = new_terminator {
-            tree.set(terminator_id, terminator);
+            tree.rewrite(terminator_id, terminator, provenance);
             changed = true;
         }
     }

@@ -209,7 +209,7 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
     /// Resolve the concrete receiver type when statically known.
     fn receiver_type(&self, receiver: mir::Value) -> Option<mir::TypeId> {
         let receiver_type = self.function.value_type(receiver)?;
-        match self.tree.get(receiver_type) {
+        match self.tree.ty(receiver_type) {
             mir::Type::Reference { pointee, .. } => Some(*pointee),
             mir::Type::Dynamic { .. } => None,
             _ => Some(receiver_type),

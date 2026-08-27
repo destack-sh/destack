@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use destack_core::StringId;
 use destack_serde::Reflect;
 
-use crate::{Field, Function, LocalNodeId, Type};
+use crate::{Function, LocalNodeId, TypeId};
 
 /// Canonical dispatch table for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
@@ -25,7 +25,7 @@ impl DispatchTable {
     }
 
     /// Copy dispatch table entries from one type id to another.
-    pub fn copy_type_entries(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
+    pub fn copy_type_entries(&mut self, from: TypeId, to: TypeId) {
         if let Some(table) = self.virtual_table(from).cloned() {
             let mut table = table;
             table.concrete = to;
@@ -62,7 +62,7 @@ impl DispatchTable {
     }
 
     /// Return the virtual table for a type when present.
-    pub fn virtual_table(&self, ty: LocalNodeId<Type>) -> Option<&VirtualTable> {
+    pub fn virtual_table(&self, ty: TypeId) -> Option<&VirtualTable> {
         self.virtual_tables
             .binary_search_by_key(&ty.get(), |table| table.concrete.get())
             .ok()
@@ -92,11 +92,7 @@ impl DispatchTable {
     }
 
     /// Return the dynamic table for a concrete type and constraint when present.
-    pub fn dynamic_table(
-        &self,
-        concrete: LocalNodeId<Type>,
-        constraint: LocalNodeId<Type>,
-    ) -> Option<&DynamicTable> {
+    pub fn dynamic_table(&self, concrete: TypeId, constraint: TypeId) -> Option<&DynamicTable> {
         let key = (concrete.get(), constraint.get());
 
         self.dynamic_tables
@@ -111,7 +107,7 @@ impl DispatchTable {
     }
 
     /// Return the dynamic shape for a constraint type id.
-    pub fn dynamic_shape(&self, constraint: LocalNodeId<Type>) -> Option<&DynamicShape> {
+    pub fn dynamic_shape(&self, constraint: TypeId) -> Option<&DynamicShape> {
         self.dynamic_shapes
             .binary_search_by_key(&constraint.get(), |shape| shape.constraint.get())
             .ok()
@@ -146,7 +142,7 @@ impl DispatchTable {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct VirtualTable {
     /// The concrete type owning this table.
-    pub concrete: LocalNodeId<Type>,
+    pub concrete: TypeId,
     /// Method implementations in virtual slot order.
     pub methods: Vec<LocalNodeId<Function>>,
 }
@@ -155,9 +151,9 @@ pub struct VirtualTable {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct DynamicTable {
     /// The concrete type providing the implementation.
-    pub concrete: LocalNodeId<Type>,
+    pub concrete: TypeId,
     /// The dynamic constraint type being dispatched.
-    pub constraint: LocalNodeId<Type>,
+    pub constraint: TypeId,
     /// Entries in dynamic shape order.
     pub entries: Vec<DynamicEntry>,
     /// The concrete field entries sorted by name for keyed finds.
@@ -189,7 +185,7 @@ impl DynamicTable {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct DynamicShape {
     /// The dynamic constraint type owning this shape.
-    pub constraint: LocalNodeId<Type>,
+    pub constraint: TypeId,
     /// Slots in declaration order.
     pub slots: Vec<DynamicSlot>,
     /// Whether the constraint answers keyed finds by field name.
@@ -218,8 +214,6 @@ pub enum DynamicEntry {
 pub enum DynamicSlot {
     /// Field slot.
     Field {
-        /// The canonical dispatch field id.
-        field: LocalNodeId<Field>,
         /// The field name.
         name: StringId,
     },
@@ -228,7 +222,7 @@ pub enum DynamicSlot {
         /// The function name, absent for call signatures.
         name: Option<StringId>,
         /// The function signature.
-        signature: LocalNodeId<Type>,
+        signature: TypeId,
     },
 }
 

@@ -20,11 +20,16 @@ impl FormatNode for Block {
         // block parameters
         if !self.parameters.is_empty() {
             write!(f, [token("(")])?;
-            for (i, param) in self.parameters.iter().enumerate() {
-                if i > 0 {
+            for (index, parameter) in self.parameters.iter().enumerate() {
+                if index > 0 {
                     write!(f, [token(","), space()])?;
                 }
-                write!(f, [&param.value, token(":"), space(), param.ty])?;
+
+                f.write_element(FormatElement::Tag(FormatTag::StartProvenance(
+                    parameter.provenance,
+                )));
+                write!(f, [&parameter.value, token(":"), space(), parameter.ty])?;
+                f.write_element(FormatElement::Tag(FormatTag::EndProvenance));
             }
             write!(f, [token(")")])?;
         }
@@ -45,8 +50,7 @@ impl FormatNode for Block {
                 // instructions
                 for (index, inst_id) in instructions.iter().enumerate() {
                     write_node_leading_comments(tree, *inst_id, f)?;
-                    let inst = tree.get(*inst_id);
-                    inst.format_node(*inst_id, f)?;
+                    write!(f, [inst_id])?;
                     let instruction_span = tree.get_span(*inst_id);
                     let next_boundary = instructions
                         .get(index + 1)
@@ -64,9 +68,8 @@ impl FormatNode for Block {
                 }
 
                 // terminator
-                let terminator = tree.get(terminator_id);
                 write_node_leading_comments(tree, terminator_id, f)?;
-                terminator.format_node(terminator_id, f)?;
+                write!(f, [terminator_id])?;
 
                 if let (Some(terminator_span), Some(block_span)) = (terminator_span, block_span) {
                     write_comments_after(tree, terminator_span.end, block_span.end, f)?;

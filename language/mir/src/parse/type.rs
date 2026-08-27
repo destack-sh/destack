@@ -2,9 +2,9 @@ use crate::source::{Token, TokenType};
 use destack_source::Span;
 
 use crate::{
-    Access, Copy, Field, FieldSpan, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId,
-    Multiplicity, Nullability, ReferenceKind, SignatureParameter, StaticId, Storage, Type,
-    TypeDeclarationSpans, TypeId, VariantCase,
+    Access, Copy, Field, FieldSpan, Lifetime, LifetimeParameter, LifetimeTerm, Multiplicity,
+    Nullability, ReferenceKind, SignatureParameter, StaticId, Storage, Type, TypeDeclarationSpans,
+    TypeId, VariantCase,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -80,7 +80,7 @@ struct ResolvedReferenceQualifiers {
 
 impl Parser {
     /// Parse a type expression and return its enclosing span.
-    pub(super) fn parse_type_part(&mut self) -> ParseResult<(LocalNodeId<Type>, Span)> {
+    pub(super) fn parse_type_part(&mut self) -> ParseResult<(TypeId, Span)> {
         let type_start = self.pos();
         let ty = self.parse_type()?;
         let span = self.span_from_parse_start(type_start);
@@ -215,7 +215,7 @@ impl Parser {
     pub(super) fn parse_type_segment(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<LocalNodeId<Type>> {
+    ) -> ParseResult<TypeId> {
         let (ty, span) = self.parse_type_use_part()?;
         segment_spans.push(span);
 
@@ -344,7 +344,7 @@ impl Parser {
     }
 
     /// Parse a type expression.
-    pub(super) fn parse_type(&mut self) -> ParseResult<LocalNodeId<Type>> {
+    pub(super) fn parse_type(&mut self) -> ParseResult<TypeId> {
         let (kind, token_start, token_text) = {
             let token = self
                 .peek()
@@ -392,7 +392,7 @@ impl Parser {
     }
 
     /// Parse a named type form.
-    fn parse_named_type(&mut self, name: &str, start: usize) -> ParseResult<LocalNodeId<Type>> {
+    fn parse_named_type(&mut self, name: &str, start: usize) -> ParseResult<TypeId> {
         if let Some(primitive) = Type::from_primitive_name(name) {
             self.bump();
 
@@ -407,7 +407,7 @@ impl Parser {
             "dynamic" => self.parse_dynamic_type()?,
             "uninit" => self.parse_uninit_type()?,
             "manual" => self.parse_manual_type()?,
-            "variant" => self.parse_variant_type()?,
+            "variant" => self.parse_variant_type()?.0,
             _ => {
                 self.bump();
                 let (arguments, lifetimes) = self.parse_identified_type_arguments()?;
@@ -652,7 +652,7 @@ impl Parser {
     }
 
     /// Parse an explicitly lifetime-polymorphic function signature type.
-    fn parse_lifetime_signature_type(&mut self) -> ParseResult<LocalNodeId<Type>> {
+    fn parse_lifetime_signature_type(&mut self) -> ParseResult<TypeId> {
         self.parse_lifetime_scope(|parser, lifetimes| parser.parse_signature(lifetimes))
     }
 
@@ -681,7 +681,7 @@ impl Parser {
     pub(super) fn parse_signature(
         &mut self,
         lifetimes: Vec<LifetimeParameter>,
-    ) -> ParseResult<LocalNodeId<Type>> {
+    ) -> ParseResult<TypeId> {
         let parameters = self.parse_parenthesized_type_parameters()?;
         self.eat_token(TokenType::FatArrow)?;
 
@@ -693,7 +693,7 @@ impl Parser {
         &mut self,
         mut lifetimes: Vec<LifetimeParameter>,
         parameters: Vec<SignatureParameter>,
-    ) -> ParseResult<LocalNodeId<Type>> {
+    ) -> ParseResult<TypeId> {
         let (result, _) = self.parse_type_use_part()?;
         self.parse_lifetime_where(&mut lifetimes)?;
         self.intern_type(Type::FunctionSignature {
@@ -725,7 +725,7 @@ impl Parser {
     /// Parse one struct type and retain field declaration spans.
     pub(super) fn parse_struct_type(
         &mut self,
-    ) -> ParseResult<(LocalNodeId<Type>, Vec<FieldSpan>, TypeDeclarationSpans)> {
+    ) -> ParseResult<(TypeId, Vec<FieldSpan>, TypeDeclarationSpans)> {
         let open_brace_token = self.eat_token(TokenType::OpenBrace)?;
         let open_brace_start = open_brace_token.start();
         let open_brace_length = self.tree.source_text(open_brace_token.span).len();
@@ -786,9 +786,12 @@ impl Parser {
                 self.parse_type_use_part()?
             };
 
-            // field node
-            let field = Field { name, ty };
-            fields.push(self.tree.intern_field(field, attributes));
+            // field
+            fields.push(Field {
+                name,
+                ty,
+                attributes,
+            });
 
             // field delimiter
             if self.eat_token_if(TokenType::Semicolon) || self.eat_token_if(TokenType::Comma) {
@@ -867,7 +870,7 @@ impl Parser {
     }
 
     /// Parse a physical variant type.
-    fn parse_variant_type(&mut self) -> ParseResult<Type> {
+    pub(super) fn parse_variant_type(&mut self) -> ParseResult<(Type, Vec<Span>)> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
         let discriminant = self.parse_type()?;
@@ -875,17 +878,21 @@ impl Parser {
         self.eat_token(TokenType::OpenBrace)?;
 
         let mut cases = Vec::new();
+        let mut case_spans = Vec::new();
         while !self.peek_is(TokenType::CloseBrace) {
+            let case_start = self.pos();
             let discriminant = self.parse_constant_for_type(discriminant)?;
             self.eat_token(TokenType::Equal)?;
             let (ty, _) = self.parse_type_use_part()?;
             cases.push(VariantCase { discriminant, ty });
 
             if self.eat_token_if(TokenType::Semicolon) || self.eat_token_if(TokenType::Comma) {
+                case_spans.push(self.span_from_parse_start(case_start));
                 continue;
             }
 
             if self.peek_is(TokenType::CloseBrace) {
+                case_spans.push(self.span_from_parse_start(case_start));
                 break;
             }
 
@@ -894,11 +901,14 @@ impl Parser {
 
         self.eat_token(TokenType::CloseBrace)?;
 
-        Ok(Type::Variant {
-            discriminant,
-            cases,
-            copy: Copy::No,
-        })
+        Ok((
+            Type::Variant {
+                discriminant,
+                cases,
+                copy: Copy::No,
+            },
+            case_spans,
+        ))
     }
 
     /// Parse reference-like qualifiers after the pointee type.
@@ -1106,12 +1116,12 @@ impl Parser {
     }
 
     /// Return a canonical type id for the provided type shape.
-    pub(super) fn intern_type(&mut self, ty: Type) -> ParseResult<LocalNodeId<Type>> {
+    pub(super) fn intern_type(&mut self, ty: Type) -> ParseResult<TypeId> {
         Ok(self.tree.intern_type(ty))
     }
 
     /// Return the canonical parse-recovery type.
-    pub(super) fn error_type(&mut self) -> LocalNodeId<Type> {
+    pub(super) fn error_type(&mut self) -> TypeId {
         self.tree.intern_type(Type::Error)
     }
 }

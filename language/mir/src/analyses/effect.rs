@@ -328,12 +328,12 @@ impl<'a> FunctionEffectBuilder<'a> {
             return mir::StorageSet::ANY;
         };
 
-        self.type_storage(&mir::TypeId::from(ty))
+        self.type_storage(&ty)
     }
 
     /// Resolve the backing storage for one reference-like type.
     fn type_storage(&self, ty: &mir::TypeId) -> mir::StorageSet {
-        match self.tree.get(*ty) {
+        match self.tree.ty(*ty) {
             mir::Type::Uninit { value } => self.type_storage(value),
             ty => ty
                 .reference_storage()

@@ -1,13 +1,13 @@
 use crate::build::{BuildError, BuildResult, FunctionBuilder};
 use crate::{
-    BinaryOperator, ConvertMode, DispatchSlot, Instruction, LocalNodeId, Tree, Type, TypeId, Value,
+    BinaryOperator, ConvertMode, DispatchSlot, Instruction, Tree, Type, TypeId, Value,
     VectorReduceOperator,
 };
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
     /// Construct an aggregate from values in logical slot order.
-    pub fn aggregate(&mut self, ty: LocalNodeId<Type>, values: Vec<Value>) -> Value {
+    pub fn aggregate(&mut self, ty: TypeId, values: Vec<Value>) -> Value {
         let destination = self.allocate_value();
         let values = self.tree.add_values(&values);
         self.insert_instruction(Instruction::Aggregate {
@@ -23,9 +23,9 @@ impl<'a> FunctionBuilder<'a> {
     pub fn field_get(&mut self, aggregate: Value, field: u32) -> Value {
         let destination = self.allocate_value();
         let aggregate_type = self.expect_value_type(aggregate, "field.get aggregate");
-        let field_type = self.projected_type(aggregate_type, |tree, aggregate| {
+        let field_type = self.projected_type(aggregate_type, |_tree, aggregate| {
             aggregate
-                .field_type(field, tree)
+                .field_type(field)
                 .ok_or(BuildError::InvalidFieldIndex {
                     aggregate: aggregate_type,
                     index: field,
@@ -58,12 +58,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Construct a variant value from one case payload.
-    pub fn variant_new(
-        &mut self,
-        ty: LocalNodeId<Type>,
-        case: u32,
-        payload: Option<Value>,
-    ) -> Value {
+    pub fn variant_new(&mut self, ty: TypeId, case: u32, payload: Option<Value>) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::VariantNew {
             destination,
@@ -92,7 +87,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Read the discriminant of a stored variant.
-    pub fn variant_tag_load(&mut self, variant: Value, variant_type: LocalNodeId<Type>) -> Value {
+    pub fn variant_tag_load(&mut self, variant: Value, variant_type: TypeId) -> Value {
         let destination = self.allocate_value();
         let tag_type = self.variant_discriminant_type(variant_type);
         let tag_type = self.expect_build(tag_type);
@@ -126,7 +121,7 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         variant: Value,
         case: u32,
-        result_type: LocalNodeId<Type>,
+        result_type: TypeId,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::VariantPayloadAddr {
@@ -141,12 +136,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Get the address of one structural field in an aggregate.
-    pub fn field_addr(
-        &mut self,
-        aggregate: Value,
-        field: u32,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
+    pub fn field_addr(&mut self, aggregate: Value, field: u32, result_type: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::FieldAddr {
             destination,
@@ -192,12 +182,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Get the address of an element from an array.
-    pub fn element_addr(
-        &mut self,
-        base: Value,
-        index: Value,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
+    pub fn element_addr(&mut self, base: Value, index: Value, result_type: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::ElementAddr {
             destination,
@@ -215,7 +200,7 @@ impl<'a> FunctionBuilder<'a> {
         source: Value,
         start: Value,
         length: Value,
-        result_type: LocalNodeId<Type>,
+        result_type: TypeId,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::SliceView {
@@ -241,15 +226,15 @@ impl<'a> FunctionBuilder<'a> {
     /// Bind a typed reference payload to its concrete runtime type.
     pub fn dynamic_bind(
         &mut self,
-        dynamic_type: LocalNodeId<Type>,
+        dynamic_type: TypeId,
         payload: Value,
-        concrete: LocalNodeId<Type>,
+        concrete: TypeId,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::DynamicBind {
             destination,
             payload,
-            concrete: TypeId::from(concrete),
+            concrete,
         });
         self.define_value(destination, dynamic_type);
 
@@ -257,7 +242,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Read the erased payload from a dynamic value.
-    pub fn dynamic_payload(&mut self, dynamic: Value, result_type: LocalNodeId<Type>) -> Value {
+    pub fn dynamic_payload(&mut self, dynamic: Value, result_type: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::DynamicPayload {
             destination,
@@ -285,14 +270,14 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         dynamic: Value,
         slot: DispatchSlot,
-        result_type: LocalNodeId<Type>,
+        result_type: TypeId,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::DynamicRead {
             destination,
             dynamic,
             slot,
-            result_type: TypeId::from(result_type),
+            result_type,
         });
         self.define_value(destination, result_type);
 
@@ -300,18 +285,13 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Find one named entry through a dynamic value's concrete table.
-    pub fn dynamic_find(
-        &mut self,
-        dynamic: Value,
-        key: Value,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
+    pub fn dynamic_find(&mut self, dynamic: Value, key: Value, result_type: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::DynamicFind {
             destination,
             dynamic,
             key,
-            result_type: TypeId::from(result_type),
+            result_type,
         });
         self.define_value(destination, result_type);
 
@@ -321,7 +301,7 @@ impl<'a> FunctionBuilder<'a> {
     // instruction builders: vector operations
 
     /// Broadcast a scalar to all vector lanes.
-    pub fn vector_splat(&mut self, vector_type: LocalNodeId<Type>, value: Value) -> Value {
+    pub fn vector_splat(&mut self, vector_type: TypeId, value: Value) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::VectorSplat { destination, value });
         self.define_value(destination, vector_type);
@@ -360,7 +340,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Shuffle vector lanes with a constant mask.
     pub fn vector_shuffle(
         &mut self,
-        vector_type: LocalNodeId<Type>,
+        vector_type: TypeId,
         left: Value,
         right: Value,
         mask: Vec<u32>,
@@ -409,7 +389,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Compare two vectors elementwise.
     pub fn vector_compare(
         &mut self,
-        result_type: LocalNodeId<Type>,
+        result_type: TypeId,
         operator: BinaryOperator,
         left: Value,
         right: Value,
@@ -428,7 +408,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Convert vector element types with an explicit mode.
     pub fn vector_convert(
         &mut self,
-        result_type: LocalNodeId<Type>,
+        result_type: TypeId,
         mode: ConvertMode,
         vector: Value,
     ) -> Value {
@@ -443,10 +423,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Resolve the discriminant type of a variant type.
-    fn variant_discriminant_type(
-        &mut self,
-        variant_type: LocalNodeId<Type>,
-    ) -> BuildResult<LocalNodeId<Type>> {
+    fn variant_discriminant_type(&mut self, variant_type: TypeId) -> BuildResult<TypeId> {
         self.projected_type(variant_type, |_, variant| match variant {
             Type::Variant { discriminant, .. } => Ok(*discriminant),
             _ => Err(BuildError::InvalidVariantOwner { ty: variant_type }),
@@ -454,11 +431,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Resolve one statically selected variant case payload type.
-    fn variant_case_type(
-        &mut self,
-        variant_type: LocalNodeId<Type>,
-        case: u32,
-    ) -> BuildResult<LocalNodeId<Type>> {
+    fn variant_case_type(&mut self, variant_type: TypeId, case: u32) -> BuildResult<TypeId> {
         self.projected_type(variant_type, |_, variant| match variant {
             Type::Variant { cases, .. } => match cases.get(case as usize) {
                 Some(entry) => Ok(entry.ty),
@@ -474,22 +447,18 @@ impl<'a> FunctionBuilder<'a> {
     /// Select and instantiate one type projected from an applied owner.
     fn projected_type(
         &mut self,
-        owner: LocalNodeId<Type>,
-        project: impl FnOnce(&Tree, &Type) -> BuildResult<LocalNodeId<Type>>,
-    ) -> BuildResult<LocalNodeId<Type>> {
+        owner: TypeId,
+        project: impl FnOnce(&Tree, &Type) -> BuildResult<TypeId>,
+    ) -> BuildResult<TypeId> {
         let (base, arguments) = self.tree.split_lifetime_application(owner);
         let arguments = arguments.to_vec();
-        let projected = project(self.tree, self.tree.get(base))?;
+        let projected = project(self.tree, self.tree.ty(base))?;
 
         Ok(self.tree.instantiate_type_lifetimes(projected, &arguments))
     }
 
     /// Resolve one statically selected fixed-array element type.
-    fn fixed_array_element_type(
-        &mut self,
-        array_type: LocalNodeId<Type>,
-        index: u32,
-    ) -> BuildResult<LocalNodeId<Type>> {
+    fn fixed_array_element_type(&mut self, array_type: TypeId, index: u32) -> BuildResult<TypeId> {
         self.projected_type(array_type, |_, array| match array {
             Type::FixedArray {
                 element, length, ..
@@ -503,10 +472,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Resolve the element type of one vector type.
-    fn vector_element_type(
-        &mut self,
-        vector_type: LocalNodeId<Type>,
-    ) -> BuildResult<LocalNodeId<Type>> {
+    fn vector_element_type(&mut self, vector_type: TypeId) -> BuildResult<TypeId> {
         self.projected_type(vector_type, |_, vector| match vector {
             Type::Vector { element, .. } => Ok(*element),
             _ => Err(BuildError::InvalidVectorOwner { ty: vector_type }),

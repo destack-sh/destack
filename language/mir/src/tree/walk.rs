@@ -36,20 +36,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let local = tree.get(id);
             visitor.visit_local(tree, id, local);
         }
-        NodeType::Type => {
-            let id = LocalNodeId::new(node_id);
-            let ty = tree.get(id);
-            visitor.visit_type(tree, id, ty);
-        }
         NodeType::TypeDeclaration => {
             let id = LocalNodeId::new(node_id);
             let type_declaration = tree.get(id);
             visitor.visit_type_declaration(tree, id, type_declaration);
-        }
-        NodeType::Field => {
-            let id = LocalNodeId::new(node_id);
-            let field = tree.get(id);
-            visitor.visit_field(tree, id, field);
         }
         NodeType::Global => {
             let id = LocalNodeId::new(node_id);
@@ -287,14 +277,7 @@ pub fn walk_local<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk a Type.
-pub fn walk_type<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &Tree,
-    id: LocalNodeId<Type>,
-    ty: &Type,
-) {
-    visitor.visit_any(tree, NodeType::Type, id.id);
-
+pub fn walk_type<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, _id: TypeId, ty: &Type) {
     match ty {
         Type::Error => {}
         Type::Reference { pointee, .. } | Type::Pointer { pointee, .. } => {
@@ -324,9 +307,8 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             }
         }
         Type::Struct { fields, copy: _ } => {
-            for field_id in fields {
-                let field = tree.get(*field_id);
-                visitor.visit_field(tree, *field_id, field);
+            for field in fields {
+                visitor.visit_field(tree, field);
             }
         }
         Type::Newtype { inner, .. } => {
@@ -387,25 +369,19 @@ pub fn walk_type_declaration<V: NodeVisitor + ?Sized>(
     for argument in &type_declaration.arguments {
         walk_static(visitor, tree, *argument);
     }
-    let declared_ty = tree.get(type_declaration.ty);
+    let declared_ty = tree.ty(type_declaration.ty);
     visitor.visit_type(tree, type_declaration.ty, declared_ty);
 }
 
 /// Walk a Field.
-pub fn walk_field<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &Tree,
-    id: LocalNodeId<Field>,
-    field: &Field,
-) {
-    visitor.visit_any(tree, NodeType::Field, id.id);
-    let field_ty = tree.get(field.ty);
+pub fn walk_field<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, field: &Field) {
+    let field_ty = tree.ty(field.ty);
     visitor.visit_type(tree, field.ty, field_ty);
 }
 
-/// Walk one referenced type node when present.
+/// Walk one referenced canonical type.
 fn walk_type_id<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, reference: &TypeId) {
-    let ty = tree.get(*reference);
+    let ty = tree.ty(*reference);
     visitor.visit_type(tree, *reference, ty);
 }
 

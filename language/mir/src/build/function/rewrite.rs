@@ -46,7 +46,7 @@ impl<'a> FunctionBuilder<'a> {
 
         let mut terminator = self.tree.get(terminator_id).clone();
         self.replace_value_in_terminator(&mut terminator, from, to);
-        self.tree.set(terminator_id, terminator);
+        self.tree.set_payload(terminator_id, terminator);
     }
 
     /// Replace a value in an instruction.

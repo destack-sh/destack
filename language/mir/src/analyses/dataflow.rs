@@ -383,7 +383,7 @@ b2:
 
             // reorder blocks so the unreachable predecessor is first
             function.replace_blocks(vec![block1, block0, block2], &program.tree);
-            program.tree.set(function_id, function);
+            program.tree.set_payload(function_id, function);
 
             (block0, block1, block2)
         };

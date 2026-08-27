@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use destack_core::{FloatFormat, SectionEntry, StringId};
 
 use crate::{
-    Constant, Discriminant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType,
-    SignatureParameter, StaticId, StorageSet, Tree, TypeId,
+    Attribute, Constant, Discriminant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType,
+    SignatureParameter, StaticId, StorageSet, Tree, TypeFold,
 };
 
 /// Mutability of a storage binding.
@@ -384,8 +384,30 @@ impl TypeFingerprint {
     }
 }
 
-/// One logical MIR type.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+/// Compact identity for one canonical MIR type.
+#[repr(transparent)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub struct TypeId {
+    /// The canonical type arena index.
+    pub id: u32,
+}
+
+impl TypeId {
+    /// Create one type id from its canonical arena index.
+    pub const fn new(id: u32) -> Self {
+        Self { id }
+    }
+
+    /// Return the canonical arena index.
+    pub const fn get(self) -> usize {
+        self.id as usize
+    }
+}
+
+/// One canonical MIR type.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum Type {
     /// Invalid type produced while recovering malformed MIR text.
     Error,
@@ -499,7 +521,7 @@ pub enum Type {
     /// Struct.
     Struct {
         /// The fields of the struct.
-        fields: Vec<LocalNodeId<Field>>,
+        fields: Vec<Field>,
         /// Copy of this struct type.
         copy: Copy,
     },
@@ -571,7 +593,7 @@ pub enum Type {
 }
 
 /// One sum case.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct VariantCase {
     /// The discriminant constant selecting this case.
     pub discriminant: Constant,
@@ -600,10 +622,6 @@ impl VariantCase {
             (1u128 << width) - 1
         }
     }
-}
-
-impl Node for Type {
-    const TYPE: NodeType = NodeType::Type;
 }
 
 impl Type {
@@ -694,11 +712,9 @@ impl Type {
     }
 
     /// Return one structural field type.
-    pub fn field_type(&self, index: u32, tree: &Tree) -> Option<TypeId> {
+    pub fn field_type(&self, index: u32) -> Option<TypeId> {
         match self {
-            Type::Struct { fields, .. } => {
-                fields.get(index as usize).map(|field| tree.get(*field).ty)
-            }
+            Type::Struct { fields, .. } => fields.get(index as usize).map(|field| field.ty),
             Type::Tuple { elements, .. } => elements.get(index as usize).copied(),
             Type::Newtype { inner, .. } if index == 0 => Some(*inner),
             _ => None,
@@ -743,7 +759,7 @@ impl Type {
     pub fn is_float(&self, tree: &Tree) -> bool {
         match self {
             Type::Float(_) => true,
-            Type::Vector { element, .. } => matches!(tree.get(*element), Type::Float(_)),
+            Type::Vector { element, .. } => matches!(tree.ty(*element), Type::Float(_)),
             _ => false,
         }
     }
@@ -776,17 +792,17 @@ impl Type {
             }
             Type::Float(format) => Self::byte_width(format.width()),
             Type::Uninit { value } | Type::ManuallyDrop { value } => {
-                tree.get(*value).byte_size(tree, pointer_width_bits)
+                tree.ty(*value).byte_size(tree, pointer_width_bits)
             }
-            Type::Newtype { inner, .. } => tree.get(*inner).byte_size(tree, pointer_width_bits),
+            Type::Newtype { inner, .. } => tree.ty(*inner).byte_size(tree, pointer_width_bits),
             Type::FixedArray {
                 element, length, ..
             } => {
-                let element_size = tree.get(*element).byte_size(tree, pointer_width_bits)?;
+                let element_size = tree.ty(*element).byte_size(tree, pointer_width_bits)?;
 
                 element_size.checked_mul(*length)
             }
-            Type::Application { base, .. } => tree.get(*base).byte_size(tree, pointer_width_bits),
+            Type::Application { base, .. } => tree.ty(*base).byte_size(tree, pointer_width_bits),
             _ => None,
         }
     }
@@ -1030,7 +1046,7 @@ impl Type {
             Type::FunctionSignature { .. } | Type::FunctionPointer { .. } => Copy::Yes,
 
             // lifetime application preserves the represented type's copy property
-            Type::Application { base, .. } => tree.get(*base).copy(tree),
+            Type::Application { base, .. } => tree.ty(*base).copy(tree),
         }
     }
 
@@ -1079,16 +1095,14 @@ impl FloatType {
 }
 
 /// A field in a struct type.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct Field {
     /// The optional field name.
     pub name: Option<StringId>,
     /// Type of the field.
     pub ty: TypeId,
-}
-
-impl Node for Field {
-    const TYPE: NodeType = NodeType::Field;
+    /// The attributes attached to the field.
+    pub attributes: Vec<Attribute>,
 }
 
 /// A named MIR type declaration.
@@ -1105,6 +1119,24 @@ pub struct TypeDeclaration {
     /// The directly inherited and implemented types.
     pub heritage: TypeHeritage,
 }
+
+/// One field position in a named type declaration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct FieldId(
+    /// The containing type declaration.
+    pub LocalNodeId<TypeDeclaration>,
+    /// The field index in declaration order.
+    pub u32,
+);
+
+/// One case position in a named variant type declaration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct VariantCaseId(
+    /// The containing type declaration.
+    pub LocalNodeId<TypeDeclaration>,
+    /// The case index in declaration order.
+    pub u32,
+);
 
 impl Node for TypeDeclaration {
     const TYPE: NodeType = NodeType::TypeDeclaration;
@@ -1123,73 +1155,6 @@ impl TypeHeritage {
     /// Return whether the type declares no direct supertypes.
     pub fn is_empty(&self) -> bool {
         self.extends.is_empty() && self.implements.is_empty()
-    }
-}
-
-impl Type {
-    /// Apply one mapping to every direct child type id of this type.
-    pub fn map_child_type_ids(&mut self, map: &mut impl FnMut(TypeId) -> TypeId) {
-        match self {
-            Type::Reference { pointee, .. } | Type::Pointer { pointee, .. } => {
-                *pointee = map(*pointee);
-            }
-            Type::Atomic { value } | Type::Uninit { value } | Type::ManuallyDrop { value } => {
-                *value = map(*value);
-            }
-            Type::Dynamic { constraint, .. } => {
-                *constraint = map(*constraint);
-            }
-            Type::FixedArray { element, .. }
-            | Type::Slice { element, .. }
-            | Type::Vector { element, .. } => {
-                *element = map(*element);
-            }
-            Type::Tuple { elements, copy: _ } => {
-                for element in elements {
-                    *element = map(*element);
-                }
-            }
-            Type::Newtype { inner, .. } => {
-                *inner = map(*inner);
-            }
-            Type::Variant {
-                discriminant,
-                cases,
-                copy: _,
-            } => {
-                *discriminant = map(*discriminant);
-                for case in cases {
-                    case.ty = map(case.ty);
-                }
-            }
-            Type::FunctionSignature {
-                parameters, result, ..
-            } => {
-                for parameter in parameters {
-                    parameter.ty = map(parameter.ty);
-                }
-                *result = map(*result);
-            }
-            Type::FunctionPointer { signature } | Type::Function { signature, .. } => {
-                *signature = map(*signature);
-            }
-            Type::Application { base, .. } => {
-                *base = map(*base);
-            }
-            // struct children are field nodes, paired by their consumers
-            Type::Struct { .. } => {}
-            Type::Error
-            | Type::Never
-            | Type::Void
-            | Type::Boolean
-            | Type::Character
-            | Type::Int { .. }
-            | Type::Isize
-            | Type::Usize
-            | Type::Float { .. }
-            | Type::TypeDescriptor
-            | Type::TypeId => {}
-        }
     }
 }
 
@@ -1230,7 +1195,7 @@ impl Nullability {
 impl Tree {
     /// Return where one type stores one nullish constant, when it does.
     pub fn nullish_case(&self, ty: TypeId, nullish: Nullish) -> Option<NullishCase> {
-        match self.get(ty) {
+        match self.ty(ty) {
             // read through lifetime applications onto the wrapped base
             Type::Application { base, .. } => self.nullish_case(*base, nullish),
 
@@ -1238,7 +1203,7 @@ impl Tree {
             Type::Variant { cases, .. } => match nullish {
                 Nullish::Undefined => cases
                     .iter()
-                    .position(|case| matches!(self.get(case.ty), Type::Void))
+                    .position(|case| matches!(self.ty(case.ty), Type::Void))
                     .map(|index| NullishCase::Case(index as u32)),
                 Nullish::Null => None,
             },

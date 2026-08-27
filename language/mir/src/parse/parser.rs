@@ -1,14 +1,14 @@
 use destack_core::{Blob, FxIndexMap, FxIndexSet, StringPool};
 use destack_source::{
     DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, File, FileId, NodeSpanList,
-    NodeSpanType, Span,
+    NodeSpanType, ProvenanceBuilder, ProvenanceTable, Span,
 };
 
 use crate::source::{Lexer, TokenType};
 use crate::{
     AccessTable, Block, DispatchTable, DropTable, EffectTable, Function, Global, LayoutTable,
     LifetimeParameter, LifetimeSlot, Local, LocalNodeId, Node, ProfileTable, StaticId,
-    TargetLayout, Tree, Type, Value,
+    TargetLayout, Tree, TypeId, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -18,6 +18,8 @@ use super::error::{ParseError, ParseResult};
 pub struct ParsedMir {
     /// The parsed MIR tree.
     pub tree: Tree,
+    /// The provenance table containing every parsed occurrence.
+    pub provenance: ProvenanceTable,
     /// Target ABI layout.
     pub target_layout: TargetLayout,
     /// Canonical MIR layout table.
@@ -44,6 +46,7 @@ impl ParsedMir {
         self,
     ) -> (
         Tree,
+        ProvenanceTable,
         TargetLayout,
         LayoutTable,
         DispatchTable,
@@ -56,6 +59,7 @@ impl ParsedMir {
     ) {
         (
             self.tree,
+            self.provenance,
             self.target_layout,
             self.layouts,
             self.dispatch,
@@ -69,9 +73,10 @@ impl ParsedMir {
     }
 
     /// Return the parsed MIR when no parse errors were emitted.
-    pub fn finish(self) -> Result<(Tree, StringPool), DiagnosticCollection> {
+    pub fn finish(self) -> Result<(Tree, ProvenanceTable, StringPool), DiagnosticCollection> {
         let Self {
             tree,
+            provenance,
             target_layout: _,
             layouts: _,
             dispatch: _,
@@ -88,7 +93,7 @@ impl ParsedMir {
             return Err(diagnostics);
         }
 
-        Ok((tree, strings))
+        Ok((tree, provenance, strings))
     }
 }
 
@@ -112,6 +117,8 @@ pub struct Parser {
     pub(super) pos: usize,
     /// The tree being built.
     pub(super) tree: Tree,
+    /// The provenance table being built.
+    pub(super) provenance: ProvenanceBuilder,
     /// Target ABI layout.
     pub(super) target_layout: TargetLayout,
     /// Canonical MIR layout table.
@@ -139,7 +146,7 @@ pub struct Parser {
     /// Map from global names to their ids (for forward references).
     pub(super) global_map: FxIndexMap<String, LocalNodeId<Global>>,
     /// Map from type declaration names to their ids (for references).
-    pub(super) type_declaration_map: FxIndexMap<(String, Vec<StaticId>), LocalNodeId<Type>>,
+    pub(super) type_declaration_map: FxIndexMap<(String, Vec<StaticId>), TypeId>,
     /// Set of type declarations that have been defined.
     pub(super) type_declaration_definitions: FxIndexSet<(String, Vec<StaticId>)>,
     /// Map from symbolic block names to their predeclared block ids.
@@ -153,7 +160,7 @@ pub struct Parser {
     /// The function currently being parsed.
     pub(super) current_function: Option<LocalNodeId<Function>>,
     /// SSA value types for the current function.
-    pub(super) value_types: Vec<Option<LocalNodeId<Type>>>,
+    pub(super) value_types: Vec<Option<TypeId>>,
     /// The next SSA value id for the current function.
     pub(super) next_value_id: u32,
     /// The number of blocks parsed in the current function so far.
@@ -171,12 +178,13 @@ impl Parser {
 
         let content = file.text();
 
-        let tree = Tree::with_parsed_source(content.to_string(), Lexer::lex(file.id, content));
+        let tree = Tree::with_document(content.to_string(), Lexer::lex(file.id, content));
         let target_layout = TargetLayout::for_pointer_bytes(options.pointer_bytes);
 
         Ok(Self {
             pos: 0,
             tree,
+            provenance: ProvenanceTable::build(),
             target_layout,
             layouts: LayoutTable::default(),
             dispatch: DispatchTable::default(),
@@ -204,7 +212,7 @@ impl Parser {
         })
     }
 
-    /// Parse MIR text and return the parsed source bundle.
+    /// Parse MIR text.
     pub fn parse(file: &File, options: ParseOptions) -> ParseResult<ParsedMir> {
         let mut parser = Parser::new(file, options)?;
 
@@ -214,8 +222,20 @@ impl Parser {
         // attach source comments after the node graph exists
         parser.attach_comment_ownership();
 
+        // seal final source spans into authored provenance roots
+        for node_id in 0..parser.tree.node_count() as u32 {
+            let provenance = parser.tree.provenance(node_id);
+            let enclosing = parser
+                .tree
+                .get_span_by_id(node_id)
+                .unwrap_or_else(|| unreachable!("parsed MIR nodes always have source spans"));
+            let main = parser.tree.get_main_span_by_id(node_id);
+            parser.provenance.set_authored(provenance, enclosing, main);
+        }
+
         Ok(ParsedMir {
             tree: parser.tree,
+            provenance: parser.provenance.finish(),
             target_layout: parser.target_layout,
             layouts: parser.layouts,
             dispatch: parser.dispatch,
@@ -226,6 +246,19 @@ impl Parser {
             strings: parser.strings,
             diagnostics: parser.diagnostics.take_collection(),
         })
+    }
+
+    /// Insert one parsed MIR occurrence.
+    pub(super) fn insert_node<T>(&mut self, node: T, span: Span) -> LocalNodeId<T>
+    where
+        T: Node,
+        Tree: crate::TreeMut<T>,
+    {
+        let provenance = self.provenance.insert_authored(span);
+        let id = self.tree.insert(node, provenance);
+        self.tree.set_span(id, span);
+
+        id
     }
 
     /// Apply one ordered segment span list to one MIR node.
@@ -440,11 +473,7 @@ impl Parser {
     }
 
     /// Record the type for a value in the current function.
-    pub(super) fn record_value_type(
-        &mut self,
-        value: Value,
-        ty: LocalNodeId<Type>,
-    ) -> ParseResult<()> {
+    pub(super) fn record_value_type(&mut self, value: Value, ty: TypeId) -> ParseResult<()> {
         if self.current_function.is_some() {
             let existing = self.value_types.get(value.0 as usize).copied().flatten();
             if let Some(existing) = existing {

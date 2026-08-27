@@ -6,8 +6,8 @@ use super::attribute::{write_attribute, write_attributes};
 use super::r#static::format_static;
 
 use crate::{
-    Attribute, AttributeIdentifier, FormatNode, Function, FunctionHeaderSpans, LifetimeParameter,
-    Linkage, Local, LocalNodeId, Mutability, Tree, Writer, write_comments_after,
+    Attribute, AttributeIdentifier, FormatNode, Function, FunctionHeaderSpans, FunctionParameter,
+    LifetimeParameter, Linkage, Local, LocalNodeId, Mutability, Tree, Writer, write_comments_after,
     write_comments_before, write_inline_comment_after, write_node_leading_comments,
     write_node_leading_comments_after_separator,
 };
@@ -247,7 +247,7 @@ fn format_function_body<'a>(function: &Function, f: &mut Writer<'a, '_>) -> Form
                         .map(|span| span.start)
                         .or(function_end);
 
-                    format_local_declaration(*local_id, local_index, next_boundary, f)?;
+                    format_local_declaration(*local_id, next_boundary, f)?;
                 }
 
                 Ok(())
@@ -292,7 +292,6 @@ fn format_function_body<'a>(function: &Function, f: &mut Writer<'a, '_>) -> Form
 /// Format one local declaration line.
 fn format_local_declaration<'a>(
     local_id: LocalNodeId<Local>,
-    local_index: usize,
     next_boundary: Option<u32>,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
@@ -301,25 +300,8 @@ fn format_local_declaration<'a>(
     // leading comments
     write_node_leading_comments(tree, local_id, f)?;
 
-    let local = tree.get(local_id);
-
-    // local header
-    write!(
-        f,
-        [
-            token("local"),
-            space(),
-            copied_text(&format!("l{local_index}")),
-            token(":"),
-            space(),
-            local.ty
-        ]
-    )?;
-
-    // mutability
-    if local.mutability == Mutability::Immutable {
-        write!(f, [token(","), space(), token("readonly")])?;
-    }
+    // local declaration
+    write!(f, [local_id])?;
 
     // trailing comment
     if let (Some(local_span), Some(next_boundary)) = (tree.get_span(local_id), next_boundary) {
@@ -353,11 +335,7 @@ fn format_function_parameters<'a>(
                 write!(f, [token(","), space()])?;
             }
 
-            if is_import {
-                write!(f, [param.ty])?;
-            } else {
-                write!(f, [&param.value, token(":"), space(), param.ty])?;
-            }
+            format_function_parameter(param, is_import, f)?;
         }
         write!(f, [token(")")])?;
         return Ok(());
@@ -382,11 +360,7 @@ fn format_function_parameters<'a>(
             {
                 write_comments_before(tree, previous_end, span.span.start, f)?;
 
-                if is_import {
-                    write!(f, [parameter.ty])?;
-                } else {
-                    write!(f, [&parameter.value, token(":"), space(), parameter.ty])?;
-                }
+                format_function_parameter(parameter, is_import, f)?;
 
                 let next_boundary = if let Some(next_span) = parameter_spans.get(index + 1) {
                     next_span.span.start
@@ -416,6 +390,49 @@ fn format_function_parameters<'a>(
     write!(f, [token(")")])?;
 
     Ok(())
+}
+
+/// Format one function parameter with its provenance.
+fn format_function_parameter<'a>(
+    parameter: &FunctionParameter,
+    is_import: bool,
+    f: &mut Writer<'a, '_>,
+) -> FormatResult<()> {
+    f.write_element(FormatElement::Tag(FormatTag::StartProvenance(
+        parameter.provenance,
+    )));
+    if is_import {
+        write!(f, [parameter.ty])?;
+    } else {
+        write!(f, [&parameter.value, token(":"), space(), parameter.ty])?;
+    }
+    f.write_element(FormatElement::Tag(FormatTag::EndProvenance));
+
+    Ok(())
+}
+
+impl FormatNode for Local {
+    fn format_node<'a>(&self, id: LocalNodeId<Local>, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+        let index = f.context().local_index(id)?;
+        write!(
+            f,
+            [
+                token("local"),
+                space(),
+                copied_text(&format!("l{index}")),
+                token(":"),
+                space(),
+                self.ty
+            ]
+        )?;
+
+        // mutability
+        if self.mutability == Mutability::Immutable {
+            write!(f, [token(","), space(), token("readonly")])?;
+        }
+
+        Ok(())
+    }
 }
 
 /// Return whether one parameter list needs comment preserving formatting.

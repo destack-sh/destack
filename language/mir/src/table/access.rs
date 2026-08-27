@@ -35,6 +35,46 @@ impl AccessTable {
         self.accesses.shift_remove(&instruction)
     }
 
+    /// Copy one instruction's accesses while remapping address values.
+    pub fn clone_instruction(
+        &mut self,
+        original: LocalNodeId<Instruction>,
+        cloned: LocalNodeId<Instruction>,
+        values: &FxIndexMap<Value, Value>,
+    ) {
+        let Some(accesses) = self.get(original) else {
+            return;
+        };
+        let mut accesses = accesses.to_vec();
+
+        for access in &mut accesses {
+            access.remap_values(values);
+        }
+
+        self.insert(cloned, accesses);
+    }
+
+    /// Remap address values in one instruction's accesses.
+    pub fn remap_instruction(
+        &mut self,
+        instruction: LocalNodeId<Instruction>,
+        values: &FxIndexMap<Value, Value>,
+    ) {
+        if values.is_empty() {
+            return;
+        }
+        let Some(accesses) = self.get(instruction) else {
+            return;
+        };
+        let mut accesses = accesses.to_vec();
+
+        for access in &mut accesses {
+            access.remap_values(values);
+        }
+
+        self.insert(instruction, accesses);
+    }
+
     /// Return whether one instruction has ordered memory behavior.
     pub fn is_ordered(&self, instruction: LocalNodeId<Instruction>, tree: &Tree) -> bool {
         if matches!(
@@ -134,6 +174,18 @@ impl MemoryAccess {
     /// Return whether this access must remain at its exact program position.
     pub fn requires_exact_position(&self) -> bool {
         !matches!(self.order, MemoryAccessOrder::Plain)
+    }
+
+    /// Remap address values through one substitution table.
+    fn remap_values(&mut self, values: &FxIndexMap<Value, Value>) {
+        let MemoryTarget::Address(value) = self.target else {
+            return;
+        };
+        let Some(&remapped) = values.get(&value) else {
+            return;
+        };
+
+        self.target = MemoryTarget::Address(remapped);
     }
 }
 

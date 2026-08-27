@@ -16,7 +16,7 @@ impl<'a> FunctionBuilder<'a> {
         let result_type = self.expect_build(result_type);
 
         // omit SSA storage for void calls
-        let destination = if matches!(self.tree.get(result_type), Type::Void) {
+        let destination = if matches!(self.tree.ty(result_type), Type::Void) {
             None
         } else {
             Some(self.allocate_value())
@@ -58,19 +58,11 @@ impl<'a> FunctionBuilder<'a> {
             result,
         });
 
-        self.call(
-            Callee::Direct { function },
-            TypeId::from(signature),
-            arguments,
-        )
+        self.call(Callee::Direct { function }, signature, arguments)
     }
 
     /// Load a function pointer value for a function.
-    pub fn function_addr(
-        &mut self,
-        function: LocalNodeId<Function>,
-        signature: LocalNodeId<Type>,
-    ) -> Value {
+    pub fn function_addr(&mut self, function: LocalNodeId<Function>, signature: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::FunctionAddr {
             destination,
@@ -84,7 +76,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn function_bind(
         &mut self,
         function: LocalNodeId<Function>,
-        signature: LocalNodeId<Type>,
+        signature: TypeId,
         environment: Value,
     ) -> Value {
         let destination = self.allocate_value();
@@ -98,11 +90,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Project the environment from one function value.
-    pub fn function_environment(
-        &mut self,
-        function: Value,
-        environment_type: LocalNodeId<Type>,
-    ) -> Value {
+    pub fn function_environment(&mut self, function: Value, environment_type: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::FunctionEnvironment {
             destination,
@@ -113,10 +101,10 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Load the hidden environment pointer for the current function.
-    pub fn function_environment_current(&mut self, environment_type: LocalNodeId<Type>) -> Value {
+    pub fn function_environment_current(&mut self, environment_type: TypeId) -> Value {
         // record the hidden environment type on the function tables
         let existing_environment = {
-            let requested_environment = TypeId::from(environment_type);
+            let requested_environment = environment_type;
             let function = self.tree.get_mut(self.function_id);
             match &function.environment {
                 Some(existing) if existing != &requested_environment => Some(*existing),
@@ -142,14 +130,14 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Resolve the return type for one callable signature.
     fn signature_result_type(&self, signature: TypeId) -> Result<TypeId, BuildError> {
-        let signature_type = self.tree.get(signature);
+        let signature_type = self.tree.ty(signature);
         match signature_type {
             Type::FunctionSignature { result, .. } => Ok(*result),
             Type::FunctionPointer { .. } | Type::Function { .. } => {
                 let Some(signature) = signature_type.callable_signature() else {
                     return Err(BuildError::MissingFunctionSignature { ty: signature });
                 };
-                let signature_type = self.tree.get(signature);
+                let signature_type = self.tree.ty(signature);
                 let Some((_, _, result)) = signature_type.function_signature_parts() else {
                     return Err(BuildError::MissingFunctionSignature { ty: signature });
                 };

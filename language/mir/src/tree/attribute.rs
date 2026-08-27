@@ -2,7 +2,7 @@ use destack_core::StringId;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::TypeId;
+use crate::{TypeFold, TypeId};
 
 /// One identifier inside attribute syntax.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -23,7 +23,7 @@ impl AttributeIdentifier {
 }
 
 /// A tables attribute attached to a MIR node.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct Attribute {
     /// The attribute name.
     pub name: AttributeIdentifier,
@@ -32,7 +32,7 @@ pub struct Attribute {
 }
 
 /// Arguments for a MIR attribute.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum AttributeArgs {
     /// No arguments were provided.
     None,
@@ -45,7 +45,7 @@ pub enum AttributeArgs {
 }
 
 /// A key-value pair within an attribute argument list.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct AttributeKeyValue {
     /// The argument name.
     pub key: AttributeIdentifier,
@@ -75,7 +75,7 @@ impl FloatValue {
 }
 
 /// A value inside an attribute argument list.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum AttributeValue {
     /// An identifier value.
     Identifier(AttributeIdentifier),

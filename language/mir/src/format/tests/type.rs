@@ -4,6 +4,7 @@ use crate::{
     TypeHeritage,
 };
 use destack_core::StringPool;
+use destack_source::ProvenanceId;
 
 /// Formats pointer-sized builtin types canonically.
 #[test]
@@ -351,25 +352,21 @@ fn test_format_synthetic_copy_marker() {
     });
     let declaration_name = strings.intern("Pair");
 
-    let left = tree.intern_field(
-        Field {
-            name: None,
-            ty: int32_type,
-        },
-        Vec::new(),
-    );
-    let right = tree.intern_field(
-        Field {
-            name: None,
-            ty: int32_type,
-        },
-        Vec::new(),
-    );
+    let left = Field {
+        name: None,
+        ty: int32_type,
+        attributes: Vec::new(),
+    };
+    let right = Field {
+        name: None,
+        ty: int32_type,
+        attributes: Vec::new(),
+    };
     let struct_type = tree.intern_type(Type::Struct {
         fields: vec![left, right],
         copy: Copy::Yes,
     });
-    let representation = tree.get(struct_type).clone();
+    let representation = tree.ty(struct_type).clone();
     let pair = tree.reserve_type(Symbol::named(declaration_name));
     tree.define_type(pair, representation);
     tree.insert_type_declaration(
@@ -378,6 +375,8 @@ fn test_format_synthetic_copy_marker() {
         Vec::new(),
         pair,
         TypeHeritage::default(),
+        ProvenanceId::new(0),
+        vec![ProvenanceId::new(0); 2],
     );
 
     let output = format_tree_with_options(&tree, &strings, FormatOptions::default());
@@ -409,22 +408,20 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
     let declaration_name = strings.intern("Point");
     let field_name = strings.intern("x");
 
-    let field_id = tree.intern_field(
-        Field {
-            name: Some(field_name),
-            ty: int32_type,
-        },
-        vec![Attribute {
+    let field = Field {
+        name: Some(field_name),
+        ty: int32_type,
+        attributes: vec![Attribute {
             name: AttributeIdentifier::identifier(attribute_name),
             args: AttributeArgs::None,
         }],
-    );
+    };
 
     let struct_type = tree.intern_type(Type::Struct {
-        fields: vec![field_id],
+        fields: vec![field],
         copy: Copy::Yes,
     });
-    let representation = tree.get(struct_type).clone();
+    let representation = tree.ty(struct_type).clone();
     let point = tree.reserve_type(Symbol::named(declaration_name));
     tree.define_type(point, representation);
     tree.insert_type_declaration(
@@ -433,6 +430,8 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
         Vec::new(),
         point,
         TypeHeritage::default(),
+        ProvenanceId::new(0),
+        vec![ProvenanceId::new(0)],
     );
 
     let output = format_tree_with_options(&tree, &strings, FormatOptions::default());

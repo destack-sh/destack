@@ -3,10 +3,10 @@ use std::fmt;
 use destack_core::FxIndexSet;
 
 use crate::{
-    ElementLayout, Function, Global, Layout, LayoutId, LayoutShape, LayoutTable, LocalNodeId,
-    NewtypeLayout, NodeVisitor, Nullability, Primitive, Representation, Scalar, ScalarField,
-    StructLayout, TargetLayout, TraceMap, Tree, TupleLayout, Type, TypeDeclaration, Validity,
-    Vector, walk_type,
+    ElementLayout, Function, Global, Layout, LayoutId, LayoutShape, LayoutTable, NewtypeLayout,
+    NodeVisitor, Nullability, Primitive, Representation, Scalar, ScalarField, StructLayout,
+    TargetLayout, TraceMap, Tree, TupleLayout, Type, TypeDeclaration, TypeId, Validity, Vector,
+    walk_type,
 };
 
 use super::aggregate::Aggregate;
@@ -22,7 +22,7 @@ pub struct LayoutBuilder<'tree> {
     /// The target ABI layout.
     target: TargetLayout,
     /// The types whose layouts are in flight.
-    computing: FxIndexSet<LocalNodeId<Type>>,
+    computing: FxIndexSet<TypeId>,
 }
 
 /// Failure to construct one physical MIR layout.
@@ -76,9 +76,9 @@ impl std::error::Error for LayoutError {}
 /// MIR types reachable from runtime roots.
 struct ReachableTypeCollector {
     /// The types already traversed.
-    visited: FxIndexSet<LocalNodeId<Type>>,
+    visited: FxIndexSet<TypeId>,
     /// The reachable types in discovery order.
-    types: Vec<LocalNodeId<Type>>,
+    types: Vec<TypeId>,
 }
 
 impl ReachableTypeCollector {
@@ -92,7 +92,7 @@ impl ReachableTypeCollector {
 }
 
 impl NodeVisitor for ReachableTypeCollector {
-    fn visit_type(&mut self, tree: &Tree, id: LocalNodeId<Type>, ty: &Type) {
+    fn visit_type(&mut self, tree: &Tree, id: TypeId, ty: &Type) {
         // stop reference cycles at their first visited type
         if !self.visited.insert(id) {
             return;
@@ -142,8 +142,8 @@ impl<'tree> LayoutBuilder<'tree> {
     }
 
     /// Compute a layout when one reachable MIR type has a value representation.
-    fn layout_reachable_type(&mut self, ty: LocalNodeId<Type>) -> Result<(), LayoutError> {
-        match self.tree.get(ty) {
+    fn layout_reachable_type(&mut self, ty: TypeId) -> Result<(), LayoutError> {
+        match self.tree.ty(ty) {
             // skip types without runtime representations
             Type::Error | Type::Never | Type::FunctionSignature { .. } => Ok(()),
 
@@ -181,14 +181,14 @@ impl<'tree> LayoutBuilder<'tree> {
     }
 
     /// Return the cached or newly computed layout of one MIR type.
-    pub fn layout_type(&mut self, ty: LocalNodeId<Type>) -> Result<LayoutId, LayoutError> {
+    pub fn layout_type(&mut self, ty: TypeId) -> Result<LayoutId, LayoutError> {
         // reuse the layout already computed for this type
         if let Some(id) = self.layouts.layout_id(ty) {
             return Ok(id);
         }
 
         // transparent storage forms share their represented layout exactly
-        let represented = match self.tree.get(ty) {
+        let represented = match self.tree.ty(ty) {
             Type::Atomic { value }
             | Type::Application { base: value, .. }
             | Type::Uninit { value }
@@ -216,8 +216,8 @@ impl<'tree> LayoutBuilder<'tree> {
     }
 
     /// Compute the layout of one MIR type against the target.
-    fn compute_type(&mut self, ty: LocalNodeId<Type>) -> Result<Layout, LayoutError> {
-        match self.tree.get(ty).clone() {
+    fn compute_type(&mut self, ty: TypeId) -> Result<Layout, LayoutError> {
+        match self.tree.ty(ty).clone() {
             // scalars occupy their natural width
             Type::Void => Ok(Layout {
                 shape: LayoutShape::None,
@@ -368,7 +368,6 @@ impl<'tree> LayoutBuilder<'tree> {
             Type::Struct { fields, .. } => {
                 let mut components = Vec::with_capacity(fields.len());
                 for field in fields {
-                    let field = self.tree.get(field).clone();
                     components.push((field.name, field.ty));
                 }
                 let aggregate = Aggregate::new(&components, self)?;

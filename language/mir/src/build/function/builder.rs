@@ -1,11 +1,10 @@
-use destack_source::Span;
+use destack_source::{ProvenanceBuilder, ProvenanceId, ProvenanceJournal};
 use indexmap::{IndexMap, IndexSet};
 
 use crate::build::{BuildError, BuildResult, FunctionHeader, Variable};
 use crate::{
-    AllocationMode, Block, EffectTable, Function, FunctionBehavior, FunctionBody,
-    FunctionParameter, Instruction, Linkage, Local, LocalNodeId, MemoryEffect, Node, Tree, TreeMut,
-    Type, TypeId, Value,
+    AllocationMode, Block, EffectTable, Function, FunctionBehavior, FunctionBody, Instruction,
+    Linkage, Local, LocalNodeId, MemoryEffect, Node, Tree, TreeMut, TypeId, Value,
 };
 
 /// Builder for constructing a single MIR function with automatic SSA construction.
@@ -37,12 +36,16 @@ pub struct FunctionBuilder<'a> {
     // meta
     /// The tree this function is being built in.
     pub(super) tree: &'a mut Tree,
+    /// The provenance table being extended by this function.
+    pub(super) provenance: &'a mut ProvenanceBuilder,
     /// Effect table for call and function metadata emitted by this builder.
     pub(super) effects: &'a mut EffectTable,
     /// Pointer width in bits.
     pub(super) pointer_bits: u16,
-    /// Source assigned to emitted nodes.
-    pub(super) source: Option<(u32, Span)>,
+    /// The input provenance assigned to emitted nodes.
+    pub(super) source: ProvenanceId,
+    /// The transform recorded for emitted provenance.
+    pub(super) transform: &'static str,
     /// The id of the function being built.
     pub(super) function_id: LocalNodeId<Function>,
     /// Current block we're inserting into.
@@ -50,7 +53,7 @@ pub struct FunctionBuilder<'a> {
     /// Locals built for this function body.
     pub(super) locals: Vec<LocalNodeId<Local>>,
     /// SSA value types keyed by value id.
-    pub(super) value_types: Vec<Option<LocalNodeId<Type>>>,
+    pub(super) value_types: Vec<Option<TypeId>>,
 
     // ssa construction state
     /// Next SSA value id to allocate.
@@ -66,7 +69,7 @@ pub struct FunctionBuilder<'a> {
     /// Incomplete block parameters that need resolution when the block is sealed.
     pub(super) incomplete_phis: IndexMap<LocalNodeId<Block>, Vec<(Variable, Value)>>,
     /// Variable types (needed for creating block parameters).
-    pub(super) variable_types: IndexMap<Variable, LocalNodeId<Type>>,
+    pub(super) variable_types: IndexMap<Variable, TypeId>,
     /// Blocks in order of creation.
     pub(super) blocks: Vec<LocalNodeId<Block>>,
 }
@@ -77,9 +80,12 @@ impl<'a> FunctionBuilder<'a> {
     /// Create a new function builder.
     pub fn new(
         tree: &'a mut Tree,
+        provenance: &'a mut ProvenanceBuilder,
         effects: &'a mut EffectTable,
         pointer_bits: u16,
+        transform: &'static str,
         header: FunctionHeader,
+        source: ProvenanceId,
     ) -> Self {
         let FunctionHeader {
             name,
@@ -90,8 +96,6 @@ impl<'a> FunctionBuilder<'a> {
             result,
         } = header;
 
-        // create parameter values
-        let parameters = FunctionHeader::parameters_from_types(parameters);
         let (next_value_id, value_types) = Function::parameter_state(&parameters);
 
         // insert a signature-only function until finish commits the body
@@ -103,18 +107,20 @@ impl<'a> FunctionBuilder<'a> {
             allocation: AllocationMode::Any,
             parameters,
             lifetimes,
-            return_type: TypeId::from(result),
+            return_type: result,
             environment: None,
             binding: None,
             body: None,
         };
-        let function_id = tree.insert(function);
+        let function_id = tree.insert(function, source);
 
         Self {
             tree,
+            provenance,
             effects,
             pointer_bits,
-            source: None,
+            source,
+            transform,
             function_id,
             current_block: None,
             locals: Vec::new(),
@@ -133,8 +139,10 @@ impl<'a> FunctionBuilder<'a> {
     /// Create a function builder for an existing declared function.
     pub fn from_declared(
         tree: &'a mut Tree,
+        provenance: &'a mut ProvenanceBuilder,
         effects: &'a mut EffectTable,
         pointer_bits: u16,
+        transform: &'static str,
         function_id: LocalNodeId<Function>,
     ) -> BuildResult<Self> {
         // validate the declared function is still empty
@@ -149,11 +157,15 @@ impl<'a> FunctionBuilder<'a> {
             Function::parameter_state(&function.parameters)
         };
 
+        let source = tree.provenance(function_id.id);
+
         Ok(Self {
             tree,
+            provenance,
             effects,
             pointer_bits,
-            source: None,
+            source,
+            transform,
             function_id,
             current_block: None,
             locals: Vec::new(),
@@ -196,8 +208,8 @@ impl<'a> FunctionBuilder<'a> {
         self.tree
     }
 
-    /// Replace the source assigned to emitted nodes.
-    pub fn replace_source(&mut self, source: Option<(u32, Span)>) -> Option<(u32, Span)> {
+    /// Replace the input provenance assigned to emitted nodes.
+    pub fn replace_source(&mut self, source: ProvenanceId) -> ProvenanceId {
         std::mem::replace(&mut self.source, source)
     }
 
@@ -216,6 +228,13 @@ impl<'a> FunctionBuilder<'a> {
         self.tree
     }
 
+    /// Borrow the mutable tree and active provenance journal independently.
+    pub fn split_mut(&mut self) -> (&mut Tree, ProvenanceJournal<'_>) {
+        let provenance = self.provenance.record(self.transform);
+
+        (self.tree, provenance)
+    }
+
     /// Allocate a new SSA value.
     pub(super) fn allocate_value(&mut self) -> Value {
         let value = Value::new(self.next_value_id);
@@ -224,7 +243,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Record the type for a value produced by an instruction.
-    pub(super) fn define_value(&mut self, value: Value, ty: LocalNodeId<Type>) {
+    pub(super) fn define_value(&mut self, value: Value, ty: TypeId) {
         let index = self.resize_value_slots(value);
 
         if let Some(existing) = self.value_types[index] {
@@ -239,12 +258,12 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Get the type of an existing SSA value.
-    pub fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
+    pub fn value_type(&self, value: Value) -> Option<TypeId> {
         self.value_types.get(value.0 as usize).copied().flatten()
     }
 
     /// Require the type of an SSA value.
-    pub(super) fn expect_value_type(&self, value: Value, context: &str) -> LocalNodeId<Type> {
+    pub(super) fn expect_value_type(&self, value: Value, context: &str) -> TypeId {
         let result = self
             .value_type(value)
             .ok_or_else(|| BuildError::MissingValueType {
@@ -296,21 +315,15 @@ impl<'a> FunctionBuilder<'a> {
         instruction_id
     }
 
-    /// Insert one node with the active source location.
+    /// Insert one node derived from the active provenance.
     pub(super) fn insert<T>(&mut self, node: T) -> LocalNodeId<T>
     where
         T: Node,
         Tree: TreeMut<T>,
     {
-        match self.source {
-            Some((source_node, span)) => {
-                let id = self.tree.insert_from(node, source_node);
-                self.tree.set_span(id, span);
+        let provenance = self.provenance.record(self.transform).derive(self.source);
 
-                id
-            }
-            None => self.tree.insert(node),
-        }
+        self.tree.insert(node, provenance)
     }
 
     /// Finish the function body and return its function id.
@@ -327,24 +340,31 @@ impl<'a> FunctionBuilder<'a> {
                 function: self.function_id,
             })?;
 
-        // capture function parameters for entry block checks
-        let parameters = {
+        // populate an empty entry from the function parameters
+        let is_entry_mismatch = if self.tree.get(entry_block).parameters.is_empty() {
+            let parameters = {
+                let function = self.tree.get(self.function_id);
+                let mut provenance = self.provenance.record(self.transform);
+                function
+                    .parameters
+                    .iter()
+                    .map(|parameter| parameter.block_parameter(&mut provenance))
+                    .collect::<Vec<_>>()
+            };
+            self.tree.get_mut(entry_block).parameters = parameters;
+
+            false
+        }
+        // otherwise require matching values and types
+        else {
             let function = self.tree.get(self.function_id);
-            function
-                .parameters
-                .iter()
-                .map(FunctionParameter::block_parameter)
-                .collect::<Vec<_>>()
-        };
-
-        // ensure entry block parameters match function parameters
-        let is_entry_mismatch = {
-            let block = self.tree.get_mut(entry_block);
-            if block.parameters.is_empty() {
-                block.parameters = parameters.clone();
-            }
-
-            block.parameters != parameters
+            let block = self.tree.get(entry_block);
+            block.parameters.len() != function.parameters.len()
+                || block
+                    .parameters
+                    .iter()
+                    .zip(&function.parameters)
+                    .any(|(actual, expected)| actual.typed_value() != expected.typed_value())
         };
         if is_entry_mismatch {
             return Err(BuildError::EntryParameterMismatch);

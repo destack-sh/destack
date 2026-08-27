@@ -1,9 +1,10 @@
 use destack_core::{StringId, StringPool};
+use destack_source::{ProvenanceBuilder, ProvenanceId, ProvenanceJournal, ProvenanceTable};
 
 use crate::build::FunctionHeaderBuilder;
 use crate::{
     AccessTable, DispatchTable, DropTable, EffectTable, Layout, LayoutId, LayoutTable, LocalNodeId,
-    ProfileTable, TargetLayout, Tree, Type,
+    Node, ProfileTable, TargetLayout, Tree, TreeMut, Type, TypeId,
 };
 
 /// Builder for constructing a MIR module (collection of functions and types).
@@ -11,6 +12,10 @@ use crate::{
 pub struct ModuleBuilder {
     /// The tree being built.
     pub(super) tree: Tree,
+    /// The provenance table being extended by this module.
+    pub(super) provenance: ProvenanceBuilder,
+    /// The transform recorded for newly built provenance.
+    pub(super) transform: &'static str,
     /// Target ABI layout.
     pub(super) target_layout: TargetLayout,
     /// Canonical MIR layout table.
@@ -31,9 +36,11 @@ pub struct ModuleBuilder {
 
 impl ModuleBuilder {
     /// Create a new module builder.
-    pub fn new() -> Self {
+    pub fn new(provenance: ProvenanceTable, transform: &'static str) -> Self {
         Self {
             tree: Tree::new(),
+            provenance: provenance.extend(),
+            transform,
             target_layout: TargetLayout::default(),
             layouts: LayoutTable::default(),
             dispatch: DispatchTable::default(),
@@ -53,6 +60,35 @@ impl ModuleBuilder {
     /// Get a mutable reference to the tree.
     pub fn tree_mut(&mut self) -> &mut Tree {
         &mut self.tree
+    }
+
+    /// Borrow the mutable tree and active provenance journal independently.
+    pub fn split_mut(&mut self) -> (&mut Tree, ProvenanceJournal<'_>) {
+        let provenance = self.provenance.record(self.transform);
+
+        (&mut self.tree, provenance)
+    }
+
+    /// Insert one node produced from one or more provenance inputs.
+    pub fn insert<T>(&mut self, node: T, inputs: &[ProvenanceId]) -> LocalNodeId<T>
+    where
+        T: Node,
+        Tree: TreeMut<T>,
+    {
+        let provenance = self.produce(inputs);
+
+        self.tree.insert(node, provenance)
+    }
+
+    /// Produce one provenance from one or more inputs.
+    pub(super) fn produce(&mut self, inputs: &[ProvenanceId]) -> ProvenanceId {
+        let mut provenance = self.provenance.record(self.transform);
+
+        match inputs {
+            [source] => provenance.derive(*source),
+            [] => unreachable!("a built MIR node must have a provenance input"),
+            inputs => provenance.fuse(inputs),
+        }
     }
 
     /// Get a reference to the layout table.
@@ -140,8 +176,8 @@ impl ModuleBuilder {
         self.strings.intern(s)
     }
 
-    /// Insert one type node directly.
-    pub fn intern_type(&mut self, ty: Type) -> LocalNodeId<Type> {
+    /// Intern one canonical type.
+    pub fn intern_type(&mut self, ty: Type) -> TypeId {
         self.tree.intern_type(ty)
     }
 
@@ -151,7 +187,7 @@ impl ModuleBuilder {
     }
 
     /// Record one computed layout for a type.
-    pub fn insert_layout(&mut self, ty: LocalNodeId<Type>, layout: Layout) -> LayoutId {
+    pub fn insert_layout(&mut self, ty: TypeId, layout: Layout) -> LayoutId {
         let id = self.layouts.insert(layout);
         self.layouts.set_layout_id(ty, id);
 
@@ -160,7 +196,9 @@ impl ModuleBuilder {
 
     /// Start a function header.
     pub fn function_header(&mut self, name: &str) -> FunctionHeaderBuilder<'_> {
-        FunctionHeaderBuilder::new(&mut self.strings, name)
+        let provenance = self.provenance.record(self.transform);
+
+        FunctionHeaderBuilder::new(&mut self.strings, provenance, name)
     }
 
     /// Finish building the module.
@@ -168,6 +206,7 @@ impl ModuleBuilder {
         self,
     ) -> (
         Tree,
+        ProvenanceTable,
         TargetLayout,
         LayoutTable,
         DispatchTable,
@@ -179,6 +218,7 @@ impl ModuleBuilder {
     ) {
         (
             self.tree,
+            self.provenance.finish(),
             self.target_layout,
             self.layouts,
             self.dispatch,
@@ -191,13 +231,7 @@ impl ModuleBuilder {
     }
 
     /// Finish building the module and return only the tree and strings.
-    pub fn finish_tree(self) -> (Tree, StringPool) {
-        (self.tree, self.strings)
-    }
-}
-
-impl Default for ModuleBuilder {
-    fn default() -> Self {
-        Self::new()
+    pub fn finish_tree(self) -> (Tree, ProvenanceTable, StringPool) {
+        (self.tree, self.provenance.finish(), self.strings)
     }
 }

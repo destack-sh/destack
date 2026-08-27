@@ -133,7 +133,7 @@ impl ProvenanceTable {
 
     /// Return provenance implied by one parameter type.
     fn parameter_bindings(ty: TypeId, tree: &Tree) -> Vec<(Path, Provenance)> {
-        let value_type = tree.get(ty);
+        let value_type = tree.ty(ty);
 
         match value_type.reference_kind() {
             Some(ReferenceKind::Managed) => {
@@ -299,7 +299,7 @@ impl ProvenanceTable {
             _ => return None,
         };
         let ty = function.expect_value_type(representation);
-        let value_type = tree.get(ty);
+        let value_type = tree.ty(ty);
         if !value_type.is_borrowed_reference() {
             return None;
         }
@@ -427,7 +427,7 @@ impl ProvenanceTable {
             lifetimes: signature_lifetimes,
             parameters: signature_parameters,
             result: signature_result,
-        } = tree.get(*signature)
+        } = tree.ty(*signature)
         else {
             unreachable!("call has no function signature")
         };
@@ -1008,7 +1008,7 @@ impl ProvenanceState {
         tree: &Tree,
     ) -> Vec<(Path, Provenance)> {
         let ty = function.expect_value_type(value);
-        let paths = tree.type_provenance_paths(TypeId::from(ty));
+        let paths = tree.type_provenance_paths(ty);
         if paths.is_empty() {
             let provenance = self.value(value);
             if provenance.is_empty() {
@@ -1052,7 +1052,7 @@ impl ProvenanceState {
 
         // preserve nested borrowed paths
         let ty = function.expect_value_type(destination);
-        for borrowed in tree.type_provenance_paths(TypeId::from(ty)) {
+        for borrowed in tree.type_provenance_paths(ty) {
             let source = place.clone().with_path(&borrowed.path);
             let provenance = self.place(&source, function, tree);
             self.insert_at(destination, borrowed.path, provenance);
@@ -1066,7 +1066,7 @@ impl ProvenanceState {
         }
 
         let ty = function.expect_value_type(destination);
-        let paths = tree.type_provenance_paths(TypeId::from(ty));
+        let paths = tree.type_provenance_paths(ty);
         let bindings = if paths.is_empty() {
             let provenance = self
                 .get_place(place)
@@ -1365,18 +1365,14 @@ impl ProvenanceState {
 
     /// Return whether one value type carries provenance.
     fn carries(value: Value, function: &Function, tree: &Tree) -> bool {
-        let ty = TypeId::from(function.expect_value_type(value));
+        let ty = function.expect_value_type(value);
 
         tree.type_lifetime(ty).is_some() || tree.type_contains_borrowed_refs(ty)
     }
 
     /// Return the path for one logical aggregate slot.
-    fn aggregate_projection(
-        ty: LocalNodeId<Type>,
-        index: usize,
-        tree: &Tree,
-    ) -> Option<Projection> {
-        match tree.get(ty) {
+    fn aggregate_projection(ty: TypeId, index: usize, tree: &Tree) -> Option<Projection> {
+        match tree.ty(ty) {
             Type::Struct { .. } | Type::Tuple { .. } => Some(Projection::Field {
                 index: index as u32,
             }),
@@ -1393,7 +1389,7 @@ impl ProvenanceState {
     fn type_provenance(value: Value, function: &Function, tree: &Tree) -> Provenance {
         let ty = function.expect_value_type(value);
 
-        tree.type_lifetime(TypeId::from(ty))
+        tree.type_lifetime(ty)
             .map(|lifetime| Provenance::from_lifetime(&lifetime))
             .unwrap_or_default()
     }
@@ -1401,7 +1397,7 @@ impl ProvenanceState {
     /// Return provenance for one storage-producing destination.
     fn destination(destination: Value, function: &Function, tree: &Tree) -> Provenance {
         let ty = function.expect_value_type(destination);
-        let ty = tree.get(tree.storage_type(TypeId::from(ty)));
+        let ty = tree.ty(tree.storage_type(ty));
 
         match ty.reference_kind() {
             Some(ReferenceKind::Managed) => Provenance::from_managed(ty),
@@ -1422,7 +1418,7 @@ impl ProvenanceState {
         }
 
         let ty = function.expect_value_type(value);
-        let ty = tree.get(tree.storage_type(TypeId::from(ty)));
+        let ty = tree.ty(tree.storage_type(ty));
         match ty.reference_kind() {
             Some(ReferenceKind::Managed | ReferenceKind::Borrowed) => self
                 .get_at(value, &Path::root())

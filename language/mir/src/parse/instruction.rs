@@ -56,10 +56,11 @@ impl Parser {
             {
                 let value = self.parse_constant_for_type(destination_type)?;
                 let instruction = Instruction::Const { destination, value };
-                let id = self.tree.insert(instruction);
+                let text_span = self.span_from_parse_start(instruction_start);
+                let id = self.insert_node(instruction, text_span);
                 self.apply_instruction_spans(
                     id,
-                    self.span_from_parse_start(instruction_start),
+                    text_span,
                     destination_span,
                     destination_type_span,
                     &[],
@@ -852,10 +853,11 @@ impl Parser {
         };
 
         // record the instruction
-        let instruction_id = self.tree.insert(instruction);
+        let text_span = self.span_from_parse_start(instruction_start);
+        let instruction_id = self.insert_node(instruction, text_span);
         self.apply_instruction_spans(
             instruction_id,
-            self.span_from_parse_start(instruction_start),
+            text_span,
             destination_span,
             destination_type_span,
             &segment_spans,
@@ -873,7 +875,7 @@ impl Parser {
         segment_spans: &[Span],
     ) -> ParseResult<()> {
         // enclosing span
-        self.tree.set_text_span(instruction_id, instruction_span);
+        self.tree.set_span(instruction_id, instruction_span);
 
         // focal span
         if let Some(main_span) = main_span.or_else(|| segment_spans.first().copied()) {

@@ -2,8 +2,7 @@ use crate::source::TokenType;
 use destack_source::Span;
 
 use crate::{
-    BlockId, BlockParameter, FunctionId, GlobalId, LocalId, LocalNodeId, Type, TypedValueSpan,
-    Value,
+    BlockId, BlockParameter, FunctionId, GlobalId, LocalId, TypeId, TypedValueSpan, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -30,7 +29,7 @@ impl Parser {
     /// Parse a typed destination value reference.
     pub(super) fn parse_typed_destination_parts(
         &mut self,
-    ) -> ParseResult<(Value, LocalNodeId<Type>, Span, Span)> {
+    ) -> ParseResult<(Value, TypeId, Span, Span)> {
         let (value, value_span) = self.parse_value_definition_part()?;
         self.eat_token(TokenType::Colon)?;
         let (ty, type_span) = self.parse_type_use_part()?;
@@ -258,7 +257,14 @@ impl Parser {
             let colon_token = self.eat_token(TokenType::Colon)?;
             let (ty, type_span) = self.parse_type_use_after(colon_token, "parameter type");
             let value_span = self.span_from_parse_start(value_start);
-            values.push(BlockParameter { value, ty });
+            let provenance = self.provenance.insert_authored(value_span);
+            self.provenance
+                .set_authored(provenance, value_span, Some(name_span));
+            values.push(BlockParameter {
+                value,
+                ty,
+                provenance,
+            });
             spans.push(TypedValueSpan::new(value_span, Some(name_span), type_span));
             if !self.eat_token_if(TokenType::Comma) {
                 break;

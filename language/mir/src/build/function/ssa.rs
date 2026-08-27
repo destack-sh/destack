@@ -1,9 +1,9 @@
 use crate::build::{BuildError, FunctionBuilder, Variable};
-use crate::{Block, BlockParameter, BlockTarget, LocalNodeId, Terminator, Type, Value};
+use crate::{Block, BlockParameter, BlockTarget, LocalNodeId, Terminator, TypeId, Value};
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
-    pub fn variable(&mut self, ty: LocalNodeId<Type>) -> Variable {
+    pub fn variable(&mut self, ty: TypeId) -> Variable {
         let variable = Variable::new(self.next_variable_id);
         self.next_variable_id += 1;
         self.variable_types.insert(variable, ty);
@@ -47,14 +47,15 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Add a block parameter and return its value.
-    pub fn add_block_parameter(
-        &mut self,
-        block: LocalNodeId<Block>,
-        ty: LocalNodeId<Type>,
-    ) -> Value {
+    pub fn add_block_parameter(&mut self, block: LocalNodeId<Block>, ty: TypeId) -> Value {
         let value = self.allocate_value();
+        let provenance = self.provenance.record(self.transform).derive(self.source);
         let block_data = self.tree.get_mut(block);
-        block_data.parameters.push(BlockParameter { value, ty });
+        block_data.parameters.push(BlockParameter {
+            value,
+            ty,
+            provenance,
+        });
         self.define_value(value, ty);
         value
     }
@@ -228,13 +229,20 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Remove a block parameter (phi) by value.
     fn remove_block_parameter(&mut self, block: LocalNodeId<Block>, value: Value) {
-        let block_data = self.tree.get_mut(block);
-        if let Some(position) = block_data
-            .parameters
-            .iter()
-            .position(|param| param.value == value)
-        {
-            block_data.parameters.remove(position);
+        let removed = {
+            let block_data = self.tree.get_mut(block);
+            let position = block_data
+                .parameters
+                .iter()
+                .position(|parameter| parameter.value == value);
+
+            position.map(|position| block_data.parameters.remove(position))
+        };
+
+        if let Some(parameter) = removed {
+            self.provenance
+                .record(self.transform)
+                .remove(&[parameter.provenance]);
         }
     }
 

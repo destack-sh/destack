@@ -1,14 +1,17 @@
 use std::fmt;
 
 use destack_core::{FxIndexMap, StringPool};
-use destack_fir::format::{Allocator, Format, FormatContext, FormatError, FormatResult};
+use destack_fir::format::{
+    Allocator, Format, FormatContext, FormatElement, FormatError, FormatResult, FormatTag,
+};
+use destack_fir::print::Printed;
 use destack_source::{File, FileType};
 
 use super::FormatOptions;
 
 use crate::{
     Block, Function, Global, LifetimeParameter, LifetimeSlot, Local, LocalNodeId, Node,
-    TargetLayout, Tree, TreeImpl, Type, Value,
+    TargetLayout, Tree, TreeImpl, TypeId, Value,
 };
 
 /// One MIR formatting pass.
@@ -68,16 +71,21 @@ impl<'a> Formatter<'a> {
 
     /// Format the MIR tree.
     pub fn format(self) -> FormatResult<String> {
+        let printed = self.print()?;
+
+        Ok(printed.into_str())
+    }
+
+    /// Print the MIR tree with its provenance extents.
+    pub fn print(self) -> FormatResult<Printed> {
         let allocator = Allocator::default();
 
         // build the FIR document from the tree
         let tree = self.tree;
         let document = destack_fir::format!(&allocator, self, [tree])?;
 
-        // print the complete document
-        let printed = document.print()?;
-
-        Ok(printed.as_str().to_string())
+        // print text and provenance extents together
+        Ok(document.print()?)
     }
 
     /// Return one function name.
@@ -125,7 +133,7 @@ impl<'a> Formatter<'a> {
     }
 
     /// Return one value type in the current function.
-    pub(crate) fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
+    pub(crate) fn value_type(&self, value: Value) -> Option<TypeId> {
         let function_id = self.function?;
         let function = self.tree.get(function_id);
 
@@ -230,8 +238,13 @@ where
     Tree: TreeImpl<T>,
 {
     fn format(&self, writer: &mut Writer<'a, '_>) -> FormatResult<()> {
+        let provenance = writer.context().tree.provenance(self.id);
         let node = writer.context().tree.get(*self);
 
-        node.format_node(*self, writer)
+        writer.write_element(FormatElement::Tag(FormatTag::StartProvenance(provenance)));
+        node.format_node(*self, writer)?;
+        writer.write_element(FormatElement::Tag(FormatTag::EndProvenance));
+
+        Ok(())
     }
 }

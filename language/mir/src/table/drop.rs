@@ -4,15 +4,15 @@ use serde::{Deserialize, Serialize};
 
 use destack_serde::Reflect;
 
-use crate::{Function, LocalNodeId, ReferenceKind, Storage, Tree, Type};
+use crate::{Function, LocalNodeId, ReferenceKind, Storage, Tree, Type, TypeId};
 
 /// Drop table for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
 pub struct DropTable {
     /// Generated destructors keyed by type and storage.
-    destructors: FxIndexMap<(LocalNodeId<Type>, Storage), LocalNodeId<Function>>,
+    destructors: FxIndexMap<(TypeId, Storage), LocalNodeId<Function>>,
     /// User-authored drop hooks keyed by type and storage.
-    hooks: FxIndexMap<(LocalNodeId<Type>, Storage), LocalNodeId<Function>>,
+    hooks: FxIndexMap<(TypeId, Storage), LocalNodeId<Function>>,
 }
 
 impl DropTable {
@@ -22,7 +22,7 @@ impl DropTable {
     }
 
     /// Copy drop table entries from one type id to another.
-    pub fn copy_type_entries(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
+    pub fn copy_type_entries(&mut self, from: TypeId, to: TypeId) {
         let destructors = self
             .destructors
             .iter()
@@ -43,16 +43,12 @@ impl DropTable {
     }
 
     /// Return the generated destructor for a type in one storage.
-    pub fn destructor(
-        &self,
-        ty: LocalNodeId<Type>,
-        storage: Storage,
-    ) -> Option<LocalNodeId<Function>> {
+    pub fn destructor(&self, ty: TypeId, storage: Storage) -> Option<LocalNodeId<Function>> {
         self.destructors.get(&(ty, storage)).copied()
     }
 
     /// Return whether any generated destructor exists for a type.
-    pub fn has_destructor(&self, ty: LocalNodeId<Type>) -> bool {
+    pub fn has_destructor(&self, ty: TypeId) -> bool {
         self.destructors
             .keys()
             .any(|(candidate, _)| *candidate == ty)
@@ -61,7 +57,7 @@ impl DropTable {
     /// Iterate generated destructors.
     pub fn destructors(
         &self,
-    ) -> impl Iterator<Item = (LocalNodeId<Type>, Storage, LocalNodeId<Function>)> + '_ {
+    ) -> impl Iterator<Item = (TypeId, Storage, LocalNodeId<Function>)> + '_ {
         self.destructors
             .iter()
             .map(|(&(ty, storage), &function)| (ty, storage, function))
@@ -75,13 +71,8 @@ impl DropTable {
     }
 
     /// Return whether one stored value requires a generated destructor.
-    pub fn requires_destructor(
-        &self,
-        ty: LocalNodeId<Type>,
-        storage: Storage,
-        tree: &Tree,
-    ) -> bool {
-        if tree.get(ty).copy(tree).is_yes() {
+    pub fn requires_destructor(&self, ty: TypeId, storage: Storage, tree: &Tree) -> bool {
+        if tree.ty(ty).copy(tree).is_yes() {
             return false;
         }
         if self.destructor(ty, storage).is_some() || self.hook(ty, storage).is_some() {
@@ -94,7 +85,7 @@ impl DropTable {
     /// Record the generated destructor for a type in one storage.
     pub fn set_destructor(
         &mut self,
-        ty: LocalNodeId<Type>,
+        ty: TypeId,
         storage: Storage,
         destructor: LocalNodeId<Function>,
     ) -> Option<LocalNodeId<Function>> {
@@ -109,19 +100,17 @@ impl DropTable {
     }
 
     /// Return the user-authored drop hook for a type in one storage.
-    pub fn hook(&self, ty: LocalNodeId<Type>, storage: Storage) -> Option<LocalNodeId<Function>> {
+    pub fn hook(&self, ty: TypeId, storage: Storage) -> Option<LocalNodeId<Function>> {
         self.hooks.get(&(ty, storage)).copied()
     }
 
     /// Return whether any user-authored drop hook exists for a type.
-    pub fn has_hook(&self, ty: LocalNodeId<Type>) -> bool {
+    pub fn has_hook(&self, ty: TypeId) -> bool {
         self.hooks.keys().any(|(candidate, _)| *candidate == ty)
     }
 
     /// Iterate user-authored drop hooks.
-    pub fn hooks(
-        &self,
-    ) -> impl Iterator<Item = (LocalNodeId<Type>, Storage, LocalNodeId<Function>)> + '_ {
+    pub fn hooks(&self) -> impl Iterator<Item = (TypeId, Storage, LocalNodeId<Function>)> + '_ {
         self.hooks
             .iter()
             .map(|(&(ty, storage), &function)| (ty, storage, function))
@@ -130,7 +119,7 @@ impl DropTable {
     /// Record the user-authored drop hook for a type in one storage.
     pub fn set_hook(
         &mut self,
-        ty: LocalNodeId<Type>,
+        ty: TypeId,
         storage: Storage,
         function: LocalNodeId<Function>,
     ) -> Option<LocalNodeId<Function>> {
@@ -140,17 +129,15 @@ impl DropTable {
     /// Return whether one inline child requires destruction.
     fn children_require_destructor(
         &self,
-        ty: LocalNodeId<Type>,
+        ty: TypeId,
         storage: Storage,
         tree: &Tree,
-        seen: &mut FxIndexSet<LocalNodeId<Type>>,
+        seen: &mut FxIndexSet<TypeId>,
     ) -> bool {
-        match tree.get(ty) {
-            Type::Struct { fields, .. } => fields.iter().any(|field| {
-                let field = tree.get(*field);
-
-                self.child_requires_destructor(field.ty, storage, tree, seen)
-            }),
+        match tree.ty(ty) {
+            Type::Struct { fields, .. } => fields
+                .iter()
+                .any(|field| self.child_requires_destructor(field.ty, storage, tree, seen)),
             Type::Tuple { elements, .. } => elements
                 .iter()
                 .any(|element| self.child_requires_destructor(*element, storage, tree, seen)),
@@ -176,17 +163,17 @@ impl DropTable {
     /// Return whether one owned child requires destruction.
     fn child_requires_destructor(
         &self,
-        ty: LocalNodeId<Type>,
+        ty: TypeId,
         storage: Storage,
         tree: &Tree,
-        seen: &mut FxIndexSet<LocalNodeId<Type>>,
+        seen: &mut FxIndexSet<TypeId>,
     ) -> bool {
-        if tree.get(ty).copy(tree).is_yes() {
+        if tree.ty(ty).copy(tree).is_yes() {
             return false;
         }
         if self.destructor(ty, storage).is_some()
             || self.hook(ty, storage).is_some()
-            || tree.get(ty).is_unique_storage()
+            || tree.ty(ty).is_unique_storage()
         {
             return true;
         }

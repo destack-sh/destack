@@ -5,10 +5,7 @@ use std::marker::PhantomData;
 use destack_source::{ModuleId, TargetId};
 use serde::{Deserialize, Serialize};
 
-use crate::{Block, Function, Global, Local, Type};
-
-/// Compact type identity in one MIR tree.
-pub type TypeId = LocalNodeId<Type>;
+use crate::{Block, Function, Global, Local};
 
 /// Compact block identity in one MIR function.
 pub type BlockId = LocalNodeId<Block>;
@@ -37,12 +34,8 @@ pub enum NodeType {
     Terminator,
     /// A local variable (stack slot).
     Local,
-    /// A type.
-    Type,
     /// A named type declaration.
     TypeDeclaration,
-    /// A struct field.
-    Field,
     /// A global variable or constant.
     Global,
 }
@@ -86,10 +79,8 @@ impl NodeIndexEntry {
             2 => NodeType::Instruction,
             3 => NodeType::Terminator,
             4 => NodeType::Local,
-            5 => NodeType::Type,
-            6 => NodeType::TypeDeclaration,
-            7 => NodeType::Field,
-            8 => NodeType::Global,
+            5 => NodeType::TypeDeclaration,
+            6 => NodeType::Global,
             _ => unreachable!("invalid MIR node type tag in packed node index"),
         }
     }
@@ -103,10 +94,8 @@ impl NodeIndexEntry {
             NodeType::Instruction => 2,
             NodeType::Terminator => 3,
             NodeType::Local => 4,
-            NodeType::Type => 5,
-            NodeType::TypeDeclaration => 6,
-            NodeType::Field => 7,
-            NodeType::Global => 8,
+            NodeType::TypeDeclaration => 5,
+            NodeType::Global => 6,
         }
     }
 }
@@ -121,9 +110,7 @@ impl NodeType {
             NodeType::Instruction => "instruction",
             NodeType::Terminator => "terminator",
             NodeType::Local => "local",
-            NodeType::Type => "type",
             NodeType::TypeDeclaration => "type_declaration",
-            NodeType::Field => "field",
             NodeType::Global => "global",
         }
     }

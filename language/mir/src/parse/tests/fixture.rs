@@ -67,10 +67,12 @@ impl<'a> TestParser<'a> {
     pub(crate) fn parse(self) -> (Tree, StringPool) {
         let file = test_file(self.source);
 
-        Parser::parse(&file, ParseOptions::default())
+        let (tree, _provenance, strings) = Parser::parse(&file, ParseOptions::default())
             .expect("MIR parser requires text content")
             .finish()
-            .expect("parse failed")
+            .expect("parse failed");
+
+        (tree, strings)
     }
 
     /// Parse one fixture and keep recovery diagnostics.
@@ -80,6 +82,7 @@ impl<'a> TestParser<'a> {
             .expect("MIR parser requires text content");
         let (
             tree,
+            _provenance,
             _target_layout,
             _layouts,
             _dispatch,
@@ -107,6 +110,7 @@ impl<'a> TestParser<'a> {
             .expect("MIR parser requires text content");
         let (
             tree,
+            _provenance,
             target_layout,
             _layouts,
             _dispatch,

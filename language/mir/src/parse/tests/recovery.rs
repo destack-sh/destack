@@ -1,6 +1,6 @@
 use crate::{
-    Block, Field, Function, Global, Instruction, Local, LocalNodeId, Terminator, Tree, Type,
-    TypeDeclaration, assert_node,
+    Block, Function, Global, Instruction, Local, Terminator, Tree, Type, TypeDeclaration, TypeId,
+    assert_node,
 };
 use destack_source::DiagnosticSeverity;
 
@@ -285,15 +285,12 @@ type Pair {
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
 
     // recovered fields
-    assert_node!(tree, declaration.ty, Type::Struct { fields, .. } => {
-        assert_eq!(fields.len(), 2);
-        assert_node!(tree, fields[0], Field { ty, .. } => {
-            assert_error_type(&tree, *ty);
-        });
-        assert_node!(tree, fields[1], Field { ty, .. } => {
-            assert!(!matches!(tree.get(*ty), Type::Error));
-        });
-    });
+    let Type::Struct { fields, .. } = tree.ty(declaration.ty) else {
+        panic!("expected recovered struct type");
+    };
+    assert_eq!(fields.len(), 2);
+    assert_error_type(&tree, fields[0].ty);
+    assert!(!matches!(tree.ty(fields[1].ty), Type::Error));
 }
 
 /// Recovering parse keeps a global declaration with a missing type.
@@ -361,9 +358,9 @@ b0:
     assert_eq!(function.blocks().len(), 1);
 }
 
-/// Assert one type node recovered as the error type.
-fn assert_error_type(tree: &Tree, ty: LocalNodeId<Type>) {
-    assert_node!(tree, ty, Type::Error);
+/// Assert one type recovered as the error type.
+fn assert_error_type(tree: &Tree, ty: TypeId) {
+    assert!(matches!(tree.ty(ty), Type::Error));
 }
 
 /// Recovering parse collects multiple same-block instruction errors.

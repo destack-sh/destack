@@ -9,7 +9,7 @@ use super::value::{
 
 use crate::{
     AtomicAccess, CompareExchangeAccess, ExecutionScope, FenceAccess, FormatNode, FunctionId,
-    GlobalId, Instruction, LocalNodeId, StorageSet, Type, Value, Writer,
+    GlobalId, Instruction, LocalNodeId, StorageSet, TypeId, Value, Writer,
 };
 
 impl FormatNode for Instruction {
@@ -1268,10 +1268,7 @@ fn format_typed_destination<'a>(destination: Value, f: &mut Writer<'a, '_>) -> F
 }
 
 /// Return the value type of one instruction destination.
-fn typed_destination_type<'a>(
-    destination: Value,
-    f: &mut Writer<'a, '_>,
-) -> FormatResult<LocalNodeId<Type>> {
+fn typed_destination_type<'a>(destination: Value, f: &mut Writer<'a, '_>) -> FormatResult<TypeId> {
     f.context()
         .value_type(destination)
         .ok_or(FormatError::SyntaxError {

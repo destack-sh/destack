@@ -402,7 +402,7 @@ impl InitializationTable {
         let is_variant = self
             .paths
             .value(aggregate)
-            .is_some_and(|path| matches!(tree.get(self.paths.get(path).ty), Type::Variant { .. }));
+            .is_some_and(|path| matches!(tree.ty(self.paths.get(path).ty), Type::Variant { .. }));
         let path = if is_variant {
             self.paths.value(aggregate)
         } else {

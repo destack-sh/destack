@@ -1,11 +1,25 @@
 use destack_core::StringPool;
+use destack_source::{FileId, ProvenanceId, ProvenanceTable, Span};
 
 use crate::build::ModuleBuilder;
 use crate::{
     Access, BinaryOperator, Callee, Copy, ExecutionScope, FenceAccess, FloatType, FormatOptions,
     Formatter, Lifetime, LifetimeParameter, MemoryOrdering, Multiplicity, Mutability, Nullability,
-    ReferenceKind, Storage, StorageSet, Symbol, TargetLayout, Tree, Type, TypeHeritage, TypeId,
+    ReferenceKind, Storage, StorageSet, Symbol, TargetLayout, Tree, Type, TypeHeritage,
 };
+
+const SOURCE: ProvenanceId = ProvenanceId::new(0);
+
+/// Create a MIR builder rooted in one authored test provenance.
+fn test_module() -> ModuleBuilder {
+    let mut provenance = ProvenanceTable::build();
+    let source = provenance.insert_authored(Span::empty(FileId::new(0)));
+    let provenance = provenance.finish();
+
+    assert_eq!(source, SOURCE);
+
+    ModuleBuilder::new(provenance, "mir.build")
+}
 
 /// Format one test MIR tree.
 fn format_test_mir(tree: &Tree, strings: &StringPool) -> String {
@@ -23,12 +37,12 @@ fn format_test_mir(tree: &Tree, strings: &StringPool) -> String {
 #[test]
 fn test_build_empty_function() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let void_type = module.type_void();
 
     // build empty function
     let header = module.function_header("empty").result(void_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     builder.return_(None);
@@ -36,7 +50,7 @@ fn test_build_empty_function() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function empty(): void {
@@ -50,15 +64,15 @@ entry:
 #[test]
 fn test_build_function_with_parameters() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i32_type = module.type_int(32, true);
 
     // build add function
     let header = module
         .function_header("add")
-        .parameters([i32_type, i32_type])
+        .parameters([(i32_type, SOURCE), (i32_type, SOURCE)])
         .result(i32_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let left_value = builder.function_parameter(0);
@@ -69,7 +83,7 @@ fn test_build_function_with_parameters() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function add(v0: int32, v1: int32): int32 {
@@ -84,12 +98,12 @@ entry(v0: int32, v1: int32):
 #[test]
 fn test_build_function_with_locals() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i64_type = module.type_int(64, true);
 
     // build function with local
     let header = module.function_header("withLocal").result(i64_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -103,7 +117,7 @@ fn test_build_function_with_locals() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function withLocal(): int64 {
@@ -122,16 +136,16 @@ entry:
 #[test]
 fn test_build_function_with_branch() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let bool_type = module.type_boolean();
     let i32_type = module.type_int(32, true);
 
     // build function with branch
     let header = module
         .function_header("select")
-        .parameters([bool_type])
+        .parameters([(bool_type, SOURCE)])
         .result(i32_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
 
     // create blocks
     let entry_block = builder.block();
@@ -165,7 +179,7 @@ fn test_build_function_with_branch() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function select(v0: boolean): int32 {
@@ -190,21 +204,21 @@ b3:
 #[test]
 fn test_build_function_with_invoke() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i32_type = module.type_int(32, true);
     let signature = module.type_function_signature(vec![i32_type], i32_type);
     let callee_header = module
         .function_header("callee")
-        .parameters([i32_type])
+        .parameters([(i32_type, SOURCE)])
         .result(i32_type);
-    let callee = module.external_function(callee_header);
+    let callee = module.external_function(callee_header, &[SOURCE]);
 
     // build function
     let header = module
         .function_header("caller")
-        .parameters([i32_type])
+        .parameters([(i32_type, SOURCE)])
         .result(i32_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     let target_block = builder.block();
     let unwind_block = builder.block();
@@ -215,7 +229,7 @@ fn test_build_function_with_invoke() {
     let result = builder.add_block_parameter(target_block, i32_type);
     builder.invoke(
         Callee::Direct { function: callee },
-        TypeId::from(signature),
+        signature,
         vec![argument],
         target_block,
         Vec::new(),
@@ -236,7 +250,7 @@ fn test_build_function_with_invoke() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 external function callee(int32): int32
@@ -258,41 +272,41 @@ b2:
 #[test]
 fn test_build_calls_from_callee_and_signature() {
     // setup callable declarations
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let void_type = module.type_void();
     let i32_type = module.type_int(32, true);
     let identity_signature = module.type_function_signature(vec![i32_type], i32_type);
     let sink_signature = module.type_function_signature(vec![i32_type], void_type);
     let identity_header = module
         .function_header("identity")
-        .parameters([i32_type])
+        .parameters([(i32_type, SOURCE)])
         .result(i32_type);
     let sink_header = module
         .function_header("sink")
-        .parameters([i32_type])
+        .parameters([(i32_type, SOURCE)])
         .result(void_type);
-    let identity = module.external_function(identity_header);
-    let sink = module.external_function(sink_header);
+    let identity = module.external_function(identity_header, &[SOURCE]);
+    let sink = module.external_function(sink_header, &[SOURCE]);
 
     // build value and void calls through the same operation
     let header = module
         .function_header("caller")
-        .parameters([i32_type])
+        .parameters([(i32_type, SOURCE)])
         .result(i32_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let argument = builder.function_parameter(0);
     let result = builder
         .call(
             Callee::Direct { function: identity },
-            TypeId::from(identity_signature),
+            identity_signature,
             vec![argument],
         )
         .expect("identity returns a value");
     let void_result = builder.call(
         Callee::Direct { function: sink },
-        TypeId::from(sink_signature),
+        sink_signature,
         vec![result],
     );
     assert_eq!(void_result, None);
@@ -301,7 +315,7 @@ fn test_build_calls_from_callee_and_signature() {
     builder.finish().unwrap();
 
     // verify the complete MIR
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 external function identity(int32): int32
@@ -321,7 +335,7 @@ entry(v0: int32):
 #[test]
 fn test_build_function_with_panic_terminator() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i32_type = module.type_int(32, true);
     let string_type = module.type_reference(
         ReferenceKind::Managed,
@@ -335,7 +349,7 @@ fn test_build_function_with_panic_terminator() {
 
     // build function
     let header = module.function_header("panicker").result(void_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let payload = builder.null(string_type);
@@ -344,7 +358,7 @@ fn test_build_function_with_panic_terminator() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function panicker(): void {
@@ -359,12 +373,12 @@ entry:
 #[test]
 fn test_ssa_define_use_single_block() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i32_type = module.type_int(32, true);
 
     // build function
     let header = module.function_header("varTest").result(i32_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -382,7 +396,7 @@ fn test_ssa_define_use_single_block() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function varTest(): int32 {
@@ -397,12 +411,12 @@ entry:
 #[test]
 fn test_ssa_redefine_variable() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i32_type = module.type_int(32, true);
 
     // build function
     let header = module.function_header("redefine").result(i32_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -422,7 +436,7 @@ fn test_ssa_redefine_variable() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function redefine(): int32 {
@@ -438,16 +452,16 @@ entry:
 #[test]
 fn test_ssa_branch_with_phi() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let bool_type = module.type_boolean();
     let i32_type = module.type_int(32, true);
 
     // build function
     let header = module
         .function_header("phiTest")
-        .parameters([bool_type])
+        .parameters([(bool_type, SOURCE)])
         .result(i32_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
 
     // create blocks
     let entry_block = builder.block();
@@ -486,7 +500,7 @@ fn test_ssa_branch_with_phi() {
     builder.finish().unwrap();
 
     // verify the merge block takes a block parameter
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function phiTest(v0: boolean): int32 {
@@ -511,16 +525,16 @@ b3(v3: int32):
 #[test]
 fn test_ssa_trivial_phi_removal() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let bool_type = module.type_boolean();
     let i32_type = module.type_int(32, true);
 
     // build function
     let header = module
         .function_header("trivialPhi")
-        .parameters([bool_type])
+        .parameters([(bool_type, SOURCE)])
         .result(i32_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
 
     // create blocks
     let entry_block = builder.block();
@@ -557,7 +571,7 @@ fn test_ssa_trivial_phi_removal() {
     builder.finish().unwrap();
 
     // verify the merge block stays parameterless
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function trivialPhi(v0: boolean): int32 {
@@ -581,16 +595,16 @@ b3:
 #[test]
 fn test_ssa_trivial_phi_unsealed() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let bool_type = module.type_boolean();
     let i32_type = module.type_int(32, true);
 
     // build function
     let header = module
         .function_header("trivialPhiUnsealed")
-        .parameters([bool_type])
+        .parameters([(bool_type, SOURCE)])
         .result(i32_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
 
     // create blocks
     let entry_block = builder.block();
@@ -626,7 +640,7 @@ fn test_ssa_trivial_phi_unsealed() {
     builder.finish().unwrap();
 
     // verify output: trivial phi removal rewrites the unsealed use
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function trivialPhiUnsealed(v0: boolean): int32 {
@@ -650,15 +664,15 @@ b3:
 #[test]
 fn test_build_arithmetic_operations() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i32_type = module.type_int(32, true);
 
     // build function
     let header = module
         .function_header("arithmetic")
-        .parameters([i32_type, i32_type])
+        .parameters([(i32_type, SOURCE), (i32_type, SOURCE)])
         .result(i32_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -675,7 +689,7 @@ fn test_build_arithmetic_operations() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function arithmetic(v0: int32, v1: int32): int32 {
@@ -693,16 +707,16 @@ entry(v0: int32, v1: int32):
 #[test]
 fn test_build_comparison_operations() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
 
     // build function
     let header = module
         .function_header("compare")
-        .parameters([i32_type, i32_type])
+        .parameters([(i32_type, SOURCE), (i32_type, SOURCE)])
         .result(bool_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -718,7 +732,7 @@ fn test_build_comparison_operations() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function compare(v0: int32, v1: int32): boolean {
@@ -737,7 +751,7 @@ fn test_type_construction() {
     use crate::Type;
 
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
 
     // create various types
     let void_type = module.type_void();
@@ -763,49 +777,49 @@ fn test_type_construction() {
     );
 
     // verify types
-    let (tree, _strings) = module.finish_tree();
-    assert!(matches!(tree.get(void_type), Type::Void));
-    assert!(matches!(tree.get(bool_type), Type::Boolean));
-    assert!(matches!(tree.get(character_type), Type::Character));
+    let (tree, _provenance, _strings) = module.finish_tree();
+    assert!(matches!(tree.ty(void_type), Type::Void));
+    assert!(matches!(tree.ty(bool_type), Type::Boolean));
+    assert!(matches!(tree.ty(character_type), Type::Character));
     assert!(matches!(
-        tree.get(i32_type),
+        tree.ty(i32_type),
         Type::Int {
             width: 32,
             is_signed: true
         }
     ));
     assert!(matches!(
-        tree.get(i64_type),
+        tree.ty(i64_type),
         Type::Int {
             width: 64,
             is_signed: true
         }
     ));
-    assert_eq!(tree.get(f32_type), &Type::FLOAT32);
-    assert_eq!(tree.get(f64_type), &Type::FLOAT64);
-    assert!(matches!(tree.get(pointer_type), Type::Pointer { .. }));
+    assert_eq!(tree.ty(f32_type), &Type::FLOAT32);
+    assert_eq!(tree.ty(f64_type), &Type::FLOAT64);
+    assert!(matches!(tree.ty(pointer_type), Type::Pointer { .. }));
     assert!(matches!(
-        tree.get(array_type),
+        tree.ty(array_type),
         Type::FixedArray { length: 10, .. }
     ));
-    assert!(matches!(tree.get(tuple_type), Type::Tuple { .. }));
+    assert!(matches!(tree.ty(tuple_type), Type::Tuple { .. }));
     assert!(matches!(
-        tree.get(function_pointer_type),
+        tree.ty(function_pointer_type),
         Type::FunctionPointer { .. }
     ));
-    assert!(matches!(tree.get(callable_type), Type::Function { .. }));
+    assert!(matches!(tree.ty(callable_type), Type::Function { .. }));
 }
 
 /// seal_all_blocks seals all blocks at once.
 #[test]
 fn test_seal_all_blocks() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let void_type = module.type_void();
 
     // build multi-block function
     let header = module.function_header("multiBlock").result(void_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let b0 = builder.block();
     let b1 = builder.block();
     let b2 = builder.block();
@@ -823,7 +837,7 @@ fn test_seal_all_blocks() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function multiBlock(): void {
@@ -845,7 +859,7 @@ fn test_construct_reference_and_pointer_types() {
     use crate::Type;
 
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
 
     // create managed reference types
     let i32_type = module.type_int(32, true);
@@ -885,9 +899,9 @@ fn test_construct_reference_and_pointer_types() {
     let pointer_mutable_type = module.type_pointer(i32_type, Access::Mutable, Nullability::None);
 
     // verify types
-    let (tree, _strings) = module.finish_tree();
+    let (tree, _provenance, _strings) = module.finish_tree();
     assert!(matches!(
-        tree.get(managed_readonly_type),
+        tree.ty(managed_readonly_type),
         Type::Reference {
             kind: ReferenceKind::Managed,
             access: Access::Readonly,
@@ -896,7 +910,7 @@ fn test_construct_reference_and_pointer_types() {
         }
     ));
     assert!(matches!(
-        tree.get(managed_mutable_type),
+        tree.ty(managed_mutable_type),
         Type::Reference {
             kind: ReferenceKind::Managed,
             access: Access::Mutable,
@@ -905,7 +919,7 @@ fn test_construct_reference_and_pointer_types() {
         }
     ));
     assert!(matches!(
-        tree.get(managed_nullable_readonly_type),
+        tree.ty(managed_nullable_readonly_type),
         Type::Reference {
             kind: ReferenceKind::Managed,
             access: Access::Readonly,
@@ -914,7 +928,7 @@ fn test_construct_reference_and_pointer_types() {
         }
     ));
     assert!(matches!(
-        tree.get(managed_nullable_mutable_type),
+        tree.ty(managed_nullable_mutable_type),
         Type::Reference {
             kind: ReferenceKind::Managed,
             access: Access::Mutable,
@@ -923,7 +937,7 @@ fn test_construct_reference_and_pointer_types() {
         }
     ));
     assert!(matches!(
-        tree.get(pointer_readonly_type),
+        tree.ty(pointer_readonly_type),
         Type::Pointer {
             access: Access::Readonly,
             nullability: Nullability::None,
@@ -931,7 +945,7 @@ fn test_construct_reference_and_pointer_types() {
         }
     ));
     assert!(matches!(
-        tree.get(pointer_mutable_type),
+        tree.ty(pointer_mutable_type),
         Type::Pointer {
             access: Access::Mutable,
             nullability: Nullability::None,
@@ -944,7 +958,7 @@ fn test_construct_reference_and_pointer_types() {
 #[test]
 fn test_build_new_zeroed() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i32_type = module.type_int(32, true);
     let ref_type = module.type_reference(
         ReferenceKind::Managed,
@@ -957,7 +971,7 @@ fn test_build_new_zeroed() {
 
     // build function with new.zeroed
     let header = module.function_header("allocTest").result(ref_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let allocated_value = builder.new_zeroed(i32_type, ref_type);
@@ -966,7 +980,7 @@ fn test_build_new_zeroed() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function allocTest(): ref<int32, managed, readonly, local> {
@@ -981,7 +995,7 @@ entry:
 #[test]
 fn test_build_new_slice_zeroed() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i32_type = module.type_int(32, true);
     let i64_type = module.type_int(64, true);
     let slice_type = module.type_slice(
@@ -996,9 +1010,9 @@ fn test_build_new_slice_zeroed() {
     // build function with new.slice.zeroed
     let header = module
         .function_header("allocArrayTest")
-        .parameters([i64_type])
+        .parameters([(i64_type, SOURCE)])
         .result(slice_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let length_value = builder.function_parameter(0);
@@ -1008,7 +1022,7 @@ fn test_build_new_slice_zeroed() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function allocArrayTest(v0: int64): slice<int32, managed, mutable, local> {
@@ -1023,7 +1037,7 @@ entry(v0: int64):
 #[test]
 fn test_build_slice_view() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i32_type = module.type_int(32, true);
     let i64_type = module.type_int(64, true);
     let source_type = module.type_slice(
@@ -1047,9 +1061,13 @@ fn test_build_slice_view() {
     let header = module
         .function_header("sliceTest")
         .lifetime("'a")
-        .parameters([source_type, i64_type, i64_type])
+        .parameters([
+            (source_type, SOURCE),
+            (i64_type, SOURCE),
+            (i64_type, SOURCE),
+        ])
         .result(slice_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let source_value = builder.function_parameter(0);
@@ -1061,7 +1079,7 @@ fn test_build_slice_view() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function sliceTest<'a>(v0: slice<int32, managed, mutable, local>, v1: int64, v2: int64): slice<int32, borrowed, 'a, mutable, local> {
@@ -1078,15 +1096,15 @@ fn test_build_intrinsics() {
     use crate::Intrinsic;
 
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let f64_type = module.type_float(FloatType::Float64);
 
     // build function with intrinsics
     let header = module
         .function_header("intrinsicTest")
-        .parameters([f64_type, f64_type])
+        .parameters([(f64_type, SOURCE), (f64_type, SOURCE)])
         .result(f64_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1101,7 +1119,7 @@ fn test_build_intrinsics() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function intrinsicTest(v0: float64, v1: float64): float64 {
@@ -1118,12 +1136,12 @@ entry(v0: float64, v1: float64):
 #[test]
 fn test_build_void_intrinsic() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let void_type = module.type_void();
 
     // build function with void intrinsic
     let header = module.function_header("fenceTest").result(void_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let access = FenceAccess::new(
@@ -1137,7 +1155,7 @@ fn test_build_void_intrinsic() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function fenceTest(): void {
@@ -1152,7 +1170,7 @@ entry:
 #[test]
 fn test_build_struct_aggregate() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i32_type = module.type_int(32, true);
     let f64_type = module.type_float(FloatType::Float64);
 
@@ -1164,9 +1182,9 @@ fn test_build_struct_aggregate() {
     // build function that constructs a struct
     let header = module
         .function_header("makePoint")
-        .parameters([i32_type, f64_type])
+        .parameters([(i32_type, SOURCE), (f64_type, SOURCE)])
         .result(struct_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1178,7 +1196,7 @@ fn test_build_struct_aggregate() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function makePoint(v0: int32, v1: float64): { int32, float64 } {
@@ -1193,7 +1211,7 @@ entry(v0: int32, v1: float64):
 #[test]
 fn test_build_tuple_aggregate() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
     let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copy::Yes);
@@ -1201,9 +1219,9 @@ fn test_build_tuple_aggregate() {
     // build function that constructs a tuple
     let header = module
         .function_header("makePair")
-        .parameters([i32_type, bool_type])
+        .parameters([(i32_type, SOURCE), (bool_type, SOURCE)])
         .result(tuple_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1215,7 +1233,7 @@ fn test_build_tuple_aggregate() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function makePair(v0: int32, v1: boolean): (int32, boolean) {
@@ -1230,13 +1248,13 @@ entry(v0: int32, v1: boolean):
 #[test]
 fn test_build_array_aggregate() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i32_type = module.type_int(32, true);
     let array_type = module.type_fixed_array(i32_type, 3, Copy::Yes);
 
     // build function that constructs an array
     let header = module.function_header("makeArray").result(array_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1249,7 +1267,7 @@ fn test_build_array_aggregate() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function makeArray(): [int32; 3] {
@@ -1267,7 +1285,7 @@ entry:
 #[test]
 fn test_build_field_get_struct() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i32_type = module.type_int(32, true);
     let f64_type = module.type_float(FloatType::Float64);
     let value0 = module.field(None, i32_type);
@@ -1277,9 +1295,9 @@ fn test_build_field_get_struct() {
     // build function that extracts the second field
     let header = module
         .function_header("getY")
-        .parameters([struct_type])
+        .parameters([(struct_type, SOURCE)])
         .result(f64_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1290,7 +1308,7 @@ fn test_build_field_get_struct() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function getY(v0: { int32, float64 }): float64 {
@@ -1305,7 +1323,7 @@ entry(v0: { int32, float64 }):
 #[test]
 fn test_build_field_get_tuple() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
     let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copy::Yes);
@@ -1313,9 +1331,9 @@ fn test_build_field_get_tuple() {
     // build function that extracts the first element
     let header = module
         .function_header("getFirst")
-        .parameters([tuple_type])
+        .parameters([(tuple_type, SOURCE)])
         .result(i32_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1326,7 +1344,7 @@ fn test_build_field_get_tuple() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function getFirst(v0: (int32, boolean)): int32 {
@@ -1341,7 +1359,7 @@ entry(v0: (int32, boolean)):
 #[test]
 fn test_build_field_get_from_lifetime_applied_type() {
     // define the referenced user type
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let int32 = module.type_int(32, true);
     let user_field_name = module.strings().intern("id");
     let user_field = module.field(Some(user_field_name), int32);
@@ -1360,6 +1378,8 @@ fn test_build_field_get_from_lifetime_applied_type() {
         Vec::new(),
         user,
         TypeHeritage::default(),
+        SOURCE,
+        vec![SOURCE],
     );
 
     // define a lifetime-polymorphic aggregate borrowing the user
@@ -1393,6 +1413,8 @@ fn test_build_field_get_from_lifetime_applied_type() {
         lifetime_parameters,
         view,
         TypeHeritage::default(),
+        SOURCE,
+        vec![SOURCE],
     );
 
     // project the field from one concrete lifetime application
@@ -1410,9 +1432,9 @@ fn test_build_field_get_from_lifetime_applied_type() {
     );
     let header = module
         .function_header("getStatic")
-        .parameter(static_view)
+        .parameter(static_view, SOURCE)
         .result(static_user);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry = builder.block();
     builder.switch_to_block(entry);
     let value = builder.function_parameter(0);
@@ -1422,7 +1444,7 @@ fn test_build_field_get_from_lifetime_applied_type() {
     builder.finish().unwrap();
 
     // require the complete declared and projected MIR
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 @copy
@@ -1447,7 +1469,7 @@ entry(v0: View<'static>):
 #[test]
 fn test_build_element_get_array() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i32_type = module.type_int(32, true);
     let i64_type = module.type_int(64, true);
     let array_type = module.type_fixed_array(i32_type, 3, Copy::Yes);
@@ -1455,9 +1477,9 @@ fn test_build_element_get_array() {
     // build function that extracts one fixed element
     let header = module
         .function_header("getElement")
-        .parameters([array_type, i64_type])
+        .parameters([(array_type, SOURCE), (i64_type, SOURCE)])
         .result(i32_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1468,7 +1490,7 @@ fn test_build_element_get_array() {
     builder.finish().unwrap();
 
     // verify output
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function getElement(v0: [int32; 3], v1: int64): int32 {
@@ -1492,16 +1514,16 @@ entry(v0: [int32; 3], v1: int64):
 #[test]
 fn test_ssa_passthrough_intermediate_block() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
 
     // build function
     let header = module
         .function_header("passthrough")
-        .parameters([bool_type])
+        .parameters([(bool_type, SOURCE)])
         .result(i32_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
 
     // create blocks
     let b0 = builder.block(); // init
@@ -1555,7 +1577,7 @@ fn test_ssa_passthrough_intermediate_block() {
 
     // verify output
     // the key check: b3 must pass the updated x to b1
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
 
     // expected: b3 passes the updated x (v4) from b2 to b1
@@ -1590,16 +1612,16 @@ b4:
 #[test]
 fn test_ssa_multiple_phis_at_merge() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = test_module();
     let bool_type = module.type_boolean();
     let i32_type = module.type_int(32, true);
 
     // build function
     let header = module
         .function_header("multiPhi")
-        .parameters([bool_type])
+        .parameters([(bool_type, SOURCE)])
         .result(i32_type);
-    let mut builder = module.function(header);
+    let mut builder = module.function(header, &[SOURCE]);
 
     // create blocks: diamond CFG
     let entry = builder.block();
@@ -1645,7 +1667,7 @@ fn test_ssa_multiple_phis_at_merge() {
     builder.finish().unwrap();
 
     // verify output: two block parameters, arguments in correct order
-    let (tree, strings) = module.finish_tree();
+    let (tree, _provenance, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function multiPhi(v0: boolean): int32 {

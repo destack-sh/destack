@@ -1,11 +1,9 @@
 use crate as mir;
 use crate::DefinitionTable;
 use destack_core::{FxIndexMap, float_from_bits, float_to_bits};
+use destack_source::ProvenanceJournal;
 
-use super::{
-    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
-    terminator_substitute_uses,
-};
+use super::{instruction_substitute_uses_in_tree, terminator_substitute_uses};
 
 /// mir::Constant type information for literal values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,7 +68,7 @@ pub fn constant_matches_type(
 ) -> bool {
     let destination_type = destination_type.into();
 
-    match (constant_type, tree.get(destination_type)) {
+    match (constant_type, tree.ty(destination_type)) {
         (ConstantType::Null, ty) => ty.nullability().is_some_and(mir::Nullability::allows_null),
         (ConstantType::Undefined, ty) => ty
             .nullability()
@@ -142,6 +140,7 @@ pub fn apply_constant_parameters(
     function_id: mir::LocalNodeId<mir::Function>,
     constants: &[Option<mir::Constant>],
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
 ) -> bool {
     // prepare the substitution map and new instructions
@@ -178,17 +177,22 @@ pub fn apply_constant_parameters(
         let mut new_instruction_ids = Vec::new();
 
         for (destination, constant) in &new_instructions {
-            let instruction_id = tree.insert(mir::Instruction::Const {
-                destination: (*destination),
-                value: constant.clone(),
-            });
+            let source = tree.provenance(function_id.id);
+            let instruction_provenance = provenance.derive(source);
+            let instruction_id = tree.insert(
+                mir::Instruction::Const {
+                    destination: (*destination),
+                    value: constant.clone(),
+                },
+                instruction_provenance,
+            );
             new_instruction_ids.push(instruction_id);
         }
 
         let mut instructions = tree.get(entry_id).instructions.clone();
         instructions.splice(0..0, new_instruction_ids);
-        function.replace_block_instructions(entry_id, instructions, tree);
-        *tree.get_mut(function_id) = function.clone();
+        function.replace_block_instructions(entry_id, instructions, tree, provenance);
+        tree.rewrite(function_id, function.clone(), provenance);
     }
 
     // stop if no substitutions were created
@@ -206,8 +210,8 @@ pub fn apply_constant_parameters(
             let instruction = tree.get(instruction_id).clone();
             let updated = instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
             if instruction != updated {
-                *tree.get_mut(instruction_id) = updated;
-                remap_instruction_memory_accesses(accesses, instruction_id, &substitutions);
+                tree.rewrite(instruction_id, updated, provenance);
+                accesses.remap_instruction(instruction_id, &substitutions);
             }
         }
 
@@ -216,7 +220,7 @@ pub fn apply_constant_parameters(
         let terminator = tree.get(terminator_id).clone();
         let updated = terminator_substitute_uses(tree, &terminator, &substitutions);
         if terminator != updated {
-            tree.set(terminator_id, updated);
+            tree.rewrite(terminator_id, updated, provenance);
         }
     }
 
@@ -732,7 +736,7 @@ fn constant_tree_from_scalar(
     let ty = ty.into();
 
     // read type
-    let ty = tree.get(ty);
+    let ty = tree.ty(ty);
 
     if let mir::Type::Newtype { inner, .. } = ty {
         return constant_tree_from_scalar(constant, *inner, tree);
@@ -756,7 +760,7 @@ fn constant_tree_from_zero(
     let ty = ty.into();
 
     // read type
-    let ty = tree.get(ty);
+    let ty = tree.ty(ty);
 
     // build zero constants by type
     match ty {
@@ -828,7 +832,7 @@ fn constant_tree_from_zero(
         mir::Type::Struct { fields, .. } => {
             let elements = fields
                 .iter()
-                .map(|field| tree.get(*field).ty)
+                .map(|field| field.ty)
                 .map(|field_ty| {
                     constant_tree_from_zero(
                         field_ty,
@@ -856,7 +860,7 @@ fn constant_tree_from_bytes(
     // read fixed array type
     let mir::Type::FixedArray {
         element, length, ..
-    } = tree.get(ty)
+    } = tree.ty(ty)
     else {
         return ConstantTree::Unknown;
     };
@@ -877,7 +881,7 @@ fn constant_tree_from_bytes(
     let mir::Type::Int {
         width,
         is_signed: signed,
-    } = tree.get(element)
+    } = tree.ty(element)
     else {
         return ConstantTree::Unknown;
     };
@@ -925,7 +929,7 @@ fn constant_tree_from_aggregate_initializer(
     let ty = ty.into();
 
     // map aggregate initializer to type shape
-    match tree.get(ty) {
+    match tree.ty(ty) {
         mir::Type::FixedArray {
             element, length, ..
         } => {
@@ -986,7 +990,7 @@ fn constant_tree_from_aggregate_initializer(
                 .map(|(element_init, field)| {
                     constant_tree_from_initializer(
                         element_init,
-                        tree.get(*field).ty,
+                        field.ty,
                         tree,
                         max_aggregate_elements,
                         pointer_width_bits,
@@ -1219,16 +1223,16 @@ pub fn fold_binary_bool(
     }
 }
 
-/// Try to fold a cast operation on a constant.
+/// Try to fold one cast operation on a constant.
 pub fn fold_cast(
     operator: mir::CastOperator,
     value: mir::Constant,
-    to_type: mir::LocalNodeId<mir::Type>,
+    to_type: mir::TypeId,
     pointer_width_bits: u16,
     tree: &mir::Tree,
 ) -> Option<mir::Constant> {
     // load target type
-    let target_type = tree.get(to_type);
+    let target_type = tree.ty(to_type);
 
     // apply cast semantics
     match operator {

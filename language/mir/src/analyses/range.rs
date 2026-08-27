@@ -867,7 +867,7 @@ impl ValueRange {
     fn cast(
         operator: mir::CastOperator,
         argument: Option<&ValueRange>,
-        to_type: mir::LocalNodeId<mir::Type>,
+        to_type: mir::TypeId,
         tree: &mir::Tree,
         pointer_width_bits: u16,
     ) -> Option<ValueRange> {
@@ -881,7 +881,7 @@ impl ValueRange {
         }
 
         // read the target type
-        let to_type = tree.get(to_type);
+        let to_type = tree.ty(to_type);
 
         match operator {
             mir::CastOperator::SignExtend

@@ -2,11 +2,12 @@ use std::hash::Hash;
 
 use destack_core::{StringId, stable_hash_value};
 use destack_serde::Reflect;
+use destack_source::ProvenanceId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Attribute, Field, Lifetime, LifetimeParameter, LocalNodeId, SignatureParameter, StaticId,
-    Symbol, Tree, Type, TypeDeclaration, TypeHeritage, TypeId, VariantCase,
+    Field, Lifetime, LifetimeParameter, LocalNodeId, SignatureParameter, StaticId, Symbol, Tree,
+    Type, TypeDeclaration, TypeFold, TypeHeritage, TypeId, VariantCase,
 };
 
 /// One stored MIR type.
@@ -43,13 +44,27 @@ pub(crate) enum TypeIndexKey {
 }
 
 impl Tree {
+    /// Iterate over every completely defined canonical type.
+    pub fn iter_types(&self) -> impl Iterator<Item = (TypeId, &Type)> {
+        self.types.iter().enumerate().map(|(index, entry)| {
+            let ty = match entry {
+                TypeEntry::Structural { ty } | TypeEntry::Identified { ty, .. } => ty,
+                TypeEntry::Reserved { symbol } => {
+                    panic!("reserved MIR type {symbol:?} remained after lowering")
+                }
+            };
+
+            (TypeId::new(index as u32), ty)
+        })
+    }
+
     /// Find one type equal by structure.
     pub fn find_type(&self, ty: &Type) -> Option<TypeId> {
         let hash = Self::intern_hash(ty);
         let key = TypeIndexKey::Structural(hash);
         let ids = self.type_index.get(&key)?;
 
-        ids.iter().copied().find(|id| self.get(*id) == ty)
+        ids.iter().copied().find(|id| self.ty(*id) == ty)
     }
 
     /// Intern one type by structure.
@@ -59,15 +74,14 @@ impl Tree {
         let key = TypeIndexKey::Structural(hash);
         if let Some(ids) = self.type_index.get(&key) {
             for id in ids {
-                if self.get(*id) == &ty {
+                if self.ty(*id) == &ty {
                     return *id;
                 }
             }
         }
 
         // allocate and index one new structural type
-        let local_id = self.types.allocate(TypeEntry::Structural { ty });
-        let id = self.insert_node(local_id);
+        let id = TypeId::new(self.types.allocate(TypeEntry::Structural { ty }));
         self.type_index.entry(key).or_default().push(id);
 
         id
@@ -82,8 +96,7 @@ impl Tree {
         }
 
         // allocate and index one new declaration placeholder
-        let local_id = self.types.allocate(TypeEntry::Reserved { symbol });
-        let id = self.insert_node(local_id);
+        let id = TypeId::new(self.types.allocate(TypeEntry::Reserved { symbol }));
         self.type_index.entry(key).or_default().push(id);
 
         id
@@ -111,15 +124,12 @@ impl Tree {
 
     /// Return whether one identified type still awaits its definition.
     pub fn type_is_reserved(&self, id: TypeId) -> bool {
-        let local_id = self.node_local_id(id.id);
-
-        matches!(self.types.get(local_id), TypeEntry::Reserved { .. })
+        matches!(self.types.get(id.id), TypeEntry::Reserved { .. })
     }
 
     /// Define one reserved identified type exactly once.
     pub fn define_type(&mut self, id: TypeId, ty: Type) {
-        let local_id = self.node_local_id(id.id);
-        let entry = self.types.get_mut(local_id);
+        let entry = self.types.get_mut(id.id);
         let TypeEntry::Reserved { symbol } = entry else {
             panic!("defined MIR type {id:?} twice or without reserving it");
         };
@@ -142,14 +152,28 @@ impl Tree {
         lifetimes: Vec<LifetimeParameter>,
         ty: TypeId,
         heritage: TypeHeritage,
+        provenance: ProvenanceId,
+        member_provenance: Vec<ProvenanceId>,
     ) -> LocalNodeId<TypeDeclaration> {
         // reject structural types and incomplete recursive placeholders
-        let type_local_id = self.node_local_id(ty.id);
-        let TypeEntry::Identified { declaration, .. } = self.types.get(type_local_id) else {
+        let TypeEntry::Identified { declaration, .. } = self.types.get(ty.id) else {
             panic!("declared MIR type {ty:?} before its complete identified definition");
         };
         if declaration.is_some() {
             panic!("declared MIR type {ty:?} twice");
+        }
+
+        // require one provenance for every declared member
+        let member_count = match self.ty(ty) {
+            Type::Struct { fields, .. } => fields.len(),
+            Type::Variant { cases, .. } => cases.len(),
+            _ => 0,
+        };
+        if member_provenance.len() != member_count {
+            panic!(
+                "declared MIR type {ty:?} has {member_count} members and {} member provenance",
+                member_provenance.len()
+            );
         }
 
         // allocate through the only declaration construction path
@@ -161,10 +185,11 @@ impl Tree {
             heritage,
         };
         let declaration_local_id = self.type_declarations.allocate(declaration);
-        let id = self.insert_node(declaration_local_id);
+        self.type_member_provenance.push(member_provenance);
+        let id = self.insert_node(declaration_local_id, provenance);
 
         // attach the declaration to its identified type
-        let TypeEntry::Identified { declaration, .. } = self.types.get_mut(type_local_id) else {
+        let TypeEntry::Identified { declaration, .. } = self.types.get_mut(ty.id) else {
             unreachable!("identified MIR type changed during declaration insertion");
         };
         *declaration = Some(id);
@@ -174,8 +199,7 @@ impl Tree {
 
     /// Return the declaration of one identified type when present.
     pub fn type_declaration(&self, ty: TypeId) -> Option<LocalNodeId<TypeDeclaration>> {
-        let local_id = self.node_local_id(ty.id);
-        let TypeEntry::Identified { declaration, .. } = self.types.get(local_id) else {
+        let TypeEntry::Identified { declaration, .. } = self.types.get(ty.id) else {
             return None;
         };
 
@@ -191,52 +215,23 @@ impl Tree {
 
     /// Return whether one identified type is defined.
     pub fn is_defined_type(&self, id: TypeId) -> bool {
-        let local_id = self.node_local_id(id.id);
-
-        matches!(self.types.get(local_id), TypeEntry::Identified { .. })
+        matches!(self.types.get(id.id), TypeEntry::Identified { .. })
     }
 
     /// Return whether one type has stable nominal identity.
     pub fn is_identified_type(&self, id: TypeId) -> bool {
-        let local_id = self.node_local_id(id.id);
-
         matches!(
-            self.types.get(local_id),
+            self.types.get(id.id),
             TypeEntry::Reserved { .. } | TypeEntry::Identified { .. }
         )
     }
 
     /// Return the persistent symbol of one identified type.
     pub fn type_symbol(&self, id: TypeId) -> Option<Symbol> {
-        let local_id = self.node_local_id(id.id);
-
-        match self.types.get(local_id) {
+        match self.types.get(id.id) {
             TypeEntry::Reserved { symbol } | TypeEntry::Identified { symbol, .. } => Some(*symbol),
             TypeEntry::Structural { .. } => None,
         }
-    }
-
-    /// Intern one field and its attributes.
-    pub fn intern_field(&mut self, field: Field, attributes: Vec<Attribute>) -> LocalNodeId<Field> {
-        // reuse an equal field declaration
-        let hash = Self::intern_hash(&(&field, &attributes));
-        if let Some(ids) = self.field_index.get(&hash) {
-            for id in ids {
-                if self.get(*id) == &field && self.attributes(*id) == attributes {
-                    return *id;
-                }
-            }
-        }
-
-        // allocate and index one new field declaration
-        let local_id = self.fields.allocate(field);
-        let id = self.insert_node(local_id);
-        self.field_index.entry(hash).or_default().push(id);
-        if !attributes.is_empty() {
-            self.attributes_by_node_id.insert(id.id, attributes);
-        }
-
-        id
     }
 
     /// Intern the runtime representation of one semantic MIR type.
@@ -246,7 +241,7 @@ impl Tree {
             return id;
         }
 
-        let ty = self.get(id).clone();
+        let ty = self.ty(id).clone();
         let representation = match ty {
             // leaves already carry their complete runtime representation
             Type::Error
@@ -347,7 +342,11 @@ impl Tree {
             Type::Struct { fields, copy } => Type::Struct {
                 fields: fields
                     .into_iter()
-                    .map(|field| self.intern_field_representation(field))
+                    .map(|field| Field {
+                        name: field.name,
+                        ty: self.intern_representation(field.ty),
+                        attributes: field.attributes,
+                    })
                     .collect(),
                 copy,
             },
@@ -429,7 +428,7 @@ impl Tree {
             return id;
         }
 
-        let ty = self.get(id).clone();
+        let ty = self.ty(id).clone();
         let instantiated = match ty {
             // leaves cannot contain lifetime slots
             Type::Error
@@ -529,14 +528,17 @@ impl Tree {
             },
             Type::Struct { fields, copy } => {
                 let mut instantiated = Vec::with_capacity(fields.len());
-                for field_id in fields {
-                    let field = self.get(field_id).clone();
-                    let attributes = self.attributes(field_id).to_vec();
-                    let field = Field {
+                for field in fields {
+                    let mut attributes = field.attributes;
+                    for attribute in &mut attributes {
+                        attribute
+                            .map_types(&mut |ty| self.instantiate_type_lifetimes(ty, arguments));
+                    }
+                    instantiated.push(Field {
                         name: field.name,
                         ty: self.instantiate_type_lifetimes(field.ty, arguments),
-                    };
-                    instantiated.push(self.intern_field(field, attributes));
+                        attributes,
+                    });
                 }
 
                 Type::Struct {
@@ -622,18 +624,6 @@ impl Tree {
         self.intern_type(instantiated)
     }
 
-    /// Intern one field after normalizing its value representation.
-    fn intern_field_representation(&mut self, id: LocalNodeId<Field>) -> LocalNodeId<Field> {
-        let field = self.get(id).clone();
-        let attributes = self.attributes(id).to_vec();
-        let field = Field {
-            name: field.name,
-            ty: self.intern_representation(field.ty),
-        };
-
-        self.intern_field(field, attributes)
-    }
-
     /// Compute one in-memory interning hash.
     pub(crate) fn intern_hash(value: &impl Hash) -> u64 {
         stable_hash_value(value)
@@ -648,26 +638,22 @@ mod tests {
         Access, Copy, Field, Lifetime, Nullability, ReferenceKind, Storage, Symbol, Tree, Type,
     };
 
-    /// Equal structural types and fields have one canonical identity.
+    /// Equal structural types have one canonical identity.
     #[test]
     fn test_intern_structural_types() {
         let mut tree = Tree::new();
         let first_int = tree.intern_type(Type::INT32);
         let second_int = tree.intern_type(Type::INT32);
-        let first_field = tree.intern_field(
-            Field {
-                name: None,
-                ty: first_int,
-            },
-            Vec::new(),
-        );
-        let second_field = tree.intern_field(
-            Field {
-                name: None,
-                ty: second_int,
-            },
-            Vec::new(),
-        );
+        let first_field = Field {
+            name: None,
+            ty: first_int,
+            attributes: Vec::new(),
+        };
+        let second_field = Field {
+            name: None,
+            ty: second_int,
+            attributes: Vec::new(),
+        };
         let first_struct = tree.intern_type(Type::Struct {
             fields: vec![first_field],
             copy: Copy::Yes,
@@ -678,7 +664,6 @@ mod tests {
         });
 
         assert_eq!(first_int, second_int);
-        assert_eq!(first_field, second_field);
         assert_eq!(first_struct, second_struct);
     }
 
@@ -688,20 +673,16 @@ mod tests {
         let mut tree = Tree::new();
         let first = tree.reserve_type(Symbol::named(StringId::for_text("First")));
         let second = tree.reserve_type(Symbol::named(StringId::for_text("Second")));
-        let first_field = tree.intern_field(
-            Field {
-                name: None,
-                ty: first,
-            },
-            Vec::new(),
-        );
-        let second_field = tree.intern_field(
-            Field {
-                name: None,
-                ty: second,
-            },
-            Vec::new(),
-        );
+        let first_field = Field {
+            name: None,
+            ty: first,
+            attributes: Vec::new(),
+        };
+        let second_field = Field {
+            name: None,
+            ty: second,
+            attributes: Vec::new(),
+        };
         tree.define_type(
             first,
             Type::Struct {
@@ -786,13 +767,11 @@ mod tests {
     fn test_preserve_type_identity_through_serialization() {
         let mut tree = Tree::new();
         let int32 = tree.intern_type(Type::INT32);
-        let field = tree.intern_field(
-            Field {
-                name: None,
-                ty: int32,
-            },
-            Vec::new(),
-        );
+        let field = Field {
+            name: None,
+            ty: int32,
+            attributes: Vec::new(),
+        };
         let structure = tree.intern_type(Type::Struct {
             fields: vec![field],
             copy: Copy::Yes,
@@ -807,18 +786,12 @@ mod tests {
 
         assert_eq!(tree.intern_type(Type::INT32), int32);
         assert_eq!(
-            tree.intern_field(
-                Field {
+            tree.intern_type(Type::Struct {
+                fields: vec![Field {
                     name: None,
                     ty: int32,
-                },
-                Vec::new(),
-            ),
-            field
-        );
-        assert_eq!(
-            tree.intern_type(Type::Struct {
-                fields: vec![field],
+                    attributes: Vec::new(),
+                }],
                 copy: Copy::Yes,
             }),
             structure

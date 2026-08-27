@@ -2,11 +2,12 @@ use std::collections::VecDeque;
 
 use crate as mir;
 use destack_core::{FxIndexMap, FxIndexSet};
+use destack_source::ProvenanceJournal;
 
 use crate::{
     ControlTable, DefinitionTable, DominatorTable, MemoryAccessEffect, MemoryNode, MemoryRegion,
-    MemoryTable, clone_instruction_tables, instruction_is_borrow_address,
-    instruction_is_read_only_access, instruction_is_speculatable, instruction_map,
+    MemoryTable, instruction_is_borrow_address, instruction_is_read_only_access,
+    instruction_is_speculatable, instruction_map,
 };
 
 /// Guard branch tables for loop headers.
@@ -286,6 +287,7 @@ pub fn clone_loop_blocks(
     loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
 ) -> (
     FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
@@ -293,7 +295,7 @@ pub fn clone_loop_blocks(
 ) {
     // clone loop blocks and values
     let (block_map, value_map, _) =
-        clone_loop_blocks_internal(loop_blocks, function, tree, accesses);
+        clone_loop_blocks_internal(loop_blocks, function, tree, provenance, accesses);
     (block_map, value_map)
 }
 
@@ -303,6 +305,7 @@ pub fn clone_loop_blocks_with_instructions(
     loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
 ) -> (
     FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
@@ -310,7 +313,7 @@ pub fn clone_loop_blocks_with_instructions(
     FxIndexMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Instruction>>,
 ) {
     // clone loop blocks and values
-    clone_loop_blocks_internal(loop_blocks, function, tree, accesses)
+    clone_loop_blocks_internal(loop_blocks, function, tree, provenance, accesses)
 }
 
 /// Clone loop blocks and return block, value, and instruction maps.
@@ -319,6 +322,7 @@ fn clone_loop_blocks_internal(
     loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
 ) -> (
     FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
@@ -346,17 +350,15 @@ fn clone_loop_blocks_internal(
         let new_params: Vec<mir::BlockParameter> = original
             .parameters
             .iter()
-            .map(|param| match (Some(param.value), Some(param.ty)) {
-                (Some(value), Some(ty)) => {
-                    let new_value = body.next_typed_value(ty);
-                    value_map.insert(value, new_value);
+            .map(|parameter| {
+                let value = body.next_typed_value(parameter.ty);
+                value_map.insert(parameter.value, value);
 
-                    mir::BlockParameter {
-                        value: new_value,
-                        ty,
-                    }
+                mir::BlockParameter {
+                    value,
+                    ty: parameter.ty,
+                    provenance: provenance.derive(parameter.provenance),
                 }
-                _ => *param,
             })
             .collect();
 
@@ -370,13 +372,18 @@ fn clone_loop_blocks_internal(
         }
 
         // create an independent terminator slot for the cloned block
-        let new_terminator = tree.insert(tree.get(original.terminator).clone());
+        let terminator_source = tree.provenance(original.terminator.id);
+        let terminator_provenance = provenance.derive(terminator_source);
+        let new_terminator =
+            tree.insert(tree.get(original.terminator).clone(), terminator_provenance);
         let new_block = mir::Block {
             parameters: new_params,
             instructions: Vec::new(),
             terminator: new_terminator,
         };
-        let new_block_id = tree.insert(new_block);
+        let block_source = tree.provenance(block_id.id);
+        let block_provenance = provenance.derive(block_source);
+        let new_block_id = tree.insert(new_block, block_provenance);
         block_map.insert(*block_id, new_block_id);
     }
 
@@ -388,19 +395,15 @@ fn clone_loop_blocks_internal(
         for instruction_id in instruction_ids {
             let original_instruction = tree.get(instruction_id).clone();
             let new_instruction = instruction_map(&original_instruction, &value_map, tree);
-            let new_instruction_id = tree.insert(new_instruction);
-            clone_instruction_tables(
-                tree,
-                accesses,
-                instruction_id,
-                new_instruction_id,
-                &value_map,
-            );
+            let instruction_source = tree.provenance(instruction_id.id);
+            let instruction_provenance = provenance.derive(instruction_source);
+            let new_instruction_id = tree.insert(new_instruction, instruction_provenance);
+            accesses.clone_instruction(instruction_id, new_instruction_id, &value_map);
             instruction_id_map.insert(instruction_id, new_instruction_id);
             new_instructions.push(new_instruction_id);
         }
 
-        function.replace_block_instructions(new_block_id, new_instructions, tree);
+        function.replace_block_instructions(new_block_id, new_instructions, tree, provenance);
     }
 
     (block_map, value_map, instruction_id_map)

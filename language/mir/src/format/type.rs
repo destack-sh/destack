@@ -1,30 +1,22 @@
 use destack_fir::format::{Allocator, Format, FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
+use destack_source::ProvenanceId;
 
 use super::attribute::{write_attributes, write_attributes_before_anchor, write_inline_attributes};
 use super::r#static::format_static;
 use super::value::format_type_id;
 
 use crate::{
-    Access, Attribute, AttributeIdentifier, Copy, Field, FieldSpan, FormatNode, Formatter,
+    Access, Attribute, AttributeIdentifier, Copy, Field, FieldId, FieldSpan, FormatNode, Formatter,
     Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Nullability, ReferenceKind,
     SignatureParameter, StaticId, Storage, Type, TypeDeclaration, TypeDeclarationSpans,
-    TypeHeritage, TypeId, Writer, write_comments_before,
+    TypeHeritage, TypeId, VariantCase, VariantCaseId, Writer, write_comments_before,
 };
 
-impl FormatNode for Type {
-    fn format_node<'a>(&self, id: LocalNodeId<Type>, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-        format_type_maybe_named(f, id, self, true)
-    }
-}
-
-/// Formatter adapter for one nested type reference.
-struct FormatTypeId(TypeId);
-
-impl<'a> Format<'a, Formatter<'a>> for FormatTypeId {
+impl<'a> Format<'a, Formatter<'a>> for TypeId {
     fn format(&self, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-        format_type_id(self.0, f)
+        format_type_id(*self, f)
     }
 }
 
@@ -35,7 +27,7 @@ impl Formatter<'_> {
         let formatter = Formatter::new(self.tree, self.target_layout, self.strings, self.options);
 
         // build the FIR document from the type
-        let document = destack_fir::format!(&allocator, formatter, [FormatTypeId(ty)])?;
+        let document = destack_fir::format!(&allocator, formatter, [ty])?;
 
         // print the complete type reference
         let printed = document.print()?;
@@ -47,7 +39,7 @@ impl Formatter<'_> {
 /// Format one type in its expanded form, ignoring any named declaration.
 pub(super) fn format_type_expanded<'a>(
     f: &mut Writer<'a, '_>,
-    id: LocalNodeId<Type>,
+    id: TypeId,
     ty: &Type,
 ) -> FormatResult<()> {
     format_type_maybe_named(f, id, ty, false)
@@ -58,7 +50,7 @@ pub(super) fn format_type_declaration<'a>(
     name: &str,
     attributes: &[Attribute],
     declaration_id: Option<LocalNodeId<TypeDeclaration>>,
-    type_id: LocalNodeId<Type>,
+    type_id: TypeId,
     ty: &Type,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
@@ -112,6 +104,18 @@ pub(super) fn format_type_declaration<'a>(
             fields,
             f,
         ),
+        Type::Variant {
+            discriminant,
+            cases,
+            copy: _,
+        } => {
+            write!(f, [token("type"), space()])?;
+            format_type_name(name, &arguments, &lifetimes, f)?;
+            format_type_heritage(&heritage, f)?;
+            write!(f, [space(), token("="), space()])?;
+            format_variant_type(*discriminant, cases, declaration_id, f)?;
+            write!(f, [token(";")])
+        }
         _ => {
             write!(f, [token("type"), space()])?;
             format_type_name(name, &arguments, &lifetimes, f)?;
@@ -157,7 +161,7 @@ fn format_struct_type_declaration<'a>(
     declaration_id: Option<LocalNodeId<TypeDeclaration>>,
     lifetimes: &[LifetimeParameter],
     heritage: &TypeHeritage,
-    fields: &[LocalNodeId<Field>],
+    fields: &[Field],
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token("type"), space()])?;
@@ -180,7 +184,13 @@ fn format_struct_type_declaration<'a>(
     write!(
         f,
         [block_indent(&format_with(|f: &mut Writer<'a, '_>| {
-            format_struct_fields(fields, &field_spans, declaration_spans.as_ref(), f)
+            format_struct_fields(
+                fields,
+                declaration_id,
+                &field_spans,
+                declaration_spans.as_ref(),
+                f,
+            )
         }))]
     )?;
     write!(f, [hard_line_break(), token("}")])
@@ -215,7 +225,8 @@ fn format_type_heritage<'a>(heritage: &TypeHeritage, f: &mut Writer<'a, '_>) -> 
 
 /// Format the fields of one struct type declaration.
 fn format_struct_fields<'a>(
-    field_ids: &[LocalNodeId<Field>],
+    fields: &[Field],
+    declaration_id: Option<LocalNodeId<TypeDeclaration>>,
     field_spans: &[FieldSpan],
     declaration_spans: Option<&TypeDeclarationSpans>,
     f: &mut Writer<'a, '_>,
@@ -230,7 +241,7 @@ fn format_struct_fields<'a>(
         write_comments_before(tree, open_brace_span.end, first_field_span.span.start, f)?;
     }
 
-    for (index, field_id) in field_ids.iter().enumerate() {
+    for (index, field) in fields.iter().enumerate() {
         if index > 0 {
             write!(f, [hard_line_break()])?;
         }
@@ -244,7 +255,12 @@ fn format_struct_fields<'a>(
             write_comments_before(tree, previous_field_span.span.end, field_span.span.start, f)?;
         }
 
-        format_struct_field_entry(*field_id, field_spans.get(index), f)?;
+        let provenance = declaration_id.map(|declaration| {
+            let id = FieldId(declaration, index as u32);
+
+            f.context().tree.field_provenance(id)
+        });
+        format_struct_field_entry(field, field_spans.get(index), provenance, f)?;
     }
 
     // comments before the closing brace
@@ -260,13 +276,18 @@ fn format_struct_fields<'a>(
 
 /// Format one struct field entry.
 fn format_struct_field_entry<'a>(
-    field_id: LocalNodeId<Field>,
+    field: &Field,
     field_span: Option<&FieldSpan>,
+    provenance: Option<ProvenanceId>,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
-    let field = tree.get(field_id);
-    let field_attributes = tree.attributes(field_id);
+    let field_attributes = &field.attributes;
+
+    // map the complete declared field
+    if let Some(provenance) = provenance {
+        f.write_element(FormatElement::Tag(FormatTag::StartProvenance(provenance)));
+    }
 
     // field attributes
     if !field_attributes.is_empty() {
@@ -286,13 +307,19 @@ fn format_struct_field_entry<'a>(
     }
 
     // field body
-    format_struct_field(field, f)
+    format_struct_field(field, f)?;
+
+    if provenance.is_some() {
+        f.write_element(FormatElement::Tag(FormatTag::EndProvenance));
+    }
+
+    Ok(())
 }
 
 /// Format one type, printing its declared name when one is available.
 fn format_type_maybe_named<'a>(
     f: &mut Writer<'a, '_>,
-    id: LocalNodeId<Type>,
+    id: TypeId,
     ty: &Type,
     use_declaration: bool,
 ) -> FormatResult<()> {
@@ -382,7 +409,7 @@ fn format_type_maybe_named<'a>(
                 f,
                 [
                     token("["),
-                    FormatTypeId(*element),
+                    *element,
                     token(";"),
                     space(),
                     copied_text(&length.to_string()),
@@ -415,12 +442,11 @@ fn format_type_maybe_named<'a>(
         }
         Type::Struct { fields, copy: _ } => {
             write!(f, [token("{"), space()])?;
-            for (i, field_id) in fields.iter().enumerate() {
+            for (i, field) in fields.iter().enumerate() {
                 if i > 0 {
                     write!(f, [token(","), space()])?;
                 }
-                let field = f.context().tree.get(*field_id);
-                let attributes = f.context().tree.attributes(*field_id);
+                let attributes = &field.attributes;
                 if !attributes.is_empty() {
                     write_inline_attributes(attributes, f)?;
                     write!(f, [space()])?;
@@ -444,36 +470,7 @@ fn format_type_maybe_named<'a>(
             discriminant,
             cases,
             copy: _,
-        } => {
-            write!(
-                f,
-                [token("variant"), token("<"), FormatTypeId(*discriminant)]
-            )?;
-            write!(f, [token(">"), space(), token("{")])?;
-            if !cases.is_empty() {
-                write!(f, [space()])?;
-            }
-            for (index, case) in cases.iter().enumerate() {
-                if index > 0 {
-                    write!(f, [space()])?;
-                }
-                write!(
-                    f,
-                    [
-                        &case.discriminant,
-                        space(),
-                        token("="),
-                        space(),
-                        FormatTypeId(case.ty),
-                        token(";")
-                    ]
-                )?;
-            }
-            if !cases.is_empty() {
-                write!(f, [space()])?;
-            }
-            write!(f, [token("}")])
-        }
+        } => format_variant_type(*discriminant, cases, None, f),
         Type::Vector {
             element,
             lanes,
@@ -484,7 +481,7 @@ fn format_type_maybe_named<'a>(
                 [
                     token("vector"),
                     token("<"),
-                    FormatTypeId(*element),
+                    *element,
                     token(","),
                     space(),
                     copied_text(&lanes.to_string()),
@@ -498,7 +495,7 @@ fn format_type_maybe_named<'a>(
             result,
         } => format_function_signature(lifetimes, parameters, *result, f),
         Type::FunctionPointer { signature } => {
-            let signature_type = f.context().tree.get(*signature);
+            let signature_type = f.context().tree.ty(*signature);
             let Type::FunctionSignature {
                 lifetimes,
                 parameters,
@@ -530,6 +527,57 @@ fn format_type_maybe_named<'a>(
         }
         Type::Application { base, lifetimes } => format_type_application(*base, lifetimes, f),
     }
+}
+
+/// Format one variant type and its declared case provenance.
+fn format_variant_type<'a>(
+    discriminant: TypeId,
+    cases: &[VariantCase],
+    declaration_id: Option<LocalNodeId<TypeDeclaration>>,
+    f: &mut Writer<'a, '_>,
+) -> FormatResult<()> {
+    write!(f, [token("variant"), token("<"), discriminant])?;
+    write!(f, [token(">"), space(), token("{")])?;
+    if !cases.is_empty() {
+        write!(f, [space()])?;
+    }
+
+    for (index, case) in cases.iter().enumerate() {
+        if index > 0 {
+            write!(f, [space()])?;
+        }
+
+        let provenance = declaration_id.map(|declaration| {
+            let id = VariantCaseId(declaration, index as u32);
+
+            f.context().tree.variant_case_provenance(id)
+        });
+        if let Some(provenance) = provenance {
+            f.write_element(FormatElement::Tag(FormatTag::StartProvenance(provenance)));
+        }
+
+        write!(
+            f,
+            [
+                &case.discriminant,
+                space(),
+                token("="),
+                space(),
+                case.ty,
+                token(";")
+            ]
+        )?;
+
+        if provenance.is_some() {
+            f.write_element(FormatElement::Tag(FormatTag::EndProvenance));
+        }
+    }
+
+    if !cases.is_empty() {
+        write!(f, [space()])?;
+    }
+
+    write!(f, [token("}")])
 }
 
 /// Format one fat descriptor's element followed by its reference qualifiers.
@@ -784,7 +832,7 @@ impl FormatNode for TypeDeclaration {
         let attributes = f.context().tree.attributes(id);
         let name = f.context().strings.get(self.name).to_string();
         let type_id = self.ty;
-        let ty = f.context().tree.get(type_id);
+        let ty = f.context().tree.ty(type_id);
         format_type_declaration(&name, attributes, Some(id), type_id, ty, f)
     }
 }

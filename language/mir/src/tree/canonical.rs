@@ -1,41 +1,29 @@
 use std::fmt::Write;
 
-use destack_core::FxIndexMap;
+use destack_core::{FxIndexMap, FxIndexSet};
 
-use super::node::TypeId;
 use super::tree::Tree;
-use super::r#type::Type;
+use super::r#type::TypeId;
+use crate::TypeFold;
 
 impl Tree {
-    /// Return each member of one cycle component with its canonical key.
-    ///
-    /// Distinct dir spellings of one cyclic type lower to isomorphic graphs;
-    /// keying every member by its canonical serialization lets later walks
-    /// unify on the first interned identity, entered at any member.
-    pub fn canonical_component(&self, entry: TypeId) -> Vec<(TypeId, String)> {
-        // gather the nodes reachable from the entry
-        let mut forward = Vec::new();
-        let mut visited = FxIndexMap::default();
+    /// Return the strongly connected type component containing one type.
+    pub fn cycle_members(&self, entry: TypeId) -> Vec<TypeId> {
+        // gather the types reachable from the entry
+        let mut visited = FxIndexSet::default();
         self.collect_reachable(entry, &mut visited);
-        for (id, _) in &visited {
-            forward.push(*id);
-        }
 
-        // keep the members that reach the entry back: the cycle component
+        // retain types that can reach the entry
         let mut members = Vec::new();
-        for id in forward {
-            let mut visited = FxIndexMap::default();
+        for id in visited {
+            let mut visited = FxIndexSet::default();
             self.collect_reachable(id, &mut visited);
-            if visited.contains_key(&entry) {
+            if visited.contains(&entry) {
                 members.push(id);
             }
         }
 
-        // key each member by its canonical serialization
         members
-            .into_iter()
-            .map(|member| (member, self.canonical_key(member)))
-            .collect()
     }
 
     /// Return the canonical serialization of one type graph.
@@ -48,9 +36,6 @@ impl Tree {
     }
 
     /// Return whether two type graphs are equal, cycles included.
-    ///
-    /// A revisited pair holds by assumption, so unrolled and rolled
-    /// spellings of one recursive type compare equal.
     pub fn types_equal(&self, left: TypeId, right: TypeId) -> bool {
         let mut assumed = FxIndexMap::default();
 
@@ -72,10 +57,10 @@ impl Tree {
         }
 
         // compare the nodes shallowly with their children masked out
-        let mut left_type = self.get(left).clone();
-        let mut right_type = self.get(right).clone();
-        left_type.map_child_type_ids(&mut |_| left);
-        right_type.map_child_type_ids(&mut |_| left);
+        let mut left_type = self.ty(left).clone();
+        let mut right_type = self.ty(right).clone();
+        left_type.map_types(&mut |_| left);
+        right_type.map_types(&mut |_| left);
         if left_type != right_type {
             return false;
         }
@@ -93,11 +78,11 @@ impl Tree {
             .all(|(left, right)| self.types_equal_assuming(left, right, assumed))
     }
 
-    /// Collect every type reachable from one node through child edges.
-    fn collect_reachable(&self, root: TypeId, visited: &mut FxIndexMap<TypeId, ()>) {
+    /// Collect every type reachable from one canonical type.
+    fn collect_reachable(&self, root: TypeId, visited: &mut FxIndexSet<TypeId>) {
         let mut queue = vec![root];
         while let Some(id) = queue.pop() {
-            if visited.insert(id, ()).is_some() {
+            if !visited.insert(id) {
                 continue;
             }
             for child in self.child_type_ids(id) {
@@ -106,24 +91,14 @@ impl Tree {
         }
     }
 
-    /// Return the direct child types of one node, including struct field types.
+    /// Return the direct child types of one canonical type.
     fn child_type_ids(&self, id: TypeId) -> Vec<TypeId> {
         let mut children = Vec::new();
-        match self.get(id) {
-            // struct children reach through their field nodes
-            Type::Struct { fields, .. } => {
-                for field in fields {
-                    children.push(self.get(*field).ty);
-                }
-            }
-            other => {
-                let mut other = other.clone();
-                other.map_child_type_ids(&mut |child| {
-                    children.push(child);
-                    child
-                });
-            }
-        }
+        let mut ty = self.ty(id).clone();
+        ty.map_types(&mut |child| {
+            children.push(child);
+            child
+        });
 
         children
     }
@@ -142,9 +117,7 @@ impl Tree {
             return;
         }
 
-        // nominal identities serialize by name: isomorphic structure never
-        //  unifies distinct nominals, and the root stays structural so
-        //  isomorphic cycle spellings still meet
+        // preserve nested nominal identities
         if !indices.is_empty()
             && let Some(symbol) = self.type_symbol(id)
         {
@@ -154,33 +127,18 @@ impl Tree {
         }
         indices.insert(id, indices.len());
 
-        match self.get(id) {
-            // serialize struct types field by named field
-            Type::Struct { fields, copy } => {
-                let _ = write!(key, "struct{copy:?}(");
-                for field in fields.clone() {
-                    let field = self.get(field).clone();
-                    let _ = write!(key, "{:?}:", field.name);
-                    self.canonical_write(field.ty, indices, key);
-                    key.push(';');
-                }
-                key.push(')');
-            }
-            // serialize the family payload with children canonicalized away
-            other => {
-                let mut children = Vec::new();
-                let mut canonical = other.clone();
-                canonical.map_child_type_ids(&mut |child| {
-                    children.push(child);
-                    TypeId::new(u32::MAX)
-                });
-                let _ = write!(key, "{canonical:?}(");
-                for child in children {
-                    self.canonical_write(child, indices, key);
-                    key.push(';');
-                }
-                key.push(')');
-            }
+        // serialize the payload with its child ids masked out
+        let mut children = Vec::new();
+        let mut canonical = self.ty(id).clone();
+        canonical.map_types(&mut |child| {
+            children.push(child);
+            TypeId::new(u32::MAX)
+        });
+        let _ = write!(key, "{canonical:?}(");
+        for child in children {
+            self.canonical_write(child, indices, key);
+            key.push(';');
         }
+        key.push(')');
     }
 }

@@ -6,6 +6,7 @@ use crate::{
     Binding, Block, FunctionParameter, Instruction, LifetimeParameter, Linkage, Local, LocalNodeId,
     Node, NodeType, ReferenceKind, StaticId, Storage, Symbol, Tree, Type, TypeId, Value,
 };
+use destack_source::ProvenanceJournal;
 
 /// One MIR function declaration or definition.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -48,7 +49,7 @@ pub struct FunctionBody {
     /// The function locals in slot order.
     locals: Vec<LocalNodeId<Local>>,
     /// SSA value types keyed by value id.
-    value_types: Vec<Option<LocalNodeId<Type>>>,
+    value_types: Vec<Option<TypeId>>,
     /// Counter for allocating unique SSA value ids.
     next_value_id: u32,
     /// Instruction locations keyed by instruction id.
@@ -196,7 +197,7 @@ impl FunctionBody {
     /// Create an empty function body.
     fn empty(
         entry: LocalNodeId<Block>,
-        value_types: Vec<Option<LocalNodeId<Type>>>,
+        value_types: Vec<Option<TypeId>>,
         next_value_id: u32,
     ) -> Self {
         Self {
@@ -214,7 +215,7 @@ impl FunctionBody {
         entry: LocalNodeId<Block>,
         blocks: Vec<LocalNodeId<Block>>,
         locals: Vec<LocalNodeId<Local>>,
-        value_types: Vec<Option<LocalNodeId<Type>>>,
+        value_types: Vec<Option<TypeId>>,
         next_value_id: u32,
         tree: &Tree,
     ) -> Self {
@@ -310,12 +311,12 @@ impl FunctionBody {
     }
 
     /// Return the type for one SSA value.
-    pub fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
+    pub fn value_type(&self, value: Value) -> Option<TypeId> {
         self.value_types.get(value.0 as usize).copied().flatten()
     }
 
     /// Return all value type slots.
-    pub fn value_types(&self) -> &[Option<LocalNodeId<Type>>] {
+    pub fn value_types(&self) -> &[Option<TypeId>] {
         &self.value_types
     }
 
@@ -355,13 +356,13 @@ impl FunctionBody {
     }
 
     /// Replace the SSA value type table.
-    pub fn replace_value_types(&mut self, value_types: Vec<Option<LocalNodeId<Type>>>) {
+    pub fn replace_value_types(&mut self, value_types: Vec<Option<TypeId>>) {
         self.value_types = value_types;
         self.next_value_id = self.next_value_id.max(self.value_types.len() as u32);
     }
 
     /// Return the expected type for one SSA value.
-    pub fn expect_value_type(&self, value: Value) -> LocalNodeId<Type> {
+    pub fn expect_value_type(&self, value: Value) -> TypeId {
         match self.value_type(value) {
             Some(ty) => ty,
             None => unreachable!("missing type for value {value:?}"),
@@ -369,7 +370,7 @@ impl FunctionBody {
     }
 
     /// Record the type for one SSA value.
-    pub fn set_value_type(&mut self, value: Value, ty: LocalNodeId<Type>) {
+    pub fn set_value_type(&mut self, value: Value, ty: TypeId) {
         let index = self.resize_value_slots(value);
 
         if let Some(existing) = self.value_types[index] {
@@ -391,7 +392,7 @@ impl FunctionBody {
     }
 
     /// Allocate a new SSA value and record its type.
-    pub fn next_typed_value(&mut self, ty: LocalNodeId<Type>) -> Value {
+    pub fn next_typed_value(&mut self, ty: TypeId) -> Value {
         let value = self.next_value();
         self.set_value_type(value, ty);
         value
@@ -470,9 +471,7 @@ impl Function {
     }
 
     /// Build parameter-derived SSA tables.
-    pub(crate) fn parameter_state(
-        parameters: &[FunctionParameter],
-    ) -> (u32, Vec<Option<LocalNodeId<Type>>>) {
+    pub(crate) fn parameter_state(parameters: &[FunctionParameter]) -> (u32, Vec<Option<TypeId>>) {
         // derive the next value id from parameters
         let next_value_id = parameters
             .iter()
@@ -581,12 +580,12 @@ impl Function {
     }
 
     /// Return the type for an SSA value.
-    pub fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
+    pub fn value_type(&self, value: Value) -> Option<TypeId> {
         self.body.as_ref().and_then(|body| body.value_type(value))
     }
 
     /// Return the expected type for one SSA value.
-    pub fn expect_value_type(&self, value: Value) -> LocalNodeId<Type> {
+    pub fn expect_value_type(&self, value: Value) -> TypeId {
         match self.value_type(value) {
             Some(ty) => ty,
             None => unreachable!("missing type for value {value:?}"),
@@ -597,7 +596,7 @@ impl Function {
     pub fn pointee_type(&self, value: Value, tree: &Tree) -> Option<TypeId> {
         let ty = self.expect_value_type(value);
 
-        match tree.get(ty) {
+        match tree.ty(ty) {
             Type::Reference { pointee, .. } | Type::Pointer { pointee, .. } => Some(*pointee),
             Type::Slice { element, .. } => Some(*element),
             _ => None,
@@ -608,14 +607,14 @@ impl Function {
     pub fn reference_kind(&self, value: Value, tree: &Tree) -> Option<ReferenceKind> {
         let ty = self.expect_value_type(value);
 
-        tree.get(ty).reference_kind()
+        tree.ty(ty).reference_kind()
     }
 
     /// Return the storage for one reference-like value.
     pub fn reference_storage(&self, value: Value, tree: &Tree) -> Option<Storage> {
         let ty = self.expect_value_type(value);
 
-        tree.get(ty).reference_storage()
+        tree.ty(ty).reference_storage()
     }
 
     /// Return the width of one unsigned integer value.
@@ -627,7 +626,7 @@ impl Function {
     ) -> Option<u16> {
         let ty = self.expect_value_type(value);
 
-        match tree.get(ty) {
+        match tree.ty(ty) {
             Type::Int {
                 width,
                 is_signed: false,
@@ -738,7 +737,7 @@ impl Function {
     }
 
     /// Return the value type table when this function has a body.
-    pub fn value_types(&self) -> &[Option<LocalNodeId<Type>>] {
+    pub fn value_types(&self) -> &[Option<TypeId>] {
         self.body
             .as_ref()
             .map(FunctionBody::value_types)
@@ -795,12 +794,41 @@ impl Function {
         &mut self,
         mut retain: impl FnMut(LocalNodeId<Block>) -> bool,
         tree: &Tree,
+        provenance: &mut ProvenanceJournal<'_>,
     ) {
         let Some(body) = self.body.as_mut() else {
             unreachable!("cannot retain blocks on a function without a body");
         };
 
-        body.blocks.retain(|block| retain(*block));
+        // record eliminated block occurrences
+        let mut removed = Vec::new();
+        body.blocks.retain(|block_id| {
+            let is_retained = retain(*block_id);
+            if !is_retained {
+                let block = tree.get(*block_id);
+                removed.push(tree.provenance(block_id.id));
+                removed.push(tree.provenance(block.terminator.id));
+                removed.extend(
+                    block
+                        .parameters
+                        .iter()
+                        .map(|parameter| parameter.provenance),
+                );
+                removed.extend(
+                    block
+                        .instructions
+                        .iter()
+                        .map(|instruction| tree.provenance(instruction.id)),
+                );
+            }
+
+            is_retained
+        });
+        if !removed.is_empty() {
+            provenance.remove(&removed);
+        }
+
+        // rebuild instruction locations after removing blocks
         body.rebuild_instruction_index(tree);
     }
 
@@ -824,9 +852,24 @@ impl Function {
         block: LocalNodeId<Block>,
         instructions: Vec<LocalNodeId<Instruction>>,
         tree: &mut Tree,
+        provenance: &mut ProvenanceJournal<'_>,
     ) {
-        self.replace_block_instruction_index(block, &instructions);
-        tree.get_mut(block).instructions = instructions;
+        let mut block_data = tree.get(block).clone();
+        block_data.instructions = instructions;
+
+        self.replace_block(block, block_data, tree, provenance);
+    }
+
+    /// Replace one block and update its instruction index.
+    pub fn replace_block(
+        &mut self,
+        block: LocalNodeId<Block>,
+        replacement: Block,
+        tree: &mut Tree,
+        provenance: &mut ProvenanceJournal<'_>,
+    ) {
+        self.replace_block_instruction_index(block, &replacement.instructions);
+        tree.rewrite(block, replacement, provenance);
     }
 
     /// Replace one block's instruction index entries.
@@ -870,7 +913,7 @@ impl Function {
     }
 
     /// Replace the SSA value type table.
-    pub fn replace_value_types(&mut self, value_types: Vec<Option<LocalNodeId<Type>>>) {
+    pub fn replace_value_types(&mut self, value_types: Vec<Option<TypeId>>) {
         let Some(body) = self.body.as_mut() else {
             unreachable!("cannot replace value types on a function without a body");
         };
@@ -888,7 +931,7 @@ impl Function {
     }
 
     /// Allocate a new SSA value and record its type.
-    pub fn next_typed_value(&mut self, ty: LocalNodeId<Type>) -> Value {
+    pub fn next_typed_value(&mut self, ty: TypeId) -> Value {
         let Some(body) = self.body.as_mut() else {
             unreachable!("cannot allocate typed SSA value in a function without a body");
         };

@@ -9,10 +9,12 @@ pub(crate) fn parse_fixture(source: &str) -> (Tree, StringPool) {
     let source = source.trim();
     let file = test_file(source);
 
-    Parser::parse(&file, ParseOptions::default())
+    let (tree, _provenance, strings) = Parser::parse(&file, ParseOptions::default())
         .expect("MIR parser requires text content")
         .finish()
-        .expect("parse failed")
+        .expect("parse failed");
+
+    (tree, strings)
 }
 
 /// Format one MIR fixture with explicit options.

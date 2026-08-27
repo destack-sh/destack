@@ -1,6 +1,10 @@
 #![feature(default_field_values)]
 #![allow(hidden_glob_reexports)]
 
+extern crate self as destack_mir;
+
+pub use destack_mir_macros::TypeFold;
+
 mod analyses;
 mod build;
 mod format;

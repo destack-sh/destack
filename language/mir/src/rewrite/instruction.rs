@@ -1,4 +1,5 @@
 use destack_core::{FxIndexMap, FxIndexSet};
+use destack_source::ProvenanceJournal;
 
 use crate as mir;
 use crate::{MemoryNode, MemoryTable, terminator_substitute_uses};
@@ -115,7 +116,7 @@ pub fn instruction_is_speculatable(
         | mir::Instruction::LocalAddr { result_type, .. } => {
             let result_type = *result_type;
 
-            let ty = tree.get(result_type);
+            let ty = tree.ty(result_type);
             matches!(
                 ty,
                 mir::Type::Pointer { .. }
@@ -143,7 +144,7 @@ pub fn instruction_is_speculatable(
         } => {
             let ty = function.expect_value_type(*left);
 
-            tree.get(ty).is_float(tree)
+            tree.ty(ty).is_float(tree)
         }
 
         _ => instruction_is_pure(instruction),
@@ -1166,6 +1167,7 @@ pub fn resolve_substitution_chains(
 pub fn apply_substitutions_in_function(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     substitutions: &FxIndexMap<mir::Value, mir::Value>,
     to_remove: Option<&FxIndexSet<mir::LocalNodeId<mir::Instruction>>>,
@@ -1195,6 +1197,7 @@ pub fn apply_substitutions_in_function(
         for instruction_id in instruction_ids {
             // skip instructions slated for removal
             if to_remove.is_some_and(|set| set.contains(&instruction_id)) {
+                tree.record_removal(instruction_id, provenance);
                 changed = true;
                 continue;
             }
@@ -1205,8 +1208,8 @@ pub fn apply_substitutions_in_function(
                 let updated =
                     instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
                 if updated != instruction {
-                    tree.set(instruction_id, updated);
-                    remap_instruction_memory_accesses(accesses, instruction_id, substitutions);
+                    tree.rewrite(instruction_id, updated, provenance);
+                    accesses.remap_instruction(instruction_id, substitutions);
                     changed = true;
                 }
             }
@@ -1223,69 +1226,13 @@ pub fn apply_substitutions_in_function(
 
         // update block when instructions or terminator changed
         if new_instructions.len() != block.instructions.len() || new_terminator != terminator {
-            function.replace_block_instructions(block_id, new_instructions, tree);
-            tree.set(terminator_id, new_terminator);
+            function.replace_block_instructions(block_id, new_instructions, tree, provenance);
+            tree.rewrite(terminator_id, new_terminator, provenance);
             changed = true;
         }
     }
 
     changed
-}
-
-/// Clone instruction tables while remapping value references.
-pub fn clone_instruction_tables(
-    tree: &mut mir::Tree,
-    accesses: &mut mir::AccessTable,
-    original: mir::LocalNodeId<mir::Instruction>,
-    cloned: mir::LocalNodeId<mir::Instruction>,
-    value_map: &FxIndexMap<mir::Value, mir::Value>,
-) {
-    // preserve instruction source by default
-    if let Some(source_id) = tree.get_source(original.id) {
-        tree.set_source(cloned.id, source_id);
-    }
-
-    // clone memory access entries
-    if let Some(original_accesses) = accesses.get(original) {
-        let mut cloned_accesses = original_accesses.to_vec();
-        for access in &mut cloned_accesses {
-            if let mir::MemoryTarget::Address(value) = access.target
-                && let Some(&remapped) = value_map.get(&value)
-            {
-                access.target = mir::MemoryTarget::Address(remapped);
-            }
-        }
-
-        accesses.insert(cloned, cloned_accesses);
-    }
-}
-
-/// Remap instruction memory access entries in place using a substitution map.
-pub fn remap_instruction_memory_accesses(
-    accesses: &mut mir::AccessTable,
-    instruction: mir::LocalNodeId<mir::Instruction>,
-    substitutions: &FxIndexMap<mir::Value, mir::Value>,
-) {
-    // skip when no substitutions are provided
-    if substitutions.is_empty() {
-        return;
-    }
-
-    // read existing memory access entries
-    let Some(original_accesses) = accesses.get(instruction) else {
-        return;
-    };
-
-    let mut updated = original_accesses.to_vec();
-    for access in &mut updated {
-        if let mir::MemoryTarget::Address(value) = access.target
-            && let Some(&remapped) = substitutions.get(&value)
-        {
-            access.target = mir::MemoryTarget::Address(remapped);
-        }
-    }
-
-    accesses.insert(instruction, updated);
 }
 
 /// Remap every value in one instruction.

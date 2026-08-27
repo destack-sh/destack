@@ -24,11 +24,11 @@ impl CommentSpan {
 /// One parsed typed value span.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct TypedValueSpan {
-    /// The enclosing span of the typed value occurrence.
+    /// The enclosing span of the typed value.
     pub span: Span,
-    /// The optional name span inside the occurrence.
+    /// The optional name span.
     pub name_span: Option<Span>,
-    /// The type span inside the occurrence.
+    /// The type span.
     pub type_span: Span,
 }
 

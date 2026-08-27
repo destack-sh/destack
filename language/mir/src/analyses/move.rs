@@ -36,7 +36,7 @@ impl MoveTable {
             let Some(ty) = ty else {
                 continue;
             };
-            if tree.get(*ty).copy(tree).is_yes() {
+            if tree.ty(*ty).copy(tree).is_yes() {
                 continue;
             }
 
@@ -48,7 +48,7 @@ impl MoveTable {
         // create roots for every move-only local
         for &local in function.locals() {
             let ty = tree.get(local).ty;
-            if tree.get(ty).copy(tree).is_yes() {
+            if tree.ty(ty).copy(tree).is_yes() {
                 continue;
             }
 
@@ -212,7 +212,7 @@ impl MoveTable {
 
     /// Expand one structural type into direct children.
     fn expand(&mut self, parent: MovePathId, place: Place, ty: TypeId, tree: &Tree) {
-        let children = match tree.get(ty) {
+        let children = match tree.ty(ty) {
             Type::Struct { fields, .. } => fields
                 .iter()
                 .enumerate()
@@ -221,7 +221,7 @@ impl MoveTable {
                         Projection::Field {
                             index: index as u32,
                         },
-                        tree.get(*field).ty,
+                        field.ty,
                     )
                 })
                 .collect::<Vec<_>>(),

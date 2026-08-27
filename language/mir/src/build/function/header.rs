@@ -1,8 +1,7 @@
 use destack_core::{StringId, StringPool};
+use destack_source::{ProvenanceId, ProvenanceJournal};
 
-use crate::{
-    FunctionParameter, LifetimeParameter, LifetimeSlot, LocalNodeId, StaticId, Symbol, Type, Value,
-};
+use crate::{FunctionParameter, LifetimeParameter, LifetimeSlot, StaticId, Symbol, TypeId, Value};
 
 /// Header used to declare or build one MIR function.
 #[derive(Debug, Clone)]
@@ -15,10 +14,10 @@ pub struct FunctionHeader {
     pub symbol: Symbol,
     /// Lifetime parameters in function-local slot order.
     pub lifetimes: Vec<LifetimeParameter>,
-    /// Parameter types in SSA parameter order.
-    pub parameters: Vec<LocalNodeId<Type>>,
+    /// Parameters in SSA value order.
+    pub parameters: Vec<FunctionParameter>,
     /// The return type.
-    pub result: LocalNodeId<Type>,
+    pub result: TypeId,
 }
 
 /// Builder for one MIR function header.
@@ -26,6 +25,8 @@ pub struct FunctionHeader {
 pub struct FunctionHeaderBuilder<'a> {
     /// The string pool used for names.
     strings: &'a mut StringPool,
+    /// The journal producing parameter provenance.
+    provenance: ProvenanceJournal<'a>,
     /// The function name.
     name: StringId,
     /// Concrete generic arguments specializing this function.
@@ -34,17 +35,22 @@ pub struct FunctionHeaderBuilder<'a> {
     symbol: Symbol,
     /// Lifetime parameters in function-local slot order.
     lifetimes: Vec<LifetimeParameter>,
-    /// Parameter types in SSA parameter order.
-    parameters: Vec<LocalNodeId<Type>>,
+    /// Parameters in SSA value order.
+    parameters: Vec<FunctionParameter>,
 }
 
 impl<'a> FunctionHeaderBuilder<'a> {
     /// Create a function header builder.
-    pub(in crate::build) fn new(strings: &'a mut StringPool, name: &str) -> Self {
+    pub(in crate::build) fn new(
+        strings: &'a mut StringPool,
+        provenance: ProvenanceJournal<'a>,
+        name: &str,
+    ) -> Self {
         let name = strings.intern(name);
 
         Self {
             strings,
+            provenance,
             name,
             arguments: Vec::new(),
             symbol: Symbol::named(name),
@@ -94,22 +100,27 @@ impl<'a> FunctionHeaderBuilder<'a> {
         self
     }
 
-    /// Add one parameter type.
-    pub fn parameter(mut self, ty: LocalNodeId<Type>) -> Self {
-        self.parameters.push(ty);
+    /// Add one parameter derived from the given provenance.
+    pub fn parameter(mut self, ty: TypeId, source: ProvenanceId) -> Self {
+        self.push_parameter(ty, source);
 
         self
     }
 
-    /// Add parameter types.
-    pub fn parameters(mut self, types: impl IntoIterator<Item = LocalNodeId<Type>>) -> Self {
-        self.parameters.extend(types);
+    /// Add parameters derived from the given provenance.
+    pub fn parameters(
+        mut self,
+        parameters: impl IntoIterator<Item = (TypeId, ProvenanceId)>,
+    ) -> Self {
+        for (ty, source) in parameters {
+            self.push_parameter(ty, source);
+        }
 
         self
     }
 
     /// Finish the header with its return type.
-    pub fn result(self, result: LocalNodeId<Type>) -> FunctionHeader {
+    pub fn result(self, result: TypeId) -> FunctionHeader {
         FunctionHeader {
             name: self.name,
             arguments: self.arguments,
@@ -119,17 +130,12 @@ impl<'a> FunctionHeaderBuilder<'a> {
             result,
         }
     }
-}
 
-impl FunctionHeader {
-    /// Build SSA parameters from parameter types.
-    pub(in crate::build) fn parameters_from_types(
-        parameters: Vec<LocalNodeId<Type>>,
-    ) -> Vec<FunctionParameter> {
-        parameters
-            .into_iter()
-            .enumerate()
-            .map(|(index, ty)| FunctionParameter::new(Value::new(index as u32), ty))
-            .collect()
+    /// Append one parameter occurrence.
+    fn push_parameter(&mut self, ty: TypeId, source: ProvenanceId) {
+        let value = Value::new(self.parameters.len() as u32);
+        let provenance = self.provenance.derive(source);
+        self.parameters
+            .push(FunctionParameter::new(value, ty, provenance));
     }
 }

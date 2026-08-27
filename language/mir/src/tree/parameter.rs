@@ -1,7 +1,8 @@
 use destack_serde::Reflect;
+use destack_source::{ProvenanceId, ProvenanceJournal};
 use serde::{Deserialize, Serialize};
 
-use crate::{TypeId, TypedValue, Value};
+use crate::{TypeFold, TypeId, TypedValue, Value};
 
 /// Typed SSA parameter behavior shared by function and block parameters.
 pub trait TypedParameter {
@@ -25,13 +26,19 @@ pub struct FunctionParameter {
     pub value: Value,
     /// The parameter type.
     pub ty: TypeId,
+    /// The provenance of this parameter.
+    pub provenance: ProvenanceId,
 }
 
 impl FunctionParameter {
     /// Create a function parameter.
     #[inline]
-    pub fn new(value: Value, ty: TypeId) -> Self {
-        Self { value, ty }
+    pub fn new(value: Value, ty: TypeId, provenance: ProvenanceId) -> Self {
+        Self {
+            value,
+            ty,
+            provenance,
+        }
     }
 
     /// Return this parameter as a typed value.
@@ -40,12 +47,13 @@ impl FunctionParameter {
         TypedParameter::typed_value(self)
     }
 
-    /// Return the matching entry block parameter.
+    /// Produce the matching entry block parameter.
     #[inline]
-    pub fn block_parameter(&self) -> BlockParameter {
+    pub fn block_parameter(&self, provenance: &mut ProvenanceJournal<'_>) -> BlockParameter {
         BlockParameter {
             value: self.value,
             ty: self.ty,
+            provenance: provenance.derive(self.provenance),
         }
     }
 
@@ -75,6 +83,8 @@ pub struct BlockParameter {
     pub value: Value,
     /// The parameter type.
     pub ty: TypeId,
+    /// The provenance of this parameter.
+    pub provenance: ProvenanceId,
 }
 
 impl BlockParameter {
@@ -98,7 +108,7 @@ impl TypedParameter for BlockParameter {
 }
 
 /// One callable signature parameter.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct SignatureParameter {
     /// The parameter type.
     pub ty: TypeId,

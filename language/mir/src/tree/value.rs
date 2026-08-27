@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{LocalNodeId, Type};
+use crate::TypeId;
 
 /// Compact reference to a value list stored in the MIR tree.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
@@ -57,12 +57,12 @@ pub struct TypedValue {
     /// The SSA value.
     pub value: Value,
     /// The type of the value.
-    pub ty: LocalNodeId<Type>,
+    pub ty: TypeId,
 }
 
 impl TypedValue {
     /// Create a new typed value.
-    pub fn new(value: Value, ty: LocalNodeId<Type>) -> Self {
+    pub fn new(value: Value, ty: TypeId) -> Self {
         Self { value, ty }
     }
 }
