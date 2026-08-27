@@ -1,15 +1,28 @@
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 use destack_source::FileId;
 
-/// Kind of root based on how it was discovered.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+/// How one repository root is declared.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RootKind {
-    /// Monorepo with multiple member projects.
+    /// Root declared by a workspace manifest.
     Workspace,
-    /// Single package root.
-    #[default]
+    /// Root declared by a package manifest.
     Package,
+    /// Source root discovered without a manifest.
+    Loose,
+}
+
+impl fmt::Display for RootKind {
+    /// Format the root kind for user-facing output.
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Workspace => formatter.write_str("workspace"),
+            Self::Package => formatter.write_str("package"),
+            Self::Loose => formatter.write_str("loose"),
+        }
+    }
 }
 
 /// Root metadata derived for one revision.

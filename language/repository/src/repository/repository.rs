@@ -186,16 +186,15 @@ impl Repository {
             return Ok(root.clone());
         }
 
+        // classify the repository root
         let root_config = self.destack_for_workspace(revision)?;
-        let is_workspace = root_config
-            .as_ref()
-            .is_some_and(|config| config.workspace_packages().is_some());
-        let kind = if is_workspace {
-            RootKind::Workspace
-        } else {
-            RootKind::Package
+        let kind = match root_config.as_ref() {
+            Some(config) if config.workspace_packages().is_some() => RootKind::Workspace,
+            Some(_) => RootKind::Package,
+            None => RootKind::Loose,
         };
 
+        // retain root metadata for this revision
         let root = Arc::new(Root {
             file_id: root_config.as_ref().map(|config| config.file_id),
             root: self.root.clone(),
