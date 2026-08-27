@@ -18,7 +18,6 @@ async fn test_open_nested_package() {
 
     // open the nested source through its declared package
     server.open(&document, 1, &source).await;
-    let params = document.hover(position(0, 16));
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
             "`main.ds:1:17`\n\n```ds\nexport function answer(): float64\n```",
@@ -26,7 +25,7 @@ async fn test_open_nested_package() {
         range: Some(range(0, 16, 0, 22)),
     };
     server
-        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .assert_request(document.hover(position(0, 16)), Ok(Some(expected)))
         .await;
 }
 
@@ -59,7 +58,6 @@ async fn test_publish_latest_document_revision() {
     server.assert_diagnostics(&document, 4, Vec::new()).await;
 
     // query the same current revision
-    let params = document.hover(position(0, 16));
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
             "`main.ds:1:17`\n\n```ds\nexport function answer(): float64\n```",
@@ -67,7 +65,7 @@ async fn test_publish_latest_document_revision() {
         range: Some(range(0, 16, 0, 22)),
     };
     server
-        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .assert_request(document.hover(position(0, 16)), Ok(Some(expected)))
         .await;
 }
 
@@ -86,23 +84,12 @@ async fn test_query_successive_typed_revisions() {
     let (version, cursor) = server.type_text(&document, 1, position(1, 0), prefix).await;
 
     // overlap queries for the incomplete binding with later revisions
-    let outline = server
-        .start_request::<lsp::request::DocumentSymbolRequest>(document.outline())
-        .await;
+    let outline = server.start_request(document.outline()).await;
     let hints = server
-        .start_request::<lsp::request::InlayHintRequest>(document.inlay_hints(range(
-            1,
-            0,
-            1,
-            cursor.character,
-        )))
+        .start_request(document.inlay_hints(range(1, 0, 1, cursor.character)))
         .await;
-    let tokens = server
-        .start_request::<lsp::request::SemanticTokensFullRequest>(document.semantic_tokens())
-        .await;
-    let completion = server
-        .start_request::<lsp::request::Completion>(document.completion(cursor))
-        .await;
+    let tokens = server.start_request(document.semantic_tokens()).await;
+    let completion = server.start_request(document.completion(cursor)).await;
     let (version, cursor) = server.type_text(&document, version, cursor, suffix).await;
 
     // accept completed results and explicit supersession
@@ -112,27 +99,13 @@ async fn test_query_successive_typed_revisions() {
     completion.wait_or_content_modified().await;
 
     // query the complete current revision
+    server.request(document.outline()).await.unwrap();
     server
-        .request::<lsp::request::DocumentSymbolRequest>(document.outline())
+        .request(document.inlay_hints(range(1, 0, 1, cursor.character)))
         .await
         .unwrap();
-    server
-        .request::<lsp::request::InlayHintRequest>(document.inlay_hints(range(
-            1,
-            0,
-            1,
-            cursor.character,
-        )))
-        .await
-        .unwrap();
-    server
-        .request::<lsp::request::SemanticTokensFullRequest>(document.semantic_tokens())
-        .await
-        .unwrap();
-    server
-        .request::<lsp::request::Completion>(document.completion(cursor))
-        .await
-        .unwrap();
+    server.request(document.semantic_tokens()).await.unwrap();
+    server.complete(document.completion(cursor)).await;
 
     // require successful diagnostics for the final source
     server
@@ -175,7 +148,6 @@ async fn test_apply_incremental_document_changes() {
     server.assert_diagnostics(&document, 2, Vec::new()).await;
 
     // observe the renamed parameter through a semantic query
-    let params = document.hover(position(0, 16));
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
             "`main.ds:1:17`\n\n```ds\nexport function choose(input: string): string\n```",
@@ -183,7 +155,7 @@ async fn test_apply_incremental_document_changes() {
         range: Some(range(0, 16, 0, 22)),
     };
     server
-        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .assert_request(document.hover(position(0, 16)), Ok(Some(expected)))
         .await;
 }
 
@@ -202,7 +174,6 @@ async fn test_restore_file_after_closing_document() {
 
     // query the editor owned source
     server.open(&document, 1, &opened).await;
-    let params = document.hover(position(0, 16));
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
             "`main.ds:1:17`\n\n```ds\nexport function answer(): boolean\n```",
@@ -210,12 +181,11 @@ async fn test_restore_file_after_closing_document() {
         range: Some(range(0, 16, 0, 22)),
     };
     server
-        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .assert_request(document.hover(position(0, 16)), Ok(Some(expected)))
         .await;
 
     // return ownership to the unchanged filesystem source
     server.close(&document).await;
-    let params = document.hover(position(0, 16));
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
             "`main.ds:1:17`\n\n```ds\nexport function answer(): float64\n```",
@@ -223,7 +193,7 @@ async fn test_restore_file_after_closing_document() {
         range: Some(range(0, 16, 0, 22)),
     };
     server
-        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .assert_request(document.hover(position(0, 16)), Ok(Some(expected)))
         .await;
 }
 
@@ -248,7 +218,6 @@ async fn test_save_document_contents() {
 
     // return ownership to the saved physical source
     server.close(&document).await;
-    let params = document.hover(position(0, 16));
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
             "`main.ds:1:17`\n\n```ds\nexport function answer(): string\n```",
@@ -256,7 +225,7 @@ async fn test_save_document_contents() {
         range: Some(range(0, 16, 0, 22)),
     };
     server
-        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .assert_request(document.hover(position(0, 16)), Ok(Some(expected)))
         .await;
 }
 
@@ -290,7 +259,6 @@ async fn test_retain_project_for_open_document() {
         .await;
 
     // continue serving the open document from its retained project
-    let params = document.hover(position(0, 16));
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
             "`main.ds:1:17`\n\n```ds\nexport function answer(): float64\n```",
@@ -298,18 +266,17 @@ async fn test_retain_project_for_open_document() {
         range: Some(range(0, 16, 0, 22)),
     };
     server
-        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .assert_request(document.hover(position(0, 16)), Ok(Some(expected)))
         .await;
 
     // release the project after its final document closes
     server.close(&document).await;
-    let params = document.hover(position(0, 16));
     let expected = Err(jsonrpc::Error::invalid_params(format!(
         "no Destack project owns {}",
         document.uri().path().as_str()
     )));
     server
-        .assert_request::<lsp::request::HoverRequest>(params, expected)
+        .assert_request(document.hover(position(0, 16)), expected)
         .await;
 }
 

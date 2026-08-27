@@ -46,8 +46,7 @@ const sent = context.send(1);
     // show the exact declaration beside one type completion
     server
         .assert_completion(
-            &document,
-            position(13, 46),
+            document.completion(position(13, 46)),
             CompletionDisplay {
                 label: "HostErrorContextProcess",
                 label_detail: None,
@@ -61,8 +60,7 @@ const sent = context.send(1);
     // show the exact declaration beside one associated type
     server
         .assert_completion(
-            &document,
-            position(11, 38),
+            document.completion(position(11, 38)),
             CompletionDisplay {
                 label: "Item",
                 label_detail: Some(": Collection.Item"),
@@ -76,8 +74,7 @@ const sent = context.send(1);
     // show the exact value type beside one field completion
     server
         .assert_completion(
-            &document,
-            position(14, 26),
+            document.completion(position(14, 26)),
             CompletionDisplay {
                 label: "syscall",
                 label_detail: Some(": string"),
@@ -91,8 +88,7 @@ const sent = context.send(1);
     // show parameter and return types beside one callable completion
     server
         .assert_completion(
-            &document,
-            position(15, 23),
+            document.completion(position(15, 23)),
             CompletionDisplay {
                 label: "send",
                 label_detail: Some("(code: int32): string"),
@@ -139,20 +135,9 @@ const sound = dog.name;
     .await;
 
     // offer own members before extension members before inherited members
-    let params = document.completion(position(15, 18));
-    let response = server
-        .request::<lsp::request::Completion>(params)
-        .await
-        .unwrap();
-    let labels: Vec<String> = match response {
-        Some(lsp::CompletionResponse::Array(items)) => {
-            items.into_iter().map(|item| item.label).collect()
-        }
-        Some(lsp::CompletionResponse::List(list)) => {
-            list.items.into_iter().map(|item| item.label).collect()
-        }
-        None => Vec::new(),
-    };
+    let labels = server
+        .completion_labels(document.completion(position(15, 18)))
+        .await;
     assert_eq!(
         labels,
         [
@@ -192,20 +177,9 @@ function inspect(crate: &readonly Crate): string {
     .await;
 
     // expect the borrow extension but not the owned one on a borrowed receiver
-    let params = document.completion(position(17, 17));
-    let response = server
-        .request::<lsp::request::Completion>(params)
-        .await
-        .unwrap();
-    let labels: Vec<String> = match response {
-        Some(lsp::CompletionResponse::Array(items)) => {
-            items.into_iter().map(|item| item.label).collect()
-        }
-        Some(lsp::CompletionResponse::List(list)) => {
-            list.items.into_iter().map(|item| item.label).collect()
-        }
-        None => Vec::new(),
-    };
+    let labels = server
+        .completion_labels(document.completion(position(17, 17)))
+        .await;
     assert_eq!(
         labels,
         ["label", "peek", "toString", "borrow", "into", "tryInto"],
@@ -225,23 +199,33 @@ const scaled: float64 = value.sqrt();
     )
     .await;
 
-    // expect the Float blanket members on a float literal
-    let params = document.completion(position(1, 30));
-    let response = server
-        .request::<lsp::request::Completion>(params)
-        .await
-        .unwrap();
-    let labels: Vec<String> = match response {
-        Some(lsp::CompletionResponse::Array(items)) => {
-            items.into_iter().map(|item| item.label).collect()
-        }
-        Some(lsp::CompletionResponse::List(list)) => {
-            list.items.into_iter().map(|item| item.label).collect()
-        }
-        None => Vec::new(),
-    };
-    assert!(labels.contains(&"sqrt".to_string()), "labels: {labels:?}");
-    assert!(labels.contains(&"isNaN".to_string()), "labels: {labels:?}");
+    // render selected Float blanket members on a float receiver
+    server
+        .assert_completion(
+            document.completion(position(1, 30)),
+            CompletionDisplay {
+                label: "isNaN",
+                label_detail: None,
+                description: None,
+                detail: Some("isNaN(): boolean"),
+                documentation: Some(
+                    "```ds\nisNaN(): boolean\n```\n\nReturn whether this value is NaN.",
+                ),
+            },
+        )
+        .await;
+    server
+        .assert_completion(
+            document.completion(position(1, 30)),
+            CompletionDisplay {
+                label: "sqrt",
+                label_detail: None,
+                description: None,
+                detail: Some("sqrt(): T"),
+                documentation: Some("```ds\nsqrt(): T\n```\n\nReturn the square root."),
+            },
+        )
+        .await;
 }
 
 /// Resolve intrinsic declarations exported through the builtin global provider.
@@ -263,7 +247,6 @@ export declare function value(): int32;
 
     // follow both intrinsic decorator references to their library declarations
     server.open(&document, 1, source).await;
-    let params = document.hover(position(0, 1));
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
             "`destack://decorator/intrinsic.ds:7:16`\n\n\
@@ -274,10 +257,9 @@ export declare function value(): int32;
         range: Some(range(0, 1, 0, 13)),
     };
     server
-        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .assert_request(document.hover(position(0, 1)), Ok(Some(expected)))
         .await;
 
-    let params = document.hover(position(3, 1));
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
             "`destack://decorator/intrinsic.ds:3:16`\n\n\
@@ -288,11 +270,10 @@ export declare function value(): int32;
         range: Some(range(3, 1, 3, 10)),
     };
     server
-        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .assert_request(document.hover(position(3, 1)), Ok(Some(expected)))
         .await;
 
     // retain the ordinary declaration identity of an intrinsic function
-    let params = document.hover(position(4, 25));
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
             "`main.ds:5:25`\n\n\
@@ -302,7 +283,7 @@ export declare function value(): int32;
         range: Some(range(4, 24, 4, 29)),
     };
     server
-        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .assert_request(document.hover(position(4, 25)), Ok(Some(expected)))
         .await;
 }
 
@@ -325,7 +306,6 @@ declare const service: Service;
     .await;
 
     // render the complete declaration and its workspace location
-    let params = document.hover(position(6, 24));
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
             "`src/main.ds:5:18`\n\n\
@@ -335,7 +315,7 @@ declare const service: Service;
         range: Some(range(6, 23, 6, 30)),
     };
     server
-        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .assert_request(document.hover(position(6, 24)), Ok(Some(expected)))
         .await;
 }
 
@@ -357,12 +337,11 @@ async fn test_hover_expression_documentation() {
     // return the expression documentation without a symbol declaration
     server.open(&document, 1, source).await;
     server.assert_diagnostics(&document, 1, Vec::new()).await;
-    let params = document.hover(position(2, 4));
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown("Computed value.")),
         range: Some(range(2, 4, 2, 6)),
     };
     server
-        .assert_request::<lsp::request::HoverRequest>(params, Ok(Some(expected)))
+        .assert_request(document.hover(position(2, 4)), Ok(Some(expected)))
         .await;
 }

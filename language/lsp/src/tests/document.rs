@@ -28,7 +28,6 @@ export function useOld(): void {
         "src/main.ds",
     )
     .await;
-    let params = document.semantic_tokens();
     let expected = Some(lsp::SemanticTokensResult::Tokens(lsp::SemanticTokens {
         result_id: None,
         data: vec![
@@ -56,7 +55,7 @@ export function useOld(): void {
         ],
     }));
     server
-        .assert_request::<lsp::request::SemanticTokensFullRequest>(params, Ok(expected))
+        .assert_request(document.semantic_tokens(), Ok(expected))
         .await;
 }
 
@@ -73,7 +72,6 @@ async fn test_classify_parameter_uses_as_parameter_tokens() {
         "src/main.ds",
     )
     .await;
-    let params = document.semantic_tokens();
     let expected = Some(lsp::SemanticTokensResult::Tokens(lsp::SemanticTokens {
         result_id: None,
         data: vec![
@@ -108,7 +106,7 @@ async fn test_classify_parameter_uses_as_parameter_tokens() {
         ],
     }));
     server
-        .assert_request::<lsp::request::SemanticTokensFullRequest>(params, Ok(expected))
+        .assert_request(document.semantic_tokens(), Ok(expected))
         .await;
 }
 
@@ -136,9 +134,7 @@ async fn test_return_resolved_document_links() {
         tooltip: None,
         data: None,
     }]);
-    server
-        .assert_request::<lsp::request::DocumentLinkRequest>(document.links(), Ok(expected))
-        .await;
+    server.assert_request(document.links(), Ok(expected)).await;
 }
 
 /// Open builtin module links through virtual documents.
@@ -160,18 +156,14 @@ async fn test_open_builtin_module_links() {
         tooltip: None,
         data: None,
     }]);
-    server
-        .assert_request::<lsp::request::DocumentLinkRequest>(document.links(), Ok(expected))
-        .await;
+    server.assert_request(document.links(), Ok(expected)).await;
 
     // read the exact source exposed by the resolved link
-    let params = lsp::TextDocumentContentParams { uri: target };
     let expected = lsp::TextDocumentContentResult {
         text: "export * from \"./console.ds\";\n".to_string(),
     };
-    server
-        .assert_request::<lsp::request::TextDocumentContentRequest>(params, Ok(expected))
-        .await;
+    let actual = server.virtual_document(target).await;
+    assert_eq!(actual, expected);
 }
 
 /// Complete concurrent semantic document requests over shared artifacts.
@@ -197,13 +189,9 @@ async fn test_run_concurrent_document_queries() {
         trigger_kind: None,
     };
     let actions = server
-        .start_request::<lsp::request::CodeActionRequest>(
-            document.code_actions(range(0, 0, 0, 46), action_context),
-        )
+        .start_request(document.code_actions(range(0, 0, 0, 46), action_context))
         .await;
-    let lenses = server
-        .start_request::<lsp::request::CodeLensRequest>(document.code_lenses())
-        .await;
+    let lenses = server.start_request(document.code_lenses()).await;
 
     assert_eq!(actions.wait().await, Ok(None));
     assert_eq!(lenses.wait().await, Ok(Some(Vec::new())));

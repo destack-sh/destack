@@ -113,6 +113,30 @@ impl<'a> From<&'a lsp::CompletionItem> for CompletionDisplay<'a> {
     }
 }
 
+/// One typed request issued by the simulated client.
+pub(super) struct TestRequest<R>
+where
+    R: lsp::request::Request,
+{
+    /// Request parameters.
+    params: R::Params,
+    /// LSP request type.
+    request: PhantomData<R>,
+}
+
+impl<R> TestRequest<R>
+where
+    R: lsp::request::Request,
+{
+    /// Create one typed client request.
+    fn new(params: R::Params) -> Self {
+        Self {
+            params,
+            request: PhantomData,
+        }
+    }
+}
+
 impl TestServer {
     /// Create one configured language server.
     pub(super) fn new(name: &str) -> Self {
@@ -171,7 +195,8 @@ impl TestServer {
             ..lsp::InitializeParams::default()
         };
 
-        self.request::<lsp::request::Initialize>(params).await
+        self.request(TestRequest::<lsp::request::Initialize>::new(params))
+            .await
     }
 
     /// Notify the server that client initialization is complete.
@@ -276,26 +301,24 @@ impl TestServer {
     }
 
     /// Send one typed client request.
-    pub(super) async fn request<R>(&mut self, params: R::Params) -> jsonrpc::Result<R::Result>
+    pub(super) async fn request<R>(&mut self, request: TestRequest<R>) -> jsonrpc::Result<R::Result>
     where
         R: lsp::request::Request,
     {
-        let result = self.start_request::<R>(params).await.wait().await;
+        let result = self.start_request(request).await.wait().await;
         self.drain_output();
 
         result
     }
 
+    // completion
+
     /// Return completion items for one document position.
     pub(super) async fn complete(
         &mut self,
-        document: &TestDocument,
-        position: lsp::Position,
+        request: TestRequest<lsp::request::Completion>,
     ) -> Vec<lsp::CompletionItem> {
-        let response = self
-            .request::<lsp::request::Completion>(document.completion(position))
-            .await
-            .unwrap();
+        let response = self.request(request).await.unwrap();
 
         match response {
             Some(lsp::CompletionResponse::Array(items)) => items,
@@ -304,14 +327,135 @@ impl TestServer {
         }
     }
 
+    /// Return completion labels for one document position.
+    pub(super) async fn completion_labels(
+        &mut self,
+        request: TestRequest<lsp::request::Completion>,
+    ) -> Vec<String> {
+        self.complete(request)
+            .await
+            .into_iter()
+            .map(|item| item.label)
+            .collect()
+    }
+
+    /// Return one virtual document.
+    pub(super) async fn virtual_document(
+        &mut self,
+        uri: lsp::Uri,
+    ) -> lsp::TextDocumentContentResult {
+        self.request(
+            TestRequest::<lsp::request::TextDocumentContentRequest>::new(
+                lsp::TextDocumentContentParams { uri },
+            ),
+        )
+        .await
+        .unwrap()
+    }
+
+    // hierarchy
+
+    /// Prepare one call hierarchy item.
+    pub(super) async fn prepare_call_hierarchy(
+        &mut self,
+        request: TestRequest<lsp::request::CallHierarchyPrepare>,
+    ) -> lsp::CallHierarchyItem {
+        let items = self.request(request).await.unwrap().unwrap();
+        let [item] = items.as_slice() else {
+            panic!("expected one call hierarchy item, found {items:?}");
+        };
+
+        item.clone()
+    }
+
+    /// Prepare one type hierarchy item.
+    pub(super) async fn prepare_type_hierarchy(
+        &mut self,
+        request: TestRequest<lsp::request::TypeHierarchyPrepare>,
+    ) -> lsp::TypeHierarchyItem {
+        let items = self.request(request).await.unwrap().unwrap();
+        let [item] = items.as_slice() else {
+            panic!("expected one type hierarchy item, found {items:?}");
+        };
+
+        item.clone()
+    }
+
+    /// Return incoming calls for one prepared hierarchy item.
+    pub(super) async fn incoming_calls(
+        &mut self,
+        item: lsp::CallHierarchyItem,
+    ) -> Option<Vec<lsp::CallHierarchyIncomingCall>> {
+        self.request(
+            TestRequest::<lsp::request::CallHierarchyIncomingCalls>::new(
+                lsp::CallHierarchyIncomingCallsParams {
+                    item,
+                    work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+                    partial_result_params: lsp::PartialResultParams::default(),
+                },
+            ),
+        )
+        .await
+        .unwrap()
+    }
+
+    /// Return outgoing calls for one prepared hierarchy item.
+    pub(super) async fn outgoing_calls(
+        &mut self,
+        item: lsp::CallHierarchyItem,
+    ) -> Option<Vec<lsp::CallHierarchyOutgoingCall>> {
+        self.request(
+            TestRequest::<lsp::request::CallHierarchyOutgoingCalls>::new(
+                lsp::CallHierarchyOutgoingCallsParams {
+                    item,
+                    work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+                    partial_result_params: lsp::PartialResultParams::default(),
+                },
+            ),
+        )
+        .await
+        .unwrap()
+    }
+
+    /// Return supertypes for one prepared hierarchy item.
+    pub(super) async fn supertypes(
+        &mut self,
+        item: lsp::TypeHierarchyItem,
+    ) -> Option<Vec<lsp::TypeHierarchyItem>> {
+        self.request(TestRequest::<lsp::request::TypeHierarchySupertypes>::new(
+            lsp::TypeHierarchySupertypesParams {
+                item,
+                work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+                partial_result_params: lsp::PartialResultParams::default(),
+            },
+        ))
+        .await
+        .unwrap()
+    }
+
+    /// Return subtypes for one prepared hierarchy item.
+    pub(super) async fn subtypes(
+        &mut self,
+        item: lsp::TypeHierarchyItem,
+    ) -> Option<Vec<lsp::TypeHierarchyItem>> {
+        self.request(TestRequest::<lsp::request::TypeHierarchySubtypes>::new(
+            lsp::TypeHierarchySubtypesParams {
+                item,
+                work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+                partial_result_params: lsp::PartialResultParams::default(),
+            },
+        ))
+        .await
+        .unwrap()
+    }
+
     /// Require one completion and its compact and expanded details.
     pub(super) async fn assert_completion(
         &mut self,
-        document: &TestDocument,
-        position: lsp::Position,
+        request: TestRequest<lsp::request::Completion>,
         expected: CompletionDisplay<'_>,
     ) {
-        let items = self.complete(document, position).await;
+        let items = self.complete(request).await;
         let matching = items
             .iter()
             .filter(|item| item.label == expected.label)
@@ -334,22 +478,23 @@ impl TestServer {
     /// Require one exact typed client request result.
     pub(super) async fn assert_request<R>(
         &mut self,
-        params: R::Params,
+        request: TestRequest<R>,
         expected: jsonrpc::Result<R::Result>,
     ) where
         R: lsp::request::Request,
         R::Result: Debug + PartialEq,
     {
-        let result = self.request::<R>(params).await;
+        let result = self.request(request).await;
 
         assert_eq!(result, expected);
     }
 
     /// Start one typed client request without waiting for its result.
-    pub(super) async fn start_request<R>(&mut self, params: R::Params) -> PendingRequest<R>
+    pub(super) async fn start_request<R>(&mut self, request: TestRequest<R>) -> PendingRequest<R>
     where
         R: lsp::request::Request,
     {
+        let TestRequest { params, .. } = request;
         let id = Id::Number(self.next_request_id);
         self.next_request_id += 1;
         let request = jsonrpc::Request::build(R::METHOD)
@@ -454,10 +599,7 @@ impl TestServer {
         document: &TestDocument,
         expected: Vec<lsp::Diagnostic>,
     ) {
-        let response = self
-            .request::<lsp::request::DocumentDiagnosticRequest>(document.diagnostics())
-            .await
-            .unwrap();
+        let response = self.request(document.diagnostics()).await.unwrap();
         let lsp::DocumentDiagnosticReportResult::Report(lsp::DocumentDiagnosticReport::Full(
             report,
         )) = response
@@ -527,7 +669,7 @@ impl TestServer {
     }
 
     /// Build one document identity from a scoped workspace path.
-    fn document(&self, path: impl AsRef<Path>) -> TestDocument {
+    pub(super) fn document(&self, path: impl AsRef<Path>) -> TestDocument {
         let path = self.file_system.path_for(path);
 
         TestDocument::from(path.as_path())
@@ -747,111 +889,200 @@ impl TestDocument {
         }
     }
 
-    /// Build hover parameters for this document.
-    pub(super) fn hover(&self, position: lsp::Position) -> lsp::HoverParams {
-        lsp::HoverParams {
+    /// Build a hover request for this document.
+    pub(super) fn hover(&self, position: lsp::Position) -> TestRequest<lsp::request::HoverRequest> {
+        TestRequest::new(lsp::HoverParams {
             text_document_position_params: self.position(position),
             work_done_progress_params: lsp::WorkDoneProgressParams::default(),
-        }
+        })
     }
 
-    /// Build goto implementation parameters for this document.
+    /// Build a definition request for this document.
+    pub(super) fn definition(
+        &self,
+        position: lsp::Position,
+    ) -> TestRequest<lsp::request::GotoDefinition> {
+        TestRequest::new(self.goto(position))
+    }
+
+    /// Build a declaration request for this document.
+    pub(super) fn declaration(
+        &self,
+        position: lsp::Position,
+    ) -> TestRequest<lsp::request::GotoDeclaration> {
+        TestRequest::new(self.goto(position))
+    }
+
+    /// Build a type definition request for this document.
+    pub(super) fn type_definition(
+        &self,
+        position: lsp::Position,
+    ) -> TestRequest<lsp::request::GotoTypeDefinition> {
+        TestRequest::new(self.goto(position))
+    }
+
+    /// Build an implementation request for this document.
     pub(super) fn implementations(
         &self,
         position: lsp::Position,
-    ) -> lsp::request::GotoImplementationParams {
-        lsp::request::GotoImplementationParams {
+    ) -> TestRequest<lsp::request::GotoImplementation> {
+        TestRequest::new(self.goto(position))
+    }
+
+    /// Build a reference request for this document.
+    pub(super) fn references(
+        &self,
+        position: lsp::Position,
+        include_declaration: bool,
+    ) -> TestRequest<lsp::request::References> {
+        TestRequest::new(lsp::ReferenceParams {
+            text_document_position: self.position(position),
+            context: lsp::ReferenceContext {
+                include_declaration,
+            },
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+            partial_result_params: lsp::PartialResultParams::default(),
+        })
+    }
+
+    /// Build a document highlight request for this document.
+    pub(super) fn highlights(
+        &self,
+        position: lsp::Position,
+    ) -> TestRequest<lsp::request::DocumentHighlightRequest> {
+        TestRequest::new(lsp::DocumentHighlightParams {
             text_document_position_params: self.position(position),
             work_done_progress_params: lsp::WorkDoneProgressParams::default(),
             partial_result_params: lsp::PartialResultParams::default(),
-        }
+        })
     }
 
-    /// Build completion parameters for this document.
-    pub(super) fn completion(&self, position: lsp::Position) -> lsp::CompletionParams {
-        lsp::CompletionParams {
+    /// Build a call hierarchy preparation request for this document.
+    pub(super) fn call_hierarchy(
+        &self,
+        position: lsp::Position,
+    ) -> TestRequest<lsp::request::CallHierarchyPrepare> {
+        TestRequest::new(lsp::CallHierarchyPrepareParams {
+            text_document_position_params: self.position(position),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+        })
+    }
+
+    /// Build a type hierarchy preparation request for this document.
+    pub(super) fn type_hierarchy(
+        &self,
+        position: lsp::Position,
+    ) -> TestRequest<lsp::request::TypeHierarchyPrepare> {
+        TestRequest::new(lsp::TypeHierarchyPrepareParams {
+            text_document_position_params: self.position(position),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+        })
+    }
+
+    /// Build a completion request for this document.
+    pub(super) fn completion(
+        &self,
+        position: lsp::Position,
+    ) -> TestRequest<lsp::request::Completion> {
+        TestRequest::new(lsp::CompletionParams {
             text_document_position: self.position(position),
             work_done_progress_params: lsp::WorkDoneProgressParams::default(),
             partial_result_params: lsp::PartialResultParams::default(),
             context: None,
-        }
+        })
     }
 
-    /// Build rename parameters for this document.
-    pub(super) fn rename(&self, position: lsp::Position, new_name: &str) -> lsp::RenameParams {
-        lsp::RenameParams {
+    /// Build a rename request for this document.
+    pub(super) fn rename(
+        &self,
+        position: lsp::Position,
+        new_name: &str,
+    ) -> TestRequest<lsp::request::Rename> {
+        TestRequest::new(lsp::RenameParams {
             text_document_position: self.position(position),
             new_name: new_name.to_string(),
             work_done_progress_params: lsp::WorkDoneProgressParams::default(),
-        }
+        })
     }
 
-    /// Build semantic token parameters for this document.
-    pub(super) fn semantic_tokens(&self) -> lsp::SemanticTokensParams {
-        lsp::SemanticTokensParams {
+    /// Build a semantic token request for this document.
+    pub(super) fn semantic_tokens(&self) -> TestRequest<lsp::request::SemanticTokensFullRequest> {
+        TestRequest::new(lsp::SemanticTokensParams {
             text_document: self.identifier(),
             work_done_progress_params: lsp::WorkDoneProgressParams::default(),
             partial_result_params: lsp::PartialResultParams::default(),
-        }
+        })
     }
 
-    /// Build outline parameters for this document.
-    pub(super) fn outline(&self) -> lsp::DocumentSymbolParams {
-        lsp::DocumentSymbolParams {
+    /// Build an outline request for this document.
+    pub(super) fn outline(&self) -> TestRequest<lsp::request::DocumentSymbolRequest> {
+        TestRequest::new(lsp::DocumentSymbolParams {
             text_document: self.identifier(),
             work_done_progress_params: lsp::WorkDoneProgressParams::default(),
             partial_result_params: lsp::PartialResultParams::default(),
-        }
+        })
     }
 
-    /// Build current document diagnostic parameters.
-    pub(super) fn diagnostics(&self) -> lsp::DocumentDiagnosticParams {
-        lsp::DocumentDiagnosticParams {
+    /// Build a current document diagnostic request.
+    pub(super) fn diagnostics(&self) -> TestRequest<lsp::request::DocumentDiagnosticRequest> {
+        TestRequest::new(lsp::DocumentDiagnosticParams {
             text_document: self.identifier(),
             identifier: None,
             previous_result_id: None,
             work_done_progress_params: lsp::WorkDoneProgressParams::default(),
             partial_result_params: lsp::PartialResultParams::default(),
-        }
+        })
     }
 
-    /// Build inlay hint parameters for one document range.
-    pub(super) fn inlay_hints(&self, range: lsp::Range) -> lsp::InlayHintParams {
-        lsp::InlayHintParams {
+    /// Build an inlay hint request for one document range.
+    pub(super) fn inlay_hints(
+        &self,
+        range: lsp::Range,
+    ) -> TestRequest<lsp::request::InlayHintRequest> {
+        TestRequest::new(lsp::InlayHintParams {
             text_document: self.identifier(),
             range,
             work_done_progress_params: lsp::WorkDoneProgressParams::default(),
-        }
+        })
     }
 
-    /// Build document link parameters for this document.
-    pub(super) fn links(&self) -> lsp::DocumentLinkParams {
-        lsp::DocumentLinkParams {
+    /// Build a document link request for this document.
+    pub(super) fn links(&self) -> TestRequest<lsp::request::DocumentLinkRequest> {
+        TestRequest::new(lsp::DocumentLinkParams {
             text_document: self.identifier(),
             work_done_progress_params: lsp::WorkDoneProgressParams::default(),
             partial_result_params: lsp::PartialResultParams::default(),
-        }
+        })
     }
 
-    /// Build code action parameters for this document.
+    /// Build a code action request for this document.
     pub(super) fn code_actions(
         &self,
         range: lsp::Range,
         context: lsp::CodeActionContext,
-    ) -> lsp::CodeActionParams {
-        lsp::CodeActionParams {
+    ) -> TestRequest<lsp::request::CodeActionRequest> {
+        TestRequest::new(lsp::CodeActionParams {
             text_document: self.identifier(),
             range,
             context,
             work_done_progress_params: lsp::WorkDoneProgressParams::default(),
             partial_result_params: lsp::PartialResultParams::default(),
-        }
+        })
     }
 
-    /// Build code lens parameters for this document.
-    pub(super) fn code_lenses(&self) -> lsp::CodeLensParams {
-        lsp::CodeLensParams {
+    /// Build a code lens request for this document.
+    pub(super) fn code_lenses(&self) -> TestRequest<lsp::request::CodeLensRequest> {
+        TestRequest::new(lsp::CodeLensParams {
             text_document: self.identifier(),
+            work_done_progress_params: lsp::WorkDoneProgressParams::default(),
+            partial_result_params: lsp::PartialResultParams::default(),
+        })
+    }
+
+    /// Build goto parameters for this document.
+    fn goto(&self, position: lsp::Position) -> lsp::GotoDefinitionParams {
+        lsp::GotoDefinitionParams {
+            text_document_position_params: self.position(position),
             work_done_progress_params: lsp::WorkDoneProgressParams::default(),
             partial_result_params: lsp::PartialResultParams::default(),
         }
