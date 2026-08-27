@@ -1,6 +1,6 @@
 {
     "name": "@destack/language",
-    "version": "0.55.4",
+    "version": "2026.8.3",
     "description": "Destack language client for JavaScript and TypeScript",
     "license": "MIT",
     "type": "module",
@@ -66,8 +66,8 @@
         "access": "public"
     },
     "dependencies": {
-        "@destack/language-napi": "0.55.4",
-        "@destack/language-wasm": "0.55.4"
+        "@destack/language-napi": "2026.8.3",
+        "@destack/language-wasm": "2026.8.3"
     },
     "devDependencies": {
         "typescript": "5.8.3"

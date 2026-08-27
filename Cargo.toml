@@ -69,7 +69,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.55.4"
+version = "2026.8.3"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "MIT"
@@ -210,7 +210,7 @@ filetime = "0.2.26"
 fs2 = "0.4.3"
 indexmap = "2.13.0"
 interprocess = "2.2.1"
-jiff = "0.2.23"
+jiff = { version = "0.2.23", default-features = false, features = ["std"] }
 libtest-mimic = "0.8.2"
 memchr = "2.7"
 markdown = "1.0.0"

@@ -7,7 +7,7 @@
     },
     "app/cli": {
       "name": "@destack/cli",
-      "version": "0.55.4",
+      "version": "2026.8.3",
       "bin": {
         "destack": "npm/dist/bin/destack.js",
         "ds": "npm/dist/bin/ds.js",
@@ -17,36 +17,36 @@
         "typescript": "5.8.3",
       },
       "optionalDependencies": {
-        "@destack/cli-darwin-arm64": "0.55.4",
-        "@destack/cli-darwin-x64": "0.55.4",
-        "@destack/cli-linux-arm64-gnu": "0.55.4",
-        "@destack/cli-linux-x64-gnu": "0.55.4",
-        "@destack/cli-win32-x64-msvc": "0.55.4",
+        "@destack/cli-darwin-arm64": "2026.8.3",
+        "@destack/cli-darwin-x64": "2026.8.3",
+        "@destack/cli-linux-arm64-gnu": "2026.8.3",
+        "@destack/cli-linux-x64-gnu": "2026.8.3",
+        "@destack/cli-win32-x64-msvc": "2026.8.3",
       },
     },
     "app/cli/npm-darwin-arm64": {
       "name": "@destack/cli-darwin-arm64",
-      "version": "0.55.4",
+      "version": "2026.8.3",
     },
     "app/cli/npm-darwin-x64": {
       "name": "@destack/cli-darwin-x64",
-      "version": "0.55.4",
+      "version": "2026.8.3",
     },
     "app/cli/npm-linux-arm64-gnu": {
       "name": "@destack/cli-linux-arm64-gnu",
-      "version": "0.55.4",
+      "version": "2026.8.3",
     },
     "app/cli/npm-linux-x64-gnu": {
       "name": "@destack/cli-linux-x64-gnu",
-      "version": "0.55.4",
+      "version": "2026.8.3",
     },
     "app/cli/npm-win32-x64-msvc": {
       "name": "@destack/cli-win32-x64-msvc",
-      "version": "0.55.4",
+      "version": "2026.8.3",
     },
     "bridge/vscode": {
       "name": "destack",
-      "version": "0.55.4",
+      "version": "2026.8.3",
       "dependencies": {
         "extract-zip": "^2.0.1",
         "tar": "^7.5.19",
@@ -63,7 +63,7 @@
     },
     "client/napi": {
       "name": "@destack/language-napi",
-      "version": "0.55.4",
+      "version": "2026.8.3",
       "devDependencies": {
         "@napi-rs/cli": "3.7.0",
         "typescript": "5.8.3",
@@ -71,10 +71,10 @@
     },
     "client/typescript": {
       "name": "@destack/language",
-      "version": "0.55.4",
+      "version": "2026.8.3",
       "dependencies": {
-        "@destack/language-napi": "0.55.4",
-        "@destack/language-wasm": "0.55.4",
+        "@destack/language-napi": "2026.8.3",
+        "@destack/language-wasm": "2026.8.3",
       },
       "devDependencies": {
         "typescript": "5.8.3",
@@ -82,7 +82,7 @@
     },
     "client/wasm": {
       "name": "@destack/language-wasm",
-      "version": "0.55.4",
+      "version": "2026.8.3",
       "devDependencies": {
         "typescript": "5.8.3",
         "wasm-pack": "0.15.0",
@@ -90,11 +90,11 @@
     },
     "language/grammar/bytecode": {
       "name": "tree-sitter-destack-bytecode",
-      "version": "0.55.4",
+      "version": "2026.8.3",
     },
     "language/grammar/destack": {
       "name": "tree-sitter-destack",
-      "version": "0.55.4",
+      "version": "2026.8.3",
       "dependencies": {
         "tree-sitter-javascript": "0.25.0",
       },
@@ -106,25 +106,25 @@
     },
     "language/grammar/mir": {
       "name": "tree-sitter-mir",
-      "version": "0.55.4",
+      "version": "2026.8.3",
     },
     "library/schema": {
       "name": "@destack/schema",
-      "version": "0.55.4",
+      "version": "2026.8.3",
       "devDependencies": {
         "@types/bun": "1.2.18",
       },
     },
     "library/test": {
       "name": "@destack/test",
-      "version": "0.55.4",
+      "version": "2026.8.3",
       "devDependencies": {
         "@types/bun": "1.2.18",
       },
     },
     "platform/site": {
       "name": "@destack/site",
-      "version": "0.55.4",
+      "version": "2026.8.3",
       "dependencies": {
         "@fontsource-variable/ibm-plex-sans": "5.3.0",
         "@fontsource/ibm-plex-mono": "5.3.0",
@@ -146,7 +146,7 @@
     },
     "platform/stack": {
       "name": "@destack/platform",
-      "version": "0.55.4",
+      "version": "2026.8.3",
       "devDependencies": {
         "@pulumi/cloudflare": "6.15.0",
         "sst": "4.14.3",
@@ -154,12 +154,12 @@
     },
     "template/create-destack": {
       "name": "create-destack",
-      "version": "0.55.4",
+      "version": "2026.8.3",
       "bin": {
         "create-destack": "bin/create-destack.mjs",
       },
       "dependencies": {
-        "@destack/cli": "0.55.4",
+        "@destack/cli": "2026.8.3",
       },
     },
   },

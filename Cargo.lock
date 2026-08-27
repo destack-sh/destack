@@ -843,7 +843,7 @@ dependencies = [
 
 [[package]]
 name = "destack_artifact"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "blake3",
  "crc32fast",
@@ -866,7 +866,7 @@ dependencies = [
 
 [[package]]
 name = "destack_artifact_macros"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -875,7 +875,7 @@ dependencies = [
 
 [[package]]
 name = "destack_bytecode"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_core",
  "destack_fir",
@@ -886,7 +886,7 @@ dependencies = [
 
 [[package]]
 name = "destack_cli"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_language_cli",
  "schemars",
@@ -895,7 +895,7 @@ dependencies = [
 
 [[package]]
 name = "destack_client_generate"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "anyhow",
  "destack_daemon",
@@ -907,7 +907,7 @@ dependencies = [
 
 [[package]]
 name = "destack_compiler"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "base64",
  "clap",
@@ -955,7 +955,7 @@ dependencies = [
 
 [[package]]
 name = "destack_core"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "blake3",
  "destack_serde",
@@ -970,7 +970,7 @@ dependencies = [
 
 [[package]]
 name = "destack_daemon"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "base64",
  "crossbeam-channel",
@@ -995,7 +995,7 @@ dependencies = [
 
 [[package]]
 name = "destack_dir"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "dashmap",
  "destack_core",
@@ -1015,7 +1015,7 @@ dependencies = [
 
 [[package]]
 name = "destack_dir_macros"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1024,7 +1024,7 @@ dependencies = [
 
 [[package]]
 name = "destack_doc"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_artifact",
  "destack_core",
@@ -1038,7 +1038,7 @@ dependencies = [
 
 [[package]]
 name = "destack_fir"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_source",
  "destack_unicode",
@@ -1047,7 +1047,7 @@ dependencies = [
 
 [[package]]
 name = "destack_formatter"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_artifact",
  "destack_core",
@@ -1066,7 +1066,7 @@ dependencies = [
 
 [[package]]
 name = "destack_heap"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "criterion",
  "crossbeam-deque",
@@ -1080,7 +1080,7 @@ dependencies = [
 
 [[package]]
 name = "destack_index"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_artifact",
  "destack_core",
@@ -1093,7 +1093,7 @@ dependencies = [
 
 [[package]]
 name = "destack_js"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_core",
  "destack_dir",
@@ -1107,7 +1107,7 @@ dependencies = [
 
 [[package]]
 name = "destack_json"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_artifact",
  "destack_fir",
@@ -1118,7 +1118,7 @@ dependencies = [
 
 [[package]]
 name = "destack_language_cli"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "clap",
  "clap_complete",
@@ -1144,6 +1144,7 @@ dependencies = [
  "destack_workspace",
  "futures",
  "indicatif",
+ "jiff",
  "schemars",
  "serde",
  "serde_json",
@@ -1153,7 +1154,7 @@ dependencies = [
 
 [[package]]
 name = "destack_linter"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_artifact",
  "destack_artifact_macros",
@@ -1169,7 +1170,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lsp"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_artifact",
  "destack_compiler",
@@ -1196,7 +1197,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lsp_server"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "bytes",
  "dashmap",
@@ -1214,7 +1215,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lsp_types"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "bitflags 2.11.0",
  "fluent-uri",
@@ -1225,7 +1226,7 @@ dependencies = [
 
 [[package]]
 name = "destack_memory"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_serde",
  "libc",
@@ -1236,7 +1237,7 @@ dependencies = [
 
 [[package]]
 name = "destack_mir"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_core",
  "destack_fir",
@@ -1250,7 +1251,7 @@ dependencies = [
 
 [[package]]
 name = "destack_napi"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_repository",
  "destack_rpc",
@@ -1263,7 +1264,7 @@ dependencies = [
 
 [[package]]
 name = "destack_native"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_core",
  "destack_mir",
@@ -1273,7 +1274,7 @@ dependencies = [
 
 [[package]]
 name = "destack_parser"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "criterion",
  "destack_core",
@@ -1290,7 +1291,7 @@ dependencies = [
 
 [[package]]
 name = "destack_pattern"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_artifact",
  "destack_artifact_macros",
@@ -1306,7 +1307,7 @@ dependencies = [
 
 [[package]]
 name = "destack_program"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_bytecode",
  "destack_core",
@@ -1322,7 +1323,7 @@ dependencies = [
 
 [[package]]
 name = "destack_query"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_artifact",
  "destack_core",
@@ -1343,7 +1344,7 @@ dependencies = [
 
 [[package]]
 name = "destack_repository"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "blake3",
  "dashmap",
@@ -1372,7 +1373,7 @@ dependencies = [
 
 [[package]]
 name = "destack_rpc"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "base64",
  "crossbeam-channel",
@@ -1389,7 +1390,7 @@ dependencies = [
 
 [[package]]
 name = "destack_rpc_macros"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1398,7 +1399,7 @@ dependencies = [
 
 [[package]]
 name = "destack_runtime"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "criterion",
  "destack_artifact",
@@ -1424,7 +1425,7 @@ dependencies = [
 
 [[package]]
 name = "destack_serde"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_serde_macros",
  "im",
@@ -1436,7 +1437,7 @@ dependencies = [
 
 [[package]]
 name = "destack_serde_macros"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1445,7 +1446,7 @@ dependencies = [
 
 [[package]]
 name = "destack_session"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_artifact",
  "destack_compiler",
@@ -1468,7 +1469,7 @@ dependencies = [
 
 [[package]]
 name = "destack_source"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "cfg-if",
  "crossbeam-channel",
@@ -1491,11 +1492,11 @@ dependencies = [
 
 [[package]]
 name = "destack_unicode"
-version = "0.55.4"
+version = "2026.8.3"
 
 [[package]]
 name = "destack_vm"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "criterion",
  "destack_bytecode",
@@ -1511,7 +1512,7 @@ dependencies = [
 
 [[package]]
 name = "destack_wasm"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_artifact",
  "destack_repository",
@@ -1525,7 +1526,7 @@ dependencies = [
 
 [[package]]
 name = "destack_webassembly"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "destack_core",
  "destack_serde",
@@ -1534,7 +1535,7 @@ dependencies = [
 
 [[package]]
 name = "destack_workspace"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "blake3",
  "crossbeam-channel",
@@ -1567,7 +1568,7 @@ dependencies = [
 
 [[package]]
 name = "destack_zed"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "zed_extension_api",
 ]

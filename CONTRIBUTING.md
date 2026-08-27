@@ -6,8 +6,9 @@ Destack is not generally open for public contributions at this point.
 
 ## Versioning
 
-Destack uses one canonical monorepo release version from [VERSION.txt](VERSION.txt).
-Do not bump versions during normal development, only bump versions through `just bump` or `just release`.
+The root [destack.json](destack.json) declares the complete Destack distribution and workspace.
+Its `version` uses `YEAR.MONTH.MICRO` and advances weekly, while each Package or Product declares its own Stability.
+Do not change versions during normal development, only advance versions through `just next-version` or `just release`.
 
 ## Security
 
@@ -36,8 +37,7 @@ See the relevant directories we're working on for the relevant just recipes.
 ## Release
 
 Release CI is tag driven and runs on `v*` pushes:
- - Use `just release` to prepare a local patch release commit and tag.
- - Use `just release minor` or `just release major` when you want a non-default bump.
+ - Use `just release` to prepare the next weekly release commit and tag.
  - Use `just release-push` to push the current release commit and tag.
  - Nightly is the high-frequency early-access channel.
  - Canary is reserved for internal validation builds.

@@ -1,6 +1,6 @@
 {
     "name": "@destack/cli-linux-x64-gnu",
-    "version": "0.55.4",
+    "version": "2026.8.3",
     "license": "MIT",
     "description": "Destack CLI binaries for linux x64 gnu",
     "os": ["linux"],

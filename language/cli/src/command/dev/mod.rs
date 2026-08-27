@@ -6,4 +6,4 @@ pub mod version;
 pub use command::DevCommand;
 pub use release::ReleaseArgs;
 pub use stats::StatsArgs;
-pub use version::VersionCommands;
+pub use version::VersionCommand;

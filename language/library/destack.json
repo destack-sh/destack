@@ -1,5 +1,6 @@
 {
   "name": "destack",
+  "version": "2026.8.3",
   "stability": "experimental",
   "private": true,
   "description": "Destack standard library.",

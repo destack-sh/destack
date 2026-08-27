@@ -1,6 +1,6 @@
 {
     "name": "create-destack",
-    "version": "0.55.4",
+    "version": "2026.8.3",
     "description": "Create Destack projects",
     "license": "MIT",
     "type": "module",
@@ -33,7 +33,7 @@
         "publish:live": "npm publish --access public"
     },
     "dependencies": {
-        "@destack/cli": "0.55.4"
+        "@destack/cli": "2026.8.3"
     },
     "publishConfig": {
         "access": "public"

@@ -55,17 +55,17 @@ resolve_version() {
 		return
 	fi
 
-	local version_path="${DESTACK_REPOSITORY_ROOT}/VERSION.txt"
-	if [ -f "${version_path}" ]; then
+	local manifest_path="${DESTACK_REPOSITORY_ROOT}/destack.json"
+	if [ -f "${manifest_path}" ]; then
 		local version_file
-		version_file="$(tr -d '[:space:]' <"${version_path}")"
+		version_file="$(node -e 'const fs = require("node:fs"); const manifest = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); console.log(manifest.version);' "${manifest_path}")"
 		if [ -n "${version_file}" ]; then
 			printf '%s\n' "${version_file#v}"
 			return
 		fi
 	fi
 
-	fail "release version not provided and VERSION.txt is missing"
+	fail "release version not provided and destack.json is missing"
 }
 
 # resolve the version in bridge/zed/extension.toml
@@ -225,6 +225,7 @@ fi
 
 # verify required local tooling
 require_command git
+require_command node
 require_command python3
 
 # resolve and validate release metadata
@@ -233,7 +234,7 @@ validate_semver "${DESTACK_RELEASE_VERSION}"
 
 DESTACK_MANIFEST_VERSION="$(resolve_manifest_version)"
 if [ "${DESTACK_MANIFEST_VERSION}" != "${DESTACK_RELEASE_VERSION}" ]; then
-	fail "version mismatch: VERSION.txt=${DESTACK_RELEASE_VERSION}, bridge/zed/extension.toml=${DESTACK_MANIFEST_VERSION}"
+	fail "version mismatch: destack.json=${DESTACK_RELEASE_VERSION}, bridge/zed/extension.toml=${DESTACK_MANIFEST_VERSION}"
 fi
 
 # resolve the source commit for the zed registry submodule pointer

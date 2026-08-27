@@ -10,7 +10,7 @@
 Open source cross-platform TypeScript(++) toolchain, VM, AOT compiler, runtime, and libraries.
 
 <p>
-    <a href="VERSION.txt"><img src="https://img.shields.io/badge/version-0.55.4-2ea44f?style=for-the-badge" alt="Version"></a>
+    <a href="destack.json"><img src="https://img.shields.io/badge/version-2026.8.3-2ea44f?style=for-the-badge" alt="Version"></a>
     <a href="LICENSE.txt"><img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="MIT License"></a>
     <a href="https://github.com/destack-sh/destack/actions/workflows/nightly.yml"><img src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/nightly.yml?branch=main&label=Nightly&logo=github&style=for-the-badge" alt="Nightly"></a>
     <a href="https://github.com/destack-sh/destack/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/release.yml?branch=main&label=Release&logo=github&style=for-the-badge" alt="Release"></a>
@@ -37,7 +37,7 @@ The architecture is therefore modeled around "do-it-yourself software" over "rea
 ## Usage
 
 > [!WARNING]
-> **Destack is an _experimental_ software stack.**
+> **Destack is an _alpha_ software stack.**
 > Things may change or break or vanish.
 
 **Get started with Destack**:

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://destack.sh/schemas/destack.schema.json",
+  "name": "@destack/workspace",
+  "version": "2026.8.3",
+  "private": true,
+  "description": "Destack universal computing stack.",
+  "license": "MIT",
+  "workspace": {
+    "packages": [
+      "language/*",
+      "language/grammar/*",
+      "library/*",
+      "service/*",
+      "app/*",
+      "client/*",
+      "bridge/*",
+      "platform/*",
+      "template/create-destack"
+    ]
+  },
+  "products": {
+    "destack": {
+      "stability": "alpha"
+    }
+  }
+}

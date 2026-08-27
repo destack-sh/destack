@@ -9,7 +9,7 @@ const BUILD_PATHS: [&str; 6] = [
     ".cargo/config.toml",
     "Cargo.lock",
     "Cargo.toml",
-    "VERSION.txt",
+    "destack.json",
     "language",
     "rust-toolchain.toml",
 ];

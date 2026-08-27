@@ -155,11 +155,27 @@ clean:
 
 # show current version
 version:
-    @cat VERSION.txt
+    @node -p 'JSON.parse(require("node:fs").readFileSync("destack.json", "utf8")).version'
 
-# bump version: major, minor, or patch
-bump kind="patch":
-    cargo run --release -p destack_cli -- dev version {{ kind }}
+# show current stability
+stability:
+    @node -p 'JSON.parse(require("node:fs").readFileSync("destack.json", "utf8")).products.destack.stability'
+
+# set an explicit calendar version
+set-version version:
+    cargo run --release -p destack_cli -- dev version set "{{version}}"
+    just sync-version
+
+# advance the calendar version for the current UTC month
+next-version:
+    cargo run --release -p destack_cli -- dev version next
+    just sync-version
+
+# synchronize generated release metadata
+sync-version:
+    cargo metadata --format-version 1 > /dev/null
+    just client/generate
+    bun platform/site/scripts/generate-release.mjs
 
 # validate release version and tracked file versions
 validate-release tag="":
@@ -188,16 +204,16 @@ publish-release:
 publish-release-local:
     bash dev/ci/publish-release-local.sh
 
-# create a new release (bump, validate, commit, tag)
-release kind="patch":
-    bash dev/ci/create-release.sh "{{kind}}"
+# create the next weekly release
+release:
+    bash dev/ci/create-release.sh
 
 # push the current release commit and tag
 release-push:
-    version="$(cat VERSION.txt)"; \
+    version="$(just version)"; \
     if ! git rev-parse --verify "v${version}" >/dev/null 2>&1; then \
         echo "error: missing local release tag v${version}" >&2; \
-        echo "run: just release <major|minor|patch>" >&2; \
+        echo "run: just release" >&2; \
         exit 1; \
     fi; \
     git push origin main; \
