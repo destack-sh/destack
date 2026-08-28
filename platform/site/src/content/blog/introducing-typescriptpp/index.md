@@ -145,7 +145,7 @@ author: "Florian"
 - incremental granularity (a la casey muratori)
 - you can't engineer precision and alignment (i.e. understanding) into a system post-hoc (or at least, only with great difficulty that far exceeds the cost of doing it properly from the start)
 
-## Why "Complete"
+## Why "Universal"
 
 - there is something beautiful about doing the most with the fewest possible parts
 - a minimal, simple language like C or even Go - though very few people would have called either "minimal" at the time they were introduced - is elegant in a way.
@@ -256,6 +256,8 @@ author: "Florian"
 - the easy part first to first: kill all the no soundness holes!
 - no dynamic shenanigans, no JS legacy compat
 - need strict, sound TS with predictable module boundaries and type behavior (roughly equivalent to tsc's `isolatedDeclarations`)
+- "A module's public declarations can be recovered from that module alone."
+- (isolated declarations must be directly transcribable)
 - changing and constraining the type system just a bit gives us a lot more parallelism
 - ideally also make it fast to compile, which requires cleaner boundaries than standard TS gives
 
@@ -287,6 +289,10 @@ There are also some TypeScript features that are not sound or just not needed in
 - keep freshness and widening
 - keep literal freshness
 - const / as const
+
+- integer overflow / underflow traps in all build models
+- explicit wrapping / saturating / checked arithmetic
+- only upcasts are allowed via `as`
 
 ### Enums
 
@@ -347,10 +353,12 @@ There are also some TypeScript features that are not sound or just not needed in
 - usually use symbol branding in TS, which is kinda icky
 
 ```ts
-const Tag: unique symbol = Symbol();
+const BrandTypeId: unique symbol = Symbol.for("effect/Brand")
 
-{
-    [Symbol.toStringTag]: () => "Tagged"
+type ProductId = number & {
+  readonly [BrandTypeId]: {
+    readonly ProductId: "ProductId" // unique identifier for ProductId
+  }
 }
 ```
 
@@ -464,10 +472,11 @@ export type Record<K: PropertyKey, V> = {
 ### TSX
 
 - tag based trees are pretty useful and broadly applicable
+- full TSX support (no arbitrary XMLNS namespaces though)
 - there are other ways of doing UI, but this is a pretty good one, and it's *very* familiar
 - trees, generalised tree litearls,
 - lowercase tree builders, ..?
-- support both "elements" and "fragments"
+- support both "Elements" (like `<Panel />`) and "fragments" (`<div />`)
 - (unfortunately this also means keeping TS ambiguity around..)
 
 - contextual TreeBuilder interface incl. string tags
@@ -510,6 +519,8 @@ export type Record<K: PropertyKey, V> = {
 - jsdoc?
 - documentations on all expressions (like decorators)
 
+- doc tests are a great idea, let's do that
+
 ### Result and Try
 
 - Most subtractions and additions between from TS++ to TS are about soundness, but there is nothing intrinsically unsound about exceptions. 
@@ -530,6 +541,7 @@ export type Record<K: PropertyKey, V> = {
 - familiar try / catch / finally syntax still works though!
 - catch (e) is all Try error residuals
 - catch match (e) as the ergonomic switch
+
 
 ### Using
 
@@ -557,16 +569,42 @@ export type Record<K: PropertyKey, V> = {
 - member overloading only within a single declaration block (extension or itme declaration)
 - also for @unsafe impls
 
-### Operator Overloading
+### Overloading
 
+- operator overloading
 - serious math-y applications want operator overloading
 - newtype interfaces ("traits")
 - binary `Add`, `Subtract`, `Multiply`, `Divide`, etc.
 - unary `Plus`, `Minus`
 - `Vector2<float32> + Vector2<float32>`
 
-### Const
+- dispatch and coherence
+- need some .. coherent model
+- first-match wins
+- function overloading *only* within same declaration scope (single struct, class, extension, ..)
+- extension members are lexical and import-scoped
+- interface implementations participate in the whole program (even if not imported/exported)
 
+### Static and Const
+
+- "static" vs static
+- unfortunately static is very overloaded
+- static vs const vs runtime
+- runtime we already know about
+
+- static in terms of static _association_, evaluated at runtime
+- module level constants
+- static members and evaluation order
+- static members per instance / specialisation
+
+- actually "static" during comptime, trivial evaluation
+- static litearls
+- type algebra
+- one world of static terms, simple stuff like arithemetic, boolean logic, ..
+- only well known collections
+
+- const evaluation
+- "runtime at compile time"
 - originally envisioned something closer to Zig's comptime (or even Jai's version of it)
 - originally had a comptime keyword here but was kinda confusing
 - `const <expr>` and `const { ... }` for comptime evaluation
@@ -580,30 +618,25 @@ export type Record<K: PropertyKey, V> = {
 - multiplicity "once" and "repeat"
 - `FunctionPointer` for raw function pointers without environment
 
-- `@capture`
+- the default is "managed" / automatic as in TS, which means we don't have to think about captures, but incur some allocation cost
+- on demand when desired we can specify `@capture` for lambdas / nested functions
+- `@capture` with `"move"`, `"borrow"`, `"copy"`,`"manage"`, ..
+- 
 
 ### Async
 
 - proper async
 - keep familiar Promise for aliased async
+- Promise is implemented basically completely in userland!
+- *fiber*-based execution (e.g. JVM's new Loom model).. but doesn't really matter, feels like TS
+- (for soundness, Promis requires Copy values, which classes and primitive value types trivially satisfy)
 - introduce Task for structured affine concurrency (same async/await model)
 - (Promise = managed class, Task = value type, Promise requires aliasable / copyable type)
 
-- *fiber*-based execution (e.g. JVM's new model)
-
-### Context and ContextVars
-
-- like Python
-- but for all bindings
-- `Context`
-
-### Panic
-
-- overflows / underflows
-- out of bounds
-- deliberate unreachable
-- worker scoped
-- catch unwind
+- TS++ has no exceptions, promises never reject quite like they do in TS++
+- (they're really more like Futures once you remove the exception model)
+- `Promise<Result<T, E>>` as the result type for fallible async work
+- (or `Task<Result<T, E>>` for affine execution)
 
 ---
 
@@ -617,7 +650,14 @@ export type Record<K: PropertyKey, V> = {
 - fixed static shapes (post type algebra solving) .. that's already fine for 80% of use cases, basically what C# / JVM / Go-ish are
 - but sometimes we want even more: proper value types, borrowing, pointers (gasp)
 
-### Representation
+- there are basically four axes to model for memory, and TS++ supports them explicitly:
+- (with the defaults being TS shaped as always)
+-  owneship (managed, owned, borrowed, or raw)
+-  access (readonly, mutable, or exclusive)
+-  space/place (local, shared, inline, or another defined space)
+-  lifetime
+
+### Layout
 
 - so, TS++ should behave as much as TS as we can physically manage while keeping sane and predictable performance _and_ behavior
 - (and something we can actually build into a good toolchain)
@@ -631,10 +671,11 @@ export type Record<K: PropertyKey, V> = {
 ### Ownership
 
 - Value Types, wooo
+- various ways to model value types, most complete and natural is "class" vs "struct" (conceptually)
 - with move semantics
-- bare T just means whatever the default form is. preserve TS behavior
+- bare `T` just means whatever the default form is. preserve TS behavior
 - reference types are reference types, value types are value types
-- ^T, T, &T, *T, ...
+- `^T`, `T`, `&T`, `*T`, ...
 - Managed<T>, Owned<T>, ...
 
 - managed vs owned bridge
@@ -657,20 +698,27 @@ export type Record<K: PropertyKey, V> = {
 - generalised lifetimes into regions (combine lifetime + space/place)
 - T & 'a, 'a & "shared", ...
 - Borrowed<T, L/R, A>, REadonlyBorrowed, ExclusiveBorrowed
-- tried a bunch of things to make this more TS-native, but ultimately, the Rust model really is best (inference only locally within functions, no induced generics beyond that)
+
+- many blog posts have been penned descrribing some of the less intuitive nuances of a Rust-like borrow checker
+- and indeed, even though coming out the other end does give one a new understanding, it is not a _necessary_ understanding for most jobs
+- tried a bunch of things to make ownership tracking more TS-native, but ultimately, 
+- the Rust model really is the most widespread and commonly known
+-  (inference only locally within functions, no induced generics beyond that)
+- fortunately, we barely write code by hand anymore unless we want to, most use cases for this will be in libraries most users will never see, so whatever. it works, we know it works, it's safe.
 
 ### Mutability
 
 - let / const preserve TS meaning
+- const does *not* imply deep readonly
+- "as const" _is_ deep readonly
 - can take &exclusive only on managed types for const
+- readonly, readonly modifier, readonly T
 
-- readonly
 - &T default to mutable
 - &readonly for explicit readonly
 - Rust only has mutable vs immutable
 - "third rung" on the mutability ladder
 - overwrite stability
-
 - we can now distinguish "readonly, non-exclusive", "mutable, non-exclusive", "mutable, exclusive"
 - (what about data races..? lints / DST / ...)
 - exclusive ownership
@@ -678,7 +726,7 @@ export type Record<K: PropertyKey, V> = {
 
 - WithAccess
 - PlaceOf
-- ...
+- AccessOf, Local, Shared, ...
 
 ### Drop
 
@@ -688,6 +736,13 @@ export type Record<K: PropertyKey, V> = {
 - (e.g. Drop on an Array deallocates the memory)
 - no drop flags needed because no partial initialisation + eager drop
 - Drop is *not* lowered to JS (not sure how that would even work..?)
+
+```ds
+export newtype interface Drop {
+    /// Drop this value.
+    drop(&exclusive this): void;
+}
+```
 
 - it's a finalizer, but a very restricted one
 - no allocations, no panics, statically checked
@@ -745,16 +800,6 @@ export type Record<K: PropertyKey, V> = {
 - no CommonJS
 - no export type / import type
 
-### Workers
-
-- JS/TS already has a strong worker-first story
-- already talked about local / shared heap split
-- shared memory across workers, local heap to each worker 
-- (this is fortunate because it gives us the local managed/borrowed model we want)
-- retain local / worker isolation as the primary model
-- use Workers for structured concurrency
-- (maps to threads N:M)
-
 ### destack.json
 
 - oh what is the theoretically ideally package format? toml? json? txt? CMakeLists? magic setup.py? just kidding
@@ -787,6 +832,8 @@ export type Record<K: PropertyKey, V> = {
 
 ### import.meta
 
+For module-level constants we keep and extend the `import.meta` convention:
+
 | Field | Description | Type | Examples |
 |-------|-------------|------|----------|
 | `import.meta.url` | current module URL | `string` | `"file:///app/src/main.ds"`, `"https://example.com/mod.ds"` |
@@ -804,6 +851,16 @@ export type Record<K: PropertyKey, V> = {
 | `import.meta.<mode>` | mode shorthands for `debug`, `dev`, `prod`, `test`, `bench`, `lint` | `boolean` | `import.meta.test`, `import.meta.prod` |
 | `import.meta.env` | configured build environment | `{ readonly [key: string]: string \| undefined }` | `{ NODE_ENV: "production" }` |
 
+### Workers
+
+- JS/TS already has a strong worker-first story
+- already talked about local / shared heap split
+- shared memory across workers, local heap to each worker 
+- (this is fortunate because it gives us the local managed/borrowed model we want)
+- retain local / worker isolation as the primary model
+- use Workers for structured concurrency
+- (maps to threads N:M)
+
 ### Bindings
 
 - proper colored functions
@@ -811,6 +868,30 @@ export type Record<K: PropertyKey, V> = {
 - effect tracking
 - @binding
 - configured via Context
+
+### Testing
+
+- jest/vitest style tests
+
+### Panic
+
+- no exceptions, results for known unknowns
+- but still need some way to model hard failures
+- trap / abort .. abort.. but what  about panics for
+- overflows / underflows
+- out of bounds
+- deliberate unreachable
+
+- worker scoped
+- catch unwind
+- also useful for testing
+- again like in Rust
+
+<!--
+### Policy
+
+- policy config destack.json stuff
+-->
 
 <!--### Style
 
