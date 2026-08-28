@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use std::sync::Arc;
 
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProvenanceId};
 use serde::{Deserialize, Serialize};
 
 use destack_core::FxIndexMap as IndexMap;
@@ -546,14 +546,30 @@ impl GenericSegment {
         instance_id
     }
 
-    /// Set the source kind that introduced one instance.
-    pub fn set_instance_origin(&mut self, instance_id: LocalInstanceId, origin: InstanceOrigin) {
-        if self.contains_instance_id(instance_id) {
-            let instance = self
-                .instances
-                .get_mut(instance_id.0 - self.first_instance_id);
-            instance.origin = origin;
-        }
+    /// Promote one type application to a code-generating instantiation.
+    pub fn promote_instance(
+        &mut self,
+        instance_id: LocalInstanceId,
+        source: GlobalNodeIdAny,
+        provenance: ProvenanceId,
+    ) {
+        assert!(
+            self.contains_instance_id(instance_id),
+            "promoted instance {instance_id:?} is outside this segment",
+        );
+        let instance = self
+            .instances
+            .get_mut(instance_id.0 - self.first_instance_id);
+        assert_eq!(
+            instance.origin,
+            InstanceOrigin::Application,
+            "promoted instance {instance_id:?} is not a type application",
+        );
+
+        // replace the representative closing occurrence
+        instance.source = source;
+        instance.origin = InstanceOrigin::Instantiation;
+        instance.provenance = provenance;
     }
 
     /// Get the number of instances in the segment.

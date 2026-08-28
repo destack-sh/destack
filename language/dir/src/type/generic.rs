@@ -375,8 +375,6 @@ pub struct Instance {
 /// Why materialization introduced a generic instance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum InstanceOrigin {
-    /// A concrete declaration requiring one closed representation.
-    Declaration,
     /// A checked body instantiation requiring generated code.
     Instantiation,
     /// A materialized type application requiring type rows.
