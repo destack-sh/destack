@@ -7,23 +7,12 @@ use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions as FirPrintOptions};
 use destack_source::{File, IndentStyle, LineEnding, ProvenanceId, TextNameId};
 
 /// The formatter for one JavaScript formatting pass.
-pub type Formatter<'context, 'state> = format::Formatter<'state, 'context, Context<'context>>;
-
-/// The formatting mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum FormatMode {
-    /// Pretty.
-    #[default]
-    Pretty,
-    /// Minimal.
-    Minimal,
-}
+pub(crate) type Formatter<'context, 'state> =
+    format::Formatter<'state, 'context, Context<'context>>;
 
 /// JavaScript formatting options.
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
-pub struct Options {
-    /// The formatting mode.
-    pub mode: FormatMode = FormatMode::Pretty,
+pub struct FormatOptions {
     /// The line ending to apply to printed output.
     pub line_ending: LineEnding = LineEnding::LineFeed,
     /// The indent style.
@@ -34,24 +23,7 @@ pub struct Options {
     pub line_width: u8 = 100,
 }
 
-impl Options {
-    /// Create pretty-printing options.
-    pub fn pretty() -> Self {
-        Self {
-            mode: FormatMode::Pretty,
-            ..Self::default()
-        }
-    }
-
-    /// Create minimal formatting options.
-    pub fn minimal() -> Self {
-        Self {
-            mode: FormatMode::Minimal,
-            indent_width: 0,
-            ..Self::default()
-        }
-    }
-
+impl FormatOptions {
     /// Set the line ending.
     pub fn with_line_ending(mut self, line_ending: LineEnding) -> Self {
         self.line_ending = line_ending;
@@ -75,22 +47,9 @@ impl Options {
         self.line_width = line_width;
         self
     }
-
-    /// Convert into FIR print options.
-    #[inline]
-    pub fn as_print_options(&self) -> FirPrintOptions {
-        FirPrintOptions {
-            line_ending: self.line_ending,
-            line_width: self.line_width,
-            indent_style: self.indent_style,
-            indent_width: self.indent_width,
-            trim_trailing_whitespace: true,
-            max_output_bytes: MAX_OUTPUT_BYTES,
-        }
-    }
 }
 
-impl format::FormatOptions for Options {
+impl format::FormatOptions for FormatOptions {
     #[inline]
     fn indent_style(&self) -> IndentStyle {
         self.indent_style
@@ -108,15 +67,22 @@ impl format::FormatOptions for Options {
 
     #[inline]
     fn as_print_options(&self) -> FirPrintOptions {
-        self.as_print_options()
+        FirPrintOptions {
+            line_ending: self.line_ending,
+            line_width: self.line_width,
+            indent_style: self.indent_style,
+            indent_width: self.indent_width,
+            trim_trailing_whitespace: true,
+            max_output_bytes: MAX_OUTPUT_BYTES,
+        }
     }
 }
 
 /// One JavaScript formatting pass.
 #[derive(Debug)]
-pub struct Context<'a> {
+pub(crate) struct Context<'a> {
     /// The format options.
-    pub options: Options,
+    pub options: FormatOptions,
     /// The source file for line ending and print integration.
     pub file: &'a File,
     /// The JavaScript tree.
@@ -199,7 +165,7 @@ fn format_symbol<'ast>(mut id: SymbolId, f: &mut Formatter<'ast, '_>) -> FormatR
 }
 
 impl<'a> format::FormatContext for Context<'a> {
-    type Options = Options;
+    type Options = FormatOptions;
 
     #[inline]
     fn options(&self) -> &Self::Options {
