@@ -6,7 +6,7 @@ use destack_artifact::{
 use destack_dir::{Expression, Literal, Tree};
 use destack_parser::{CommentRetention, ParseOptions, Parser};
 use destack_repository::{Module, ModuleFile, ProviderContext};
-use destack_source::{File, LanguageType, ModuleId, Span};
+use destack_source::{File, LanguageType, ModuleId, ProvenanceTable, Span};
 
 use crate::{ProviderAttempt, SessionError, SessionState};
 
@@ -64,7 +64,11 @@ impl SessionState {
     fn make_empty_dir(file: &File, module_id: ModuleId) -> DirParsed {
         let mut tree = Tree::new(module_id);
         let span = Span::empty(file.id);
-        let root_expression = tree.insert(Expression::Literal(Literal::Null), span);
+        let mut provenance = ProvenanceTable::build();
+        let root_provenance = provenance.insert_authored(span);
+        let root_expression =
+            tree.insert(Expression::Literal(Literal::Null), span, root_provenance);
+        let provenance = provenance.finish();
 
         let file = DirParsedFile {
             file_id: file.id,
@@ -75,7 +79,7 @@ impl SessionState {
             anchor_expression: root_expression,
         };
 
-        DirParsed::new(tree, vec![file], root_expression)
+        DirParsed::new(tree, provenance, vec![file], root_expression)
     }
 
     /// Parse one code module into DIR.
@@ -86,20 +90,29 @@ impl SessionState {
         attempt: &ProviderAttempt,
     ) -> Result<DirParsed, SessionError> {
         let mut tree = Tree::new(module_id);
+        let mut provenance = ProvenanceTable::new();
         let mut files = Vec::with_capacity(module.files.len());
 
         // parse contributing source files into one module tree
         for module_file in &module.files {
             let file = self.source_file(attempt.revision(), module_file.file_id)?;
-            let parsed_file = self.parse_code_file(file, module_file, &mut tree, attempt)?;
+            let parsed_file =
+                self.parse_code_file(file, module_file, &mut tree, &mut provenance, attempt)?;
 
             files.push(parsed_file);
         }
 
         // preserve a stable module-level anchor
         let span = Span::empty(module.file_id);
-        let anchor_expression = tree.insert(Expression::Literal(Literal::Boolean(false)), span);
-        let dir = DirParsed::new(tree, files, anchor_expression);
+        let mut builder = provenance.extend();
+        let anchor_provenance = builder.insert_authored(span);
+        let provenance = builder.finish();
+        let anchor_expression = tree.insert(
+            Expression::Literal(Literal::Boolean(false)),
+            span,
+            anchor_provenance,
+        );
+        let dir = DirParsed::new(tree, provenance, files, anchor_expression);
 
         Ok(dir)
     }
@@ -110,6 +123,7 @@ impl SessionState {
         file: Arc<File>,
         module_file: &ModuleFile,
         tree: &mut Tree,
+        provenance: &mut ProvenanceTable,
         attempt: &ProviderAttempt,
     ) -> Result<DirParsedFile, SessionError> {
         let repository = self.repository();
@@ -122,10 +136,12 @@ impl SessionState {
 
         // parse the source into the shared module tree
         let tree_in = std::mem::replace(tree, Tree::new(tree.module_id));
+        let provenance_in = std::mem::replace(provenance, ProvenanceTable::new());
         let parser = Parser::new(
             file.clone(),
             language_type,
             tree_in,
+            provenance_in,
             ParseOptions {
                 comment_retention: CommentRetention::All,
                 ..ParseOptions::default()
@@ -150,10 +166,17 @@ impl SessionState {
         let comments = parse.comments;
         let roots = parse.roots;
 
-        // restore the shared tree
+        // restore the shared tree and append one authored file anchor
         *tree = parse.tree;
+        let mut builder = parse.provenance.extend();
         let span = Span::empty(file.id);
-        let anchor_expression = tree.insert(Expression::Literal(Literal::Boolean(false)), span);
+        let anchor_provenance = builder.insert_authored(span);
+        let anchor_expression = tree.insert(
+            Expression::Literal(Literal::Boolean(false)),
+            span,
+            anchor_provenance,
+        );
+        *provenance = builder.finish();
 
         Ok(DirParsedFile {
             file_id: file.id,
