@@ -1,6 +1,6 @@
 use destack_core::Blob;
 use destack_serde::Reflect;
-use destack_source::{FileType, Uri};
+use destack_source::{FileType, ProvenanceTable, TextMap, Uri};
 use serde::{Deserialize, Serialize};
 
 /// One section of a linked bundle.
@@ -72,6 +72,8 @@ pub struct BundleFile {
     pub blob: Blob,
     /// The related source URI when one exists.
     pub source: Option<Uri>,
+    /// The emitted text ranges attributed to compilation provenance.
+    pub map: TextMap,
 }
 
 impl BundleFile {
@@ -82,6 +84,7 @@ impl BundleFile {
         file_type: FileType,
         blob: Blob,
         source: Option<Uri>,
+        map: TextMap,
     ) -> Self {
         Self {
             section,
@@ -89,23 +92,30 @@ impl BundleFile {
             file_type,
             blob,
             source,
+            map,
         }
     }
 }
 
-/// One linked file graph for one target.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
+/// Linked files for one target.
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct Bundle {
     /// The target-level assembly mode.
     pub assembly: BundleMode,
     /// The files in this bundle.
     pub files: Vec<BundleFile>,
+    /// The provenance table referenced by the emitted text maps.
+    pub provenance: ProvenanceTable,
 }
 
 impl Bundle {
     /// Create one bundle.
-    pub fn new(assembly: BundleMode, files: Vec<BundleFile>) -> Self {
-        Self { assembly, files }
+    pub fn new(assembly: BundleMode, files: Vec<BundleFile>, provenance: ProvenanceTable) -> Self {
+        Self {
+            assembly,
+            files,
+            provenance,
+        }
     }
 
     /// Return an iterator over all output files.

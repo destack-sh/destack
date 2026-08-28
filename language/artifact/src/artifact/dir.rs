@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::{ByteRange, FileId, ModuleId};
+use destack_source::{ByteRange, FileId, ModuleId, ProvenanceTable};
 use serde::{Deserialize, Serialize};
 
 use crate::{ArtifactProjectionFingerprint, DiagnosticControlTable};
@@ -12,6 +12,8 @@ use crate::{ArtifactProjectionFingerprint, DiagnosticControlTable};
 pub struct DirParsed {
     /// The parsed tree, indexed with its structural parents.
     pub tree: dir::Tree,
+    /// The parsed provenance table.
+    pub provenance: ProvenanceTable,
     /// The parsed physical files.
     pub files: Vec<DirParsedFile>,
     /// Stable anchor expression for diagnostics.
@@ -22,6 +24,7 @@ impl DirParsed {
     /// Create a parsed DIR artifact.
     pub fn new(
         mut tree: dir::Tree,
+        provenance: ProvenanceTable,
         files: Vec<DirParsedFile>,
         anchor_expression: dir::LocalNodeId<dir::Expression>,
     ) -> Self {
@@ -36,6 +39,7 @@ impl DirParsed {
 
         Self {
             tree,
+            provenance,
             files,
             anchor_expression,
         }
@@ -141,6 +145,8 @@ impl DirImported {
 pub struct DirExpanded {
     /// Tree changes.
     pub patch: dir::Patch,
+    /// The provenance table through macro expansion.
+    pub provenance: ProvenanceTable,
     /// New bindings.
     pub bindings: Arc<dir::BindingSegment>,
     /// New module imports.
@@ -597,6 +603,8 @@ impl DirChecked {
 pub struct DirMaterialized {
     /// Tree changes.
     pub patch: dir::Patch,
+    /// The provenance table through materialization.
+    pub provenance: ProvenanceTable,
     /// New types.
     pub types: Arc<dir::TypeSegment>,
     /// Closed generic instances and their materialized types.

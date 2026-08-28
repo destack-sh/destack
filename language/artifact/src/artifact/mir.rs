@@ -1,6 +1,7 @@
 use destack_core::BitSet;
 use destack_mir::{self as mir, CallComponentGraph, LinkSupergraph, LinkTable, Symbol};
 use destack_serde::Reflect;
+use destack_source::ProvenanceTable;
 use serde::{Deserialize, Serialize};
 
 /// MIR produced by lowering.
@@ -8,6 +9,8 @@ use serde::{Deserialize, Serialize};
 pub struct MirLowered {
     /// The MIR tree.
     pub tree: mir::Tree,
+    /// The provenance table through DIR to MIR lowering.
+    pub provenance: ProvenanceTable,
     /// Target ABI layout.
     pub target: mir::TargetLayout,
     /// The module initializer storing runtime bindings, when one exists.
@@ -31,9 +34,10 @@ pub struct MirLowered {
 
 impl MirLowered {
     /// Create a new lowered MIR payload.
-    pub fn new() -> Self {
+    pub fn new(provenance: ProvenanceTable) -> Self {
         Self {
             tree: mir::Tree::new(),
+            provenance,
             target: mir::TargetLayout::default(),
             initializer: None,
             layouts: mir::LayoutTable::default(),
@@ -44,12 +48,6 @@ impl MirLowered {
             effects: mir::EffectTable::default(),
             profile: mir::ProfileTable::default(),
         }
-    }
-}
-
-impl Default for MirLowered {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -65,6 +63,8 @@ pub struct MirVerified {
 pub struct MirElaborated {
     /// The elaborated MIR tree.
     pub tree: mir::Tree,
+    /// The provenance table through drop elaboration.
+    pub provenance: ProvenanceTable,
     /// Canonical MIR layout table.
     pub layouts: mir::LayoutTable,
     /// Canonical MIR drop table.
@@ -78,6 +78,8 @@ pub struct MirElaborated {
 pub struct MirOptimized {
     /// The optimized MIR tree.
     pub tree: mir::Tree,
+    /// The provenance table through optimization.
+    pub provenance: ProvenanceTable,
     /// Canonical MIR layout table.
     pub layouts: mir::LayoutTable,
     /// Canonical MIR dispatch table.
@@ -94,9 +96,10 @@ pub struct MirOptimized {
 
 impl MirOptimized {
     /// Create a new optimized MIR payload.
-    pub fn new() -> Self {
+    pub fn new(provenance: ProvenanceTable) -> Self {
         Self {
             tree: mir::Tree::new(),
+            provenance,
             layouts: mir::LayoutTable::default(),
             dispatch: mir::DispatchTable::default(),
             drops: mir::DropTable::default(),
@@ -109,12 +112,6 @@ impl MirOptimized {
     /// Return the optimized MIR tree.
     pub fn tree(&self) -> &mir::Tree {
         &self.tree
-    }
-}
-
-impl Default for MirOptimized {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
