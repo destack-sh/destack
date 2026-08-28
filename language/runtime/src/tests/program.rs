@@ -76,7 +76,7 @@ impl TestProgram {
             .expect("runtime test destructor should accept one parameter");
         let mir::Type::Reference {
             pointee, storage, ..
-        } = self.lowered.tree.get(parameter.ty)
+        } = self.lowered.tree.ty(parameter.ty)
         else {
             panic!("runtime test destructor should accept one reference");
         };
@@ -95,8 +95,9 @@ impl TestProgram {
         // emit one relocatable object from the parsed MIR
         let emitter = ObjectEmitter::new(module, &self.lowered, &optimized, [])
             .expect("runtime test MIR should emit object metadata");
+        let mut provenance = optimized.provenance.extend();
         let bytecode = BytecodeEmitter::new(module, &optimized, &emitter)
-            .emit()
+            .emit(&mut provenance)
             .expect("runtime test MIR should emit bytecode");
         let native = if self.is_native_compiled {
             Some(
@@ -108,7 +109,7 @@ impl TestProgram {
                     &destack_repository::Target::native(),
                 )
                 .expect("runtime test native emitter should initialize")
-                .emit()
+                .emit(&mut provenance)
                 .expect("runtime test MIR should emit native code"),
             )
         } else {
@@ -118,7 +119,7 @@ impl TestProgram {
             Some(native) => emitter.native(native),
             None => emitter,
         };
-        let object = Arc::new(emitter.bytecode(bytecode).build());
+        let object = Arc::new(emitter.bytecode(bytecode).build(provenance.finish()));
 
         // link the object through the production Program path
         ProgramLinker::new(package, vec![(module, object)], &self.strings)

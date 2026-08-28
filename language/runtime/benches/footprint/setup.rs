@@ -308,10 +308,11 @@ impl VmSetup {
         // emit one relocatable object through the production compiler path
         let emitter = ObjectEmitter::new(module, &lowered, &optimized, [])
             .expect("footprint MIR should emit object metadata");
+        let mut provenance = optimized.provenance.extend();
         let bytecode = BytecodeEmitter::new(module, &optimized, &emitter)
-            .emit()
+            .emit(&mut provenance)
             .expect("footprint MIR should emit bytecode");
-        let object = Arc::new(emitter.bytecode(bytecode).build());
+        let object = Arc::new(emitter.bytecode(bytecode).build(provenance.finish()));
 
         // link the object into one executable Program
         let program = ProgramLinker::new(package, vec![(module, object)], &strings)
