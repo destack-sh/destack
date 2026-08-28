@@ -179,7 +179,11 @@ impl Machine {
             .function(self.program.sections(), frame.function.index())
             .ok_or_else(|| Error::undefined_function(frame.function))?;
         let operation = function
-            .operation_at(bytecode.operations(self.program.sections()), pc)
+            .operation_at(
+                bytecode.operations(self.program.sections()),
+                bytecode.mappings(self.program.sections()),
+                pc,
+            )
             .ok_or_else(Error::invalid_image)?;
         let point = ProgramPoint::new(frame.function, operation);
 
