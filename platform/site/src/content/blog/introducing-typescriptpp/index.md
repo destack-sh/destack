@@ -303,13 +303,20 @@ There are also some TypeScript features that are not sound or just not needed in
 - auto incrementing enum (starts at 0, int64, signed)
 - enums are nominal! need to explicitly cast
 
-### Arrays, Slices and Tuples
+### Sequences
 
-- tuples, slices, inline arrays and the rest
+- arrays, proper, tuples, slices, inline arrays and the rest
+- first, arrays work as before
+- T[] == Array<T>
 - no more array tuples (need to free up `[T]` and `[T; N]`, arbitrary `[X, Y, ...]` is an error)
-- slices are just fat pointers
-- `&[T]` is also a fat pointer, `[T]` is a managed slice, `^[T]` is an owned slice
+- proper tuples! (A, B, C)
+- empty tuple == `() == void`
+
 - fixed arrays `[T; N]`
+
+- slices are just fat pointers
+- subslices..?
+- `&[T]` is also a fat pointer, `[T]` is a managed slice, `^[T]` is an owned slice
 - `[T]` is managed by default (just like `Function` and `Dynamic` are managed fat pointers by default)
 
 ### Classes
@@ -337,10 +344,10 @@ There are also some TypeScript features that are not sound or just not needed in
 - we have private, we just use that
 - and it codegens to #privateField on JS targets
 - no additional visibiliity controls
-- 
+
 ### Structs
 
-- every serious programming language eventually cares about memory layout and allocations
+- eventually, every serious programming language cares about memory layout and allocations
 - need fixed no overhead shapes
 - no inheritance
 - no embedding (unlike Go, Jai)
@@ -542,7 +549,6 @@ export type Record<K: PropertyKey, V> = {
 - catch (e) is all Try error residuals
 - catch match (e) as the ergonomic switch
 
-
 ### Using
 
 - using / async using (like TC39 proposal)
@@ -679,6 +685,7 @@ export type Record<K: PropertyKey, V> = {
 - Managed<T>, Owned<T>, ...
 
 - managed vs owned bridge
+- can always do owned into managed (same heap)
 - classes are managed by default
 - even when the rvalue is owwned
 - this is to preserve the key feeling of e.g. Arrays and such, while enabling full owned no-managed where desired
