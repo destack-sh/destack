@@ -4,7 +4,7 @@ use destack_artifact::{DirBound, DirExpanded, DirParsed};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::{ProviderError, ProviderResult};
-use destack_source::{ModuleId, SourceIndex};
+use destack_source::{ModuleId, NodeSpanType, ProvenanceTable};
 
 /// Builder for one module symbol index.
 pub(crate) struct SymbolIndexer<'a> {
@@ -14,8 +14,8 @@ pub(crate) struct SymbolIndexer<'a> {
     view: dir::View<'a>,
     /// The visible expanded bindings.
     symbols: dir::BindingTable<'static>,
-    /// The parsed source spans.
-    source_index: &'a SourceIndex,
+    /// The expanded provenance table.
+    provenance: &'a ProvenanceTable,
     /// The module namespace scope.
     namespace_scope: dir::LocalScopeId,
     /// The shared string pool.
@@ -37,7 +37,7 @@ impl<'a> SymbolIndexer<'a> {
             module_id: symbols.module_id,
             view: dir::View::with_patches(&parsed.tree, slice::from_ref(&expanded.patch)),
             symbols,
-            source_index: &parsed.tree.source_index,
+            provenance: &expanded.provenance,
             namespace_scope: bound.namespace_scope,
             strings,
             entries: Vec::new(),
@@ -96,10 +96,10 @@ impl<'a> SymbolIndexer<'a> {
     ) -> ProviderResult<Option<dir::SymbolEntry>> {
         let symbol = self.symbols.get_symbol(symbol_id);
         let member_kind = self.member_kind(source.local_id)?;
-        let source_id = self.view.get_source_any(source.local_id);
+        let provenance = self.view.provenance_any(source.local_id);
 
-        // omit generated declarations without source positions
-        if self.source_index.try_get(source_id).is_none() {
+        // require authored provenance
+        if self.provenance.span(provenance).is_none() {
             return Ok(None);
         }
 
@@ -112,11 +112,14 @@ impl<'a> SymbolIndexer<'a> {
                     "indexed symbol has no declaration span: {source:?}"
                 ))
             })?;
-        let selection = self.source_index.get_main(source_id).ok_or_else(|| {
-            ProviderError::internal(format!(
-                "indexed symbol has no declaration name span: {source:?}"
-            ))
-        })?;
+        let selection = self
+            .view
+            .get_side_span_by_id(source.local_id.id, NodeSpanType::Main)
+            .ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "indexed symbol has no declaration name span: {source:?}"
+                ))
+            })?;
 
         // record the declaration entry
         let name = self.strings.get(name_id).to_string();

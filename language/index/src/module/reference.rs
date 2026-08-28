@@ -235,11 +235,8 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
 
             // require the exact authored key span
             let source = property_id.into_global_any(module_id);
-            let source_id = view.get_source(property_id);
-            let span = self
-                .module
-                .source_index()
-                .get_main(source_id)
+            let span = view
+                .get_side_span(property_id, NodeSpanType::Main)
                 .ok_or_else(|| {
                     ProviderError::internal(format!(
                         "property member name has no authored span: {source:?}"
@@ -442,18 +439,13 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                 .into());
             };
 
-            let source_id = view.get_source_any(source.local_id);
             let span = match (name, binding, alias) {
                 // named dependencies retain their remote name separately
-                (Some(_), _, _) => self
-                    .module
-                    .source_index()
-                    .get_side(source_id, imported_name)
-                    .ok_or_else(|| {
-                        ProviderError::internal(format!(
-                            "dependency reference {source:?} has no imported-name span"
-                        ))
-                    })?,
+                (Some(_), _, _) => view.get_side_span(item_id, imported_name).ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "dependency reference {source:?} has no imported-name span"
+                    ))
+                })?,
 
                 // renamed default and namespace re-exports expose their only identifier
                 (
@@ -478,9 +470,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                         continue;
                     }
 
-                    self.module
-                        .source_index()
-                        .get_main(source_id)
+                    view.get_side_span(item_id, NodeSpanType::Main)
                         .ok_or_else(|| {
                             ProviderError::internal(format!(
                                 "default re-export reference {source:?} has no alias span"
@@ -548,16 +538,13 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
         target: dir::GlobalSymbolId,
         source: dir::GlobalNodeIdAny,
     ) -> ProviderResult<()> {
-        let view = self.module.view();
-        let source_id = view.get_source_any(source.local_id);
-
-        // generated nodes do not represent source reference occurrences
-        if self.module.source_index().try_get(source_id).is_none() {
+        // require authored provenance
+        if !self.module.is_authored(source.local_id) {
             return Ok(());
         }
 
         // require one authored span for every recorded source reference
-        let span = self.reference_span(source, source_id, target)?;
+        let span = self.reference_span(source, target)?;
 
         self.index_reference_span(target, source, span)?;
 
@@ -655,18 +642,15 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
     /// Return the authored span carrying one lexical declaration identity.
     fn declaration_span(&self, source: dir::GlobalNodeIdAny) -> ProviderResult<Span> {
         let view = self.module.view();
-        let source_id = view.get_source_any(source.local_id);
 
         // qualified type paths retain their declaration identity on the root
         if source.local_id.ty == dir::NodeType::TypeExpression
-            && let Some(span) = self.qualified_type_root_span(view, source, source_id)?
+            && let Some(span) = self.qualified_type_root_span(view, source)?
         {
             return Ok(span);
         }
 
-        self.module
-            .source_index()
-            .get_main(source_id)
+        view.get_side_span_by_id(source.local_id.id, NodeSpanType::Main)
             .ok_or_else(|| {
                 ProviderError::internal(format!(
                     "declaration reference {source:?} has no authored span"
@@ -679,15 +663,14 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
     fn reference_span(
         &self,
         source: dir::GlobalNodeIdAny,
-        source_id: u32,
         target: dir::GlobalSymbolId,
     ) -> ProviderResult<Span> {
+        let view = self.module.view();
+
         // selected targets replace projected prefix bindings
         if self.superseded_sources.contains(&source) {
-            return self
-                .module
-                .source_index()
-                .get_main(source_id)
+            return view
+                .get_side_span_by_id(source.local_id.id, NodeSpanType::Main)
                 .ok_or_else(|| {
                     ProviderError::internal(format!(
                         "selected reference {source:?} has no authored main span"
@@ -721,7 +704,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                 ))
             })?;
             let span_type = NodeSpanType::ListItem(NodeSpanList::Segment, segment);
-            let span = self.module.source_index().get_side(source_id, span_type);
+            let span = view.get_side_span_by_id(source.local_id.id, span_type);
             let span = span.ok_or_else(|| {
                 ProviderError::internal(format!(
                     "projected type reference {source:?} has no bound-prefix span"
@@ -731,9 +714,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
             return Ok(span);
         }
 
-        self.module
-            .source_index()
-            .get_main(source_id)
+        view.get_side_span_by_id(source.local_id.id, NodeSpanType::Main)
             .ok_or_else(|| {
                 ProviderError::internal(format!(
                     "reference {source:?} to {target:?} has no authored main span"
@@ -747,7 +728,6 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
         &self,
         view: dir::View<'_>,
         source: dir::GlobalNodeIdAny,
-        source_id: u32,
     ) -> ProviderResult<Option<Span>> {
         let type_id = source
             .local_id
@@ -764,10 +744,8 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
             return Ok(None);
         }
 
-        let span = self
-            .module
-            .source_index()
-            .get_side(source_id, NodeSpanType::Head)
+        let span = view
+            .get_side_span_by_id(source.local_id.id, NodeSpanType::Head)
             .ok_or_else(|| {
                 ProviderError::internal(format!(
                     "qualified type reference {source:?} has no root span"

@@ -6,7 +6,7 @@ use destack_artifact::{
 };
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_source::{ModuleId, SourceIndex};
+use destack_source::ModuleId;
 
 /// DIR artifacts shared by module index builders.
 #[derive(Debug)]
@@ -79,9 +79,11 @@ impl<'a> ModuleIndexContext<'a> {
         dir::View::with_patches(&self.parsed.tree, slice::from_ref(&self.expanded.patch))
     }
 
-    /// Return the parsed source index.
-    pub(super) fn source_index(&self) -> &SourceIndex {
-        &self.parsed.tree.source_index
+    /// Return whether one visible node traces to authored source.
+    pub(super) fn is_authored(&self, node: dir::LocalNodeIdAny) -> bool {
+        let provenance = self.view().provenance_any(node);
+
+        self.expanded.provenance.span(provenance).is_some()
     }
 
     /// Return the visible binding table.
