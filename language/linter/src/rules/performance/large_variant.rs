@@ -82,10 +82,10 @@ fn select_variant_layout<'a>(
     let mut represented = ty;
 
     // unwrap nominal types to identify the represented type
-    while let mir::Type::Newtype { inner, .. } = tree.get(represented) {
+    while let mir::Type::Newtype { inner, .. } = tree.ty(represented) {
         represented = *inner;
     }
-    if !matches!(tree.get(represented), mir::Type::Variant { .. }) {
+    if !matches!(tree.ty(represented), mir::Type::Variant { .. }) {
         return Ok(None);
     }
 

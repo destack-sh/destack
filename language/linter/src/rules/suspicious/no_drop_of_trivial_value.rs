@@ -56,15 +56,15 @@ fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
                     continue;
                 };
 
-                // require an authored source anchor
-                if tree.source_span_by_id(instruction.id).is_none() {
+                // require authored source
+                if !module.is_authored(instruction.into_any()) {
                     continue;
                 }
 
                 // accept managed handles, releasing one destroys its storage
                 let ty = function.expect_value_type(*value);
                 if matches!(
-                    tree.get(ty),
+                    tree.ty(ty),
                     mir::Type::Reference {
                         kind: mir::ReferenceKind::Managed,
                         ..
