@@ -1,3 +1,4 @@
+use destack_js::Module;
 use destack_program::Object;
 use destack_serde::Schema;
 
@@ -9,7 +10,7 @@ use crate::{
     EnvironmentDeclared, Host, LanguageEnvironment, LanguageIntrinsics, MirAnalyzed, MirElaborated,
     MirLowered, MirOptimized, MirVerified, ModuleEdges, ModuleGraph, ModuleIndex, ModuleLinted,
     Output, Platform, Product, ProductTarget, ProgramAnalysis, ProgramIndex, ProgramLinted,
-    Runtime, Script, SourceMap,
+    Runtime,
 };
 
 /// Include public artifact schema roots.
@@ -62,9 +63,8 @@ pub fn schema(schema: &mut Schema) {
     schema.register::<ProgramLinted>();
     schema.register::<BuildManifest>();
 
-    schema.register::<SourceMap>();
     schema.register::<Object>();
-    schema.register::<Script>();
+    schema.register::<Module>();
     schema.register::<Asset>();
     schema.register::<BundleSection>();
     schema.register::<BundleMode>();

@@ -3,8 +3,6 @@ use destack_serde::Reflect;
 use destack_source::{FileType, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::SourceMap;
-
 /// One opaque linker input for a target.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct Asset {
@@ -14,23 +12,15 @@ pub struct Asset {
     pub blob: Blob,
     /// The source module URI when one exists.
     pub source: Option<Uri>,
-    /// The source map when one exists.
-    pub map: Option<SourceMap>,
 }
 
 impl Asset {
     /// Create one asset.
-    pub fn new(
-        file_type: FileType,
-        blob: Blob,
-        source: Option<Uri>,
-        map: Option<SourceMap>,
-    ) -> Self {
+    pub fn new(file_type: FileType, blob: Blob, source: Option<Uri>) -> Self {
         Self {
             file_type,
             blob,
             source,
-            map,
         }
     }
 
