@@ -31,11 +31,6 @@ pub(super) enum MarkerError {
         /// The invalid repeated marker span.
         span: Span,
     },
-    /// A repeated placeholder element has no source span.
-    MissingNodeSpan {
-        /// The repeated marker span.
-        span: Span,
-    },
 }
 
 impl Marker {

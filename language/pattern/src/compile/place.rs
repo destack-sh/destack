@@ -49,9 +49,7 @@ impl Marker {
                 {
                     continue;
                 }
-                let Some(node_span) = tree.get_span_by_id(node.id) else {
-                    return Err(MarkerError::MissingNodeSpan { span: self.span });
-                };
+                let node_span = tree.get_span_by_id(node.id);
 
                 return Ok(MarkerTarget::Nodes { node, node_span });
             }
@@ -76,10 +74,7 @@ impl Marker {
         let range = self.token_span.range();
         let mut nodes = tree
             .iter_node_ids()
-            .filter(|node| {
-                tree.get_span_by_id(node.id)
-                    .is_some_and(|span| span.range() == range)
-            })
+            .filter(|node| tree.get_span_by_id(node.id).range() == range)
             .collect::<Vec<_>>();
         nodes.sort_unstable_by_key(|node| std::cmp::Reverse(Self::node_depth(tree, *node)));
 
@@ -89,9 +84,6 @@ impl Marker {
     /// Return the typed side span exactly occupied by this marker.
     fn exact_side_node(&self, tree: &dir::Tree) -> Option<(dir::LocalNodeIdAny, NodeSpanType)> {
         let owner = tree.find_innermost_node_span_owner(self.span)?;
-        if owner.span_type == NodeSpanType::Enclosing {
-            return None;
-        }
         let owner_span = tree.get_side_span_by_id(owner.source_id, owner.span_type)?;
         if owner_span != self.span {
             return None;

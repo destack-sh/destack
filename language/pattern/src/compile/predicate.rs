@@ -128,7 +128,7 @@ impl Compiler {
             return Err(self.invalid_predicate_operands(tree, expression, *operator, file));
         }
 
-        let anchor = self.predicate_anchor(tree, expression, file)?;
+        let anchor = tree.get_span(expression).into();
         let error = PredicateError::UnsupportedExpression { anchor };
 
         Err(self.report(error, file))
@@ -238,35 +238,13 @@ impl Compiler {
         operator: dir::BinaryOperator,
         file: &File,
     ) -> DiagnosticCollection {
-        let anchor = match self.predicate_anchor(tree, expression, file) {
-            Ok(anchor) => anchor,
-            Err(diagnostics) => return diagnostics,
-        };
+        let anchor = tree.get_span(expression).into();
         let error = PredicateError::InvalidOperands {
             anchor,
             operator: operator.text().to_string(),
         };
 
         self.report(error, file)
-    }
-
-    /// Resolve one predicate expression to a diagnostic anchor.
-    fn predicate_anchor(
-        &self,
-        tree: &dir::Tree,
-        expression: dir::LocalNodeId<dir::Expression>,
-        file: &File,
-    ) -> Result<destack_artifact::DiagnosticAnchor, DiagnosticCollection> {
-        let Some(span) = tree.get_span_by_id(expression.id) else {
-            let error = PredicateError::Internal {
-                anchor: file.id.into(),
-                message: "predicate expression has no source span".to_string(),
-            };
-
-            return Err(self.report(error, file));
-        };
-
-        Ok(span.into())
     }
 
     /// Report one marker error in a predicate expression.
@@ -288,13 +266,6 @@ impl Compiler {
             MarkerError::InvalidRepeated { span } => self.report(
                 PredicateError::RepeatedMetavariable {
                     anchor: span.into(),
-                },
-                file,
-            ),
-            MarkerError::MissingNodeSpan { span } => self.report(
-                PredicateError::Internal {
-                    anchor: span.into(),
-                    message: "repeated placeholder element has no source span".to_string(),
                 },
                 file,
             ),

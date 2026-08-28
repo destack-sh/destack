@@ -5,7 +5,7 @@ use destack_dir as dir;
 use destack_parser::{CommentRetention, ParseOptions, Parser};
 use destack_source::{
     DiagnosticCollection, File, FileId, FileType, LanguageType, ModuleId, PackageId, PrintOptions,
-    Span, Uri, print_diagnostics,
+    ProvenanceTable, Span, Uri, print_diagnostics,
 };
 
 use super::TestProgram;
@@ -41,6 +41,7 @@ impl TestSource {
             file.clone(),
             LanguageType::Destack,
             dir::Tree::new(module_id),
+            ProvenanceTable::new(),
             ParseOptions {
                 comment_retention: CommentRetention::Ignore,
                 ..ParseOptions::default()

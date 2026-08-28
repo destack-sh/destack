@@ -9,7 +9,7 @@ use destack_dir as dir;
 use destack_parser::{CommentRetention, Parse, ParseOptions, Parser, SourceForm};
 use destack_source::{
     Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, LanguageType,
-    ModuleId, PackageId, Span,
+    ModuleId, PackageId, ProvenanceTable, Span,
 };
 
 use super::marker::{Marker, MarkerError};
@@ -284,6 +284,7 @@ impl Compiler {
             file,
             LanguageType::Destack,
             tree,
+            ProvenanceTable::new(),
             ParseOptions {
                 form: SourceForm::Pattern,
                 comment_retention: CommentRetention::Ignore,
@@ -423,13 +424,6 @@ impl Compiler {
             (MarkerError::InvalidRepeated { span }, FragmentRole::Replacement) => self.report(
                 RewriteError::InvalidRepeatedMetavariable {
                     anchor: span.into(),
-                },
-                file,
-            ),
-            (MarkerError::MissingNodeSpan { span }, _) => self.report(
-                PatternError::Internal {
-                    anchor: span.into(),
-                    message: "repeated placeholder element has no source span".to_string(),
                 },
                 file,
             ),

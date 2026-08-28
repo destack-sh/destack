@@ -18,8 +18,6 @@ pub(super) enum RenderError {
     MarkerOutsideRoot,
     /// A replacement use and match binding have incompatible value types.
     IncompatibleBinding,
-    /// A repeated replacement neighbor has no source span.
-    MissingListNodeSpan,
     /// A matched candidate node has no source span.
     MissingCandidateSpan,
     /// A candidate span lies outside candidate source.
@@ -41,7 +39,6 @@ impl Display for RenderError {
             Self::IncompatibleBinding => {
                 "replacement metavariable has an incompatible match binding"
             }
-            Self::MissingListNodeSpan => "replacement list node has no source span",
             Self::MissingCandidateSpan => "candidate node has no source span",
             Self::MissingCandidateSource => "candidate source span is unavailable",
             Self::MissingRepeatedSequence => {
@@ -176,16 +173,10 @@ impl<'replacement, 'candidate> Renderer<'replacement, 'candidate> {
         // remove one adjacent separator when the captured list is empty
         if nodes.is_empty() {
             let span = if let Some(previous) = previous {
-                let previous = fragment
-                    .tree()
-                    .get_span_by_id(previous.id)
-                    .ok_or(RenderError::MissingListNodeSpan)?;
+                let previous = fragment.tree().get_span_by_id(previous.id);
                 Span::new(span.file, previous.end, span.end)
             } else if let Some(next) = next {
-                let next = fragment
-                    .tree()
-                    .get_span_by_id(next.id)
-                    .ok_or(RenderError::MissingListNodeSpan)?;
+                let next = fragment.tree().get_span_by_id(next.id);
                 Span::new(span.file, span.start, next.start)
             } else {
                 span
