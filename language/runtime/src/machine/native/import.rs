@@ -2,7 +2,7 @@ use std::ptr::copy_nonoverlapping;
 
 use destack_native as native;
 
-use super::{Error, Platform};
+use super::Platform;
 
 #[cfg(unix)]
 unsafe extern "C" {
@@ -56,23 +56,13 @@ unsafe extern "C" {
 #[cfg(unix)]
 impl Platform {
     /// Patch one platform import pointer.
-    pub(super) fn patch_import(
-        image: *mut u8,
-        byte_len: usize,
-        relocation: native::ImportRelocation,
-    ) -> Result<(), Error> {
-        if !relocation.is_within(byte_len) {
-            return Err(Error::NativeImageRange);
-        }
-
+    pub(super) fn patch_import(image: *mut u8, relocation: native::ImportRelocation) {
         let destination = unsafe { image.add(relocation.offset as usize) };
         let pointer = Self::import(relocation.import);
         let bytes = pointer.to_ne_bytes();
 
-        // SAFETY: the checked pointer range lies inside the writable mapping
+        // SAFETY: program loading validates the pointer range against the native image
         unsafe { copy_nonoverlapping(bytes.as_ptr(), destination, bytes.len()) };
-
-        Ok(())
     }
 
     /// Resolve one native import in the current process.

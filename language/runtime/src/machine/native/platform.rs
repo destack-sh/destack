@@ -119,7 +119,7 @@ impl Loader for Platform {
         // copy durable bytes and resolve every process-local import
         unsafe { copy_nonoverlapping(bytes.as_ptr(), address, bytes.len()) };
         for import in code.imports(sections) {
-            Self::patch_import(address, bytes.len(), *import)?;
+            Self::patch_import(address, *import);
         }
         Self::flush(address, bytes.len());
 
