@@ -15,7 +15,7 @@ use destack_program::{
     ProgramPoint, SignatureId, StaticBytes, Symbol, TypeDescriptorBuilder, TypeFingerprint, TypeId,
     TypeTableBuilder, Word,
 };
-use destack_source::FileId;
+use destack_source::{FileId, ProvenanceTable};
 
 use super::program::{TEST_GLOBAL_BYTES, TestLayout, TestProgram};
 
@@ -23,8 +23,10 @@ use super::program::{TEST_GLOBAL_BYTES, TestLayout, TestProgram};
 impl TestProgram {
     /// Build one linked Program from bytecode source and test metadata.
     pub(crate) fn build(self, source: &str) -> Arc<Program> {
-        let object = Parser::new(FileId::new(0), source)
-            .parse()
+        let mut parser = Parser::new(FileId::new(0), source);
+        let mut provenance = ProvenanceTable::build();
+        let object = parser
+            .parse(&mut provenance)
             .expect("test bytecode should parse");
         let (globals, constants, shared_statics, local_statics) = self.globals();
 
@@ -59,7 +61,14 @@ impl TestProgram {
             .frames(frames)
             .registers(registers)
             .code(code)
-            .operations(object.operations().iter().copied());
+            .operations(
+                object
+                    .operations()
+                    .iter()
+                    .copied()
+                    .zip(object.operation_provenances().iter().copied()),
+            )
+            .mappings(object.mappings().iter().copied());
 
         // build the Program metadata and static storage
         let (types, layouts, traces, drops) = self.types(&object);
@@ -75,7 +84,7 @@ impl TestProgram {
                 .zip(globals),
         );
         let sites = self.sites;
-        let program = ProgramBuilder::new(Default::default())
+        let program = ProgramBuilder::new(Default::default(), provenance.finish())
             .bytecode(code)
             .strings(&strings, names)
             .functions(functions)

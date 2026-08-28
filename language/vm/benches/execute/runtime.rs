@@ -15,7 +15,7 @@ use destack_program::{
     LayoutShapeBuilder, ProgramBuilder, ScalarFormat, Signature, SignatureId, SiteTableBuilder,
     Symbol, TypeDescriptorBuilder, TypeFingerprint, TypeId, TypeTableBuilder, Value, Word,
 };
-use destack_source::FileId;
+use destack_source::{FileId, ProvenanceTable};
 use destack_vm::{Error, Machine, MachineLimits, Result};
 
 /// Reserved address-space byte length for direct benchmark execution.
@@ -90,10 +90,12 @@ impl program::Runtime for BenchmarkRuntime {
 impl Runtime {
     /// Build one direct-bytecode benchmark runtime.
     pub(crate) fn parse(source: &str) -> Self {
-        let object = Parser::new(FileId::from_source_bytes(source.as_bytes()), source)
-            .parse()
+        let mut parser = Parser::new(FileId::from_source_bytes(source.as_bytes()), source);
+        let mut provenance = ProvenanceTable::build();
+        let object = parser
+            .parse(&mut provenance)
             .expect("benchmark bytecode should parse");
-        let program = Arc::new(Self::program(&object));
+        let program = Arc::new(Self::program(&object, provenance.finish()));
         let memory = Arc::new(
             MemoryMap::reserve(MEMORY_BYTES, MEMORY_FRAME_BYTES)
                 .expect("benchmark memory should reserve"),
@@ -195,7 +197,7 @@ impl Runtime {
     }
 
     /// Build the immutable Program consumed by one benchmark machine.
-    fn program(object: &bytecode::Object) -> program::Program {
+    fn program(object: &bytecode::Object, provenance: ProvenanceTable) -> program::Program {
         let (strings, string_ids, functions) = Self::functions(object);
         let code = Self::code(object);
         let (types, layouts, traces) = Self::types();
@@ -205,7 +207,7 @@ impl Runtime {
                 .zip(types),
         );
 
-        ProgramBuilder::new(Default::default())
+        ProgramBuilder::new(Default::default(), provenance)
             .bytecode(code)
             .strings(&strings, string_ids)
             .types(types)
@@ -248,7 +250,14 @@ impl Runtime {
             .functions(object.functions().iter().copied())
             .frames(object.frames().iter().copied())
             .registers(object.registers().iter().copied())
-            .operations(object.operations().iter().copied())
+            .operations(
+                object
+                    .operations()
+                    .iter()
+                    .copied()
+                    .zip(object.operation_provenances().iter().copied()),
+            )
+            .mappings(object.mappings().iter().copied())
             .code(code)
     }
 
